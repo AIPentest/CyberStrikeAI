@@ -205,7 +205,7 @@ CyberStrikeAI ships with 100+ curated tools covering the whole kill chain:
 ### Quick Start (One-Command Deployment)
 
 **Prerequisites:**
-- Go 1.21+ ([Install](https://go.dev/dl/))
+- Go 1.24.0+ ([Install](https://go.dev/dl/)); preferred toolchain: Go 1.24.4 (see [go.mod](go.mod)).
 - Python 3.10+ ([Install](https://www.python.org/downloads/))
 
 **One-Command Deployment:**
