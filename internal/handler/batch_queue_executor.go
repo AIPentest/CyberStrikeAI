@@ -220,6 +220,28 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 	registered = true
 	h.batchTaskManager.SetTaskCancel(queueID, task.ID, timeoutCancel)
 
+	if err := validateBatchHITLPolicy(queue.HITLPolicy); err != nil {
+		finishStatus = "failed"
+		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", err.Error())
+		return
+	}
+	if h.hitlManager == nil {
+		finishStatus = "failed"
+		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "审批服务未初始化")
+		return
+	}
+	hitlReq := h.batchHITLRequest(queue.HITLPolicy)
+	if err := h.hitlManager.SaveConversationConfig(conversationID, hitlReq); err != nil {
+		finishStatus = "failed"
+		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "保存审批设置失败: "+err.Error())
+		return
+	}
+	h.activateHITLForConversation(conversationID, hitlReq)
+	defer h.hitlManager.DeactivateConversation(conversationID)
+	taskCtx = multiagent.WithHITLToolInterceptor(taskCtx, func(ctx context.Context, toolName, arguments string) (string, error) {
+		return h.interceptHITLForEinoTool(ctx, cancelWithCause, conversationID, assistantMessageID, sendEvent, toolName, arguments)
+	})
+
 	progressCallback := h.createProgressCallback(taskCtx, cancelWithCause, conversationID, assistantMessageID, sendEvent)
 	taskCtx = mcp.WithMCPConversationID(taskCtx, conversationID)
 	taskCtx = mcp.WithToolRunRegistry(taskCtx, h.tasks)

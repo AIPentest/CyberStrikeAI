@@ -6126,6 +6126,17 @@
                     <div class="form-hint" style="margin-top: 4px;" data-i18n="batchImportModal.agentModeHint">与对话页一致：Eino 单代理（ADK），或 Deep / Plan-Execute / Supervisor（后三种需已启用多代理）。</div>
                 </div>
                 <div class="form-group">
+                    <label for="batch-queue-hitl-policy" data-i18n="batchImportModal.hitlPolicy">工具审批</label>
+                    <select id="batch-queue-hitl-policy">
+                        <option value="" data-i18n="batchImportModal.hitlInherit">沿用全局设置</option>
+                        <option value="off" data-i18n="batchImportModal.hitlOff">关闭审批</option>
+                        <option value="human" data-i18n="batchImportModal.hitlHuman">人工审批</option>
+                        <option value="audit_agent" data-i18n="batchImportModal.hitlAgent">Agent 审批</option>
+                        <option value="review_edit" data-i18n="batchImportModal.hitlReviewEdit">Agent 审查编辑</option>
+                    </select>
+                    <div class="form-hint" data-i18n="batchImportModal.hitlHint">队列内所有任务（含后续添加的任务）使用此设置；白名单、审计策略和等待时限沿用全局配置。</div>
+                </div>
+                <div class="form-group">
                     <label for="batch-queue-concurrency" data-i18n="batchImportModal.concurrency">并发数</label>
                     <input type="number" id="batch-queue-concurrency" min="1" max="8" value="1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.875rem;" />
                     <div class="form-hint" style="margin-top: 4px;" data-i18n="batchImportModal.concurrencyHint">同时执行的子任务数量（1-8）。默认 1 为串行；含扫描类工具时建议 1-2。</div>
@@ -6197,6 +6208,7 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
+                    <p class="form-hint" data-i18n="batchImportModal.hitlSubtaskHint">新增任务沿用队列的工具审批设置，可在队列详情中修改。</p>
                     <label for="add-task-message" data-i18n="addBatchTaskModal.taskMessage">任务消息</label>
                     <textarea id="add-task-message" class="form-control" rows="5" data-i18n="addBatchTaskModal.taskMessagePlaceholder" data-i18n-attr="placeholder" placeholder="请输入任务消息"></textarea>
                 </div>

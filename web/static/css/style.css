@@ -38272,12 +38272,6 @@ html[data-theme="dark"] #agent-md-modal .modal-footer {
     white-space: nowrap;
 }
 
-#batch-import-modal .modal-content:has(.batch-form-select-ui.open),
-#batch-import-modal .modal-body:has(.batch-form-select-ui.open),
-#batch-queue-detail-modal .modal-content:has(.batch-form-select-ui.open),
-#batch-queue-detail-modal .modal-body:has(.batch-form-select-ui.open) {
-    overflow: visible;
-}
 
 .bq-inline-edit-controls .batch-form-native-select {
     position: absolute;

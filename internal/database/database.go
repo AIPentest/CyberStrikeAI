@@ -468,6 +468,7 @@ func (db *DB) initTables() error {
 		title TEXT,
 		role TEXT,
 		agent_mode TEXT NOT NULL DEFAULT 'eino_single',
+		hitl_policy TEXT NOT NULL DEFAULT '',
 		schedule_mode TEXT NOT NULL DEFAULT 'manual',
 		cron_expr TEXT,
 		next_run_at DATETIME,
@@ -1376,6 +1377,16 @@ func (db *DB) migrateBatchTaskQueuesTable() error {
 	} else if projectIDCount == 0 {
 		if _, err := db.Exec("ALTER TABLE batch_task_queues ADD COLUMN project_id TEXT"); err != nil {
 			db.logger.Warn("添加batch_task_queues.project_id字段失败", zap.Error(err))
+		}
+	}
+
+	var hitlPolicyCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('batch_task_queues') WHERE name='hitl_policy'").Scan(&hitlPolicyCount); err != nil {
+		return fmt.Errorf("检查队列审批字段失败: %w", err)
+	}
+	if hitlPolicyCount == 0 {
+		if _, err := db.Exec("ALTER TABLE batch_task_queues ADD COLUMN hitl_policy TEXT NOT NULL DEFAULT ''"); err != nil {
+			return fmt.Errorf("添加队列审批字段失败: %w", err)
 		}
 	}
 

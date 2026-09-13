@@ -74,8 +74,9 @@ type BatchTaskQueue struct {
 	ID                    string       `json:"id"`
 	Title                 string       `json:"title,omitempty"`
 	Role                  string       `json:"role,omitempty"` // 角色名称（空字符串表示默认角色）
-	AgentMode             string       `json:"agentMode"`      // single | eino_single | deep | plan_execute | supervisor
-	ScheduleMode          string       `json:"scheduleMode"`   // manual | cron
+	HITLPolicy            string       `json:"hitlPolicy"`
+	AgentMode             string       `json:"agentMode"`    // single | eino_single | deep | plan_execute | supervisor
+	ScheduleMode          string       `json:"scheduleMode"` // manual | cron
 	CronExpr              string       `json:"cronExpr,omitempty"`
 	NextRunAt             *time.Time   `json:"nextRunAt,omitempty"`
 	ScheduleEnabled       bool         `json:"scheduleEnabled"`
@@ -185,7 +186,15 @@ func (m *BatchTaskManager) CreateBatchQueue(
 	nextRunAt *time.Time,
 	concurrency int,
 	tasks []string,
+	hitlPolicies ...string,
 ) (*BatchTaskQueue, error) {
+	policy := ""
+	if len(hitlPolicies) > 0 {
+		policy = hitlPolicies[0]
+	}
+	if err := validateBatchHITLPolicy(policy); err != nil {
+		return nil, err
+	}
 	// 输入校验
 	if utf8.RuneCountInString(title) > MaxBatchQueueTitleLen {
 		return nil, fmt.Errorf("标题不能超过 %d 个字符", MaxBatchQueueTitleLen)
@@ -203,6 +212,7 @@ func (m *BatchTaskManager) CreateBatchQueue(
 	queueID := time.Now().Format("20060102150405") + "-" + generateShortID()
 	queue := &BatchTaskQueue{
 		ID:              queueID,
+		HITLPolicy:      policy,
 		Title:           title,
 		Role:            role,
 		ProjectID:       strings.TrimSpace(projectID),
@@ -255,8 +265,9 @@ func (m *BatchTaskManager) CreateBatchQueue(
 			queue.ProjectID,
 			queue.Concurrency,
 			dbTasks,
+			policy,
 		); err != nil {
-			m.logger.Warn("batch queue DB create failed", zap.String("queueId", queueID), zap.Error(err))
+			return nil, fmt.Errorf("保存任务队列失败: %w", err)
 		}
 	}
 
@@ -305,6 +316,7 @@ func (m *BatchTaskManager) loadQueueFromDB(queueID string) *BatchTaskQueue {
 
 	queue := &BatchTaskQueue{
 		ID:           queueRow.ID,
+		HITLPolicy:   queueRow.HITLPolicy,
 		AgentMode:    "eino_single",
 		ScheduleMode: "manual",
 		Status:       queueRow.Status,
@@ -549,6 +561,7 @@ func (m *BatchTaskManager) LoadFromDB() error {
 
 		queue := &BatchTaskQueue{
 			ID:           queueRow.ID,
+			HITLPolicy:   queueRow.HITLPolicy,
 			AgentMode:    "eino_single",
 			ScheduleMode: "manual",
 			Status:       queueRow.Status,
@@ -743,7 +756,7 @@ func batchQueueConcurrencyFromRow(row *database.BatchTaskQueueRow) int {
 }
 
 // UpdateQueueMetadata 更新队列标题、角色、代理模式和并发数（非 running 时可用）
-func (m *BatchTaskManager) UpdateQueueMetadata(queueID, title, role, agentMode string, concurrency *int) error {
+func (m *BatchTaskManager) UpdateQueueMetadata(queueID, title, role, agentMode string, concurrency *int, hitlPolicies ...string) error {
 	if utf8.RuneCountInString(title) > MaxBatchQueueTitleLen {
 		return fmt.Errorf("标题不能超过 %d 个字符", MaxBatchQueueTitleLen)
 	}
@@ -761,6 +774,21 @@ func (m *BatchTaskManager) UpdateQueueMetadata(queueID, title, role, agentMode s
 		return fmt.Errorf("队列正在运行中，无法修改")
 	}
 
+	policy := queue.HITLPolicy
+	if len(hitlPolicies) > 0 {
+		if !queueAllowsTaskListMutationLocked(queue) {
+			return fmt.Errorf("队列有正在执行的任务，无法修改审批设置")
+		}
+		policy = hitlPolicies[0]
+		if err := validateBatchHITLPolicy(policy); err != nil {
+			return err
+		}
+	}
+	nextConcurrency := queue.Concurrency
+	if concurrency != nil {
+		nextConcurrency = normalizeBatchQueueConcurrency(*concurrency)
+	}
+
 	// 如果未传 agentMode，保留原值
 	if strings.TrimSpace(agentMode) != "" {
 		agentMode = config.NormalizeAgentMode(agentMode)
@@ -768,18 +796,16 @@ func (m *BatchTaskManager) UpdateQueueMetadata(queueID, title, role, agentMode s
 		agentMode = queue.AgentMode
 	}
 
+	if m.db != nil {
+		if err := m.db.UpdateBatchQueueMetadata(queueID, title, role, agentMode, nextConcurrency, policy); err != nil {
+			return fmt.Errorf("保存任务队列失败: %w", err)
+		}
+	}
 	queue.Title = title
 	queue.Role = role
 	queue.AgentMode = agentMode
-	if concurrency != nil {
-		queue.Concurrency = normalizeBatchQueueConcurrency(*concurrency)
-	}
-
-	if m.db != nil {
-		if err := m.db.UpdateBatchQueueMetadata(queueID, title, role, agentMode, queue.Concurrency); err != nil {
-			m.logger.Warn("batch queue DB metadata update failed", zap.String("queueId", queueID), zap.Error(err))
-		}
-	}
+	queue.Concurrency = nextConcurrency
+	queue.HITLPolicy = policy
 	return nil
 }
 

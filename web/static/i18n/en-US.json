@@ -3457,6 +3457,15 @@
     "deleteConversation": "Delete conversation"
   },
   "batchImportModal": {
+    "hitlInherit": "Use global settings",
+    "hitlOff": "Approval off",
+    "hitlHuman": "Human approval",
+    "hitlAgent": "Agent approval",
+    "hitlReviewEdit": "Agent review and edit",
+    "hitlPolicy": "Tool approval",
+    "hitlHint": "Applies to all tasks in this queue, including tasks added later. Uses the global whitelist, audit strategy and timeout.",
+    "hitlSubtaskHint": "New tasks use the queue’s tool approval setting. Change it in queue details.",
+
     "title": "New task",
     "queueTitle": "Queue title",
     "queueTitlePlaceholder": "Enter queue title (optional, for identification and filtering)",
