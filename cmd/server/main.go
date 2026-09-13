@@ -86,6 +86,7 @@ func main() {
 	}
 	termout.PrintStartupWebUI(termout.StartupWebUIOptions{
 		Scheme:       scheme,
+		Host:         cfg.Server.Host,
 		Port:         port,
 		SelfSigned:   scheme == "https" && cfg.Server.TLSAutoSelfSign,
 		HTTPRedirect: scheme == "https" && config.ServerHTTPRedirectEnabled(&cfg.Server),
