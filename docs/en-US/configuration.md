@@ -122,6 +122,38 @@ When debugging, inspect both the child config and the fallback parent.
 | `similarity_threshold` | 0.35-0.45 | 0.5+ | recall vs precision |
 | `audit.retention_days` | 15-30 | 90+ | compliance and disk |
 
+## Runtime storage cleanup
+
+```yaml
+storage:
+  auto_clean: false
+  interval_minutes: 60
+  orphan_grace_days: 1
+  active_grace_hours: 24
+  categories:
+    workspace:
+      enabled: true
+      retention_days: 30
+```
+
+Reclaims disk space used by runtime artifacts. Manage it from **System settings → Storage cleanup**, or trigger it with `POST /api/storage/cleanup`.
+
+- `auto_clean` is off by default: upgrading never deletes existing data behind an administrator's back. Manual preview and cleanup still work while it is off.
+- `interval_minutes` is the background sweep interval (floor 5). `orphan_grace_days` is the minimum age before a directory whose conversation/project no longer exists is reclaimed. Sessions active within `active_grace_hours` are always skipped.
+- A category `retention_days` of 0 disables age-based cleanup, but **orphaned directories are still reclaimed** — a directory whose session is gone has no retention value.
+- Deletion is irreversible. The API requires `dry_run=false` together with `confirm=true` for a real cleanup; omitting `dry_run` is treated as a preview.
+
+| Category | Default retention | Target directory |
+| --- | --- | --- |
+| `workspace` | 30 days | agent workspaces, `tmp/workspace` |
+| `reduction` | 7 days | oversized tool-output spill, `tmp/reduction` |
+| `conversation_artifacts` | 30 days | summaries and user-input ledger, `data/conversation_artifacts` |
+| `plantask` | 30 days | multi-agent plan boards, `skills/.eino/plantask` |
+| `c2_artifacts` | 30 days | C2 results/uploads/downstream/payloads, `tmp/c2` (cleaning a payload invalidates its download link) |
+| `chat_uploads` | 90 days | conversation attachments, `chat_uploads` |
+| `workflow_checkpoints` | 7 days | workflow run checkpoints, `data/workflow-checkpoints` |
+| `diagnostic_logs` | 14 days | diagnostic logs, `log/diagnostic-*.log` |
+
 ## Change Template
 
 Before changing config, write down:

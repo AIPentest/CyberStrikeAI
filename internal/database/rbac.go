@@ -371,7 +371,7 @@ func grantSystemRolePermissions(tx *sql.Tx, permissions map[string]string) error
 			if _, err := tx.Exec(`INSERT OR IGNORE INTO rbac_role_permissions (role_id, permission_key, created_at) VALUES (?, ?, ?)`, RBACSystemRoleAuditor, key, now); err != nil {
 				return err
 			}
-		case strings.HasPrefix(key, "rbac:"), strings.HasPrefix(key, "config:"), strings.HasPrefix(key, "terminal:"), strings.HasPrefix(key, "audit:"):
+		case strings.HasPrefix(key, "rbac:"), strings.HasPrefix(key, "config:"), strings.HasPrefix(key, "terminal:"), strings.HasPrefix(key, "audit:"), strings.HasPrefix(key, "storage:"):
 			continue
 		case key == "mcp:write" || key == "mcp:external:execute":
 			continue

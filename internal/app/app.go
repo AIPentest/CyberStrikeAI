@@ -33,6 +33,7 @@ import (
 	"cyberstrike-ai/internal/robot"
 	"cyberstrike-ai/internal/security"
 	"cyberstrike-ai/internal/skillpackage"
+	"cyberstrike-ai/internal/storage"
 	"cyberstrike-ai/internal/toolguard"
 
 	"github.com/gin-gonic/gin"
@@ -72,6 +73,7 @@ type App struct {
 	c2Watchdog         *c2.SessionWatchdog       // C2 会话看门狗
 	c2WatchdogCancel   context.CancelFunc        // 看门狗取消函数
 	c2Handler          *handler.C2Handler        // C2 REST（与 Manager 生命周期同步）
+	storageHandler     *handler.StorageHandler   // 运行空间占用统计与垃圾清理
 	auditSvc           *audit.Service
 }
 
@@ -367,6 +369,48 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	reductionRoot := strings.TrimSpace(cfg.MultiAgent.EinoMiddleware.ReductionRootDir)
 	workspaceRoot := strings.TrimSpace(cfg.Agent.WorkspaceRootDir)
 	db.SetEinoConversationDirs(plantaskBase, checkpointBase, reductionRoot, workspaceRoot)
+
+	// 运行空间垃圾清理：根目录一律复用上面已解析好的同一批值，
+	// 避免在 storage 包内重新推导导致「清理的目录」与「实际写入的目录」不一致。
+	workspaceRootDir := strings.TrimSpace(workspaceRoot)
+	if workspaceRootDir == "" {
+		workspaceRootDir = filepath.Join("tmp", "workspace")
+	}
+	reductionRootDir := strings.TrimSpace(reductionRoot)
+	if reductionRootDir == "" {
+		reductionRootDir = filepath.Join("tmp", "reduction")
+	}
+	diagnosticLogDir := strings.TrimSpace(cfg.Log.DiagnosticDir)
+	if diagnosticLogDir == "" {
+		diagnosticLogDir = "log"
+	}
+	// chat_uploads 与 tmp/c2 目前均为相对进程工作目录的固定路径
+	// （见 handler.chatUploadsRootDirName 与 app/c2_lifecycle.go 的 c2.NewManager）。
+	chatUploadsRoot := "chat_uploads"
+	c2Root := filepath.Join("tmp", "c2")
+	// 让 DeleteConversation 一并删除上传附件：其 chat_upload_artifacts 行已由
+	// ON DELETE CASCADE 清除，此前磁盘文件会永久残留。
+	db.SetChatUploadsDir(chatUploadsRoot)
+	storageCleaner := storage.NewCleaner(storage.Options{
+		Config: cfg,
+		Paths: storage.Paths{
+			Workspace:            workspaceRootDir,
+			Reduction:            reductionRootDir,
+			ConversationArtifact: db.ConversationArtifactsBaseDir(),
+			Plantask:             plantaskBase,
+			C2:                   c2Root,
+			ChatUploads:          chatUploadsRoot,
+			WorkflowCheckpoints:  filepath.Join(filepath.Dir(dbPath), "workflow-checkpoints"),
+			DiagnosticLogs:       diagnosticLogDir,
+		},
+		Activity: db,
+		Logger:   log.Logger,
+	})
+	storageService := storage.NewService(storageCleaner, cfg, log.Logger)
+	storage.StartRetentionLoop(storageService, log.Logger)
+	storageHandler := handler.NewStorageHandler(storageCleaner, cfg, log.Logger)
+	storageHandler.SetAudit(auditSvc)
+
 	agent.SetPromptBaseDir(configDir)
 
 	agentsDir := cfg.AgentsDir
@@ -479,6 +523,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 		c2Watchdog:         c2Watchdog,
 		c2WatchdogCancel:   watchdogCancel,
 		c2Handler:          c2Handler,
+		storageHandler:     storageHandler,
 		auditSvc:           auditSvc,
 	}
 	// 飞书/钉钉长连接（无需公网），启用时在后台启动；后续前端应用配置时会通过 RestartRobotConnections 重启
@@ -1084,6 +1129,11 @@ func setupRoutes(
 		protected.GET("/audit/logs", auditHandler.ListLogs)
 		protected.GET("/audit/logs/export", auditHandler.ExportLogs)
 		protected.GET("/audit/logs/:id", auditHandler.GetLog)
+
+		// 运行空间占用与垃圾清理
+		protected.GET("/storage/meta", app.storageHandler.Meta)
+		protected.GET("/storage/status", app.storageHandler.Status)
+		protected.POST("/storage/cleanup", app.storageHandler.Cleanup)
 
 		// 外部MCP管理
 		protected.GET("/external-mcp", externalMCPHandler.GetExternalMCPs)

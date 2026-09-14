@@ -215,6 +215,38 @@ monitor:
 - `audit` 记录平台操作，不记录对话正文和每次工具调用正文。
 - `monitor` 管理工具执行记录保留时间。
 
+## 存储清理
+
+```yaml
+storage:
+  auto_clean: false
+  interval_minutes: 60
+  orphan_grace_days: 1
+  active_grace_hours: 24
+  categories:
+    workspace:
+      enabled: true
+      retention_days: 30
+```
+
+清理运行期间产生的磁盘垃圾，入口在「系统设置 → 存储清理」，也可用 `POST /api/storage/cleanup` 触发。
+
+- `auto_clean` 默认关闭：升级后不会在管理员不知情的情况下删除既有数据；关闭时仍可手动预览与清理。
+- `interval_minutes` 后台清理间隔，最小 5；`orphan_grace_days` 是会话/项目已删除但目录残留时的最小保留天数；`active_grace_hours` 内的活动会话一律跳过。
+- 各类别 `retention_days` 为 0 表示不按保留期清理，但**孤儿目录仍会回收**（会话已删除的目录没有保留价值）。
+- 删除不可逆。API 层要求真实删除必须同时传 `dry_run=false` 与 `confirm=true`，省略 `dry_run` 按预览处理。
+
+| 类别 | 默认保留 | 目标目录 |
+| --- | --- | --- |
+| `workspace` | 30 天 | Agent 工作区 `tmp/workspace` |
+| `reduction` | 7 天 | 超长工具输出落盘 `tmp/reduction` |
+| `conversation_artifacts` | 30 天 | 摘要与超长输入台账 `data/conversation_artifacts` |
+| `plantask` | 30 天 | 多代理计划看板 `skills/.eino/plantask` |
+| `c2_artifacts` | 30 天 | C2 回传/上传/下发/payload `tmp/c2`（清理 payload 后下载链接失效） |
+| `chat_uploads` | 90 天 | 对话上传附件 `chat_uploads` |
+| `workflow_checkpoints` | 7 天 | 工作流断点 `data/workflow-checkpoints` |
+| `diagnostic_logs` | 14 天 | 诊断日志 `log/diagnostic-*.log` |
+
 ## C2、WebShell、项目
 
 ```yaml

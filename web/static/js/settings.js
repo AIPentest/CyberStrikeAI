@@ -688,6 +688,9 @@ function switchSettingsSection(section) {
     if (section === 'audit' && typeof initAuditLogsSection === 'function') {
         setTimeout(initAuditLogsSection, 0);
     }
+    if (section === 'storage' && typeof initStorageSection === 'function') {
+        setTimeout(initStorageSection, 0);
+    }
 }
 
 // 打开设置

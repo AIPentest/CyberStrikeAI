@@ -3598,6 +3598,9 @@
                                 <div class="settings-nav-item" data-section="audit" onclick="switchSettingsSection('audit')">
                                     <span data-i18n="settings.nav.audit">日志审计</span>
                                 </div>
+                                <div class="settings-nav-item" data-section="storage" onclick="switchSettingsSection('storage')">
+                                    <span data-i18n="settings.nav.storage">存储清理</span>
+                                </div>
                             </nav>
                         </aside>
                         
@@ -5063,6 +5066,92 @@
                                             <button class="btn-secondary" type="button" onclick="resetPasswordForm()" data-i18n="settingsSecurity.clear">清空</button>
                                             <button class="btn-primary change-password-submit" type="button" data-require-permission="auth:self" onclick="changePassword()" data-i18n="settingsSecurity.changePasswordBtn">修改密码</button>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 存储清理 -->
+                            <div id="settings-section-storage" class="settings-section-content">
+                                <div class="settings-section-header">
+                                    <h3 data-i18n="settingsStorage.title">存储清理</h3>
+                                </div>
+                                <p class="storage-desc" data-i18n="settingsStorage.subtitle">统计并清理运行期间产生的磁盘垃圾（Agent 工作区、工具输出缓存、C2 产物、对话上传件等）。删除不可逆，建议先预览再执行。</p>
+
+                                <div class="storage-overview" id="storage-overview" hidden>
+                                    <div class="storage-overview-card">
+                                        <span class="storage-overview-label" data-i18n="settingsStorage.diskUsed">磁盘已用</span>
+                                        <strong id="storage-disk-used">—</strong>
+                                        <div class="storage-usage-bar"><span id="storage-usage-bar-fill"></span></div>
+                                        <span class="storage-overview-hint" id="storage-disk-detail">—</span>
+                                    </div>
+                                    <div class="storage-overview-card">
+                                        <span class="storage-overview-label" data-i18n="settingsStorage.runtimeTotal">运行空间占用</span>
+                                        <strong id="storage-total-bytes">—</strong>
+                                        <span class="storage-overview-hint" id="storage-total-units">—</span>
+                                    </div>
+                                    <div class="storage-overview-card storage-overview-card--accent">
+                                        <span class="storage-overview-label" data-i18n="settingsStorage.reclaimable">可回收</span>
+                                        <strong id="storage-reclaimable-bytes">—</strong>
+                                        <span class="storage-overview-hint" id="storage-reclaimable-units">—</span>
+                                    </div>
+                                    <div class="storage-overview-card">
+                                        <span class="storage-overview-label" data-i18n="settingsStorage.inodes">inode 使用</span>
+                                        <strong id="storage-inodes">—</strong>
+                                        <span class="storage-overview-hint" data-i18n="settingsStorage.inodesHint">扫描产生的海量小文件可能先耗尽 inode</span>
+                                    </div>
+                                </div>
+
+                                <div class="storage-toolbar">
+                                    <button type="button" class="btn-secondary" onclick="refreshStorageStatus(true)" data-i18n="settingsStorage.refresh">重新扫描</button>
+                                    <button type="button" class="btn-secondary" onclick="previewStorageCleanup()" data-i18n="settingsStorage.preview">预览可清理项</button>
+                                    <button type="button" class="btn-primary" data-require-permission="storage:write" onclick="runStorageCleanup()" data-i18n="settingsStorage.cleanNow">立即清理</button>
+                                    <span class="storage-scanned-at" id="storage-scanned-at"></span>
+                                </div>
+
+                                <div class="storage-result" id="storage-result" hidden></div>
+
+                                <div class="audit-log-table-wrap">
+                                    <table class="audit-log-table storage-table">
+                                        <thead>
+                                            <tr>
+                                                <th data-i18n="settingsStorage.colCategory">类别</th>
+                                                <th data-i18n="settingsStorage.colRoot">目录</th>
+                                                <th data-i18n="settingsStorage.colUnits">项目数</th>
+                                                <th data-i18n="settingsStorage.colSize">占用</th>
+                                                <th data-i18n="settingsStorage.colReclaimable">可回收</th>
+                                                <th data-i18n="settingsStorage.colRetention">保留天数</th>
+                                                <th data-i18n="settingsStorage.colEnabled">启用</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="storage-category-rows">
+                                            <tr><td colspan="7" class="storage-empty" data-i18n="settingsStorage.loading">加载中…</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="storage-policy">
+                                    <h4 data-i18n="settingsStorage.policyTitle">自动清理策略</h4>
+                                    <div class="storage-policy-grid">
+                                        <label class="storage-policy-field storage-policy-field--switch">
+                                            <input type="checkbox" id="storage-auto-clean" />
+                                            <span data-i18n="settingsStorage.autoClean">开启后台定时清理</span>
+                                        </label>
+                                        <label class="storage-policy-field">
+                                            <span data-i18n="settingsStorage.intervalMinutes">清理间隔（分钟）</span>
+                                            <input type="number" id="storage-interval-minutes" min="5" step="5" />
+                                        </label>
+                                        <label class="storage-policy-field">
+                                            <span data-i18n="settingsStorage.orphanGraceDays">孤儿目录宽限（天）</span>
+                                            <input type="number" id="storage-orphan-grace-days" min="0" step="1" />
+                                        </label>
+                                        <label class="storage-policy-field">
+                                            <span data-i18n="settingsStorage.activeGraceHours">活跃会话保护（小时）</span>
+                                            <input type="number" id="storage-active-grace-hours" min="1" step="1" />
+                                        </label>
+                                    </div>
+                                    <p class="storage-policy-hint" data-i18n="settingsStorage.policyHint">保留天数为 0 表示不按保留期清理，但会话已删除的孤儿目录仍会回收；最近有活动的会话在任何情况下都不会被清理。默认关闭自动清理，升级不会自动删除既有数据。</p>
+                                    <div class="form-actions">
+                                        <button type="button" class="btn-primary" data-require-permission="storage:write" onclick="saveStorageSettings()" data-i18n="settingsStorage.save">保存策略</button>
                                     </div>
                                 </div>
                             </div>
@@ -6816,6 +6905,7 @@
     <script src="/static/js/settings.js?v=20260717-1"></script>
     <script src="/static/js/audit-datetime-picker.js"></script>
     <script src="/static/js/audit.js"></script>
+    <script src="/static/js/storage.js"></script>
     <script src="/static/js/wechat-robot.js"></script>
     <script src="/static/vendor/xterm.js"></script>
     <script src="/static/vendor/xterm-addon-fit.js"></script>
