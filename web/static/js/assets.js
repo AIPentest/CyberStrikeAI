@@ -272,7 +272,9 @@ function parseAssetImportMatrix(matrix, fileName) {
         const parsed = assetImportRecord(values, index + 2);
         if (!parsed.error) {
             const asset = parsed.asset;
-            const key = `${String(asset.domain || asset.ip || asset.host).toLowerCase()}|${asset.port || 0}|${asset.protocol || ''}`;
+            // 与后端 assetDedupKey 保持一致：ip+domain 联合标识，host 仅在两者都缺失时兜底。
+            const hostKey = (!asset.ip && !asset.domain) ? String(asset.host || '').toLowerCase() : '';
+            const key = `${hostKey}|${asset.ip || ''}|${asset.domain || ''}|${asset.port || 0}|${asset.protocol || ''}`;
             if (seen.has(key)) parsed.error = assetT('assets.duplicateFileRow', `与第 ${seen.get(key)} 行重复`, { row: seen.get(key) });
             else seen.set(key, parsed.rowNumber);
         }

@@ -89,7 +89,7 @@ Limits and behavior:
 
 - One XLSX/CSV file may contain up to 100,000 rows and be up to 100 MB.
 - One `/api/assets/import` request may contain up to 100,000 assets.
-- Later rows with the same “target + port + protocol” in one file are marked as duplicates and are not submitted.
+- Later rows with the same “IP + domain + port + protocol” (or host when both IP and domain are missing) in one file are marked as duplicates and are not submitted.
 - The Web UI parses and previews the file; the server remains responsible for authorization, validation, normalization, deduplication, and transactional writes.
 - Existing assets receive non-empty incoming fields and a refreshed last-seen time instead of a duplicate record.
 - Bulk import requires `asset:write`. Referenced projects must also be accessible to the current user.
@@ -118,7 +118,7 @@ Different sources may describe the same target in different forms. The system:
 - removes empty or duplicate tags;
 - supplies default source and status values.
 
-Assets use “target + port + protocol” as the service-level deduplication key. The preferred target is the domain, followed by the IP address, then the host. As a result, `80/http` and `443/https` on the same host remain separate assets.
+Assets use “IP + domain + port + protocol” as the service-level deduplication key; the host is only used when both IP and domain are missing. As a result, assets under the same domain with different IP addresses (for example, reconnaissance-platform exports where the domain column holds the registrable root domain and the host column holds subdomains) remain separate assets, and `80/http` and `443/https` on the same host also remain separate assets.
 
 When an existing asset is imported again, non-empty incoming fields and the last-seen time are updated. Existing fields omitted by the new record and the original first-seen time are preserved.
 

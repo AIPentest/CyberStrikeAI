@@ -165,7 +165,7 @@ Request rules:
 - an asset may have up to 30 tags, each no longer than 64 characters;
 - a non-empty `project_id` must reference a project accessible to the caller;
 - the caller needs `asset:write`;
-- the server deduplicates by “target + port + protocol” and processes the request in one transaction.
+- the server deduplicates by “IP + domain + port + protocol” (or host when both IP and domain are missing) and processes the request in one transaction.
 
 Successful response:
 

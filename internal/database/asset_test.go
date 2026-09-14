@@ -1,6 +1,7 @@
 package database
 
 import (
+	"errors"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -125,6 +126,110 @@ func TestAssetUpsertDeduplicatesAndUpdates(t *testing.T) {
 	riskTrend, ok := stats["risk_trend"].([]map[string]interface{})
 	if !ok || len(riskTrend) != 30 {
 		t.Fatalf("risk trend=%#v", stats["risk_trend"])
+	}
+}
+
+// TestAssetUpsertKeepsDistinctIPsUnderSameDomain is a regression test: in
+// reconnaissance exports the domain column often holds the registrable root
+// domain while host holds subdomains, so assets with different IPs under the
+// same domain must not be merged by deduplication.
+func TestAssetUpsertKeepsDistinctIPsUnderSameDomain(t *testing.T) {
+	db, err := NewDB(filepath.Join(t.TempDir(), "assets-dedup-ip.db"), zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	result, err := db.UpsertAssets([]*Asset{
+		{Host: "https://a.example.com:3000", IP: "192.0.2.1", Domain: "example.com", Port: 3000, Protocol: "https", Source: "fofa"},
+		{Host: "https://b.example.com:3000", IP: "192.0.2.2", Domain: "example.com", Port: 3000, Protocol: "https", Source: "fofa"},
+	}, "")
+	if err != nil || result.Created != 2 {
+		t.Fatalf("distinct IPs under same domain were merged: %#v, %v", result, err)
+	}
+	// Rows with identical fields must still hit dedup and update in place.
+	result, err = db.UpsertAssets([]*Asset{
+		{Host: "https://a.example.com:3000", IP: "192.0.2.1", Domain: "example.com", Port: 3000, Protocol: "https", Title: "New", Source: "fofa"},
+	}, "")
+	if err != nil || result.Created != 0 || result.Updated != 1 {
+		t.Fatalf("identical row not deduplicated: %#v, %v", result, err)
+	}
+	_, total, err := db.ListAssets(20, 0, AssetListFilter{}, RBACListAccess{Scope: RBACScopeAll})
+	if err != nil || total != 2 {
+		t.Fatalf("assets total=%d err=%v", total, err)
+	}
+}
+
+// TestAssetDedupKeyMigrationRecomputesLegacyKeys verifies that legacy-format
+// dedup keys are recomputed by migrateAssetsTable on startup (covers the
+// upgrade.sh scenario where data/ is preserved across upgrades).
+func TestAssetDedupKeyMigrationRecomputesLegacyKeys(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "assets-dedup-migrate.db")
+	db, err := NewDB(path, zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	// Insert a legacy-format (domain-priority) dedup key directly to simulate
+	// pre-upgrade data.
+	if _, err := db.Exec(`INSERT INTO assets (id,dedup_key,host,ip,port,domain,protocol,first_seen_at,last_seen_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+		"asset-legacy", "example.com|80|http", "a.example.com", "192.0.2.1", 80, "example.com", "http", now, now, now, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err = NewDB(path, zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var key string
+	if err := db.QueryRow(`SELECT dedup_key FROM assets WHERE id='asset-legacy'`).Scan(&key); err != nil {
+		t.Fatal(err)
+	}
+	if key != "|192.0.2.1|example.com|80|http" {
+		t.Fatalf("legacy dedup key not migrated: %q", key)
+	}
+}
+
+// TestUpdateAssetRejectsDedupKeyConflict verifies that editing an asset's
+// identifiers to exactly match a coexisting asset turns the UNIQUE conflict
+// into a readable validation error instead of the raw SQLite message.
+func TestUpdateAssetRejectsDedupKeyConflict(t *testing.T) {
+	db, err := NewDB(filepath.Join(t.TempDir(), "assets-dedup-conflict.db"), zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	result, err := db.UpsertAssets([]*Asset{
+		{IP: "192.0.2.1", Domain: "example.com", Port: 80, Protocol: "http"},
+		{IP: "192.0.2.2", Domain: "example.com", Port: 80, Protocol: "http"},
+	}, "")
+	if err != nil || result.Created != 2 {
+		t.Fatalf("setup upsert = %#v, %v", result, err)
+	}
+	assets, _, err := db.ListAssets(20, 0, AssetListFilter{}, RBACListAccess{Scope: RBACScopeAll})
+	if err != nil || len(assets) != 2 {
+		t.Fatalf("setup list err=%v len=%d", err, len(assets))
+	}
+	var targetID string
+	for _, asset := range assets {
+		if asset.IP == "192.0.2.2" {
+			targetID = asset.ID
+		}
+	}
+	if targetID == "" {
+		t.Fatal("setup asset not found")
+	}
+	err = db.UpdateAsset(targetID, &Asset{IP: "192.0.2.1", Domain: "example.com", Port: 80, Protocol: "http"}, RBACListAccess{Scope: RBACScopeAll})
+	if err == nil {
+		t.Fatal("expected dedup key conflict error")
+	}
+	var validationErr *AssetValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("conflict not translated to validation error: %v", err)
 	}
 }
 

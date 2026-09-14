@@ -26,7 +26,7 @@ func registerAssetTools(server *mcp.Server, db *database.DB, logger *zap.Logger)
 
 	server.RegisterTool(mcp.Tool{
 		Name: builtin.ToolCreateAsset, ShortDescription: "新增或去重更新资产",
-		Description: "向资产库新增资产。按目标+端口+协议去重；若资产已存在则更新非空字段。至少提供 host、ip、domain 之一。",
+		Description: "向资产库新增资产。按 IP+域名+端口+协议去重（IP 与域名都缺失时才按 host 去重）；若资产已存在则更新非空字段。至少提供 host、ip、domain 之一。",
 		// Bedrock rejects tool schemas with top-level oneOf/allOf/anyOf. The
 		// host/ip/domain requirement is enforced by assetFromCreateArgs below.
 		InputSchema: map[string]interface{}{"type": "object", "properties": properties},

@@ -2241,7 +2241,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 				"post": map[string]interface{}{
 					"tags":        []string{"资产管理"},
 					"summary":     "批量导入资产",
-					"description": "新增或按“目标 + 端口 + 协议”去重更新资产。接收 JSON，不直接接收 XLSX/CSV 文件；单次最多 100000 条，需要 asset:write 权限。",
+					"description": "新增或按“IP + 域名 + 端口 + 协议”（IP 与域名都缺失时为 Host）去重更新资产。接收 JSON，不直接接收 XLSX/CSV 文件；单次最多 100000 条，需要 asset:write 权限。",
 					"operationId": "importAssets",
 					"requestBody": map[string]interface{}{
 						"required": true,

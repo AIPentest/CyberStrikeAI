@@ -198,5 +198,5 @@ curl -k https://127.0.0.1:8080/api/assets/import \
 - 调用者需要 `asset:write` 权限。
 - 每条资产至少填写 `host`、`ip` 或 `domain`。
 - 单次最多 100000 条；大批量请求建议使用文件配合 `--data-binary`，不要把 JSON 直接写进命令行。
-- 已存在的“目标 + 端口 + 协议”会合并更新并计入 `updated`。
+- 已存在的“IP + 域名 + 端口 + 协议”（IP 与域名都缺失时为 Host）会合并更新并计入 `updated`。
 - 如需从 XLSX/CSV 操作，使用 Web 端 **资产库 → 批量导入**；接口本身接收 JSON，不接收 multipart 文件。

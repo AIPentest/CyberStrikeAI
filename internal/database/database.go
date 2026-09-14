@@ -1046,7 +1046,67 @@ func (db *DB) migrateAssetsTable() error {
 			}
 		}
 	}
-	return nil
+	// 去重键语义升级：旧版按 domain>ip>host 优先级单标识符去重，会把同域名下不同 IP
+	// 的资产误判为重复；新版改为 ip+domain 联合标识（host 兜底）。存量键重算是幂等的，
+	// 且新键区分度更细，不可能出现两条存量记录重算后撞 UNIQUE 约束的情况。
+	// 快速探测：所有行都已符合新格式键时跳过全表重算（迁移完成后的每次启动只需
+	// 付这一次轻量 SQL 扫描）。探测用值比对而非数 '|' 分隔符：host 为自由文本可能
+	// 含 '|'，数分隔符会漏判。normalizeAsset 保证 ip/domain/protocol 写入时已小写，
+	// 探测不会漏检；极端情况（host 兜底键含非 ASCII 大写字母）可能误报，仅导致
+	// 一次无写入的空转重算。
+	probe := `(CASE WHEN ip = '' AND domain = '' THEN lower(host) ELSE '' END) || '|' || ip || '|' || domain || '|' || port || '|' || protocol`
+	var needsMigration bool
+	if err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM assets WHERE dedup_key <> (` + probe + `))`).Scan(&needsMigration); err != nil {
+		return err
+	}
+	if !needsMigration {
+		return nil
+	}
+	// 重算在 Go 中进行以与 assetDedupKey 语义完全一致（SQLite 内置 lower() 仅处理
+	// ASCII，host 兜底键在含非 ASCII 大写字母时会与 Go 的 Unicode 小写化产生偏差）。
+	rows, err := db.Query(`SELECT id, dedup_key, host, ip, port, domain, protocol FROM assets`)
+	if err != nil {
+		return err
+	}
+	type dedupKeyUpdate struct {
+		id  string
+		key string
+	}
+	var updates []dedupKeyUpdate
+	for rows.Next() {
+		var id, oldKey string
+		var asset Asset
+		if err := rows.Scan(&id, &oldKey, &asset.Host, &asset.IP, &asset.Port, &asset.Domain, &asset.Protocol); err != nil {
+			rows.Close()
+			return err
+		}
+		asset.IP = strings.ToLower(asset.IP)
+		asset.Domain = strings.ToLower(asset.Domain)
+		asset.Protocol = strings.ToLower(asset.Protocol)
+		if key := assetDedupKey(&asset); key != oldKey {
+			updates = append(updates, dedupKeyUpdate{id: id, key: key})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+	if len(updates) == 0 {
+		return nil
+	}
+	// 单事务批量写回，避免逐行自动提交在首次升级（全量行都需重算）时线性放大启动耗时。
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, update := range updates {
+		if _, err := tx.Exec(`UPDATE assets SET dedup_key = ? WHERE id = ?`, update.key, update.id); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 // migrateMessagesTable 迁移 messages 表，补充 updated_at 字段。

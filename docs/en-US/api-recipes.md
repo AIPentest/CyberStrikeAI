@@ -198,5 +198,5 @@ Notes:
 - The caller needs `asset:write`.
 - Each asset requires at least one of `host`, `ip`, or `domain`.
 - One request supports up to 100,000 assets. For large payloads, use a file with `--data-binary` instead of embedding JSON in the command line.
-- An existing “target + port + protocol” is merged and counted in `updated`.
+- An existing “IP + domain + port + protocol” (or host when both IP and domain are missing) is merged and counted in `updated`.
 - To work from XLSX/CSV, use **Asset Inventory → Bulk Import** in the Web UI. The API itself accepts JSON rather than multipart files.
