@@ -377,15 +377,6 @@ CyberStrikeAI 现已加入 [404星链计划](https://github.com/knownsec/404Star
 
 </details>
 
-<details>
-<summary><strong>通过微信支付或支付宝赞助</strong></summary>
-
-<div align="center">
-  <img src="./images/sponsor-wechat-alipay-qr.jpg" alt="微信与支付宝赞助二维码" width="480">
-</div>
-
-</details>
-
 ## 许可证
 
 CyberStrikeAI 采用 **Apache License 2.0** 开源许可。  

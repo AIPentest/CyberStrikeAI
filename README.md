@@ -381,15 +381,6 @@ CyberStrikeAI has joined [404Starlink](https://github.com/knownsec/404StarLink)
 
 </details>
 
-<details>
-<summary><strong>Sponsorship via WeChat Pay or Alipay</strong></summary>
-
-<div align="center">
-  <img src="./images/sponsor-wechat-alipay-qr.jpg" alt="WeChat Pay and Alipay sponsorship QR codes" width="480">
-</div>
-
-</details>
-
 ## License
 
 CyberStrikeAI is licensed under the Apache License 2.0.  
