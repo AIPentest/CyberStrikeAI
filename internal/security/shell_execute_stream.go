@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"runtime"
 	"sync"
 
 	"github.com/cloudwego/eino/adk/filesystem"
@@ -42,6 +43,15 @@ func NewEinoStreamingShell() *EinoStreamingShell {
 	return &EinoStreamingShell{}
 }
 
+// newShellCommand 按平台选择 shell：Windows 使用 cmd.exe，类 Unix 使用 /bin/sh。
+// 修复 Windows 平台 execute 工具硬编码 /bin/sh 导致 exec: "/bin/sh": executable file not found。
+func newShellCommand(ctx context.Context, command string) *exec.Cmd {
+	if runtime.GOOS == "windows" {
+		return exec.CommandContext(ctx, "cmd", "/c", command)
+	}
+	return exec.CommandContext(ctx, "/bin/sh", "-c", command)
+}
+
 // ExecuteStreaming 实现 filesystem.StreamingShell。
 func (s *EinoStreamingShell) ExecuteStreaming(ctx context.Context, input *filesystem.ExecuteRequest) (*schema.StreamReader[*filesystem.ExecuteResponse], error) {
 	if input == nil || input.Command == "" {
@@ -60,8 +70,8 @@ func (s *EinoStreamingShell) ExecuteStreaming(ctx context.Context, input *filesy
 func runShellInBackground(ctx context.Context, command string, w *schema.StreamWriter[*filesystem.ExecuteResponse]) {
 	defer w.Close()
 
-	command = PrepareShellCommandForExecute(command)
-	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command)
+	command = prepareShellCommandForPlatform(command)
+	cmd := newShellCommand(ctx, command)
 	applyDefaultTerminalEnv(cmd)
 	attachNonInteractiveStdin(cmd)
 	stdout, err := cmd.StdoutPipe()
@@ -120,8 +130,8 @@ func drainShellPipes(stdout, stderr io.Reader) {
 func streamShellForeground(ctx context.Context, command string, w *schema.StreamWriter[*filesystem.ExecuteResponse]) {
 	defer w.Close()
 
-	command = PrepareShellCommandForExecute(command)
-	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command)
+	command = prepareShellCommandForPlatform(command)
+	cmd := newShellCommand(ctx, command)
 	applyDefaultTerminalEnv(cmd)
 	attachNonInteractiveStdin(cmd)
 
@@ -208,4 +218,14 @@ func streamShellForeground(ctx context.Context, command string, w *schema.Stream
 		return
 	}
 	_ = w.Send(nil, fmt.Errorf("command failed: %w", waitErr))
+}
+
+// prepareShellCommandForPlatform 按平台预处理命令：
+//   - Windows（cmd.exe）：不注入 sh 专用指令，避免 /dev/null、export 等导致命令失败；
+//   - 类 Unix（/bin/sh）：保持原有非交互 + 后台 IO 重定向包装，行为不变。
+func prepareShellCommandForPlatform(command string) string {
+	if runtime.GOOS == "windows" {
+		return command
+	}
+	return PrepareShellCommandForExecute(command)
 }
