@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -445,5 +446,39 @@ func TestAssetListFlexibleFiltersAndOldestScanPagination(t *testing.T) {
 	filtered, total, err := db.ListAssets(20, 0, AssetListFilter{Source: "fofa", Port: &port, LastScanBefore: &recent}, access)
 	if err != nil || total != 1 || len(filtered) != 1 || filtered[0].ID != assets[0].ID {
 		t.Fatalf("structured filters: total=%d assets=%#v err=%v", total, filtered, err)
+	}
+}
+
+func TestUpsertAssetsConcurrentCreatesDoNotLock(t *testing.T) {
+	db, err := NewDB(filepath.Join(t.TempDir(), "assets-concurrent.db"), zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	const goroutines = 24
+	errs := make([]error, goroutines)
+	var wg sync.WaitGroup
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			asset := &Asset{Host: "https://198.51.100." + strconv.Itoa(i+1) + ":443", Source: "concurrent"}
+			_, errs[i] = db.UpsertAssets([]*Asset{asset}, "")
+		}(i)
+	}
+	wg.Wait()
+
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent upsert %d failed: %v", i, err)
+		}
+	}
+	_, total, err := db.ListAssets(100, 0, AssetListFilter{Source: "concurrent"}, RBACListAccess{Scope: RBACScopeAll})
+	if err != nil {
+		t.Fatalf("list assets: %v", err)
+	}
+	if total != goroutines {
+		t.Fatalf("total=%d, want %d", total, goroutines)
 	}
 }

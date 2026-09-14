@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -47,6 +48,7 @@ func configureSQLitePragmas(db *sql.DB) error {
 // DB 数据库连接
 type DB struct {
 	*sql.DB
+	writeMu                  sync.Mutex // 串行化写事务，配合 _txlock=immediate 消除 SQLITE_BUSY
 	logger                   *zap.Logger
 	conversationArtifactsDir string
 	einoPlantaskBaseDir      string // skills_dir + plantask_rel_dir (per-conversation subdirs)
@@ -59,6 +61,52 @@ type DB struct {
 	closeOnce                sync.Once
 	closeErr                 error
 	vulnerabilityCreatedHook func(*Vulnerability)
+}
+
+// serialTx 包装 *sql.Tx：事务结束（Commit/Rollback）时释放 DB.writeMu。
+// 调用点无需感知，仍可把返回值当作 *sql.Tx 使用。
+type serialTx struct {
+	*sql.Tx
+	release func()
+	once    sync.Once
+}
+
+func (t *serialTx) Commit() error {
+	err := t.Tx.Commit()
+	t.releaseOnce()
+	return err
+}
+
+func (t *serialTx) Rollback() error {
+	err := t.Tx.Rollback()
+	t.releaseOnce()
+	return err
+}
+
+func (t *serialTx) releaseOnce() {
+	if t.release != nil {
+		t.once.Do(t.release)
+	}
+}
+
+// Begin 启动写事务。写事务在进程内严格串行：获取 writeMu 后才执行
+// BEGIN IMMEDIATE（由 DSN _txlock=immediate 保证），提交/回滚后释放。
+func (db *DB) Begin() (*serialTx, error) {
+	return db.BeginTx(context.Background(), nil)
+}
+
+// BeginTx 与 Begin 相同，支持显式事务选项。
+func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*serialTx, error) {
+	if db == nil || db.DB == nil {
+		return nil, fmt.Errorf("数据库未初始化")
+	}
+	db.writeMu.Lock()
+	tx, err := db.DB.BeginTx(ctx, opts)
+	if err != nil {
+		db.writeMu.Unlock()
+		return nil, err
+	}
+	return &serialTx{Tx: tx, release: db.writeMu.Unlock}, nil
 }
 
 // startPassiveCheckpointLoop 启动后台 PASSIVE checkpoint 循环。
@@ -122,7 +170,7 @@ func (db *DB) runPassiveCheckpoint(trigger string) {
 
 // NewDB 创建数据库连接
 func NewDB(dbPath string, logger *zap.Logger) (*DB, error) {
-	db, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_foreign_keys=1&_busy_timeout=5000&_synchronous=NORMAL")
+	db, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_foreign_keys=1&_busy_timeout=5000&_synchronous=NORMAL&_txlock=immediate")
 	if err != nil {
 		return nil, fmt.Errorf("打开数据库失败: %w", err)
 	}
@@ -1634,7 +1682,7 @@ func (db *DB) migrateC2ListenersTable() error {
 
 // NewKnowledgeDB 创建知识库数据库连接（只包含知识库相关的表）
 func NewKnowledgeDB(dbPath string, logger *zap.Logger) (*DB, error) {
-	sqlDB, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_foreign_keys=1&_busy_timeout=5000&_synchronous=NORMAL")
+	sqlDB, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_foreign_keys=1&_busy_timeout=5000&_synchronous=NORMAL&_txlock=immediate")
 	if err != nil {
 		return nil, fmt.Errorf("打开知识库数据库失败: %w", err)
 	}

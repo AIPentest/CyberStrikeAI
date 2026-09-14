@@ -348,7 +348,7 @@ func (db *DB) BootstrapRBAC(adminPasswordHash string, permissions map[string]str
 	return tx.Commit()
 }
 
-func grantSystemRolePermissions(tx *sql.Tx, permissions map[string]string) error {
+func grantSystemRolePermissions(tx *serialTx, permissions map[string]string) error {
 	now := time.Now()
 	// System roles are immutable and owned by the application. Rebuild their
 	// grants deterministically so policy tightening also removes permissions
