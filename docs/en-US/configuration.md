@@ -61,6 +61,12 @@ ai:
       base_url: https://api.anthropic.com/v1
       api_key: sk-ant-...
       model: claude-sonnet-4-5
+    orcarouter:
+      name: OrcaRouter
+      provider: orcarouter
+      base_url: https://api.orcarouter.ai/v1
+      api_key: sk-orca-...
+      model: orcarouter/auto
 ```
 
 | Field | Meaning |
@@ -68,7 +74,7 @@ ai:
 | `ai.default_channel` | Default channel ID for new conversations and requests without an explicit channel. |
 | `ai.channels.<id>` | Channel config. IDs are normalized to lowercase letters, digits, and hyphens. |
 | `name` | Display name in the Web UI; falls back to the ID. |
-| `provider` | `openai_compatible` or `claude`. OpenAI-compatible channels map to runtime `openai`; Claude channels use Eino's native Anthropic Messages API component. |
+| `provider` | `openai_compatible`, `claude`, or `orcarouter`. OpenAI-compatible channels map to runtime `openai`; Claude channels use Eino's native Anthropic Messages API component; OrcaRouter is an OpenAI-compatible gateway (`https://api.orcarouter.ai/v1`) whose model IDs such as `orcarouter/auto` are resolved by the gateway to the best available backend model. |
 | `base_url/api_key/model` | Required. Base URL usually includes a version path such as `/v1`. |
 | `max_total_tokens` | Shared context budget for compression, attack-chain generation, multi-agent summaries, and similar paths. |
 | `max_completion_tokens` | Per-response output cap; default is used when empty. |

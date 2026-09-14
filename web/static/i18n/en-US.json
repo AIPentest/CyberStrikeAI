@@ -2838,6 +2838,7 @@
     "apiProvider": "API Provider",
     "providerOpenAI": "OpenAI / OpenAI-compatible API",
     "providerClaude": "Claude (Anthropic Messages API)",
+    "providerOrcaRouter": "OrcaRouter (OpenAI-compatible gateway)",
     "visionProviderReuseOpenAI": "Reuse default AI channel",
     "fofaConfig": "FOFA config",
     "fofaConfigHint": "Used for asset discovery and import; only an API key is required.",

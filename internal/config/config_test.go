@@ -306,3 +306,63 @@ func TestLatestUserMessageRunesEffective(t *testing.T) {
 		t.Fatalf("custom latest user tail runes = %d", got)
 	}
 }
+
+func TestOrcaRouterProviderName(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want bool
+	}{
+		{"orcarouter", true},
+		{"OrcaRouter", true},
+		{"  orcarouter  ", true},
+		{"openai", false},
+		{"claude", false},
+		{"", false},
+	} {
+		if got := IsOrcaRouterProviderName(tc.in); got != tc.want {
+			t.Errorf("IsOrcaRouterProviderName(%q) = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestOrcaRouterBaseURLFor(t *testing.T) {
+	if got := OrcaRouterBaseURLFor("orcarouter"); got != OrcaRouterBaseURL {
+		t.Fatalf("OrcaRouterBaseURLFor(orcarouter) = %q, want %q", got, OrcaRouterBaseURL)
+	}
+	if got := OrcaRouterBaseURLFor("openai"); got != "" {
+		t.Fatalf("OrcaRouterBaseURLFor(openai) = %q, want empty", got)
+	}
+}
+
+func TestOpenAIConfigIsOrcaRouterProvider(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		cfg  OpenAIConfig
+		want bool
+	}{
+		{
+			name: "provider name",
+			cfg:  OpenAIConfig{Provider: "orcarouter", BaseURL: "https://custom.example/v1"},
+			want: true,
+		},
+		{
+			name: "base url contains orcarouter",
+			cfg:  OpenAIConfig{Provider: "openai", BaseURL: "https://api.orcarouter.ai/v1"},
+			want: true,
+		},
+		{
+			name: "provider name case-insensitive",
+			cfg:  OpenAIConfig{Provider: "OrcaRouter", BaseURL: ""},
+			want: true,
+		},
+		{
+			name: "unrelated provider",
+			cfg:  OpenAIConfig{Provider: "openai", BaseURL: "https://api.openai.com/v1"},
+			want: false,
+		},
+	} {
+		if got := tc.cfg.IsOrcaRouterProvider(); got != tc.want {
+			t.Errorf("%s: IsOrcaRouterProvider() = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}

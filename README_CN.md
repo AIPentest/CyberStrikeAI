@@ -233,6 +233,14 @@ chmod +x run.sh && ./run.sh
            model: "gpt-4o"  # 或 deepseek-chat, qwen3-max 等
            max_total_tokens: 120000
            max_completion_tokens: 16384
+         # OrcaRouter：OpenAI 兼容网关（https://api.orcarouter.ai/v1）
+         # 模型名如 orcarouter/auto 由网关路由到最优后端模型
+         orcarouter:
+           name: OrcaRouter
+           provider: orcarouter
+           api_key: "${ORCAROUTER_API_KEY}"
+           base_url: "https://api.orcarouter.ai/v1"
+           model: "orcarouter/auto"
      ```
    - 或启动前直接编辑 `config.yaml` 文件。`ai.default_channel` 会作为新对话和未显式选择通道任务的默认模型；对话页也可以在会话设置里选择某个已保存通道。
 2. **登录系统** - 首次启动时控制台会显示自动生成的 `admin` 初始密码；也可在「平台权限 → 用户管理」中创建账号
@@ -301,6 +309,11 @@ ai:
       api_key: "${OPENAI_API_KEY}"
       base_url: "https://api.openai.com/v1"
       model: "your-model"
+    orcarouter:
+      provider: orcarouter
+      api_key: "${ORCAROUTER_API_KEY}"
+      base_url: "https://api.orcarouter.ai/v1"
+      model: "orcarouter/auto"
 ```
 
 `openai` 是兼容旧版本的运行时字段，新配置优先维护 `ai.channels`。不要提交真实凭证。将服务暴露到 localhost 之外前，请阅读[配置参考](docs/zh-CN/configuration.md)、[推荐配置画像](docs/zh-CN/configuration-profiles.md)和[安全加固指南](docs/zh-CN/security-hardening.md)。

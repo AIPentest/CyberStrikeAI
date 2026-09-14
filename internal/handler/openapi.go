@@ -4882,7 +4882,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 									"type":     "object",
 									"required": []string{"api_key", "model"},
 									"properties": map[string]interface{}{
-										"provider": map[string]interface{}{"type": "string", "description": "LLM提供商（openai/claude）", "example": "openai"},
+										"provider": map[string]interface{}{"type": "string", "description": "LLM提供商（openai/claude/orcarouter）", "example": "openai"},
 										"base_url": map[string]interface{}{"type": "string", "description": "API基地址（可选，默认根据provider自动选择）"},
 										"api_key":  map[string]interface{}{"type": "string", "description": "API密钥"},
 										"model":    map[string]interface{}{"type": "string", "description": "模型名称", "example": "gpt-4"},
@@ -4927,7 +4927,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 									"type":     "object",
 									"required": []string{"api_key"},
 									"properties": map[string]interface{}{
-										"provider": map[string]interface{}{"type": "string", "description": "LLM提供商（openai/claude）", "example": "openai"},
+										"provider": map[string]interface{}{"type": "string", "description": "LLM提供商（openai/claude/orcarouter）", "example": "openai"},
 										"base_url": map[string]interface{}{"type": "string", "description": "API基地址（可选）"},
 										"api_key":  map[string]interface{}{"type": "string", "description": "API密钥"},
 									},

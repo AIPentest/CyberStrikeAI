@@ -793,7 +793,7 @@ async function loadConfig(loadTools = true, options = {}) {
         const hitlAuditProviderEl = document.getElementById('hitl-audit-model-provider');
         if (hitlAuditProviderEl) {
             const provider = String(hitlAuditModel.provider || '').trim().toLowerCase();
-            hitlAuditProviderEl.value = ['openai', 'claude'].includes(provider) ? provider : '';
+            hitlAuditProviderEl.value = ['openai', 'claude', 'orcarouter'].includes(provider) ? provider : '';
         }
         const hitlAuditBaseUrlEl = document.getElementById('hitl-audit-model-base-url');
         if (hitlAuditBaseUrlEl) hitlAuditBaseUrlEl.value = hitlAuditModel.base_url || '';
@@ -2890,7 +2890,7 @@ function updateAIChannelEditorChrome(id) {
         title.textContent = settingsT('settingsBasic.aiChannelFormContextHint', '表单保存后会更新该通道配置。');
     }
     if (meta) {
-        const provider = ch.provider === 'claude' ? 'Claude' : settingsT('settingsBasic.aiChannelOpenAICompat', 'OpenAI 兼容');
+        const provider = ch.provider === 'claude' ? 'Claude' : (ch.provider === 'orcarouter' ? 'OrcaRouter' : settingsT('settingsBasic.aiChannelOpenAICompat', 'OpenAI 兼容'));
         const statusText = probe?.message || (isComplete
             ? settingsT('settingsBasic.aiChannelComplete', '配置完整')
             : settingsT('settingsBasic.aiChannelDraft', '待完善'));

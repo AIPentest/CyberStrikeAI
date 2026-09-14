@@ -2826,6 +2826,7 @@
     "apiProvider": "API 提供商",
     "providerOpenAI": "OpenAI / 兼容 OpenAI 协议",
     "providerClaude": "Claude (Anthropic Messages API)",
+    "providerOrcaRouter": "OrcaRouter（OpenAI 兼容网关）",
     "visionProviderReuseOpenAI": "默认 AI 通道（留空复用）",
     "fofaConfig": "FOFA 配置",
     "fofaConfigHint": "用于资产发现与导入，仅需配置 API Key。",
