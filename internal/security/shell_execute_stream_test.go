@@ -44,15 +44,27 @@ func TestEinoStreamingShell_StreamsStderrBeforeStdoutEOF(t *testing.T) {
 
 func TestEinoStreamingShell_SudoFailsFast(t *testing.T) {
 	shell := NewEinoStreamingShell()
-	cmd := PrepareNonInteractiveShellCommand("sudo whoami && sudo cat /etc/os-release")
-	sr, err := shell.ExecuteStreaming(context.Background(), &filesystem.ExecuteRequest{Command: cmd})
+	// Exercise stderr delivery and failure propagation without relying on the
+	// host's sudo policy: CI runners may allow passwordless sudo, even as root.
+	// A shell function also prevents this test from invoking the real sudo.
+	cmd := PrepareNonInteractiveShellCommand(`
+sudo() {
+    printf '%s\n' 'sudo: a password is required' >&2
+    return 1
+}
+sudo whoami && printf '%s\n' 'unexpected-command-success'
+`)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	start := time.Now()
+	sr, err := shell.ExecuteStreaming(ctx, &filesystem.ExecuteRequest{Command: cmd})
 	if err != nil {
 		t.Fatalf("ExecuteStreaming: %v", err)
 	}
 	defer sr.Close()
 
-	start := time.Now()
 	var got strings.Builder
+	var exitCode *int
 	for {
 		resp, rerr := sr.Recv()
 		if errors.Is(rerr, io.EOF) {
@@ -65,16 +77,25 @@ func TestEinoStreamingShell_SudoFailsFast(t *testing.T) {
 			continue
 		}
 		got.WriteString(resp.Output)
+		if resp.ExitCode != nil {
+			exitCode = resp.ExitCode
+		}
 	}
-	if time.Since(start) > 5*time.Second {
+	if ctx.Err() != nil || time.Since(start) > 5*time.Second {
 		t.Fatalf("sudo should fail quickly, took %v output=%q", time.Since(start), got.String())
 	}
 	out := got.String()
 	if strings.Contains(out, "command exited with non-zero code") {
 		t.Fatalf("legacy exit line present: %q", out)
 	}
-	if !strings.Contains(out, "sudo") && !strings.Contains(out, "password") && !strings.Contains(out, "terminal") {
+	if !strings.Contains(out, "sudo: a password is required") {
 		t.Fatalf("expected sudo error text, got: %q", out)
+	}
+	if strings.Contains(out, "unexpected-command-success") {
+		t.Fatalf("command after failed sudo unexpectedly ran: %q", out)
+	}
+	if exitCode == nil || *exitCode != 1 {
+		t.Fatalf("expected exit code 1, got: %v", exitCode)
 	}
 }
 
