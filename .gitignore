@@ -55,7 +55,7 @@ __pycache__/
 .pytest_cache/
 
 # Go
-vendor/
+/vendor/
 
 # Node / browser extension
 node_modules/
