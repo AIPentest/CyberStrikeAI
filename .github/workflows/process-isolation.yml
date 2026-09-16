@@ -1,0 +1,49 @@
+name: Process isolation
+on:
+  push:
+    paths: ['internal/processguard/**', 'internal/runlease/**', 'internal/security/**', 'internal/handler/task*', 'internal/mcp/**', 'go.mod', 'go.sum', '.github/workflows/process-isolation.yml']
+  pull_request:
+    paths: ['internal/processguard/**', 'internal/runlease/**', 'internal/security/**', 'internal/handler/task*', 'internal/mcp/**', 'go.mod', 'go.sum', '.github/workflows/process-isolation.yml']
+permissions:
+  contents: read
+jobs:
+  lifecycle:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test -race ./internal/processguard ./internal/runlease
+      - name: Test Linux cgroup isolation
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$(docker info --format '{{.Architecture}}')" in
+            aarch64|arm64) fixture_arch=arm64 ;;
+            x86_64|amd64) fixture_arch=amd64 ;;
+            *) echo 'Unsupported Docker architecture' >&2; exit 1 ;;
+          esac
+          fixture_dir="$(mktemp -d)"
+          trap 'rm -rf "$fixture_dir"' EXIT
+          CGO_ENABLED=0 GOOS=linux GOARCH="$fixture_arch" go test ./internal/processguard -c -o "$fixture_dir/processguard.test"
+          docker run --rm --user 0 --privileged --cgroupns=private --network none --init \
+            --mount "type=bind,src=$fixture_dir/processguard.test,dst=/fixture,readonly" \
+            --entrypoint /bin/sh "${CSAI_TEST_IMAGE:-debian:bookworm-slim}" -c '
+          set -eu
+          mkdir /sys/fs/cgroup/infra /sys/fs/cgroup/csai-fixture
+          # cat may already have exited when its PID is visited.
+          for pid in $(cat /sys/fs/cgroup/cgroup.procs); do
+            echo "$pid" > /sys/fs/cgroup/infra/cgroup.procs 2>/dev/null || true
+          done
+          echo "+cpu +memory +pids" > /sys/fs/cgroup/cgroup.subtree_control
+          echo "+cpu +memory +pids" > /sys/fs/cgroup/csai-fixture/cgroup.subtree_control
+          export CSAI_TEST_CGROUP_ROOT=/sys/fs/cgroup/csai-fixture
+          exec /fixture -test.v -test.timeout=60s
+          '
+      - if: runner.os == 'Linux'
+        run: go test ./internal/security ./internal/handler ./internal/mcp

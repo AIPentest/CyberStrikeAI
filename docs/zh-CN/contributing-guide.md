@@ -103,15 +103,7 @@ docs/en-US/
 - `docs/zh-CN/README.md`
 - `docs/en-US/README.md`
 
-提交文档变更前运行：
-
-```bash
-python3 scripts/check-docs.py
-```
-
-该检查会验证本地链接、代码块闭合、中英文文件名对齐、语言导航覆盖率，以及根 README 中的 Go 版本是否与 `go.mod` 一致。版本化示例应尽量从 `go.mod`、`config.example.yaml` 等权威文件派生，避免手工同步。
-
-当文档、`go.mod` 或检查脚本变更时，GitHub Actions 中的 `Documentation` 工作流会自动运行同一条命令。
+提交文档变更前，请检查本地链接、代码块闭合、中英文文件名对齐、语言导航覆盖率，以及根 README 中的 Go 版本是否与 `go.mod` 一致。版本化示例应尽量从 `go.mod`、`config.example.yaml` 等权威文件派生，避免手工同步。
 
 ## Review 关注点
 

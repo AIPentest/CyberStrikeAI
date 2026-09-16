@@ -1,7 +1,6 @@
 package security
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -836,128 +834,13 @@ func (e *Executor) executeSystemCommand(ctx context.Context, args map[string]int
 		zap.Bool("isBackground", isBackground),
 	)
 
-	// 如果是后台命令，使用特殊处理来获取实际的后台进程PID
 	if isBackground {
-		// 移除命令末尾的 & 符号
-		commandWithoutAmpersand := strings.TrimSuffix(strings.TrimSpace(command), "&")
-		commandWithoutAmpersand = strings.TrimSpace(commandWithoutAmpersand)
-
-		// 构建新命令：后台作业重定向标准流后 echo $pid（与 RedirectBackgroundJobStdio 一致）。
-		pidCommand := RedirectBackgroundJobStdio(commandWithoutAmpersand+" &") + " pid=$!; echo $pid"
-
-		// 创建新命令来获取PID
-		var pidCmd *exec.Cmd
-		if workDir != "" {
-			pidCmd = exec.CommandContext(ctx, shell, "-c", pidCommand)
-			pidCmd.Dir = workDir
-		} else {
-			pidCmd = exec.CommandContext(ctx, shell, "-c", pidCommand)
-		}
-		ConfigureShellCmdForAgentExecute(pidCmd)
-
-		// 获取stdout管道
-		stdout, err := pidCmd.StdoutPipe()
+		job := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(command), "&"))
+		session, err := StartManagedBackground(ctx, shell, job, workDir)
 		if err != nil {
-			e.logger.Error("创建stdout管道失败",
-				zap.String("command", command),
-				zap.Error(err),
-			)
-			// 如果创建管道失败，使用shell进程的PID作为fallback
-			if err := pidCmd.Start(); err != nil {
-				return &mcp.ToolResult{
-					Content: []mcp.Content{
-						{
-							Type: "text",
-							Text: fmt.Sprintf("后台命令启动失败: %v", err),
-						},
-					},
-					IsError: true,
-				}, nil
-			}
-			pid := pidCmd.Process.Pid
-			go pidCmd.Wait() // 在后台等待，避免僵尸进程
-			return &mcp.ToolResult{
-				Content: []mcp.Content{
-					{
-						Type: "text",
-						Text: fmt.Sprintf("后台命令已启动\n命令: %s\n进程ID: %d (可能不准确，获取PID失败)\n\n注意: 后台进程将继续运行，不会等待其完成。", command, pid),
-					},
-				},
-				IsError: false,
-			}, nil
+			return &mcp.ToolResult{Content: []mcp.Content{{Type: "text", Text: fmt.Sprintf("后台命令启动失败: %v", err)}}, IsError: true}, nil
 		}
-
-		// 启动命令
-		if err := pidCmd.Start(); err != nil {
-			stdout.Close()
-			e.logger.Error("后台命令启动失败",
-				zap.String("command", command),
-				zap.Error(err),
-			)
-			return &mcp.ToolResult{
-				Content: []mcp.Content{
-					{
-						Type: "text",
-						Text: fmt.Sprintf("后台命令启动失败: %v", err),
-					},
-				},
-				IsError: true,
-			}, nil
-		}
-
-		// 读取第一行输出（PID）
-		reader := bufio.NewReader(stdout)
-		pidLine, err := reader.ReadString('\n')
-		stdout.Close()
-
-		var actualPid int
-		if err != nil && err != io.EOF {
-			e.logger.Warn("读取后台进程PID失败",
-				zap.String("command", command),
-				zap.Error(err),
-			)
-			// 如果读取失败，使用shell进程的PID
-			actualPid = pidCmd.Process.Pid
-		} else {
-			// 解析PID
-			pidStr := strings.TrimSpace(pidLine)
-			if parsedPid, err := strconv.Atoi(pidStr); err == nil {
-				actualPid = parsedPid
-			} else {
-				e.logger.Warn("解析后台进程PID失败",
-					zap.String("command", command),
-					zap.String("pidLine", pidStr),
-					zap.Error(err),
-				)
-				// 如果解析失败，使用shell进程的PID
-				actualPid = pidCmd.Process.Pid
-			}
-		}
-
-		// 在goroutine中等待shell进程，避免僵尸进程
-		go func() {
-			if err := pidCmd.Wait(); err != nil {
-				e.logger.Debug("后台命令shell进程执行完成",
-					zap.String("command", command),
-					zap.Error(err),
-				)
-			}
-		}()
-
-		e.logger.Info("后台命令已启动",
-			zap.String("command", command),
-			zap.Int("actualPid", actualPid),
-		)
-
-		return &mcp.ToolResult{
-			Content: []mcp.Content{
-				{
-					Type: "text",
-					Text: fmt.Sprintf("后台命令已启动\n命令: %s\n进程ID: %d\n\n注意: 后台进程将继续运行，不会等待其完成。", command, actualPid),
-				},
-			},
-			IsError: false,
-		}, nil
+		return &mcp.ToolResult{Content: []mcp.Content{{Type: "text", Text: fmt.Sprintf("后台命令已启动\n命令: %s\n进程组ID: %d\n\n后台进程由本轮任务托管，任务结束时自动清理。", command, session.rootPID)}}}, nil
 	}
 
 	// 非后台命令：等待输出
@@ -1041,7 +924,7 @@ func combinedOutputCancellableWithLimit(ctx context.Context, cmd *exec.Cmd, maxB
 	cmd.Stdout = stdoutBuf
 	cmd.Stderr = stderrBuf
 
-	session, err := StartShellSession(cmd)
+	session, err := StartShellSessionContext(ctx, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -1248,7 +1131,7 @@ func streamCommandOutput(ctx context.Context, cmd *exec.Cmd, cb ToolOutputCallba
 		_ = stdoutPipe.Close()
 		return "", err
 	}
-	session, err := StartShellSession(cmd)
+	session, err := StartShellSessionContext(ctx, cmd)
 	if err != nil {
 		_ = stdoutPipe.Close()
 		_ = stderrPipe.Close()
@@ -1265,6 +1148,8 @@ func streamCommandOutput(ctx context.Context, cmd *exec.Cmd, cb ToolOutputCallba
 	}()
 	defer close(stopWatch)
 
+	readStop := make(chan struct{})
+	defer close(readStop)
 	chunks := make(chan string, 64)
 	var wg sync.WaitGroup
 	readFn := func(r io.Reader) {
@@ -1273,7 +1158,11 @@ func streamCommandOutput(ctx context.Context, cmd *exec.Cmd, cb ToolOutputCallba
 		for {
 			n, readErr := r.Read(buf)
 			if n > 0 {
-				chunks <- string(buf[:n])
+				select {
+				case chunks <- string(buf[:n]):
+				case <-readStop:
+					return
+				}
 			}
 			if readErr != nil {
 				return
@@ -1422,16 +1311,16 @@ func runCommandWithPTY(ctx context.Context, cmd *exec.Cmd, cb ToolOutputCallback
 	}
 
 	_ = prepareShellCmdSession(cmd)
-	ptmx, err := pty.Start(cmd)
+	var ptmx *os.File
+	session, err := startShellSessionContext(ctx, cmd, func() error {
+		var startErr error
+		ptmx, startErr = pty.Start(cmd)
+		return startErr
+	})
 	if err != nil {
 		return "", err
 	}
 	defer func() { _ = ptmx.Close() }()
-
-	rootPID := 0
-	if cmd.Process != nil {
-		rootPID = cmd.Process.Pid
-	}
 
 	// ctx 取消时尽快终止子进程
 	done := make(chan struct{})
@@ -1439,7 +1328,7 @@ func runCommandWithPTY(ctx context.Context, cmd *exec.Cmd, cb ToolOutputCallback
 		select {
 		case <-ctx.Done():
 			_ = ptmx.Close() // 触发读退出
-			terminateProcessGroup(rootPID, cmd)
+			session.Terminate()
 		case <-done:
 		}
 	}()
@@ -1484,7 +1373,7 @@ func runCommandWithPTY(ctx context.Context, cmd *exec.Cmd, cb ToolOutputCallback
 	}
 	flush()
 
-	waitErr := cmd.Wait()
+	waitErr := session.Wait()
 	return finalizeBoundedOutput(outBuilder, maxBytes, tee), waitErr
 }
 

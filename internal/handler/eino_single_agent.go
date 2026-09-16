@@ -130,9 +130,10 @@ func (h *AgentHandler) EinoSingleAgentLoopStream(c *gin.Context) {
 	// 仅在成功 StartTask 后再 FinishTask。若 StartTask 因 ErrTaskAlreadyRunning 失败仍 defer FinishTask，
 	// 会误删其他连接上正在运行的同会话任务，导致「第一次拦截、第二次却放行」。
 	taskOwned := false
+	var taskRunID string
 	defer func() {
 		if taskOwned {
-			h.tasks.FinishTask(conversationID, taskStatus)
+			h.tasks.FinishTaskRun(conversationID, taskRunID, taskStatus)
 		}
 	}()
 
@@ -165,7 +166,7 @@ func (h *AgentHandler) EinoSingleAgentLoopStream(c *gin.Context) {
 	baseCtx, cancelWithCause = context.WithCancelCause(detachedAgentContext(c.Request.Context()))
 	taskCtx, timeoutCancel := context.WithTimeout(baseCtx, 600*time.Minute)
 
-	if _, err := h.tasks.StartTask(conversationID, req.Message, cancelWithCause); err != nil {
+	if startedTask, err := h.tasks.StartTask(conversationID, req.Message, cancelWithCause); err != nil {
 		var errorMsg string
 		if errors.Is(err, ErrTaskAlreadyRunning) {
 			errorMsg = "⚠️ 当前会话已有任务正在执行中，请等待当前任务完成或点击「停止任务」后再尝试。"
@@ -183,8 +184,13 @@ func (h *AgentHandler) EinoSingleAgentLoopStream(c *gin.Context) {
 		sendEvent("done", "", map[string]interface{}{"conversationId": conversationID})
 		timeoutCancel()
 		return
+	} else {
+		taskRunID = startedTask.RunID
 	}
+	baseCtx = h.tasks.BindProcessScope(baseCtx, conversationID, taskRunID)
+	taskCtx = h.tasks.BindProcessScope(taskCtx, conversationID, taskRunID)
 	taskOwned = true
+	sendEvent = h.taskFinishingEventSender(sendEvent, conversationID, taskRunID, func() string { return taskStatus })
 
 	var cumulativeMCPExecutionIDs []string
 	// 同一请求内分段续跑时，主代理 iteration 事件按偏移累计，避免 UI 出现「第3轮 → 第1轮」回跳。
@@ -454,18 +460,31 @@ func (h *AgentHandler) EinoSingleAgentLoop(c *gin.Context) {
 	defer cancelWithCause(nil)
 	taskCtx, timeoutCancel := context.WithTimeout(baseCtx, 600*time.Minute)
 	defer timeoutCancel()
+	jsonTask, startErr := h.tasks.StartTask(prep.ConversationID, req.Message, cancelWithCause)
+	if startErr != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": startErr.Error()})
+		return
+	}
+	taskCtx = h.tasks.BindProcessScope(taskCtx, prep.ConversationID, jsonTask.RunID)
+	taskCtx = mcp.WithMCPConversationID(taskCtx, prep.ConversationID)
+	taskCtx = mcp.WithToolRunRegistry(taskCtx, h.tasks)
+	taskCtx = mcp.WithEinoExecuteRunRegistry(taskCtx, h.tasks)
+	jsonTaskStatus := "failed"
+	defer func() { _ = h.tasks.FinishTaskRun(prep.ConversationID, jsonTask.RunID, jsonTaskStatus) }()
+	respond := h.taskFinishingJSONResponder(c, prep.ConversationID, jsonTask.RunID, func() string { return jsonTaskStatus })
+
 	progressCallback := h.createProgressCallback(taskCtx, cancelWithCause, prep.ConversationID, prep.AssistantMessageID, progressCallbackRaw)
 	taskCtx = multiagent.WithHITLToolInterceptor(taskCtx, func(ctx context.Context, toolName, arguments string) (string, error) {
 		return h.interceptHITLForEinoTool(ctx, cancelWithCause, prep.ConversationID, prep.AssistantMessageID, nil, toolName, arguments)
 	})
 
 	if h.config == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器配置未加载"})
+		respond(http.StatusInternalServerError, gin.H{"error": "服务器配置未加载"})
 		return
 	}
 	runCfg, _, err := h.configForAIChannel(req.AIChannelID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respond(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -498,7 +517,7 @@ func (h *AgentHandler) EinoSingleAgentLoop(c *gin.Context) {
 			if shouldPersistEinoAgentTraceAfterRunError(baseCtx) {
 				h.persistEinoAgentTraceForResume(prep.ConversationID, result)
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": runErr.Error()})
+			respond(http.StatusInternalServerError, gin.H{"error": runErr.Error()})
 			return
 		}
 		mw := &h.config.MultiAgent.EinoMiddleware
@@ -525,7 +544,12 @@ func (h *AgentHandler) EinoSingleAgentLoop(c *gin.Context) {
 	if !decision.Finalizable {
 		responseText = finalizationBlockedMessage(decision)
 	}
-	c.JSON(http.StatusOK, gin.H{
+
+	jsonTaskStatus = decision.Status
+	if jsonTaskStatus == "" {
+		jsonTaskStatus = "completed"
+	}
+	respond(http.StatusOK, gin.H{
 		"response":                         responseText,
 		"conversationId":                   prep.ConversationID,
 		"mcpExecutionIds":                  result.MCPExecutionIDs,

@@ -1,47 +1,102 @@
 package security
 
-import "os/exec"
+import (
+	"context"
+	"os/exec"
+	"sync"
+	"time"
+)
 
-// ShellSession 在 Start 时记录根 shell 的进程组 ID，取消/超时时可杀整组（即使 cmd.Process 已失效）。
+// ShellSession caches the process group while its command is alive. Signals
+// and Wait completion synchronize to avoid signalling already-released sessions.
 type ShellSession struct {
-	Cmd     *exec.Cmd
-	rootPID int
+	Cmd      *exec.Cmd
+	rootPID  int
+	scope    *ProcessScope
+	done     chan struct{}
+	waitOnce sync.Once
+	waitErr  error
+	signalMu sync.Mutex
+	finished bool
+	waited   bool
 }
 
-// StartShellSession 配置独立进程组并启动 shell，缓存 rootPID（Unix 下即 PGID）。
 func StartShellSession(cmd *exec.Cmd) (*ShellSession, error) {
-	if err := prepareShellCmdSession(cmd); err != nil {
-		return nil, err
-	}
-	if err := cmd.Start(); err != nil {
-		return nil, err
-	}
-	pid := 0
-	if cmd.Process != nil {
-		pid = cmd.Process.Pid
-	}
-	return &ShellSession{Cmd: cmd, rootPID: pid}, nil
+	return StartShellSessionContext(context.Background(), cmd)
 }
 
-// Wait 等待 shell 退出。
+func StartShellSessionContext(ctx context.Context, cmd *exec.Cmd) (*ShellSession, error) {
+	return startShellSessionContext(ctx, cmd, cmd.Start)
+}
+
 func (s *ShellSession) Wait() error {
 	if s == nil || s.Cmd == nil {
 		return nil
 	}
-	return s.Cmd.Wait()
+	s.waitOnce.Do(func() {
+		s.waitErr = s.Cmd.Wait()
+		s.signalMu.Lock()
+		s.waited = true
+		terminateProcessGroup(s.rootPID, s.Cmd)
+		s.signalMu.Unlock()
+		// Usually the group disappears immediately. Retain ownership if the
+		// kernel cannot confirm exit; task cleanup will retry and report it.
+		deadline := time.Now().Add(time.Second)
+		for !s.tryComplete() && time.Now().Before(deadline) {
+			time.Sleep(10 * time.Millisecond)
+		}
+	})
+	return s.waitErr
 }
 
-// Terminate 终止 shell 及其进程组。
-func (s *ShellSession) Terminate() {
+func (s *ShellSession) signal(force bool) {
 	if s == nil {
 		return
 	}
-	terminateProcessGroup(s.rootPID, s.Cmd)
+	s.signalMu.Lock()
+	defer s.signalMu.Unlock()
+	if s.finished {
+		return
+	}
+	if force {
+		terminateProcessGroup(s.rootPID, s.Cmd)
+	} else {
+		stopProcessGroup(s.rootPID, s.Cmd)
+	}
 }
 
-// TerminateShellSession 终止由 StartShellSession 启动的会话。
+func (s *ShellSession) Terminate() { s.signal(true) }
+
 func TerminateShellSession(session *ShellSession) {
 	if session != nil {
 		session.Terminate()
 	}
+}
+
+// tryComplete confirms group exit after Wait reaped the direct child. Never
+// release ownership merely because a signal was sent successfully.
+func (s *ShellSession) tryComplete() bool {
+	s.signalMu.Lock()
+	defer s.signalMu.Unlock()
+	if s.finished {
+		return true
+	}
+	if !s.waited || processGroupExists(s.rootPID) {
+		return false
+	}
+	s.finished = true
+	if s.scope != nil {
+		s.scope.mu.Lock()
+		if s.scope.guard != nil {
+			if err := s.scope.guard.Release(s.rootPID); err != nil {
+				s.scope.mu.Unlock()
+				s.finished = false
+				return false
+			}
+		}
+		delete(s.scope.sessions, s)
+		s.scope.mu.Unlock()
+	}
+	close(s.done)
+	return true
 }

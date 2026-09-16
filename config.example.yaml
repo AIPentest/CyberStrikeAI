@@ -364,6 +364,15 @@ database:
 # 系统会从该目录加载所有 .yaml 格式的工具配置文件
 # 推荐方式：在 tools/ 目录下为每个工具创建独立的配置文件
 security:
+  # auto: native Job Object on Windows; Unix watchdog unless cgroup_root is set.
+  # Linux production: configure a systemd service with Delegate=cpu memory pids; set
+  # mode: required, cgroup_root: auto. Explicit isolation errors fail closed.
+  process_isolation:
+    mode: auto
+    cgroup_root: ""
+    max_processes: 256
+    memory_max_bytes: 2147483648
+    cpu_quota_micros: 0 # 0=no CPU cap; 100000=one core (100 ms period)
   tools_dir: tools # 工具配置文件目录（相对于配置文件所在目录）
   # 工具描述模式：加载 tools 下工具时，暴露给 AI/API 使用的描述来源
   #   short - 优先使用 short_description（简短描述，省 token），为空时用 description

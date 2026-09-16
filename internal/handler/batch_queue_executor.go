@@ -171,19 +171,14 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 	taskCtx, timeoutCancel := context.WithTimeout(baseCtx, 6*time.Hour)
 
 	registered := false
+	var taskRunID string
 	finishStatus := "completed"
 
 	defer func() {
 		h.batchTaskManager.SetTaskCancel(queueID, task.ID, nil)
 		timeoutCancel()
 		if registered {
-			if h.taskEventBus != nil {
-				ev := StreamEvent{Type: "done", Message: "", Data: map[string]interface{}{"conversationId": conversationID}}
-				if b, err := json.Marshal(ev); err == nil {
-					h.taskEventBus.Publish(conversationID, append(append([]byte("data: "), b...), '\n', '\n'))
-				}
-			}
-			h.tasks.FinishTask(conversationID, finishStatus)
+			h.tasks.FinishTaskRun(conversationID, taskRunID, finishStatus)
 		}
 		cancelWithCause(nil)
 	}()
@@ -204,7 +199,7 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 		h.taskEventBus.Publish(conversationID, line)
 	}
 
-	if _, err := h.tasks.StartTask(conversationID, task.Message, cancelWithCause); err != nil {
+	if startedTask, err := h.tasks.StartTask(conversationID, task.Message, cancelWithCause); err != nil {
 		h.logger.Warn("批量队列子任务注册会话运行状态失败",
 			zap.String("queueId", queueID),
 			zap.String("taskId", task.ID),
@@ -216,7 +211,11 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 		}
 		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", failMsg)
 		return
+	} else {
+		taskRunID = startedTask.RunID
 	}
+	baseCtx = h.tasks.BindProcessScope(baseCtx, conversationID, taskRunID)
+	taskCtx = h.tasks.BindProcessScope(taskCtx, conversationID, taskRunID)
 	registered = true
 	h.batchTaskManager.SetTaskCancel(queueID, task.ID, timeoutCancel)
 
@@ -342,6 +341,10 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 		}
 	}
 
+	if cleanupErr := h.tasks.FinishTaskRun(conversationID, taskRunID, finishStatus); cleanupErr != nil {
+		h.batchTaskManager.UpdateTaskStatusWithConversationID(queueID, task.ID, BatchTaskStatusFailed, resText, cleanupErr.Error(), conversationID)
+		return
+	}
 	if !decision.Finalizable {
 		h.batchTaskManager.UpdateTaskStatusWithConversationID(queueID, task.ID, BatchTaskStatusFailed, resText, finalizationCheckMessage(decision), conversationID)
 		return

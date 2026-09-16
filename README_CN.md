@@ -326,7 +326,6 @@ CyberStrikeAI/
 ├── agents/              # 多代理 Markdown（orchestrator.md + 子代理 *.md）
 ├── docs/                # 专题文档（部署、配置、安全、API、知识库、C2、WebShell 等）
 ├── images/              # 文档配图
-├── scripts/             # 仓库维护检查，包括文档校验
 ├── config.yaml          # 运行配置
 ├── run.sh               # 启动脚本
 └── README*.md

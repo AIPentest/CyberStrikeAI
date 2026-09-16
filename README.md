@@ -328,7 +328,6 @@ CyberStrikeAI/
 ├── agents/              # Multi-agent Markdown (orchestrator.md + sub-agent *.md)
 ├── docs/                # Topic docs (deployment, config, security, API, knowledge base, C2, WebShell, etc.)
 ├── images/              # Docs screenshots & diagrams
-├── scripts/             # Repository maintenance checks, including documentation validation
 ├── config.yaml          # Runtime configuration
 ├── run.sh               # Convenience launcher
 └── README*.md

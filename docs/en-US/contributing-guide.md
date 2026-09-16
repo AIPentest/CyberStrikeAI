@@ -103,15 +103,7 @@ Update:
 - `docs/zh-CN/README.md`
 - `docs/en-US/README.md`
 
-Before submitting documentation changes, run:
-
-```bash
-python3 scripts/check-docs.py
-```
-
-The check verifies local links, fenced code blocks, bilingual filename parity, locale index coverage, and the Go version documented by the root READMEs. Keep versioned examples derived from authoritative files such as `go.mod` and `config.example.yaml` whenever possible.
-
-The same command runs automatically in the `Documentation` GitHub Actions workflow when documentation, `go.mod`, or the checker itself changes.
+Before submitting documentation changes, verify local links, fenced code blocks, bilingual filename parity, locale index coverage, and the Go version documented by the root READMEs. Keep versioned examples derived from authoritative files such as `go.mod` and `config.example.yaml` whenever possible.
 
 ## Review Focus
 

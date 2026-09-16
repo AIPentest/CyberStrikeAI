@@ -6,6 +6,7 @@ import (
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/database"
 	"cyberstrike-ai/internal/logger"
+	"cyberstrike-ai/internal/processguard"
 	"cyberstrike-ai/internal/security"
 	"cyberstrike-ai/internal/termout"
 	"flag"
@@ -14,6 +15,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"go.uber.org/zap"
 	"golang.org/x/term"
@@ -24,6 +26,7 @@ func main() {
 	var httpsBootstrap = flag.Bool("https", false, "Enable HTTPS for the main site; uses an in-memory self-signed certificate when no cert/key is configured")
 	var httpBootstrap = flag.Bool("http", false, "Force plain HTTP for the main site, overriding TLS settings in the configuration file")
 	var resetAdminPassword = flag.Bool("reset-admin-password", false, "Interactively reset the built-in admin password and exit")
+	checkIsolation := flag.Bool("check-process-isolation", false, "Probe task containment and cleanup, then exit without starting services")
 	flag.Parse()
 
 	// 环境变量兼容（便于 systemd/docker 等不传参场景）
@@ -60,6 +63,22 @@ func main() {
 	}
 	if localConfig.Created {
 		termout.PrintConfigCreated()
+	}
+
+	if *checkIsolation {
+		if err := configureProcessIsolation(cfg); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		checkCtx, cancelCheck := context.WithTimeout(context.Background(), 15*time.Second)
+		backend, checkErr := processguard.Check(checkCtx)
+		cancelCheck()
+		if checkErr != nil {
+			fmt.Fprintln(os.Stderr, checkErr)
+			os.Exit(1)
+		}
+		fmt.Printf("{\"checked\":true,\"backend\":%q}\n", backend)
+		return
 	}
 
 	if *resetAdminPassword {
@@ -108,6 +127,18 @@ func main() {
 		RetentionDays: cfg.Log.DiagnosticRetentionDays,
 	})
 	defer log.Sync()
+
+	if err := configureProcessIsolation(cfg); err != nil {
+		log.Fatal("进程隔离初始化失败", "error", err)
+	}
+
+	probeCtx, probeCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	backend, probeErr := processguard.Check(probeCtx)
+	probeCancel()
+	if probeErr != nil {
+		log.Fatal("进程隔离启动检查失败", "error", probeErr)
+	}
+	log.Info("任务进程隔离已就绪", zap.String("backend", backend))
 
 	// 创建可取消的根 context，用于优雅关闭
 	ctx, cancel := context.WithCancel(context.Background())
@@ -209,4 +240,9 @@ func readHiddenPassword(prompt string) (string, error) {
 		return "", err
 	}
 	return string(password), nil
+}
+
+func configureProcessIsolation(cfg *config.Config) error {
+	isolation := cfg.Security.ProcessIsolation
+	return processguard.Configure(processguard.Options{Mode: isolation.Mode, CgroupRoot: isolation.CgroupRoot, MaxProcesses: isolation.MaxProcesses, MemoryMaxBytes: isolation.MemoryMaxBytes, CPUQuotaMicros: isolation.CPUQuotaMicros})
 }

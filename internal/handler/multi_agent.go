@@ -147,9 +147,10 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	taskStatus := "completed"
 	// 仅在成功 StartTask 后再 FinishTask；避免「任务已存在」分支 return 时误删正在运行的同会话任务。
 	taskOwned := false
+	var taskRunID string
 	defer func() {
 		if taskOwned {
-			h.tasks.FinishTask(conversationID, taskStatus)
+			h.tasks.FinishTaskRun(conversationID, taskRunID, taskStatus)
 		}
 	}()
 
@@ -172,7 +173,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	baseCtx, cancelWithCause = context.WithCancelCause(detachedAgentContext(c.Request.Context()))
 	taskCtx, timeoutCancel := context.WithTimeout(baseCtx, 600*time.Minute)
 
-	if _, err := h.tasks.StartTask(conversationID, req.Message, cancelWithCause); err != nil {
+	if startedTask, err := h.tasks.StartTask(conversationID, req.Message, cancelWithCause); err != nil {
 		var errorMsg string
 		if errors.Is(err, ErrTaskAlreadyRunning) {
 			errorMsg = "⚠️ 当前会话已有任务正在执行中，请等待当前任务完成或点击「停止任务」后再尝试。"
@@ -190,8 +191,13 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 		sendEvent("done", "", map[string]interface{}{"conversationId": conversationID})
 		timeoutCancel()
 		return
+	} else {
+		taskRunID = startedTask.RunID
 	}
+	baseCtx = h.tasks.BindProcessScope(baseCtx, conversationID, taskRunID)
+	taskCtx = h.tasks.BindProcessScope(taskCtx, conversationID, taskRunID)
 	taskOwned = true
+	sendEvent = h.taskFinishingEventSender(sendEvent, conversationID, taskRunID, func() string { return taskStatus })
 
 	// 同一 HTTP 流内多段 Run（如中断并继续）合并 MCP execution id，供最终 response / 库表与工具芯片展示完整列表
 	var cumulativeMCPExecutionIDs []string
@@ -468,13 +474,26 @@ func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 	defer cancelWithCause(nil)
 	taskCtx, timeoutCancel := context.WithTimeout(baseCtx, 600*time.Minute)
 	defer timeoutCancel()
+	jsonTask, startErr := h.tasks.StartTask(prep.ConversationID, req.Message, cancelWithCause)
+	if startErr != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": startErr.Error()})
+		return
+	}
+	taskCtx = h.tasks.BindProcessScope(taskCtx, prep.ConversationID, jsonTask.RunID)
+	taskCtx = mcp.WithMCPConversationID(taskCtx, prep.ConversationID)
+	taskCtx = mcp.WithToolRunRegistry(taskCtx, h.tasks)
+	taskCtx = mcp.WithEinoExecuteRunRegistry(taskCtx, h.tasks)
+	jsonTaskStatus := "failed"
+	defer func() { _ = h.tasks.FinishTaskRun(prep.ConversationID, jsonTask.RunID, jsonTaskStatus) }()
+	respond := h.taskFinishingJSONResponder(c, prep.ConversationID, jsonTask.RunID, func() string { return jsonTaskStatus })
+
 	progressCallback := h.createProgressCallback(taskCtx, cancelWithCause, prep.ConversationID, prep.AssistantMessageID, nil)
 	taskCtx = multiagent.WithHITLToolInterceptor(taskCtx, func(ctx context.Context, toolName, arguments string) (string, error) {
 		return h.interceptHITLForEinoTool(ctx, cancelWithCause, prep.ConversationID, prep.AssistantMessageID, nil, toolName, arguments)
 	})
 	runCfg, _, err := h.configForAIChannel(req.AIChannelID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respond(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -522,7 +541,7 @@ func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 			}
 			errData := multiagent.EinoClientRunErrorFields(runErr)
 			errData["error"] = errMsg
-			c.JSON(http.StatusInternalServerError, errData)
+			respond(http.StatusInternalServerError, errData)
 			return
 		}
 		mw := &h.config.MultiAgent.EinoMiddleware
@@ -552,7 +571,12 @@ func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 	if !decision.Finalizable {
 		responseText = finalizationBlockedMessage(decision)
 	}
-	c.JSON(http.StatusOK, ChatResponse{
+
+	jsonTaskStatus = decision.Status
+	if jsonTaskStatus == "" {
+		jsonTaskStatus = "completed"
+	}
+	respond(http.StatusOK, ChatResponse{
 		Response:                         responseText,
 		MCPExecutionIDs:                  result.MCPExecutionIDs,
 		ConversationID:                   prep.ConversationID,

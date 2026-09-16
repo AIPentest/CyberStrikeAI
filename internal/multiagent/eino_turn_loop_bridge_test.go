@@ -102,6 +102,9 @@ func TestRunEinoADKAgentLoopUsesTurnLoopInterruptPush(t *testing.T) {
 		t.Fatalf("model calls = %d, want at least 2", len(inputs))
 	}
 	last := inputs[len(inputs)-1]
+	if len(last) < 2 || last[0].Content != "initial task" {
+		t.Fatalf("initial task lost: %#v", last)
+	}
 	if len(last) == 0 || last[len(last)-1].Role != schema.User || last[len(last)-1].Content == "initial task" {
 		t.Fatalf("last model input = %#v, want interrupt supplement turn", last)
 	}
