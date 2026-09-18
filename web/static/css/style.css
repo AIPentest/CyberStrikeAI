@@ -44002,8 +44002,9 @@ html[data-theme="dark"] #project-panel-assets .projects-panel-pagination.paginat
 }
 
 .project-folder-preview-stats svg {
-    width: 15px;
-    height: 15px;
+    width: 16px;
+    height: 16px;
+    overflow: visible;
 }
 
 .project-folder-preview-details {
