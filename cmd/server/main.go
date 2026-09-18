@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -127,6 +128,9 @@ func main() {
 		RetentionDays: cfg.Log.DiagnosticRetentionDays,
 	})
 	defer log.Sync()
+	if venvBin := ensureProjectVenvOnPath(); venvBin != "" {
+		log.Info("已将项目 Python venv 加入 PATH", zap.String("venv_bin", venvBin))
+	}
 
 	if err := configureProcessIsolation(cfg); err != nil {
 		log.Fatal("进程隔离初始化失败", "error", err)
@@ -240,6 +244,52 @@ func readHiddenPassword(prompt string) (string, error) {
 		return "", err
 	}
 	return string(password), nil
+}
+
+// ensureProjectVenvOnPath puts <exeDir>/venv/bin first on PATH so tools that
+// exec "python3" (e.g. http-framework-test) use project deps such as httpx.
+// Starting the binary without run.sh otherwise leaves PATH on system python.
+func ensureProjectVenvOnPath() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	}
+	return ensureProjectVenvOnPathFromRoot(filepath.Dir(exe))
+}
+
+func ensureProjectVenvOnPathFromRoot(root string) string {
+	root = strings.TrimSpace(root)
+	if root == "" {
+		return ""
+	}
+	venvBin := filepath.Join(root, "venv", "bin")
+	python := filepath.Join(venvBin, "python3")
+	st, err := os.Stat(python)
+	if err != nil || st.IsDir() {
+		return ""
+	}
+	if strings.TrimSpace(os.Getenv("VIRTUAL_ENV")) == "" {
+		_ = os.Setenv("VIRTUAL_ENV", filepath.Join(root, "venv"))
+	}
+	if strings.TrimSpace(os.Getenv("CYBERSTRIKE_ROOT")) == "" {
+		_ = os.Setenv("CYBERSTRIKE_ROOT", root)
+	}
+	path := os.Getenv("PATH")
+	sep := string(os.PathListSeparator)
+	for _, p := range strings.Split(path, sep) {
+		if p == venvBin {
+			return venvBin
+		}
+	}
+	if path == "" {
+		_ = os.Setenv("PATH", venvBin)
+	} else {
+		_ = os.Setenv("PATH", venvBin+sep+path)
+	}
+	return venvBin
 }
 
 func configureProcessIsolation(cfg *config.Config) error {
