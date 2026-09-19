@@ -53,6 +53,7 @@ type DB struct {
 	einoCheckpointBaseDir    string // checkpoint_dir root (per-conversation subdirs)
 	einoReductionRootDir     string // reduction_root_dir or default tmp/reduction (conversations/<id> subdirs)
 	einoWorkspaceRootDir     string // workspace_root_dir or default tmp/workspace (projects|conversations/<id> subdirs)
+	chatUploadsDir           string // chat_uploads root (<date>/<conversationID> subdirs)
 	checkpointLoopName       string
 	checkpointStop           chan struct{}
 	checkpointDone           chan struct{}
@@ -176,6 +177,16 @@ func (db *DB) SetEinoConversationDirs(plantaskBase, checkpointBase, reductionRoo
 	db.einoCheckpointBaseDir = strings.TrimSpace(checkpointBase)
 	db.einoReductionRootDir = strings.TrimSpace(reductionRoot)
 	db.einoWorkspaceRootDir = strings.TrimSpace(workspaceRoot)
+}
+
+// SetChatUploadsDir configures the chat_uploads root so DeleteConversation can remove
+// uploaded attachment files. Their chat_upload_artifacts rows already disappear via
+// ON DELETE CASCADE; without this the files themselves would linger forever.
+func (db *DB) SetChatUploadsDir(dir string) {
+	if db == nil {
+		return
+	}
+	db.chatUploadsDir = strings.TrimSpace(dir)
 }
 
 // initTables 初始化数据库表

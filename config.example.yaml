@@ -48,6 +48,41 @@ audit:
 # MCP 状态监控执行记录保留（tool_executions 表）
 monitor:
   retention_days: 90 # 省略时默认 90；0 表示不自动清理
+# 运行空间垃圾清理（系统设置 -> 存储清理）
+# 覆盖 Agent 工作区、工具输出缓存、C2 产物、对话上传件等磁盘产物的保留策略。
+# auto_clean 默认关闭：升级后不会在管理员不知情的情况下删除既有数据；
+# 关闭时仍可在「存储清理」页手动预览并执行清理。
+storage:
+  auto_clean: false # true 开启后台定时清理
+  interval_minutes: 60 # 后台清理间隔（分钟）；最小 5
+  orphan_grace_days: 1 # 会话/项目已删除但目录残留时，闲置多少天后回收
+  active_grace_hours: 24 # 最近有活动的会话一律跳过，避免误删正在跑的任务数据
+  # 各类别 retention_days：省略时使用下方默认值；0 表示不按保留期清理（孤儿目录仍会回收）
+  categories:
+    workspace: # Agent 工作区 tmp/workspace；默认 30 天
+      enabled: true
+      retention_days: 30
+    reduction: # 超长工具输出落盘 tmp/reduction；默认 7 天（纯派生数据）
+      enabled: true
+      retention_days: 7
+    conversation_artifacts: # 摘要与超长输入台账 data/conversation_artifacts；默认 30 天
+      enabled: true
+      retention_days: 30
+    plantask: # 多代理计划看板 skills/.eino/plantask；默认 30 天（纯派生数据）
+      enabled: true
+      retention_days: 30
+    c2_artifacts: # C2 回传截图/上传件/下发文件/payload tmp/c2；默认 30 天
+      enabled: true # 注意：清理 payload 后对应下载链接会失效
+      retention_days: 30
+    chat_uploads: # 对话上传附件 chat_uploads；默认 90 天
+      enabled: true
+      retention_days: 90
+    workflow_checkpoints: # 工作流断点 data/workflow-checkpoints；默认 7 天
+      enabled: true
+      retention_days: 7
+    diagnostic_logs: # 诊断日志 log/diagnostic-*.log；默认 14 天
+      enabled: true # 与 log.diagnostic_retention_days 各自独立生效，取先到者
+      retention_days: 14
 # ============================================
 # 对话相关配置
 # ============================================

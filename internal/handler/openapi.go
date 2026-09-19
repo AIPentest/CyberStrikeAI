@@ -3468,6 +3468,103 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 					},
 				},
 			},
+			"/api/storage/meta": map[string]interface{}{
+				"get": map[string]interface{}{
+					"tags":        []string{"存储清理"},
+					"summary":     "获取存储清理策略",
+					"description": "返回自动清理开关、间隔、宽限窗口与全部清理类别的启用状态及保留天数",
+					"operationId": "getStorageMeta",
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "获取成功",
+						},
+						"401": map[string]interface{}{
+							"description": "未授权",
+						},
+						"403": map[string]interface{}{
+							"description": "缺少 storage:read 权限",
+						},
+					},
+				},
+			},
+			"/api/storage/status": map[string]interface{}{
+				"get": map[string]interface{}{
+					"tags":        []string{"存储清理"},
+					"summary":     "获取运行空间占用",
+					"description": "返回文件系统容量（含 inode）与各类别的占用、可回收量；结果按短 TTL 缓存",
+					"operationId": "getStorageStatus",
+					"parameters": []interface{}{
+						map[string]interface{}{
+							"name":        "refresh",
+							"in":          "query",
+							"description": "为 true 时强制重新遍历目录，绕过缓存",
+							"required":    false,
+							"schema":      map[string]interface{}{"type": "boolean"},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "获取成功",
+						},
+						"401": map[string]interface{}{
+							"description": "未授权",
+						},
+						"403": map[string]interface{}{
+							"description": "缺少 storage:read 权限",
+						},
+					},
+				},
+			},
+			"/api/storage/cleanup": map[string]interface{}{
+				"post": map[string]interface{}{
+					"tags":        []string{"存储清理"},
+					"summary":     "预览或执行运行空间清理",
+					"description": "默认 dry_run=true 只统计不删除；真实删除必须同时传 dry_run=false 与 confirm=true。仅处理已启用的类别，同一时刻只允许一轮执行",
+					"operationId": "runStorageCleanup",
+					"requestBody": map[string]interface{}{
+						"required": false,
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"dry_run": map[string]interface{}{
+											"type":        "boolean",
+											"description": "省略时按 true 处理",
+										},
+										"confirm": map[string]interface{}{
+											"type":        "boolean",
+											"description": "dry_run=false 时必须为 true",
+										},
+										"categories": map[string]interface{}{
+											"type":        "array",
+											"description": "限定类别；省略表示全部已启用类别",
+											"items":       map[string]interface{}{"type": "string"},
+										},
+									},
+								},
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "执行完成（或预览完成）",
+						},
+						"400": map[string]interface{}{
+							"description": "缺少 confirm、或类别键未注册",
+						},
+						"401": map[string]interface{}{
+							"description": "未授权",
+						},
+						"403": map[string]interface{}{
+							"description": "缺少 storage:write 权限",
+						},
+						"409": map[string]interface{}{
+							"description": "已有一轮清理在执行",
+						},
+					},
+				},
+			},
 			"/api/config/tools": map[string]interface{}{
 				"get": map[string]interface{}{
 					"tags":        []string{"配置管理"},
