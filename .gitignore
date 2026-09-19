@@ -1,0 +1,48 @@
+# --- Secrets / local config ---
+# config.yaml is the tracked template; local copies with real credentials
+# should not be committed. Use these patterns for your live config.
+.env
+.env.*
+*.local.yaml
+*.local.yml
+config.local.yaml
+secrets.yaml
+secrets.yml
+*.pem
+*.key
+
+# --- Go build artifacts ---
+/bin/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# --- Go tooling caches ---
+/vendor/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+
+# --- Logs & runtime data ---
+*.log
+/logs/
+/data/
+/tmp/
+
+# --- Editor / OS cruft ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
