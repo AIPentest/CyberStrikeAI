@@ -302,6 +302,16 @@ func appendAssetAccess(query string, args []interface{}, access RBACListAccess, 
 }
 
 func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...bool) (AssetImportResult, error) {
+	var result AssetImportResult
+	err := retrySQLiteBusy(8, func() error {
+		var err error
+		result, err = db.upsertAssetsOnce(assets, ownerUserID, allowGlobal...)
+		return err
+	})
+	return result, err
+}
+
+func (db *DB) upsertAssetsOnce(assets []*Asset, ownerUserID string, allowGlobal ...bool) (AssetImportResult, error) {
 	result := AssetImportResult{}
 	tx, err := db.Begin()
 	if err != nil {

@@ -14,9 +14,12 @@ import (
 )
 
 const (
-	// SQLite 在 WAL 模式下建议使用较保守的连接数，降低长读快照导致 checkpoint 饥饿的概率。
-	sqliteMaxOpenConns = 25
-	sqliteMaxIdleConns = 5
+	// WAL 允许并发读，但同一时间仍只有一个写者。连接池过大时，Deep 模式并行
+	// create_asset 会各自 Begin+SELECT 再 INSERT，触发 SQLITE_BUSY（database is locked）
+	// 且 DEFERRED 事务升级写锁时可能立刻失败、不走 busy_timeout。
+	sqliteMaxOpenConns  = 8
+	sqliteMaxIdleConns  = 4
+	sqliteBusyTimeoutMS = 30000
 	// 以页为单位的自动 checkpoint 触发阈值（默认 1000 页，约 4MB @ 4KB/page）。
 	sqliteWALAutoCheckpointPages = 1000
 	// 控制 WAL 目标上限，避免异常场景持续膨胀（256MB）。
@@ -25,9 +28,39 @@ const (
 	sqlitePassiveCheckpointInterval = 300 * time.Second
 )
 
-// configureDBPool 设置 SQLite 连接池参数，提升并发稳定性
+func sqliteOpenDSN(path string) string {
+	return fmt.Sprintf("%s?_journal_mode=WAL&_foreign_keys=1&_busy_timeout=%d&_synchronous=NORMAL&_txlock=immediate", path, sqliteBusyTimeoutMS)
+}
+
+func isSQLiteBusy(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "database is locked") || strings.Contains(msg, "sqlite_busy")
+}
+
+func retrySQLiteBusy(attempts int, op func() error) error {
+	if attempts < 1 {
+		attempts = 1
+	}
+	var err error
+	backoff := 5 * time.Millisecond
+	for i := 0; i < attempts; i++ {
+		err = op()
+		if err == nil || !isSQLiteBusy(err) {
+			return err
+		}
+		time.Sleep(backoff)
+		if backoff < 100*time.Millisecond {
+			backoff *= 2
+		}
+	}
+	return err
+}
+
+// configureDBPool 设置 SQLite 连接池：保留少量连接给 WAL 并发读，避免 25 路写连接互锁。
 func configureDBPool(db *sql.DB) {
-	// SQLite 同一时间只允许一个写入者；过高连接数会放大锁竞争和 WAL 回收延迟。
 	db.SetMaxOpenConns(sqliteMaxOpenConns)
 	db.SetMaxIdleConns(sqliteMaxIdleConns)
 	db.SetConnMaxLifetime(30 * time.Minute)
@@ -122,7 +155,7 @@ func (db *DB) runPassiveCheckpoint(trigger string) {
 
 // NewDB 创建数据库连接
 func NewDB(dbPath string, logger *zap.Logger) (*DB, error) {
-	db, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_foreign_keys=1&_busy_timeout=5000&_synchronous=NORMAL")
+	db, err := sql.Open("sqlite3", sqliteOpenDSN(dbPath))
 	if err != nil {
 		return nil, fmt.Errorf("打开数据库失败: %w", err)
 	}
@@ -1634,7 +1667,7 @@ func (db *DB) migrateC2ListenersTable() error {
 
 // NewKnowledgeDB 创建知识库数据库连接（只包含知识库相关的表）
 func NewKnowledgeDB(dbPath string, logger *zap.Logger) (*DB, error) {
-	sqlDB, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_foreign_keys=1&_busy_timeout=5000&_synchronous=NORMAL")
+	sqlDB, err := sql.Open("sqlite3", sqliteOpenDSN(dbPath))
 	if err != nil {
 		return nil, fmt.Errorf("打开知识库数据库失败: %w", err)
 	}
