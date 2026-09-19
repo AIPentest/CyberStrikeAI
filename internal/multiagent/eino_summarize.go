@@ -301,9 +301,13 @@ func newEinoSummarizationModelOptions(outputReserve int, modelName, kind string,
 	if strings.TrimSpace(kind) != "" && kind != "classic" {
 		label = "eino " + kind + " summarization generate request"
 	}
+	tokenLimit := einoopenai.WithMaxCompletionTokens(outputReserve)
+	if oa != nil && isEinoAgenticClaudeProvider(oa.Provider) {
+		// Native Claude consumes the common option; OpenAI rejects both token fields together.
+		tokenLimit = model.WithMaxTokens(outputReserve)
+	}
 	return []model.Option{
-		model.WithMaxTokens(outputReserve),
-		einoopenai.WithMaxCompletionTokens(outputReserve),
+		tokenLimit,
 		einoopenai.WithExtraHeader(map[string]string{
 			copenai.SummarizationRequestHeader: "1",
 		}),

@@ -93,9 +93,9 @@ func TestStripReasoningFromSummarizationPayloadHonorsOpenAICompatProfileForNonDe
 	}
 }
 
-func TestEinoSummarizationModelOptionsSetCommonMaxTokens(t *testing.T) {
+func TestEinoSummarizationModelOptionsSetClaudeCommonMaxTokens(t *testing.T) {
 	const outputReserve = 4096
-	opts := newEinoSummarizationModelOptions(outputReserve, "minimax-m3", "agentic", nil, nil)
+	opts := newEinoSummarizationModelOptions(outputReserve, "claude-sonnet", "agentic", &config.OpenAIConfig{Provider: "claude"}, nil)
 	common := model.GetCommonOptions(nil, opts...)
 	if common == nil || common.MaxTokens == nil {
 		t.Fatal("expected summarization options to set common max_tokens")
