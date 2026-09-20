@@ -139,6 +139,15 @@ test('对话悬浮预览标题与时间分行显示并保留更多标题内容',
     assert.doesNotMatch(titleStyles, /white-space: nowrap;/);
 });
 
+test('项目预览任务统计使用闭合圆环，避免刷新箭头在小尺寸下变成毛刺', () => {
+    const source = functionSource(projects, 'ensureProjectFolderPreview', 'positionProjectFolderPreview');
+
+    assert.match(source, /class="project-folder-preview-stats"/);
+    assert.match(source, /<circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1\.5"\/>/);
+    assert.doesNotMatch(source, /H21v5l-2-2/);
+    assert.match(styles, /\.project-folder-preview-stats svg \{\s*width: 16px;\s*height: 16px;\s*overflow: visible;/);
+});
+
 test('对话悬浮预览使用美化后的代理模式徽标', () => {
     const projects = fs.readFileSync('web/static/js/projects.js', 'utf8');
 

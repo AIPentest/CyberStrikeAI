@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
+	"github.com/cloudwego/eino-ext/components/model/agenticopenai"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
+	schemaopenai "github.com/cloudwego/eino/schema/openai"
 )
 
 type einoSummarizationModelError struct {
@@ -56,12 +59,22 @@ func newNonEmptySummaryChatModel(base model.BaseChatModel) model.BaseChatModel {
 }
 
 func (m *nonEmptySummaryChatModel) Generate(ctx context.Context, input []*schema.Message, opts ...model.Option) (*schema.Message, error) {
-	out, err := m.base.Generate(ctx, input, opts...)
+	if err := ctx.Err(); err != nil {
+		return nil, newEinoSummarizationModelError(err)
+	}
+	stream, err := m.base.Stream(ctx, input, opts...)
 	if err != nil {
-		return out, newEinoSummarizationModelError(err)
+		return nil, newEinoSummarizationModelError(err)
+	}
+	out, err := collectSummaryStream(ctx, stream, schema.ConcatMessages)
+	if err != nil {
+		return nil, newEinoSummarizationModelError(err)
 	}
 	if strings.TrimSpace(classicAssistantTextContent(out)) == "" {
-		return out, newEinoSummarizationModelError(fmt.Errorf("summary content is empty: %s", classicSummaryEmptyDiagnostics(out)))
+		return nil, newEinoSummarizationModelError(fmt.Errorf("summary content is empty: %s", classicSummaryEmptyDiagnostics(out)))
+	}
+	if err := validateClassicSummaryCompletion(out); err != nil {
+		return nil, newEinoSummarizationModelError(err)
 	}
 	return out, nil
 }
@@ -79,12 +92,22 @@ func newNonEmptyAgenticSummaryModel(base model.BaseModel[*schema.AgenticMessage]
 }
 
 func (m *nonEmptyAgenticSummaryModel) Generate(ctx context.Context, input []*schema.AgenticMessage, opts ...model.Option) (*schema.AgenticMessage, error) {
-	out, err := m.base.Generate(ctx, input, opts...)
+	if err := ctx.Err(); err != nil {
+		return nil, newEinoSummarizationModelError(err)
+	}
+	stream, err := m.base.Stream(ctx, input, opts...)
 	if err != nil {
-		return out, newEinoSummarizationModelError(err)
+		return nil, newEinoSummarizationModelError(err)
+	}
+	out, err := collectSummaryStream(ctx, stream, schema.ConcatAgenticMessages)
+	if err != nil {
+		return nil, newEinoSummarizationModelError(err)
 	}
 	if strings.TrimSpace(agenticAssistantTextContent(out)) == "" {
-		return out, newEinoSummarizationModelError(fmt.Errorf("summary content is empty: %s", agenticSummaryEmptyDiagnostics(out)))
+		return nil, newEinoSummarizationModelError(fmt.Errorf("summary content is empty: %s", agenticSummaryEmptyDiagnostics(out)))
+	}
+	if err := validateAgenticSummaryCompletion(out); err != nil {
+		return nil, newEinoSummarizationModelError(err)
 	}
 	return out, nil
 }
@@ -211,4 +234,82 @@ func agenticSummaryEmptyDiagnostics(msg *schema.AgenticMessage) string {
 		fields = append(fields, "hint=模型返回了 reasoning block 但没有返回可作为摘要正文的 text block；请检查 DeepSeek thinking 是否已在摘要请求中关闭")
 	}
 	return strings.Join(fields, " ")
+}
+
+// Summarization expects a complete message, but providers such as Claude require
+// streaming for large output budgets. Only finalize after a clean EOF: a partial
+// summary must never replace the original conversation when the stream fails.
+// Recv relies on the underlying model honoring ctx to unblock network reads;
+// do not start detached receive goroutines, which can leak on stalled providers.
+func collectSummaryStream[T any](ctx context.Context, stream *schema.StreamReader[*T], concat func([]*T) (*T, error)) (*T, error) {
+	if stream == nil {
+		return nil, fmt.Errorf("summary model returned nil stream")
+	}
+	defer stream.Close()
+	var chunks []*T
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		chunk, err := stream.Recv()
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if chunk != nil {
+			chunks = append(chunks, chunk)
+		}
+	}
+	if len(chunks) == 0 {
+		return nil, fmt.Errorf("summary content is empty: model returned no chunks")
+	}
+	return concat(chunks)
+}
+
+// EOF only means the transport ended. Require positive completion metadata before
+// allowing the middleware to replace conversation history with the summary.
+func validateClassicSummaryCompletion(msg *schema.Message) error {
+	reason := ""
+	if msg.ResponseMeta != nil {
+		reason = msg.ResponseMeta.FinishReason
+	}
+	if reason != "stop" || len(msg.ToolCalls) != 0 {
+		return fmt.Errorf("summary did not complete: finish_reason=%q tool_calls=%d", reason, len(msg.ToolCalls))
+	}
+	return nil
+}
+
+func validateAgenticSummaryCompletion(msg *schema.AgenticMessage) error {
+	if meta := msg.ResponseMeta; meta != nil {
+		if ext, ok := meta.Extension.(*agenticopenai.ChatResponseMetaExtension); ok && ext != nil {
+			if ext.FinishReason == "stop" {
+				return nil
+			}
+			return fmt.Errorf("summary did not complete: openai chat finish_reason=%q", ext.FinishReason)
+		}
+		if ext := meta.ClaudeExtension; ext != nil {
+			if ext.StopReason == "end_turn" {
+				return nil
+			}
+			return fmt.Errorf("summary did not complete: claude stop_reason=%q", ext.StopReason)
+		}
+		if ext := meta.OpenAIExtension; ext != nil {
+			if ext.Status == schemaopenai.ResponseStatusCompleted && ext.Error == nil && ext.IncompleteDetails == nil {
+				return nil
+			}
+			return fmt.Errorf("summary did not complete: openai status=%q", ext.Status)
+		}
+		if ext := meta.GeminiExtension; ext != nil {
+			if ext.FinishReason == "STOP" {
+				return nil
+			}
+			return fmt.Errorf("summary did not complete: gemini finish_reason=%q", ext.FinishReason)
+		}
+	}
+	return fmt.Errorf("summary did not complete: missing completion metadata")
 }

@@ -39,3 +39,14 @@ func terminateProcessGroup(rootPID int, cmd *exec.Cmd) {
 func terminateCmdTree(cmd *exec.Cmd) {
 	terminateProcessGroup(0, cmd)
 }
+
+// stopProcessGroup gives the whole job a grace period to release resources.
+func stopProcessGroup(pid int, cmd *exec.Cmd) {
+	if pid > 0 {
+		_ = syscall.Kill(-pid, syscall.SIGTERM)
+	}
+}
+
+func processGroupExists(pid int) bool {
+	return pid > 0 && syscall.Kill(-pid, 0) != syscall.ESRCH
+}

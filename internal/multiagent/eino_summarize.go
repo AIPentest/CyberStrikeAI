@@ -291,7 +291,8 @@ func newEinoSummarizationMiddleware(
 	return mw, nil
 }
 
-// newEinoSummarizationModelOptions applies only to summarization Generate calls
+// newEinoSummarizationModelOptions applies only to summary requests (streamed
+// internally by the summary model guard while exposing Generate to Eino)
 // on the shared main model. Summary generation should be plain-text and cheap:
 // strip provider reasoning/thinking controls so DeepSeek/OpenAI-compatible
 // endpoints do not spend the reserved output budget on invisible reasoning.

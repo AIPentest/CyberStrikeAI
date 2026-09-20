@@ -54,7 +54,7 @@ func (rt *einoSSESanitizingRoundTripper) RoundTrip(req *http.Request) (*http.Res
 }
 
 // isSSEResponse 仅对 200 + text/event-stream 的响应做清洗;
-// 错误响应 (4xx/5xx 通常是 application/json) 不动, 由 SDK 走原错误路径。
+// 错误响应由独立的 einoSSEErrorRoundTripper 处理，此层不改动。
 func isSSEResponse(resp *http.Response) bool {
 	if resp.StatusCode != http.StatusOK {
 		return false

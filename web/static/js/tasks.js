@@ -187,7 +187,7 @@ function updateCompletedTasksHistory(currentTasks) {
         const exists = tasksState.completedTasksHistory.some(t => t.conversationId === task.conversationId);
         if (!exists) {
             // 如果任务状态不是最终状态，标记为completed
-            const finalStatus = ['completed', 'failed', 'timeout', 'cancelled'].includes(task.status) 
+            const finalStatus = ['completed', 'failed', 'timeout', 'cancelled', 'cleanup_unconfirmed'].includes(task.status)
                 ? task.status 
                 : 'completed';
             
@@ -309,7 +309,7 @@ function updateTaskStats(tasks) {
     tasks.forEach(task => {
         if (task.status === 'running') {
             stats.running++;
-        } else if (task.status === 'cancelling') {
+        } else if (['cancelling', 'cleaning', 'cleanup_failed'].includes(task.status)) {
             stats.cancelling++;
         } else if (task.status === 'completed') {
             stats.completed++;
@@ -364,7 +364,7 @@ function filterAndSortTasks() {
     if (statusFilter === 'active') {
         // 仅运行中的任务（不包括历史）
         filtered = tasksState.allTasks.filter(task => 
-            task.status === 'running' || task.status === 'cancelling'
+            ['running', 'cancelling', 'cleaning', 'cleanup_failed'].includes(task.status)
         );
     } else if (statusFilter === 'history') {
         // 仅历史记录
@@ -445,7 +445,7 @@ function updateTaskDurations() {
         const status = item.dataset.status;
         const durationEl = item.querySelector('.task-duration');
         
-        if (durationEl && startedAt && (status === 'running' || status === 'cancelling')) {
+        if (durationEl && startedAt && (['running', 'cancelling', 'cleaning', 'cleanup_failed'].includes(status))) {
             durationEl.textContent = calculateDuration(startedAt);
         }
     });
@@ -470,6 +470,9 @@ function renderTasks(tasks) {
     // 状态映射
     const statusMap = {
         'running': { text: _t('tasks.statusRunning'), class: 'task-status-running' },
+        'cleaning': { text: _t('tasks.statusCleaning'), class: 'task-status-cancelling' },
+        'cleanup_unconfirmed': { text: _t('tasks.statusCleanupUnconfirmed'), class: 'task-status-failed' },
+        'cleanup_failed': { text: _t('tasks.statusCleanupFailed'), class: 'task-status-failed' },
         'cancelling': { text: _t('tasks.statusCancelling'), class: 'task-status-cancelling' },
         'failed': { text: _t('tasks.statusFailed'), class: 'task-status-failed' },
         'timeout': { text: _t('tasks.statusTimeout'), class: 'task-status-timeout' },
@@ -530,10 +533,10 @@ function renderTaskItem(task, statusMap, isHistory = false) {
         : '';
 
     const status = statusMap[task.status] || { text: task.status, class: 'task-status-unknown' };
-    const isFinalStatus = ['failed', 'timeout', 'cancelled', 'completed'].includes(task.status);
-    const canCancel = !isFinalStatus && task.status !== 'cancelling' && !isHistory;
+    const isFinalStatus = ['failed', 'timeout', 'cancelled', 'completed', 'cleanup_unconfirmed'].includes(task.status);
+    const canCancel = !isFinalStatus && !['cancelling', 'cleaning'].includes(task.status) && !isHistory;
     const isSelected = tasksState.selectedTasks.has(task.conversationId);
-    const duration = (task.status === 'running' || task.status === 'cancelling') 
+    const duration = (['running', 'cancelling', 'cleaning', 'cleanup_failed'].includes(task.status))
         ? calculateDuration(task.startedAt) 
         : '';
 
@@ -561,6 +564,7 @@ function renderTaskItem(task, statusMap, isHistory = false) {
                     ${task.conversationId ? `<button class="btn-secondary btn-small" onclick="viewConversation(${escapeJsStringAttr(task.conversationId)})">` + _t('tasks.viewConversation') + `</button>` : ''}
                 </div>
             </div>
+            ${task.cleanupError ? `<div class="task-details">${escapeHtml(task.cleanupError)}</div>` : ''}
             ${task.conversationId ? `
                 <div class="task-details">
                     <span class="task-id-label">` + _t('tasks.conversationIdLabel') + `:</span>

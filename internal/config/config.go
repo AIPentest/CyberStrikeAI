@@ -1074,7 +1074,17 @@ type SpaceSearchConfig struct {
 	BaseURL string `yaml:"base_url,omitempty" json:"base_url,omitempty"`
 }
 
+type ProcessIsolationConfig struct {
+	Mode           string `yaml:"mode" json:"mode"`
+	CgroupRoot     string `yaml:"cgroup_root" json:"cgroup_root"`
+	MaxProcesses   int    `yaml:"max_processes" json:"max_processes"`
+	MemoryMaxBytes int64  `yaml:"memory_max_bytes" json:"memory_max_bytes"`
+	CPUQuotaMicros int64  `yaml:"cpu_quota_micros" json:"cpu_quota_micros"`
+}
+
 type SecurityConfig struct {
+	ProcessIsolation ProcessIsolationConfig `yaml:"process_isolation,omitempty" json:"process_isolation"`
+
 	Tools               []ToolConfig `yaml:"tools,omitempty"`                 // 向后兼容：支持在主配置文件中定义工具
 	ToolsDir            string       `yaml:"tools_dir,omitempty"`             // 工具配置文件目录（新方式）
 	ToolDescriptionMode string       `yaml:"tool_description_mode,omitempty"` // 工具描述模式: "short" | "full"，默认 short

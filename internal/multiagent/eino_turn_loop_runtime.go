@@ -49,6 +49,7 @@ func NewEinoTurnLoopRuntime(cfg EinoTurnLoopRuntimeConfig) *EinoTurnLoopRuntime 
 	}
 	enableStreaming := cfg.EnableStreaming
 	prepareAgent := cfg.PrepareAgent
+	history := &einoTurnHistory{}
 	if prepareAgent == nil {
 		prepareAgent = func(context.Context, *adk.TurnLoop[EinoTurnLoopItem, *schema.Message], []EinoTurnLoopItem) (adk.Agent, error) {
 			return cfg.Agent, nil
@@ -58,9 +59,11 @@ func NewEinoTurnLoopRuntime(cfg EinoTurnLoopRuntimeConfig) *EinoTurnLoopRuntime 
 		Store:        cfg.Store,
 		CheckpointID: cfg.CheckpointID,
 		GenInput: func(ctx context.Context, _ *adk.TurnLoop[EinoTurnLoopItem, *schema.Message], items []EinoTurnLoopItem) (*adk.GenInputResult[EinoTurnLoopItem, *schema.Message], error) {
-			msgs := mergeEinoTurnLoopMessages(items)
+			msgs := append(history.nextInput(), mergeEinoTurnLoopMessages(items)...)
+			history = &einoTurnHistory{}
+			history.begin(msgs)
 			return &adk.GenInputResult[EinoTurnLoopItem, *schema.Message]{
-				RunCtx: ctx,
+				RunCtx: context.WithValue(ctx, einoTurnHistoryKey{}, history),
 				Input: &adk.AgentInput{
 					Messages:        msgs,
 					EnableStreaming: enableStreaming,
@@ -74,13 +77,15 @@ func NewEinoTurnLoopRuntime(cfg EinoTurnLoopRuntimeConfig) *EinoTurnLoopRuntime 
 			consumed = append(consumed, newItems...)
 			remaining := append([]EinoTurnLoopItem(nil), unhandledItems...)
 			return &adk.GenResumeResult[EinoTurnLoopItem, *schema.Message]{
-				RunCtx:    ctx,
+				RunCtx:    context.WithValue(ctx, einoTurnHistoryKey{}, history),
 				Consumed:  consumed,
 				Remaining: remaining,
 			}, nil
 		},
-		PrepareAgent:  prepareAgent,
-		OnAgentEvents: cfg.OnAgentEvents,
+		PrepareAgent: prepareAgent,
+		OnAgentEvents: func(ctx context.Context, tc *adk.TurnContext[EinoTurnLoopItem, *schema.Message], events *adk.AsyncIterator[*adk.AgentEvent]) error {
+			return history.wrapEvents(cfg.OnAgentEvents)(ctx, tc, events)
+		},
 	})
 	if len(cfg.InitialMessages) > 0 {
 		loop.Push(EinoTurnLoopItem{Kind: "initial", Messages: cloneSchemaMessages(cfg.InitialMessages)})

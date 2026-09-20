@@ -3,7 +3,7 @@ const progressTaskState = new Map();
 let userInterruptModalPending = null;
 let activeTaskInterval = null;
 const ACTIVE_TASK_REFRESH_INTERVAL = 2000; // 运行态与审批态需要及时自刷新
-const TASK_FINAL_STATUSES = new Set(['failed', 'timeout', 'cancelled', 'completed']);
+const TASK_FINAL_STATUSES = new Set(['failed', 'timeout', 'cancelled', 'completed', 'cleanup_unconfirmed']);
 const hitlInterruptToolItemMap = new Map();
 let activeTasksLoadPromise = null;
 let activeTasksVisualSignature = '';
@@ -7153,13 +7153,16 @@ function renderActiveTasks(tasks) {
         const statusMap = {
             'running': _t('tasks.statusRunning'),
             'cancelling': _t('tasks.statusCancelling'),
+            'cleaning': _t('tasks.statusCleaning'),
+            'cleanup_failed': _t('tasks.statusCleanupFailed'),
+            'cleanup_unconfirmed': _t('tasks.statusCleanupUnconfirmed'),
             'failed': _t('tasks.statusFailed'),
             'timeout': _t('tasks.statusTimeout'),
             'cancelled': _t('tasks.statusCancelled'),
             'completed': _t('tasks.statusCompleted')
         };
         const statusText = statusMap[task.status] || _t('tasks.statusRunning');
-        const isFinalStatus = ['failed', 'timeout', 'cancelled', 'completed'].includes(task.status);
+        const isFinalStatus = ['failed', 'timeout', 'cancelled', 'completed', 'cleanup_unconfirmed'].includes(task.status);
         const taskDisplayName = getActiveTaskDisplayName(task);
         const stopTaskBtnText = _t('tasks.stopTask');
 

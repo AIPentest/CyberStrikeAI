@@ -221,3 +221,62 @@ PY
 
 - 外部 MCP 的远端 server 内部如何采集输出不由 CyberStrikeAI 控制；CyberStrikeAI 会在结果进入本系统后统一兜底、限并发和熔断。
 - 超长工具输出会在截断前写入本地 `tmp/reduction/.../trunc/<id>`（或 `reduction_root_dir`），bounded result 中包含可 `read_file` 的绝对路径。
+
+## 本轮任务的进程生命周期
+
+每轮任务有独立 `runId`，本地进程与异步 MCP worker 都通过 context 保留归属。取消 context、工具返回、SSE 断线不等于资源已回收。
+
+- `exec ... &` 与 Eino 后台执行立即返回，但仍属于本轮任务；无任务归属的后台启动被拒绝。前台工具退出时清理遗留子进程，跨工具调用运行的任务应使用显式后台入口。
+- 完成、失败、超时收尾、用户停止、服务正常关闭都会封闭启动入口、取消 worker、终止进程并等待回收。“中断并继续”保留本轮归属。
+- Unix 首先给进程组 3 秒退出宽限期，再强制终止并验证；内核隔离、守护进程退出与 worker 收尾各有有界等待。清理期间仍占用本轮任务；失败保留 `cleanup_failed`、进程组/worker ID，每 15 秒巡检重试。
+- 工具 worker 的登记与任务关闭互斥；即使 MCP 使用 `WithoutCancel`，任务也会等待其退出。旧轮次的延迟回调无法接管新轮次的进程或提交新 worker。
+
+### 操作系统隔离和崩溃回收
+
+| 平台 | 实现 | 崩溃回收与限制 |
+| --- | --- | --- |
+| Linux，已配置 cgroup v2 | 每轮创建独立 cgroup，使用 `clone3(CLONE_INTO_CGROUP)` 在创建时归组；配置进程数、内存、CPU 限额 | 独立守护进程在主程序管道 EOF 后写 `cgroup.kill`，验证 `populated=0`；启动时独占委派根并回收遗留任务组。`setsid` 不会脱离 cgroup |
+| Windows | 每轮 Job Object，守护进程先加入 Job；任务通过原子父进程属性继承 Job，避免启动后再分配的竞态 | `KILL_ON_JOB_CLOSE`、主动 `TerminateJobObject` 和活跃进程数验证；进程数、内存与可选 CPU 限额 |
+| macOS／未配置 cgroup 的 Unix | 独立进程组和守护进程，子进程在登记确认前通过管道等待 | 主程序被强杀后，管道 EOF 触发整组清理；无法限制主动 `setsid` 逃逸，不能作为强隔离部署 |
+
+守护进程自身异常退出时，仍存活的宿主会终止相应资源；IPC 有超时。Linux 的遗留回收依据独占目录与随机任务标识，不重放历史 PID。
+
+这属于生命周期隔离，不是针对同权限恶意代码的完整安全沙箱。能够修改 cgroup、取得外部父进程句柄或杀死宿主与守护进程的程序仍需要容器/不同操作系统身份及权限策略限制。Linux 容器部署应使用 init 回收孤儿进程。`required` 模式在缺少相应内核能力或权限时拒绝运行，不会悄悄降级。
+
+### 配置与上线
+
+默认 `auto` 在 Windows 使用 Job Object；Unix 未指定 cgroup 根时使用进程组守护。Linux 生产部署需配置独立的 systemd 服务，设置 `Delegate=cpu memory pids`、`KillMode=control-group` 和 `Restart=on-failure`，将以下严格隔离配置 **合并到现有配置**：
+
+```yaml
+security:
+  process_isolation:
+    mode: required
+    cgroup_root: auto
+    max_processes: 256
+    memory_max_bytes: 2147483648
+    cpu_quota_micros: 200000
+```
+
+需要 Linux 5.14+、cgroup v2、允许 `clone3`，以及 `Delegate=cpu memory pids`。`cgroup_root: auto` 用于 systemd 的独立委派单元；也可指定受控的绝对路径，禁止使用整台主机的层级根。配置改变需要重启。Windows 留空 `cgroup_root`，可以使用 `required`；macOS 的 `required` 会明确报错。
+
+服务启动时会真正创建并回收一个探测进程，验证权限和内核支持；也可在不启动 HTTP/MCP 服务的情况下单独运行：
+
+```sh
+./cyberstrike-ai --check-process-isolation -config config.yaml
+```
+
+输出 `cgroup_v2`、`windows_job` 或 `process_group_watchdog`。运行/历史任务 API 的 `isolationBackend` 字段提供每轮实际采用的后端。systemd 的 `KillMode=control-group` 和失败重启为整个服务额外兜底；它与每任务 cgroup 配合使用。
+
+### 远端 MCP 取消
+
+普通 MCP 取消通知不提供远端退出回执。适配器可实现 `ExternalCancellationConfirmer`，使用服务端任务状态、租约或取消回执确认结束。没有确认时，不再标成“已终止”：工具记录持久化为 `orphaned` 并说明原因；本地 worker 和进程清理完成后，任务历史保留 `cleanup_unconfirmed`，响应明确提示远端状态待确认。它不是自动重试成功，也不是远端零残留保证。仍未返回的本地 worker 则保持 `cleanup_failed` 并继续追踪。
+
+### 回归验证
+
+```sh
+go test -race ./internal/processguard ./internal/mcp ./internal/handler ./internal/security
+```
+
+`Process isolation` GitHub Actions 工作流还会执行 Linux cgroup 集成测试，命令直接保存在 `.github/workflows/process-isolation.yml` 中。该测试使用一次性、私有 cgroup 命名空间的 Docker 容器，不挂载宿主 cgroup 或 Docker socket。测试覆盖宿主 `SIGKILL`、启动登记竞态、`setsid`、资源限额、启动时遗留回收、worker 取消和远端未确认状态。Windows Job Object 测试已纳入跨平台 CI；交叉编译不等于 Windows 实机测试。
+
+参考：[Go os/exec](https://pkg.go.dev/os/exec)、[Linux cgroup v2](https://cdn.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html)、[Windows Job Objects](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects)、[MCP cancellation](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation)。

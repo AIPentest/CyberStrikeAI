@@ -706,6 +706,13 @@ func (m *ExternalMCPManager) CallTool(ctx context.Context, toolName string, args
 	var client ExternalMCPClient
 	var blockedByGuard bool
 	handle, err := m.executionService.Submit(ctx, ExecutionRequest{
+		ConfirmCancellation: func(confirmCtx context.Context) error {
+			if confirmer, ok := client.(ExternalCancellationConfirmer); ok {
+				return confirmer.ConfirmToolCancellation(confirmCtx, actualToolName, args)
+			}
+			return fmt.Errorf("external MCP client has no cancellation acknowledgement")
+		},
+		Remote:         true,
 		ToolName:       toolName,
 		Arguments:      args,
 		ConversationID: MCPConversationIDFromContext(ctx),
@@ -1648,4 +1655,11 @@ func (m *ExternalMCPManager) StopAll() {
 		close(m.stopRefresh)
 	}
 	m.refreshWg.Wait()
+}
+
+// ExternalCancellationConfirmer is an optional adapter contract for MCP
+// servers with server-side cancellation receipts or lease/task status APIs.
+// Ordinary notifications/cancelled must never be treated as confirmation.
+type ExternalCancellationConfirmer interface {
+	ConfirmToolCancellation(context.Context, string, map[string]interface{}) error
 }

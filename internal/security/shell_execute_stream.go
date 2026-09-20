@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 	"sync"
 
 	"github.com/cloudwego/eino/adk/filesystem"
@@ -49,7 +50,7 @@ func (s *EinoStreamingShell) ExecuteStreaming(ctx context.Context, input *filesy
 	}
 
 	sr, w := schema.Pipe[*filesystem.ExecuteResponse](100)
-	if input.RunInBackendGround {
+	if input.RunInBackendGround || IsBackgroundShellCommand(input.Command) {
 		go runShellInBackground(ctx, input.Command, w)
 		return sr, nil
 	}
@@ -60,45 +61,18 @@ func (s *EinoStreamingShell) ExecuteStreaming(ctx context.Context, input *filesy
 func runShellInBackground(ctx context.Context, command string, w *schema.StreamWriter[*filesystem.ExecuteResponse]) {
 	defer w.Close()
 
-	command = PrepareShellCommandForExecute(command)
-	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command)
-	applyDefaultTerminalEnv(cmd)
-	attachNonInteractiveStdin(cmd)
-	stdout, err := cmd.StdoutPipe()
+	command = strings.TrimSpace(command)
+	if IsBackgroundShellCommand(command) {
+		command = strings.TrimSpace(strings.TrimSuffix(command, "&"))
+	}
+	session, err := StartManagedBackground(ctx, "/bin/sh", command, "")
 	if err != nil {
-		_ = w.Send(nil, fmt.Errorf("failed to create stdout pipe: %w", err))
+		_ = w.Send(nil, err)
 		return
 	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		_ = stdout.Close()
-		_ = w.Send(nil, fmt.Errorf("failed to create stderr pipe: %w", err))
-		return
-	}
-	session, err := StartShellSession(cmd)
-	if err != nil {
-		_ = stdout.Close()
-		_ = stderr.Close()
-		_ = w.Send(nil, fmt.Errorf("failed to start command: %w", err))
-		return
-	}
-
-	done := make(chan struct{})
-	go func() {
-		drainShellPipes(stdout, stderr)
-		_ = session.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-ctx.Done():
-		TerminateShellCmdSession(session)
-	}
-
 	exitCode := 0
 	_ = w.Send(&filesystem.ExecuteResponse{
-		Output:   "command started in background\n",
+		Output:   fmt.Sprintf("command started in background (process group %d); cleaned up when this task ends\n", session.rootPID),
 		ExitCode: &exitCode,
 	}, nil)
 }
@@ -136,7 +110,7 @@ func streamShellForeground(ctx context.Context, command string, w *schema.Stream
 		_ = w.Send(nil, fmt.Errorf("failed to create stderr pipe: %w", err))
 		return
 	}
-	session, err := StartShellSession(cmd)
+	session, err := StartShellSessionContext(ctx, cmd)
 	if err != nil {
 		_ = stdoutPipe.Close()
 		_ = stderrPipe.Close()
@@ -154,6 +128,8 @@ func streamShellForeground(ctx context.Context, command string, w *schema.Stream
 	}()
 	defer close(stopWatch)
 
+	readStop := make(chan struct{})
+	defer close(readStop)
 	chunks := make(chan string, 64)
 	var wg sync.WaitGroup
 	readFn := func(r io.Reader) {
@@ -162,7 +138,11 @@ func streamShellForeground(ctx context.Context, command string, w *schema.Stream
 		for {
 			n, readErr := r.Read(buf)
 			if n > 0 {
-				chunks <- string(buf[:n])
+				select {
+				case chunks <- string(buf[:n]):
+				case <-readStop:
+					return
+				}
 			}
 			if readErr != nil {
 				return
@@ -186,6 +166,7 @@ func streamShellForeground(ctx context.Context, command string, w *schema.Stream
 		hadOutput = true
 		if w.Send(&filesystem.ExecuteResponse{Output: chunk}, nil) {
 			TerminateShellCmdSession(session)
+			go func() { _ = session.Wait() }()
 			return
 		}
 	}

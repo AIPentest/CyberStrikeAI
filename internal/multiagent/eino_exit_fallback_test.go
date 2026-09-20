@@ -1,6 +1,7 @@
 package multiagent
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/cloudwego/eino/schema"
@@ -117,6 +118,89 @@ func TestEinoRunResultBuilderFinalFallsBackToPlainAssistantTrace(t *testing.T) {
 	if got.Response != "plain answer" {
 		t.Fatalf("response = %q, want plain answer", got.Response)
 	}
+}
+
+func TestEinoRunResultBuilderPrefersExitFinalOverAssistantIntro(t *testing.T) {
+	intro := "本轮渗透收束完成。交付终审报告："
+	report := "## 终审报告\n目标 alvin-whn.top 已完成 getshell 验证。"
+	asst := schema.AssistantMessage(intro, []schema.ToolCall{{
+		ID:   "exit-1",
+		Type: "function",
+		Function: schema.FunctionCall{
+			Name:      "exit",
+			Arguments: `{"final_result":` + mustJSONString(report) + `}`,
+		},
+	}})
+	runMessages := newEinoRunMessageAccumulator(nil)
+	runMessages.Append(schema.UserMessage("继续"))
+	runMessages.Append(asst)
+	runMessages.Append(toolExitMsg(report, "exit-1"))
+
+	assistantOutput := newEinoAssistantOutputAccumulator("supervisor")
+	assistantOutput.RecordMainAssistant("cyberstrike-supervisor", intro)
+
+	got := newEinoRunResultBuilder(einoRunResultBuilderConfig{
+		OrchMode:        "supervisor",
+		EmptyHint:       "empty",
+		RunMessages:     runMessages,
+		AssistantOutput: assistantOutput,
+	}).BuildFinal()
+
+	want := intro + "\n\n" + report
+	if got.Response != want {
+		t.Fatalf("response = %q, want %q", got.Response, want)
+	}
+}
+
+func TestEinoRunResultBuilderPrefersExitFinalFromArgsWhenToolContentMissing(t *testing.T) {
+	intro := "交付终审报告："
+	report := "full report body"
+	asst := schema.AssistantMessage(intro, []schema.ToolCall{{
+		ID:   "exit-1",
+		Type: "function",
+		Function: schema.FunctionCall{
+			Name:      "exit",
+			Arguments: `{"final_result":` + mustJSONString(report) + `}`,
+		},
+	}})
+	runMessages := newEinoRunMessageAccumulator(nil)
+	runMessages.Append(asst)
+	runMessages.Append(toolExitMsg("", "exit-1"))
+
+	assistantOutput := newEinoAssistantOutputAccumulator("supervisor")
+	assistantOutput.RecordMainAssistant("cyberstrike-supervisor", intro)
+
+	got := newEinoRunResultBuilder(einoRunResultBuilderConfig{
+		OrchMode:        "supervisor",
+		EmptyHint:       "empty",
+		RunMessages:     runMessages,
+		AssistantOutput: assistantOutput,
+	}).BuildFinal()
+
+	want := intro + "\n\n" + report
+	if got.Response != want {
+		t.Fatalf("response = %q, want %q", got.Response, want)
+	}
+}
+
+func TestEinoMergeAssistantIntroWithExitFinal(t *testing.T) {
+	if got := einoMergeAssistantIntroWithExitFinal("", "final"); got != "final" {
+		t.Fatalf("empty intro: %q", got)
+	}
+	if got := einoMergeAssistantIntroWithExitFinal("same", "same"); got != "same" {
+		t.Fatalf("identical: %q", got)
+	}
+	if got := einoMergeAssistantIntroWithExitFinal("intro", "intro\n\nbody"); got != "intro\n\nbody" {
+		t.Fatalf("contained intro: %q", got)
+	}
+}
+
+func mustJSONString(s string) string {
+	b, err := json.Marshal(s)
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
 }
 
 func toolExitMsg(content, callID string) *schema.Message {

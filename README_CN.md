@@ -326,7 +326,6 @@ CyberStrikeAI/
 ├── agents/              # 多代理 Markdown（orchestrator.md + 子代理 *.md）
 ├── docs/                # 专题文档（部署、配置、安全、API、知识库、C2、WebShell 等）
 ├── images/              # 文档配图
-├── scripts/             # 仓库维护检查，包括文档校验
 ├── config.yaml          # 运行配置
 ├── run.sh               # 启动脚本
 └── README*.md
@@ -374,15 +373,6 @@ CyberStrikeAI 现已加入 [404星链计划](https://github.com/knownsec/404Star
 <summary><strong>微信群</strong></summary>
 
 <img src="./images/wechat-group-cyberstrikeai-qr.jpg" alt="CyberStrikeAI 微信群二维码" width="280">
-
-</details>
-
-<details>
-<summary><strong>通过微信支付或支付宝赞助</strong></summary>
-
-<div align="center">
-  <img src="./images/sponsor-wechat-alipay-qr.jpg" alt="微信与支付宝赞助二维码" width="480">
-</div>
 
 </details>
 

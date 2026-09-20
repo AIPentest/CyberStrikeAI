@@ -219,3 +219,33 @@ Expected behavior:
 
 - CyberStrikeAI cannot control how a remote external MCP server collects output internally; it caps results after they enter CyberStrikeAI and protects calls with concurrency limits and circuit breakers.
 - Oversized tool output is spilled to local `tmp/reduction/.../trunc/<id>` (or `reduction_root_dir`) before truncation; the bounded result includes an absolute path for `read_file`.
+
+## Task-owned process lifetime
+
+Each task has a distinct `runId`. Local commands and detached MCP workers retain ownership through context values. Managed `exec ... &` and Eino background execution return promptly but cannot outlive task cleanup. Unowned background launches are rejected. Cleanup seals process and worker admission, cancels workers, terminates processes and waits for reaping. Interrupt-and-continue retains ownership; SSE disconnection does not end the task. Failed cleanup retains the conversation slot and reports `cleanup_failed`; a 15-second sweep retries it.
+
+### Kernel containment and crash recovery
+
+- **Linux with a delegated cgroup v2 root:** each task gets a cgroup with process, memory and optional CPU limits. Go uses `clone3(CLONE_INTO_CGROUP)` to assign membership at creation. A separate guardian uses `cgroup.kill` on owner pipe EOF and checks `populated=0`. Startup exclusively locks the delegated root and recovers stale task groups. `setsid` does not escape this scope.
+- **Windows:** a guardian joins a Job Object before task commands are created. Commands inherit the Job atomically through the parent-process attribute. Kill-on-close, explicit termination and active-process accounting cover cleanup, with process/memory/CPU limits.
+- **macOS and Unix without configured cgroups:** a separate process-group guardian acknowledges registration before a gated child executes user code. Owner death triggers EOF cleanup. This fallback cannot contain deliberate `setsid` escapes and is not strong kernel isolation.
+
+These are lifecycle controls, not a sandbox against code with the same privileges as the supervisor. Protect cgroup control files, process handles and the host/guardian using appropriate identities or containers. Container deployments should use an init process to reap orphans. Required mode fails closed when containment is unavailable.
+
+### Deployment and verification
+
+For Linux production, configure a dedicated systemd service with `Delegate=cpu memory pids`, `KillMode=control-group` and `Restart=on-failure`. Set `security.process_isolation.mode: required` and `security.process_isolation.cgroup_root: auto` in the existing application configuration. Linux requires kernel 5.14+, cgroup v2, clone3 permission and delegation of CPU/memory/pids controllers. `cgroup_root: auto` resolves the dedicated systemd unit root; never use the entire host hierarchy root. Settings take effect after restart. Windows required mode uses an empty cgroup root. macOS rejects required mode.
+
+Startup probes actual process creation and cleanup before accepting requests. Run the probe without starting HTTP/MCP services:
+
+```sh
+./cyberstrike-ai --check-process-isolation -config config.yaml
+```
+
+The result reports `cgroup_v2`, `windows_job`, or `process_group_watchdog`; task APIs expose the actual `isolationBackend`. Systemd's `KillMode=control-group` and restart policy add service-wide recovery.
+
+Ordinary remote MCP cancellation is a notification, not a shutdown receipt. Adapters can implement `ExternalCancellationConfirmer` using server-side state, leases or cancellation receipts. Without acknowledgement, execution records persist as `orphaned`, and after local cleanup task history reports `cleanup_unconfirmed` instead of claiming success. Workers which have not returned remain tracked as cleanup failures.
+
+Run `go test -race ./internal/processguard ./internal/mcp ./internal/handler ./internal/security`. The `Process isolation` GitHub Actions workflow also runs the Linux cgroup integration test with commands embedded in `.github/workflows/process-isolation.yml`. The Linux integration fixture uses a disposable private-cgroup container with no host cgroup or Docker socket mounts. Tests cover owner SIGKILL, launch admission, setsid, limits, stale-group recovery and remote cancellation semantics. Windows tests are included in cross-platform CI; cross-compilation is not a Windows runtime test.
+
+References: [cgroup v2](https://cdn.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html), [Job Objects](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects), [MCP cancellation](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation).

@@ -93,6 +93,7 @@ func (m *modelFacingTraceMiddleware) BeforeModelRewriteState(
 ) (context.Context, *adk.ChatModelAgentState, error) {
 	if m.holder != nil && state != nil {
 		m.holder.storeFromState(state)
+		captureEinoTurnHistory(ctx, state.Messages)
 	}
 	return ctx, state, nil
 }
@@ -119,6 +120,37 @@ func (m *agenticModelFacingTraceMiddleware) BeforeModelRewriteState(
 ) (context.Context, *adk.TypedChatModelAgentState[*schema.AgenticMessage], error) {
 	if m.holder != nil && state != nil {
 		m.holder.storeFromAgenticState(state)
+		captureEinoTurnHistory(ctx, AgenticMessagesToEino(state.Messages))
 	}
 	return ctx, state, nil
+}
+
+// Capture completed output separately from the model-input trace: changing
+// Snapshot's meaning would affect last_react_input persistence and retries.
+func (m *modelFacingTraceMiddleware) AfterModelRewriteState(ctx context.Context, state *adk.ChatModelAgentState, _ *adk.ModelContext) (context.Context, *adk.ChatModelAgentState, error) {
+	if state != nil {
+		captureEinoTurnHistory(ctx, state.Messages)
+	}
+	return ctx, state, nil
+}
+
+func (m *agenticModelFacingTraceMiddleware) AfterModelRewriteState(ctx context.Context, state *adk.TypedChatModelAgentState[*schema.AgenticMessage], _ *adk.TypedModelContext[*schema.AgenticMessage]) (context.Context, *adk.TypedChatModelAgentState[*schema.AgenticMessage], error) {
+	if state != nil {
+		captureEinoTurnHistory(ctx, AgenticMessagesToEino(state.Messages))
+	}
+	return ctx, state, nil
+}
+
+func (m *modelFacingTraceMiddleware) BeforeAgent(ctx context.Context, runCtx *adk.ChatModelAgentContext) (context.Context, *adk.ChatModelAgentContext, error) {
+	if runCtx != nil {
+		ctx = context.WithValue(ctx, einoTurnInstructionKey{}, runCtx.Instruction)
+	}
+	return ctx, runCtx, nil
+}
+
+func (m *agenticModelFacingTraceMiddleware) BeforeAgent(ctx context.Context, runCtx *adk.ChatModelAgentContext) (context.Context, *adk.ChatModelAgentContext, error) {
+	if runCtx != nil {
+		ctx = context.WithValue(ctx, einoTurnInstructionKey{}, runCtx.Instruction)
+	}
+	return ctx, runCtx, nil
 }

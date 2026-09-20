@@ -183,6 +183,9 @@ func TestEinoTurnLoopRuntimePushInterruptStartsNextTurn(t *testing.T) {
 		t.Fatalf("first input = %q, want initial task", got)
 	}
 	lastInput := inputs[len(inputs)-1]
+	if len(lastInput) < 2 || lastInput[0].Content != "initial task" {
+		t.Fatalf("initial history lost after preempt: %#v", lastInput)
+	}
 	if len(lastInput) == 0 || !strings.Contains(lastInput[len(lastInput)-1].Content, "focus on ssh") {
 		t.Fatalf("last input = %#v, want interrupt note", lastInput)
 	}

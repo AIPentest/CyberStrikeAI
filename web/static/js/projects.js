@@ -2923,7 +2923,7 @@ function ensureProjectFolderPreview() {
             <span class="project-folder-preview-title"></span>
         </div>
         <div class="project-folder-preview-stats">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-9 8.48A8.5 8.5 0 1 1 20.48 11H21v5l-2-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.5"/></svg>
             <span></span>
         </div>
         <div class="project-folder-preview-details">

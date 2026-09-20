@@ -1,7 +1,6 @@
 module cyberstrike-ai
 
 // 若 go mod download 超时，可执行: go env -w GOPROXY=https://goproxy.cn,direct
-// 或使用 scripts/bootstrap-go.sh
 
 go 1.25.0
 

@@ -54,7 +54,13 @@ func TestExecuteSystemCommand_BackgroundDoesNotBlockOnChildStdout(t *testing.T) 
 	executor, _ := setupTestExecutor(t)
 	// 子进程先向 stdout 写无换行字符再长时间 sleep；若与 echo $pid 共享管道且未重定向子进程 stdout，
 	// ReadString('\n') 会阻塞到子进程退出。后台包装须将子进程标准流与 PID 行分离。
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	scope := NewProcessScope()
+	t.Cleanup(func() {
+		if err := scope.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	ctx, cancel := context.WithTimeout(WithProcessScope(context.Background(), scope), 4*time.Second)
 	defer cancel()
 	args := map[string]interface{}{
 		"command": `(sh -c 'printf x; sleep 120') &`,
