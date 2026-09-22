@@ -464,6 +464,7 @@ func RunDeepAgent(
 		},
 		EmitInternalEvents: true,
 	}
+	attachAgenticBuiltinActionToolMiddleware(&mainToolsCfg)
 
 	deepAgenticOutKey, agenticTaskGen := deepAgenticExtrasFromConfig(ma)
 
@@ -545,7 +546,7 @@ func RunDeepAgent(
 			ToolsConfig:         mainToolsCfg,
 			MaxIterations:       deepMaxIter,
 			Handlers:            supHandlers,
-			Exit:                &adk.ExitTool{},
+			Exit:                agenticCompatibleExitTool{},
 			ModelRetryConfig:    agenticModelRetryCfg,
 			ModelFailoverConfig: agenticModelFailoverCfg,
 		}

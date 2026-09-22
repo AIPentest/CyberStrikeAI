@@ -30,6 +30,8 @@ func newEinoAgenticChatModelAgent(ctx context.Context, cfg einoAgenticChatModelA
 	if cfg.Model == nil {
 		return nil, fmt.Errorf("eino agentic ChatModelAgent: model is required")
 	}
+	attachAgenticBuiltinActionToolMiddleware(&cfg.ToolsConfig)
+	cfg.Exit = replaceClassicExitTool(cfg.Exit)
 	typedCfg := &adk.TypedChatModelAgentConfig[*schema.AgenticMessage]{
 		Name:                cfg.Name,
 		Description:         cfg.Description,

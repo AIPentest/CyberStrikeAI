@@ -55,15 +55,7 @@ func hitlClearReturnDirectlyIfTransfer(ctx context.Context, toolName string) {
 	if !strings.EqualFold(strings.TrimSpace(toolName), adk.TransferToAgentToolName) {
 		return
 	}
-	_ = compose.ProcessState[*adk.State](ctx, func(_ context.Context, st *adk.State) error {
-		if st == nil {
-			return nil
-		}
-		st.ReturnDirectlyToolCallID = ""
-		st.HasReturnDirectly = false
-		st.ReturnDirectlyEvent = nil
-		return nil
-	})
+	_ = clearADKReturnDirectly(ctx)
 }
 
 func hitlEditedArgumentsNotice(original, edited string) string {
