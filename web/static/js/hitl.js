@@ -272,9 +272,15 @@ function applyHitlDefaultConfigFromServer(data) {
         reviewer: reviewer,
         timeoutSeconds: timeoutSeconds
     };
+    const backend = hitlNormalizeAuditBackend(src.auditBackend || src.audit_backend);
+    const model = String(src.auditModel || src.audit_model || '').trim();
+    if (backend) out.auditBackend = backend;
+    if (model) out.auditModel = model;
     if (typeof window !== 'undefined') {
         window.csaiHitlDefaultConfig = out;
         window.csaiHitlDefaultReviewer = reviewer;
+        if (backend) window.csaiHitlAuditBackend = backend;
+        if (model || backend) window.csaiHitlAuditModel = model;
         if (Array.isArray(src.hitlGlobalToolWhitelist)) {
             window.csaiHitlGlobalToolWhitelist = src.hitlGlobalToolWhitelist;
         }
@@ -1088,6 +1094,8 @@ function refreshHitlPageReviewerBar() {
     if (typeof window.bindHitlReviewerToggleListeners === 'function') {
         window.bindHitlReviewerToggleListeners();
     }
+    renderHitlPageAuditEngine();
+    renderHitlStrategyJevHint();
 }
 
 let hitlDefaultAuditPrompt = '';
@@ -1114,6 +1122,7 @@ function switchHitlStrategyMode(mode) {
     if (reviewTa) reviewTa.hidden = hitlStrategyMode !== 'review_edit';
     if (hintApproval) hintApproval.hidden = hitlStrategyMode !== 'approval';
     if (hintReview) hintReview.hidden = hitlStrategyMode !== 'review_edit';
+    renderHitlStrategyJevHint();
 }
 
 function showHitlStrategyFeedback(text, isError) {
@@ -1149,6 +1158,23 @@ async function refreshHitlAuditStrategy() {
     } catch (e) {
         console.warn('refreshHitlAuditStrategy', e);
     }
+}
+
+function renderHitlStrategyJevHint() {
+    let el = document.getElementById('hitl-strategy-hint-jev');
+    const bar = document.querySelector('.hitl-page-strategy-bar') || document.getElementById('hitl-page-strategy-bar');
+    if (!el && bar) {
+        el = document.createElement('p');
+        el.className = 'hitl-page-strategy-hint';
+        el.id = 'hitl-strategy-hint-jev';
+        const reviewHint = document.getElementById('hitl-strategy-hint-review-edit');
+        if (reviewHint && reviewHint.parentNode) reviewHint.parentNode.insertBefore(el, reviewHint.nextSibling);
+        else bar.appendChild(el);
+    }
+    if (!el) return;
+    const ts = hitlCurrentAuditEngine().backend === 'typesafe';
+    el.hidden = !ts;
+    if (ts) el.textContent = hitlT('strategyHintJev', 'TypeSafe Jev evaluates the custom strategy as structured questions. Built-in destructive rules remain a hard floor.');
 }
 
 async function saveHitlAuditStrategy() {
@@ -1205,7 +1231,6 @@ function refreshHitlActivePanel() {
 }
 
 function hitlDecidedByLabel(v) {
-    const key = 'reviewer' + String(v || 'human').replace(/_([a-z])/g, function (_, c) { return c.toUpperCase(); }).replace(/^./, function (c) { return c.toUpperCase(); });
     const map = {
         human: hitlT('reviewerHuman', 'Human'),
         audit_agent: hitlT('reviewerAgent', 'Audit Agent'),
@@ -1213,6 +1238,83 @@ function hitlDecidedByLabel(v) {
         manual: hitlT('reviewerManual', 'Manual')
     };
     return map[v] || v || '-';
+}
+
+function hitlNormalizeAuditBackend(v) {
+    const s = String(v || '').trim().toLowerCase();
+    if (s === 'typesafe' || s === 'jev' || s === 'type-safe' || s === 'typesafe-ai') return 'typesafe';
+    if (s === 'openai' || s === 'openai_compatible' || s === 'llm') return 'openai';
+    return '';
+}
+
+function hitlCurrentAuditEngine() {
+    const cfg = (typeof window !== 'undefined' && window.csaiHitlDefaultConfig) || {};
+    const backend = hitlNormalizeAuditBackend(cfg.auditBackend || (typeof window !== 'undefined' && window.csaiHitlAuditBackend));
+    let model = String(cfg.auditModel || (typeof window !== 'undefined' && window.csaiHitlAuditModel) || '').trim();
+    if (backend === 'typesafe' && !model) model = 'jev-latest';
+    return { backend: backend || 'openai', model: model };
+}
+
+function hitlAuditEngineLabel(backend, model) {
+    const b = hitlNormalizeAuditBackend(backend);
+    if (!b) return '';
+    const name = b === 'typesafe'
+        ? hitlT('auditEngineJev', 'TypeSafe Jev')
+        : hitlT('auditEngineOpenAI', 'OpenAI protocol');
+    const m = String(model || '').trim();
+    return m ? (name + ' · ' + m) : name;
+}
+
+function hitlAuditEngineFromItem(item) {
+    const data = item && typeof item === 'object' ? item : {};
+    let backend = hitlNormalizeAuditBackend(data.auditBackend || data.audit_backend);
+    let model = String(data.auditModel || data.audit_model || '').trim();
+    if (!backend) {
+        const payload = typeof window.hitlParsePayloadObject === 'function'
+            ? hitlParsePayloadObject(data.payload || '')
+            : {};
+        const approval = payload && payload.hitlApproval && typeof payload.hitlApproval === 'object'
+            ? payload.hitlApproval
+            : {};
+        backend = hitlNormalizeAuditBackend(approval.auditBackend || approval.audit_backend);
+        if (!model) model = String(approval.auditModel || approval.audit_model || '').trim();
+    }
+    if (!backend) {
+        const comment = String(data.comment || '');
+        if (/TypeSafe|破坏分|choice=|Jev/i.test(comment)) backend = 'typesafe';
+        else if (hitlReviewerNormalize(data.decidedBy || data.decided_by) === 'audit_agent') backend = 'openai';
+    }
+    if (backend === 'typesafe' && !model) model = 'jev-latest';
+    return { backend: backend, model: model };
+}
+
+function ensureHitlPageAuditEngineEl() {
+    let el = document.getElementById('hitl-page-audit-engine');
+    if (el) return el;
+    const bar = document.getElementById('hitl-page-reviewer-bar');
+    if (!bar) return null;
+    el = document.createElement('p');
+    el.className = 'hitl-page-audit-engine';
+    el.id = 'hitl-page-audit-engine';
+    el.hidden = true;
+    const hint = bar.querySelector('.hitl-page-reviewer-hint');
+    if (hint) bar.insertBefore(el, hint);
+    else bar.appendChild(el);
+    return el;
+}
+
+function renderHitlPageAuditEngine() {
+    const el = ensureHitlPageAuditEngineEl();
+    if (!el) return;
+    const info = hitlCurrentAuditEngine();
+    const engine = hitlAuditEngineLabel(info.backend, info.model);
+    if (!engine) {
+        el.hidden = true;
+        el.textContent = '';
+        return;
+    }
+    el.hidden = false;
+    el.textContent = hitlT('auditEngineLabel', 'Approval engine') + '：' + engine;
 }
 
 function hitlFormatTime(v) {
@@ -1594,7 +1696,11 @@ function renderHitlLogsTable(items) {
                 '<td>' + escapeHtml(String(item.toolName || '-')) + '</td>' +
                 '<td class="hitl-logs-cell-mono">' + escapeHtml(String(item.conversationId || '-')) + '</td>' +
                 '<td><span class="hitl-decision-tag ' + decisionCls + '">' + escapeHtml(hitlDecisionLabel(decision)) + '</span></td>' +
-                '<td>' + escapeHtml(hitlDecidedByLabel(item.decidedBy)) + '</td>' +
+                '<td>' + escapeHtml(hitlDecidedByLabel(item.decidedBy)) + (function () {
+                    const engine = hitlAuditEngineFromItem(item);
+                    const label = hitlAuditEngineLabel(engine.backend, engine.model);
+                    return label ? '<div class="hitl-log-engine">' + escapeHtml(label) + '</div>' : '';
+                }()) + '</td>' +
                 '<td class="hitl-logs-summary">' + escapeHtml(summary) + '</td>' +
                 '<td>' + escapeHtml(hitlFormatTime(item.decidedAt || item.createdAt)) + '</td>' +
                 '<td class="hitl-logs-actions">' +
@@ -1676,6 +1782,8 @@ function refreshHitlI18n() {
     syncAllHitlLogFilterSelects();
     renderHitlLogsPagination();
     renderHitlPendingPagination();
+    renderHitlPageAuditEngine();
+    renderHitlStrategyJevHint();
 }
 
 function renderHitlLogsPagination() {
@@ -1788,6 +1896,33 @@ async function openHitlLogModal(idOpt) {
         decisionEl.innerHTML = '<span class="hitl-decision-tag ' + cls + '">' + escapeHtml(hitlDecisionLabel(decision)) + '</span>';
     }
     if (decidedByEl) decidedByEl.textContent = hitlDecidedByLabel(item.decidedBy);
+    let engineRow = document.getElementById('hitl-log-detail-engine-row');
+    let engineEl = document.getElementById('hitl-log-detail-engine');
+    if (!engineRow || !engineEl) {
+        const decidedRow = decidedByEl && decidedByEl.closest('.hitl-log-detail-row');
+        const dl = decidedRow && decidedRow.parentElement;
+        if (dl && decidedRow) {
+            engineRow = document.createElement('div');
+            engineRow.className = 'hitl-log-detail-row';
+            engineRow.id = 'hitl-log-detail-engine-row';
+            engineRow.hidden = true;
+            engineRow.innerHTML = '<dt>' + escapeHtml(hitlT('colAuditEngine', 'Approval engine')) + '</dt><dd id="hitl-log-detail-engine">—</dd>';
+            if (decidedRow.nextSibling) dl.insertBefore(engineRow, decidedRow.nextSibling);
+            else dl.appendChild(engineRow);
+            engineEl = document.getElementById('hitl-log-detail-engine');
+        }
+    }
+    if (engineRow && engineEl) {
+        const engine = hitlAuditEngineFromItem(item);
+        const label = hitlAuditEngineLabel(engine.backend, engine.model);
+        if (label) {
+            engineEl.textContent = label;
+            engineRow.hidden = false;
+        } else {
+            engineEl.textContent = '';
+            engineRow.hidden = true;
+        }
+    }
     if (timeEl) timeEl.textContent = hitlFormatTime(item.decidedAt || item.createdAt);
     const comment = String(item.comment || '').trim();
     if (commentRow && commentEl) {
@@ -1823,6 +1958,8 @@ window.refreshHitlPageWhitelist = refreshHitlPageWhitelist;
 window.refreshHitlPending = refreshHitlPending;
 window.refreshHitlLogs = refreshHitlLogs;
 window.refreshHitlActivePanel = refreshHitlActivePanel;
+window.renderHitlPageAuditEngine = renderHitlPageAuditEngine;
+window.renderHitlStrategyJevHint = renderHitlStrategyJevHint;
 window.switchHitlPageTab = switchHitlPageTab;
 window.switchHitlStrategyMode = switchHitlStrategyMode;
 window.resetHitlAuditStrategy = resetHitlAuditStrategy;

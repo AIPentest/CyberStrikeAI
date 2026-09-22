@@ -24,6 +24,7 @@ import (
 	"cyberstrike-ai/internal/openai"
 	"cyberstrike-ai/internal/security"
 	"cyberstrike-ai/internal/toolguard"
+	"cyberstrike-ai/internal/typesafe"
 
 	"github.com/cloudwego/eino/schema"
 	"github.com/gin-gonic/gin"
@@ -891,6 +892,7 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 	}
 
 	if req.Hitl != nil {
+		h.config.Hitl.AuditBackend = req.Hitl.EffectiveAuditBackend()
 		h.config.Hitl.AuditModel = req.Hitl.AuditModel
 		h.config.Hitl.ToolWhitelist = mergeHitlToolWhitelistSlice(nil, req.Hitl.ToolWhitelist)
 		if strings.TrimSpace(req.Hitl.DefaultMode) != "" {
@@ -911,6 +913,7 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 			h.config.Hitl.RetentionDays = &v
 		}
 		h.logger.Info("更新HITL配置",
+			zap.String("audit_backend", h.config.Hitl.AuditBackend),
 			zap.String("default_reviewer", h.config.Hitl.DefaultReviewer),
 			zap.Int("tool_whitelist", len(h.config.Hitl.ToolWhitelist)),
 		)
@@ -1314,6 +1317,61 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 		"success":    true,
 		"model":      chatResp.Model,
 		"latency_ms": latency.Milliseconds(),
+	})
+}
+
+// TestTypeSafeRequest 测试 TypeSafe / Jev 连接。
+type TestTypeSafeRequest struct {
+	BaseURL string `json:"base_url"`
+	APIKey  string `json:"api_key"`
+	Model   string `json:"model"`
+}
+
+// TestTypeSafe 用一条最小 Noul 验证 TypeSafe System One 是否可用。
+func (h *ConfigHandler) TestTypeSafe(c *gin.Context) {
+	var req TestTypeSafeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		return
+	}
+	if strings.TrimSpace(req.APIKey) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "TypeSafe API Key 不能为空"})
+		return
+	}
+
+	client := typesafe.NewClient(req.BaseURL, req.APIKey, req.Model, nil)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
+	defer cancel()
+	start := time.Now()
+	result, err := client.SystemOne(ctx, "connectivity ping", map[string]typesafe.Question{
+		"ok": typesafe.Noul("Is this a connectivity test ping?", "Yes, this is only a ping.", "No."),
+	})
+	if err != nil {
+		if apiErr, ok := err.(*typesafe.APIError); ok {
+			c.JSON(http.StatusOK, gin.H{
+				"success":     false,
+				"error":       fmt.Sprintf("API 返回错误 (HTTP %d): %s", apiErr.StatusCode, apiErr.Body),
+				"status_code": apiErr.StatusCode,
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"error":   "连接失败: " + err.Error(),
+		})
+		return
+	}
+	model := strings.TrimSpace(req.Model)
+	if result != nil && strings.TrimSpace(result.Model) != "" {
+		model = result.Model
+	}
+	if model == "" {
+		model = config.TypeSafeDefaultModel
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success":    true,
+		"model":      model,
+		"latency_ms": time.Since(start).Milliseconds(),
 	})
 }
 
@@ -2149,6 +2207,7 @@ func (h *ConfigHandler) MergeHitlToolWhitelistIntoConfig(add []string) error {
 func updateHitlConfig(doc *yaml.Node, cfg config.HitlConfig) {
 	root := doc.Content[0]
 	hitlNode := ensureMap(root, "hitl")
+	setStringInMap(hitlNode, "audit_backend", cfg.EffectiveAuditBackend())
 	auditModelNode := ensureMap(hitlNode, "audit_model")
 	setStringInMap(auditModelNode, "provider", cfg.AuditModel.Provider)
 	setStringInMap(auditModelNode, "base_url", cfg.AuditModel.BaseURL)

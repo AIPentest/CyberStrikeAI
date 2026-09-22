@@ -790,6 +790,11 @@ async function loadConfig(loadTools = true, options = {}) {
             hitlReviewerEl.value = reviewer === 'audit_agent' ? 'audit_agent' : 'human';
         }
         const hitlAuditModel = hitl.audit_model || {};
+        const hitlAuditBackendEl = document.getElementById('hitl-audit-backend');
+        if (hitlAuditBackendEl) {
+            const backend = String(hitl.audit_backend || '').trim().toLowerCase();
+            hitlAuditBackendEl.value = (backend === 'typesafe' || backend === 'jev') ? 'typesafe' : 'openai';
+        }
         const hitlAuditProviderEl = document.getElementById('hitl-audit-model-provider');
         if (hitlAuditProviderEl) {
             const provider = String(hitlAuditModel.provider || '').trim().toLowerCase();
@@ -816,6 +821,9 @@ async function loadConfig(loadTools = true, options = {}) {
         const hitlReviewEditPromptEl = document.getElementById('hitl-audit-agent-prompt-review-edit-settings');
         if (hitlReviewEditPromptEl) {
             hitlReviewEditPromptEl.value = hitl.audit_agent_prompt_review_edit || '';
+        }
+        if (typeof window.syncHitlAuditBackendUI === 'function') {
+            window.syncHitlAuditBackendUI();
         }
         
         // 填充Agent配置
@@ -2020,6 +2028,7 @@ async function applySettings() {
             },
             hitl: {
                 ...prevHitl,
+                audit_backend: document.getElementById('hitl-audit-backend')?.value === 'typesafe' ? 'typesafe' : 'openai',
                 audit_model: {
                     ...(prevHitl.audit_model || {}),
                     provider: document.getElementById('hitl-audit-model-provider')?.value || '',
@@ -3287,6 +3296,15 @@ function initModelListControls() {
         hitlAuditProv.dataset.modelListBound = '1';
         hitlAuditProv.addEventListener('change', syncModelListFetchButtons);
     }
+    const hitlAuditBackend = document.getElementById('hitl-audit-backend');
+    if (hitlAuditBackend && !hitlAuditBackend.dataset.backendBound) {
+        hitlAuditBackend.dataset.backendBound = '1';
+        hitlAuditBackend.addEventListener('change', function () {
+            syncHitlAuditBackendUI();
+            syncModelListFetchButtons();
+        });
+        syncHitlAuditBackendUI();
+    }
     const knowledgeEmbeddingProv = document.getElementById('knowledge-embedding-provider');
     if (knowledgeEmbeddingProv && !knowledgeEmbeddingProv.dataset.modelListBound) {
         knowledgeEmbeddingProv.dataset.modelListBound = '1';
@@ -3638,6 +3656,48 @@ async function testVisionConnection() {
     }
 }
 
+function isHitlAuditTypeSafe() {
+    const v = (document.getElementById('hitl-audit-backend')?.value || '').trim().toLowerCase();
+    return v === 'typesafe' || v === 'jev';
+}
+
+function syncHitlAuditBackendUI() {
+    const ts = isHitlAuditTypeSafe();
+    const providerGroup = document.getElementById('hitl-audit-openai-provider-group');
+    if (providerGroup) providerGroup.style.display = ts ? 'none' : '';
+    const fetchBtn = document.getElementById('fetch-hitl-audit-models-btn');
+    if (fetchBtn) fetchBtn.style.display = ts ? 'none' : '';
+    const openaiHint = document.getElementById('hitl-audit-model-openai-hint');
+    const tsHint = document.getElementById('hitl-audit-model-typesafe-hint');
+    if (openaiHint) openaiHint.hidden = ts;
+    if (tsHint) tsHint.hidden = !ts;
+    const promptHint = document.getElementById('hitl-audit-prompt-typesafe-hint');
+    if (promptHint) promptHint.hidden = !ts;
+
+    const tFn = function (key, fallback) {
+        return typeof settingsT === 'function' ? settingsT(key, fallback) : (fallback || key);
+    };
+    const baseUrlEl = document.getElementById('hitl-audit-model-base-url');
+    const apiKeyEl = document.getElementById('hitl-audit-model-api-key');
+    const modelEl = document.getElementById('hitl-audit-model-name');
+    if (baseUrlEl) {
+        baseUrlEl.placeholder = ts
+            ? tFn('settings.hitl.auditModelTypeSafeBaseUrlPlaceholder', '留空使用 https://api.typesafe.ai')
+            : tFn('settings.hitl.auditModelBaseUrlPlaceholder', '留空则复用主模型 Base URL');
+    }
+    if (apiKeyEl) {
+        apiKeyEl.placeholder = ts
+            ? tFn('settings.hitl.auditModelTypeSafeApiKeyPlaceholder', 'TypeSafe API Key（必填，不复用主模型）')
+            : tFn('settings.hitl.auditModelApiKeyPlaceholder', '留空则复用主模型 API Key');
+    }
+    if (modelEl) {
+        modelEl.placeholder = ts
+            ? tFn('settings.hitl.auditModelTypeSafeNamePlaceholder', '留空使用 jev-latest')
+            : tFn('settings.hitl.auditModelNamePlaceholder', '留空则复用主模型；建议填写小模型');
+    }
+}
+window.syncHitlAuditBackendUI = syncHitlAuditBackendUI;
+
 function collectHitlAuditModelEffectiveConfig() {
     const main = {
         provider: document.getElementById('openai-provider')?.value || 'openai',
@@ -3656,9 +3716,29 @@ function collectHitlAuditModelEffectiveConfig() {
 async function testHitlAuditModelConnection() {
     const btn = document.getElementById('test-hitl-audit-model-btn');
     const resultEl = document.getElementById('test-hitl-audit-model-result');
+    const typeSafe = isHitlAuditTypeSafe();
     const cfg = collectHitlAuditModelEffectiveConfig();
+    const apiKey = typeSafe
+        ? (document.getElementById('hitl-audit-model-api-key')?.value.trim() || '')
+        : cfg.api_key;
+    const baseUrl = typeSafe
+        ? (document.getElementById('hitl-audit-model-base-url')?.value.trim() || '')
+        : cfg.base_url;
+    const model = typeSafe
+        ? (document.getElementById('hitl-audit-model-name')?.value.trim() || 'jev-latest')
+        : cfg.model;
 
-    if (!cfg.base_url || !cfg.api_key || !cfg.model) {
+    if (typeSafe) {
+        if (!apiKey) {
+            if (resultEl) {
+                resultEl.style.color = 'var(--danger-color, #e53e3e)';
+                resultEl.textContent = typeof settingsT === 'function'
+                    ? settingsT('settings.hitl.testTypeSafeFillRequired', '请先填写 TypeSafe API Key')
+                    : '请先填写 TypeSafe API Key';
+            }
+            return;
+        }
+    } else if (!cfg.base_url || !cfg.api_key || !cfg.model) {
         if (resultEl) {
             resultEl.style.color = 'var(--danger-color, #e53e3e)';
             resultEl.textContent = typeof window.t === 'function' ? window.t('settingsBasic.testFillRequired') : '请先填写 Base URL、API Key 和模型';
@@ -3676,10 +3756,14 @@ async function testHitlAuditModelConnection() {
     }
 
     try {
-        const response = await apiFetch('/api/config/test-openai', {
+        const endpoint = typeSafe ? '/api/config/test-typesafe' : '/api/config/test-openai';
+        const payload = typeSafe
+            ? { base_url: baseUrl, api_key: apiKey, model: model }
+            : cfg;
+        const response = await apiFetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(cfg)
+            body: JSON.stringify(payload)
         });
         const result = await response.json();
 

@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"cyberstrike-ai/internal/config"
+	"cyberstrike-ai/internal/hitl"
 	"cyberstrike-ai/internal/openai"
+	"cyberstrike-ai/internal/typesafe"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -23,6 +25,9 @@ func (h *AgentHandler) auditAgentReview(ctx context.Context, hitlMode, toolName 
 		return hitlDecision{Decision: "reject", Comment: "audit agent: handler unavailable"}
 	}
 	mode := normalizeHitlMode(hitlMode)
+	if h.config != nil && h.config.Hitl.EffectiveAuditBackend() == config.HitlAuditBackendTypeSafe {
+		return h.auditAgentReviewTypeSafe(ctx, mode, toolName, payload)
+	}
 	prompt := config.DefaultHitlAuditAgentPrompt()
 	if h.config != nil {
 		prompt = h.config.Hitl.EffectiveAuditAgentPromptForMode(mode)
@@ -107,6 +112,34 @@ func (h *AgentHandler) auditLLMConfig() config.OpenAIConfig {
 		return h.config.Hitl.AuditModelEffective(h.config.OpenAI)
 	}
 	return config.OpenAIConfig{}
+}
+
+func (h *AgentHandler) auditAgentReviewTypeSafe(ctx context.Context, hitlMode, toolName string, payload map[string]interface{}) hitlDecision {
+	if h == nil || h.config == nil {
+		return hitlDecision{Decision: "reject", Comment: "audit agent: TypeSafe 未配置"}
+	}
+	baseURL, apiKey, model := h.config.Hitl.TypeSafeConfigEffective()
+	if apiKey == "" {
+		return hitlDecision{Decision: "reject", Comment: "audit agent: TypeSafe API Key 未配置"}
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	callCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+
+	client := typesafe.NewClient(baseURL, apiKey, model, nil)
+	policy := h.config.Hitl.JevOperatorPolicy(hitlMode)
+	result, err := client.SystemOne(callCtx, hitl.BuildJevState(hitlMode, toolName, payload, policy), hitl.JevAuditQuestions(policy))
+	if err != nil {
+		h.logger.Warn("审计 Agent TypeSafe 调用失败", zap.Error(err), zap.String("tool", toolName))
+		return hitlDecision{Decision: "reject", Comment: "audit agent: TypeSafe 调用失败，保守拒绝"}
+	}
+	decision, comment := hitl.DecideJev(result)
+	if comment == "" {
+		comment = "audit agent: " + decision
+	}
+	return hitlDecision{Decision: decision, Comment: comment}
 }
 
 func buildAuditAgentReviewInput(hitlMode, toolName string, payload map[string]interface{}) string {

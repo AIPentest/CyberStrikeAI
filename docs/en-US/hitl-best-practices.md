@@ -9,6 +9,7 @@ HITL reviews tool calls before an Agent executes them. Use it to control high-ri
 Open **System Settings → Human-in-the-loop** in the web UI. You can configure:
 
 - Global default reviewer: `human` or `audit_agent`
+- Approval engine: `hitl.audit_backend` (`openai` or `typesafe`)
 - Dedicated Audit Agent model: `hitl.audit_model`
 - Resolved audit log retention days
 - No-approval tool allowlist: `hitl.tool_whitelist`
@@ -19,6 +20,7 @@ Example `config.yaml`:
 ```yaml
 hitl:
   default_reviewer: human
+  audit_backend: openai
   audit_model:
     provider: ""
     base_url: ""
@@ -28,7 +30,9 @@ hitl:
   tool_whitelist: [read_file, ls, glob, grep, tool_search, get_project_fact, list_project_facts, search_project_facts, list_vulnerabilities, get_vulnerability, get_asset, query_assets, list_knowledge_risk_types, get_tool_execution, wait_tool_execution, batch_task_list, batch_task_get, manage_webshell_list, c2_event, c2_file]
 ```
 
-`audit_model` supports partial configuration. Empty fields inherit from the resolved default AI channel, so the common setup is to fill only `model` and run approvals on a cheaper small model.
+`audit_backend` is a choice of `openai` (default, chat-completions JSON from the prompt) or `typesafe` (TypeSafe Jev). Custom audit-strategy text is evaluated as structured `operatorPolicy` questions; built-in destructive rules remain a hard floor. Jev cannot rewrite arguments, including in review-edit mode. The built-in default prompt is already encoded as Jev questions and is not copied into state.
+
+`audit_model` supports partial configuration on the OpenAI backend. Empty fields inherit from the resolved default AI channel. On the TypeSafe backend, `api_key` is required and is **not** inherited from the main model; blank `base_url` uses `https://api.typesafe.ai`, and blank `model` uses `jev-latest`.
 
 ## Recommended Approval Strategy
 
@@ -85,6 +89,8 @@ Reject file deletion, database clearing, account or permission changes, persiste
 Reject actions outside the user-authorized target scope.
 In review-edit mode, you may narrow paths, targets, or command arguments before approving, but must not expand the attack surface.
 ```
+
+On the OpenAI backend this text is a chat system prompt. On TypeSafe Jev it becomes an `operatorPolicy` overlay evaluated as structured questions; built-in destructive rules remain a hard floor, and Jev will not rewrite arguments. If the text is empty or identical to the built-in default, Jev uses the built-in questions only and does not copy the long prompt into state.
 
 ### 4. Keep The Allowlist Conservative
 

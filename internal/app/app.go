@@ -1073,6 +1073,7 @@ func setupRoutes(
 		protected.PUT("/config", configHandler.UpdateConfig)
 		protected.POST("/config/apply", configHandler.ApplyConfig)
 		protected.POST("/config/test-openai", configHandler.TestOpenAI)
+		protected.POST("/config/test-typesafe", configHandler.TestTypeSafe)
 		protected.POST("/config/test-vision", configHandler.TestVision)
 		protected.POST("/config/list-models", configHandler.ListModels)
 

@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"context"
 	"strings"
 	"testing"
+
+	"cyberstrike-ai/internal/config"
 )
 
 func TestParseAuditAgentLLMContentApprove(t *testing.T) {
@@ -62,6 +65,17 @@ func TestParseAuditAgentLLMContentWithEditedArguments(t *testing.T) {
 	}
 	if d.EditedArguments == nil || d.EditedArguments["path"] != "/safe" {
 		t.Fatalf("unexpected edited args: %+v", d.EditedArguments)
+	}
+}
+
+func TestAuditAgentReviewTypeSafeMissingAPIKey(t *testing.T) {
+	h := &AgentHandler{config: &config.Config{Hitl: config.HitlConfig{AuditBackend: "typesafe"}}}
+	d := h.auditAgentReview(context.Background(), "approval", "exec", nil)
+	if d.Decision != "reject" {
+		t.Fatalf("decision=%s", d.Decision)
+	}
+	if !strings.Contains(d.Comment, "TypeSafe API Key") {
+		t.Fatalf("comment=%s", d.Comment)
 	}
 }
 

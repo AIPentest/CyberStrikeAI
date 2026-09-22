@@ -9,6 +9,7 @@
 Web 端进入 **系统设置 → 人机协同**，可配置：
 
 - 全局默认审批方：`human` 或 `audit_agent`
+- 审批引擎：`hitl.audit_backend`（`openai` 或 `typesafe`）
 - 审计 Agent 专用模型：`hitl.audit_model`
 - 已决策审计日志保留天数
 - 免审批工具白名单：`hitl.tool_whitelist`
@@ -19,6 +20,7 @@ Web 端进入 **系统设置 → 人机协同**，可配置：
 ```yaml
 hitl:
   default_reviewer: human
+  audit_backend: openai
   audit_model:
     provider: ""
     base_url: ""
@@ -28,7 +30,9 @@ hitl:
   tool_whitelist: [read_file, ls, glob, grep, tool_search, get_project_fact, list_project_facts, search_project_facts, list_vulnerabilities, get_vulnerability, get_asset, query_assets, list_knowledge_risk_types, get_tool_execution, wait_tool_execution, batch_task_list, batch_task_get, manage_webshell_list, c2_event, c2_file]
 ```
 
-`audit_model` 的字段可以只填一部分。空字段会自动继承默认 AI 通道解析后的模型配置，因此常见做法是只填 `model`，让审计 Agent 使用更便宜的小模型。
+`audit_backend` 为二选一：`openai`（默认）走兼容协议聊天模型，用提示词输出 JSON；`typesafe` 走 TypeSafe Jev。自定义审批策略会作为 `operatorPolicy` 编进结构化问题，内置破坏性规则仍是硬底线。Jev 不能改参，审查编辑模式下也只返回通过/拒绝。内置默认提示词与 Jev 问题重复，不会再复制进 state。
+
+`audit_model` 在 openai 后端可以只填一部分，空字段继承默认 AI 通道。typesafe 后端的 `api_key` 必填且**不会**复用主模型密钥；`base_url` 留空为 `https://api.typesafe.ai`，`model` 留空为 `jev-latest`。
 
 ## 推荐审批策略
 
@@ -85,6 +89,8 @@ hitl:
 若目标范围超出用户授权范围，应 reject。
 审查编辑模式下，可将路径、目标、命令参数收窄后 approve，但不得扩大攻击面。
 ```
+
+OpenAI 协议后端把这段文字当聊天提示词。TypeSafe Jev 把它当作 `operatorPolicy` 编进结构化问题；内置破坏性规则仍是硬底线，Jev 不会改参。留空或等于内置默认时，Jev 只用内置问题，不再把长提示词复制进 state。
 
 ### 4. 白名单只放稳定低风险工具
 

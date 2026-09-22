@@ -107,6 +107,7 @@ agent:
 ```yaml
 hitl:
   default_reviewer: audit_agent
+  audit_backend: openai
   retention_days: 90
   tool_whitelist: [read_file, list_dir, glob, grep, tool_search]
   audit_model:
@@ -117,9 +118,10 @@ hitl:
 ```
 
 - `default_reviewer`：`human` 或 `audit_agent`。
+- `audit_backend`：`openai`（默认，兼容协议聊天模型）或 `typesafe`（TypeSafe Jev）。
 - `tool_whitelist`：全局免审批工具列表，会与会话白名单合并。
-- `audit_model`：审计 Agent 独立模型；留空复用主模型。
-- `audit_agent_prompt` / `audit_agent_prompt_review_edit`：可覆盖默认审批策略。
+- `audit_model`：openai 后端留空复用主模型；typesafe 后端需填写 TypeSafe API Key，不继承主模型密钥。
+- `audit_agent_prompt` / `audit_agent_prompt_review_edit`：openai 后端作为聊天提示词；typesafe 后端作为 Jev 的组织策略（`operatorPolicy`）。内置默认提示词与 Jev 问题重复，不会再复制进 state。
 
 更多策略见 [人机协同最佳实践](hitl-best-practices.md)。
 
@@ -264,7 +266,7 @@ project:
 几个字段有“留空复用”的关系：
 
 - `vision.api_key/base_url/provider` 留空时复用 `openai`。
-- `hitl.audit_model` 留空时复用默认 AI 通道解析后的 `openai`。
+- `hitl.audit_model` 在 `audit_backend=openai` 时留空复用默认 AI 通道；typesafe 后端不继承主模型密钥。
 - `knowledge.embedding.base_url/api_key` 留空时复用主模型或 embedding 默认配置。
 - `knowledge.retrieval.rerank.base_url/api_key` 留空时复用 embedding/openai。
 - `database.knowledge_db_path` 留空时可以复用主会话数据库，但独立文件更利于备份。

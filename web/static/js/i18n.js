@@ -110,6 +110,12 @@
         } catch (e) {
             // ignore
         }
+
+        try {
+            if (typeof window.syncHitlAuditBackendUI === 'function') {
+                window.syncHitlAuditBackendUI();
+            }
+        } catch (e) { /* ignore */ }
     }
 
     function updateLangLabel() {

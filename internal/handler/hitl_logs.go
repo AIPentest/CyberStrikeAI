@@ -56,6 +56,7 @@ func hitlInterruptRowToMap(
 	if messageID.Valid {
 		msgID = messageID.String
 	}
+	auditBackend, auditModel := hitlAuditBackendFromRecord(decidedBy, comment.String, payload)
 	return map[string]interface{}{
 		"id":             id,
 		"conversationId": cid,
@@ -69,6 +70,8 @@ func hitlInterruptRowToMap(
 		"decision":       decision.String,
 		"comment":        comment.String,
 		"decidedBy":      decidedBy,
+		"auditBackend":   auditBackend,
+		"auditModel":     auditModel,
 		"createdAt":      createdAt,
 		"decidedAt": func() interface{} {
 			if decidedAt.Valid {

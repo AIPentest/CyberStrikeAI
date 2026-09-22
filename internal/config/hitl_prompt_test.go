@@ -29,3 +29,15 @@ func TestDefaultHitlAuditAgentPromptReviewEditKeepsEditedArguments(t *testing.T)
 		t.Fatal("review-edit prompt must require a matched rule")
 	}
 }
+
+func TestJevOperatorPolicySkipsDefaultPrompt(t *testing.T) {
+	if got := (HitlConfig{}).JevOperatorPolicy("approval"); got != "" {
+		t.Fatalf("empty config should not send default prompt to Jev, got %q", got)
+	}
+	if got := (HitlConfig{AuditAgentPrompt: DefaultHitlAuditAgentPrompt()}).JevOperatorPolicy("approval"); got != "" {
+		t.Fatalf("default prompt should not be sent to Jev, got %q", got)
+	}
+	if got := (HitlConfig{AuditAgentPrompt: "拦截所有命令执行"}).JevOperatorPolicy("approval"); got != "拦截所有命令执行" {
+		t.Fatalf("custom prompt=%q", got)
+	}
+}

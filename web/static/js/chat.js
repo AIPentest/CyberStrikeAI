@@ -143,6 +143,7 @@ let chatAIChannels = {};
 let chatDefaultAIChannel = '';
 let chatAIChannelIdByNormalizedId = {};
 let chatHitlAuditModelName = '';
+let chatHitlAuditBackend = '';
 let chatSystemModelRequestSeq = 0;
 let chatSystemModelSaving = false;
 let chatSystemModelCloseTimer = null;
@@ -1070,8 +1071,24 @@ function currentSystemModelLabel() {
     return model || (ch && (ch.name || chatDefaultAIChannel)) || currentChatModelLabel();
 }
 
+function currentHitlAuditBackend() {
+    const b = String(chatHitlAuditBackend || (typeof window !== 'undefined' && window.csaiHitlAuditBackend) || '').trim().toLowerCase();
+    return (b === 'typesafe' || b === 'jev' || b === 'type-safe') ? 'typesafe' : 'openai';
+}
+
 function currentHitlAuditModelLabel() {
+    if (currentHitlAuditBackend() === 'typesafe') {
+        return chatHitlAuditModelName || 'jev-latest';
+    }
     return chatHitlAuditModelName || currentSystemModelLabel();
+}
+
+function currentHitlAuditEngineLabel() {
+    const engine = currentHitlAuditBackend() === 'typesafe'
+        ? chatTranslate('settings.hitl.auditBackendTypeSafe', 'TypeSafe Jev')
+        : chatTranslate('settings.hitl.auditBackendOpenAI', 'OpenAI 协议模型');
+    const model = currentHitlAuditModelLabel();
+    return engine + (model ? ' · ' + model : '');
 }
 
 function resolveChatPickerChannelId() {
@@ -1709,7 +1726,7 @@ function updateChatComposerSessionShortcuts(summary) {
             ? chatTranslate('chat.sessionShortcutAuditAgent', 'Agent 审查')
             : chatTranslate('chat.sessionShortcutHuman', '人工审批');
         const modeLabel = data.hitl || getHitlModeLabel(cfg.mode);
-        const approvalModel = auditAgent ? currentHitlAuditModelLabel() : '';
+        const approvalModel = auditAgent ? currentHitlAuditEngineLabel() : '';
         const label = prefix + '：' + modeLabel + (approvalModel ? ' · ' + approvalModel : '');
         hitlEl.textContent = label;
         hitlEl.title = label;
@@ -2070,9 +2087,22 @@ async function initChatAgentModeFromConfig() {
         multiAgentAPIEnabled = !!(cfg.multi_agent && cfg.multi_agent.enabled);
         populateChatAIChannelSelect(cfg.ai || {});
         const hitlAuditModel = cfg.hitl && cfg.hitl.audit_model;
+        chatHitlAuditBackend = cfg.hitl && typeof cfg.hitl.audit_backend === 'string'
+            ? cfg.hitl.audit_backend.trim().toLowerCase()
+            : '';
         chatHitlAuditModelName = hitlAuditModel && typeof hitlAuditModel.model === 'string'
             ? hitlAuditModel.model.trim()
             : '';
+        if (typeof window !== 'undefined') {
+            window.csaiHitlAuditBackend = chatHitlAuditBackend;
+            window.csaiHitlAuditModel = chatHitlAuditModelName;
+            if (typeof window.renderHitlPageAuditEngine === 'function') {
+                window.renderHitlPageAuditEngine();
+            }
+            if (typeof window.renderHitlStrategyJevHint === 'function') {
+                window.renderHitlStrategyJevHint();
+            }
+        }
         updateChatReasoningSummary();
         if (typeof window !== 'undefined') {
             window.__csaiMultiAgentPublic = cfg.multi_agent || null;

@@ -4913,6 +4913,50 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 					},
 				},
 			},
+			"/api/config/test-typesafe": map[string]interface{}{
+				"post": map[string]interface{}{
+					"tags":        []string{"配置管理"},
+					"summary":     "测试 TypeSafe Jev 连接",
+					"description": "发送一条最小 Noul 请求，验证 TypeSafe System One API Key 是否可用。",
+					"operationId": "testTypeSafe",
+					"requestBody": map[string]interface{}{
+						"required": true,
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{
+									"type":     "object",
+									"required": []string{"api_key"},
+									"properties": map[string]interface{}{
+										"base_url": map[string]interface{}{"type": "string", "description": "可选，默认 https://api.typesafe.ai"},
+										"api_key":  map[string]interface{}{"type": "string", "description": "TypeSafe API Key"},
+										"model":    map[string]interface{}{"type": "string", "description": "可选，默认 jev-latest", "example": "jev-latest"},
+									},
+								},
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "测试结果",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"success":    map[string]interface{}{"type": "boolean"},
+											"error":      map[string]interface{}{"type": "string"},
+											"model":      map[string]interface{}{"type": "string"},
+											"latency_ms": map[string]interface{}{"type": "number"},
+										},
+									},
+								},
+							},
+						},
+						"400": map[string]interface{}{"description": "参数错误"},
+						"401": map[string]interface{}{"description": "未授权"},
+					},
+				},
+			},
 			"/api/config/list-models": map[string]interface{}{
 				"post": map[string]interface{}{
 					"tags":        []string{"配置管理"},

@@ -1464,6 +1464,7 @@
                                     </button>
                                 </div>
                             </div>
+                            <p class="hitl-page-audit-engine" id="hitl-page-audit-engine" hidden></p>
                             <p class="hitl-page-reviewer-hint" data-i18n="hitl.pageReviewerHint">作用于当前选中会话；未选会话时保存到本机，新建会话时沿用。切换后立即生效。</p>
                         </div>
                         <div class="hitl-page-tabs" role="tablist">
@@ -1553,6 +1554,7 @@
                                 </div>
                                 <p class="hitl-page-strategy-hint" id="hitl-strategy-hint-approval" data-i18n="hitl.strategyHintApproval">白名单内工具免审批；审批模式下审计 Agent 仅裁决通过/拒绝。</p>
                                 <p class="hitl-page-strategy-hint" id="hitl-strategy-hint-review-edit" hidden data-i18n="hitl.strategyHintReviewEdit">审查编辑模式下审计 Agent 可通过 editedArguments 收窄参数后放行；无法安全改参时应拒绝。</p>
+                                <p class="hitl-page-strategy-hint" id="hitl-strategy-hint-jev" hidden data-i18n="hitl.strategyHintJev">当前是 TypeSafe Jev：会读取下面的自定义策略并编成结构化问题；破坏业务可用性等内置规则仍是硬底线。Jev 不能改参。</p>
                                 <textarea id="hitl-audit-agent-prompt" class="hitl-strategy-textarea" rows="14" spellcheck="false" autocomplete="off"></textarea>
                                 <textarea id="hitl-audit-agent-prompt-review-edit" class="hitl-strategy-textarea" rows="14" spellcheck="false" autocomplete="off" hidden></textarea>
                                 <div id="hitl-strategy-feedback" class="hitl-apply-feedback" role="status" aria-live="polite" hidden></div>
@@ -1602,6 +1604,10 @@
                                 <div class="hitl-log-detail-row">
                                     <dt data-i18n="hitl.colDecidedBy">审批方</dt>
                                     <dd id="hitl-log-detail-decided-by">—</dd>
+                                </div>
+                                <div class="hitl-log-detail-row" id="hitl-log-detail-engine-row" hidden>
+                                    <dt data-i18n="hitl.colAuditEngine">审批引擎</dt>
+                                    <dd id="hitl-log-detail-engine">—</dd>
                                 </div>
                                 <div class="hitl-log-detail-row">
                                     <dt data-i18n="hitl.colTime">时间</dt>
@@ -3983,6 +3989,14 @@
                                             <h5 data-i18n="settings.hitl.auditModelTitle">审计 Agent 模型</h5>
                                         </div>
                                         <div class="form-group">
+                                            <label for="hitl-audit-backend" data-i18n="settings.hitl.auditBackend">审批引擎</label>
+                                            <select id="hitl-audit-backend" class="form-select">
+                                                <option value="openai" data-i18n="settings.hitl.auditBackendOpenAI">OpenAI 协议模型</option>
+                                                <option value="typesafe" data-i18n="settings.hitl.auditBackendTypeSafe">TypeSafe Jev</option>
+                                            </select>
+                                            <small class="form-hint" data-i18n="settings.hitl.auditBackendHint">二选一：OpenAI 兼容聊天模型按提示词输出 JSON；Jev 用结构化问题做放通/拦截，不能改参。</small>
+                                        </div>
+                                        <div class="form-group" id="hitl-audit-openai-provider-group">
                                             <label for="hitl-audit-model-provider" data-i18n="settingsBasic.apiProvider">API 提供商</label>
                                             <select id="hitl-audit-model-provider" class="form-select">
                                                 <option value="" data-i18n="settings.hitl.auditModelReuseMain">跟随主模型配置</option>
@@ -4009,7 +4023,8 @@
                                             </div>
                                             <small id="fetch-hitl-audit-models-hint" class="form-hint" style="display: none; font-size: 0.75rem; margin-top: 4px;"></small>
                                             <span id="fetch-hitl-audit-models-result" style="font-size: 0.75rem; margin-top: 2px; display: block;"></span>
-                                            <small class="form-hint" data-i18n="settings.hitl.auditModelHint">仅审计 Agent 审批时使用；人工审批不消耗模型。</small>
+                                            <small id="hitl-audit-model-openai-hint" class="form-hint" data-i18n="settings.hitl.auditModelHint">仅审计 Agent 审批时使用；人工审批不消耗模型。</small>
+                                            <small id="hitl-audit-model-typesafe-hint" class="form-hint" data-i18n="settings.hitl.auditModelTypeSafeHint" hidden>Jev 走 TypeSafe System One，不是 OpenAI 协议。API Key 必填，不复用主模型密钥；模型留空使用 jev-latest。审查编辑模式下 Jev 只做放通/拦截，不会改参。</small>
                                         </div>
                                         <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
                                             <a href="javascript:void(0)" id="test-hitl-audit-model-btn" onclick="testHitlAuditModelConnection()" style="font-size: 0.8125rem; color: var(--accent-color, #3182ce); text-decoration: none; cursor: pointer; user-select: none;" data-i18n="settings.hitl.testAuditModel">测试审计模型</a>
@@ -4035,6 +4050,7 @@
                                             <label for="hitl-audit-agent-prompt-settings" data-i18n="settings.hitl.auditPromptApproval">审批模式提示词</label>
                                             <textarea id="hitl-audit-agent-prompt-settings" rows="10" spellcheck="false" autocomplete="off"></textarea>
                                             <small class="form-hint" data-i18n="settings.hitl.auditPromptHint">留空时使用后端内置默认策略。</small>
+                                            <small id="hitl-audit-prompt-typesafe-hint" class="form-hint" data-i18n="settings.hitl.auditPromptTypeSafeHint" hidden>当前审批引擎是 TypeSafe Jev：会读取本页/人机协同页的自定义策略并编成结构化问题；内置破坏性规则仍是硬底线。Jev 不能改参。</small>
                                         </div>
                                         <div class="form-group">
                                             <label for="hitl-audit-agent-prompt-review-edit-settings" data-i18n="settings.hitl.auditPromptReviewEdit">审查编辑模式提示词</label>

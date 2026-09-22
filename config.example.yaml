@@ -157,17 +157,19 @@ hitl:
   default_reviewer: human
   # 全局默认审批等待时限（秒）：300=5分钟，0=不限时；新建会话无独立配置时沿用
   default_timeout_seconds: 300
-  # 审计 Agent 专用模型；字段留空则复用上方 openai 配置。建议 model 填小模型，用于降低审批成本。
+  # 审计 Agent 后端二选一：openai=兼容协议聊天模型（提示词 JSON）；typesafe=TypeSafe Jev 结构化放通/拦截。
+  audit_backend: openai
+  # 审计 Agent 专用模型。openai 后端字段留空则复用主模型；typesafe 后端 api_key 必填且不继承主模型密钥。
   audit_model:
-    provider: "" # openai / claude；留空跟随 openai.provider
-    base_url: "" # 留空跟随 openai.base_url
-    api_key: "" # 留空跟随 openai.api_key
-    model: "" # 留空跟随 openai.model，例如可填 gpt-4o-mini / qwen-turbo / deepseek-chat
+    provider: "" # openai / claude；仅 openai 后端生效，留空跟随 openai.provider
+    base_url: "" # openai 后端留空跟随主模型；typesafe 后端留空使用 https://api.typesafe.ai
+    api_key: "" # openai 后端留空跟随主模型；typesafe 后端填写 TypeSafe API Key
+    model: "" # openai 后端建议填小模型；typesafe 后端留空使用 jev-latest
   # 已决策审计日志保留天数（与 MCP 监控一致；省略默认 90；0 表示不自动清理）
   retention_days: 90
   # 按你环境里的真实工具名增删（与侧栏一致、小写不敏感）；不需要全局免审批可改为 []
   tool_whitelist: [read_file, ls, list_dir, glob, grep, tool_search, upsert_project_fact, get_project_fact, list_project_facts, search_project_facts, list_vulnerabilities, get_vulnerability, get_asset, query_assets, list_knowledge_risk_types, get_tool_execution, wait_tool_execution, batch_task_list, batch_task_get, manage_webshell_list, c2_event, c2_file]
-  # audit_agent_prompt: |  # 审批模式；留空使用内置默认，可在「人机协同」页编辑
+  # audit_agent_prompt: |  # 审批模式；留空使用内置默认，可在「人机协同」页编辑。openai 后端作聊天提示词；typesafe 后端作为 Jev 组织策略
   # audit_agent_prompt_review_edit: |  # 审查编辑模式；留空使用内置默认
 
   audit_agent_prompt: |-

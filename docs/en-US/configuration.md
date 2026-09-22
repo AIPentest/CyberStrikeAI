@@ -103,7 +103,9 @@ Common Web UI operations:
 ## Fallback Relationships
 
 - `vision.api_key/base_url/provider` can inherit from the resolved default AI channel.
-- `hitl.audit_model` can inherit from the resolved default AI channel.
+- `hitl.audit_backend` chooses `openai` (default) or `typesafe` (TypeSafe Jev).
+- `hitl.audit_model` can inherit from the resolved default AI channel when `audit_backend` is `openai`. TypeSafe keys are never inherited.
+- `hitl.audit_agent_prompt` is a chat system prompt on `openai`, and a Jev `operatorPolicy` overlay on `typesafe`. The built-in default prompt is not copied into Jev state.
 - `knowledge.embedding.base_url/api_key` can inherit from model settings.
 - rerank config can inherit from embedding/openai.
 - `database.knowledge_db_path` can be separate or reuse the main DB.

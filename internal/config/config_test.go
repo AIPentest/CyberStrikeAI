@@ -75,6 +75,34 @@ func TestLoadIgnoresLegacyAuthPasswordField(t *testing.T) {
 	}
 }
 
+func TestHitlEffectiveAuditBackend(t *testing.T) {
+	if got := (HitlConfig{}).EffectiveAuditBackend(); got != HitlAuditBackendOpenAI {
+		t.Fatalf("empty backend = %q, want openai", got)
+	}
+	if got := (HitlConfig{AuditBackend: "Jev"}).EffectiveAuditBackend(); got != HitlAuditBackendTypeSafe {
+		t.Fatalf("jev alias = %q, want typesafe", got)
+	}
+	if got := (HitlConfig{AuditBackend: "claude"}).EffectiveAuditBackend(); got != HitlAuditBackendOpenAI {
+		t.Fatalf("unknown backend = %q, want openai", got)
+	}
+}
+
+func TestHitlTypeSafeConfigEffectiveDoesNotInheritMainKey(t *testing.T) {
+	gotURL, gotKey, gotModel := (HitlConfig{
+		AuditBackend: "typesafe",
+		AuditModel:   OpenAIConfig{APIKey: "ts-key"},
+	}).TypeSafeConfigEffective()
+	if gotURL != TypeSafeDefaultBaseURL {
+		t.Fatalf("base url = %q, want default", gotURL)
+	}
+	if gotKey != "ts-key" {
+		t.Fatalf("api key = %q, want ts-key", gotKey)
+	}
+	if gotModel != TypeSafeDefaultModel {
+		t.Fatalf("model = %q, want default", gotModel)
+	}
+}
+
 func TestHitlAuditModelEffectiveFallsBackToMainConfig(t *testing.T) {
 	main := OpenAIConfig{
 		Provider: "openai",

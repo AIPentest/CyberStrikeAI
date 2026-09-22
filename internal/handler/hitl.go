@@ -659,10 +659,13 @@ func (h *AgentHandler) waitHITLApproval(runCtx context.Context, cancelRun contex
 		expiresAt := approvalStartedAt.Add(cfg.Timeout)
 		approvalExpiresAt = &expiresAt
 	}
+	auditBackend, auditModel := h.hitlAuditEngineInfo()
 	payload["hitlApproval"] = map[string]interface{}{
 		"createdAt":      approvalStartedAt,
 		"timeoutSeconds": timeoutSeconds,
 		"expiresAt":      approvalExpiresAt,
+		"auditBackend":   auditBackend,
+		"auditModel":     auditModel,
 	}
 	payloadRaw, _ := json.Marshal(payload)
 	p, err := h.hitlManager.CreatePendingInterrupt(conversationID, assistantMessageID, cfg.Mode, toolName, toolCallID, string(payloadRaw), cfg.Reviewer)
@@ -1072,11 +1075,14 @@ type setHitlDefaultConfigReq struct {
 }
 
 func (h *AgentHandler) hitlDefaultConfigResponse() gin.H {
+	backend, model := h.hitlAuditEngineInfo()
 	return gin.H{
 		"defaultMode":             h.hitlEffectiveDefaultMode(),
 		"defaultReviewer":         h.hitlEffectiveDefaultReviewer(),
 		"defaultTimeoutSeconds":   h.hitlEffectiveDefaultTimeoutSeconds(),
 		"hitlGlobalToolWhitelist": h.hitlConfigGlobalToolWhitelist(),
+		"auditBackend":            backend,
+		"auditModel":              model,
 	}
 }
 

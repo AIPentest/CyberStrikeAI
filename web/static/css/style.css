@@ -2479,6 +2479,19 @@ html[data-theme="dark"] .sidebar-content:hover::-webkit-scrollbar-thumb:hover {
     color: #0f172a;
 }
 
+.hitl-page-audit-engine {
+    margin: 10px 0 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #0f172a;
+}
+
+.hitl-log-engine {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #64748b;
+}
+
 .hitl-page-reviewer-hint {
     margin: 10px 0 0;
     font-size: 12px;
@@ -36978,6 +36991,7 @@ html[data-theme="dark"] .info-collect-cell-modal-title {
     -webkit-text-fill-color: var(--text-primary) !important;
 }
 
+html[data-theme="dark"] .hitl-page-audit-engine,
 html[data-theme="dark"] .hitl-page-reviewer-hint,
 html[data-theme="dark"] .hitl-page-whitelist-hint,
 html[data-theme="dark"] .hitl-page-strategy-hint,

@@ -57,7 +57,7 @@ test('输入框可按会话通道获取模型并双向同步会话推理且审�
     assert.match(chat, /function currentHitlAuditModelLabel\(\)/);
     assert.match(chat, /const label = currentChatModelLabel\(\)/);
     assert.doesNotMatch(chat, /const label = data\.model \|\| currentChatModelLabel\(\)/);
-    assert.match(chat, /const approvalModel = auditAgent \? currentHitlAuditModelLabel\(\) : ''/);
+    assert.match(chat, /const approvalModel = auditAgent \? currentHitlAuditEngineLabel\(\) : ''/);
     assert.match(chat, /hitlAuditModel\.model\.trim\(\)/);
     assert.match(template, /id="chat-model-shortcut"[^>]+onclick="openChatSystemModelPicker\(event\)"/);
     assert.match(template, /id="chat-system-model-menu"[^>]+hidden/);
@@ -359,6 +359,24 @@ test('旧会话首次升级到五分钟默认审批时限，仍允许用户之�
     assert.match(fs.readFileSync('web/static/js/hitl.js', 'utf8'), /shouldMigrateLegacyHitlTimeout/);
     assert.match(fs.readFileSync('web/static/js/hitl.js', 'utf8'), /timeoutSeconds: 300/);
     assert.match(fs.readFileSync('web/static/js/hitl.js', 'utf8'), /markLegacyHitlTimeoutMigrated/);
+});
+
+test('人机协同页和日志展示 Jev / OpenAI 审批引擎', () => {
+    const hitlPage = fs.readFileSync('web/static/js/hitl.js', 'utf8');
+    assert.match(template, /id="hitl-page-audit-engine"/);
+    assert.match(template, /id="hitl-log-detail-engine"/);
+    assert.match(hitlPage, /function hitlAuditEngineFromItem/);
+    assert.match(hitlPage, /function renderHitlPageAuditEngine/);
+    assert.match(hitlPage, /function renderHitlStrategyJevHint/);
+    assert.match(template, /id="hitl-strategy-hint-jev"/);
+    assert.equal(zh.hitl.strategyHintJev.includes('Jev'), true);
+    assert.equal(en.hitl.strategyHintJev.includes('Jev'), true);
+    assert.match(handler, /auditBackend/);
+    assert.match(chat, /function currentHitlAuditEngineLabel\(\)/);
+    assert.equal(zh.hitl.auditEngineJev, 'TypeSafe Jev');
+    assert.equal(en.hitl.auditEngineJev, 'TypeSafe Jev');
+    assert.equal(zh.hitl.auditEngineOpenAI, 'OpenAI 协议');
+    assert.equal(en.hitl.auditEngineOpenAI, 'OpenAI protocol');
 });
 
 test('审批体验文案具有完整中英文资源', () => {
