@@ -356,6 +356,8 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	scheme := "http"
 	if r.TLS != nil {
 		scheme = "https"
+	} else if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
+		scheme = proto
 	}
 	if r.URL.Scheme != "" {
 		scheme = r.URL.Scheme
