@@ -315,7 +315,7 @@ multi_agent:
     reduction_clear_exclude: [] # 不参与「清理阶段」的工具名额外列表（会与 task/transfer/exit 等内置排除项合并）；需要时用 YAML 列表填写
     reduction_sub_agents: true # true：子代理也挂 reduction；false：仅编排主代理使用 reduction
     summarization_trigger_ratio: 0.8 # summarization 触发比例（max_total_tokens * ratio），建议 0.75~0.85
-    summarization_output_reserve_tokens: 8192 # 摘要模型输出预留 token；摘要输入预算 = 触发阈值 - 该值
+    summarization_output_reserve_tokens: 40960 # 摘要模型输出预留 token；摘要输入预算 = 触发阈值 - 该值
     summarization_emit_internal_events: true # true：发出 summarization 内部事件（便于诊断）
     summarization_user_intent_ledger_max_runes: 96000 # 压缩后注入模型上下文的「原始用户输入与约束账本」总字符上限；DB 原始消息不裁剪
     summarization_user_intent_ledger_entry_max_runes: 16000 # 账本中单条用户消息的字符上限；超出仅裁剪模型可见账本，不影响 DB 原文

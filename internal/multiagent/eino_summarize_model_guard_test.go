@@ -260,12 +260,13 @@ func TestClaudeSummaryLargeBudgetStreamsThroughNativeSDK(t *testing.T) {
 			}))
 			defer server.Close()
 			factory := newEinoAgenticChatModelFactory(server.Client(), nil, nil)
-			native, err := factory(ctx, config.OpenAIConfig{Provider: "claude", APIKey: "test-key", BaseURL: server.URL, Model: "claude-sonnet-4-20250514"}, einoModelModeNormal)
+			oa := config.OpenAIConfig{Provider: "claude", APIKey: "test-key", BaseURL: server.URL, Model: "claude-sonnet-4-20250514"}
+			native, err := factory(ctx, oa, einoModelModeNormal)
 			if err != nil {
 				t.Fatal(err)
 			}
 			input := EinoMessagesToAgentic([]*schema.Message{schema.UserMessage("summarize history")})
-			opts := newEinoSummarizationModelOptions(64000, "claude-sonnet-4-20250514", "agentic", nil, nil)
+			opts := newEinoSummarizationModelOptions(64000, "claude-sonnet-4-20250514", "agentic", &oa, nil)
 			if _, err = native.Generate(ctx, input, opts...); err == nil || !strings.Contains(err.Error(), "streaming is required") {
 				t.Fatalf("expected original SDK rejection, got %v", err)
 			}

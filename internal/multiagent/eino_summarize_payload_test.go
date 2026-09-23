@@ -1,12 +1,18 @@
 package multiagent
 
 import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"cyberstrike-ai/internal/config"
 
+	einoopenai "github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/schema"
 )
 
 func TestStripReasoningFromSummarizationPayload(t *testing.T) {
@@ -93,14 +99,52 @@ func TestStripReasoningFromSummarizationPayloadHonorsOpenAICompatProfileForNonDe
 	}
 }
 
-func TestEinoSummarizationModelOptionsSetCommonMaxTokens(t *testing.T) {
-	const outputReserve = 4096
+func TestEinoSummarizationModelOptionsSetOnlyMaxCompletionTokens(t *testing.T) {
+	const outputReserve = 40960
 	opts := newEinoSummarizationModelOptions(outputReserve, "minimax-m3", "agentic", nil, nil)
 	common := model.GetCommonOptions(nil, opts...)
-	if common == nil || common.MaxTokens == nil {
-		t.Fatal("expected summarization options to set common max_tokens")
+	if common != nil && common.MaxTokens != nil {
+		t.Fatalf("common max_tokens = %d, want unset", *common.MaxTokens)
 	}
-	if *common.MaxTokens != outputReserve {
-		t.Fatalf("max_tokens = %d, want %d", *common.MaxTokens, outputReserve)
+
+	bodyCh := make(chan map[string]any, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode request body: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		bodyCh <- body
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Write([]byte("data: {\"id\":\"test\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"summary\"},\"finish_reason\":null}]}\n\n"))
+		w.Write([]byte("data: {\"id\":\"test\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"))
+		w.Write([]byte("data: [DONE]\n\n"))
+	}))
+	defer server.Close()
+
+	chatModel, err := einoopenai.NewChatModel(context.Background(), &einoopenai.ChatModelConfig{
+		APIKey:     "test-key",
+		BaseURL:    server.URL,
+		Model:      "gpt-4o",
+		HTTPClient: server.Client(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := newNonEmptySummaryChatModel(chatModel).Generate(context.Background(), []*schema.Message{schema.UserMessage("summarize")}, opts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(out.Content) != "summary" {
+		t.Fatalf("summary content = %q", out.Content)
+	}
+
+	body := <-bodyCh
+	if _, ok := body["max_tokens"]; ok {
+		t.Fatalf("request contained max_tokens: %#v", body)
+	}
+	if got, ok := body["max_completion_tokens"].(float64); !ok || int(got) != outputReserve {
+		t.Fatalf("max_completion_tokens = %#v, want %d", body["max_completion_tokens"], outputReserve)
 	}
 }
