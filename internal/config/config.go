@@ -63,6 +63,9 @@ const (
 	DefaultLatestUserMessageHeadRunes                 = 24000
 	DefaultLatestUserMessageTailRunes                 = 24000
 	DefaultSummarizationOutputReserveTokens           = 8192
+
+	// OrcaRouterBaseURL is OrcaRouter's OpenAI-compatible gateway endpoint.
+	OrcaRouterBaseURL = "https://api.orcarouter.ai/v1"
 )
 
 // ProjectConfig 项目黑板（跨对话共享事实）配置。
@@ -1018,6 +1021,33 @@ func (c *Config) NormalizeAIProviderProfiles() {
 			c.AI.Channels[id] = ch
 		}
 	}
+}
+
+// IsOrcaRouterProvider reports whether the channel targets OrcaRouter's
+// OpenAI-compatible gateway. OrcaRouter is a router provider: model IDs such as
+// "orcarouter/auto" are resolved by the gateway to the best available backend
+// model, so channels pointing at it are treated as ordinary OpenAI-compatible
+// endpoints.
+func (c OpenAIConfig) IsOrcaRouterProvider() bool {
+	if provider := strings.ToLower(strings.TrimSpace(c.Provider)); provider == "orcarouter" {
+		return true
+	}
+	baseURL := strings.ToLower(strings.TrimSpace(c.BaseURL))
+	return strings.Contains(baseURL, "orcarouter")
+}
+
+// OrcaRouterBaseURLFor returns the OrcaRouter gateway base URL, defaulting to
+// the canonical endpoint when the channel does not override it.
+func OrcaRouterBaseURLFor(provider string) string {
+	if IsOrcaRouterProviderName(provider) {
+		return OrcaRouterBaseURL
+	}
+	return ""
+}
+
+// IsOrcaRouterProviderName reports whether the provider name refers to OrcaRouter.
+func IsOrcaRouterProviderName(provider string) bool {
+	return strings.EqualFold(strings.TrimSpace(provider), "orcarouter")
 }
 
 // OpenAIReasoningConfig 全局默认与网关 profile（对话页可通过 ChatRequest.reasoning 覆盖，受 AllowClientReasoning 约束）。

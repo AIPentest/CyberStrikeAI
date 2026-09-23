@@ -234,6 +234,14 @@ The `run.sh` script will automatically:
            model: "gpt-4o"  # or deepseek-chat, qwen3-max, etc.
            max_total_tokens: 120000
            max_completion_tokens: 16384
+         # OrcaRouter: OpenAI-compatible gateway (https://api.orcarouter.ai/v1).
+         # Model IDs like orcarouter/auto are routed by the gateway to the best backend model.
+         orcarouter:
+           name: OrcaRouter
+           provider: orcarouter
+           api_key: "${ORCAROUTER_API_KEY}"
+           base_url: "https://api.orcarouter.ai/v1"
+           model: "orcarouter/auto"
      ```
    - Or edit `config.yaml` directly before launching. `ai.default_channel` is used for new conversations and tasks that do not explicitly select a channel; the chat page can also select any saved channel per session.
 2. **Login** - On first startup the console prints an auto-generated initial `admin` password; create accounts from **Platform permissions → User management**
@@ -303,6 +311,11 @@ ai:
       api_key: "${OPENAI_API_KEY}"
       base_url: "https://api.openai.com/v1"
       model: "your-model"
+    orcarouter:
+      provider: orcarouter
+      api_key: "${ORCAROUTER_API_KEY}"
+      base_url: "https://api.orcarouter.ai/v1"
+      model: "orcarouter/auto"
 ```
 
 `openai` is a backward-compatible runtime field; maintain new model settings in `ai.channels`. Do not commit real credentials. Review the [configuration reference](docs/en-US/configuration.md), [recommended profiles](docs/en-US/configuration-profiles.md), and [security hardening guide](docs/en-US/security-hardening.md) before exposing the service beyond localhost.

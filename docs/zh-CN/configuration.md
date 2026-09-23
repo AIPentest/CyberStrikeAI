@@ -58,6 +58,12 @@ ai:
       base_url: https://api.anthropic.com/v1
       api_key: sk-ant-...
       model: claude-sonnet-4-5
+    orcarouter:
+      name: OrcaRouter
+      provider: orcarouter
+      base_url: https://api.orcarouter.ai/v1
+      api_key: sk-orca-...
+      model: orcarouter/auto
 ```
 
 `ai` 是推荐的模型配置入口。系统设置页对应路径是 **系统设置 → 基本设置 → AI 通道配置**，保存后写入 `ai.default_channel` 和 `ai.channels`。旧版 `openai` 字段仍保留为兼容运行时字段；加载配置时会确保至少有一个默认通道，并把 `ai.default_channel` 解析后的配置同步到运行时 `openai`。
@@ -69,7 +75,7 @@ ai:
 | `ai.default_channel` | 默认通道 ID。新对话、机器人、批量任务和未显式选择通道的请求使用它。 |
 | `ai.channels.<id>` | 通道配置。ID 会归一化为小写、数字和短横线，例如 `Qwen_Max` 会变成 `qwen-max`。 |
 | `name` | Web UI 展示名。留空时使用通道 ID。 |
-| `provider` | `openai_compatible` 或 `claude`。`openai_compatible` 会在运行时映射为 `openai`；`claude` 使用 Eino 原生 Anthropic Messages API。 |
+| `provider` | `openai_compatible`、`claude` 或 `orcarouter`。`openai_compatible` 会在运行时映射为 `openai`；`claude` 使用 Eino 原生 Anthropic Messages API；`orcarouter` 是 OpenAI 兼容网关（`https://api.orcarouter.ai/v1`），模型名如 `orcarouter/auto` 由网关路由到最优后端模型。 |
 | `base_url/api_key/model` | 必填。Base URL 通常需要包含版本路径，如 OpenAI/兼容网关的 `/v1`。 |
 | `max_total_tokens` | 上下文压缩、攻击链构建、多代理摘要等共用的总预算。 |
 | `max_completion_tokens` | 单次模型输出上限；未填时使用默认值。 |

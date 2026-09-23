@@ -58,12 +58,21 @@ monitor:
 # 支持的 API 服务商：
 #   - OpenAI: https://api.openai.com/v1
 #   - DeepSeek: https://api.deepseek.com/v1
+#   - OrcaRouter: https://api.orcarouter.ai/v1（OpenAI 兼容网关，模型名如 orcarouter/auto）
 #   - 其他兼容 OpenAI 协议的 API
-# 常用模型: gpt-4, gpt-3.5-turbo, deepseek-chat, claude-3-opus 等
-# provider: 可选值 openai_compatible(默认) | claude(Eino 原生 Anthropic Messages API)
+# 常用模型: gpt-4, gpt-3.5-turbo, deepseek-chat, claude-3-opus, orcarouter/auto 等
+# provider: 可选值 openai_compatible(默认) | claude(Eino 原生 Anthropic Messages API) | orcarouter(OpenAI 兼容网关)
 ai:
   default_channel: qwen-max
   channels:
+    orcarouter:
+      name: OrcaRouter
+      provider: orcarouter
+      base_url: https://api.orcarouter.ai/v1
+      api_key: sk-orca-xxxxxxx
+      model: orcarouter/auto
+      max_total_tokens: 120000
+      max_completion_tokens: 32768
     qwen-max:
       name: Qwen Max
       provider: openai_compatible

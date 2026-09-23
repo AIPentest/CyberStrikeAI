@@ -1218,6 +1218,8 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 	if baseURL == "" {
 		if strings.EqualFold(strings.TrimSpace(req.Provider), "claude") {
 			baseURL = "https://api.anthropic.com"
+		} else if config.IsOrcaRouterProviderName(req.Provider) {
+			baseURL = config.OrcaRouterBaseURL
 		} else {
 			baseURL = "https://api.openai.com/v1"
 		}
@@ -1410,7 +1412,11 @@ func (h *ConfigHandler) ListModels(c *gin.Context) {
 
 	baseURL := strings.TrimSuffix(strings.TrimSpace(req.BaseURL), "/")
 	if baseURL == "" {
-		baseURL = "https://api.openai.com/v1"
+		if config.IsOrcaRouterProviderName(provider) {
+			baseURL = config.OrcaRouterBaseURL
+		} else {
+			baseURL = "https://api.openai.com/v1"
+		}
 	}
 
 	tmpCfg := &config.OpenAIConfig{
@@ -1476,6 +1482,8 @@ func (h *ConfigHandler) TestVision(c *gin.Context) {
 	if baseURL == "" {
 		if strings.EqualFold(strings.TrimSpace(oa.Provider), "claude") {
 			baseURL = "https://api.anthropic.com"
+		} else if config.IsOrcaRouterProviderName(oa.Provider) {
+			baseURL = config.OrcaRouterBaseURL
 		} else {
 			baseURL = "https://api.openai.com/v1"
 		}
