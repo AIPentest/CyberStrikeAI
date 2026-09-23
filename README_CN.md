@@ -370,9 +370,9 @@ CyberStrikeAI 现已加入 [404星链计划](https://github.com/knownsec/404Star
 - 在 [Discord](https://discord.gg/8PjVCMu8Zw) 加入社区。
 
 <details>
-<summary><strong>微信群</strong></summary>
+<summary><strong>企业微信群</strong></summary>
 
-<img src="./images/wechat-group-cyberstrikeai-qr.jpg" alt="CyberStrikeAI 微信群二维码" width="280">
+<img src="./images/wecom-group-cyberstrikeai-qr.png" alt="CyberStrikeAI 企业微信群二维码" width="280">
 
 </details>
 

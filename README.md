@@ -374,9 +374,9 @@ CyberStrikeAI has joined [404Starlink](https://github.com/knownsec/404StarLink)
 - Join the community on [Discord](https://discord.gg/8PjVCMu8Zw).
 
 <details>
-<summary><strong>WeChat group</strong></summary>
+<summary><strong>WeCom group</strong></summary>
 
-<img src="./images/wechat-group-cyberstrikeai-qr.jpg" alt="CyberStrikeAI WeChat group QR code" width="280">
+<img src="./images/wecom-group-cyberstrikeai-qr.png" alt="CyberStrikeAI WeCom group QR code" width="280">
 
 </details>
 
