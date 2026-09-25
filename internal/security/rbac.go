@@ -62,6 +62,8 @@ var PermissionCatalog = map[string]string{
 	"workflow:delete":      "Delete workflows",
 	"config:read":          "View system configuration",
 	"config:write":         "Update and apply system configuration",
+	"storage:read":         "View runtime storage usage and reclaimable space",
+	"storage:write":        "Run runtime storage cleanup and change its retention policy",
 	"terminal:execute":     "Run terminal commands",
 	"audit:read":           "View and export audit logs",
 	"audit:delete":         "Delete audit logs",

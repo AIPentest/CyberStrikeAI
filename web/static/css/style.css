@@ -46455,3 +46455,203 @@ html[data-theme="dark"] { --tool-blocked-color: #f4bc62; }
 .mcp-stats-timeline__legend-item--blocked::before { background: #d99224; }
 .mcp-stats-rate.is-muted,
 .mcp-stats-tool-item__rate.is-muted { color: var(--text-muted); }
+
+/* ============================================
+   系统设置 -> 存储清理（运行空间垃圾回收）
+   ============================================ */
+.storage-desc {
+    margin: 0 0 16px;
+    color: var(--text-secondary);
+    font-size: .8125rem;
+    line-height: 1.6;
+}
+
+/* display:grid/flex 会盖过 UA 的 [hidden]，需显式提权 */
+.storage-overview[hidden],
+.storage-result[hidden] { display: none; }
+
+.storage-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.storage-overview-card {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.storage-overview-card--accent { border-color: var(--warning-color); }
+
+.storage-overview-label {
+    color: var(--text-secondary);
+    font-size: .75rem;
+    font-weight: 600;
+}
+
+.storage-overview-card strong {
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+.storage-overview-hint {
+    color: var(--text-secondary);
+    font-size: .75rem;
+}
+
+.storage-usage-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--bg-tertiary);
+    overflow: hidden;
+}
+
+.storage-usage-bar > span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--primary-color);
+    transition: width .2s ease;
+}
+
+.storage-usage-bar > span.storage-usage-bar-fill--warn { background: var(--error-color); }
+
+.storage-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.storage-scanned-at {
+    margin-left: auto;
+    color: var(--text-secondary);
+    font-size: .75rem;
+}
+
+.storage-result {
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--success-color);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    font-size: .8125rem;
+}
+
+.storage-result--error { border-left-color: var(--error-color); }
+
+.storage-result-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.storage-result-list {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.storage-result-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--text-secondary);
+}
+
+.storage-error-text { color: var(--error-color); }
+
+.storage-table .storage-cat-label { font-weight: 600; color: var(--text-primary); }
+
+.storage-table .storage-sub {
+    display: block;
+    color: var(--text-secondary);
+    font-size: .6875rem;
+    margin-top: 2px;
+}
+
+.storage-root {
+    font-size: .75rem;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    padding: 1px 5px;
+}
+
+.storage-muted { color: var(--text-secondary); font-size: .75rem; }
+.storage-empty { text-align: center; color: var(--text-secondary); padding: 20px 0; }
+.storage-row--disabled { opacity: .55; }
+
+.storage-retention-input {
+    width: 72px;
+    padding: 4px 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary);
+    font-size: .8125rem;
+}
+
+.storage-policy {
+    margin-top: 20px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 16px;
+}
+
+.storage-policy h4 {
+    margin: 0 0 12px;
+    font-size: .875rem;
+    color: var(--text-primary);
+}
+
+.storage-policy-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+}
+
+.storage-policy-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: .75rem;
+    color: var(--text-secondary);
+}
+
+.storage-policy-field input[type="number"] {
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary);
+    font-size: .8125rem;
+}
+
+.storage-policy-field--switch {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    font-size: .8125rem;
+    color: var(--text-primary);
+}
+
+.storage-policy-hint {
+    margin: 12px 0 0;
+    color: var(--text-secondary);
+    font-size: .75rem;
+    line-height: 1.6;
+}

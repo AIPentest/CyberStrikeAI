@@ -732,6 +732,7 @@ type UpdateConfigRequest struct {
 	Robots     *config.RobotsConfig        `json:"robots,omitempty"`
 	MultiAgent *config.MultiAgentAPIUpdate `json:"multi_agent,omitempty"`
 	C2         *config.C2APIUpdate         `json:"c2,omitempty"`
+	Storage    *config.StorageConfig       `json:"storage,omitempty"`
 }
 
 // AgentConfigUpdate 用于 PATCH /api/config 的 agent 段：仅 JSON 中出现的字段（指针非 nil）覆盖内存配置。
@@ -916,6 +917,66 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 			zap.String("audit_backend", h.config.Hitl.AuditBackend),
 			zap.String("default_reviewer", h.config.Hitl.DefaultReviewer),
 			zap.Int("tool_whitelist", len(h.config.Hitl.ToolWhitelist)),
+		)
+	}
+
+	if req.Storage != nil {
+		st := &h.config.Storage
+		if req.Storage.AutoClean != nil {
+			v := *req.Storage.AutoClean
+			st.AutoClean = &v
+		}
+		if req.Storage.IntervalMinutes != nil {
+			v := *req.Storage.IntervalMinutes
+			if v < 5 {
+				v = 5
+			}
+			st.IntervalMinutes = &v
+		}
+		if req.Storage.OrphanGraceDays != nil {
+			v := *req.Storage.OrphanGraceDays
+			if v < 0 {
+				v = 0
+			}
+			st.OrphanGraceDays = &v
+		}
+		if req.Storage.ActiveGraceHours != nil {
+			v := *req.Storage.ActiveGraceHours
+			if v < 1 {
+				v = 1
+			}
+			st.ActiveGraceHours = &v
+		}
+		if req.Storage.Categories != nil {
+			if st.Categories == nil {
+				st.Categories = make(map[string]config.StorageCategoryConfig, len(req.Storage.Categories))
+			}
+			// 只接受注册表内的类别键，未注册的键直接忽略，避免被写进 config.yaml。
+			for _, key := range config.StorageCategoryOrder {
+				patch, ok := req.Storage.Categories[key]
+				if !ok {
+					continue
+				}
+				cur := st.Categories[key]
+				if patch.Enabled != nil {
+					v := *patch.Enabled
+					cur.Enabled = &v
+				}
+				if patch.RetentionDays != nil {
+					v := *patch.RetentionDays
+					if v < 0 {
+						v = 0
+					}
+					cur.RetentionDays = &v
+				}
+				st.Categories[key] = cur
+			}
+		}
+		h.logger.Info("更新运行空间清理配置",
+			zap.Bool("auto_clean", st.AutoCleanEffective()),
+			zap.Int("interval_minutes", st.IntervalMinutesEffective()),
+			zap.Int("orphan_grace_days", st.OrphanGraceDaysEffective()),
+			zap.Int("active_grace_hours", st.ActiveGraceHoursEffective()),
 		)
 	}
 
@@ -1838,6 +1899,7 @@ func (h *ConfigHandler) saveConfig() error {
 	updateC2Config(root, h.config.C2)
 	updateRobotsConfig(root, h.config.Robots)
 	updateHitlConfig(root, h.config.Hitl)
+	updateStorageConfig(root, h.config.Storage)
 	updateMultiAgentConfig(root, h.config.MultiAgent)
 	// 更新外部MCP配置（使用external_mcp.go中的函数，同一包中可直接调用）
 	updateExternalMCPConfig(root, h.config.ExternalMCP)
@@ -2221,6 +2283,24 @@ func updateHitlConfig(doc *yaml.Node, cfg config.HitlConfig) {
 	setIntInMap(hitlNode, "retention_days", cfg.RetentionDaysEffective())
 	setStringInMap(hitlNode, "audit_agent_prompt", cfg.AuditAgentPrompt)
 	setStringInMap(hitlNode, "audit_agent_prompt_review_edit", cfg.AuditAgentPromptReviewEdit)
+}
+
+// updateStorageConfig 把运行空间清理策略写回 config.yaml，保留文件其余内容与注释。
+func updateStorageConfig(doc *yaml.Node, cfg config.StorageConfig) {
+	root := doc.Content[0]
+	storageNode := ensureMap(root, "storage")
+	setBoolInMap(storageNode, "auto_clean", cfg.AutoCleanEffective())
+	setIntInMap(storageNode, "interval_minutes", cfg.IntervalMinutesEffective())
+	setIntInMap(storageNode, "orphan_grace_days", cfg.OrphanGraceDaysEffective())
+	setIntInMap(storageNode, "active_grace_hours", cfg.ActiveGraceHoursEffective())
+
+	// 按固定顺序输出，避免每次保存都因 map 迭代顺序不同而重排整个文件。
+	categoriesNode := ensureMap(storageNode, "categories")
+	for _, key := range config.StorageCategoryOrder {
+		categoryNode := ensureMap(categoriesNode, key)
+		setBoolInMap(categoryNode, "enabled", cfg.CategoryEnabled(key))
+		setIntInMap(categoryNode, "retention_days", cfg.CategoryRetentionDays(key))
+	}
 }
 
 // UpdateHitlDefaultConfig 更新全局默认人机协同配置并写入 config.yaml。
