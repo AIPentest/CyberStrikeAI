@@ -77,6 +77,7 @@
     "submit": "Sign in"
   },
   "nav": {
+    "menu": "Navigation",
     "security": "Security",
     "toolGuard": "Call blocking",
     "dashboard": "Dashboard",

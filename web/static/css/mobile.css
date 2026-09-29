@@ -1,0 +1,1202 @@
+/*
+ * CyberStrikeAI — mobile / small-screen adaptation layer.
+ * Loaded last so equal-specificity rules win over style.css, c2.css, tool-guard.css.
+ * Two breakpoints only: 1024px (tablet/narrow), 768px (phone — drawer nav), 480px (tight phone).
+ */
+
+/* ============================================================
+ * 1. Tokens
+ * ============================================================ */
+:root {
+    --cs-touch: 44px;
+    --cs-drawer-w: min(302px, 84vw);
+    --cs-gutter: 12px;
+    --cs-sa-top: env(safe-area-inset-top, 0px);
+    --cs-sa-bottom: env(safe-area-inset-bottom, 0px);
+    --cs-sa-left: env(safe-area-inset-left, 0px);
+    --cs-sa-right: env(safe-area-inset-right, 0px);
+    --cs-z-backdrop: 10090;
+    --cs-z-drawer: 10100;
+    --cs-z-sheet: 10120;
+}
+
+/* ============================================================
+ * 2. Phone shell (<=768px)
+ * ============================================================ */
+@media (max-width: 768px) {
+    /* --- viewport-height lock: dvh keeps the composer above mobile browser chrome --- */
+    html,
+    body {
+        height: 100vh;
+        height: 100dvh;
+        overscroll-behavior: none;
+    }
+
+    body {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .container {
+        height: 100vh;
+        height: 100dvh;
+        padding-left: var(--cs-sa-left);
+        padding-right: var(--cs-sa-right);
+    }
+
+    /* --- header: two rows — brand row, then an icon action strip --- */
+    header {
+        padding: 0;
+        padding-top: var(--cs-sa-top);
+    }
+
+    .header-content {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 8px;
+        padding: 8px 12px;
+    }
+
+    .mobile-menu-btn {
+        order: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--cs-touch);
+        height: var(--cs-touch);
+        margin-left: -8px;
+        flex-shrink: 0;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        cursor: pointer;
+    }
+
+    .mobile-menu-btn:active {
+        background: var(--bg-secondary);
+    }
+
+    .header-content .logo {
+        order: 1;
+        flex: 1 1 auto;
+        min-width: 0;
+        gap: 8px;
+    }
+
+    .header-content .header-right {
+        order: 2;
+        flex: 1 0 100%;
+        gap: 0;
+        min-width: 0;
+    }
+
+    .header-content .header-actions {
+        width: 100%;
+        min-width: 0;
+        gap: 6px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        padding-bottom: 2px;
+    }
+
+    .header-content .header-actions::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* icon-only secondary actions: drop the text, keep the control reachable */
+    .header-actions .openapi-doc-btn,
+    .header-actions .theme-toggle-btn,
+    .header-actions .lang-switcher-btn {
+        flex-shrink: 0;
+        width: var(--cs-touch);
+        min-width: var(--cs-touch);
+        height: var(--cs-touch);
+        padding: 0;
+        justify-content: center;
+        gap: 0;
+        font-size: 0;
+    }
+
+    .header-actions .openapi-doc-btn > span,
+    .header-actions .theme-toggle-btn > span,
+    .header-actions .lang-switcher-btn > span:not(.lang-switcher-icon) {
+        display: none;
+    }
+
+    .header-actions .lang-switcher-icon {
+        font-size: 1rem;
+    }
+
+    .header-actions .notification-btn,
+    .header-actions .user-avatar-btn {
+        width: var(--cs-touch);
+        height: var(--cs-touch);
+        flex-shrink: 0;
+    }
+
+    .header-actions .notification-dropdown {
+        width: min(340px, calc(100vw - 24px));
+        max-height: min(420px, 60vh);
+        max-height: min(420px, 60dvh);
+    }
+
+    .header-actions .user-menu-dropdown {
+        width: min(300px, calc(100vw - 24px));
+    }
+
+    .brand-logo {
+        width: 30px;
+        height: 30px;
+    }
+
+    .brand-wordmark--lg,
+    .logo h1 {
+        font-size: 1.0625rem;
+    }
+
+    .version-badge {
+        display: none;
+    }
+
+    /* --- main sidebar becomes an off-canvas drawer --- */
+    .main-layout {
+        display: flex;
+        min-height: 0;
+    }
+
+    .main-sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: var(--cs-z-drawer);
+        width: var(--cs-drawer-w) !important;
+        max-width: 84vw;
+        padding-left: var(--cs-sa-left);
+        transform: translateX(-102%);
+        transition: transform .28s cubic-bezier(.32, .72, 0, 1);
+        visibility: hidden;
+        box-shadow: none;
+        overflow: hidden;
+    }
+
+    .main-sidebar.mobile-open {
+        transform: translateX(0);
+        visibility: visible;
+        box-shadow: 0 0 40px rgba(2, 6, 23, .38);
+    }
+
+    /* the desktop 64px icon rail is meaningless without a mouse — always expanded */
+    .main-sidebar.collapsed {
+        width: var(--cs-drawer-w) !important;
+    }
+
+    .main-sidebar.collapsed .nav-item-content {
+        padding: 12px 14px;
+        justify-content: flex-start;
+        gap: 10px;
+    }
+
+    .main-sidebar.collapsed .nav-item-content span,
+    .main-sidebar.collapsed .nav-section-label span,
+    .main-sidebar.collapsed .submenu-arrow {
+        display: block;
+    }
+
+    .main-sidebar.collapsed .nav-submenu,
+    .main-sidebar .nav-item.expanded > .nav-submenu {
+        display: block;
+        max-height: none;
+    }
+
+    .sidebar-collapse-btn {
+        display: none !important;
+    }
+
+    .mobile-drawer-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        height: 56px;
+        padding: 0 8px 0 16px;
+        flex-shrink: 0;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--bg-primary);
+    }
+
+    .mobile-drawer-title {
+        font-size: .9375rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .mobile-drawer-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--cs-touch);
+        height: var(--cs-touch);
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--text-secondary);
+        cursor: pointer;
+    }
+
+    .cs-drawer-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: var(--cs-z-backdrop);
+        background: rgba(2, 6, 23, .5);
+        opacity: 0;
+        transition: opacity .2s ease;
+    }
+
+    body.cs-nav-open .cs-drawer-backdrop {
+        display: block;
+        opacity: 1;
+    }
+
+    body.cs-nav-open {
+        overflow: hidden;
+    }
+
+    .main-sidebar-nav {
+        padding-top: 8px;
+        padding-bottom: calc(16px + var(--cs-sa-bottom));
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+
+    .nav-item-content {
+        min-height: var(--cs-touch);
+        align-items: center;
+        padding: 12px 14px;
+        font-size: .9375rem;
+    }
+
+    .nav-submenu-item {
+        min-height: var(--cs-touch);
+        display: flex;
+        align-items: center;
+        padding: 10px 12px 10px 44px;
+        font-size: .875rem;
+    }
+
+    .nav-section-label {
+        padding: 18px 16px 6px;
+    }
+
+    /* --- content column owns the full viewport width --- */
+    .content-area {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .page-header {
+        padding: 12px var(--cs-gutter);
+        gap: 8px;
+    }
+
+    .page-header h2 {
+        font-size: 1.125rem;
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .page-header-actions {
+        max-width: 100%;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .page-content {
+        padding: 12px var(--cs-gutter) calc(16px + var(--cs-sa-bottom));
+        min-width: 0;
+    }
+
+    /* ============================================================
+       3. Chat
+       ============================================================ */
+    .chat-page-layout {
+        position: relative;
+        height: 100%;
+        min-width: 0;
+    }
+
+    .conversation-sidebar {
+        position: absolute;
+        inset: 0 auto 0 0;
+        z-index: 40;
+        width: min(300px, 86%) !important;
+        max-width: 86%;
+        transform: translateX(-102%);
+        transition: transform .26s cubic-bezier(.32, .72, 0, 1);
+        visibility: hidden;
+        box-shadow: none;
+    }
+
+    .conversation-sidebar.mobile-open {
+        transform: translateX(0);
+        visibility: visible;
+        box-shadow: 4px 0 24px rgba(2, 6, 23, .28);
+    }
+
+    .conversation-sidebar.collapsed {
+        width: min(300px, 86%) !important;
+    }
+
+    .chat-container {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .conversation-header {
+        padding: 8px 10px;
+        min-width: 0;
+    }
+
+    .conversation-header-content {
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
+    /* the desktop 64px left gutter for the turn rail is wasted space on a phone */
+    .chat-messages {
+        padding: 12px 10px calc(8px + var(--cs-sa-bottom));
+    }
+
+    .chat-turn-rail {
+        display: none;
+    }
+
+    .message-content,
+    .message.user .message-content,
+    .message.assistant .message-content,
+    .message.system .message-content {
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .message-bubble {
+        padding: 10px 12px;
+        font-size: .9375rem;
+    }
+
+    .chat-input-container {
+        padding: 8px 10px calc(8px + var(--cs-sa-bottom));
+        flex-wrap: wrap;
+    }
+
+    .chat-input-primary-row {
+        flex-wrap: nowrap;
+        min-width: 0;
+        gap: 6px;
+    }
+
+    .chat-input-field {
+        min-width: 0;
+    }
+
+    #chat-input {
+        /* >=16px prevents iOS Safari from auto-zooming the whole page on focus */
+        font-size: 16px;
+        min-height: var(--cs-touch);
+        padding: 10px 12px;
+    }
+
+    .send-btn {
+        width: auto;
+        padding: 0 14px;
+        min-width: var(--cs-touch);
+        height: var(--cs-touch);
+        font-size: .875rem;
+    }
+
+    .conversation-reasoning-card {
+        height: auto;
+        min-height: 64px;
+    }
+
+    .conversation-reasoning-card.expanded {
+        left: 8px;
+        right: 8px;
+        bottom: calc(8px + var(--cs-sa-bottom));
+        max-height: min(62vh, 62dvh);
+    }
+
+    /* ============================================================
+       4. Data tables — scroll instead of crush
+       ============================================================ */
+    .projects-table-wrap,
+    #page-asset-library .asset-table-wrap,
+    #page-asset-library .asset-list-card .asset-table-wrap,
+    .monitor-table-container,
+    .audit-log-table-wrap,
+    .hitl-logs-table-wrap,
+    .chat-files-table-wrap {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+    }
+
+    .data-table,
+    .projects-table-wrap .data-table--projects {
+        table-layout: auto;
+        min-width: max-content;
+    }
+
+    /* .asset-table rows are forced to display:table upstream; undo that so the
+       sheet sizes to its content instead of ballooning to max-content. */
+    #page-asset-library .asset-table,
+    .asset-table {
+        table-layout: auto;
+        width: max-content;
+        min-width: 100%;
+    }
+
+    #page-asset-library .asset-table tr {
+        display: table-row;
+        width: auto;
+        table-layout: auto;
+    }
+
+    .data-table thead th {
+        padding: 9px 10px;
+        font-size: .6875rem;
+    }
+
+    .data-table tbody td {
+        padding: 10px;
+        font-size: .8125rem;
+    }
+
+    .data-table .cell-summary {
+        max-width: 46vw;
+    }
+
+    /* ============================================================
+       5. Modals become bottom sheets
+       ============================================================ */
+    .modal {
+        display: none;
+        align-items: flex-end;
+        justify-content: center;
+        overflow: hidden;
+        padding: 0;
+    }
+
+    .modal[style*="display: block"],
+    .modal[style*="display: flex"],
+    .modal.active,
+    .modal.show {
+        display: flex;
+    }
+
+    .modal-content {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        border-radius: 16px 16px 0 0;
+        max-height: 92vh;
+        max-height: 92dvh;
+        padding-bottom: var(--cs-sa-bottom);
+        animation: cs-sheet-up .22s cubic-bezier(.32, .72, 0, 1);
+    }
+
+    @keyframes cs-sheet-up {
+        from { transform: translateY(6%); opacity: .6; }
+        to   { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-header {
+        padding: 14px 16px;
+    }
+
+    .modal-header h2 {
+        font-size: 1.0625rem;
+    }
+
+    .modal-body {
+        padding: 14px 16px;
+        overflow-x: hidden;
+        min-width: 0;
+    }
+
+    .modal-footer {
+        flex-wrap: wrap;
+        justify-content: stretch;
+        gap: 8px;
+        padding: 12px 16px;
+    }
+
+    .modal-footer .btn-primary,
+    .modal-footer .btn-secondary,
+    .modal-footer .btn-danger {
+        flex: 1 1 45%;
+        min-width: 0;
+    }
+
+    .modal-close {
+        width: var(--cs-touch);
+        height: var(--cs-touch);
+    }
+
+    /* ============================================================
+       6. Touch targets
+       ============================================================ */
+    button,
+    [role="button"],
+    input[type="submit"],
+    input[type="button"],
+    select,
+    .btn-primary,
+    .btn-secondary,
+    .btn-danger,
+    .btn-small,
+    .btn-sm,
+    .tab,
+    .tab-btn {
+        min-height: 40px;
+    }
+
+    /* dense inline icon buttons stay visually small but get a real hit area */
+    .btn-icon,
+    .conversation-delete-btn,
+    .message-copy-btn,
+    .table-action-btn,
+    .projects-action-btn,
+    .icon-btn {
+        min-width: 36px;
+        min-height: 36px;
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+    textarea,
+    select,
+    .form-control {
+        font-size: 16px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        min-height: var(--cs-touch);
+    }
+
+    /* search / filter fields and custom select triggers */
+    input[type="search"],
+    .search-input,
+    .search-box input,
+    #asset-search,
+    #skills-search,
+    #projects-search,
+    .toolbar-search input {
+        min-height: var(--cs-touch);
+    }
+
+    .settings-custom-select-trigger,
+    .settings-custom-select-panel,
+    .pagination-page-size-select,
+    select.pagination-page-size-select {
+        min-height: var(--cs-touch);
+    }
+
+    /* checkboxes and switches: grow the control itself, not just its hit box */
+    input[type="checkbox"],
+    input[type="radio"],
+    .theme-checkbox,
+    .form-check-input {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        accent-color: var(--primary-color);
+    }
+
+    label:has(input[type="checkbox"]),
+    label:has(input[type="radio"]),
+    .checkbox-label,
+    .theme-card label,
+    .mcp-theme-toggle {
+        min-height: var(--cs-touch);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .vulnerability-alert-switch-track,
+    .switch-track,
+    .tool-guard-switch-track {
+        min-width: 46px;
+        min-height: 26px;
+    }
+
+    /* toolbar buttons that are pinned to a desktop height upstream */
+    .workflow-toolbar .btn-primary,
+    .workflow-toolbar .btn-secondary,
+    .workflow-meta-bar button,
+    .asset-toolbar button,
+    .asset-toolbar .btn-secondary,
+    .batch-queues-filter button,
+    .hitl-filters button,
+    .vulnerability-filter-toolbar button,
+    a.btn-primary,
+    a.btn-secondary,
+    a#test-vision-btn,
+    a#fetch-openai-models-btn,
+    a#fetch-vision-models-btn {
+        min-height: var(--cs-touch);
+        height: auto;
+    }
+
+    .btn-link,
+    .dashboard-link,
+    .dashboard-section-a-link {
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+    }
+
+    .pagination-btn,
+    .sidebar-list-pagination button,
+    .pagination-info button {
+        min-width: var(--cs-touch);
+        min-height: var(--cs-touch);
+    }
+
+    .pagination-page-size select,
+    .pagination-page-size {
+        min-height: var(--cs-touch);
+    }
+
+    /* compact variant pins its own height */
+    .settings-custom-select--compact .settings-custom-select-trigger,
+    .settings-custom-select-trigger {
+        min-height: var(--cs-touch);
+    }
+
+    input[type="checkbox"],
+    input[type="radio"],
+    .theme-checkbox,
+    .batch-conversation-checkbox {
+        width: 24px;
+        height: 24px;
+    }
+
+    /* icon-only toolbar buttons need width as well as height */
+    .workflow-toolbar button,
+    .workflow-meta-bar button,
+    .c2-sessions-toolbar button,
+    .info-collect-results-toolbar button,
+    .knowledge-filters button,
+    .batch-queues-filter button,
+    .hitl-filters button,
+    .webshell-toolbar button {
+        min-width: 40px;
+        min-height: var(--cs-touch);
+        height: auto;
+    }
+
+    .knowledge-search,
+    .knowledge-search input,
+    .webshell-sidebar input,
+    .webshell-sidebar button,
+    .asset-toolbar input,
+    .asset-toolbar select,
+    .asset-toolbar .settings-custom-select-trigger,
+    .vulnerability-filter-toolbar input,
+    .hitl-filters input,
+    .batch-queues-filter input,
+    .info-collect-results button,
+    .syntax-guide a {
+        min-height: 40px;
+    }
+
+    a[id$="-view-all"],
+    a[id$="-c2-manage"],
+    .dashboard-section-header a,
+    .dashboard-section a[class*="link"],
+    #dashboard-access-view-all,
+    #dashboard-feed-view-all {
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        margin: -6px -10px;
+    }
+
+    .rbac-selected-summary,
+    #rbac-selected-summary,
+    .user-menu-profile-pill {
+        min-height: 32px;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .tool-guard-rule-header label,
+    .tool-guard-card label {
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .page-header-actions label {
+        min-height: var(--cs-touch);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* ============================================================
+       7. Grids collapse to one column
+       ============================================================ */
+    .webshell-db-toolbar,
+    .batch-queue-detail-kv,
+    .info-collect-columns-list,
+    .rbac-layout,
+    .rbac-assignment-toolbar-main,
+    .dashboard-severity-wrap,
+    .dashboard-severity-status,
+    .rbac-role-management-actions,
+    .ai-channel-switcher-field,
+    .rbac-catalog-stats,
+    .dashboard-kpi-row,
+    .dashboard-severity-status-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .dashboard-kpi-row > *,
+    .webshell-main {
+        min-width: 0;
+    }
+
+    .webshell-main,
+    .webshell-workspace {
+        width: 100% !important;
+        min-width: 0;
+    }
+
+    .webshell-resize-handle {
+        display: none;
+    }
+
+    /* ============================================================
+       8. Hover-only affordances must be visible on touch
+       ============================================================ */
+    .conversation-delete-btn,
+    .message-copy-btn,
+    .conversation-item-menu,
+    .projects-list-item-menu,
+    .task-item-history,
+    .workflow-list-item-menu {
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+    }
+
+    /* hover-gated scrollbars are invisible on touch: give them a real thumb */
+    .main-sidebar-nav,
+    .chat-messages,
+    .modal-body,
+    .conversation-sidebar .sidebar-content {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(100, 116, 139, .5) transparent;
+    }
+
+    .main-sidebar-nav::-webkit-scrollbar,
+    .chat-messages::-webkit-scrollbar,
+    .modal-body::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .main-sidebar-nav::-webkit-scrollbar-thumb,
+    .chat-messages::-webkit-scrollbar-thumb,
+    .modal-body::-webkit-scrollbar-thumb {
+        background: rgba(100, 116, 139, .5) !important;
+        border-radius: 4px;
+    }
+
+    /* no hover state exists on touch — neutralise lift/transform effects */
+    .btn-primary:hover,
+    .btn-secondary:hover {
+        transform: none;
+    }
+
+    .btn-primary:active,
+    .btn-secondary:active,
+    .nav-item-content:active,
+    .nav-submenu-item:active {
+        transform: scale(.985);
+        filter: brightness(.96);
+    }
+}
+
+/* drawer chrome is desktop-only */
+.mobile-menu-btn,
+.mobile-drawer-header,
+.mobile-conv-btn,
+.cs-drawer-backdrop {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobile-menu-btn {
+        display: inline-flex;
+    }
+
+    .mobile-drawer-header {
+        display: flex;
+    }
+
+    /* chat: trigger chip for the conversation-list drawer.
+       Anchored to the page (not the header) because the header is hidden in the empty state. */
+    .mobile-conv-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        z-index: 45;
+        min-height: 40px;
+        padding: 0 12px;
+        flex-shrink: 0;
+        border: 1px solid var(--border-color);
+        border-radius: 999px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        box-shadow: var(--shadow-sm);
+        font-size: .875rem;
+        cursor: pointer;
+    }
+
+    .mobile-conv-btn:active {
+        background: var(--bg-secondary);
+    }
+
+    /* scrim behind the conversation drawer */
+    body.cs-conv-open .chat-page-layout::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 30;
+        background: rgba(2, 6, 23, .45);
+        touch-action: none;
+    }
+
+    /* login card fills the phone width without dead margin */
+    .login-overlay {
+        padding: 20px 14px calc(20px + var(--cs-sa-bottom));
+        align-items: flex-start;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .login-card {
+        width: 100%;
+        max-width: 420px;
+        margin-top: auto;
+        margin-bottom: auto;
+        padding: 20px 18px;
+    }
+
+    .login-title {
+        font-size: 1.125rem;
+    }
+
+    .login-form input {
+        min-height: var(--cs-touch);
+        font-size: 16px;
+    }
+
+    .login-form button[type="submit"] {
+        min-height: var(--cs-touch);
+        width: 100%;
+    }
+}
+
+/* ============================================================
+ * 9. Tight phones (<=480px)
+ * ============================================================ */
+@media (max-width: 480px) {
+    :root {
+        --cs-gutter: 10px;
+    }
+
+    .header-content {
+        padding: 6px 10px;
+    }
+
+    .brand-wordmark--lg,
+    .logo h1 {
+        font-size: 1rem;
+    }
+
+    .page-header h2 {
+        font-size: 1.0625rem;
+    }
+
+    .page-header-actions {
+        flex: 1 0 100%;
+    }
+
+    .page-header-actions .btn-primary,
+    .page-header-actions .btn-secondary {
+        flex: 1 1 auto;
+    }
+
+    .modal-footer {
+        flex-direction: column-reverse;
+    }
+
+    .modal-footer .btn-primary,
+    .modal-footer .btn-secondary,
+    .modal-footer .btn-danger {
+        flex: 1 1 auto;
+        width: 100%;
+    }
+}
+
+/* ============================================================
+ * 10. Landscape phones: keep the drawer but cap its height
+ * ============================================================ */
+@media (max-width: 900px) and (orientation: landscape) {
+    .main-sidebar-nav {
+        padding-bottom: 12px;
+    }
+
+    .modal-content {
+        max-height: 96vh;
+        max-height: 96dvh;
+    }
+}
+
+/* ============================================================
+ * 11. Coarse pointers on wide screens (tablet in split view)
+ * ============================================================ */
+@media (hover: none) and (pointer: coarse) and (min-width: 769px) {
+    .conversation-delete-btn,
+    .message-copy-btn {
+        opacity: 1 !important;
+    }
+}
+
+/* ============================================================
+ * 12. Final overrides — controls whose upstream rules are
+ * pinned by higher-specificity selectors (IDs / compound chains).
+ * ============================================================ */
+@media (max-width: 768px) {
+    input[type="checkbox"],
+    input[type="radio"],
+    .theme-checkbox,
+    .batch-conversation-checkbox,
+    #projects-show-archived,
+    #tasks-auto-refresh,
+    #asset-select-page,
+    #asset-select-all {
+        width: 24px !important;
+        height: 24px !important;
+        flex-shrink: 0;
+    }
+
+    /* native 24px boxes still read small, so widen the row they sit in */
+    th:has(input[type="checkbox"]),
+    td:has(input[type="checkbox"]) {
+        padding-top: 12px !important;
+        padding-bottom: 12px !important;
+    }
+
+    .settings-custom-select-trigger,
+    .pagination-page-size select,
+    #batch-queues-search,
+    .knowledge-search input,
+    .asset-toolbar input {
+        min-height: var(--cs-touch) !important;
+    }
+
+    .workflow-toolbar button,
+    .workflow-meta-bar button,
+    .workflow-meta-bar .btn-secondary,
+    .workflow-meta-bar summary.btn-secondary,
+    #workflow-connect-btn {
+        min-width: var(--cs-touch) !important;
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+    }
+
+    .dashboard-section-link,
+    a.dashboard-section-link,
+    #dashboard-access-view-all,
+    #dashboard-feed-view-all,
+    .info-collect-doc-link {
+        min-height: var(--cs-touch);
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 12px;
+        margin: -8px -12px;
+    }
+
+    .rbac-summary-count,
+    button.rbac-summary-count {
+        min-width: var(--cs-touch);
+        min-height: var(--cs-touch);
+    }
+
+    #chat-send-btn,
+    .send-btn,
+    .chat-upload-btn,
+    .chat-input-leading button {
+        min-width: var(--cs-touch);
+        min-height: var(--cs-touch);
+    }
+}
+
+@media (max-width: 768px) {
+    a.dashboard-section-link,
+    .btn-search,
+    #knowledge-search,
+    .info-collect-results-toolbar .btn-secondary,
+    .c2-sessions-toolbar button {
+        min-height: var(--cs-touch) !important;
+        height: auto !important;
+    }
+
+    .tool-guard-switch,
+    #tool-guard-enabled,
+    #tool-guard-rule-0-enabled,
+    input[type="checkbox"].switch {
+        width: 44px !important;
+        height: 26px !important;
+    }
+}
+
+/* ============================================================
+ * 13. Module-specific overlays use their own class rather than
+ * .modal — give them the same bottom-sheet behaviour.
+ * ============================================================ */
+@media (max-width: 768px) {
+    .projects-modal-overlay,
+    .c2-modal-overlay,
+    .info-collect-cell-modal,
+    .chat-files-form-modal {
+        display: none;
+        align-items: flex-end;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .projects-modal-overlay[style*="display: flex"],
+    .projects-modal-overlay[style*="display: block"],
+    .c2-modal-overlay[style*="display: flex"],
+    .c2-modal-overlay[style*="display: block"],
+    .info-collect-cell-modal[style*="display: flex"],
+    .info-collect-cell-modal[style*="display: block"],
+    .chat-files-form-modal[style*="display: flex"],
+    .chat-files-form-modal[style*="display: block"] {
+        display: flex;
+    }
+
+    .projects-modal-overlay .projects-modal-content,
+    .projects-modal-overlay .modal-content,
+    .c2-modal-overlay .c2-modal,
+    .info-collect-cell-modal .info-collect-cell-dialog,
+    .chat-files-form-modal .modal-content {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        border-radius: 16px 16px 0 0;
+        max-height: 92vh;
+        max-height: 92dvh;
+        padding-bottom: var(--cs-sa-bottom);
+        animation: cs-sheet-up .22s cubic-bezier(.32, .72, 0, 1);
+    }
+
+    /* the c2 session view is a two-pane layout that cannot sit side by side */
+    .c2-session-layout {
+        flex-direction: column;
+        height: auto;
+        min-height: 0;
+    }
+
+    .c2-session-sidebar-wrap {
+        width: 100% !important;
+        max-width: none;
+        border-right: 0;
+        border-bottom: 1px solid var(--c2-border, var(--border-color));
+    }
+
+    .c2-main,
+    .c2-content {
+        min-width: 0;
+        width: 100%;
+    }
+
+    /* xterm keeps its own canvas width; let the pane scroll rather than clip */
+    .c2-terminal-container,
+    .terminal-container,
+    #terminal-container,
+    .xterm {
+        min-width: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .xterm-viewport {
+        scrollbar-width: thin;
+    }
+}
+
+/* ============================================================
+ * 14. The projects/RBAC overlay family uses .modal-overlay +
+ * .projects-modal-dialog rather than .modal/.modal-content.
+ * ============================================================ */
+@media (max-width: 768px) {
+    .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .modal-overlay .projects-modal-dialog,
+    .modal-overlay .modal-content {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        border-radius: 16px 16px 0 0;
+        max-height: 92vh;
+        max-height: 92dvh;
+        padding-bottom: var(--cs-sa-bottom);
+        animation: cs-sheet-up .22s cubic-bezier(.32, .72, 0, 1);
+    }
+
+    .projects-modal-dialog .modal-footer,
+    .projects-modal-dialog .projects-modal-footer {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 12px 16px;
+    }
+
+    .projects-modal-dialog .modal-footer .btn-primary,
+    .projects-modal-dialog .modal-footer .btn-secondary {
+        flex: 1 1 45%;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .modal-overlay,
+    .modal-overlay.projects-modal-overlay {
+        align-items: flex-end !important;
+        padding: 0 !important;
+        overflow: hidden;
+    }
+}
