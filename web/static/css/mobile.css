@@ -24,18 +24,41 @@
  * 2. Phone shell (<=768px)
  * ============================================================ */
 @media (max-width: 768px) {
-    /* --- viewport-height lock: dvh keeps the composer above mobile browser chrome --- */
+    /* --- viewport-height lock: dvh keeps the composer above mobile browser chrome ---
+       overscroll-behavior must NOT be set to none on html/body: with the body
+       height-locked, iOS Safari then refuses to drag any nested overflow
+       container, which reads as "the page cannot be scrolled". */
     html,
     body {
         height: 100vh;
         height: 100dvh;
-        overscroll-behavior: none;
     }
 
     body {
         -webkit-text-size-adjust: 100%;
         text-size-adjust: 100%;
         -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Every inner scroller needs the momentum property on iOS, and `contain`
+       (not `none`) is what stops it chaining a pull into browser chrome. */
+    .page-content,
+    .modal-body,
+    .main-sidebar-nav,
+    .chat-messages,
+    .sidebar-content,
+    .conversation-list,
+    .notification-list,
+    .user-menu-dropdown,
+    .settings-content,
+    .rbac-list,
+    .role-selection-list-main,
+    .projects-sidebar-card,
+    [class*="table-wrap"],
+    [class*="-container"][class*="scroll"] {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        touch-action: pan-x pan-y;
     }
 
     .container {

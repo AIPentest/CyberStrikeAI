@@ -92,12 +92,42 @@
         host.appendChild(b);
     }
 
+    /* ---------------- scroll containers ---------------- */
+
+    // With the body height-locked, every scrollable region is an inner container.
+    // iOS needs touch-action/overscroll set on each one or finger drags do nothing.
+    function enableTouchScrolling(root) {
+        if (!isMobile()) return;
+        var scope = root || document;
+        var nodes = scope.querySelectorAll('*');
+        for (var i = 0; i < nodes.length; i++) {
+            var el = nodes[i], cs;
+            if (!el.style) continue;
+            try { cs = getComputedStyle(el); } catch (e) { continue; }
+            if (!/auto|scroll/.test(cs.overflowY) && !/auto|scroll/.test(cs.overflowX)) continue;
+            var scrollsY = el.scrollHeight > el.clientHeight + 2;
+            var scrollsX = el.scrollWidth > el.clientWidth + 2;
+            if (!scrollsY && !scrollsX) continue;
+            var ta = [];
+            if (scrollsY) ta.push('pan-y');
+            if (scrollsX) ta.push('pan-x');
+            if (!ta.length) continue;
+            if (el.dataset.csTouch !== ta.join('-')) {
+                el.style.touchAction = ta.join(' ');
+                el.style.webkitOverflowScrolling = 'touch';
+                if (cs.overscrollBehaviorY === 'auto') el.style.overscrollBehaviorY = 'contain';
+                el.dataset.csTouch = ta.join('-');
+            }
+        }
+    }
+
     /* ---------------- global wiring ---------------- */
 
     function onRouteChange() {
         closeNav();
         closeConv();
         expandSidebarForMobile();
+        window.setTimeout(function () { enableTouchScrolling(); }, 400);
     }
 
     function bindSwipe(node, onOpen, onClose) {
@@ -123,6 +153,9 @@
     function init() {
         expandSidebarForMobile();
         ensureConvButton();
+        enableTouchScrolling();
+        // lists and panels render asynchronously, so re-scan a few times
+        [600, 1500, 3000].forEach(function (d) { window.setTimeout(enableTouchScrolling, d); });
 
         document.addEventListener('keydown', function (e) {
             if (e.key !== 'Escape') return;
@@ -187,6 +220,7 @@
         closeNav: closeNav,
         toggleConv: toggleConv,
         closeConv: closeConv,
-        refresh: onRouteChange
+        refresh: onRouteChange,
+        enableTouchScrolling: enableTouchScrolling
     };
 })();
