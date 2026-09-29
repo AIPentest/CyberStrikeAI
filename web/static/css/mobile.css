@@ -18,6 +18,9 @@
     --cs-z-backdrop: 10090;
     --cs-z-drawer: 10100;
     --cs-z-sheet: 10120;
+    /* mobile-nav.js pins this to the header's bottom edge; the fallback is the
+       two-row phone header (safe area + 8px pad + 44px row + 8px gap + 44px row). */
+    --cs-popover-top: 104px;
 }
 
 /* ============================================================
@@ -47,7 +50,6 @@
     .main-sidebar-nav,
     .chat-messages,
     .sidebar-content,
-    .conversation-list,
     .notification-list,
     .user-menu-dropdown,
     .settings-content,
@@ -124,6 +126,10 @@
         overflow-y: hidden;
         scrollbar-width: none;
         -ms-overflow-style: none;
+        /* overflow clips at the padding box, and this strip cannot have a
+           visible y axis while it scrolls on x. The unread badge hangs 6px
+           above the button, so it needs that much padding to stay whole. */
+        padding-top: 8px;
         padding-bottom: 2px;
     }
 
@@ -162,14 +168,36 @@
         flex-shrink: 0;
     }
 
-    .header-actions .notification-dropdown {
-        width: min(340px, calc(100vw - 24px));
-        max-height: min(420px, 60vh);
-        max-height: min(420px, 60dvh);
+    .header-actions .notification-dropdown,
+    .header-actions .user-menu-dropdown {
+        /* The action strip above is a horizontal scroll box, and a scroll box
+           clips absolutely-positioned descendants. These panels are anchored to
+           a button inside it and hang below its single icon row, so on a phone
+           they opened into the clipped region and read as "the bell does
+           nothing". Pinning to the viewport also stops `right: 0` on a
+           mid-strip button pushing a 340px panel off the left edge. */
+        position: fixed;
+        top: calc(var(--cs-popover-top) + 8px);
+        left: var(--cs-gutter);
+        right: var(--cs-gutter);
+        width: auto;
+        max-height: min(420px, calc(100vh - var(--cs-popover-top) - 20px));
+        max-height: min(420px, calc(100dvh - var(--cs-popover-top) - 20px));
     }
 
-    .header-actions .user-menu-dropdown {
-        width: min(300px, calc(100vw - 24px));
+    .header-actions .notification-list {
+        /* Same cap as the panel minus its 62px header row, so the list can never
+           grow past the panel's own overflow:hidden. */
+        max-height: calc(min(420px, 100vh - var(--cs-popover-top) - 20px) - 62px);
+        max-height: calc(min(420px, 100dvh - var(--cs-popover-top) - 20px) - 62px);
+    }
+
+    .header-actions .lang-dropdown {
+        position: fixed;
+        top: calc(var(--cs-popover-top) + 8px);
+        left: auto;
+        right: var(--cs-gutter);
+        min-width: 148px;
     }
 
     .brand-logo {
@@ -867,7 +895,8 @@
 .mobile-menu-btn,
 .mobile-drawer-header,
 .mobile-conv-btn,
-.cs-drawer-backdrop {
+.cs-drawer-backdrop,
+.cs-conv-backdrop {
     display: none;
 }
 
@@ -906,14 +935,18 @@
         background: var(--bg-secondary);
     }
 
-    /* scrim behind the conversation drawer */
-    body.cs-conv-open .chat-page-layout::before {
-        content: "";
+    /* scrim behind the conversation drawer — a real element (created by
+       mobile-nav.js) so a tap on it can actually dismiss the drawer */
+    .cs-conv-backdrop {
         position: absolute;
         inset: 0;
         z-index: 30;
         background: rgba(2, 6, 23, .45);
         touch-action: none;
+    }
+
+    body.cs-conv-open .cs-conv-backdrop {
+        display: block;
     }
 
     /* login card fills the phone width without dead margin */
@@ -1232,6 +1265,7 @@
     .main-sidebar,
     .conversation-sidebar,
     .cs-drawer-backdrop,
+    .cs-conv-backdrop,
     .modal-content,
     .modal-overlay .projects-modal-dialog,
     .projects-modal-overlay .projects-modal-dialog,

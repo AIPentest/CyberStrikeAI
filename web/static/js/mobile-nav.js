@@ -72,13 +72,18 @@
         if (document.body.classList.contains('cs-conv-open')) setConv(false);
     }
 
+    function convHost() {
+        var page = el('page-chat');
+        if (!page) return null;
+        var host = page.querySelector('.chat-page-layout') || page.querySelector('.chat-container') || page;
+        if (host && getComputedStyle(host).position === 'static') host.style.position = 'relative';
+        return host;
+    }
+
     function ensureConvButton() {
         if (el('mobile-conv-btn')) return;
-        var page = el('page-chat');
-        if (!page) return;
-        var host = page.querySelector('.chat-page-layout') || page.querySelector('.chat-container') || page;
+        var host = convHost();
         if (!host) return;
-        if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
         var b = document.createElement('button');
         b.type = 'button';
         b.id = 'mobile-conv-btn';
@@ -90,6 +95,35 @@
             '<span>会话</span>';
         b.addEventListener('click', toggleConv);
         host.appendChild(b);
+    }
+
+    // The scrim used to be a ::before pseudo-element on .chat-page-layout. Pseudo-elements
+    // are never an event target, so a tap on it landed on the layout underneath and
+    // "tap the backdrop to dismiss" — which the nav drawer does have — never worked here.
+    function ensureConvBackdrop() {
+        if (el('cs-conv-backdrop')) return;
+        var host = convHost();
+        if (!host) return;
+        var d = document.createElement('div');
+        d.id = 'cs-conv-backdrop';
+        d.className = 'cs-conv-backdrop';
+        d.setAttribute('aria-hidden', 'true');
+        d.addEventListener('click', closeConv);
+        host.appendChild(d);
+        bindSwipe(d, function () {}, closeConv);
+    }
+
+    // Picking a conversation has to dismiss the drawer so the chat is visible again.
+    // The row's own handler calls stopPropagation(), so this has to run in capture.
+    function bindConvDismissOnPick() {
+        var sb = convSidebar();
+        if (!sb || sb.dataset.csDismiss) return;
+        sb.dataset.csDismiss = '1';
+        sb.addEventListener('click', function (e) {
+            if (!isMobile() || !document.body.classList.contains('cs-conv-open')) return;
+            if (!e.target.closest || e.target.closest('.conversation-delete-btn')) return;
+            if (e.target.closest('.conversation-item')) window.setTimeout(closeConv, 90);
+        }, true);
     }
 
     /* ---------------- scroll containers ---------------- */
@@ -121,12 +155,28 @@
         }
     }
 
+    /* ---------------- header popover anchor ---------------- */
+
+    // mobile.css pins the header dropdowns to the viewport, because the action
+    // strip is a scroll box and would clip them. They need the header's bottom
+    // edge, which only shifts once the logo text and i18n have settled.
+    function syncPopoverAnchor() {
+        if (!isMobile()) return;
+        var header = document.querySelector('header');
+        if (!header) return;
+        var bottom = Math.round(header.getBoundingClientRect().bottom);
+        if (bottom > 0) {
+            document.documentElement.style.setProperty('--cs-popover-top', bottom + 'px');
+        }
+    }
+
     /* ---------------- global wiring ---------------- */
 
     function onRouteChange() {
         closeNav();
         closeConv();
         expandSidebarForMobile();
+        syncPopoverAnchor();
         window.setTimeout(function () { enableTouchScrolling(); }, 400);
     }
 
@@ -153,9 +203,21 @@
     function init() {
         expandSidebarForMobile();
         ensureConvButton();
+        ensureConvBackdrop();
+        bindConvDismissOnPick();
         enableTouchScrolling();
+        syncPopoverAnchor();
         // lists and panels render asynchronously, so re-scan a few times
-        [600, 1500, 3000].forEach(function (d) { window.setTimeout(enableTouchScrolling, d); });
+        [600, 1500, 3000].forEach(function (d) {
+            window.setTimeout(function () { enableTouchScrolling(); syncPopoverAnchor(); }, d);
+        });
+
+        // Re-measure at the moment a header control opens, so a header that
+        // grew (logo wrap, i18n text, action strip wrapping) cannot offset the panel.
+        document.addEventListener('click', function (e) {
+            if (e.target && e.target.closest && e.target.closest('header')) syncPopoverAnchor();
+        }, true);
+        window.addEventListener('resize', syncPopoverAnchor);
 
         document.addEventListener('keydown', function (e) {
             if (e.key !== 'Escape') return;
