@@ -2,7 +2,15 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+    <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0b1120" media="(prefers-color-scheme: dark)">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="manifest" href="/static/site.webmanifest">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="CyberStrikeAI">
     <title>CyberStrikeAI</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico?v=20260728">
     <link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico?v=20260728">
@@ -35,8 +43,10 @@
     <link rel="stylesheet" href="/static/css/tool-guard.css?v=20260907-7">
     <link rel="stylesheet" href="/static/css/chat-plan-progress.css?v=20260813-4">
     <link rel="stylesheet" href="/static/css/c2.css">
+    <link rel="stylesheet" href="/static/css/mobile.css?v=20260929-30">
     <link rel="stylesheet" href="/static/vendor/xterm.css">
     <script src="/static/js/router.js?v=20260907-1"></script>
+    <script src="/static/js/mobile-nav.js?v=20260929-6" defer></script>
 </head>
 <body>
     <div id="login-overlay" class="login-overlay" style="display: none;">
@@ -70,6 +80,11 @@
     <div class="container">
         <header>
             <div class="header-content">
+                <button type="button" id="mobile-menu-btn" class="mobile-menu-btn" aria-label="打开导航菜单" aria-expanded="false" aria-controls="main-sidebar" onclick="window.CyberStrikeMobile?.toggleNav()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
                 <div class="logo header-logo-link" onclick="switchPage('dashboard')" role="button" data-i18n="header.backToDashboard" data-i18n-attr="title" data-i18n-skip-text="true" title="返回仪表盘">
                     <img src="/static/logo.png" alt="CyberStrikeAI Logo" class="brand-logo" width="36" height="36">
                     <h1 class="brand-wordmark brand-wordmark--lg">
@@ -180,9 +195,19 @@
             </div>
         </header>
 
+        <div class="cs-drawer-backdrop" id="cs-drawer-backdrop" onclick="window.CyberStrikeMobile?.closeNav()"></div>
+
         <div class="main-layout">
             <!-- 主侧边栏 -->
             <aside class="main-sidebar" id="main-sidebar">
+                <div class="mobile-drawer-header">
+                    <span class="mobile-drawer-title" data-i18n="nav.menu">导航菜单</span>
+                    <button type="button" class="mobile-drawer-close" aria-label="关闭导航菜单" onclick="window.CyberStrikeMobile?.closeNav()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
                 <div class="sidebar-collapse-btn" onclick="toggleSidebar()" data-i18n="header.toggleSidebar" data-i18n-attr="title" data-i18n-skip-text="true" title="折叠/展开侧边栏">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

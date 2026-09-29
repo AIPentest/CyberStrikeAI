@@ -1,0 +1,2025 @@
+/*
+ * CyberStrikeAI — mobile / small-screen adaptation layer.
+ * Loaded last so equal-specificity rules win over style.css, c2.css, tool-guard.css.
+ * Two breakpoints only: 1024px (tablet/narrow), 768px (phone — drawer nav), 480px (tight phone).
+ */
+
+/* ============================================================
+ * 1. Tokens
+ * ============================================================ */
+:root {
+    --cs-touch: 44px;
+    --cs-drawer-w: min(302px, 84vw);
+    --cs-gutter: 12px;
+    --cs-sa-top: env(safe-area-inset-top, 0px);
+    --cs-sa-bottom: env(safe-area-inset-bottom, 0px);
+    --cs-sa-left: env(safe-area-inset-left, 0px);
+    --cs-sa-right: env(safe-area-inset-right, 0px);
+    --cs-z-backdrop: 10090;
+    --cs-z-drawer: 10100;
+    --cs-z-sheet: 10120;
+    /* mobile-nav.js pins this to the header's bottom edge; the fallback is the
+       two-row phone header (safe area + 8px pad + 44px row + 8px gap + 44px row). */
+    --cs-popover-top: 104px;
+}
+
+/* ============================================================
+ * 2. Phone shell (<=768px)
+ * ============================================================ */
+@media (max-width: 768px) {
+    /* --- viewport-height lock: dvh keeps the composer above mobile browser chrome ---
+       overscroll-behavior must NOT be set to none on html/body: with the body
+       height-locked, iOS Safari then refuses to drag any nested overflow
+       container, which reads as "the page cannot be scrolled". */
+    html,
+    body {
+        height: 100vh;
+        height: 100dvh;
+    }
+
+    body {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Every inner scroller needs the momentum property on iOS, and `contain`
+       (not `none`) is what stops it chaining a pull into browser chrome. */
+    .page-content,
+    .modal-body,
+    .main-sidebar-nav,
+    .chat-messages,
+    .sidebar-content,
+    .notification-list,
+    .user-menu-dropdown,
+    .settings-content,
+    .rbac-list,
+    .role-selection-list-main,
+    .projects-sidebar-card,
+    [class*="table-wrap"],
+    [class*="-container"][class*="scroll"] {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        touch-action: pan-x pan-y;
+    }
+
+    .container {
+        height: 100vh;
+        height: 100dvh;
+        padding-left: var(--cs-sa-left);
+        padding-right: var(--cs-sa-right);
+    }
+
+    /* --- on-screen keyboard ---
+       `dvh` does not shrink for the iOS keyboard, so the shell above stays full
+       height while only the strip above the keyboard is visible: the rest paints
+       as a blank band, and Safari often leaves the offset stuck after the keyboard
+       closes. mobile-nav.js measures visualViewport.height and, while a keyboard
+       is up, adds .cs-kb and sets --cs-kb-h to that concrete px value. The class
+       is opt-in so browsers without dvh keep the two-declaration fallback above. */
+    html.cs-kb,
+    html.cs-kb body,
+    html.cs-kb .container {
+        height: var(--cs-kb-h);
+    }
+
+    /* --- header: two rows — brand row, then an icon action strip --- */
+    header {
+        padding: 0;
+        padding-top: var(--cs-sa-top);
+    }
+
+    .header-content {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 8px;
+        padding: 8px 12px;
+    }
+
+    .mobile-menu-btn {
+        order: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--cs-touch);
+        height: var(--cs-touch);
+        margin-left: -8px;
+        flex-shrink: 0;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        cursor: pointer;
+    }
+
+    .mobile-menu-btn:active {
+        background: var(--bg-secondary);
+    }
+
+    .header-content .logo {
+        order: 1;
+        flex: 1 1 auto;
+        min-width: 0;
+        gap: 8px;
+    }
+
+    .header-content .header-right {
+        order: 2;
+        flex: 1 0 100%;
+        gap: 0;
+        min-width: 0;
+    }
+
+    .header-content .header-actions {
+        width: 100%;
+        min-width: 0;
+        gap: 6px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        /* overflow clips at the padding box, and this strip cannot have a
+           visible y axis while it scrolls on x. The unread badge hangs 6px
+           above the button, so it needs that much padding to stay whole. */
+        padding-top: 8px;
+        padding-bottom: 2px;
+    }
+
+    .header-content .header-actions::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* icon-only secondary actions: drop the text, keep the control reachable */
+    .header-actions .openapi-doc-btn,
+    .header-actions .theme-toggle-btn,
+    .header-actions .lang-switcher-btn {
+        flex-shrink: 0;
+        width: var(--cs-touch);
+        min-width: var(--cs-touch);
+        height: var(--cs-touch);
+        padding: 0;
+        justify-content: center;
+        gap: 0;
+        font-size: 0;
+    }
+
+    .header-actions .openapi-doc-btn > span,
+    .header-actions .theme-toggle-btn > span,
+    .header-actions .lang-switcher-btn > span:not(.lang-switcher-icon) {
+        display: none;
+    }
+
+    .header-actions .lang-switcher-icon {
+        font-size: 1rem;
+    }
+
+    .header-actions .notification-btn,
+    .header-actions .user-avatar-btn {
+        width: var(--cs-touch);
+        height: var(--cs-touch);
+        flex-shrink: 0;
+    }
+
+    .header-actions .notification-dropdown,
+    .header-actions .user-menu-dropdown {
+        /* The action strip above is a horizontal scroll box, and a scroll box
+           clips absolutely-positioned descendants. These panels are anchored to
+           a button inside it and hang below its single icon row, so on a phone
+           they opened into the clipped region and read as "the bell does
+           nothing". Pinning to the viewport also stops `right: 0` on a
+           mid-strip button pushing a 340px panel off the left edge. */
+        position: fixed;
+        top: calc(var(--cs-popover-top) + 8px);
+        left: var(--cs-gutter);
+        right: var(--cs-gutter);
+        width: auto;
+        max-height: min(420px, calc(100vh - var(--cs-popover-top) - 20px));
+        max-height: min(420px, calc(100dvh - var(--cs-popover-top) - 20px));
+    }
+
+    .header-actions .notification-list {
+        /* Same cap as the panel minus its 62px header row, so the list can never
+           grow past the panel's own overflow:hidden. */
+        max-height: calc(min(420px, 100vh - var(--cs-popover-top) - 20px) - 62px);
+        max-height: calc(min(420px, 100dvh - var(--cs-popover-top) - 20px) - 62px);
+    }
+
+    .header-actions .lang-dropdown {
+        position: fixed;
+        top: calc(var(--cs-popover-top) + 8px);
+        left: auto;
+        right: var(--cs-gutter);
+        min-width: 148px;
+    }
+
+    .brand-logo {
+        width: 30px;
+        height: 30px;
+    }
+
+    .brand-wordmark--lg,
+    .logo h1 {
+        font-size: 1.0625rem;
+    }
+
+    .version-badge {
+        display: none;
+    }
+
+    /* --- main sidebar becomes an off-canvas drawer --- */
+    .main-layout {
+        display: flex;
+        min-height: 0;
+    }
+
+    .main-sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: var(--cs-z-drawer);
+        width: var(--cs-drawer-w) !important;
+        max-width: 84vw;
+        padding-left: var(--cs-sa-left);
+        transform: translateX(-102%);
+        transition: transform .28s cubic-bezier(.32, .72, 0, 1);
+        visibility: hidden;
+        box-shadow: none;
+        overflow: hidden;
+    }
+
+    .main-sidebar.mobile-open {
+        transform: translateX(0);
+        visibility: visible;
+        box-shadow: 0 0 40px rgba(2, 6, 23, .38);
+    }
+
+    /* the desktop 64px icon rail is meaningless without a mouse — always expanded */
+    .main-sidebar.collapsed {
+        width: var(--cs-drawer-w) !important;
+    }
+
+    .main-sidebar.collapsed .nav-item-content {
+        padding: 12px 14px;
+        justify-content: flex-start;
+        gap: 10px;
+    }
+
+    .main-sidebar.collapsed .nav-item-content span,
+    .main-sidebar.collapsed .nav-section-label span,
+    .main-sidebar.collapsed .submenu-arrow {
+        display: block;
+    }
+
+    .main-sidebar.collapsed .nav-submenu,
+    .main-sidebar .nav-item.expanded > .nav-submenu {
+        display: block;
+        max-height: none;
+    }
+
+    .sidebar-collapse-btn {
+        display: none !important;
+    }
+
+    .mobile-drawer-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        height: 56px;
+        padding: 0 8px 0 16px;
+        flex-shrink: 0;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--bg-primary);
+    }
+
+    .mobile-drawer-title {
+        font-size: .9375rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .mobile-drawer-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--cs-touch);
+        height: var(--cs-touch);
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--text-secondary);
+        cursor: pointer;
+    }
+
+    .cs-drawer-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: var(--cs-z-backdrop);
+        background: rgba(2, 6, 23, .5);
+        opacity: 0;
+        transition: opacity .2s ease;
+    }
+
+    body.cs-nav-open .cs-drawer-backdrop {
+        display: block;
+        opacity: 1;
+    }
+
+    body.cs-nav-open {
+        overflow: hidden;
+    }
+
+    .main-sidebar-nav {
+        padding-top: 8px;
+        padding-bottom: calc(16px + var(--cs-sa-bottom));
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+
+    .nav-item-content {
+        min-height: var(--cs-touch);
+        align-items: center;
+        padding: 12px 14px;
+        font-size: .9375rem;
+    }
+
+    .nav-submenu-item {
+        min-height: var(--cs-touch);
+        display: flex;
+        align-items: center;
+        padding: 10px 12px 10px 44px;
+        font-size: .875rem;
+    }
+
+    .nav-section-label {
+        padding: 18px 16px 6px;
+    }
+
+    /* --- content column owns the full viewport width --- */
+    .content-area {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .page-header {
+        padding: 12px var(--cs-gutter);
+        gap: 8px;
+    }
+
+    .page-header h2 {
+        font-size: 1.125rem;
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .page-header-actions {
+        max-width: 100%;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .page-content {
+        padding: 12px var(--cs-gutter) calc(16px + var(--cs-sa-bottom));
+        min-width: 0;
+    }
+
+    /* ============================================================
+       3. Chat
+       ============================================================ */
+    .chat-page-layout {
+        position: relative;
+        height: 100%;
+        min-width: 0;
+    }
+
+    .conversation-sidebar {
+        position: absolute;
+        inset: 0 auto 0 0;
+        z-index: 40;
+        width: min(300px, 86%) !important;
+        max-width: 86%;
+        transform: translateX(-102%);
+        transition: transform .26s cubic-bezier(.32, .72, 0, 1);
+        visibility: hidden;
+        box-shadow: none;
+    }
+
+    .conversation-sidebar.mobile-open {
+        transform: translateX(0);
+        visibility: visible;
+        box-shadow: 4px 0 24px rgba(2, 6, 23, .28);
+    }
+
+    .conversation-sidebar.collapsed {
+        width: min(300px, 86%) !important;
+    }
+
+    .chat-container {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .conversation-header {
+        padding: 8px 10px;
+        min-width: 0;
+    }
+
+    .conversation-header-content {
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
+    /* the desktop 64px left gutter for the turn rail is wasted space on a phone */
+    .chat-messages {
+        padding: 12px 10px calc(8px + var(--cs-sa-bottom));
+    }
+
+    .chat-turn-rail {
+        display: none;
+    }
+
+    .message-content,
+    .message.user .message-content,
+    .message.assistant .message-content,
+    .message.system .message-content {
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .message-bubble {
+        padding: 10px 12px;
+        font-size: .9375rem;
+    }
+
+    .chat-input-container {
+        padding: 8px 10px calc(8px + var(--cs-sa-bottom));
+        flex-wrap: wrap;
+    }
+
+    .chat-input-primary-row {
+        flex-wrap: nowrap;
+        min-width: 0;
+        gap: 6px;
+    }
+
+    .chat-input-field {
+        min-width: 0;
+    }
+
+    #chat-input {
+        /* >=16px prevents iOS Safari from auto-zooming the whole page on focus */
+        font-size: 16px;
+        min-height: var(--cs-touch);
+        padding: 10px 12px;
+    }
+
+    .send-btn {
+        width: auto;
+        padding: 0 14px;
+        min-width: var(--cs-touch);
+        height: var(--cs-touch);
+        font-size: .875rem;
+    }
+
+    .conversation-reasoning-card {
+        height: auto;
+        min-height: 64px;
+    }
+
+    .conversation-reasoning-card.expanded {
+        left: 8px;
+        right: 8px;
+        bottom: calc(8px + var(--cs-sa-bottom));
+        max-height: min(62vh, 62dvh);
+    }
+
+    /* ============================================================
+       4. Data tables — scroll instead of crush
+       ============================================================ */
+    .projects-table-wrap,
+    #page-asset-library .asset-table-wrap,
+    #page-asset-library .asset-list-card .asset-table-wrap,
+    .monitor-table-container,
+    .audit-log-table-wrap,
+    .hitl-logs-table-wrap,
+    .chat-files-table-wrap {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+    }
+
+    .data-table,
+    .projects-table-wrap .data-table--projects {
+        table-layout: auto;
+        min-width: max-content;
+    }
+
+    /* .asset-table rows are forced to display:table upstream; undo that so the
+       sheet sizes to its content instead of ballooning to max-content. */
+    #page-asset-library .asset-table,
+    .asset-table {
+        table-layout: auto;
+        width: max-content;
+        min-width: 100%;
+    }
+
+    #page-asset-library .asset-table tr {
+        display: table-row;
+        width: auto;
+        table-layout: auto;
+    }
+
+    .data-table thead th {
+        padding: 9px 10px;
+        font-size: .6875rem;
+    }
+
+    .data-table tbody td {
+        padding: 10px;
+        font-size: .8125rem;
+    }
+
+    .data-table .cell-summary {
+        max-width: 46vw;
+    }
+
+    /* ============================================================
+       5. Modals become bottom sheets
+       ============================================================ */
+    .modal {
+        display: none;
+        align-items: flex-end;
+        justify-content: center;
+        overflow: hidden;
+        padding: 0;
+    }
+
+    .modal[style*="display: block"],
+    .modal[style*="display: flex"],
+    .modal.active,
+    .modal.show {
+        display: flex;
+    }
+
+    .modal-content {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        border-radius: 16px 16px 0 0;
+        max-height: 92vh;
+        max-height: 92dvh;
+        padding-bottom: var(--cs-sa-bottom);
+        animation: cs-sheet-up .22s cubic-bezier(.32, .72, 0, 1);
+    }
+
+    @keyframes cs-sheet-up {
+        from { transform: translateY(6%); opacity: .6; }
+        to   { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-header {
+        padding: 14px 16px;
+    }
+
+    .modal-header h2 {
+        font-size: 1.0625rem;
+    }
+
+    .modal-body {
+        padding: 14px 16px;
+        overflow-x: hidden;
+        min-width: 0;
+    }
+
+    .modal-footer {
+        flex-wrap: wrap;
+        justify-content: stretch;
+        gap: 8px;
+        padding: 12px 16px;
+    }
+
+    .modal-footer .btn-primary,
+    .modal-footer .btn-secondary,
+    .modal-footer .btn-danger {
+        flex: 1 1 45%;
+        min-width: 0;
+    }
+
+    .modal-close {
+        width: var(--cs-touch);
+        height: var(--cs-touch);
+    }
+
+    /* ============================================================
+       6. Touch targets
+       ============================================================ */
+    button,
+    [role="button"],
+    input[type="submit"],
+    input[type="button"],
+    select,
+    .btn-primary,
+    .btn-secondary,
+    .btn-danger,
+    .btn-small,
+    .btn-sm,
+    .tab,
+    .tab-btn {
+        min-height: 40px;
+    }
+
+    /* dense inline icon buttons stay visually small but get a real hit area */
+    .btn-icon,
+    .conversation-delete-btn,
+    .message-copy-btn,
+    .table-action-btn,
+    .projects-action-btn,
+    .icon-btn {
+        min-width: 36px;
+        min-height: 36px;
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+    textarea,
+    select,
+    .form-control {
+        font-size: 16px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        min-height: var(--cs-touch);
+    }
+
+    /* search / filter fields and custom select triggers */
+    input[type="search"],
+    .search-input,
+    .search-box input,
+    #asset-search,
+    #skills-search,
+    #projects-search,
+    .toolbar-search input {
+        min-height: var(--cs-touch);
+    }
+
+    .settings-custom-select-trigger,
+    .settings-custom-select-panel,
+    .pagination-page-size-select,
+    select.pagination-page-size-select {
+        min-height: var(--cs-touch);
+    }
+
+    /* checkboxes and switches: grow the control itself, not just its hit box */
+    input[type="checkbox"],
+    input[type="radio"],
+    .theme-checkbox,
+    .form-check-input {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        accent-color: var(--primary-color);
+    }
+
+    label:has(input[type="checkbox"]),
+    label:has(input[type="radio"]),
+    .checkbox-label,
+    .theme-card label,
+    .mcp-theme-toggle {
+        min-height: var(--cs-touch);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .vulnerability-alert-switch-track,
+    .switch-track,
+    .tool-guard-switch-track {
+        min-width: 46px;
+        min-height: 26px;
+    }
+
+    /* toolbar buttons that are pinned to a desktop height upstream */
+    .workflow-toolbar .btn-primary,
+    .workflow-toolbar .btn-secondary,
+    .workflow-meta-bar button,
+    .asset-toolbar button,
+    .asset-toolbar .btn-secondary,
+    .batch-queues-filter button,
+    .hitl-filters button,
+    .vulnerability-filter-toolbar button,
+    a.btn-primary,
+    a.btn-secondary,
+    a#test-vision-btn,
+    a#fetch-openai-models-btn,
+    a#fetch-vision-models-btn {
+        min-height: var(--cs-touch);
+        height: auto;
+    }
+
+    .btn-link,
+    .dashboard-link,
+    .dashboard-section-a-link {
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+    }
+
+    .pagination-btn,
+    .sidebar-list-pagination button,
+    .pagination-info button {
+        min-width: var(--cs-touch);
+        min-height: var(--cs-touch);
+    }
+
+    .pagination-page-size select,
+    .pagination-page-size {
+        min-height: var(--cs-touch);
+    }
+
+    /* compact variant pins its own height */
+    .settings-custom-select--compact .settings-custom-select-trigger,
+    .settings-custom-select-trigger {
+        min-height: var(--cs-touch);
+    }
+
+    input[type="checkbox"],
+    input[type="radio"],
+    .theme-checkbox,
+    .batch-conversation-checkbox {
+        width: 24px;
+        height: 24px;
+    }
+
+    /* icon-only toolbar buttons need width as well as height */
+    .workflow-toolbar button,
+    .workflow-meta-bar button,
+    .c2-sessions-toolbar button,
+    .info-collect-results-toolbar button,
+    .knowledge-filters button,
+    .batch-queues-filter button,
+    .hitl-filters button,
+    .webshell-toolbar button {
+        min-width: 40px;
+        min-height: var(--cs-touch);
+        height: auto;
+    }
+
+    .knowledge-search,
+    .knowledge-search input,
+    .webshell-sidebar input,
+    .webshell-sidebar button,
+    .asset-toolbar input,
+    .asset-toolbar select,
+    .asset-toolbar .settings-custom-select-trigger,
+    .vulnerability-filter-toolbar input,
+    .hitl-filters input,
+    .batch-queues-filter input,
+    .info-collect-results button,
+    .syntax-guide a {
+        min-height: 40px;
+    }
+
+    a[id$="-view-all"],
+    a[id$="-c2-manage"],
+    .dashboard-section-header a,
+    .dashboard-section a[class*="link"],
+    #dashboard-access-view-all,
+    #dashboard-feed-view-all {
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        margin: -6px -10px;
+    }
+
+    .rbac-selected-summary,
+    #rbac-selected-summary,
+    .user-menu-profile-pill {
+        min-height: 32px;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .tool-guard-rule-header label,
+    .tool-guard-card label {
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .page-header-actions label {
+        min-height: var(--cs-touch);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* ============================================================
+       7. Grids collapse to one column
+       ============================================================ */
+    .webshell-db-toolbar,
+    .batch-queue-detail-kv,
+    .info-collect-columns-list,
+    .rbac-layout,
+    .rbac-assignment-toolbar-main,
+    .dashboard-severity-wrap,
+    .dashboard-severity-status,
+    .rbac-role-management-actions,
+    .ai-channel-switcher-field,
+    .rbac-catalog-stats,
+    .dashboard-kpi-row,
+    .dashboard-severity-status-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .dashboard-kpi-row > *,
+    .webshell-main {
+        min-width: 0;
+    }
+
+    .webshell-main,
+    .webshell-workspace {
+        width: 100% !important;
+        min-width: 0;
+    }
+
+    .webshell-resize-handle {
+        display: none;
+    }
+
+    /* ============================================================
+       8. Hover-only affordances must be visible on touch
+       ============================================================ */
+    .conversation-delete-btn,
+    .message-copy-btn,
+    .conversation-item-menu,
+    .projects-list-item-menu,
+    .task-item-history,
+    .workflow-list-item-menu {
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+    }
+
+    /* hover-gated scrollbars are invisible on touch: give them a real thumb */
+    .main-sidebar-nav,
+    .chat-messages,
+    .modal-body,
+    .conversation-sidebar .sidebar-content {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(100, 116, 139, .5) transparent;
+    }
+
+    .main-sidebar-nav::-webkit-scrollbar,
+    .chat-messages::-webkit-scrollbar,
+    .modal-body::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .main-sidebar-nav::-webkit-scrollbar-thumb,
+    .chat-messages::-webkit-scrollbar-thumb,
+    .modal-body::-webkit-scrollbar-thumb {
+        background: rgba(100, 116, 139, .5) !important;
+        border-radius: 4px;
+    }
+
+    /* no hover state exists on touch — neutralise lift/transform effects */
+    .btn-primary:hover,
+    .btn-secondary:hover {
+        transform: none;
+    }
+
+    .btn-primary:active,
+    .btn-secondary:active,
+    .nav-item-content:active,
+    .nav-submenu-item:active {
+        transform: scale(.985);
+        filter: brightness(.96);
+    }
+}
+
+/* drawer chrome is desktop-only */
+.mobile-menu-btn,
+.mobile-drawer-header,
+.mobile-conv-btn,
+.cs-drawer-backdrop,
+.cs-conv-backdrop {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobile-menu-btn {
+        display: inline-flex;
+    }
+
+    .mobile-drawer-header {
+        display: flex;
+    }
+
+    /* chat: trigger chip for the conversation-list drawer.
+       Anchored to the page (not the header) because the header is hidden in the empty state. */
+    .mobile-conv-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        z-index: 45;
+        min-height: 40px;
+        padding: 0 12px;
+        flex-shrink: 0;
+        border: 1px solid var(--border-color);
+        border-radius: 999px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        box-shadow: var(--shadow-sm);
+        font-size: .875rem;
+        cursor: pointer;
+    }
+
+    .mobile-conv-btn:active {
+        background: var(--bg-secondary);
+    }
+
+    /* scrim behind the conversation drawer — a real element (created by
+       mobile-nav.js) so a tap on it can actually dismiss the drawer */
+    .cs-conv-backdrop {
+        position: absolute;
+        inset: 0;
+        z-index: 30;
+        background: rgba(2, 6, 23, .45);
+        touch-action: none;
+    }
+
+    body.cs-conv-open .cs-conv-backdrop {
+        display: block;
+    }
+
+    /* login card fills the phone width without dead margin */
+    .login-overlay {
+        padding: 20px 14px calc(20px + var(--cs-sa-bottom));
+        align-items: flex-start;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .login-card {
+        width: 100%;
+        max-width: 420px;
+        margin-top: auto;
+        margin-bottom: auto;
+        padding: 20px 18px;
+    }
+
+    .login-title {
+        font-size: 1.125rem;
+    }
+
+    .login-form input {
+        min-height: var(--cs-touch);
+        font-size: 16px;
+    }
+
+    .login-form button[type="submit"] {
+        min-height: var(--cs-touch);
+        width: 100%;
+    }
+}
+
+/* ============================================================
+ * 9. Tight phones (<=480px)
+ * ============================================================ */
+@media (max-width: 480px) {
+    :root {
+        --cs-gutter: 10px;
+    }
+
+    .header-content {
+        padding: 6px 10px;
+    }
+
+    .brand-wordmark--lg,
+    .logo h1 {
+        font-size: 1rem;
+    }
+
+    .page-header h2 {
+        font-size: 1.0625rem;
+    }
+
+    .page-header-actions {
+        flex: 1 0 100%;
+    }
+
+    .page-header-actions .btn-primary,
+    .page-header-actions .btn-secondary {
+        flex: 1 1 auto;
+    }
+
+    .modal-footer {
+        flex-direction: column-reverse;
+    }
+
+    .modal-footer .btn-primary,
+    .modal-footer .btn-secondary,
+    .modal-footer .btn-danger {
+        flex: 1 1 auto;
+        width: 100%;
+    }
+}
+
+/* ============================================================
+ * 10. Landscape phones: keep the drawer but cap its height
+ * ============================================================ */
+@media (max-width: 900px) and (orientation: landscape) {
+    .main-sidebar-nav {
+        padding-bottom: 12px;
+    }
+
+    .modal-content {
+        max-height: 96vh;
+        max-height: 96dvh;
+    }
+}
+
+/* ============================================================
+ * 11. Coarse pointers on wide screens (tablet in split view)
+ * ============================================================ */
+@media (hover: none) and (pointer: coarse) and (min-width: 769px) {
+    .conversation-delete-btn,
+    .message-copy-btn {
+        opacity: 1 !important;
+    }
+}
+
+/* ============================================================
+ * 12. Final overrides — controls whose upstream rules are
+ * pinned by higher-specificity selectors (IDs / compound chains).
+ * ============================================================ */
+@media (max-width: 768px) {
+    input[type="checkbox"],
+    input[type="radio"],
+    .theme-checkbox,
+    .batch-conversation-checkbox,
+    #projects-show-archived,
+    #tasks-auto-refresh,
+    #asset-select-page,
+    #asset-select-all {
+        width: 24px !important;
+        height: 24px !important;
+        flex-shrink: 0;
+    }
+
+    /* native 24px boxes still read small, so widen the row they sit in */
+    th:has(input[type="checkbox"]),
+    td:has(input[type="checkbox"]) {
+        padding-top: 12px !important;
+        padding-bottom: 12px !important;
+    }
+
+    .settings-custom-select-trigger,
+    .pagination-page-size select,
+    #batch-queues-search,
+    .knowledge-search input,
+    .asset-toolbar input {
+        min-height: var(--cs-touch) !important;
+    }
+
+    .workflow-toolbar button,
+    .workflow-meta-bar button,
+    .workflow-meta-bar .btn-secondary,
+    .workflow-meta-bar summary.btn-secondary,
+    #workflow-connect-btn {
+        min-width: var(--cs-touch) !important;
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+    }
+
+    .dashboard-section-link,
+    a.dashboard-section-link,
+    #dashboard-access-view-all,
+    #dashboard-feed-view-all,
+    .info-collect-doc-link {
+        min-height: var(--cs-touch);
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 12px;
+        margin: -8px -12px;
+    }
+
+    .rbac-summary-count,
+    button.rbac-summary-count {
+        min-width: var(--cs-touch);
+        min-height: var(--cs-touch);
+    }
+
+    #chat-send-btn,
+    .send-btn,
+    .chat-upload-btn,
+    .chat-input-leading button {
+        min-width: var(--cs-touch);
+        min-height: var(--cs-touch);
+    }
+}
+
+@media (max-width: 768px) {
+    a.dashboard-section-link,
+    .btn-search,
+    #knowledge-search,
+    .info-collect-results-toolbar .btn-secondary,
+    .c2-sessions-toolbar button {
+        min-height: var(--cs-touch) !important;
+        height: auto !important;
+    }
+
+    .tool-guard-switch,
+    #tool-guard-enabled,
+    #tool-guard-rule-0-enabled,
+    input[type="checkbox"].switch {
+        width: 44px !important;
+        height: 26px !important;
+    }
+}
+
+/* ============================================================
+ * 13. Module-specific overlays use their own class rather than
+ * .modal — give them the same bottom-sheet behaviour.
+ * ============================================================ */
+@media (max-width: 768px) {
+    .projects-modal-overlay,
+    .c2-modal-overlay,
+    .info-collect-cell-modal,
+    .chat-files-form-modal {
+        display: none;
+        align-items: flex-end;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .projects-modal-overlay[style*="display: flex"],
+    .projects-modal-overlay[style*="display: block"],
+    .c2-modal-overlay[style*="display: flex"],
+    .c2-modal-overlay[style*="display: block"],
+    .info-collect-cell-modal[style*="display: flex"],
+    .info-collect-cell-modal[style*="display: block"],
+    .chat-files-form-modal[style*="display: flex"],
+    .chat-files-form-modal[style*="display: block"] {
+        display: flex;
+    }
+
+    .projects-modal-overlay .projects-modal-content,
+    .projects-modal-overlay .modal-content,
+    .c2-modal-overlay .c2-modal,
+    .info-collect-cell-modal .info-collect-cell-dialog,
+    .chat-files-form-modal .modal-content {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        border-radius: 16px 16px 0 0;
+        max-height: 92vh;
+        max-height: 92dvh;
+        padding-bottom: var(--cs-sa-bottom);
+        animation: cs-sheet-up .22s cubic-bezier(.32, .72, 0, 1);
+    }
+
+    /* the c2 session view is a two-pane layout that cannot sit side by side */
+    .c2-session-layout {
+        flex-direction: column;
+        height: auto;
+        min-height: 0;
+    }
+
+    .c2-session-sidebar-wrap {
+        width: 100% !important;
+        max-width: none;
+        border-right: 0;
+        border-bottom: 1px solid var(--c2-border, var(--border-color));
+    }
+
+    .c2-main,
+    .c2-content {
+        min-width: 0;
+        width: 100%;
+    }
+
+    /* xterm keeps its own canvas width; let the pane scroll rather than clip */
+    .c2-terminal-container,
+    .terminal-container,
+    #terminal-container,
+    .xterm {
+        min-width: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .xterm-viewport {
+        scrollbar-width: thin;
+    }
+}
+
+/* ============================================================
+ * 14. The projects/RBAC overlay family uses .modal-overlay +
+ * .projects-modal-dialog rather than .modal/.modal-content.
+ * ============================================================ */
+@media (max-width: 768px) {
+    .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .modal-overlay .projects-modal-dialog,
+    .modal-overlay .modal-content {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        border-radius: 16px 16px 0 0;
+        max-height: 92vh;
+        max-height: 92dvh;
+        padding-bottom: var(--cs-sa-bottom);
+        animation: cs-sheet-up .22s cubic-bezier(.32, .72, 0, 1);
+    }
+
+    .projects-modal-dialog .modal-footer,
+    .projects-modal-dialog .projects-modal-footer {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 12px 16px;
+    }
+
+    .projects-modal-dialog .modal-footer .btn-primary,
+    .projects-modal-dialog .modal-footer .btn-secondary {
+        flex: 1 1 45%;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .modal-overlay,
+    .modal-overlay.projects-modal-overlay {
+        align-items: flex-end !important;
+        padding: 0 !important;
+        overflow: hidden;
+    }
+}
+
+/* ============================================================
+ * 15. Honour the user's motion preference (the sheet/drawer
+ * transitions above are unconditional).
+ * ============================================================ */
+@media (prefers-reduced-motion: reduce) and (max-width: 768px) {
+    .main-sidebar,
+    .conversation-sidebar,
+    .cs-drawer-backdrop,
+    .cs-conv-backdrop,
+    .modal-content,
+    .modal-overlay .projects-modal-dialog,
+    .projects-modal-overlay .projects-modal-dialog,
+    .projects-modal-overlay .modal-content,
+    .c2-modal-overlay .c2-modal,
+    .info-collect-cell-modal .info-collect-cell-dialog,
+    .chat-files-form-modal .modal-content {
+        transition: none;
+        animation: none;
+    }
+}
+
+/* ============================================================
+ * 16. Squeezed side-by-side panes.
+ * These row layouts fit within 390px so they never "overflow",
+ * but each pane ends up too narrow to read. Stack them instead.
+ * Found by a pane-width probe, not by the overflow probe.
+ * ============================================================ */
+
+/* --- Settings: 200px tab rail left 170px of content --- */
+@media (max-width: 768px) {
+    .page-content.settings-layout {
+        flex-direction: column;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 0;
+    }
+
+    .settings-sidebar {
+        position: sticky;
+        top: 0;
+        z-index: 6;
+        width: 100%;
+        flex-shrink: 0;
+        border-right: 0;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--bg-primary);
+        padding: 0;
+    }
+
+    /* vertical tab list -> horizontally scrollable chip row */
+    .settings-nav {
+        flex-direction: row;
+        gap: 6px;
+        padding: 8px 10px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .settings-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .settings-nav-item {
+        flex: 0 0 auto;
+        min-height: 38px;
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 14px;
+        white-space: nowrap;
+        border: 1px solid var(--border-color);
+        border-left-width: 1px;
+        border-radius: 999px;
+        background: var(--bg-primary);
+        font-size: .875rem;
+    }
+
+    .settings-nav-item.active {
+        border-color: var(--accent-color);
+        font-weight: 600;
+    }
+
+    .settings-content {
+        flex: 0 0 auto;
+        overflow: visible;
+        width: 100%;
+        min-width: 0;
+        padding: 14px 12px calc(20px + var(--cs-sa-bottom));
+    }
+
+    /* --- Workflows: header pane collapsed to 15px --- */
+    .workflow-meta-bar {
+        grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+    }
+
+    .workflow-canvas-header {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .workflow-toolbar {
+        flex-wrap: wrap;
+        row-gap: 6px;
+    }
+
+    .workflow-toolbar-group {
+        flex-wrap: wrap;
+        min-width: 0;
+    }
+
+    /* --- Info collect: 4-col form row at 150-160px per field --- */
+    .info-collect-form-row {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 10px;
+    }
+
+    .info-collect-results-header {
+        flex-wrap: wrap;
+        row-gap: 8px;
+    }
+
+    .info-collect-results-toolbar {
+        flex-wrap: wrap;
+        min-width: 0;
+        gap: 6px;
+    }
+
+    /* --- Asset library: two 150px selects + a 51px header block --- */
+    .asset-toolbar-main {
+        flex-wrap: wrap;
+        row-gap: 8px;
+    }
+
+    .asset-toolbar-main > * {
+        min-width: 0;
+    }
+
+    .asset-toolbar-main .settings-custom-select {
+        flex: 1 1 150px;
+        min-width: 140px;
+    }
+
+    #asset-search,
+    .asset-toolbar-main input {
+        flex: 1 1 100%;
+    }
+
+    .page-header > div {
+        min-width: 0;
+    }
+
+    /* --- MCP tools: filters/actions/pagination crushing --- */
+    .tools-actions,
+    .tools-pagination,
+    .tools-status-filter,
+    .search-box {
+        flex-wrap: wrap;
+        row-gap: 8px;
+        min-width: 0;
+    }
+
+    .tools-pagination .pagination-controls {
+        flex-wrap: wrap;
+    }
+
+    .tool-item-name {
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
+    /* --- RBAC: 171px save actions, 68px summary cells --- */
+    .rbac-section-toolbar,
+    .rbac-role-save-actions,
+    .rbac-selected-summary {
+        flex-wrap: wrap;
+        row-gap: 8px;
+        min-width: 0;
+    }
+
+    .rbac-selected-summary > div {
+        flex: 1 1 45%;
+        min-width: 0;
+    }
+
+    /* --- HITL reviewer row + C2 session meta --- */
+    .hitl-page-reviewer-main,
+    .hitl-page-reviewer,
+    .c2-sessions-toolbar-meta {
+        flex-wrap: wrap;
+        row-gap: 8px;
+        min-width: 0;
+    }
+
+    .c2-sessions-select-all-label {
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
+    /* --- generic guard: a flex child that can't shrink is what crushes its sibling --- */
+    .page-content :is(form, section, article, .card, .toolbar, [class*="toolbar"], [class*="-main"], [class*="-row"]) {
+        min-width: 0;
+    }
+}
+
+/* ============================================================
+ * 17. Workflow editor toolbar: nowrap + flex-shrink:0 made it
+ * run past the viewport and .workflow-main{overflow:hidden}
+ * silently clipped the Save button.
+ * ============================================================ */
+@media (max-width: 768px) {
+    .workflow-meta-bar {
+        gap: 8px;
+        padding: 10px 12px;
+    }
+
+    .workflow-meta-bar > * {
+        min-width: 0;
+    }
+
+    .workflow-toolbar {
+        flex-wrap: wrap;
+        flex-shrink: 1;
+        justify-content: flex-start;
+        white-space: normal;
+        gap: 6px;
+        padding-left: 0;
+        padding-top: 8px;
+        border-left: 0;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .workflow-canvas-header {
+        padding-right: 0;
+    }
+
+    .workflow-canvas-heading {
+        flex-wrap: wrap;
+        row-gap: 4px;
+    }
+}
+
+/* The meta bar is height-locked for the desktop single row; once its two
+   children stack on a phone the canvas overlaps the toolbar. */
+@media (max-width: 768px) {
+    .workflow-meta-bar {
+        height: auto;
+        min-height: 0;
+    }
+}
+
+/* ============================================================
+ * 18. Workflow editor: #page-workflows .page-content is a
+ * fixed-height grid sized for a side-by-side canvas editor,
+ * which clipped the meta bar and node palette on a phone.
+ * Let the page flow and give the canvas its own bounded box.
+ * ============================================================ */
+@media (max-width: 768px) {
+    #page-workflows .page-content {
+        grid-template-columns: minmax(0, 1fr);
+        height: auto;
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    #page-workflows .workflow-sidebar,
+    #page-workflows .workflow-panel,
+    #page-workflows .workflow-main {
+        height: auto;
+        overflow: visible;
+        min-width: 0;
+    }
+
+    #page-workflows .workflow-meta-bar {
+        grid-template-columns: minmax(0, 1fr);
+        height: auto;
+        min-height: 0;
+    }
+
+    #page-workflows .workflow-canvas-wrap {
+        height: min(58vh, 460px);
+        height: min(58dvh, 460px);
+        overflow: hidden;
+    }
+
+    #page-workflows .workflow-canvas-header {
+        width: 100%;
+    }
+
+    #page-workflows .workflow-toolbar {
+        border-top: 1px solid var(--border-color);
+        padding-top: 8px;
+    }
+}
+
+/* ============================================================
+ * 19. Platform RBAC summary strip.
+ * .rbac-metric-context is capped at max-width:min(25%,360px) for
+ * the desktop inline pill — on a phone that is 88px, so its text
+ * wrapped into a tall empty capsule.
+ * ============================================================ */
+@media (max-width: 768px) {
+    .rbac-metric-context {
+        flex: 1 1 100%;
+        width: 100%;
+        max-width: none;
+        min-height: 40px;
+        height: auto;
+        white-space: normal;
+        border-radius: 12px;
+        padding: 8px 12px;
+    }
+
+    #rbac-selected-summary {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    #rbac-selected-summary > div {
+        flex: 1 1 calc(50% - 8px);
+        min-width: 0;
+    }
+
+    /* Segmented tabs: upstream keeps them on one line at 210px each, so the
+       second tab lands off-screen. Grid with two equal columns keeps the
+       stadium shape instead of stacking them into a 94px pill. */
+    .rbac-workspace-nav {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        width: 100%;
+        gap: 4px;
+    }
+
+    .rbac-workspace-tab {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .rbac-workspace-tab small {
+        white-space: normal;
+    }
+
+    .rbac-panel-head {
+        flex-wrap: wrap;
+        row-gap: 6px;
+    }
+
+    .rbac-panel-head > div {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+}
+
+/* ============================================================
+ * 20. Labels and status pills pinned off-screen by nowrap +
+ * flex-shrink:0 (found by an unreachable-content probe, since
+ * an overflow:hidden ancestor hides them from the overflow probe).
+ * ============================================================ */
+@media (max-width: 768px) {
+    .tool-guard-toggle,
+    .tool-guard-rule-actions,
+    .tool-guard-section-header,
+    .tool-guard-card,
+    .tool-guard-rule-header {
+        flex-shrink: 1;
+        min-width: 0;
+    }
+
+    .tool-guard-toggle {
+        white-space: normal;
+        flex-wrap: wrap;
+        row-gap: 4px;
+    }
+
+    /* the switch and its label stack rather than fight for width */
+    .tool-guard-policy-info {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .tools-stats {
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .tools-stats span {
+        white-space: normal;
+        min-width: 0;
+    }
+}
+
+/* MCP tools header: give each block the full row so the status pills
+   cannot be pushed past the edge by the search box. */
+@media (max-width: 768px) {
+    .tools-actions {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 8px;
+    }
+
+    .tools-actions > *,
+    #tools-stats,
+    .tools-status-filter,
+    .tools-actions .search-box {
+        width: 100%;
+        min-width: 0;
+        margin-left: 0;
+    }
+
+    #tools-stats {
+        flex-wrap: wrap;
+        white-space: normal;
+    }
+}
+
+/* External-MCP status pills: a nowrap flex row wider than the viewport,
+   so the last pill sat past the right edge. */
+@media (max-width: 768px) {
+    .external-mcp-stats,
+    .external-mcp-actions,
+    .external-mcp-controls {
+        flex-wrap: wrap;
+        min-width: 0;
+    }
+
+    .external-mcp-stats {
+        gap: 6px 10px;
+        width: 100%;
+    }
+
+    .external-mcp-stats > span {
+        white-space: normal;
+        min-width: 0;
+    }
+}
+
+/* ============================================================
+ * 21. Findings from the unified mobile audit (mobile-audit.mjs).
+ * ============================================================ */
+@media (max-width: 768px) {
+    /* tool-guard rule preview lost 275px of text with nothing to swipe */
+    .tool-guard-rule-preview,
+    [id^="tool-guard-rule-"][id$="-preview"] {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        text-overflow: clip;
+        overflow: visible;
+        max-width: 100%;
+    }
+
+    /* filter bars whose buttons and inputs were pinned to 32-39px */
+    .c2-tasks-toolbar .btn-primary,
+    .c2-tasks-toolbar .btn-secondary,
+    .c2-events-toolbar .btn-primary,
+    .c2-events-toolbar .btn-secondary,
+    .c2-toolbar .btn-primary,
+    .c2-toolbar .btn-secondary,
+    #chat-files-filter-container,
+    #chat-files-filter-project,
+    #monitor-tool-filter,
+    #retrieval-logs-conversation,
+    #retrieval-logs-message,
+    .chat-files-toolbar input,
+    .chat-files-toolbar select,
+    .monitor-filter input,
+    .retrieval-logs-filters input {
+        min-height: var(--cs-touch) !important;
+        height: auto !important;
+    }
+
+    .c2-tasks-toolbar,
+    .c2-events-toolbar,
+    .c2-toolbar,
+    .chat-files-toolbar,
+    .monitor-filter,
+    .retrieval-logs-filters {
+        flex-wrap: wrap;
+        row-gap: 8px;
+        min-width: 0;
+    }
+}
+
+/* ============================================================
+ * 22. Audit follow-ups.
+ * ============================================================ */
+@media (max-width: 768px) {
+    /* Upstream pins .workflow-sidebar and .workflow-main both to grid-row:1
+       for the side-by-side editor. Collapsing the grid to one column without
+       releasing the row made them occupy the same box. */
+    .workflow-page-content > *,
+    #page-workflows .page-content > * {
+        grid-column: 1 / -1 !important;
+        grid-row: auto !important;
+    }
+
+    /* Touch floor for real controls. Filter bars across C2 / chat-files kept
+       their own 36px height, which is below what a thumb can hit reliably. */
+    .btn-primary,
+    .btn-secondary,
+    .btn-danger,
+    .btn-small,
+    .btn-sm,
+    .form-control,
+    select.form-control,
+    input.form-control,
+    textarea.form-control,
+    .form-input,
+    select,
+    input[type="text"],
+    input[type="search"],
+    input[type="number"],
+    input[type="date"],
+    input[type="datetime-local"] {
+        min-height: var(--cs-touch);
+        height: auto;
+    }
+
+    /* icon-only controls keep a compact box but still clear 40px */
+    .btn-icon,
+    .modal-close,
+    .mobile-drawer-close,
+    .table-action-btn {
+        min-height: 40px;
+        min-width: 40px;
+    }
+}
+
+/* C2 filter bars: #page-c2-tasks .c2-tasks-field .form-control pins
+   height/min-height/line-height to 36px at ID specificity, so the generic
+   touch floor above cannot reach it. */
+@media (max-width: 768px) {
+    .c2-tasks-filter-fields {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    #page-c2-tasks .c2-tasks-field .form-control,
+    #page-c2-events .c2-tasks-field .form-control,
+    #page-c2-tasks .c2-tasks-filter-actions,
+    #page-c2-events .c2-tasks-filter-actions,
+    #page-c2-tasks .c2-tasks-filter-actions .btn-small,
+    #page-c2-events .c2-tasks-filter-actions .btn-small,
+    #page-c2-tasks .c2-tasks-filter-actions .btn-primary,
+    #page-c2-events .c2-tasks-filter-actions .btn-primary,
+    #page-c2-tasks .c2-tasks-filter-actions .btn-secondary,
+    #page-c2-events .c2-tasks-filter-actions .btn-secondary {
+        height: auto !important;
+        min-height: var(--cs-touch) !important;
+        line-height: 1.4 !important;
+    }
+
+    #page-c2-tasks .c2-tasks-field select.form-control,
+    #page-c2-events .c2-tasks-field select.form-control {
+        min-width: 0 !important;
+        padding: 10px 36px 10px 12px !important;
+    }
+
+    .c2-tasks-filter-actions {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .c2-tasks-filter-actions .btn-small,
+    .c2-tasks-filter-actions .btn-primary,
+    .c2-tasks-filter-actions .btn-secondary {
+        flex: 1 1 40%;
+    }
+
+    .c2-tasks-time-preset-btn {
+        min-height: 40px;
+    }
+}
+
+/* C2 events filter bar mirrors the tasks one under different class names. */
+@media (max-width: 768px) {
+    .c2-events-filter-fields {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    #page-c2-events .c2-events-field .form-control,
+    #page-c2-events .c2-events-filter-actions,
+    #page-c2-events .c2-events-filter-actions .btn-small,
+    #page-c2-events .c2-events-filter-actions .btn-primary,
+    #page-c2-events .c2-events-filter-actions .btn-secondary {
+        height: auto !important;
+        min-height: var(--cs-touch) !important;
+        line-height: 1.4 !important;
+    }
+
+    #page-c2-events .c2-events-field select.form-control {
+        min-width: 0 !important;
+        padding: 10px 36px 10px 12px !important;
+    }
+
+    .c2-events-filter-actions {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .c2-events-filter-actions .btn-primary,
+    .c2-events-filter-actions .btn-secondary {
+        flex: 1 1 40%;
+    }
+}
+
+/* These three lists were overflow-y:hidden, so once the rows grew taller on a
+   narrow screen everything below the fold was unreachable — not scrollable. */
+@media (max-width: 768px) {
+    .c2-tasks-list-container,
+    .c2-task-list-container,
+    .c2-events-list-container {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+        max-height: none;
+    }
+
+    .mcp-stats-timeline-moments__list {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+    }
+}
+
+/* Narrow-phone truncations surfaced by the audit at 360px. */
+@media (max-width: 420px) {
+    #chat-hitl-shortcut-text,
+    .chat-hitl-shortcut span {
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+        min-width: 0;
+    }
+
+    #skills-pagination,
+    .skills-pagination {
+        flex-wrap: wrap;
+        overflow: visible;
+        row-gap: 8px;
+    }
+
+    #skills-pagination .pagination-info {
+        flex: 1 1 100%;
+    }
+}
+
+/* ============================================================
+ * 23. Collapsed inner scroller.
+ * .page-content-with-pagination is height:100% + overflow:hidden and its
+ * list child is flex:1 + min-height:0. On a phone the stats cards and search
+ * bar above it consume the whole column, so the list collapses to a 16px
+ * sliver holding 5600px of content — and because the parent cannot scroll
+ * either, everything past that sliver is unreachable.
+ * Make the page body the single scroller instead.
+ * ============================================================ */
+@media (max-width: 768px) {
+    .page-content-with-pagination {
+        height: 100%;
+        overflow-x: hidden;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+    }
+
+    .skills-list-with-pagination,
+    #skills-list {
+        flex: none;
+        height: auto !important;
+        min-height: 0;
+        overflow: visible !important;
+    }
+
+    /* the bottom-pinned pagination bar becomes part of the flow */
+    .pagination-fixed {
+        position: static !important;
+        width: 100%;
+        border-radius: 0;
+        border-left: 0;
+        border-right: 0;
+    }
+
+    /* same shape on the RBAC detail panel: a tab body squeezed to 28px */
+    #rbac-tab-roles,
+    .rbac-tab-panel {
+        flex: 0 0 auto;
+        min-height: 0;
+        overflow: visible;
+    }
+}
+
+/* Upstream already asks for a 2-up stats grid at <=768px but a later rule wins,
+   leaving four full-width cards that push the actual list below the fold. */
+@media (max-width: 768px) {
+    .skills-overview {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px;
+    }
+
+    .skills-overview-card {
+        min-height: 62px;
+        padding: 10px 12px;
+    }
+
+    .skills-overview-card strong {
+        font-size: 1.125rem;
+    }
+}
+
+/* ============================================================
+ * 24. RBAC workspace: the member detail panel was 2px tall.
+ * The desktop page is a height-locked flex column feeding a two-column grid
+ * whose panels are each height:100% + overflow:hidden. Once the grid collapses
+ * to one column, the second row — the entire detail panel, 1090px of role
+ * checkboxes and tabs — is left 2px tall inside a box that cannot scroll, so
+ * half the page was unreachable and selecting a member looked like a dead
+ * control. Release every height lock in the chain and let .page-content be the
+ * single scroller.
+ * ============================================================ */
+@media (max-width: 768px) {
+    #page-platform-rbac .page-content {
+        overflow-y: auto;
+    }
+
+    .rbac-workspace-view:not([hidden]) {
+        flex: 0 0 auto;
+        height: auto;
+        min-height: 0;
+        overflow: visible;
+    }
+
+    .rbac-layout,
+    .rbac-panel,
+    .rbac-panel-users {
+        height: auto;
+        min-height: 0;
+        overflow: visible;
+    }
+
+    .rbac-layout {
+        grid-template-rows: auto;
+    }
+
+    /* these were inner scrollers sized by the old height lock; give them their
+       natural height so the page has one scroll, not three nested ones */
+    .rbac-panel-users .rbac-list,
+    .rbac-panel-detail .rbac-tab-panel:not([hidden]) {
+        max-height: none;
+        overflow: visible;
+    }
+}
