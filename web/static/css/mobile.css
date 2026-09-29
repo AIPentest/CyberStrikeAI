@@ -1200,3 +1200,23 @@
         overflow: hidden;
     }
 }
+
+/* ============================================================
+ * 15. Honour the user's motion preference (the sheet/drawer
+ * transitions above are unconditional).
+ * ============================================================ */
+@media (prefers-reduced-motion: reduce) and (max-width: 768px) {
+    .main-sidebar,
+    .conversation-sidebar,
+    .cs-drawer-backdrop,
+    .modal-content,
+    .modal-overlay .projects-modal-dialog,
+    .projects-modal-overlay .projects-modal-dialog,
+    .projects-modal-overlay .modal-content,
+    .c2-modal-overlay .c2-modal,
+    .info-collect-cell-modal .info-collect-cell-dialog,
+    .chat-files-form-modal .modal-content {
+        transition: none;
+        animation: none;
+    }
+}

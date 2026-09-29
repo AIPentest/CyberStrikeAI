@@ -1,0 +1,14 @@
+{
+  "name": "CyberStrikeAI",
+  "short_name": "CyberStrikeAI",
+  "description": "AI 安全测试平台 WebUI",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f8fafc",
+  "theme_color": "#f8fafc",
+  "icons": [
+    { "src": "/static/logo.png", "sizes": "any", "type": "image/png", "purpose": "any" }
+  ]
+}
