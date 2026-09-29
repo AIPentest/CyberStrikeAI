@@ -1870,3 +1870,65 @@
         flex: 1 1 100%;
     }
 }
+
+/* ============================================================
+ * 23. Collapsed inner scroller.
+ * .page-content-with-pagination is height:100% + overflow:hidden and its
+ * list child is flex:1 + min-height:0. On a phone the stats cards and search
+ * bar above it consume the whole column, so the list collapses to a 16px
+ * sliver holding 5600px of content — and because the parent cannot scroll
+ * either, everything past that sliver is unreachable.
+ * Make the page body the single scroller instead.
+ * ============================================================ */
+@media (max-width: 768px) {
+    .page-content-with-pagination {
+        height: 100%;
+        overflow-x: hidden;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+    }
+
+    .skills-list-with-pagination,
+    #skills-list {
+        flex: none;
+        height: auto !important;
+        min-height: 0;
+        overflow: visible !important;
+    }
+
+    /* the bottom-pinned pagination bar becomes part of the flow */
+    .pagination-fixed {
+        position: static !important;
+        width: 100%;
+        border-radius: 0;
+        border-left: 0;
+        border-right: 0;
+    }
+
+    /* same shape on the RBAC detail panel: a tab body squeezed to 28px */
+    #rbac-tab-roles,
+    .rbac-tab-panel {
+        flex: 0 0 auto;
+        min-height: 0;
+        overflow: visible;
+    }
+}
+
+/* Upstream already asks for a 2-up stats grid at <=768px but a later rule wins,
+   leaving four full-width cards that push the actual list below the fold. */
+@media (max-width: 768px) {
+    .skills-overview {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px;
+    }
+
+    .skills-overview-card {
+        min-height: 62px;
+        padding: 10px 12px;
+    }
+
+    .skills-overview-card strong {
+        font-size: 1.125rem;
+    }
+}
