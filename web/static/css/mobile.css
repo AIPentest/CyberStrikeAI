@@ -1661,3 +1661,212 @@
         min-width: 0;
     }
 }
+
+/* ============================================================
+ * 21. Findings from the unified mobile audit (mobile-audit.mjs).
+ * ============================================================ */
+@media (max-width: 768px) {
+    /* tool-guard rule preview lost 275px of text with nothing to swipe */
+    .tool-guard-rule-preview,
+    [id^="tool-guard-rule-"][id$="-preview"] {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        text-overflow: clip;
+        overflow: visible;
+        max-width: 100%;
+    }
+
+    /* filter bars whose buttons and inputs were pinned to 32-39px */
+    .c2-tasks-toolbar .btn-primary,
+    .c2-tasks-toolbar .btn-secondary,
+    .c2-events-toolbar .btn-primary,
+    .c2-events-toolbar .btn-secondary,
+    .c2-toolbar .btn-primary,
+    .c2-toolbar .btn-secondary,
+    #chat-files-filter-container,
+    #chat-files-filter-project,
+    #monitor-tool-filter,
+    #retrieval-logs-conversation,
+    #retrieval-logs-message,
+    .chat-files-toolbar input,
+    .chat-files-toolbar select,
+    .monitor-filter input,
+    .retrieval-logs-filters input {
+        min-height: var(--cs-touch) !important;
+        height: auto !important;
+    }
+
+    .c2-tasks-toolbar,
+    .c2-events-toolbar,
+    .c2-toolbar,
+    .chat-files-toolbar,
+    .monitor-filter,
+    .retrieval-logs-filters {
+        flex-wrap: wrap;
+        row-gap: 8px;
+        min-width: 0;
+    }
+}
+
+/* ============================================================
+ * 22. Audit follow-ups.
+ * ============================================================ */
+@media (max-width: 768px) {
+    /* Upstream pins .workflow-sidebar and .workflow-main both to grid-row:1
+       for the side-by-side editor. Collapsing the grid to one column without
+       releasing the row made them occupy the same box. */
+    .workflow-page-content > *,
+    #page-workflows .page-content > * {
+        grid-column: 1 / -1 !important;
+        grid-row: auto !important;
+    }
+
+    /* Touch floor for real controls. Filter bars across C2 / chat-files kept
+       their own 36px height, which is below what a thumb can hit reliably. */
+    .btn-primary,
+    .btn-secondary,
+    .btn-danger,
+    .btn-small,
+    .btn-sm,
+    .form-control,
+    select.form-control,
+    input.form-control,
+    textarea.form-control,
+    .form-input,
+    select,
+    input[type="text"],
+    input[type="search"],
+    input[type="number"],
+    input[type="date"],
+    input[type="datetime-local"] {
+        min-height: var(--cs-touch);
+        height: auto;
+    }
+
+    /* icon-only controls keep a compact box but still clear 40px */
+    .btn-icon,
+    .modal-close,
+    .mobile-drawer-close,
+    .table-action-btn {
+        min-height: 40px;
+        min-width: 40px;
+    }
+}
+
+/* C2 filter bars: #page-c2-tasks .c2-tasks-field .form-control pins
+   height/min-height/line-height to 36px at ID specificity, so the generic
+   touch floor above cannot reach it. */
+@media (max-width: 768px) {
+    .c2-tasks-filter-fields {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    #page-c2-tasks .c2-tasks-field .form-control,
+    #page-c2-events .c2-tasks-field .form-control,
+    #page-c2-tasks .c2-tasks-filter-actions,
+    #page-c2-events .c2-tasks-filter-actions,
+    #page-c2-tasks .c2-tasks-filter-actions .btn-small,
+    #page-c2-events .c2-tasks-filter-actions .btn-small,
+    #page-c2-tasks .c2-tasks-filter-actions .btn-primary,
+    #page-c2-events .c2-tasks-filter-actions .btn-primary,
+    #page-c2-tasks .c2-tasks-filter-actions .btn-secondary,
+    #page-c2-events .c2-tasks-filter-actions .btn-secondary {
+        height: auto !important;
+        min-height: var(--cs-touch) !important;
+        line-height: 1.4 !important;
+    }
+
+    #page-c2-tasks .c2-tasks-field select.form-control,
+    #page-c2-events .c2-tasks-field select.form-control {
+        min-width: 0 !important;
+        padding: 10px 36px 10px 12px !important;
+    }
+
+    .c2-tasks-filter-actions {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .c2-tasks-filter-actions .btn-small,
+    .c2-tasks-filter-actions .btn-primary,
+    .c2-tasks-filter-actions .btn-secondary {
+        flex: 1 1 40%;
+    }
+
+    .c2-tasks-time-preset-btn {
+        min-height: 40px;
+    }
+}
+
+/* C2 events filter bar mirrors the tasks one under different class names. */
+@media (max-width: 768px) {
+    .c2-events-filter-fields {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    #page-c2-events .c2-events-field .form-control,
+    #page-c2-events .c2-events-filter-actions,
+    #page-c2-events .c2-events-filter-actions .btn-small,
+    #page-c2-events .c2-events-filter-actions .btn-primary,
+    #page-c2-events .c2-events-filter-actions .btn-secondary {
+        height: auto !important;
+        min-height: var(--cs-touch) !important;
+        line-height: 1.4 !important;
+    }
+
+    #page-c2-events .c2-events-field select.form-control {
+        min-width: 0 !important;
+        padding: 10px 36px 10px 12px !important;
+    }
+
+    .c2-events-filter-actions {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .c2-events-filter-actions .btn-primary,
+    .c2-events-filter-actions .btn-secondary {
+        flex: 1 1 40%;
+    }
+}
+
+/* These three lists were overflow-y:hidden, so once the rows grew taller on a
+   narrow screen everything below the fold was unreachable — not scrollable. */
+@media (max-width: 768px) {
+    .c2-tasks-list-container,
+    .c2-task-list-container,
+    .c2-events-list-container {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+        max-height: none;
+    }
+
+    .mcp-stats-timeline-moments__list {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+    }
+}
+
+/* Narrow-phone truncations surfaced by the audit at 360px. */
+@media (max-width: 420px) {
+    #chat-hitl-shortcut-text,
+    .chat-hitl-shortcut span {
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+        min-width: 0;
+    }
+
+    #skills-pagination,
+    .skills-pagination {
+        flex-wrap: wrap;
+        overflow: visible;
+        row-gap: 8px;
+    }
+
+    #skills-pagination .pagination-info {
+        flex: 1 1 100%;
+    }
+}

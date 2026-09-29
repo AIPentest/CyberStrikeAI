@@ -252,3 +252,48 @@
         min-width: 0;
     }
 }
+
+/* The API docs page does not load mobile-nav.js, so the generic touch pass
+   that runs on the SPA never reaches these form fields and swipe regions. */
+@media (max-width: 768px) {
+    textarea,
+    input,
+    select,
+    .api-test-form textarea,
+    .api-test-form input,
+    .api-test-form select,
+    .api-table-wrapper,
+    .api-group-list,
+    .api-code-block,
+    .api-example-code,
+    pre {
+        touch-action: pan-x pan-y;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+
+    .api-docs-header-actions button,
+    .api-docs-header-actions .btn-secondary,
+    #theme-toggle-btn,
+    .auth-info-header,
+    .api-auth-toggle {
+        min-height: var(--cs-touch);
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .auth-info-header {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 12px 14px;
+    }
+
+    .api-test-form {
+        min-width: 0;
+    }
+
+    .api-test-form textarea {
+        min-height: 88px;
+        font-size: 16px;
+    }
+}
