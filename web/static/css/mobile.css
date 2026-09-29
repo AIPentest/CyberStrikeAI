@@ -1496,3 +1496,145 @@
         padding-top: 8px;
     }
 }
+
+/* ============================================================
+ * 19. Platform RBAC summary strip.
+ * .rbac-metric-context is capped at max-width:min(25%,360px) for
+ * the desktop inline pill — on a phone that is 88px, so its text
+ * wrapped into a tall empty capsule.
+ * ============================================================ */
+@media (max-width: 768px) {
+    .rbac-metric-context {
+        flex: 1 1 100%;
+        width: 100%;
+        max-width: none;
+        min-height: 40px;
+        height: auto;
+        white-space: normal;
+        border-radius: 12px;
+        padding: 8px 12px;
+    }
+
+    #rbac-selected-summary {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    #rbac-selected-summary > div {
+        flex: 1 1 calc(50% - 8px);
+        min-width: 0;
+    }
+
+    /* Segmented tabs: upstream keeps them on one line at 210px each, so the
+       second tab lands off-screen. Grid guarantees they stack. */
+    .rbac-workspace-nav {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        width: 100%;
+        gap: 4px;
+    }
+
+    .rbac-workspace-tab {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .rbac-workspace-tab small {
+        white-space: normal;
+    }
+
+    .rbac-panel-head {
+        flex-wrap: wrap;
+        row-gap: 6px;
+    }
+
+    .rbac-panel-head > div {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+}
+
+/* ============================================================
+ * 20. Labels and status pills pinned off-screen by nowrap +
+ * flex-shrink:0 (found by an unreachable-content probe, since
+ * an overflow:hidden ancestor hides them from the overflow probe).
+ * ============================================================ */
+@media (max-width: 768px) {
+    .tool-guard-toggle,
+    .tool-guard-rule-actions,
+    .tool-guard-section-header,
+    .tool-guard-card,
+    .tool-guard-rule-header {
+        flex-shrink: 1;
+        min-width: 0;
+    }
+
+    .tool-guard-toggle {
+        white-space: normal;
+        flex-wrap: wrap;
+        row-gap: 4px;
+    }
+
+    /* the switch and its label stack rather than fight for width */
+    .tool-guard-policy-info {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .tools-stats {
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .tools-stats span {
+        white-space: normal;
+        min-width: 0;
+    }
+}
+
+/* MCP tools header: give each block the full row so the status pills
+   cannot be pushed past the edge by the search box. */
+@media (max-width: 768px) {
+    .tools-actions {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 8px;
+    }
+
+    .tools-actions > *,
+    #tools-stats,
+    .tools-status-filter,
+    .tools-actions .search-box {
+        width: 100%;
+        min-width: 0;
+        margin-left: 0;
+    }
+
+    #tools-stats {
+        flex-wrap: wrap;
+        white-space: normal;
+    }
+}
+
+/* External-MCP status pills: a nowrap flex row wider than the viewport,
+   so the last pill sat past the right edge. */
+@media (max-width: 768px) {
+    .external-mcp-stats,
+    .external-mcp-actions,
+    .external-mcp-controls {
+        flex-wrap: wrap;
+        min-width: 0;
+    }
+
+    .external-mcp-stats {
+        gap: 6px 10px;
+        width: 100%;
+    }
+
+    .external-mcp-stats > span {
+        white-space: normal;
+        min-width: 0;
+    }
+}
