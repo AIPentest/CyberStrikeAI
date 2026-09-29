@@ -1,0 +1,254 @@
+/*
+ * CyberStrikeAI — API docs page (/api-docs) on phones.
+ * Separate template from index.html, so it needs its own adaptation layer.
+ * Loaded after the template's inline <style> so equal-specificity rules win.
+ */
+
+:root {
+    --cs-touch: 44px;
+    --cs-sa-top: env(safe-area-inset-top, 0px);
+    --cs-sa-bottom: env(safe-area-inset-bottom, 0px);
+    --cs-sa-left: env(safe-area-inset-left, 0px);
+    --cs-sa-right: env(safe-area-inset-right, 0px);
+}
+
+@media (max-width: 768px) {
+    html,
+    body {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .api-docs-container {
+        padding: 12px calc(12px + var(--cs-sa-right)) calc(24px + var(--cs-sa-bottom)) calc(12px + var(--cs-sa-left));
+        min-height: 100vh;
+        min-height: 100dvh;
+    }
+
+    /* --- header: the desktop layout reserves 280px of right padding for the
+       action buttons; the title does not need to be 2rem on a phone --- */
+    .api-docs-header {
+        padding-right: 0;
+        padding-bottom: 64px;
+        margin-bottom: 20px;
+    }
+
+    .api-docs-header h1 {
+        font-size: 1.375rem;
+        gap: 8px;
+    }
+
+    .api-docs-header h1 svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .api-docs-header p {
+        font-size: .875rem;
+    }
+
+    /* --- two-column grid left only ~86px for the endpoint list --- */
+    .api-docs-content {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 14px;
+    }
+
+    /* group nav becomes a horizontally scrollable chip row */
+    .api-docs-sidebar {
+        position: static;
+        width: 100%;
+        max-height: none;
+        padding: 10px 12px;
+        border-radius: 12px;
+    }
+
+    .api-docs-sidebar h3 {
+        margin-bottom: 8px;
+        font-size: .75rem;
+    }
+
+    .api-group-list {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        padding-bottom: 2px;
+    }
+
+    .api-group-list::-webkit-scrollbar {
+        display: none;
+    }
+
+    .api-group-item {
+        margin-bottom: 0;
+        flex: 0 0 auto;
+    }
+
+    .api-group-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 38px;
+        padding: 8px 14px;
+        white-space: nowrap;
+        border: 1px solid var(--border-color);
+        border-radius: 999px;
+        background: var(--bg-primary);
+        font-size: .875rem;
+    }
+
+    .api-group-link.active {
+        border-color: var(--accent-color);
+        font-weight: 600;
+    }
+
+    /* --- endpoint cards --- */
+    .api-endpoint {
+        margin-bottom: 16px;
+        border-radius: 10px;
+    }
+
+    .api-endpoint-header {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 14px;
+    }
+
+    .api-endpoint-title {
+        flex-wrap: wrap;
+        min-width: 0;
+        gap: 8px;
+    }
+
+    .api-endpoint-body {
+        padding: 14px;
+    }
+
+    /* every section may hold a wide params table — let it swipe rather than clip */
+    .api-section,
+    .api-endpoint-body {
+        min-width: 0;
+    }
+
+    .api-section {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+    }
+
+    .api-params-table {
+        /* table-layout:fixed + percentage widths + nowrap truncated every
+           param name to "cate…". Size columns to content and swipe instead. */
+        table-layout: auto;
+        width: auto;
+        min-width: 100%;
+        max-width: none;
+        font-size: .8125rem;
+    }
+
+    .api-params-table th,
+    .api-params-table td {
+        padding: 9px 10px;
+        width: auto;
+        min-width: 0;
+        overflow: visible;
+        text-overflow: clip;
+    }
+
+    .api-params-table th:nth-child(1),
+    .api-params-table td:nth-child(1),
+    .api-params-table th:nth-child(2),
+    .api-params-table td:nth-child(2),
+    .api-params-table th:nth-child(4),
+    .api-params-table td:nth-child(4),
+    .api-params-table th:nth-child(5),
+    .api-params-table td:nth-child(5) {
+        white-space: nowrap;
+    }
+
+    /* the long free-text column is the one worth wrapping */
+    .api-params-table th:nth-child(3),
+    .api-params-table td:nth-child(3) {
+        white-space: normal;
+        min-width: 180px;
+    }
+
+    /* --- code / example blocks scroll on their own --- */
+    .api-code-block,
+    .api-example-code,
+    .api-response-body,
+    pre {
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        font-size: .75rem;
+    }
+
+    /* --- touch targets --- */
+    button,
+    .api-test-btn,
+    .api-toggle,
+    .api-example-tab,
+    a.api-group-link {
+        min-height: var(--cs-touch);
+    }
+
+    .api-test-btn {
+        width: 100%;
+    }
+
+    input,
+    select,
+    textarea,
+    .api-test-form input,
+    .api-test-form select,
+    .api-test-form textarea {
+        font-size: 16px; /* <16px makes iOS Safari zoom the whole page on focus */
+        min-height: var(--cs-touch);
+    }
+
+    /* --- auth accordion --- */
+    .api-auth-toggle,
+    .api-docs-auth-header {
+        padding: 14px;
+        min-height: var(--cs-touch);
+    }
+
+    /* --- hover-only affordances must not be the only way to see state --- */
+    .api-group-link:hover {
+        background: var(--bg-tertiary);
+    }
+
+    .api-endpoint-header:hover {
+        background: var(--bg-secondary);
+    }
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .api-docs-sidebar {
+        scrollbar-width: thin;
+    }
+}
+
+/* Horizontal swipe regions: name the axis explicitly so iOS does not have to
+   guess, and keep the page's own vertical scroll from being hijacked. */
+@media (max-width: 768px) {
+    .api-table-wrapper,
+    .api-group-list,
+    .api-code-block,
+    .api-example-code,
+    pre {
+        touch-action: pan-x pan-y;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .api-docs-sidebar,
+    .api-docs-main {
+        min-width: 0;
+    }
+}
