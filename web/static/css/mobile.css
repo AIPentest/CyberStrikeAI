@@ -1220,3 +1220,279 @@
         animation: none;
     }
 }
+
+/* ============================================================
+ * 16. Squeezed side-by-side panes.
+ * These row layouts fit within 390px so they never "overflow",
+ * but each pane ends up too narrow to read. Stack them instead.
+ * Found by a pane-width probe, not by the overflow probe.
+ * ============================================================ */
+
+/* --- Settings: 200px tab rail left 170px of content --- */
+@media (max-width: 768px) {
+    .page-content.settings-layout {
+        flex-direction: column;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 0;
+    }
+
+    .settings-sidebar {
+        position: sticky;
+        top: 0;
+        z-index: 6;
+        width: 100%;
+        flex-shrink: 0;
+        border-right: 0;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--bg-primary);
+        padding: 0;
+    }
+
+    /* vertical tab list -> horizontally scrollable chip row */
+    .settings-nav {
+        flex-direction: row;
+        gap: 6px;
+        padding: 8px 10px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .settings-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .settings-nav-item {
+        flex: 0 0 auto;
+        min-height: 38px;
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 14px;
+        white-space: nowrap;
+        border: 1px solid var(--border-color);
+        border-left-width: 1px;
+        border-radius: 999px;
+        background: var(--bg-primary);
+        font-size: .875rem;
+    }
+
+    .settings-nav-item.active {
+        border-color: var(--accent-color);
+        font-weight: 600;
+    }
+
+    .settings-content {
+        flex: 0 0 auto;
+        overflow: visible;
+        width: 100%;
+        min-width: 0;
+        padding: 14px 12px calc(20px + var(--cs-sa-bottom));
+    }
+
+    /* --- Workflows: header pane collapsed to 15px --- */
+    .workflow-meta-bar {
+        grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+    }
+
+    .workflow-canvas-header {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .workflow-toolbar {
+        flex-wrap: wrap;
+        row-gap: 6px;
+    }
+
+    .workflow-toolbar-group {
+        flex-wrap: wrap;
+        min-width: 0;
+    }
+
+    /* --- Info collect: 4-col form row at 150-160px per field --- */
+    .info-collect-form-row {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 10px;
+    }
+
+    .info-collect-results-header {
+        flex-wrap: wrap;
+        row-gap: 8px;
+    }
+
+    .info-collect-results-toolbar {
+        flex-wrap: wrap;
+        min-width: 0;
+        gap: 6px;
+    }
+
+    /* --- Asset library: two 150px selects + a 51px header block --- */
+    .asset-toolbar-main {
+        flex-wrap: wrap;
+        row-gap: 8px;
+    }
+
+    .asset-toolbar-main > * {
+        min-width: 0;
+    }
+
+    .asset-toolbar-main .settings-custom-select {
+        flex: 1 1 150px;
+        min-width: 140px;
+    }
+
+    #asset-search,
+    .asset-toolbar-main input {
+        flex: 1 1 100%;
+    }
+
+    .page-header > div {
+        min-width: 0;
+    }
+
+    /* --- MCP tools: filters/actions/pagination crushing --- */
+    .tools-actions,
+    .tools-pagination,
+    .tools-status-filter,
+    .search-box {
+        flex-wrap: wrap;
+        row-gap: 8px;
+        min-width: 0;
+    }
+
+    .tools-pagination .pagination-controls {
+        flex-wrap: wrap;
+    }
+
+    .tool-item-name {
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
+    /* --- RBAC: 171px save actions, 68px summary cells --- */
+    .rbac-section-toolbar,
+    .rbac-role-save-actions,
+    .rbac-selected-summary {
+        flex-wrap: wrap;
+        row-gap: 8px;
+        min-width: 0;
+    }
+
+    .rbac-selected-summary > div {
+        flex: 1 1 45%;
+        min-width: 0;
+    }
+
+    /* --- HITL reviewer row + C2 session meta --- */
+    .hitl-page-reviewer-main,
+    .hitl-page-reviewer,
+    .c2-sessions-toolbar-meta {
+        flex-wrap: wrap;
+        row-gap: 8px;
+        min-width: 0;
+    }
+
+    .c2-sessions-select-all-label {
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
+    /* --- generic guard: a flex child that can't shrink is what crushes its sibling --- */
+    .page-content :is(form, section, article, .card, .toolbar, [class*="toolbar"], [class*="-main"], [class*="-row"]) {
+        min-width: 0;
+    }
+}
+
+/* ============================================================
+ * 17. Workflow editor toolbar: nowrap + flex-shrink:0 made it
+ * run past the viewport and .workflow-main{overflow:hidden}
+ * silently clipped the Save button.
+ * ============================================================ */
+@media (max-width: 768px) {
+    .workflow-meta-bar {
+        gap: 8px;
+        padding: 10px 12px;
+    }
+
+    .workflow-meta-bar > * {
+        min-width: 0;
+    }
+
+    .workflow-toolbar {
+        flex-wrap: wrap;
+        flex-shrink: 1;
+        justify-content: flex-start;
+        white-space: normal;
+        gap: 6px;
+        padding-left: 0;
+        padding-top: 8px;
+        border-left: 0;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .workflow-canvas-header {
+        padding-right: 0;
+    }
+
+    .workflow-canvas-heading {
+        flex-wrap: wrap;
+        row-gap: 4px;
+    }
+}
+
+/* The meta bar is height-locked for the desktop single row; once its two
+   children stack on a phone the canvas overlaps the toolbar. */
+@media (max-width: 768px) {
+    .workflow-meta-bar {
+        height: auto;
+        min-height: 0;
+    }
+}
+
+/* ============================================================
+ * 18. Workflow editor: #page-workflows .page-content is a
+ * fixed-height grid sized for a side-by-side canvas editor,
+ * which clipped the meta bar and node palette on a phone.
+ * Let the page flow and give the canvas its own bounded box.
+ * ============================================================ */
+@media (max-width: 768px) {
+    #page-workflows .page-content {
+        grid-template-columns: minmax(0, 1fr);
+        height: auto;
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    #page-workflows .workflow-sidebar,
+    #page-workflows .workflow-panel,
+    #page-workflows .workflow-main {
+        height: auto;
+        overflow: visible;
+        min-width: 0;
+    }
+
+    #page-workflows .workflow-meta-bar {
+        grid-template-columns: minmax(0, 1fr);
+        height: auto;
+        min-height: 0;
+    }
+
+    #page-workflows .workflow-canvas-wrap {
+        height: min(58vh, 460px);
+        height: min(58dvh, 460px);
+        overflow: hidden;
+    }
+
+    #page-workflows .workflow-canvas-header {
+        width: 100%;
+    }
+
+    #page-workflows .workflow-toolbar {
+        border-top: 1px solid var(--border-color);
+        padding-top: 8px;
+    }
+}
