@@ -19,6 +19,7 @@
  *   9 sliver        inner scroll region squeezed to a few px by a locked parent
  *  10 clipped       a hidden dropdown that opens into a region a scroll box hides
  *  11 nibbled       a small abs-positioned badge/label clipped by its scrollable strip
+ *  12 crushed        a panel squeezed to a sliver by a height-locked parent
  */
 import { setTimeout as sleep } from 'node:timers/promises';
 import fs from 'node:fs';
@@ -218,6 +219,26 @@ const DETECT = `(function(){
                    parentOvfY: p?getComputedStyle(p).overflowY:'none', flex:c.flex, minH:c.minHeight });
   });
 
+  /* 12 : crushed panel. A visible box squeezed to a sliver by a height-locked
+     parent while holding real content. Check 9 misses this class because it only
+     looks at overflow-y:auto regions that are at least 2px tall — a panel left
+     0px tall inside its own overflow:hidden grid row never registers as a
+     scroller, or as visible, in the first place. */
+  var crushed=[];
+  [...document.querySelectorAll('body *')].forEach(function(el){
+    if(el.hasAttribute('hidden')) return;
+    var c=getComputedStyle(el);
+    if(c.display==='none'||c.visibility==='hidden') return;
+    var r=el.getBoundingClientRect();
+    if(r.width<40||r.height>=40||el.clientHeight>40) return;
+    if(el.scrollHeight<300) return;
+    var selfClips=(c.overflowY==='hidden'||c.overflowY==='clip');
+    if(!selfClips&&scrollAncestor(el,'y')) return;      // still swipeable, awkward but reachable
+    crushed.push({ el:nm(el), p:path(el), boxH:Math.round(r.height), clientH:el.clientHeight,
+                   contentH:el.scrollHeight, lost:el.scrollHeight-Math.max(el.clientHeight,Math.round(r.height)),
+                   ovfY:c.overflowY, parentOvfY:(function(){var a=el.parentElement;return a?getComputedStyle(a).overflowY:'-'})() });
+  });
+
   function top(arr,n){ var m=new Map(); arr.forEach(function(o){ var k=o.el||o.a; if(!m.has(k)) m.set(k,o) }); return [...m.values()].slice(0,n) }
 
   /* 11 : nibbled overlay. A small absolutely-positioned element with text — a badge,
@@ -322,7 +343,7 @@ const DETECT = `(function(){
     counts:{ overflow:overflow.length, unreachable:unreachable.length, squeezed:squeezed.length,
              scrollers:scrollers.length, noTouch:noTouch.length, rootBad:rootBad.length,
              truncated:truncated.length, tiny:tiny.length, overlaps:overlaps.length, slivers:slivers.length,
-             clipped:clipped.length, nibbled:nibbled.length },
+             clipped:clipped.length, nibbled:nibbled.length, crushed:crushed.length },
     overflow:top(overflow.sort(function(a,b){return b.over-a.over}),6),
     unreachable:top(unreachable.sort(function(a,b){return b.over-a.over}),6),
     squeezed:top(squeezed.sort(function(a,b){return a.minW-b.minW}),6),
@@ -333,6 +354,7 @@ const DETECT = `(function(){
     slivers:top(slivers.sort(function(a,b){return b.hidden-a.hidden}),6),
     clipped:top(clipped.sort(function(a,b){return a.visiblePct-b.visiblePct}),6),
     nibbled:top(nibbled.sort(function(a,b){return b.worst-a.worst}),6),
+    crushed:top(crushed.sort(function(a,b){return b.lost-a.lost}),6),
     rootBad:rootBad, viewport:viewport
   };
 })()`;
@@ -349,7 +371,7 @@ await ev(`(()=>{const u=document.getElementById('login-username'),p=document.get
 await sleep(7000);
 
 const report = {};
-let grand = { overflow: 0, unreachable: 0, squeezed: 0, noTouch: 0, rootBad: 0, truncated: 0, tiny: 0, overlaps: 0, slivers: 0, clipped: 0, nibbled: 0 };
+let grand = { overflow: 0, unreachable: 0, squeezed: 0, noTouch: 0, rootBad: 0, truncated: 0, tiny: 0, overlaps: 0, slivers: 0, clipped: 0, nibbled: 0, crushed: 0 };
 const W1 = 22;
 for (const pg of pages) {
   const label = await openTarget(pg);
@@ -359,9 +381,9 @@ for (const pg of pages) {
   const c = r.counts;
   grand.overflow += c.overflow; grand.unreachable += c.unreachable; grand.squeezed += c.squeezed;
   grand.noTouch += c.noTouch; grand.rootBad += c.rootBad; grand.truncated += c.truncated;
-  grand.tiny += c.tiny; grand.overlaps += c.overlaps; grand.slivers += (c.slivers||0); grand.clipped += (c.clipped||0); grand.nibbled += (c.nibbled||0);
-  const bad = c.overflow + c.unreachable + c.noTouch + c.rootBad + c.truncated + c.overlaps + (c.slivers||0) + (c.clipped||0) + (c.nibbled||0);
-  console.log(`${label.padEnd(W1)} ovf=${String(c.overflow).padStart(2)} unreach=${String(c.unreachable).padStart(2)} sliver=${String(c.slivers).padStart(2)} clip=${String(c.clipped).padStart(2)} nibble=${String(c.nibbled).padStart(2)} noTouch=${String(c.noTouch).padStart(2)} trunc=${String(c.truncated).padStart(2)} overlap=${String(c.overlaps).padStart(2)} tap<44=${String(c.tiny).padStart(3)} ${bad ? '' : '  OK'}`);
+  grand.tiny += c.tiny; grand.overlaps += c.overlaps; grand.slivers += (c.slivers||0); grand.clipped += (c.clipped||0); grand.nibbled += (c.nibbled||0); grand.crushed += (c.crushed||0);
+  const bad = c.overflow + c.unreachable + c.noTouch + c.rootBad + c.truncated + c.overlaps + (c.slivers||0) + (c.clipped||0) + (c.nibbled||0) + (c.crushed||0);
+  console.log(`${label.padEnd(W1)} ovf=${String(c.overflow).padStart(2)} unreach=${String(c.unreachable).padStart(2)} sliver=${String(c.slivers).padStart(2)} clip=${String(c.clipped).padStart(2)} nibble=${String(c.nibbled).padStart(2)} crush=${String(c.crushed).padStart(2)} noTouch=${String(c.noTouch).padStart(2)} trunc=${String(c.truncated).padStart(2)} overlap=${String(c.overlaps).padStart(2)} tap<44=${String(c.tiny).padStart(3)} ${bad ? '' : '  OK'}`);
   const shot = await send('Page.captureScreenshot', { format: 'png' }, sessionId);
   fs.writeFileSync(`${OUT}/${label.replace(/[^a-z0-9-]/gi, '_')}.png`, Buffer.from(shot.data, 'base64'));
 }
@@ -378,12 +400,13 @@ console.log(`7 overlapping boxes  ${grand.overlaps}`);
 console.log(`9 collapsed scroller ${grand.slivers}   (page cannot scroll at all)`);
 console.log(`10 clipped popover   ${grand.clipped}   (dropdown opens into a hidden region)`);
 console.log(`11 nibbled overlay   ${grand.nibbled}   (badge/label clipped by its strip)`);
+console.log(`12 crushed panel     ${grand.crushed}   (sliver holding real content)`);
 console.log(`6 small tap targets  ${grand.tiny}`);
 console.log(`report -> ${OUT}/audit.json`);
 
 // dump the worst instances of each class for triage
 for (const [page, r] of Object.entries(report)) {
-  for (const k of ['nibbled', 'clipped', 'slivers', 'unreachable', 'truncated', 'overlaps', 'squeezed', 'noTouch', 'overflow']) {
+  for (const k of ['crushed', 'nibbled', 'clipped', 'slivers', 'unreachable', 'truncated', 'overlaps', 'squeezed', 'noTouch', 'overflow']) {
     if (!r[k]?.length) continue;
     console.log(`\n--- ${k} @ ${page}`);
     r[k].slice(0, 4).forEach(o => console.log('   ' + JSON.stringify(o).slice(0, 220)));

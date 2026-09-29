@@ -1583,10 +1583,11 @@
     }
 
     /* Segmented tabs: upstream keeps them on one line at 210px each, so the
-       second tab lands off-screen. Grid guarantees they stack. */
+       second tab lands off-screen. Grid with two equal columns keeps the
+       stadium shape instead of stacking them into a 94px pill. */
     .rbac-workspace-nav {
         display: grid !important;
-        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         width: 100%;
         gap: 4px;
     }
@@ -1964,5 +1965,48 @@
 
     .skills-overview-card strong {
         font-size: 1.125rem;
+    }
+}
+
+/* ============================================================
+ * 24. RBAC workspace: the member detail panel was 2px tall.
+ * The desktop page is a height-locked flex column feeding a two-column grid
+ * whose panels are each height:100% + overflow:hidden. Once the grid collapses
+ * to one column, the second row — the entire detail panel, 1090px of role
+ * checkboxes and tabs — is left 2px tall inside a box that cannot scroll, so
+ * half the page was unreachable and selecting a member looked like a dead
+ * control. Release every height lock in the chain and let .page-content be the
+ * single scroller.
+ * ============================================================ */
+@media (max-width: 768px) {
+    #page-platform-rbac .page-content {
+        overflow-y: auto;
+    }
+
+    .rbac-workspace-view:not([hidden]) {
+        flex: 0 0 auto;
+        height: auto;
+        min-height: 0;
+        overflow: visible;
+    }
+
+    .rbac-layout,
+    .rbac-panel,
+    .rbac-panel-users {
+        height: auto;
+        min-height: 0;
+        overflow: visible;
+    }
+
+    .rbac-layout {
+        grid-template-rows: auto;
+    }
+
+    /* these were inner scrollers sized by the old height lock; give them their
+       natural height so the page has one scroll, not three nested ones */
+    .rbac-panel-users .rbac-list,
+    .rbac-panel-detail .rbac-tab-panel:not([hidden]) {
+        max-height: none;
+        overflow: visible;
     }
 }
