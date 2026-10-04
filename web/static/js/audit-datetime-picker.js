@@ -17,7 +17,9 @@
 
     function pickerLocale() {
         if (typeof auditLocale === 'function') return auditLocale();
+        if (typeof window.uiLocale === 'function') return window.uiLocale();
         if (typeof window.__locale === 'string' && window.__locale.startsWith('zh')) return 'zh-CN';
+        if (typeof window.__locale === 'string' && window.__locale.startsWith('ru')) return 'ru-RU';
         return 'en-US';
     }
 
@@ -86,6 +88,9 @@
         var loc = pickerLocale();
         if (loc.startsWith('zh')) {
             return ['\u65e5', '\u4e00', '\u4e8c', '\u4e09', '\u56db', '\u4e94', '\u516d'];
+        }
+        if (loc.startsWith('ru')) {
+            return ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
         }
         return ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
     }

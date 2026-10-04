@@ -77,11 +77,17 @@ if (typeof window !== 'undefined') {
 
 // 当前界面语言对应的 BCP 47 标签（与时间格式化一致）
 function getCurrentTimeLocale() {
+    if (typeof window.uiLocale === 'function') return window.uiLocale();
     if (typeof window.__locale === 'string' && window.__locale.length) {
-        return window.__locale.startsWith('zh') ? 'zh-CN' : 'en-US';
+        if (window.__locale.startsWith('zh')) return 'zh-CN';
+        if (window.__locale.startsWith('ru')) return 'ru-RU';
+        return 'en-US';
     }
     if (typeof i18next !== 'undefined' && i18next.language) {
-        return (i18next.language || '').startsWith('zh') ? 'zh-CN' : 'en-US';
+        const lang = String(i18next.language || '');
+        if (lang.startsWith('zh')) return 'zh-CN';
+        if (lang.startsWith('ru')) return 'ru-RU';
+        return 'en-US';
     }
     return 'zh-CN';
 }
@@ -90,7 +96,7 @@ function getCurrentTimeLocale() {
 function getTimeFormatOptions() {
     const loc = getCurrentTimeLocale();
     const base = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
-    if (loc === 'zh-CN') {
+    if (loc === 'zh-CN' || loc === 'ru-RU') {
         base.hour12 = false;
     }
     return base;
@@ -7812,7 +7818,7 @@ function buildMcpTimelineSvg(points, rangeKey) {
     const maxVal = Math.max(1, ...points.map((p) => p.total || 0));
     const hasFailed = points.some((p) => (p.failed || 0) > 0);
     const hasBlocked = points.some((p) => (p.blocked || 0) > 0);
-    const locale = (typeof window.__locale === 'string' && window.__locale.startsWith('zh')) ? 'zh-CN' : 'en-US';
+    const locale = (typeof window.uiLocale === 'function' ? window.uiLocale() : 'en-US');
     const barGap = points.length > 48 ? 1 : 2;
     const barW = Math.max(1.6, Math.min(8, (plotW / Math.max(1, points.length)) - barGap));
 
@@ -8030,7 +8036,7 @@ function buildTimelineSparseHint(points, timeline) {
     if (nonZeroRatio > 0.3 && !peakNearEnd) return '';
 
     const rangeKey = timeline.range || getMcpMonitorTimelineRange();
-    const locale = (typeof window.__locale === 'string' && window.__locale.startsWith('zh')) ? 'zh-CN' : 'en-US';
+    const locale = (typeof window.uiLocale === 'function' ? window.uiLocale() : 'en-US');
     const peakTime = timeline.summary.peakAt
         ? formatMcpTimelineLabel(timeline.summary.peakAt, rangeKey, locale)
         : formatMcpTimelineLabel(points[peakIdx].t, rangeKey, locale);
@@ -8040,7 +8046,7 @@ function buildTimelineSparseHint(points, timeline) {
 
 function renderMcpTimelineActiveMoments(points, rangeKey) {
     if (!Array.isArray(points) || points.length === 0) return '';
-    const locale = (typeof window.__locale === 'string' && window.__locale.startsWith('zh')) ? 'zh-CN' : 'en-US';
+    const locale = (typeof window.uiLocale === 'function' ? window.uiLocale() : 'en-US');
     const active = points
         .map((p, i) => ({ ...p, i }))
         .filter((p) => (p.total || 0) > 0)
@@ -8590,7 +8596,7 @@ function renderMcpStatsStackedBar(success, failed) {
 function updateMonitorStatsSubtitle(lastFetchedAt, toolCount, retentionDays) {
     const subtitle = document.getElementById('monitor-stats-subtitle');
     if (!subtitle) return;
-    const locale = (typeof window.__locale === 'string' && window.__locale.startsWith('zh')) ? 'zh-CN' : 'en-US';
+    const locale = (typeof window.uiLocale === 'function' ? window.uiLocale() : 'en-US');
     const timeText = lastFetchedAt
         ? (lastFetchedAt.toLocaleString ? lastFetchedAt.toLocaleString(locale) : String(lastFetchedAt))
         : '—';
@@ -8987,7 +8993,7 @@ function renderMonitorStats(summary = null, topTools = [], lastFetchedAt = null)
     const hasCalls = effectiveTotal > 0;
     const successRateNum = hasCalls ? (totals.success / effectiveTotal) * 100 : 0;
     const successRate = hasCalls ? successRateNum.toFixed(1) : '-';
-    const locale = (typeof window.__locale === 'string' && window.__locale.startsWith('zh')) ? 'zh-CN' : 'en-US';
+    const locale = (typeof window.uiLocale === 'function' ? window.uiLocale() : 'en-US');
     const noCallsYet = mcpMonitorT('noCallsYet') || monitorFallback('暂无调用', 'No calls yet');
     const noCompletedYet = mcpMonitorT('noCompletedYet') || monitorFallback('暂无有效完成', 'No completed outcomes yet');
     const lastCallText = totals.lastCallTime
@@ -9081,7 +9087,7 @@ function renderMonitorExecutions(executions = [], statusFilter = 'all') {
         hard_timeout: 'statusHardTimeout',
         orphaned: 'statusOrphaned'
     };
-    const locale = (typeof window.__locale === 'string' && window.__locale.startsWith('zh')) ? 'zh-CN' : undefined;
+    const locale = (typeof window.uiLocale === 'function') ? window.uiLocale() : undefined;
     const rowEntries = executions
         .map(exec => {
             const status = getToolExecutionDisplayStatus(exec);

@@ -3648,9 +3648,9 @@ function addMessage(role, content, mcpExecutionIds = null, progressId = null, cr
     } else {
         messageTime = new Date();
     }
-    const msgTimeLocale = (typeof window.__locale === 'string' && window.__locale.startsWith('zh')) ? 'zh-CN' : 'en-US';
+    const msgTimeLocale = (typeof window.uiLocale === 'function' ? window.uiLocale() : 'en-US');
     const msgTimeOpts = { hour: '2-digit', minute: '2-digit' };
-    if (msgTimeLocale === 'zh-CN') msgTimeOpts.hour12 = false;
+    if (msgTimeLocale === 'zh-CN' || msgTimeLocale === 'ru-RU') msgTimeOpts.hour12 = false;
     timeDiv.textContent = messageTime.toLocaleTimeString(msgTimeLocale, msgTimeOpts);
     try {
         timeDiv.dataset.messageTime = messageTime.toISOString();
@@ -5597,7 +5597,7 @@ function renderMCPDetailModal(exec) {
     try {
         statusEl.dataset.detailStatus = normalizedStatus;
     } catch (e) { /* ignore */ }
-    const detailTimeLocale = (typeof window.__locale === 'string' && window.__locale.startsWith('zh')) ? 'zh-CN' : 'en-US';
+    const detailTimeLocale = (typeof window.uiLocale === 'function' ? window.uiLocale() : 'en-US');
     const detailTimeEl = document.getElementById('detail-time');
     if (detailTimeEl) {
         detailTimeEl.textContent = exec.startTime
@@ -6257,13 +6257,13 @@ function formatConversationTimestamp(dateObj, todayStart, yesterdayStart) {
     const referenceToday = todayStart || new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const referenceYesterday = yesterdayStart || new Date(referenceToday.getTime() - 24 * 60 * 60 * 1000);
     const messageDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
-    const fmtLocale = (typeof window.__locale === 'string' && window.__locale.startsWith('zh')) ? 'zh-CN' : 'en-US';
+    const fmtLocale = (typeof window.uiLocale === 'function' ? window.uiLocale() : 'en-US');
     const yesterdayLabel = typeof window.t === 'function' ? window.t('chat.yesterday') : '昨天';
 
     const timeOnlyOpts = { hour: '2-digit', minute: '2-digit' };
     const dateTimeOpts = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
     const fullDateOpts = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-    if (fmtLocale === 'zh-CN') {
+    if (fmtLocale === 'zh-CN' || fmtLocale === 'ru-RU') {
         timeOnlyOpts.hour12 = false;
         dateTimeOpts.hour12 = false;
         fullDateOpts.hour12 = false;
@@ -10565,7 +10565,7 @@ function formatConversationDateForMarkdown(value) {
     if (!value) return '';
     const d = new Date(value);
     if (isNaN(d.getTime())) return '';
-    const locale = (typeof window.__locale === 'string' && window.__locale.startsWith('zh')) ? 'zh-CN' : 'en-US';
+    const locale = (typeof window.uiLocale === 'function' ? window.uiLocale() : 'en-US');
     return d.toLocaleString(locale, {
         year: 'numeric',
         month: '2-digit',
@@ -11066,9 +11066,9 @@ function closeBatchManageModal() {
 
 // 语言切换时刷新当前聊天页内的时间与动态文案（消息时间、执行流程时间由 monitor 的 refreshProgressAndTimelineI18n 处理）
 function refreshChatPanelI18n() {
-    const locale = (typeof window.__locale === 'string' && window.__locale.startsWith('zh')) ? 'zh-CN' : 'en-US';
+    const locale = (typeof window.uiLocale === 'function' ? window.uiLocale() : 'en-US');
     const timeOpts = { hour: '2-digit', minute: '2-digit' };
-    if (locale === 'zh-CN') timeOpts.hour12 = false;
+    if (locale === 'zh-CN' || locale === 'ru-RU') timeOpts.hour12 = false;
     const t = typeof window.t === 'function' ? window.t : function (k) { return k; };
 
     const messagesEl = document.getElementById('chat-messages');
