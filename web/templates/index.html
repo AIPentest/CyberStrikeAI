@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>CyberStrikeAI</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico?v=20260728">
     <link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico?v=20260728">
@@ -36,6 +36,8 @@
     <link rel="stylesheet" href="/static/css/chat-plan-progress.css?v=20260813-4">
     <link rel="stylesheet" href="/static/css/c2.css">
     <link rel="stylesheet" href="/static/vendor/xterm.css">
+    <!-- 移动端样式层：全部规则限定在 767.98px 以下，桌面端零影响 -->
+    <link rel="stylesheet" href="/static/css/mobile.css?v=20261005-1">
     <script src="/static/js/router.js?v=20260907-1"></script>
 </head>
 <body>
@@ -5799,10 +5801,32 @@
     <script src="/static/js/sanitize-markdown.js"></script>
     <!-- Cytoscape.js for attack chain visualization -->
     <script src="/static/vendor/cytoscape.min.js"></script>
-    <!-- ELK.js for high-quality DAG layout (reduces edge crossings) -->
-    <script src="/static/vendor/elk.bundled.js"></script>
-    <!-- SheetJS for XLSX export (info-collect) -->
-    <script src="/static/vendor/xlsx.full.min.js"></script>
+    <!-- ELK.js (1.5MB) + SheetJS (860KB)：移动端延迟加载，首屏不再阻塞解析。
+         桌面端走 document.write 分支，保持与静态 <script src> 完全一致的同步语义。
+         安全依据：chat.js:7450 与 fact-graph.js:491 均有 typeof ELK 守卫并降级为默认布局；
+         assets.js:127/234/1024 与 info-collect.js:1537 均有 XLSX 守卫。 -->
+    <script>
+    (function () {
+        var LAZY_VENDOR = ['/static/vendor/elk.bundled.js', '/static/vendor/xlsx.full.min.js'];
+        var mq = window.matchMedia && window.matchMedia('(max-width: 767.98px)').matches;
+        if (!mq) {
+            for (var i = 0; i < LAZY_VENDOR.length; i++) {
+                document.write('<script src="' + LAZY_VENDOR[i] + '"><\/script>');
+            }
+            return;
+        }
+        var load = function () {
+            LAZY_VENDOR.forEach(function (src) {
+                var s = document.createElement('script');
+                s.src = src;
+                s.async = false;
+                document.head.appendChild(s);
+            });
+        };
+        if (window.requestIdleCallback) { requestIdleCallback(load, { timeout: 2000 }); }
+        else { setTimeout(load, 1200); }
+    })();
+    </script>
     <script>
         // 确保ELK对象全局可用
         if (typeof ELK === 'undefined' && typeof elk !== 'undefined') {
@@ -6949,5 +6973,7 @@
     <script src="/static/js/rbac.js"></script>
     <script src="/static/js/c2.js"></script>
     <script src="/static/js/rbac-guards.js?v=20260907-1"></script>
+    <!-- 移动端交互层：必须最后加载，它包装 window.switchPage 并注入移动端 DOM -->
+    <script src="/static/js/mobile-ui.js?v=20261005-1"></script>
 </body>
 </html>
