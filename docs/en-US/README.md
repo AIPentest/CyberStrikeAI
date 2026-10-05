@@ -18,7 +18,7 @@
 ## Feature guides
 
 - [Asset Management](asset-management.md) · [Knowledge Base](knowledge-base.md) · [Robot / Chatbot](robot.md) · [Vision](VISION.md)
-- [WebShell](webshell.md) · [C2](c2.md) · [MCP Federation](mcp-federation.md)
+- [WebShell](webshell.md) · [C2](c2.md) · [MCP Federation](mcp-federation.md) · [Parallel Search MCP](parallel-search.md)
 
 ## Operations and reference
 
