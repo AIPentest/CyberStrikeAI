@@ -114,15 +114,15 @@ const ev = async expr => {
   return r.result?.value;
 };
 
-/* A real finger: touchStart/touchEnd plus the click Chromium derives from it. */
+/* 真手指只有 touch：Chromium 在移动模拟下会自己从 touchEnd 合成一次 click。
+   再补一对 mouse 事件就是第二次 click —— 抽屉/面板会被「开了又关」，
+   于是 menu-open 这类断言假失败（实测踩过）。 */
 async function fingerTap(x, y) {
   const t = { x: Math.round(x), y: Math.round(y) };
   await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [t] }, sessionId);
   await sleep(40);
   await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }, sessionId);
-  await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...t, button: 'left', clickCount: 1 }, sessionId);
-  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...t, button: 'left', clickCount: 1 }, sessionId);
-  await sleep(220);
+  await sleep(260);
 }
 
 const DETECT = `(function(){
@@ -200,6 +200,10 @@ const DETECT = `(function(){
   var list=[...document.querySelectorAll(SEL)];
   list.forEach(function(el){
     if(!shown(el)||!inActivePage(el)) return;
+    /* 折叠 <details> 里的控件本来就要展开才存在，不算"点不到" */
+    var det=el.closest('details');
+    if(det&&!det.open&&!det.querySelector('summary').contains(el)) return;
+    /*SCOPE*/
     if(el.ownerSVGElement) return;
     if(el.closest('.markdown-body')&&getComputedStyle(el).display==='inline') return;
     scanned++;
@@ -207,14 +211,48 @@ const DETECT = `(function(){
     var r=el.getBoundingClientRect();
     /* try to bring it into view first: unreachable means a real dead button */
     if(r.top<0||r.bottom>vh||r.left<0||r.right>vw){
-      try{ el.scrollIntoView({block:'center',inline:'center'}) }catch(e){}
+      /* 判"够不够得到"必须按手指能做的事来：逐层把可滚祖先滚到把元素居中。
+         scrollIntoView 不算——实测它在这种「外层 overflow:hidden + 内层 auto」的嵌套里
+         根本不滚（元素原地不动），会把 59 个划得到的控件误报成 offscreen。
+         overflow:hidden 的祖先手指也划不动，所以只滚 auto/scroll 的层。 */
+      (function reveal(node){
+        var a=node.parentElement;
+        while(a&&a!==document.documentElement){
+          var cc=getComputedStyle(a);
+          if(/auto|scroll/.test(cc.overflowY)&&a.scrollHeight>a.clientHeight+2){
+            var ab=a.getBoundingClientRect(), rb2=node.getBoundingClientRect();
+            a.scrollTop+= (rb2.top+rb2.height/2)-(ab.top+ab.height/2);
+          }
+          if(/auto|scroll/.test(cc.overflowX)&&a.scrollWidth>a.clientWidth+2){
+            var ab2=a.getBoundingClientRect(), rb3=node.getBoundingClientRect();
+            a.scrollLeft+= (rb3.left+rb3.width/2)-(ab2.left+ab2.width/2);
+          }
+          a=a.parentElement;
+        }
+      })(el);
       r=el.getBoundingClientRect();
     }
     var w=r.width,h=r.height;
     var out={el:nm(el),p:path(el),t:label(el),w:Math.round(w),h:Math.round(h)};
     if(w<2||h<2){ out.why='zero'; bad.push(out); return; }
     if(c.pointerEvents==='none'||c.pointerEvents==='hidden'){ out.why='pointer-none'; bad.push(out); return; }
-    if(w<MIN||h<MIN){ out.why='tiny'; bad.push(out); return; }
+    if(w<MIN||h<MIN){
+      /* 复选/单选框的命中区常常由外层 label 提供（iOS 设置里也是整行可点）：
+         自身 >=32 且 label 两个方向都到下限才算合格，否则照报 tiny */
+      var pass=false;
+      /* 本层对复选/单选框的口径是 30px（见 mobile.css 24.11），整行/label 才是命中区 */
+      if((el.type==='checkbox'||el.type==='radio')&&w>=30&&h>=30){
+        /* 命中区常常由 label 或整行提供（本层 24.11 就是按"整行可点"写的）：
+           向上找第一个真正可点的祖先，它到下限就算合格 */
+        var n=el, d=0;
+        while(n&&n!==document.body&&d++<5){
+          var clickable=n.tagName==='LABEL'||n.hasAttribute('onclick')||getComputedStyle(n).cursor==='pointer';
+          if(clickable){var nb=n.getBoundingClientRect(); if(nb.width>=MIN&&nb.height>=MIN){pass=true;break;}}
+          n=n.parentElement;
+        }
+      }
+      if(!pass){ out.why='tiny'; bad.push(out); return; }
+    }
     var cx=r.left+w/2, cy=r.top+h/2;
     if(cx<0||cy<0||cx>vw||cy>vh){
       var cl=clipAncestor(el), sx=scrollAncestor(el,'x'), sy=scrollAncestor(el,'y');
@@ -254,6 +292,11 @@ const DETECT = `(function(){
     locale:(document.documentElement.getAttribute('lang')||'')
   };
 })()`;
+
+/* DETECT 默认扫"当前页 + 全局固定件"。遮罩展开时页面元素会被 scrim 判成 covered，
+   所以扫抽屉/面板要限定作用域，否则全是假红。 */
+const detectFor = scope => DETECT.replace('/*SCOPE*/',
+  scope ? `if(!el.closest(${JSON.stringify(scope)})) return;` : '');
 
 async function openPage(hash) {
   await ev(`location.hash=${JSON.stringify(hash)}`);
@@ -295,12 +338,36 @@ for (const pg of PAGES) {
   fs.writeFileSync(`${OUT}/${pg}.png`, Buffer.from(shot.data, 'base64'));
 }
 
+/* ---------------- overlays: 抽屉与面板展开后的按钮 ---------------- */
+const OVERLAYS = [
+  { name: 'sheet', route: 'dashboard', open: `CSAMobile.openSheet()`, scope: '#m-sheet' },
+  { name: 'drawer', route: 'dashboard', open: `CSAMobile.openDrawer()`, scope: '#main-sidebar' },
+  { name: 'chat-drawer', route: 'chat', open: `CSAMobile.openChatDrawer()`, scope: '#conversation-sidebar' },
+];
+for (const o of OVERLAYS) {
+  await openPage(o.route);
+  await ev(`(()=>{try{${o.open}}catch(e){}})()`);
+  await sleep(900);                       /* 等开合动画结束，动画中量到的是位移中的盒子 */
+  const r = await ev(detectFor(o.scope));
+  if (!r || r.__err) { console.log(o.name, 'DETECT ERROR', r && r.__err); continue; }
+  report.pages[o.name] = r;
+  log(r);
+  console.log(`${('[' + o.name + ']').padEnd(26)} scanned=${String(r.scanned).padStart(3)} defects=${String(r.bad.length).padStart(3)} ${r.bad.length ? '' : '  OK'}`);
+  r.bad.slice(0, 6).forEach(b => console.log(`    ${b.why.padEnd(12)} ${String(b.w)}x${String(b.h)} ${b.t}  ${b.el}${b.blocker ? ' <= ' + b.blocker : ''}`));
+  await ev(`CSAMobile.closeSheet();CSAMobile.closeDrawer();CSAMobile.closeChatDrawer();`);
+}
+
 /* ---------------- chrome finger taps ---------------- */
+/* 关闭要走用户真能点到的控件：抽屉展开后汉堡键被抽屉自己盖住，
+   再点它点的是侧栏（真实用户用抽屉内的 × 或遮罩）。每步前先复位，
+   否则一条失败会连锁把后面的断言全带偏。 */
+const RESET = `CSAMobile.closeDrawer();CSAMobile.closeSheet();CSAMobile.closeChatDrawer();`;
 const TAPS = [
-  { name: 'menu-open', sel: '.m-menu-btn', expect: `document.querySelector('#main-sidebar').classList.contains('m-open')` },
-  { name: 'menu-close', sel: '.m-menu-btn', expect: `!document.querySelector('#main-sidebar').classList.contains('m-open')` },
-  { name: 'more-open', sel: '.m-more-btn', expect: `document.querySelector('#m-sheet').classList.contains('m-show')` },
-  { name: 'more-close', sel: '#m-sheet .m-close-btn', expect: `!document.querySelector('#m-sheet').classList.contains('m-show')` },
+  { name: 'menu-open', sel: '.m-menu-btn', pre: RESET, expect: `document.querySelector('#main-sidebar').classList.contains('m-open')` },
+  { name: 'menu-close', sel: '#main-sidebar .m-close-btn', pre: `${RESET}CSAMobile.openDrawer();`, expect: `!document.querySelector('#main-sidebar').classList.contains('m-open')` },
+  { name: 'menu-scrim-close', sel: '#m-scrim', pre: `${RESET}CSAMobile.openDrawer();`, expect: `!document.querySelector('#main-sidebar').classList.contains('m-open')` },
+  { name: 'more-open', sel: '.m-more-btn', pre: RESET, expect: `document.querySelector('#m-sheet').classList.contains('m-show')` },
+  { name: 'more-close', sel: '#m-sheet .m-close-btn', pre: `${RESET}CSAMobile.openSheet();`, expect: `!document.querySelector('#m-sheet').classList.contains('m-show')` },
   { name: 'tab-hitl', sel: '#m-tabbar [data-tab=hitl]', expect: `document.querySelector('#page-hitl').classList.contains('active')` },
   { name: 'tab-tasks', sel: '#m-tabbar [data-tab=tasks]', expect: `document.querySelector('#page-tasks').classList.contains('active')` },
   { name: 'tab-dashboard', sel: '#m-tabbar [data-tab=dashboard]', expect: `document.querySelector('#page-dashboard').classList.contains('active')` },
@@ -312,6 +379,8 @@ const TAPS = [
 if (CHROME) {
   await openPage('chat');
   for (const t of TAPS) {
+    if (t.pre) await ev(`(()=>{try{${t.pre}}catch(e){}})()`);
+    await sleep(320);
     const box = await ev(`(()=>{const e=document.querySelector(${JSON.stringify(t.sel)});if(!e)return null;const r=e.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2,w:r.width,h:r.height,shown:getComputedStyle(e).display!=='none'}})()`);
     if (!box || !box.shown) { report.chromeTaps.push({ name: t.name, ok: false, why: 'absent' }); console.log(`tap ${t.name.padEnd(20)} ABSENT`); continue; }
     events.length = 0;
@@ -324,12 +393,12 @@ if (CHROME) {
   /* language round-trip: the injected chrome must re-label itself */
   await ev(`window.changeLanguage && window.changeLanguage('en-US')`);
   await sleep(2500);
-  const en = await ev(`(()=>{const o=[];document.querySelectorAll('#m-tabbar .m-tab span,#m-sheet .m-sheet-item span').forEach(function(s){o.push(s.textContent.trim())});return {lang:document.documentElement.getAttribute('lang'),labels:o}})()`);
+  const en = await ev(`(()=>{const o=[];document.querySelectorAll('#m-tabbar .m-tab>span:not(.m-tab-badge),#m-sheet .m-sheet-item>span').forEach(function(s){o.push(s.textContent.trim())});return {lang:document.documentElement.getAttribute('lang'),labels:o}})()`);
   report.langEn = en;
   console.log('en-US chrome labels:', JSON.stringify(en));
   await ev(`window.changeLanguage && window.changeLanguage('ru-RU')`);
   await sleep(2500);
-  const ru = await ev(`(()=>{const o=[];document.querySelectorAll('#m-tabbar .m-tab span,#m-sheet .m-sheet-item span').forEach(function(s){o.push(s.textContent.trim())});return {lang:document.documentElement.getAttribute('lang'),labels:o}})()`);
+  const ru = await ev(`(()=>{const o=[];document.querySelectorAll('#m-tabbar .m-tab>span:not(.m-tab-badge),#m-sheet .m-sheet-item>span').forEach(function(s){o.push(s.textContent.trim())});return {lang:document.documentElement.getAttribute('lang'),labels:o}})()`);
   report.langRu = ru;
   console.log('ru-RU chrome labels:', JSON.stringify(ru));
   await ev(`window.changeLanguage && window.changeLanguage('zh-CN')`);
@@ -374,4 +443,12 @@ if (bl) {
   console.log(`baseline written -> ${BASELINE}`);
 }
 
-process.exit(total || chromeFail || ratchetFail ? 1 : 0);
+/* 退出码口径（写死，别每次靠人判断）：
+   - 够不到 / 被遮挡 / 零尺寸 / pointer-events:none —— 任何一处都是硬失败，控件点不到没有"存量债"可言；
+   - 自家注入的抽屉、面板、会话抽屉里的按钮 —— 必须 0，不许留债；
+   - 桌面遗留控件的小命中区 —— 走基线只降不升，超基线即红。 */
+const hard = (grand.covered || 0) + (grand.offscreen || 0) + (grand.zero || 0) + (grand['pointer-none'] || 0);
+const ownChrome = ['sheet', 'drawer', 'chat-drawer'].reduce((n, k) => n + ((report.pages[k] || {}).bad || []).length, 0);
+const fail = hard || ownChrome || chromeFail || ratchetFail;
+console.log(`\n判定: 硬缺陷 ${hard} | 自家外壳 ${ownChrome} | 点击失败 ${chromeFail} | 基线回潮 ${ratchetFail ? '是' : '否'} -> ${fail ? 'FAIL' : 'PASS'}`);
+process.exit(fail ? 1 : 0);

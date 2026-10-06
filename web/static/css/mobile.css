@@ -445,7 +445,8 @@
 
     .nav-submenu-item {
         padding: 10px 12px 10px 44px;
-        min-height: 42px;
+        /* 原来是 42px——本层自己定的 --m-touch(44px) 下限被自己漏掉了一处 */
+        min-height: var(--m-touch);
         font-size: 0.9rem;
         border-radius: 8px;
     }
@@ -2486,10 +2487,10 @@ body.m-panel-open .chat-input-container {
        label —— 实测该行 68x44，点行内任意位置都能切换。 */
     input[type="checkbox"],
     input[type="radio"] {
-        width: 24px !important;
-        height: 24px !important;
-        min-width: 24px !important;
-        min-height: 24px !important;
+        width: 30px !important;
+        height: 30px !important;
+        min-width: 30px !important;
+        min-height: 30px !important;
         /* 仍需 !important：style.css 的 `.auto-refresh-toggle input[type=checkbox]`
            （18871）等后代选择器特异性更高，会把它按回 18px */
     }
@@ -3224,24 +3225,66 @@ html[data-theme="dark"] {
         }
     }
 
+    /* 工具条里的 <a> 按钮（查看全部 / 拉取模型列表 / 视觉测试）：它们是操作控件而不是
+       正文链接，桌面写成 21-29px 高的行内块，手指点不中。给到本层的触控下限，
+       字号与颜色不动。正文里的链接（.markdown-body 内）不在这些容器里，不受影响。 */
+    :is(.page-header-actions, .dashboard-section-actions, .dashboard-section-header,
+         .model-pick-row, .asset-toolbar, .settings-toolbar, .settings-form,
+         .form-group, .info-collect-toolbar, .settings-advanced-block > div)
+        a:not(.btn-primary):not(.btn-secondary):not(.btn-danger) {
+        display: inline-flex;
+        align-items: center;
+        min-height: var(--m-touch);
+        padding: 0 8px;
+        box-sizing: border-box;
+    }
+
+    /* 会话抽屉：本层把它做成全屏抽屉，里面的行就必须按 44 触控口径来
+       （实测搜索框 42、分组按钮 24 宽、项目行 38、"最近对话"折叠头 30） */
+    :is(#conversation-sidebar .conversation-search-box input,
+        #conversation-sidebar .add-group-btn,
+        #conversation-sidebar .project-folder-item,
+        #conversation-sidebar .recent-conversations-toggle,
+        #conversation-sidebar .project-folder-header) {
+        min-height: var(--m-touch);
+    }
+
+    #conversation-sidebar .add-group-btn {
+        min-width: var(--m-touch);
+    }
+
+    /* 调用拦截的开关：input 是 30x18 的滑块，命中区其实是包着它的 label。
+       把 label 撑到触控下限，手指点的就是整块开关而不是那条 18px 的芯。 */
+    .tool-guard-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: var(--m-touch);
+        min-height: var(--m-touch);
+    }
+
+    /* RBAC 概览里的计数胶囊：20px 宽点不中，补足到下限（文字居中，不改视觉密度） */
+    .rbac-summary-count {
+        min-width: var(--m-touch);
+    }
+
+    /* 桌面把 .ai-channel-manager 设成 overflow:hidden（style.css:4796，靠固定高度自截），
+       手机上它的内容比盒子高，超出的一截被裁掉——实测 4 个通道选择按钮 scrollIntoView
+       也拉不进视口，属于「看得见点不到」。这里交还给页面滚动容器。 */
+    .ai-channel-manager {
+        overflow: visible;
+    }
+
     /* 25.6 遮罩与轻提示：遮罩不加模糊（全屏模糊是掉帧主因），提示条用材质 */
     .m-scrim {
         background: color-mix(in srgb, var(--m-scrim) 88%, transparent);
     }
 
+    /* 提示条保持基底的深色 HUD 胶囊（1023 行）：这里曾把它改成浅色材质，
+       但字色仍是 #fff，结果白底白字——用户看到的就是"屏幕中间一块白的"。
+       只补一层投影，底色与字色不动。 */
     #m-toast {
-        border-radius: var(--m-r-pill);
-        border: 1px solid var(--m-hairline);
-        background: var(--m-material-solid);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
-    }
-
-    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-        #m-toast {
-            background: var(--m-material);
-            -webkit-backdrop-filter: saturate(180%) blur(16px);
-            backdrop-filter: saturate(180%) blur(16px);
-        }
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
     }
 }
 

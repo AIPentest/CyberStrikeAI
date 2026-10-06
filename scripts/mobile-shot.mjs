@@ -103,6 +103,19 @@ const state = await ev(`(()=>({
 }))()`);
 console.log(JSON.stringify(state));
 
+/* 带凭据时真的登进去：未登录时对话/列表页的容器根本不渲染，看不到真东西。
+   凭据同样只从参数或环境变量来，绝不写进文件。 */
+const USER = argv.user || process.env.CSAI_AUDIT_USER || '';
+const PASS = argv.pass || process.env.CSAI_AUDIT_PASS || '';
+const COOKIE = argv.cookie || process.env.CSAI_AUDIT_COOKIE || '';
+if (COOKIE) await send('Network.setCookie', { name: 'auth_token', value: COOKIE, domain: new URL(BASE).hostname, path: '/' }, sessionId);
+if (USER && PASS) {
+  await ev(`(()=>{const u=document.getElementById('login-username'),p=document.getElementById('login-password');if(u&&p){u.value=${JSON.stringify(USER)};p.value=${JSON.stringify(PASS)};document.getElementById('login-form').requestSubmit();}})()`);
+  await sleep(7000);
+  console.log('logged in:', JSON.stringify(await ev(`(()=>{const o=document.getElementById('login-overlay');return o?getComputedStyle(o).display:'none'})()`)));
+}
+if (argv.route) { await ev(`location.hash=${JSON.stringify(argv.route)}`); await sleep(3000); }
+
 /* --eval='...' 用来在同一个已登录/已注入的页面上量一把真实计算样式 */
 if (argv.eval) {
   const probe = await ev(`(function(){${argv.eval}})()`);
@@ -137,6 +150,31 @@ if (argv.why) {
     rows.forEach((r, i) => console.log(`${String(i).padStart(2)} ${r.origin.padEnd(10)} ${r.decls.join(' | ')}\n     ${r.selector}`));
     const cs = await ev(`(()=>{const e=document.querySelector(${JSON.stringify(argv.why)});const c=getComputedStyle(e);return JSON.stringify(${JSON.stringify(want)}.reduce((o,k)=>(o[k]=c[k],o),{}),null,1)})()`);
     console.log('最终计算值:', cs);
+  }
+}
+
+/* --tap='SEL' 用真手指（只发 touch）点一个选择器，配合 --shots=3 连拍，
+   用来看"点下去之后屏幕上闪出来的那块是什么"。 */
+async function fingerTap(x, y) {
+  const t = { x: Math.round(x), y: Math.round(y) };
+  await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [t] }, sessionId);
+  await sleep(40);
+  await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }, sessionId);
+}
+if (argv.tap) {
+  const box = await ev(`(()=>{const e=document.querySelector(${JSON.stringify(argv.tap)});if(!e)return null;const r=e.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()`);
+  if (!box) console.log('tap 目标不存在:', argv.tap);
+  else {
+    await fingerTap(box.x, box.y);
+    const shots = Number(argv.shots || 3);
+    for (let i = 0; i < shots; i++) {
+      const png = await send('Page.captureScreenshot', { format: 'png' }, sessionId);
+      fs.writeFileSync(OUT.replace(/\.png$/, '') + `-t${i}.png`, Buffer.from(png.data, 'base64'));
+      const who = await ev(`(()=>{const e=document.elementFromPoint(innerWidth/2,innerHeight/2);if(!e)return null;var s=e.tagName.toLowerCase()+(e.id?"#"+e.id:"")+(typeof e.className==="string"&&e.className?"."+e.className.trim().split(/\s+/)[0]:"");var r=e.getBoundingClientRect();var c=getComputedStyle(e);return JSON.stringify({el:s,z:c.zIndex,pos:c.position,box:[Math.round(r.width),Math.round(r.height)],bg:c.backgroundColor})})()`);
+      console.log(`t${i} 视口中央:`, who);
+      await sleep(Number(argv.shotDelay || 300));
+    }
+    process.exit(0);
   }
 }
 
