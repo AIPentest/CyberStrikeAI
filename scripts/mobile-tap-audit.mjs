@@ -11,7 +11,7 @@
  *   CSAI_AUDIT_USER=admin CSAI_AUDIT_PASS=... node scripts/mobile-tap-audit.mjs --all
  *   node scripts/mobile-tap-audit.mjs --cookie=<auth_token 的值> --all
  *
- * Flags:  --base=https://127.0.0.1:8088  --pages=a,b,c  --allow-writes=0|1
+ * Flags:  --base=https://127.0.0.1:8088  --pages=a,b,c  --allow-writes=0|1  --ua=iphone|android
  *         --chrome=0 (skip the finger-tap suite)  --json=<path>
  *
  * Nothing destructive is tapped: elements whose label matches a write verb are
@@ -104,9 +104,15 @@ for (const m of ['Page.enable', 'Runtime.enable', 'Security.enable', 'Log.enable
 await send('Security.setIgnoreCertificateErrors', { ignore: true }, sessionId);
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 3, mobile: true }, sessionId);
 await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 }, sessionId);
-await send('Network.setUserAgentOverride', {
-  userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
-}, sessionId);
+/* --ua=android 用安卓 Chrome 的 UA 复跑同一套门禁（壳层按视口宽度判定，与 UA 无关；
+   这里换 UA 是为了让"同一份 UI 在安卓浏览器下同样合格"有可复现的证据）。 */
+const UA_STRINGS = {
+  iphone: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+  android: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36'
+};
+const UA = UA_STRINGS[(argv.ua || 'iphone').toLowerCase()];
+if (!UA) { console.error(`unknown --ua=${argv.ua} (iphone | android)`); process.exit(2); }
+await send('Network.setUserAgentOverride', { userAgent: UA }, sessionId);
 
 const ev = async expr => {
   const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }, sessionId);

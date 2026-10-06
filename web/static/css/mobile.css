@@ -3435,3 +3435,194 @@ html[data-theme="dark"] {
         border-top: 1px solid var(--m-hairline);
     }
 }
+
+/* --------------------------------------------------------------------------
+   28. 玻璃质感：环境光画布 + 玻璃表面 + 顶缘高光
+   --------------------------------------------------------------------------
+   目标：把手机端从"平面灰底 + 分隔线"推进到 Apple 的玻璃材质语言。
+   玻璃要读得出来，前提是材料后面有东西可透，所以这一节先做两件事：
+
+   - 画布：.container 铺一层极淡的环境光（浅色 = 近白底 + 右上 accent / 左下紫的
+     柔光；暗色 = 深底 + 同色更亮的柔光），再把 .content-area / .chat-messages 的
+     实心底色交还给这层画布。此后所有半透明表面都有色可透，各页面自身的内容背景
+     一律不动。
+   - 表面分三档：模糊（backdrop-filter）只给"小面积或瞬时"的件 —— 顶栏、底栏
+     （25 节已有）、底部面板、抽屉、登录卡、弹窗；它们要么面积小，要么只在被打开
+     时才绘制，不挂在常驻滚动内容上。常驻卡片（.card/.stat-card/... 一列）只做
+     半透明 + 发丝边 + 顶缘高光，不挂模糊 —— 固定栏的大面积模糊是移动端掉帧
+     主因（25 节实测），这条口径不动。
+   - 浅色与暗色全部经 color-mix 从主题令牌派生；只有"顶缘高光"必须换向
+     （浅色 = 白线，暗色 = 极淡白线），单独覆写。
+   - prefers-reduced-transparency: reduce 时不问浏览器支持与否，全部退回实心。
+   -------------------------------------------------------------------------- */
+@media (max-width: 767.98px) {
+    :root {
+        /* 栏体材质从 82% 提到 62%：有模糊托底，透出的是画布而不是一块灰板 */
+        --m-material: color-mix(in srgb, var(--bg-primary) 62%, transparent);
+        /* 玻璃卡（常驻，不挂模糊）：透出画布的一点色 */
+        --m-glass-card: color-mix(in srgb, var(--card-bg) 66%, transparent);
+        /* 玻璃面板（瞬时件，配模糊）：抽屉 / 底部面板 / 登录卡 / 弹窗 */
+        --m-glass-panel: color-mix(in srgb, var(--bg-primary) 72%, transparent);
+        --m-glass-blur: saturate(180%) blur(20px);
+        /* 顶缘高光：玻璃的"口沿"。浅色下是白线，暗色下换极淡白（见下方覆写） */
+        --m-bevel: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    }
+
+    html[data-theme="dark"] {
+        --m-bevel: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    }
+
+    /* 28.1 环境光画布：整块 app 换底，卡片与栏体从这层透色 */
+    .container {
+        background:
+            radial-gradient(120% 88% at 88% -12%,
+                color-mix(in srgb, var(--accent-color) 14%, transparent), transparent 58%),
+            radial-gradient(95% 72% at -12% 106%,
+                color-mix(in srgb, #8b5cf6 11%, transparent), transparent 60%),
+            var(--bg-secondary);
+    }
+
+    html[data-theme="dark"] .container {
+        background:
+            radial-gradient(120% 88% at 88% -12%,
+                color-mix(in srgb, var(--accent-color) 18%, transparent), transparent 58%),
+            radial-gradient(95% 72% at -12% 106%,
+                color-mix(in srgb, #8b5cf6 13%, transparent), transparent 60%),
+            var(--bg-secondary);
+    }
+
+    /* 交还底色：画布负责"底"，卡片负责"面" */
+    .content-area,
+    .chat-messages {
+        background: transparent;
+    }
+
+    /* 28.2 底栏补一道顶缘高光，顶栏保持 25 节的发丝线 */
+    #m-tabbar {
+        border-top-color: var(--m-hairline);
+        box-shadow: var(--m-bevel);
+    }
+
+    /* 28.3 卡片玻璃：半透明表面 + 发丝边 + 顶缘高光；投影保持 26 节的"几乎看不见" */
+    :is(.card, .stat-card, .metric-card, .dashboard-card, .panel,
+         .settings-section, .info-card) {
+        background: var(--m-glass-card);
+        border-color: var(--m-hairline);
+        box-shadow: var(--m-bevel), 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    /* 28.4 底部面板：真玻璃（透色 + 模糊），只在打开时绘制 */
+    #m-sheet {
+        background: var(--m-glass-panel);
+        border-color: color-mix(in srgb, var(--border-color) 50%, transparent);
+        box-shadow: var(--m-bevel), var(--m-shadow-panel);
+    }
+
+    /* 28.5 抽屉（主导航 / 会话列表）：同面板材质的真玻璃。
+       两套选择器：不带属性的管浅色与初始绘制，html[data-theme] 的管暗色
+       （style.css 的暗色抽屉是 (0,2,0) 特异性的不透明渐变，必须同形压回）。 */
+    .main-sidebar,
+    .conversation-sidebar,
+    html[data-theme] .main-sidebar,
+    html[data-theme] .conversation-sidebar {
+        background: var(--m-glass-panel);
+    }
+
+    .m-chat-drawer-head {
+        background: transparent;
+    }
+
+    .m-drawer-search input {
+        background: color-mix(in srgb, var(--input-bg) 78%, transparent);
+    }
+
+    /* 对话页顶部工具条：在流内、滚动内容不会跑到它后面，纯透色不挂模糊 */
+    #m-chat-bar {
+        background: color-mix(in srgb, var(--bg-primary) 66%, transparent);
+        border-bottom-color: var(--m-hairline);
+    }
+
+    /* 28.6 弹窗：与面板同档的玻璃 */
+    .modal-content {
+        background-color: var(--m-glass-panel);
+        border: 1px solid var(--m-hairline);
+    }
+
+    /* 28.7 登录：遮罩本身得先有"画布"（否则卡片后面只有一块灰），卡片是真玻璃 */
+    .login-overlay {
+        background:
+            radial-gradient(120% 88% at 85% -10%,
+                color-mix(in srgb, var(--accent-color) 13%, transparent), transparent 60%),
+            radial-gradient(95% 72% at -12% 108%,
+                color-mix(in srgb, #8b5cf6 10%, transparent), transparent 62%),
+            color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+    }
+
+    html[data-theme="dark"] .login-overlay {
+        background:
+            radial-gradient(120% 88% at 85% -10%,
+                color-mix(in srgb, var(--accent-color) 17%, transparent), transparent 60%),
+            radial-gradient(95% 72% at -12% 108%,
+                color-mix(in srgb, #8b5cf6 12%, transparent), transparent 62%),
+            color-mix(in srgb, #0b1120 92%, transparent);
+    }
+
+    .login-card {
+        background: var(--m-glass-panel);
+        border-color: var(--m-hairline);
+        box-shadow: var(--m-bevel), 0 18px 44px rgba(0, 0, 0, 0.14);
+    }
+
+    /* 28.8 模糊：只给上述瞬时件。@supports 兜底逻辑与 25 节一致 */
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+        #m-sheet,
+        html[data-theme] .main-sidebar,
+        html[data-theme] .conversation-sidebar,
+        .login-card,
+        .modal-content {
+            -webkit-backdrop-filter: var(--m-glass-blur);
+            backdrop-filter: var(--m-glass-blur);
+        }
+    }
+
+    /* 28.9 降低透明度环境：退回实心材质（含画布） */
+    @media (prefers-reduced-transparency: reduce) {
+        .container,
+        .content-area,
+        .chat-messages,
+        .login-overlay {
+            background: var(--bg-secondary);
+        }
+
+        #m-sheet {
+            background: var(--bg-primary);
+        }
+
+        .main-sidebar,
+        .conversation-sidebar,
+        html[data-theme] .main-sidebar,
+        html[data-theme] .conversation-sidebar,
+        .login-card,
+        .modal-content {
+            background: var(--bg-primary);
+        }
+
+        #m-chat-bar {
+            background: var(--bg-primary);
+        }
+
+        :is(.card, .stat-card, .metric-card, .dashboard-card, .panel,
+             .settings-section, .info-card) {
+            background: var(--card-bg);
+        }
+
+        #m-sheet,
+        html[data-theme] .main-sidebar,
+        html[data-theme] .conversation-sidebar,
+        .login-card,
+        .modal-content {
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+        }
+    }
+}
