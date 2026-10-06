@@ -413,18 +413,6 @@
         display: none;
     }
 
-    .m-drawer-foot {
-        flex-shrink: 0;
-        padding: 8px 12px;
-        padding-bottom: calc(8px + var(--m-safe-bottom));
-        border-top: 1px solid var(--border-color);
-        font-size: 0.72rem;
-        color: var(--text-muted);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px;
-    }
 
     /* 抽屉内的导航项：更大、更好点 */
     .main-sidebar-nav {
@@ -709,10 +697,6 @@
     .m-sheet-item svg {
         width: 22px;
         height: 22px;
-    }
-
-    .m-sheet-item.m-danger {
-        color: var(--error-color, #ef4444);
     }
 
     .m-sheet-item.m-on {
@@ -1039,7 +1023,8 @@
     #m-toast {
         position: fixed;
         left: 50%;
-        bottom: calc(var(--m-tabbar-h) + var(--m-safe-bottom) + 16px);
+        /* 底栏按 --m-bar-bottom 抬升时提示条要一起抬，否则会压在底栏上 */
+        bottom: calc(var(--m-tabbar-h) + var(--m-safe-bottom) + 16px + var(--m-bar-bottom));
         transform: translate(-50%, 12px);
         z-index: var(--m-z-toast);
         max-width: 88vw;
@@ -3155,13 +3140,6 @@ html[data-theme="dark"] {
 
     .m-sheet-sep {
         background: var(--m-hairline);
-    }
-
-    /* 页脚 0.72rem = 11.5px，是本层自己定的 12px 小字号下限的漏网之鱼 */
-    .m-drawer-foot {
-        border-top-color: var(--m-hairline);
-        font-size: 12px;
-        align-items: center;
     }
 
     .m-sheet-grip {

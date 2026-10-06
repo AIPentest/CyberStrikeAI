@@ -23,7 +23,9 @@
     .api-docs-container {
         padding: 12px calc(12px + var(--cs-sa-right)) calc(24px + var(--cs-sa-bottom)) calc(12px + var(--cs-sa-left));
         min-height: 100vh;
-        min-height: 100dvh;
+        /* svh = 工具栏展开时的最小视口：写 dvh 会让页面恒定比可见区域高出一截，
+           最后一行内容落在 Safari 底栏后面 */
+        min-height: 100svh;
     }
 
     /* --- header: the desktop layout reserves 280px of right padding for the

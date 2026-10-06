@@ -51,9 +51,7 @@
         lang: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/></svg>',
         top: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
         refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.1-6.8"/><path d="M21 4v5h-5"/></svg>',
-        full: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>',
-        logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>',
-        list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>',
+        full: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>',        list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>',
         plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>'
     };
 
@@ -492,24 +490,8 @@
         search.appendChild(input);
         search.appendChild(empty);
 
-        var foot = el('div', 'm-drawer-foot m-mobile-only');
-        var footText = el('span');
-        label(footText, 'mobile.navFooter', '移动端导航');
-        foot.appendChild(footText);
-        var topBtn = el('button', 'btn-secondary btn-small');
-        label(topBtn, 'mobile.backToTop', '返回顶部');
-        topBtn.type = 'button';
-        topBtn.addEventListener('click', function () {
-            scrollActiveToTop();
-            closeDrawer();
-        });
-        foot.appendChild(topBtn);
-
-        /* 页脚必须是最后一个 flex 子节点：.main-sidebar-nav 靠 flex:1 撑开、
-           页脚靠 border-top 收尾，插到首位会让「返回顶部」跑到菜单上面 */
         sidebar.insertBefore(search, sidebar.firstChild);
         sidebar.insertBefore(head, sidebar.firstChild);
-        sidebar.appendChild(foot);
     }
 
     /* 会话抽屉（对话页左侧列表）：移动端关闭按钮 + 选中后自动收起 */
@@ -676,7 +658,7 @@
        --------------------------------------------------------------------- */
     function buildSheetItem(key, fallbackLabel, icon, onClick, opts) {
         opts = opts || {};
-        var btn = el('button', 'm-sheet-item' + (opts.danger ? ' m-danger' : ''), ICON[icon]);
+        var btn = el('button', 'm-sheet-item', ICON[icon]);
         var span = el('span');
         label(span, key, fallbackLabel);
         btn.appendChild(span);
@@ -802,10 +784,6 @@
             location.reload();
         }));
         body.appendChild(buildSheetItem('mobile.fullscreen', '全屏', 'full', requestFullscreenSafe, { keepOpen: true }));
-        body.appendChild(buildSheetItem('header.logout', '退出登录', 'logout', function () {
-            if (typeof window.logout === 'function') window.logout();
-        }, { danger: true }));
-
         sheet.appendChild(grip);
         sheet.appendChild(head);
         sheet.appendChild(body);
