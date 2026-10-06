@@ -55,6 +55,11 @@
     --m-z-toast: 1300;
     /* 运行时由 mobile-ui.js 写入，作为 100dvh 不可用时的兜底 */
     --m-app-height: 100vh;
+    /* 贴底固定件（底栏 / 面板）的抬升量：iOS Safari 工具栏展开时，可见视口比
+       100dvh 矮一截，bottom:0 的固定件会被 Safari 底栏压住。JS 每次 resize 都会
+       重写 --m-app-height，所以这里能实时算出那一截是多少。默认 0，桌面与
+       不支持 dvh 的环境都不动。 */
+    --m-bar-bottom: 0px;
 }
 
 /* --------------------------------------------------------------------------
@@ -310,6 +315,7 @@
         max-width: 86vw;
         height: 100%;
         height: 100dvh;
+        height: var(--m-app-height, 100dvh);
         z-index: var(--m-z-drawer);
         transform: translateX(-102%);
         visibility: hidden;
@@ -508,7 +514,7 @@
         position: fixed;
         left: 0;
         right: 0;
-        bottom: 0;
+        bottom: var(--m-bar-bottom);
         z-index: var(--m-z-tabbar);
         display: flex;
         align-items: stretch;
@@ -626,7 +632,7 @@
         z-index: var(--m-z-sheet);
         width: 95%;
         margin: 0 auto;
-        bottom: calc(8px + var(--m-safe-bottom));
+        bottom: calc(8px + var(--m-safe-bottom) + var(--m-bar-bottom));
         background: var(--bg-primary);
         border: 1px solid var(--border-color);
         border-radius: var(--m-radius-sheet);
@@ -1075,6 +1081,7 @@
         max-width: 86vw;
         height: 100%;
         height: 100dvh;
+        height: var(--m-app-height, 100dvh);
         z-index: var(--m-z-drawer);
         transform: translateX(-102%);
         visibility: hidden;
@@ -3280,5 +3287,11 @@ html[data-theme="dark"] {
     .btn-danger:active,
     .btn-small:active {
         transform: none;
+    }
+}
+
+@supports (height: 100dvh) {
+    :root {
+        --m-bar-bottom: max(0px, calc(100dvh - var(--m-app-height, 100dvh)));
     }
 }
