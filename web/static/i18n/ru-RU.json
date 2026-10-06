@@ -4,6 +4,28 @@
     "enUS": "English",
     "ruRU": "Русский"
   },
+  "mobile": {
+    "tabMore": "Ещё",
+    "openNav": "Открыть меню навигации",
+    "closeNav": "Закрыть меню навигации",
+    "moreActions": "Другие действия",
+    "searchMenu": "Поиск меню…",
+    "noMatch": "Совпадений нет",
+    "backToTop": "Наверх",
+    "navFooter": "Мобильная навигация",
+    "chatList": "Список чатов",
+    "closeChatList": "Закрыть список чатов",
+    "mainNav": "Основная навигация",
+    "switchTheme": "Сменить тему",
+    "themeNow": "Тема: {{name}}",
+    "switchLanguage": "Сменить язык",
+    "refreshPage": "Обновить страницу",
+    "fullscreen": "Полный экран",
+    "fullscreenUnsupported": "Браузер не поддерживает полноэкранный режим",
+    "conversations": "Чаты",
+    "newChat": "Новый чат",
+    "chatModuleMissing": "Модуль чата ещё не загружен"
+  },
   "common": {
     "ok": "ОК",
     "cancel": "Отмена",

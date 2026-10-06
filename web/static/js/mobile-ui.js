@@ -58,13 +58,13 @@
         plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>'
     };
 
-    /* 底部标签栏定义 */
+    /* 底部标签栏定义。label 只在 i18next 未就绪时兜底，正式文案走 labelKey。 */
     var TABS = [
-        { id: 'dashboard', label: '仪表盘', icon: 'dashboard' },
-        { id: 'chat', label: '对话', icon: 'chat' },
-        { id: 'hitl', label: '协同', icon: 'hitl', badge: 'hitl' },
-        { id: 'tasks', label: '任务', icon: 'tasks' },
-        { id: '__more', label: '更多', icon: 'more2' }
+        { id: 'dashboard', label: '仪表盘', labelKey: 'nav.dashboard', icon: 'dashboard' },
+        { id: 'chat', label: '对话', labelKey: 'nav.chat', icon: 'chat' },
+        { id: 'hitl', label: '协同', labelKey: 'nav.hitl', icon: 'hitl', badge: 'hitl' },
+        { id: 'tasks', label: '任务', labelKey: 'nav.tasks', icon: 'tasks' },
+        { id: '__more', label: '更多', labelKey: 'mobile.tabMore', icon: 'more2' }
     ];
 
     /* 每个标签对应的"归属页"集合，用于点亮高亮 */
@@ -91,6 +91,48 @@
         if (cls) node.className = cls;
         if (html != null) node.innerHTML = html;
         return node;
+    }
+
+    /* 注入节点的文案：挂 data-i18n 后交给 i18n.js 的 applyTranslations 处理，
+       语言切换时会自动重译，不必在本层再存一份字典。
+       节点先写中文兜底——i18next 可能整体加载失败（离线/vendor 被拦）。
+       所有"中文兜底 + 键"的写入都必须经过下面这三个函数，本层其余位置不许再出现
+       裸的 setAttribute('aria-label', '中文')，否则防回潮测试无法区分兜底与绕过。 */
+    function translate(key, fallback, opts) {
+        if (typeof window.t === 'function') {
+            var s = window.t(key, opts);
+            if (s && s !== key) return s;
+        }
+        return fallback.replace(/\{\{\s*(\w+)\s*\}\}/g, function (_, name) {
+            return opts && Object.prototype.hasOwnProperty.call(opts, name) ? String(opts[name]) : '';
+        });
+    }
+
+    function label(textNode, key, fallback) {
+        textNode.setAttribute('data-i18n', key);
+        textNode.textContent = translate(key, fallback);
+        return textNode;
+    }
+
+    function setAttrI18n(node, attr, key, fallback) {
+        var list = (node.getAttribute('data-i18n-attr') || '').split(',')
+            .map(function (s) { return s.trim(); })
+            .filter(function (s) { return s && s !== attr; });
+        list.push(attr);
+        node.setAttribute('data-i18n', key);
+        node.setAttribute('data-i18n-attr', list.join(','));
+        node.setAttribute(attr, translate(key, fallback));
+        return node;
+    }
+
+    /* 带子节点（图标）的元素只能翻属性，不能翻 textContent，否则图标会被覆盖 */
+    function ariaLabel(node, key, fallback) {
+        node.setAttribute('data-i18n-skip-text', 'true');
+        return setAttrI18n(node, 'aria-label', key, fallback);
+    }
+
+    function relabelAll() {
+        if (typeof window.applyTranslations === 'function') window.applyTranslations(document.body);
     }
 
     function toast(msg, ms) {
@@ -387,7 +429,7 @@
     function buildMenuButton() {
         var btn = el('button', 'm-menu-btn m-mobile-only', ICON.menu);
         btn.type = 'button';
-        btn.setAttribute('aria-label', '打开导航菜单');
+        ariaLabel(btn, 'mobile.openNav', '打开导航菜单');
         btn.addEventListener('click', function () {
             if (state.drawerOpen) closeDrawer();
             else openDrawer();
@@ -398,7 +440,7 @@
     function buildMoreButton() {
         var btn = el('button', 'm-more-btn m-mobile-only', ICON.more);
         btn.type = 'button';
-        btn.setAttribute('aria-label', '更多操作');
+        ariaLabel(btn, 'mobile.moreActions', '更多操作');
         btn.addEventListener('click', function () {
             if (state.sheetOpen) closeSheet();
             else openSheet();
@@ -432,7 +474,7 @@
             '<span class="brand-wordmark"><span class="brand-wordmark__core">CyberStrike</span><span class="brand-wordmark__ai">AI</span></span>');
         var close = el('button', 'm-close-btn', ICON.close);
         close.type = 'button';
-        close.setAttribute('aria-label', '关闭导航菜单');
+        ariaLabel(close, 'mobile.closeNav', '关闭导航菜单');
         close.addEventListener('click', closeDrawer);
         head.appendChild(brand);
         head.appendChild(close);
@@ -440,22 +482,25 @@
         var search = el('div', 'm-drawer-search m-mobile-only');
         var input = el('input');
         input.type = 'search';
-        input.placeholder = '搜索菜单…';
+        setAttrI18n(input, 'placeholder', 'mobile.searchMenu', '搜索菜单…');
+        setAttrI18n(input, 'aria-label', 'mobile.searchMenu', '搜索菜单');
         input.setAttribute('autocomplete', 'off');
-        input.setAttribute('aria-label', '搜索菜单');
         input.addEventListener('input', function () {
             filterNav(input.value);
         });
-        var empty = el('div', 'm-nav-empty m-mobile-only', '没有匹配的菜单');
+        var empty = el('div', 'm-nav-empty m-mobile-only');
+        label(empty, 'mobile.noMatch', '没有匹配的菜单');
         empty.hidden = true;
         search.appendChild(input);
         search.appendChild(empty);
 
         var foot = el('div', 'm-drawer-foot m-mobile-only');
-        foot.appendChild(el('span', null, '移动端导航'));
-        var topBtn = el('button', 'btn-secondary btn-small', '返回顶部');
+        var footText = el('span');
+        label(footText, 'mobile.navFooter', '移动端导航');
+        foot.appendChild(footText);
+        var topBtn = el('button', 'btn-secondary btn-small');
+        label(topBtn, 'mobile.backToTop', '返回顶部');
         topBtn.type = 'button';
-        topBtn.style.minHeight = '32px';
         topBtn.addEventListener('click', function () {
             scrollActiveToTop();
             closeDrawer();
@@ -475,7 +520,7 @@
 
         var close = el('button', 'm-close-btn m-chat-drawer-close', ICON.close);
         close.type = 'button';
-        close.setAttribute('aria-label', '关闭会话列表');
+        ariaLabel(close, 'mobile.closeChatList', '关闭会话列表');
         close.addEventListener('click', closeChatDrawer);
 
         /* 顶掉桌面端「折叠」按钮的位置，避免额外占一行 */
@@ -484,7 +529,9 @@
             header.appendChild(close);
         } else {
             var head = el('div', 'm-chat-drawer-head m-mobile-only');
-            head.appendChild(el('span', 'm-chat-drawer-title', '会话列表'));
+            var title = el('span', 'm-chat-drawer-title');
+            label(title, 'mobile.chatList', '会话列表');
+            head.appendChild(title);
             head.appendChild(close);
             sidebar.insertBefore(head, sidebar.firstChild);
         }
@@ -571,13 +618,15 @@
     function buildTabbar() {
         var bar = el('nav');
         bar.id = 'm-tabbar';
-        bar.setAttribute('aria-label', '主导航');
+        ariaLabel(bar, 'mobile.mainNav', '主导航');
 
         TABS.forEach(function (tab) {
-            var btn = el('button', 'm-tab');
+            var btn = el('button', 'm-tab', ICON[tab.icon]);
             btn.type = 'button';
             btn.dataset.tab = tab.id;
-            btn.innerHTML = ICON[tab.icon] + '<span>' + tab.label + '</span>';
+            var span = el('span');
+            label(span, tab.labelKey, tab.label);
+            btn.appendChild(span);
             if (tab.badge) {
                 var badge = el('span', 'm-tab-badge');
                 badge.dataset.badgeFor = tab.badge;
@@ -616,7 +665,9 @@
         Object.keys(TAB_GROUP).forEach(function (key) {
             if (TAB_GROUP[key].indexOf(pageId) >= 0) target = key;
         });
-        /* C2 / 资产 / 漏洞 / 设置 等页面归入"更多" */
+        /* C2 / 资产 / 漏洞 / 设置 等页面归入"更多"：不在四个标签里就点亮"更多"，
+           否则整条标签栏在三分之一以上的页面里没有一个高亮，用户看不出自己在哪 */
+        if (!target) target = '__more';
         $$('.m-tab', bar).forEach(function (btn) {
             var id = btn.dataset.tab;
             var active = id === target;
@@ -629,9 +680,12 @@
     /* ---------------------------------------------------------------------
        8. 底部滑出面板
        --------------------------------------------------------------------- */
-    function buildSheetItem(label, icon, onClick, opts) {
+    function buildSheetItem(key, fallbackLabel, icon, onClick, opts) {
         opts = opts || {};
-        var btn = el('button', 'm-sheet-item' + (opts.danger ? ' m-danger' : ''), ICON[icon] + '<span>' + label + '</span>');
+        var btn = el('button', 'm-sheet-item' + (opts.danger ? ' m-danger' : ''), ICON[icon]);
+        var span = el('span');
+        label(span, key, fallbackLabel);
+        btn.appendChild(span);
         btn.type = 'button';
         btn.addEventListener('click', function () {
             onClick();
@@ -641,66 +695,120 @@
         return btn;
     }
 
+    /* 次要操作在桌面端本来就有按钮，移动端只是把它们收进面板。
+       直接触发桌面控件，避免在本层再抄一份 URL 或行为（上游的仓库地址变过）。 */
+    function clickDesktopControl(matcher) {
+        var nodes = $$('.header-actions button, .header-actions a');
+        for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            var where = (n.getAttribute('onclick') || n.getAttribute('href') || '');
+            if (!matcher.test(where)) continue;
+            n.click();
+            return true;
+        }
+        return false;
+    }
+
+    function currentThemeLabel() {
+        var resolved = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+        return typeof window.t === 'function' ? (window.t('theme.' + resolved) || resolved) : resolved;
+    }
+
+    /* 面板里可选的语言：以桌面端下拉里真实存在的选项为准，上游加语言不必改本层 */
+    function availableLocales() {
+        var seen = [];
+        $$('#lang-dropdown .lang-option').forEach(function (o) {
+            var lang = o.getAttribute('data-lang');
+            if (!lang) return;
+            if (seen.some(function (x) { return x.lang === lang; })) return;
+            seen.push({ lang: lang, name: (o.textContent || '').trim() });
+        });
+        if (!seen.length) seen = [{ lang: 'zh-CN', name: '中文' }, { lang: 'en-US', name: 'English' }];
+        return seen;
+    }
+
+    function cycleLanguage() {
+        var opts = availableLocales();
+        var cur = String(window.uiLocale ? window.uiLocale() : (document.documentElement.getAttribute('lang') || 'zh-CN'));
+        var idx = 0;
+        opts.forEach(function (o, i) { if (o.lang === cur) idx = i; });
+        var next = opts[(idx + 1) % opts.length];
+        if (typeof window.onLanguageSelect === 'function') {
+            window.onLanguageSelect(next.lang);
+            toast(next.name);
+        }
+    }
+
+    function requestFullscreenSafe() {
+        var root = document.documentElement;
+        if (document.fullscreenElement || document.webkitFullscreenElement) {
+            var exit = document.exitFullscreen || document.webkitExitFullscreen;
+            if (exit) { try { exit.call(document); } catch (e) { /* 已退出 */ } }
+            return;
+        }
+        var req = root.requestFullscreen || root.webkitRequestFullscreen;
+        if (!req) {
+            /* iOS Safari 没有全屏 API：过去这里走一个空函数分支，按钮点了没有任何反馈 */
+            toast(translate('mobile.fullscreenUnsupported', '当前浏览器不支持全屏'));
+            return;
+        }
+        try {
+            var r = req.call(root);
+            if (r && typeof r.catch === 'function') {
+                r.catch(function () { toast(translate('mobile.fullscreenUnsupported', '当前浏览器不支持全屏')); });
+            }
+        } catch (e) {
+            toast(translate('mobile.fullscreenUnsupported', '当前浏览器不支持全屏'));
+        }
+    }
+
     function injectSheet() {
         if ($('#m-sheet')) return;
         var sheet = el('div');
         sheet.id = 'm-sheet';
         sheet.setAttribute('role', 'dialog');
         sheet.setAttribute('aria-modal', 'true');
-        sheet.setAttribute('aria-label', '更多操作');
+        ariaLabel(sheet, 'mobile.moreActions', '更多操作');
         sheet.classList.add('m-mobile-only');
 
         var grip = el('div', 'm-sheet-grip');
         var head = el('div', 'm-sheet-head');
-        head.appendChild(el('span', 'm-sheet-title', '更多操作'));
+        var title = el('span', 'm-sheet-title');
+        label(title, 'mobile.moreActions', '更多操作');
+        head.appendChild(title);
         var close = el('button', 'm-close-btn', ICON.close);
         close.type = 'button';
-        close.setAttribute('aria-label', '关闭');
+        ariaLabel(close, 'common.close', '关闭');
         close.addEventListener('click', closeSheet);
         head.appendChild(close);
 
         var body = el('div', 'm-sheet-body');
 
-        body.appendChild(buildSheetItem('API 文档', 'doc', function () {
-            window.open('/api-docs', '_blank');
+        body.appendChild(buildSheetItem('header.apiDocs', 'API 文档', 'doc', function () {
+            if (!clickDesktopControl(/\/api-docs/)) window.location.href = '/api-docs';
         }));
-        body.appendChild(buildSheetItem('GitHub', 'github', function () {
-            window.open('https://github.com/AIPentest/CyberStrikeAI', '_blank');
+        body.appendChild(buildSheetItem('header.github', 'GitHub', 'github', function () {
+            clickDesktopControl(/github\.com/i);
         }));
-        body.appendChild(buildSheetItem('切换主题', 'theme', function () {
+        body.appendChild(buildSheetItem('mobile.switchTheme', '切换主题', 'theme', function () {
             if (typeof window.cycleThemePreference === 'function') {
                 window.cycleThemePreference();
             } else {
                 var t = document.getElementById('theme-toggle-btn');
                 if (t) t.click();
             }
-            toast('主题：' + (document.documentElement.getAttribute('data-theme') === 'dark' ? '深色' : '浅色'));
+            toast(translate('mobile.themeNow', '当前主题：{{name}}', { name: currentThemeLabel() }));
         }, { keepOpen: true }));
-        body.appendChild(buildSheetItem('切换语言', 'lang', function () {
-            var cur = (document.documentElement.getAttribute('lang') || 'zh-CN').toLowerCase();
-            var next = cur.indexOf('zh') === 0 ? 'en-US' : 'zh-CN';
-            if (typeof window.onLanguageSelect === 'function') window.onLanguageSelect(next);
-            toast(next.indexOf('zh') === 0 ? '已切换为中文' : 'Switched to English');
-        }, { keepOpen: true }));
+        body.appendChild(buildSheetItem('mobile.switchLanguage', '切换语言', 'lang', cycleLanguage, { keepOpen: true }));
 
         body.appendChild(el('div', 'm-sheet-sep'));
 
-        body.appendChild(buildSheetItem('返回顶部', 'top', scrollActiveToTop, { keepOpen: true }));
-        body.appendChild(buildSheetItem('刷新页面', 'refresh', function () {
+        body.appendChild(buildSheetItem('mobile.backToTop', '返回顶部', 'top', scrollActiveToTop, { keepOpen: true }));
+        body.appendChild(buildSheetItem('mobile.refreshPage', '刷新页面', 'refresh', function () {
             location.reload();
         }));
-        body.appendChild(buildSheetItem('全屏', 'full', function () {
-            try {
-                if (!document.fullscreenElement) {
-                    (document.documentElement.requestFullscreen || function () {}).call(document.documentElement);
-                } else {
-                    document.exitFullscreen();
-                }
-            } catch (e) {
-                toast('当前浏览器不支持全屏');
-            }
-        }, { keepOpen: true }));
-        body.appendChild(buildSheetItem('退出登录', 'logout', function () {
+        body.appendChild(buildSheetItem('mobile.fullscreen', '全屏', 'full', requestFullscreenSafe, { keepOpen: true }));
+        body.appendChild(buildSheetItem('header.logout', '退出登录', 'logout', function () {
             if (typeof window.logout === 'function') window.logout();
         }, { danger: true }));
 
@@ -732,20 +840,26 @@
         var bar = el('div', 'm-chat-bar m-mobile-only');
         bar.id = 'm-chat-bar';
 
-        var listBtn = el('button', 'm-chat-bar-btn', ICON.list + '<span>会话</span>');
+        var listBtn = el('button', 'm-chat-bar-btn', ICON.list);
+        var listSpan = el('span');
+        label(listSpan, 'mobile.conversations', '会话');
+        listBtn.appendChild(listSpan);
         listBtn.type = 'button';
         listBtn.addEventListener('click', openChatDrawer);
 
         var spacer = el('div', 'm-chat-bar-spacer');
 
-        var newBtn = el('button', 'm-chat-bar-btn m-primary', ICON.plus + '<span>新对话</span>');
+        var newBtn = el('button', 'm-chat-bar-btn m-primary', ICON.plus);
+        var newSpan = el('span');
+        label(newSpan, 'mobile.newChat', '新对话');
+        newBtn.appendChild(newSpan);
         newBtn.type = 'button';
         newBtn.setAttribute('data-require-permission', 'chat:write');
         newBtn.addEventListener('click', function () {
             if (typeof window.startNewConversation === 'function') {
                 window.startNewConversation();
             } else {
-                toast('暂未加载对话模块');
+                toast(translate('mobile.chatModuleMissing', '对话模块尚未加载'));
             }
         });
 
@@ -1124,6 +1238,14 @@
         }
 
         wrapTables($('.page.active') || document);
+        /* 注入节点晚于 i18n 首帧时不会被自动翻译，这里补一次；语言切换由
+           i18n.js 的 applyTranslations(document) 覆盖（这些节点带着 data-i18n）。 */
+        relabelAll();
+        /* 新对话按钮带 data-require-permission：RBAC 的点击守卫是文档级委托，
+           但"无权限就隐藏"依赖一次显式刷新，否则低权限账号会看到点不动的按钮 */
+        if (typeof window.applyRBACToUI === 'function') {
+            try { window.applyRBACToUI(); } catch (e) { /* 未初始化时忽略 */ }
+        }
     }
 
     /* 手机端有遮罩兜底，平板竖屏没有移动端外壳（boot 在非移动端直接返回），

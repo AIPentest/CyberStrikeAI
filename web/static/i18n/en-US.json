@@ -4,6 +4,28 @@
     "enUS": "English",
     "ruRU": "Русский"
   },
+  "mobile": {
+    "tabMore": "More",
+    "openNav": "Open navigation menu",
+    "closeNav": "Close navigation menu",
+    "moreActions": "More actions",
+    "searchMenu": "Search menu…",
+    "noMatch": "No matching menu items",
+    "backToTop": "Back to top",
+    "navFooter": "Mobile navigation",
+    "chatList": "Conversations",
+    "closeChatList": "Close conversation list",
+    "mainNav": "Main navigation",
+    "switchTheme": "Switch theme",
+    "themeNow": "Theme: {{name}}",
+    "switchLanguage": "Switch language",
+    "refreshPage": "Reload page",
+    "fullscreen": "Fullscreen",
+    "fullscreenUnsupported": "This browser does not support fullscreen",
+    "conversations": "Chats",
+    "newChat": "New chat",
+    "chatModuleMissing": "Chat module not loaded yet"
+  },
   "common": {
     "ok": "OK",
     "cancel": "Cancel",

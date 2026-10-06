@@ -274,11 +274,13 @@
         height: 22px;
     }
 
+    /* 通知与用户菜单是本层唯一漏掉 44px 下限的常驻控件：38px 在手指下是
+       「看得见但点不准」，与上面 --m-touch 的口径必须一致 */
     .notification-btn,
     .user-avatar-btn {
-        width: 38px;
-        height: 38px;
-        min-height: 38px;
+        width: var(--m-touch);
+        height: var(--m-touch);
+        min-height: var(--m-touch);
         padding: 0;
         display: inline-flex;
         align-items: center;

@@ -4,6 +4,28 @@
     "enUS": "English",
     "ruRU": "Русский"
   },
+  "mobile": {
+    "tabMore": "更多",
+    "openNav": "打开导航菜单",
+    "closeNav": "关闭导航菜单",
+    "moreActions": "更多操作",
+    "searchMenu": "搜索菜单…",
+    "noMatch": "没有匹配的菜单",
+    "backToTop": "返回顶部",
+    "navFooter": "移动端导航",
+    "chatList": "会话列表",
+    "closeChatList": "关闭会话列表",
+    "mainNav": "主导航",
+    "switchTheme": "切换主题",
+    "themeNow": "当前主题：{{name}}",
+    "switchLanguage": "切换语言",
+    "refreshPage": "刷新页面",
+    "fullscreen": "全屏",
+    "fullscreenUnsupported": "当前浏览器不支持全屏",
+    "conversations": "会话",
+    "newChat": "新对话",
+    "chatModuleMissing": "对话模块尚未加载"
+  },
   "common": {
     "ok": "确定",
     "cancel": "取消",
