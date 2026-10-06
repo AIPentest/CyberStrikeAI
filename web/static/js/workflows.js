@@ -15,6 +15,7 @@
 
     let workflows = [];
     let currentWorkflowId = '';
+    let workflowMetaSavePending = false;
     let cy = null;
     let nodeSeq = 1;
     let edgeSeq = 1;
@@ -1993,7 +1994,8 @@
         if (wf) fillWorkflowForm(wf);
     };
 
-    window.openWorkflowMetaModal = function () {
+    window.openWorkflowMetaModal = function (options) {
+        workflowMetaSavePending = !!(options && options.saveOnApply);
         const nameEl = document.getElementById('workflow-name');
         const idEl = document.getElementById('workflow-id');
         if (currentWorkflowId) {
@@ -2009,12 +2011,13 @@
     };
 
     window.closeWorkflowMetaModal = function () {
+        workflowMetaSavePending = false;
         if (typeof closeAppModal === 'function') {
             closeAppModal('workflow-meta-modal');
         }
     };
 
-    window.applyWorkflowMetaModal = function () {
+    window.applyWorkflowMetaModal = async function () {
         const meta = readWorkflowMetaFromForm();
         if (!meta.id || !meta.name) {
             if (typeof showNotification === 'function') {
@@ -2024,7 +2027,9 @@
         }
         updateWorkflowCanvasTitle();
         renderWorkflowList();
+        const shouldSave = workflowMetaSavePending;
         closeWorkflowMetaModal();
+        if (shouldSave) await saveWorkflowDraft();
     };
 
     window.editWorkflowFromList = function (id) {
@@ -2232,7 +2237,7 @@
             if (typeof showNotification === 'function') {
                 showNotification(_t('workflows.idNameRequired'), 'error');
             }
-            openWorkflowMetaModal();
+            openWorkflowMetaModal({ saveOnApply: true });
             return;
         }
         const graph = elementsToGraph();
