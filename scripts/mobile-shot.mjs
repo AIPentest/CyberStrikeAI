@@ -71,11 +71,14 @@ const ev = async expr => {
   return r.result?.value;
 };
 
-/* 主题要先落进本站点的 localStorage，about:blank 上写是写给另一个 origin */
+/* 主题要先落进本站点的 localStorage，about:blank 上写是写给另一个 origin。
+   换主题用 Page.navigate 重新进，不要在 eval 里 location.reload()——awaitPromise
+   会等一个永远不回来的执行上下文。 */
 await send('Page.navigate', { url: BASE + '/' }, sessionId);
 await sleep(1500);
-if (argv.dark === '1') {
-  await ev(`localStorage.setItem('cyberstrike-theme','dark')`);
+const theme = argv.theme || (argv.dark === '1' ? 'dark' : '');
+if (theme) {
+  await ev(`localStorage.setItem('cyberstrike-theme', ${JSON.stringify(theme)})`);
   await send('Page.navigate', { url: BASE + '/' }, sessionId);
 }
 await sleep(3000);

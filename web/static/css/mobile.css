@@ -3273,3 +3273,122 @@ html[data-theme="dark"] {
         --m-bar-bottom: max(0px, calc(100dvh - var(--m-app-height, 100dvh)));
     }
 }
+
+/* --------------------------------------------------------------------------
+   26. 密度与表面：对齐 new-api 的卡片体系 + iOS 的分组列表与填充式表单
+   --------------------------------------------------------------------------
+   这一节只管"看起来挤不挤、齐不齐"，不改配色语言：KPI 卡那套按 nth-child 分的
+   淡彩渐变是产品自己的身份（style.css:23789-23793），不跟它抢。
+   -------------------------------------------------------------------------- */
+@media (max-width: 767.98px) {
+    /* 26.1 KPI：桌面在 ≤480px 把 5 张卡拍成一列 116px 高的长条，手机上要滚
+       两屏才看完四个数字。改成两列紧凑网格，数字才是主角。 */
+    .dashboard-kpi-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    /* 奇数张时末卡通栏，右下角不留空洞 */
+    .dashboard-kpi-row > .dashboard-kpi-card:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+
+    .dashboard-kpi-card {
+        padding: 12px 13px !important;
+        min-height: 0 !important;
+        gap: 0 !important;
+    }
+
+    .dashboard-kpi-label {
+        font-size: 12px;
+        line-height: 1.35;
+        font-weight: 500;
+        color: var(--text-muted);
+    }
+
+    .dashboard-kpi-value {
+        font-size: 26px;
+        line-height: 1.15;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+        margin-top: 6px;
+    }
+
+    .dashboard-kpi-sub,
+    .dashboard-kpi-sub-text {
+        font-size: 12px;
+        line-height: 1.4;
+    }
+
+    .dashboard-kpi-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 9px;
+        flex-shrink: 0;
+    }
+
+    .dashboard-kpi-icon svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    .dashboard-access-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px;
+    }
+
+    /* 26.2 卡片表面统一：发丝边 + 16 圆角 + 几乎看不见的投影。
+       桌面的 0 2px 8px 双层阴影在小屏上会把每张卡都"抬起来"，一屏四张就散了。 */
+    :is(.card, .stat-card, .metric-card, .dashboard-card, .panel,
+         .settings-section, .info-card) {
+        border: 1px solid var(--m-hairline);
+        border-radius: var(--m-r-card);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    /* 26.3 页面头：标题与操作行收成一组，不再各占一段空白 */
+    .page-header h2,
+    .page-header h1 {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+    }
+
+    .page-header {
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    /* 26.4 填充式表单（iOS 的写法：字段靠底色区分，不靠一圈灰边框） */
+    :is(.form-group, .settings-form, .modal-body, .m-drawer-search) :is(input, select, textarea) {
+        background: var(--m-fill-quaternary);
+        border-color: transparent;
+        border-radius: 12px;
+    }
+
+    /* 聚焦：只留一圈柔光环。再改 border 颜色会与 25.5 的环叠成两圈（登录框实测如此）*/
+    :is(.form-group, .settings-form, .modal-body, .m-drawer-search) :is(input, select, textarea):focus {
+        background: var(--bg-primary);
+        border-color: transparent;
+        box-shadow: 0 0 0 3px var(--m-ring);
+    }
+
+    /* 26.5 登录卡：满宽卡片 + 填充式字段 + 胶囊主按钮 */
+    .login-card {
+        border-radius: 20px;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
+    }
+
+    .login-form .btn-primary,
+    .login-card .btn-primary {
+        width: 100%;
+        border-radius: var(--m-r-pill);
+    }
+
+    /* 26.6 分组列表：卡片内的行之间只留发丝线，行高按触控下限走 */
+    :is(.settings-section, .card, .panel, .info-card) :is(.form-group, .settings-row, .list-row) + :is(.form-group, .settings-row, .list-row) {
+        border-top: 1px solid var(--m-hairline);
+    }
+}
