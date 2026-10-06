@@ -507,9 +507,11 @@
         });
         foot.appendChild(topBtn);
 
-        sidebar.insertBefore(foot, sidebar.firstChild);
+        /* 页脚必须是最后一个 flex 子节点：.main-sidebar-nav 靠 flex:1 撑开、
+           页脚靠 border-top 收尾，插到首位会让「返回顶部」跑到菜单上面 */
         sidebar.insertBefore(search, sidebar.firstChild);
         sidebar.insertBefore(head, sidebar.firstChild);
+        sidebar.appendChild(foot);
     }
 
     /* 会话抽屉（对话页左侧列表）：移动端关闭按钮 + 选中后自动收起 */

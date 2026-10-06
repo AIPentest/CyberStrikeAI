@@ -9,6 +9,7 @@
  *
  *   node scripts/mobile-tap-audit.mjs --user=admin --pass=... --width=390 --height=844
  *   CSAI_AUDIT_USER=admin CSAI_AUDIT_PASS=... node scripts/mobile-tap-audit.mjs --all
+ *   node scripts/mobile-tap-audit.mjs --cookie=<auth_token 的值> --all
  *
  * Flags:  --base=https://127.0.0.1:8088  --pages=a,b,c  --allow-writes=0|1
  *         --chrome=0 (skip the finger-tap suite)  --json=<path>
@@ -31,6 +32,10 @@ const PORT = argv.port || '9712';
 const BASE = (argv.base || 'https://127.0.0.1:8088').replace(/\/$/, '');
 const USER = argv.user || process.env.CSAI_AUDIT_USER || '';
 const PASS = argv.pass || process.env.CSAI_AUDIT_PASS || '';
+/* 不想交出口令时的替代路径：在浏览器里登录 127.0.0.1:8088，从 DevTools 复制
+   auth_token 的值，用 --cookie=... 或 CSAI_AUDIT_COOKIE=... 传进来。会话本身 12 小时
+   过期，比长期有效的主机口令暴露面小。两者都没有则拒绝运行。 */
+const COOKIE = argv.cookie || process.env.CSAI_AUDIT_COOKIE || '';
 const ALLOW_WRITES = argv['allow-writes'] === '1';
 const MIN_TAP = Number(argv['min-tap'] || 44);
 const CHROME = argv.chrome !== '0';
@@ -38,8 +43,8 @@ const OUT = argv.out || `/tmp/cs-tap/${W}x${H}`;
 const JSON_OUT = argv.json || `${OUT}/tap-audit.json`;
 const BASELINE = argv.baseline || 'scripts/mobile-tap-baseline.json';
 
-if (!USER || !PASS) {
-  console.error('Refusing to run without credentials: pass --user=... --pass=... or set CSAI_AUDIT_USER / CSAI_AUDIT_PASS.');
+if (!COOKIE && (!USER || !PASS)) {
+  console.error('Refusing to run without credentials: pass --user=... --pass=... (or CSAI_AUDIT_USER/CSAI_AUDIT_PASS), or an existing session via --cookie=... (or CSAI_AUDIT_COOKIE).');
   process.exit(2);
 }
 
@@ -66,6 +71,8 @@ const chrome = await import('node:child_process').then(m =>
   m.spawn(CH, ['--headless=new', `--remote-debugging-port=${PORT}`,
     `--user-data-dir=/tmp/cs-tap-${PORT}`, '--ignore-certificate-errors',
     '--no-sandbox', '--allow-running-insecure-content', 'about:blank'], { stdio: 'ignore' }));
+/* 任何提前退出（连不上、登录失败）都不许把 headless Chrome 留在机器上 */
+process.on('exit', () => { try { chrome.kill('SIGKILL'); } catch { /* 已退出 */ } });
 
 let ws;
 for (let i = 0; i < 80; i++) {
@@ -253,13 +260,19 @@ async function openPage(hash) {
   await sleep(2600);
 }
 
+const host = new URL(BASE).hostname;
+if (COOKIE) await send('Network.setCookie', { name: 'auth_token', value: COOKIE, domain: host, path: '/' }, sessionId);
 await send('Page.navigate', { url: BASE + '/' }, sessionId);
 await sleep(3500);
 
 /* The login card is a phone surface too — check it before authenticating. */
 const login = await ev(DETECT);
-await ev(`(()=>{const u=document.getElementById('login-username'),p=document.getElementById('login-password');if(u&&p){u.value=${JSON.stringify(USER)};p.value=${JSON.stringify(PASS)};document.getElementById('login-form').requestSubmit();}})()`);
-await sleep(8000);
+if (!COOKIE) {
+  await ev(`(()=>{const u=document.getElementById('login-username'),p=document.getElementById('login-password');if(u&&p){u.value=${JSON.stringify(USER)};p.value=${JSON.stringify(PASS)};document.getElementById('login-form').requestSubmit();}})()`);
+  await sleep(8000);
+} else {
+  console.log('using the session cookie supplied via --cookie; no password was sent');
+}
 const who = await ev(`(()=>{const o=document.getElementById('login-overlay');return o?getComputedStyle(o).display:'none'})()`);
 if (who !== 'none') { console.error('login did not take (overlay still displayed):', who); process.exit(3); }
 

@@ -32,9 +32,11 @@
     /* 24 节「按钮 / 控件视觉体系」的度量：全站按钮只有这一组尺寸口径。
        改造前 style.css 里没有 .btn 基类，圆角 11 种、字号 9 种、字重 7 档、
        同一个 .btn-secondary 出现 12 种签名（_mbtn.mjs 实测 645 个控件）。 */
-    --m-r-ctl: 10px;
-    /* 方形图标按钮与矩形控件同圆角：靠形状区分，不再用不同圆角制造差异 */
-    --m-r-icon: var(--m-r-ctl);
+    --m-r-ctl: 12px;
+    /* 图标按钮一律正圆、文字按钮一律胶囊：24 节那批 !important 规则读的就是这两个
+       令牌，改令牌一处生效全站，不要再往下补选择器或跟 !important 对轰 */
+    --m-r-icon: 50%;
+    --m-r-btn: 999px;
     --m-r-pill: 999px;
     --m-ctl-h: var(--m-touch);
     --m-ctl-pad-x: 16px;
@@ -2296,7 +2298,7 @@ body.m-panel-open .chat-input-container {
         padding-right: var(--m-ctl-pad-x) !important;
         font-size: var(--m-ctl-fs) !important;
         font-weight: var(--m-ctl-fw) !important;
-        border-radius: var(--m-r-ctl) !important;
+        border-radius: var(--m-r-btn) !important;
         line-height: 1.25 !important;
         box-sizing: border-box;
         display: inline-flex;
@@ -2348,7 +2350,7 @@ body.m-panel-open .chat-input-container {
         padding-right: var(--m-ctl-pad-x-sm) !important;
         font-size: var(--m-ctl-fs-sm) !important;
         font-weight: var(--m-ctl-fw) !important;
-        border-radius: var(--m-r-ctl) !important;
+        border-radius: var(--m-r-btn) !important;
         background: transparent !important;
         box-shadow: none !important;
     }
@@ -3020,5 +3022,263 @@ html[data-theme="dark"] {
         -webkit-overflow-scrolling: touch;
         overscroll-behavior: contain;
         padding: 12px 14px 18px !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   25. iOS 观感修订：材质 / 圆角 / 按压反馈
+   --------------------------------------------------------------------------
+   口径：
+   - 材质一律用 color-mix 从主题自己的 --bg-primary / --border-color 派生，
+     浅色与暗色自动跟随；写死 rgba 会在暗色下糊成一块白雾。
+   - backdrop-filter 只在浏览器支持时启用，不支持就退回实心背景（观感一致，
+     只是没有透出）。固定栏的模糊是软件渲染掉帧主因（见 5 节），所以全站只给
+     顶栏与底栏各一层 blur(20px)，抽屉/面板用不透明材质不再加模糊。
+   - 圆角收成一个阶梯：控件胶囊、图标按钮正圆、卡片 18、面板顶角 22。
+     本层原有的 10/12/14/18 四种混用在手机上读起来是"没对齐"，不是"设计过"。
+   - 按压反馈用 scale，且在 prefers-reduced-motion 下整体关掉。
+   - 所有改动只碰观感：44px 触控下限、层级、滚动容器一概不动。
+   -------------------------------------------------------------------------- */
+:root {
+    --m-r-card: 18px;
+    --m-r-panel: 22px;
+    --m-material: color-mix(in srgb, var(--bg-primary) 82%, transparent);
+    --m-material-solid: color-mix(in srgb, var(--bg-primary) 96%, transparent);
+    --m-hairline: color-mix(in srgb, var(--border-color) 55%, transparent);
+    --m-fill-quaternary: color-mix(in srgb, var(--text-primary) 6%, transparent);
+    --m-fill-press: color-mix(in srgb, var(--text-primary) 10%, transparent);
+    --m-ring: color-mix(in srgb, var(--accent-color) 30%, transparent);
+    --m-shadow-panel: 0 -12px 40px rgba(0, 0, 0, 0.22);
+    --m-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+@media (max-width: 767.98px) {
+    /* 25.1 顶栏 / 底栏：透出材质 + 发丝分隔线。
+       顶栏必须写成 html[data-theme] header：style.css 用同一条特异性给暗色塞了
+       不透明渐变，只写 header 会在暗色下丢掉材质（实测 background 被压成渐变）。 */
+    header,
+    html[data-theme] header {
+        background: var(--m-material-solid);
+        border-bottom: 1px solid var(--m-hairline);
+        box-shadow: none;
+    }
+
+    #m-tabbar {
+        background: var(--m-material-solid);
+        border-top: 1px solid var(--m-hairline);
+        box-shadow: none;
+    }
+
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+        header,
+        html[data-theme] header {
+            background: var(--m-material);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            backdrop-filter: saturate(180%) blur(20px);
+        }
+
+        #m-tabbar {
+            background: var(--m-material);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            backdrop-filter: saturate(180%) blur(20px);
+        }
+    }
+
+    /* 25.2 圆角阶梯：卡片、面板、控件、图标按钮 */
+    .card,
+    .stat-card,
+    .metric-card,
+    .dashboard-card,
+    .panel,
+    .settings-section,
+    .info-card {
+        border-radius: var(--m-r-card);
+        box-shadow: var(--m-shadow-card);
+    }
+
+    #m-sheet {
+        border-radius: var(--m-r-panel) var(--m-r-panel) 0 0;
+        box-shadow: var(--m-shadow-panel);
+    }
+
+    .main-sidebar {
+        border-radius: 0 var(--m-r-panel) var(--m-r-panel) 0;
+        border-right: none;
+    }
+
+    input:not([type=checkbox]):not([type=radio]),
+    select,
+    textarea {
+        border-radius: 12px;
+    }
+
+    button,
+    .btn-primary,
+    .btn-secondary,
+    .btn-danger,
+    .btn-small,
+    .btn-sm,
+    .m-chat-bar-btn {
+        border-radius: var(--m-r-pill);
+    }
+
+    /* 图标按钮去底去框：桌面用的是 .header-actions button（类+元素）两条特异性，
+       本层只写类名会被压住（实测 border 仍是 1px），所以这里必须同形写 */
+    .header-actions :is(.m-more-btn, .m-close-btn, .notification-btn, .user-avatar-btn, .btn-icon),
+    .m-menu-btn {
+        border: none;
+        background: transparent;
+    }
+
+    /* 次要按钮：iOS 的"填充"样式，去掉描边不再和主按钮抢层次 */
+    .btn-secondary,
+    .btn-small,
+    .btn-sm {
+        background: var(--m-fill-quaternary);
+        border-color: transparent;
+    }
+
+    /* 25.3 发丝线：抽屉 / 面板 / 会话条的内部分隔 */
+    .m-drawer-head,
+    .m-drawer-search,
+    .m-sheet-head,
+    .m-chat-bar {
+        border-bottom-color: var(--m-hairline);
+    }
+
+    .m-sheet-sep {
+        background: var(--m-hairline);
+    }
+
+    /* 页脚 0.72rem = 11.5px，是本层自己定的 12px 小字号下限的漏网之鱼 */
+    .m-drawer-foot {
+        border-top-color: var(--m-hairline);
+        font-size: 12px;
+        align-items: center;
+    }
+
+    .m-sheet-grip {
+        width: 36px;
+        height: 5px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--text-muted) 45%, transparent);
+    }
+
+    /* 25.4 按压反馈：可见的"点到了"，不改变布局尺寸 */
+    .m-tab,
+    .m-sheet-item,
+    .m-chat-bar-btn,
+    .m-menu-btn,
+    .m-more-btn,
+    .m-close-btn,
+    .notification-btn,
+    .user-avatar-btn,
+    .btn-primary,
+    .btn-secondary,
+    .btn-danger,
+    .btn-small,
+    .nav-item-content,
+    .nav-submenu-item {
+        transition: transform 0.12s ease, background-color 0.12s ease, color 0.16s ease, opacity 0.12s ease;
+    }
+
+    .m-tab:active,
+    .m-sheet-item:active,
+    .m-chat-bar-btn:active,
+    .btn-primary:active,
+    .btn-secondary:active,
+    .btn-danger:active,
+    .btn-small:active {
+        transform: scale(0.96);
+        background-color: var(--m-fill-press);
+    }
+
+    .btn-primary:active {
+        /* 主按钮按压时保持强调色，只压暗，不变成灰底 */
+        background-color: color-mix(in srgb, var(--accent-color) 88%, #000);
+    }
+
+    /* 当前标签：图标后面一枚圆形底色，比整格变色更接近系统底栏 */
+    .m-tab.m-active {
+        color: var(--accent-color);
+        background: transparent;
+    }
+
+    .m-tab.m-active svg {
+        background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+        border-radius: 50%;
+        padding: 2px;
+        box-sizing: content-box;
+    }
+
+    /* 25.5 焦点环：从 2px 硬描边换成 3px 柔光环，键盘可达性不降级 */
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    [tabindex]:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px var(--m-ring);
+    }
+
+    .m-drawer-search input:focus {
+        border-color: color-mix(in srgb, var(--accent-color) 55%, transparent);
+    }
+
+    /* 强制高对比下柔光环会被抹掉，这里把硬描边还给它 */
+    @media (forced-colors: active) {
+        a:focus-visible,
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible,
+        [tabindex]:focus-visible {
+            outline: 2px solid Highlight;
+            outline-offset: 2px;
+        }
+    }
+
+    /* 25.6 遮罩与轻提示：遮罩不加模糊（全屏模糊是掉帧主因），提示条用材质 */
+    .m-scrim {
+        background: color-mix(in srgb, var(--m-scrim) 88%, transparent);
+    }
+
+    #m-toast {
+        border-radius: var(--m-r-pill);
+        border: 1px solid var(--m-hairline);
+        background: var(--m-material-solid);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+    }
+
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+        #m-toast {
+            background: var(--m-material);
+            -webkit-backdrop-filter: saturate(180%) blur(16px);
+            backdrop-filter: saturate(180%) blur(16px);
+        }
+    }
+}
+
+@media (max-width: 767.98px) and (prefers-reduced-motion: reduce) {
+    /* 关掉按压缩放，只保留颜色反馈 */
+    .m-tab,
+    .m-sheet-item,
+    .m-chat-bar-btn,
+    .btn-primary,
+    .btn-secondary,
+    .btn-danger,
+    .btn-small {
+        transition: background-color 0.12s ease, color 0.16s ease;
+    }
+
+    .m-tab:active,
+    .m-sheet-item:active,
+    .m-chat-bar-btn:active,
+    .btn-primary:active,
+    .btn-secondary:active,
+    .btn-danger:active,
+    .btn-small:active {
+        transform: none;
     }
 }
