@@ -45,7 +45,6 @@
         chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.2 9.2 0 0 1-2.9-.4L3 21l1.5-5.1A8.3 8.3 0 0 1 3 11.5 8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z"/></svg>',
         hitl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5.5v6c0 5 3.4 9.3 8 10.5 4.6-1.2 8-5.5 8-10.5v-6L12 2z"/><path d="m9 12 2 2 4-4"/></svg>',
         tasks: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2.2"/><path d="M8.5 8.5h7M8.5 12.5h7M8.5 16.5h4"/></svg>',
-        more2: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>',
         doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>',
         github: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.23c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.49v-1.7c-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.63.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.9 1.57 2.36 1.12 2.94.86.09-.67.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.93-2.35 4.8-4.58 5.05.36.32.68.94.68 1.9v2.82c0 .27.18.6.69.49A10.06 10.06 0 0 0 22 12.23C22 6.58 17.52 2 12 2z"/></svg>',
         theme: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>',
@@ -63,8 +62,7 @@
         { id: 'dashboard', label: '仪表盘', labelKey: 'nav.dashboard', icon: 'dashboard' },
         { id: 'chat', label: '对话', labelKey: 'nav.chat', icon: 'chat' },
         { id: 'hitl', label: '协同', labelKey: 'nav.hitl', icon: 'hitl', badge: 'hitl' },
-        { id: 'tasks', label: '任务', labelKey: 'nav.tasks', icon: 'tasks' },
-        { id: '__more', label: '更多', labelKey: 'mobile.tabMore', icon: 'more2' }
+        { id: 'tasks', label: '任务', labelKey: 'nav.tasks', icon: 'tasks' }
     ];
 
     /* 每个标签对应的"归属页"集合，用于点亮高亮 */
@@ -636,11 +634,6 @@
                 btn.appendChild(badge);
             }
             btn.addEventListener('click', function () {
-                if (tab.id === '__more') {
-                    if (state.sheetOpen) closeSheet();
-                    else openSheet();
-                    return;
-                }
                 if (typeof window.switchPage === 'function') {
                     window.switchPage(tab.id);
                 }
@@ -667,9 +660,8 @@
         Object.keys(TAB_GROUP).forEach(function (key) {
             if (TAB_GROUP[key].indexOf(pageId) >= 0) target = key;
         });
-        /* C2 / 资产 / 漏洞 / 设置 等页面归入"更多"：不在四个标签里就点亮"更多"，
-           否则整条标签栏在三分之一以上的页面里没有一个高亮，用户看不出自己在哪 */
-        if (!target) target = '__more';
+        /* 落在四个标签之外的页面（C2 / 资产 / 设置…）不高亮任何标签：
+           "更多"入口只在顶栏，标签栏里不再放第二枚重复按钮 */
         $$('.m-tab', bar).forEach(function (btn) {
             var id = btn.dataset.tab;
             var active = id === target;

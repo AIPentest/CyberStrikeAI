@@ -33,8 +33,8 @@ function referencedKeys(source) {
 const keys = referencedKeys(js);
 
 test('至少抽到一批键，防止正则整体失配后空集通过', () => {
-    assert.ok(keys.size >= 20, `expected >=20 referenced keys, got ${keys.size}`);
-    assert.ok(keys.has('mobile.tabMore'), 'tab labels must go through i18n');
+    assert.ok(keys.size >= 19, `expected >=20 referenced keys, got ${keys.size}`);
+    assert.ok(keys.has('mobile.conversations'), 'tab labels must go through i18n');
 });
 
 for (const locale of LOCALES) {

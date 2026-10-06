@@ -307,7 +307,6 @@ const TAPS = [
   { name: 'tab-chat', sel: '#m-tabbar [data-tab=chat]', expect: `document.querySelector('#page-chat').classList.contains('active')` },
   { name: 'chat-drawer-open', sel: '#m-chat-bar button:first-child', expect: `document.querySelector('#conversation-sidebar').classList.contains('m-open')` },
   { name: 'chat-drawer-close', sel: '#conversation-sidebar .m-close-btn', expect: `!document.querySelector('#conversation-sidebar').classList.contains('m-open')` },
-  { name: 'tab-more', sel: '#m-tabbar [data-tab=__more]', expect: `document.querySelector('#m-sheet').classList.contains('m-show')` },
 ];
 
 if (CHROME) {
