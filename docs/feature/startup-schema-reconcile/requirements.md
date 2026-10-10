@@ -1,10 +1,10 @@
 # 启动时自动补齐数据库结构
 
-- Status: Pending Confirmation
+- Status: Confirmed
 - Created: 2026-10-10
 - Source: 用户要求启动时自动对比所有表的最新结构，缺表、缺字段自动补齐，不依赖迁移代码列出的字段。
-- Confirmed by: Pending
-- Confirmation date: Pending
+- Confirmed by: 用户（当前对话）
+- Confirmation date: 2026-10-10
 
 ## 问题与目标
 
@@ -48,6 +48,6 @@
 
 ## 确认
 
-Decision: Pending user confirmation
+Decision: Confirmed — 用户明确要求按启动对比、缺表补表、缺字段补字段、保留已有数据实施。
 
 请确认上述需求快照，或指出需要调整的需求 ID。确认后进入设计和实现。
