@@ -38,6 +38,30 @@ func TestBoundWithSpillWritesFullFile(t *testing.T) {
 	}
 }
 
+func TestBoundWithSpillSanitizesInvalidExecutionID(t *testing.T) {
+	root := t.TempDir()
+	full := strings.Repeat("tool-output-", 200)
+	callID := "call_2hwSDB7U504wTZ7Y8t1DKjtb|fc_0bf3b3607a76b6c4016a8eed99151c87d2b7ecfa3c97cb75ee"
+	out := BoundWithSpill(full, 512, SpillOpts{
+		RootDir:        root,
+		ConversationID: "conv-1",
+		ExecutionID:    callID,
+	})
+	if !strings.Contains(out, "<persisted-output>") {
+		t.Fatalf("expected persisted-output notice: %q", out)
+	}
+	files, err := filepath.Glob(filepath.Join(root, "conversations", "conv-1", "trunc", "*"))
+	if err != nil {
+		t.Fatalf("glob trunc files: %v", err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("trunc files = %d, want one sanitized file: %v", len(files), files)
+	}
+	if strings.ContainsAny(filepath.Base(files[0]), `<>:"/\|?*`) {
+		t.Fatalf("trunc file name is not Windows-safe: %q", filepath.Base(files[0]))
+	}
+}
+
 func TestTeeThenFormatPersistedFromFile(t *testing.T) {
 	root := t.TempDir()
 	tee := NewTee(SpillOpts{RootDir: root, ConversationID: "c", ExecutionID: "e"})

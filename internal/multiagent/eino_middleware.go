@@ -18,6 +18,7 @@ import (
 	"github.com/cloudwego/eino/adk/middlewares/reduction"
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -34,14 +35,48 @@ func sanitizeEinoPathSegment(s string) string {
 	if s == "" {
 		return "default"
 	}
-	s = strings.ReplaceAll(s, string(filepath.Separator), "-")
-	s = strings.ReplaceAll(s, "/", "-")
-	s = strings.ReplaceAll(s, "\\", "-")
+	// Eino call IDs can contain characters such as `|` (for example
+	// `call_...|fc_...`).  They are valid in an ID but invalid in a Windows
+	// filename.  Sanitize the complete Windows-invalid set, plus controls,
+	// before using a value as a path segment.
+	s = strings.Map(func(r rune) rune {
+		if r < 0x20 || strings.ContainsRune(`<>:"/\|?*`, r) {
+			return '-'
+		}
+		return r
+	}, s)
 	s = strings.ReplaceAll(s, "..", "__")
+	s = strings.TrimRight(s, " .")
+	if s == "" {
+		return "default"
+	}
+	// Windows reserves DOS device names even when an extension is present.
+	windowsName := strings.ToUpper(s)
+	if dot := strings.IndexByte(windowsName, '.'); dot >= 0 {
+		windowsName = windowsName[:dot]
+	}
+	switch windowsName {
+	case "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9":
+		s = "_" + s
+	}
 	if len(s) > 180 {
 		s = s[:180]
 	}
 	return s
+}
+
+// reductionOffloadFilePath keeps Eino's persisted output paths valid on all
+// supported platforms, including Windows where model-generated call IDs may
+// contain reserved filename characters.
+func reductionOffloadFilePath(root, phase string, detail *reduction.ToolDetail) (string, error) {
+	callID := ""
+	if detail != nil && detail.ToolContext != nil {
+		callID = detail.ToolContext.CallID
+	}
+	if strings.TrimSpace(callID) == "" {
+		callID = uuid.NewString()
+	}
+	return filepath.Join(root, phase, sanitizeEinoPathSegment(callID)), nil
 }
 
 func splitToolsForToolSearch(all []tool.BaseTool, alwaysVisible int) (static []tool.BaseTool, dynamic []tool.BaseTool, ok bool) {
@@ -134,8 +169,14 @@ func buildReductionMiddleware(ctx context.Context, mw config.MultiAgentEinoMiddl
 	}
 	excl = append(excl, defaultExcl...)
 	redMW, err := reduction.New(ctx, &reduction.Config{
-		Backend:           loc,
-		RootDir:           root,
+		Backend: loc,
+		RootDir: root,
+		GenTruncOffloadFilePath: func(ctx context.Context, detail *reduction.ToolDetail) (string, error) {
+			return reductionOffloadFilePath(root, "trunc", detail)
+		},
+		GenClearOffloadFilePath: func(ctx context.Context, detail *reduction.ToolDetail) (string, error) {
+			return reductionOffloadFilePath(root, "clear", detail)
+		},
 		ReadFileToolName:  "read_file",
 		ClearExcludeTools: excl,
 		MaxLengthForTrunc: mw.ReductionMaxLengthForTruncEffective(),
@@ -171,8 +212,14 @@ func buildAgenticReductionMiddleware(
 	}
 	excl = append(excl, defaultExcl...)
 	redMW, err := reduction.NewTyped[*schema.AgenticMessage](ctx, &reduction.TypedConfig[*schema.AgenticMessage]{
-		Backend:           loc,
-		RootDir:           root,
+		Backend: loc,
+		RootDir: root,
+		GenTruncOffloadFilePath: func(ctx context.Context, detail *reduction.ToolDetail) (string, error) {
+			return reductionOffloadFilePath(root, "trunc", detail)
+		},
+		GenClearOffloadFilePath: func(ctx context.Context, detail *reduction.ToolDetail) (string, error) {
+			return reductionOffloadFilePath(root, "clear", detail)
+		},
 		ReadFileToolName:  "read_file",
 		ClearExcludeTools: excl,
 		MaxLengthForTrunc: mw.ReductionMaxLengthForTruncEffective(),

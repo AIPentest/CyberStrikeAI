@@ -193,10 +193,27 @@ func sanitizeSegment(s string) string {
 	if s == "" {
 		return "default"
 	}
-	s = strings.ReplaceAll(s, string(filepath.Separator), "-")
-	s = strings.ReplaceAll(s, "/", "-")
-	s = strings.ReplaceAll(s, "\\", "-")
+	// Execution IDs may be model/provider generated and can contain characters
+	// that Windows does not allow in a file name (notably `|`).
+	s = strings.Map(func(r rune) rune {
+		if r < 0x20 || strings.ContainsRune(`<>:"/\|?*`, r) {
+			return '-'
+		}
+		return r
+	}, s)
 	s = strings.ReplaceAll(s, "..", "__")
+	s = strings.TrimRight(s, " .")
+	if s == "" {
+		return "default"
+	}
+	windowsName := strings.ToUpper(s)
+	if dot := strings.IndexByte(windowsName, '.'); dot >= 0 {
+		windowsName = windowsName[:dot]
+	}
+	switch windowsName {
+	case "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9":
+		s = "_" + s
+	}
 	if len(s) > 180 {
 		s = s[:180]
 	}
