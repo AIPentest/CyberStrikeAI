@@ -84,3 +84,7 @@ Before connecting an external MCP, ask:
 - Tool adapter: `internal/einomcp/mcp_tools.go`
 - Handler: `internal/handler/external_mcp.go`
 - Invoke notification: `internal/einomcp/tool_invoke_notify.go`
+
+## Parallel Search MCP
+
+[Parallel Search MCP](parallel-search.md) provides an opt-in, keyless public web research configuration example.

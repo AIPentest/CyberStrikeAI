@@ -32,6 +32,7 @@ CyberStrikeAI documentation is organized by user journey. Start with deployment,
 - [视觉分析](zh-CN/VISION.md)
 - [WebShell 管理](zh-CN/webshell.md)
 - [C2 使用说明](zh-CN/c2.md)
+- [Parallel Search MCP](zh-CN/parallel-search.md)
 
 ### 开发与发布
 
@@ -70,6 +71,7 @@ CyberStrikeAI documentation is organized by user journey. Start with deployment,
 - [Vision Analysis](en-US/VISION.md)
 - [WebShell Management](en-US/webshell.md)
 - [C2 Guide](en-US/c2.md)
+- [Parallel Search MCP](en-US/parallel-search.md)
 
 ### Development and release
 
