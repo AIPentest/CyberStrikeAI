@@ -63,38 +63,11 @@ func NewHITLManager(db *database.DB, logger *zap.Logger) *HITLManager {
 	}
 }
 
+// EnsureSchema performs historical recovery after NewDB has checked all tables.
 func (m *HITLManager) EnsureSchema() error {
-	if _, err := m.db.Exec(`
-CREATE TABLE IF NOT EXISTS hitl_interrupts (
-    id TEXT PRIMARY KEY,
-    conversation_id TEXT NOT NULL,
-    message_id TEXT,
-    mode TEXT NOT NULL,
-    tool_name TEXT NOT NULL,
-    tool_call_id TEXT,
-    payload TEXT,
-    status TEXT NOT NULL,
-    reviewer TEXT NOT NULL DEFAULT 'human',
-    decision TEXT,
-    decision_comment TEXT,
-    created_at DATETIME NOT NULL,
-    decided_at DATETIME
-);`); err != nil {
+	if err := m.backfillHitlReviewers(); err != nil {
 		return err
 	}
-	_, err := m.db.Exec(`
-CREATE TABLE IF NOT EXISTS hitl_conversation_configs (
-    conversation_id TEXT PRIMARY KEY,
-    enabled INTEGER NOT NULL DEFAULT 0,
-    mode TEXT NOT NULL DEFAULT 'off',
-    sensitive_tools TEXT NOT NULL DEFAULT '[]',
-    timeout_seconds INTEGER NOT NULL DEFAULT 0,
-    updated_at DATETIME NOT NULL
-);`)
-	if err != nil {
-		return err
-	}
-	m.migrateHitlSchemaColumns()
 
 	// On startup, cancel all orphaned pending interrupts from previous process.
 	// Their in-memory channels are gone, so they can never be resolved.

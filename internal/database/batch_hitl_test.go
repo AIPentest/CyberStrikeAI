@@ -19,10 +19,10 @@ func TestBatchHITLLegacyMigration(t *testing.T) {
 	if _, err := db.Exec("ALTER TABLE batch_task_queues DROP COLUMN hitl_policy"); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.migrateBatchTaskQueuesTable(); err != nil {
+	if err := db.reconcileSchema(applicationSchema); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.migrateBatchTaskQueuesTable(); err != nil {
+	if err := db.reconcileSchema(applicationSchema); err != nil {
 		t.Fatal(err)
 	}
 	row, err := db.GetBatchQueue("legacy")
