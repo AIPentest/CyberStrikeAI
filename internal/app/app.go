@@ -1027,6 +1027,7 @@ func setupRoutes(
 		// Eino ADK 单代理（ChatModelAgent + Runner；不依赖 multi_agent.enabled）
 		protected.POST("/eino-agent", agentHandler.EinoSingleAgentLoop)
 		protected.POST("/eino-agent/stream", agentHandler.EinoSingleAgentLoopStream)
+		protected.GET("/conversations/:id/learning", agentHandler.ListConversationLearning)
 		protected.GET("/hitl/pending", agentHandler.ListHITLPending)
 		protected.GET("/hitl/logs", agentHandler.ListHITLLogs)
 		protected.DELETE("/hitl/logs", agentHandler.DeleteHITLLogs)

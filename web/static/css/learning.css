@@ -1,0 +1,10 @@
+.learning-dialog { width: min(800px, calc(100vw - 32px)); max-height: 85vh; padding: 24px; border: 1px solid var(--border-color, #ddd); border-radius: 16px; background: var(--bg-primary, #fff); color: var(--text-primary, #222); }
+.learning-dialog::backdrop { background: rgba(0, 0, 0, .45); }
+.learning-dialog-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.learning-dialog-header h2 { margin: 0; }
+.learning-hint { color: var(--text-secondary, #666); font-size: 13px; line-height: 1.6; }
+.learning-card { border-top: 1px solid var(--border-color, #ddd); padding: 16px 0; overflow-wrap: anywhere; }
+.learning-card h3, .learning-card h4 { margin: 0 0 8px; }
+.learning-skill { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; padding: 12px; background: var(--bg-secondary, #f5f5f5); border-radius: 8px; }
+.learning-evidence { font-size: 12px; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .learning-dialog { padding: 16px; } }

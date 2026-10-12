@@ -21,6 +21,7 @@ import (
 	"cyberstrike-ai/internal/authctx"
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/database"
+	"cyberstrike-ai/internal/learning"
 	"cyberstrike-ai/internal/mcp/builtin"
 	"cyberstrike-ai/internal/multiagent"
 	"cyberstrike-ai/internal/openai"
@@ -182,6 +183,7 @@ func discardPlanningIfEchoesToolResult(respPlan *responsePlanAgg, toolData inter
 
 // AgentHandler Agent处理器
 type AgentHandler struct {
+	learning         *learning.Service
 	agent            *agent.Agent
 	db               *database.DB
 	logger           *zap.Logger
@@ -297,6 +299,7 @@ func NewAgentHandler(agent *agent.Agent, db *database.DB, cfg *config.Config, lo
 		auditLLM:         openai.NewClient(llmCfg, llmHTTP, logger),
 	}
 	tm.SetToolCanceler(handler.cancelRunningMCPToolsForConversation)
+	handler.initializeLearning()
 	if err := handler.hitlManager.EnsureSchema(); err != nil {
 		logger.Warn("初始化 HITL 表失败", zap.Error(err))
 	}

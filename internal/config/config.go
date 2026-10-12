@@ -52,6 +52,7 @@ type Config struct {
 	Project     ProjectConfig         `yaml:"project,omitempty" json:"project,omitempty"`
 	Vision      VisionConfig          `yaml:"vision,omitempty" json:"vision,omitempty"`
 	Update      UpdateConfig          `yaml:"update,omitempty" json:"update,omitempty"`
+	Learning    LearningConfig        `yaml:"learning,omitempty" json:"learning,omitempty"`
 }
 
 // UpdateConfig 一键更新的更新源（可选）：一个仓库地址，更新跟随该仓库的默认分支。

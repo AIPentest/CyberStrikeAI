@@ -5119,5 +5119,25 @@
     "promptRequired": "请输入复测提示词。",
     "navigationChanged": "已切换到其他对话，请返回复测分支继续发送。",
     "branchCreated": "复测分支已创建，请在该分支继续验证。"
+  },
+  "learning": {
+    "title": "经验草稿",
+    "close": "关闭",
+    "loading": "加载中…",
+    "draftHint": "任务经验仅保存为草稿，未经验证，不会自动用于后续任务。",
+    "disabled": "自动提炼尚未开启；启用后，新任务结束时会生成经验候选。",
+    "empty": "当前会话还没有经验记录。",
+    "unknownOutcome": "任务效果待验证",
+    "evidence": "来源证据 ID",
+    "refresh": "刷新",
+    "loadFailed": "加载失败或无权查看来源项目。",
+    "status": {
+      "waiting": "等待任务结束",
+      "queued": "等待提炼",
+      "processing": "正在提炼",
+      "drafted": "待审核草稿",
+      "skipped": "已跳过",
+      "failed": "提炼失败"
+    }
   }
 }

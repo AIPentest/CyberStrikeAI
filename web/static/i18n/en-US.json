@@ -5131,5 +5131,25 @@
     "promptRequired": "Enter a retest prompt.",
     "navigationChanged": "You switched conversations. Return to the retest branch to send the prompt.",
     "branchCreated": "The retest branch was created. Continue verification in that branch."
+  },
+  "learning": {
+    "title": "Experience drafts",
+    "close": "Close",
+    "loading": "Loading…",
+    "draftHint": "Experiences are unverified drafts and are not automatically used in later tasks.",
+    "disabled": "Automatic extraction is disabled. Once enabled, new runs can produce drafts.",
+    "empty": "No experience records for this conversation yet.",
+    "unknownOutcome": "Task outcome not verified",
+    "evidence": "Source evidence IDs",
+    "refresh": "Refresh",
+    "loadFailed": "Could not load drafts or access the source project.",
+    "status": {
+      "waiting": "Waiting for task",
+      "queued": "Queued",
+      "processing": "Extracting",
+      "drafted": "Draft for review",
+      "skipped": "Skipped",
+      "failed": "Extraction failed"
+    }
   }
 }

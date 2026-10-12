@@ -42,6 +42,7 @@
     <link rel="stylesheet" href="/static/css/style.css?v=20261016-context-memory-token-analytics">
     <link rel="stylesheet" href="/static/css/tool-guard.css?v=20260907-7">
     <link rel="stylesheet" href="/static/css/chat-plan-progress.css?v=20260813-4">
+    <link rel="stylesheet" href="/static/css/learning.css?v=20261012-1">
     <link rel="stylesheet" href="/static/css/c2.css">
     <link rel="stylesheet" href="/static/vendor/xterm.css">
     <!-- 移动端样式层：全部规则限定在 767.98px 以下，桌面端零影响 -->
@@ -1121,6 +1122,9 @@
                                             <path d="M10.5 13.5l3-3M8 8H5a4 4 0 1 0 0 8h3m8-8h3a4 4 0 0 1 0 8h-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                         </svg>
                                         <span data-i18n="chat.attackChain">攻击链</span>
+                                    </button>
+                                    <button type="button" class="attack-chain-btn" onclick="openLearningDrafts()" data-require-permission="chat:read">
+                                        <span data-i18n="learning.title">经验草稿</span>
                                     </button>
                                 </div>
                             </div>
@@ -7041,6 +7045,7 @@
     <script src="/static/js/terminal.js"></script>
     <script src="/static/js/knowledge.js"></script>
     <script src="/static/js/skills.js"></script>
+    <script src="/static/js/learning.js?v=20261012-1"></script>
     <script src="/static/js/fact-graph.js"></script>
     <script src="/static/js/projects.js?v=20260819-1"></script>
     <script src="/static/js/vulnerability.js?v=20261010-retest-2"></script>

@@ -323,6 +323,9 @@ type CompletedTask struct {
 
 // AgentTaskManager 管理正在运行的Agent任务
 type AgentTaskManager struct {
+	// Hooks perform only bounded persistence; never run a learning model here.
+	onRunStarted     func(*AgentTask)
+	onRunFinished    func(string, string)
 	mu               sync.RWMutex
 	tasks            map[string]*AgentTask
 	completedTasks   []*CompletedTask // 最近完成的任务历史
@@ -467,7 +470,17 @@ func (m *AgentTaskManager) StartTask(conversationID, message string, cancel cont
 
 	m.tasks[conversationID] = task
 	task.hitlCognition = &hitlCognitionState{UserMessage: strings.TrimSpace(message)}
+	if m.onRunStarted != nil {
+		m.onRunStarted(task)
+	}
 	return task, nil
+}
+
+// SetRunPersistenceHooks is wired before requests are accepted.
+func (m *AgentTaskManager) SetRunPersistenceHooks(start func(*AgentTask), finish func(string, string)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.onRunStarted, m.onRunFinished = start, finish
 }
 
 // CancelTask 取消指定会话的任务。若任务已在取消中，仍返回 (true, nil) 以便接口幂等、前端不报错。
@@ -650,6 +663,7 @@ func (m *AgentTaskManager) FinishTaskRun(conversationID, runID, finalStatus stri
 	activeCancel := task.activeEinoExecuteCancel
 	cancel := task.cancel
 	bus := m.eventBus
+	finishHook := m.onRunFinished
 	m.mu.Unlock()
 
 	// Keep the conversation occupied throughout cleanup, including callbacks.
@@ -681,6 +695,11 @@ func (m *AgentTaskManager) FinishTaskRun(conversationID, runID, finalStatus stri
 	cleanupMessage := ""
 	if cleanupErr != nil {
 		cleanupMessage = cleanupErr.Error()
+	}
+	// Persist the finalized slice while this conversation is still occupied.
+	// Failed cleanup remains waiting until cleanup retries or crash recovery.
+	if (cleanupErr == nil || unconfirmed) && finishHook != nil {
+		finishHook(runID, finalStatus)
 	}
 	if (cleanupErr == nil || unconfirmed) && bus != nil {
 		// Subscribers must receive completion only after local processes are reaped.

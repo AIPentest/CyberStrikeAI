@@ -1,5 +1,35 @@
 -- Latest SQLite structure. Update these definitions when adding tables or columns.
 
+-- Draft-only post-task learning. Sources disappearing revoke the derived draft.
+CREATE TABLE learning_jobs (
+    id TEXT PRIMARY KEY,
+    extractor_version TEXT NOT NULL,
+    conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    anchor_message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+    owner_user_id TEXT NOT NULL,
+    start_rowid INTEGER NOT NULL,
+    end_rowid INTEGER NOT NULL DEFAULT 0,
+    run_status TEXT NOT NULL DEFAULT 'running',
+    outcome TEXT NOT NULL DEFAULT 'unknown',
+    status TEXT NOT NULL DEFAULT 'waiting',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    lease_token TEXT NOT NULL DEFAULT '',
+    lease_until INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at INTEGER NOT NULL DEFAULT 0,
+    started_day TEXT NOT NULL DEFAULT '',
+    candidate_json TEXT NOT NULL DEFAULT '',
+    content_hash TEXT NOT NULL DEFAULT '',
+    reason TEXT NOT NULL DEFAULT '',
+    prompt_tokens INTEGER NOT NULL DEFAULT 0,
+    completion_tokens INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(id, extractor_version)
+);
+CREATE INDEX idx_learning_jobs_queue ON learning_jobs(status, next_attempt_at, lease_until);
+CREATE INDEX idx_learning_jobs_conversation ON learning_jobs(conversation_id, created_at);
+
 CREATE TABLE assets (
     id TEXT PRIMARY KEY,
     dedup_key TEXT NOT NULL UNIQUE,

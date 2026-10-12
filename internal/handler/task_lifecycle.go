@@ -18,6 +18,9 @@ func (h *AgentHandler) ShutdownTasks() {
 			}
 		}
 	}
+	if h != nil && h.learning != nil {
+		h.learning.Stop()
+	}
 }
 
 // taskFinishingEventSender makes the visible done event follow local cleanup.
