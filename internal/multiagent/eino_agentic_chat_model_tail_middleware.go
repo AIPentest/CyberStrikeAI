@@ -10,19 +10,20 @@ import (
 )
 
 // appendEinoAgenticChatModelTailMiddlewares appends protocol-neutral handlers for
-// TypedChatModelAgent[*schema.AgenticMessage]. Classic ReAct history repair
-// handlers stay on the schema.Message path because AgenticMessage has native
-// content blocks for function calls/results.
+// TypedChatModelAgent[*schema.AgenticMessage]. History repair operates
+// directly on native function-call/result blocks without converting protocols.
 func appendEinoAgenticChatModelTailMiddlewares(
 	handlers []adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage],
 	cfg einoChatModelTailConfig,
 ) []adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage] {
 	handlers = append(handlers, newAgenticSystemMessageNormalizerMiddleware(cfg.logger, cfg.phase))
 	handlers = append(handlers, newAgenticContinuationUserDedupMiddleware(cfg.logger, cfg.phase))
+	handlers = append(handlers, newAgenticToolCallArgumentsSanitizerMiddleware(cfg.logger, cfg.phase+"_pre_summarization"))
 	if cfg.agenticSummarization != nil {
 		handlers = append(handlers, newAgenticToolPairReconcilerMiddleware(cfg.logger, cfg.phase+"_pre_summarization"))
 		handlers = append(handlers, cfg.agenticSummarization)
 	}
+	handlers = append(handlers, newAgenticToolCallArgumentsSanitizerMiddleware(cfg.logger, cfg.phase))
 	handlers = append(handlers, newAgenticToolPairReconcilerMiddleware(cfg.logger, cfg.phase))
 	if !cfg.skipOrphanPruner {
 		handlers = append(handlers, newAgenticOrphanToolPrunerMiddleware(cfg.logger, cfg.phase))
