@@ -8,7 +8,6 @@ import (
 
 	"cyberstrike-ai/internal/config"
 
-	agenticclaude "github.com/cloudwego/eino-ext/components/model/agenticclaude"
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
@@ -354,8 +353,8 @@ func TestNewEinoAgenticChatModelFactoryBuildsNativeClaudeBackend(t *testing.T) {
 	if m == nil {
 		t.Fatal("claude agentic factory returned nil model")
 	}
-	if _, ok := m.(*agenticclaude.Model); !ok {
-		t.Fatalf("claude agentic factory returned %T, want native agenticclaude.Model", m)
+	if _, ok := m.(*agenticStreamBlockIndexRepairModel); !ok {
+		t.Fatalf("claude agentic factory returned %T, want block-index-repair wrapper around native agenticclaude.Model", m)
 	}
 	gate := evaluateEinoAgenticModelGate(agenticModelGateFactory(factory, config.OpenAIConfig{
 		Provider: "claude",
