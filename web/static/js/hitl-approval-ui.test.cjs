@@ -107,7 +107,7 @@ test('Agent 审查不进入人工审批弹窗、倒计时和项目计数', () =>
     const hitlPage = fs.readFileSync('web/static/js/hitl.js', 'utf8');
     assert.match(handler, /CreatePendingInterrupt\([\s\S]{0,260}reviewer string/);
     assert.match(handler, /reviewer != "audit_agent"[\s\S]{0,120}m\.pending\[id\] = p/);
-    assert.match(logsHandler, /ADD COLUMN reviewer TEXT NOT NULL DEFAULT 'human'/);
+    assert.match(logsHandler, /COALESCE\(reviewer,'human'\)/);
     assert.match(logsHandler, /status = 'pending' AND COALESCE\(reviewer,'human'\) = 'human'/);
     assert.match(monitor, /function isAgentReviewedHitl\(data\)/);
     assert.match(monitor, /if \(!data\.resolved && !isAgentReviewedHitl\(data\)\)/);

@@ -721,7 +721,26 @@ function formatMarkdown(text, options) {
     return escapeHtml(raw).replace(/\n/g, '<br>');
 }
 
+async function setupOIDCLoginUI() {
+    try {
+        const response = await fetch('/api/auth/oidc/config', {credentials: 'same-origin'});
+        if (!response.ok) return;
+        const oidcConfig = await response.json();
+        if (!oidcConfig.enabled) return;
+        const form = document.getElementById('login-form');
+        if (!form || document.getElementById('oidc-login-button')) return;
+        const button = document.createElement('button');
+        button.id = 'oidc-login-button';
+        button.type = 'button';
+        button.textContent = (typeof oidcConfig.login_label === 'string' && oidcConfig.login_label.trim())
+            ? oidcConfig.login_label.trim() : 'Sign in with SSO';
+        button.className = 'login-oidc-button';
+        button.addEventListener('click', () => { window.location.href = '/api/auth/oidc/login'; });
+        form.appendChild(button);
+    } catch (error) { console.warn('OIDC config unavailable', error); }
+}
 function setupLoginUI() {
+    setupOIDCLoginUI();
     installPermissionClickGuard();
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
@@ -757,6 +776,21 @@ async function initializeApp() {
         }
     }
 
+    // OIDC callback supplies a secure HttpOnly cookie, validated by the server.
+    try {
+        const response = await fetch('/api/auth/validate', {credentials: 'same-origin'});
+        if (response.ok) {
+            const result = await response.json();
+            if (result.token) {
+                saveAuth(result.token, result.expires_at, result);
+                hideLoginOverlay();
+                applyRBACToUI();
+                resolveAuthPromises(true);
+                await bootstrapApp();
+                return;
+            }
+        }
+    } catch (error) { console.warn('OIDC session validation failed', error); }
     clearAuthStorage();
     showLoginOverlay();
 }
