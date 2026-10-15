@@ -1,0 +1,25 @@
+/* OIDC is an alternative sign-in method, visually secondary to local login. */
+.login-form .login-oidc-button {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 11px 16px;
+    border: 1px solid var(--border-color, #cbd5e1);
+    border-radius: 10px;
+    background: var(--card-bg, transparent);
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color .2s ease, border-color .2s ease;
+}
+.login-form .login-oidc-button:hover {
+    background: var(--bg-secondary, rgba(148, 163, 184, .12));
+    border-color: var(--text-secondary, #94a3b8);
+}
+.login-form .login-oidc-button:focus-visible {
+    outline: 2px solid var(--primary-color, #2563eb);
+    outline-offset: 2px;
+}

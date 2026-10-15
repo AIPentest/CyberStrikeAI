@@ -33,6 +33,22 @@ server:
 # 认证配置
 auth:
   session_duration_hours: 12 # 登录有效期（小时），超时后需重新登录
+  # 可选的 OIDC SSO，默认关闭；HTTPS 反向代理下使用
+  # oidc:
+  #   enabled: true
+  #   allow_http: false # 仅隔离测试环境使用 HTTP
+  #   # Keycloak: https://keycloak.example.com/realms/security
+  #   # Dex:      https://dex.example.com/dex
+  #   issuer: https://keycloak.example.com/realms/security
+  #   # 可选：仅当 Provider 发现地址不符合 <issuer>/.well-known/openid-configuration 时填写
+  #   # discovery_url: https://sso.example.com/custom/.well-known/openid-configuration
+  #   client_id: cyberstrike
+  #   login_label: Sign in with Keycloak # 也可自定义为中文
+  #   # 推荐通过 CYBERSTRIKE_OIDC_CLIENT_SECRET 环境变量注入 client_secret
+  #   redirect_uri: https://cyberstrike.example.com/api/auth/oidc/callback
+  #   claims:
+  #     username: preferred_username
+  #     display_name: name
 # 日志配置
 log:
   level: info # 日志级别: debug(调试), info(信息), warn(警告), error(错误)

@@ -1,8 +1,11 @@
 package security
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -304,4 +307,62 @@ func allPermissions() map[string]bool {
 		out[key] = true
 	}
 	return out
+}
+
+// AuthenticateOIDC resolves a provisioned external account and issues an existing local session.
+// A stable issuer+subject fingerprint is stored in the existing password_hash column.
+// Local accounts and built-in admin can never be linked by username alone.
+func (a *AuthManager) AuthenticateOIDC(username, displayName, issuer, subject string) (string, time.Time, error) {
+	username = strings.TrimSpace(strings.ToLower(username))
+	if username == "" || len(username) > 64 || username == "admin" || strings.ContainsAny(username, "\x00\r\n") || issuer == "" || subject == "" {
+		return "", time.Time{}, errors.New("invalid OIDC identity")
+	}
+	fingerprint := sha256.Sum256([]byte(issuer + "\x00" + subject))
+	marker := "!oidc:" + hex.EncodeToString(fingerprint[:])
+	a.mu.RLock()
+	db := a.db
+	a.mu.RUnlock()
+	if db == nil {
+		return "", time.Time{}, errors.New("RBAC store unavailable")
+	}
+	user, err := db.GetRBACUserByUsername(username)
+	if err == sql.ErrNoRows {
+		user, err = db.CreateRBACUser(username, displayName, marker, true, []string{database.RBACSystemRoleViewer})
+		if err != nil {
+			user, err = db.GetRBACUserByUsername(username)
+			if err != nil {
+				return "", time.Time{}, err
+			}
+		}
+	} else if err != nil {
+		return "", time.Time{}, err
+	}
+	if !user.Enabled || user.IsBuiltin || user.PasswordHash != marker {
+		return "", time.Time{}, fmt.Errorf("OIDC identity conflicts with existing user")
+	}
+	if strings.TrimSpace(displayName) != "" && user.DisplayName != displayName {
+		if err = db.UpdateRBACUser(user.ID, displayName, nil, nil); err != nil {
+			return "", time.Time{}, err
+		}
+		user.DisplayName = displayName
+	}
+	for {
+		a.mu.RLock()
+		version := a.accessVersion
+		a.mu.RUnlock()
+		access, err := db.ResolveRBACAccess(user.ID)
+		if err != nil {
+			return "", time.Time{}, err
+		}
+		roles := make([]string, 0, len(access.Roles))
+		for _, role := range access.Roles {
+			roles = append(roles, role.ID)
+		}
+		token := uuid.NewString()
+		expiry := time.Now().Add(a.sessionDuration)
+		session := Session{Token: token, ExpiresAt: expiry, UserID: user.ID, Username: user.Username, DisplayName: user.DisplayName, Roles: roles, Permissions: access.Permissions, PermissionScopes: access.PermissionScopes, Scope: access.Scope}
+		if a.publishSession(session, version) {
+			return token, expiry, nil
+		}
+	}
 }

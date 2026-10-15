@@ -1361,7 +1361,37 @@ func normalizeHitlModeForPrompt(mode string) string {
 }
 
 type AuthConfig struct {
-	SessionDurationHours int `yaml:"session_duration_hours" json:"session_duration_hours"`
+	SessionDurationHours int        `yaml:"session_duration_hours" json:"session_duration_hours"`
+	OIDC                 OIDCConfig `yaml:"oidc,omitempty" json:"oidc,omitempty"`
+}
+type OIDCConfig struct {
+	Enabled      bool             `yaml:"enabled" json:"enabled"`
+	AllowHTTP    bool             `yaml:"allow_http" json:"allow_http"`
+	Issuer       string           `yaml:"issuer" json:"issuer"`
+	DiscoveryURL string           `yaml:"discovery_url" json:"discovery_url"`
+	ClientID     string           `yaml:"client_id" json:"client_id"`
+	ClientSecret string           `yaml:"client_secret" json:"-"`
+	RedirectURI  string           `yaml:"redirect_uri" json:"redirect_uri"`
+	LoginLabel   string           `yaml:"login_label" json:"login_label"`
+	Claims       OIDCClaimsConfig `yaml:"claims" json:"claims"`
+}
+
+type OIDCClaimsConfig struct {
+	Username    string `yaml:"username" json:"username"`
+	DisplayName string `yaml:"display_name" json:"display_name"`
+}
+
+func (c OIDCConfig) UsernameClaim() string {
+	if c.Claims.Username != "" {
+		return c.Claims.Username
+	}
+	return "preferred_username"
+}
+func (c OIDCConfig) DisplayNameClaim() string {
+	if c.Claims.DisplayName != "" {
+		return c.Claims.DisplayName
+	}
+	return "name"
 }
 
 // MonitorConfig MCP 状态监控（tool_executions）保留策略。

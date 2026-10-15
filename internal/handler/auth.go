@@ -121,6 +121,8 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	h.manager.RevokeToken(token)
+	// Remove the OIDC login cookie alongside the revoked server-side session.
+	http.SetCookie(c.Writer, &http.Cookie{Name: "auth_token", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 	if h.audit != nil {
 		h.audit.Record(c, audit.Entry{
 			Category: "auth",

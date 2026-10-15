@@ -444,6 +444,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	notificationHandler := handler.NewNotificationHandler(db, agentHandler, log.Logger)
 	authHandler := handler.NewAuthHandler(authManager, cfg, configPath, log.Logger)
 	authHandler.SetAudit(auditSvc)
+	oidcHandler := handler.NewOIDCHandler(cfg.Auth.OIDC, authManager)
 	attackChainHandler := handler.NewAttackChainHandler(db, &cfg.OpenAI, log.Logger)
 	vulnerabilityHandler := handler.NewVulnerabilityHandler(db, log.Logger)
 	vulnerabilityHandler.SetTaskStateProvider(agentHandler)
@@ -624,6 +625,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	setupRoutes(
 		router,
 		authHandler,
+		oidcHandler,
 		agentHandler,
 		monitorHandler,
 		notificationHandler,
@@ -930,6 +932,7 @@ func (a *App) RestartRobotConnections() {
 func setupRoutes(
 	router *gin.Engine,
 	authHandler *handler.AuthHandler,
+	oidcHandler *handler.OIDCHandler,
 	agentHandler *handler.AgentHandler,
 	monitorHandler *handler.MonitorHandler,
 	notificationHandler *handler.NotificationHandler,
@@ -968,6 +971,9 @@ func setupRoutes(
 	loginRL := security.NewRateLimiter(10, 1*time.Minute)
 	{
 		authRoutes.POST("/login", security.RateLimitMiddleware(loginRL), authHandler.Login)
+		authRoutes.GET("/oidc/config", oidcHandler.Config)
+		authRoutes.GET("/oidc/login", security.RateLimitMiddleware(loginRL), oidcHandler.Login)
+		authRoutes.GET("/oidc/callback", security.RateLimitMiddleware(loginRL), oidcHandler.Callback)
 		authRoutes.POST("/logout", security.AuthMiddleware(authManager), authHandler.Logout)
 		authRoutes.POST("/change-password", security.AuthMiddleware(authManager), security.RequirePermission("auth:self"), authHandler.ChangePassword)
 		authRoutes.GET("/validate", security.AuthMiddleware(authManager), authHandler.Validate)
