@@ -1,9 +1,11 @@
 package database
 
 import (
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -83,6 +85,39 @@ func TestFofaAssetIgnoresInvalidOptionalStructuredFields(t *testing.T) {
 	}
 	if asset.Domain != "" || asset.IP != "203.0.113.59" {
 		t.Fatalf("FOFA structured fields were not sanitized: %#v", asset)
+	}
+}
+
+func TestUpsertAssetsConcurrentDoesNotReturnLocked(t *testing.T) {
+	db, err := NewDB(filepath.Join(t.TempDir(), "assets-concurrent.db"), zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	const n = 32
+	errCh := make(chan error, n)
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		i := i
+		go func() {
+			defer wg.Done()
+			asset := &Asset{Host: fmt.Sprintf("h%d.example.com", i), Port: 443, Protocol: "https", Title: fmt.Sprintf("t%d", i)}
+			_, err := db.UpsertAssets([]*Asset{asset}, "user-a")
+			errCh <- err
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			t.Fatalf("concurrent upsert: %v", err)
+		}
+	}
+	_, total, err := db.ListAssets(100, 0, AssetListFilter{}, RBACListAccess{Scope: RBACScopeAll})
+	if err != nil || total != n {
+		t.Fatalf("want %d assets, got total=%d err=%v", n, total, err)
 	}
 }
 
