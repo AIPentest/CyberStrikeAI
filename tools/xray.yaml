@@ -1,0 +1,52 @@
+name: "xray"
+# 请在此处配置xray路径
+command: "/opt/xray/xray/xray_linux_amd64"
+enabled: true
+short_description: "长亭 Xray Web 漏洞扫描器 (主动扫描/JSON输出)"
+description: |
+  长亭科技 Xray 高级漏洞扫描器，专注于 Web 安全检测。
+  本配置用于执行**主动扫描模式 (webscan)**，对指定目标进行深度漏洞探测。
+
+  **主要功能：**
+  - **多漏洞检测**：支持 SQL 注入、XSS、命令注入、路径遍历、弱口令等常见 Web 漏洞。
+  - **灵活配置**：支持加载自定义配置文件，调整扫描策略、插件启用状态及并发设置。
+  - **结构化输出**：支持生成 JSON 格式报告，便于集成到自动化流程或 SIEM 系统。
+  - **插件化架构**：可按需启用或禁用特定检测插件，提高扫描效率。
+
+  **典型命令结构：**
+  - **/opt/xray/xray/xray_linux_amd64 webscan --config <配置文件> --url <目标URL> --json-output <结果文件> 
+
+parameters:
+  - name: "config"
+    type: "string"
+    description: "配置config文件，请在此处配置xray配置文件路径,注意默认配置不可为空"
+    required: false
+    flag: "--config"
+    format: "flag"
+    default: "/config.yaml"
+  - name: "ws"
+    type: "string"
+    description: "主动扫描"
+    required: false
+    flag: "ws"
+    format: "flag"
+    default: "1"
+  - name: "target"
+    type: "string"
+    description: "目标 URL (例如: http://172.16.0.63:8080)"
+    required: true
+    flag: "--url"
+    format: "flag"
+  - name: "json_output"
+    type: "string"
+    description: "JSON 格式结果输出文件路径 (例如: result.json)"
+    required: false
+    flag: "--json-output"
+    format: "flag"
+  - name: "plugins"
+    type: "string"
+    description: "指定启用的插件"
+    required: false
+    flag: "--plugins"
+    format: "flag"
+    default: ""
