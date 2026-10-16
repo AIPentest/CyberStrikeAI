@@ -147,6 +147,22 @@ multi_agent:
 
 `agents_dir` 指向 Markdown 子代理目录。单个代理可在 front matter 中设置 `tools`、`bind_role`、`max_iterations`。
 
+## 任务经验草稿
+
+```yaml
+learning:
+  enabled: false
+  max_jobs_per_day: 20
+  timeout_seconds: 60
+  max_input_runes: 12000
+```
+
+- `enabled`：实验性功能，默认关闭。开启后任务结束时在后台提炼经验草稿，只落草稿，不自动启用任何 Skill；修改后需重启。
+- `max_jobs_per_day`：UTC 自然日内的草稿作业上限，默认 20，上限 200。
+- `timeout_seconds`：单次模型提炼超时，默认 60 秒，上限 120 秒。
+- `max_input_runes`：证据正文总字符预算，默认 12000，上限 32000，单条最多 2000 字符。
+- 三项数值省略或填 0 时取默认值，超过上限按上限截断。后台单并发执行，同一作业失败最多重试 3 次后放弃。
+
 ## 工具与 MCP
 
 ```yaml
