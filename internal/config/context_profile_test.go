@@ -290,6 +290,28 @@ func TestEffectiveEinoMiddlewareForChannelAutoUnchanged(t *testing.T) {
 	}
 }
 
+func TestWithEffectiveContextBudgetIsIdempotent(t *testing.T) {
+	t.Parallel()
+	cfg := &Config{
+		OpenAI: OpenAIConfig{ContextWindow: 131072, ContextProfile: "local", MaxTotalTokens: 120000},
+		MultiAgent: MultiAgentConfig{
+			EinoMiddleware: MultiAgentEinoMiddlewareConfig{
+				SummarizationTriggerRatio:        0.9,
+				SummarizationOutputReserveTokens: 40960,
+				ToolSearchAlwaysVisibleTools:     []string{"read_file", "webshell_exec"},
+			},
+		},
+	}
+	once := cfg.WithEffectiveContextBudget()
+	twice := once.WithEffectiveContextBudget()
+	if !reflect.DeepEqual(once.OpenAI, twice.OpenAI) {
+		t.Fatalf("OpenAI not idempotent: %#v vs %#v", once.OpenAI, twice.OpenAI)
+	}
+	if !reflect.DeepEqual(once.MultiAgent.EinoMiddleware, twice.MultiAgent.EinoMiddleware) {
+		t.Fatalf("middleware not idempotent: %#v vs %#v", once.MultiAgent.EinoMiddleware, twice.MultiAgent.EinoMiddleware)
+	}
+}
+
 func TestWithEffectiveContextBudgetDoesNotMutateSource(t *testing.T) {
 	t.Parallel()
 	cfg := &Config{
