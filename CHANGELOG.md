@@ -4,6 +4,9 @@
 
 ### Added
 
+- 本地大模型上下文优化：AI 通道新增 `context_window` 与 `context_profile: local`，支持从 Ollama / llama.cpp / LM Studio / vLLM 自动探测运行时窗口，按窗口收紧压缩预算与工具输出阈值，并让内置工具进入 `tool_search` 动态池；local 档位自动改用 `max_tokens` 兼容本地端点。
+- 本地上下文增强：检测结果展示按档位折算后的有效预算，探测支持反向代理子路径；local 档位为 token 估算保留 10% 余量，补充 llama.cpp / LM Studio / vLLM 的超窗报错识别并触发激进压缩重试；攻击链、FOFA、工作流、HITL 等旁路调用同样按档位切换输出字段，并合并通道级 `reasoning.extra_request_fields`。
+
 - 启动时以统一最新 SQLite 定义自动检查全部项目管理表，缺表建表、缺字段补字段，无需维护逐字段迁移列表；保留已有数据和额外表/字段，结构补齐失败回滚并阻止启动。HITL 与通知表纳入统一初始化，历史漏洞外键迁移保留额外列、索引、触发器及依赖记录。
 
 ### Fixed

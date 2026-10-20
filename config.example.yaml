@@ -108,6 +108,8 @@ ai:
       model: qwen3-max
       max_total_tokens: 120000
       max_completion_tokens: 32768
+      context_window: 262144 # 模型原生上下文窗口（token）；0/省略=未知。检测到窗口后，预算会被自动收紧
+      context_profile: auto # auto=通用；local=本地模型档位（32K-256K），会收紧压缩/工具输出/常驻工具，token 估算留 10% 保守余量
       # Eino 路径模型推理：DeepSeek/OpenAI 为 thinking / reasoning_effort；Claude 4.6+ 为 adaptive + output_config.effort（仅显式配置 effort 时下发）；3.7 为 enabled+budget_tokens:10000（文档示例），effort 不映射，自定义预算用 extra_request_fields
       reasoning:
         mode: on # auto | on | off；off：OpenAI/Claude 不附加推理字段，DeepSeek 发送 thinking.type=disabled（其默认开启思考）
@@ -123,6 +125,24 @@ ai:
     #   model: qwen-plus
     #   max_total_tokens: 120000
     #   max_completion_tokens: 32768
+    # 本地模型示例（Ollama / llama.cpp / vLLM / LM Studio 均走 OpenAI 兼容端点）
+    # local-qwen:
+    #   name: Local Qwen
+    #   provider: openai_compatible
+    #   base_url: http://127.0.0.1:11434/v1
+    #   api_key: ollama
+    #   model: qwen3.5:9b
+    #   max_total_tokens: 65536 # 运行时会再被 context_window * 60% 收紧
+    #   max_completion_tokens: 8192
+    #   context_window: 131072 # 建议用页面「自动检测」填入实际 runtime 窗口
+    #   context_profile: local
+    #   # Ollama 的 /v1 接口忽略 num_ctx：请同时设置 OLLAMA_CONTEXT_LENGTH=131072 或 Modelfile PARAMETER num_ctx；
+    #   # 否则 Ollama 会按显存使用 4K/32K/256K 默认值，并从开头截断系统提示词。
+    #   reasoning:
+    #     mode: off
+    #     extra_request_fields:
+    #       chat_template_kwargs:
+    #         enable_thinking: false # Qwen3.5 等思考模型在 agent 工具循环中建议关闭思考
 # 视觉分析（analyze_image MCP 工具；图片仅在单次 VL 调用中出现，Agent 上下文只保留文字摘要）
 vision:
   enabled: false # true 且 model 非空时注册 analyze_image
@@ -342,6 +362,7 @@ multi_agent:
     tool_search_min_tools: 20 # 达到该数量才启用 tool_search（避免工具很少时多此一举）；与 always_visible 配合使用
     tool_search_always_visible: 12 # 始终直接暴露给模型的工具个数（顺序与角色工具列表一致）；其余工具进入动态池，需 tool_search 解锁
     tool_search_always_visible_tools: [read_file, glob, grep, analyze_image, write_file, edit_file, execute, task, transfer_to_agent, exit, write_todos, skill, tool_search, TaskCreate, TaskGet, TaskUpdate, TaskList, record_vulnerability, list_vulnerabilities, get_vulnerability, get_tool_execution, wait_tool_execution, cancel_tool_execution, list_knowledge_risk_types, search_knowledge_base, webshell_exec, webshell_file_list, webshell_file_read, webshell_file_write, manage_webshell_list, manage_webshell_add, manage_webshell_update, manage_webshell_delete, manage_webshell_test, batch_task_list, batch_task_get, batch_task_start, batch_task_rerun, batch_task_pause, batch_task_update_metadata, batch_task_update_schedule, batch_task_schedule_enabled, batch_task_update_task, batch_task_remove_task, batch_task_delete, batch_task_create, batch_task_add_task, http-framework-test, exec] # 后端内置常驻工具白名单（优先于 always_visible 数量策略）
+    tool_search_include_builtins: true # false：后端内置工具也进入 tool_search 动态池；context_profile=local 时自动为 false
     plantask_enable: true # P0：主代理挂载 TaskCreate/Get/Update/List 结构化任务板；需 eino_skills 可用且 skills_dir 存在
     plantask_rel_dir: .eino/plantask # 任务文件相对 skills_dir，按会话分子目录：skills/.eino/plantask/<conversationId>/
     reduction_enable: true # true：大工具输出截断并落盘到本地文件（tmp/reduction/.../trunc/<id>），上下文只留 <persisted-output> 预览；不依赖 eino_skills
