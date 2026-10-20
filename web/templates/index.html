@@ -3764,6 +3764,23 @@
                                                                 <input type="number" id="openai-max-completion-tokens" data-i18n="settingsBasic.maxCompletionTokensPlaceholder" data-i18n-attr="placeholder" placeholder="16384" min="1" step="256" />
                                                                 <small class="form-hint" data-i18n="settingsBasic.maxCompletionTokensHint">单次模型回复的输出上限，默认 16384</small>
                                                             </div>
+                                                            <div class="form-group">
+                                                                <label for="openai-context-window"><span data-i18n="settingsBasic.contextWindow">模型上下文窗口（Token）</span></label>
+                                                                <div class="model-pick-row">
+                                                                    <input type="number" id="openai-context-window" data-i18n="settingsBasic.contextWindowPlaceholder" data-i18n-attr="placeholder" placeholder="131072" min="0" step="1024" />
+                                                                    <a href="javascript:void(0)" id="detect-context-btn" class="model-pick-fetch-link" onclick="detectAIContext()" data-i18n="settingsBasic.detectContext">自动检测</a>
+                                                                </div>
+                                                                <small class="form-hint" data-i18n="settingsBasic.contextWindowHint">模型原生窗口；用于校验并收紧预算。本地模型请按服务端 num_ctx/ctx-size 填写。</small>
+                                                                <span id="detect-context-result" class="form-inline-result"></span>
+                                                            </div>
+                                                            <div class="form-group">
+                                                                <label for="openai-context-profile"><span data-i18n="settingsBasic.contextProfile">上下文优化档位</span></label>
+                                                                <select id="openai-context-profile">
+                                                                    <option value="auto" data-i18n="settingsBasic.contextProfileAuto">通用（默认）</option>
+                                                                    <option value="local" data-i18n="settingsBasic.contextProfileLocal">本地模型（32K-256K 优化）</option>
+                                                                </select>
+                                                                <small class="form-hint" data-i18n="settingsBasic.contextProfileHint">本地档位会收紧压缩触发、工具输出阈值和常驻工具数；只收紧不放大已有配置。</small>
+                                                            </div>
                                                         </div>
                                                     </section>
 
