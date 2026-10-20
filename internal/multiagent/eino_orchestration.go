@@ -128,6 +128,7 @@ func buildPlanExecuteAgenticExecutorHandlers(ctx context.Context, a *PlanExecute
 			agenticSummarization: sumMw,
 			modelName:            a.ModelName,
 			maxTotalTokens:       a.AppCfg.OpenAI.MaxTotalTokens,
+			tokenSafetyPercent:   a.AppCfg.OpenAI.TokenEstimateSafetyPercent(),
 			toolMaxBytes:         toolMaxBytesFromMW(a.MwCfg),
 			conversationID:       a.ConversationID,
 			trace:                a.ModelFacingTrace,

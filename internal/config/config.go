@@ -281,6 +281,8 @@ type MultiAgentEinoMiddlewareConfig struct {
 	ToolSearchAlwaysVisible int  `yaml:"tool_search_always_visible,omitempty" json:"tool_search_always_visible,omitempty"` // default 12; first N tools stay always visible
 	// ToolSearchAlwaysVisibleTools keeps specified tool names always visible (never hidden by tool_search).
 	ToolSearchAlwaysVisibleTools []string `yaml:"tool_search_always_visible_tools,omitempty" json:"tool_search_always_visible_tools,omitempty"`
+	// ToolSearchIncludeBuiltins keeps backend builtin tools always visible (nil = true).
+	ToolSearchIncludeBuiltins *bool `yaml:"tool_search_include_builtins,omitempty" json:"tool_search_include_builtins,omitempty"`
 	// Plantask adds TaskCreate/Get/Update/List (file-backed under skills dir); requires eino_skills + local backend.
 	PlantaskEnable bool `yaml:"plantask_enable,omitempty" json:"plantask_enable,omitempty"`
 	// PlantaskRelDir relative to skills_dir for per-conversation task boards (default .eino/plantask).
@@ -486,6 +488,11 @@ func (c MultiAgentEinoMiddlewareConfig) PatchToolCallsEffective() bool {
 		return *c.PatchToolCalls
 	}
 	return true
+}
+
+// ToolSearchIncludeBuiltinsEffective controls whether backend builtin tools bypass tool_search.
+func (c MultiAgentEinoMiddlewareConfig) ToolSearchIncludeBuiltinsEffective() bool {
+	return c.ToolSearchIncludeBuiltins == nil || *c.ToolSearchIncludeBuiltins
 }
 
 // MultiAgentSubConfig 子代理（Eino ChatModelAgent）：deep 下由 task 调度；supervisor 下由 transfer 委派；plan_execute 不使用子代理列表。
@@ -847,6 +854,10 @@ type OpenAIConfig struct {
 	Model               string `yaml:"model" json:"model"`
 	MaxTotalTokens      int    `yaml:"max_total_tokens,omitempty" json:"max_total_tokens,omitempty"`
 	MaxCompletionTokens int    `yaml:"max_completion_tokens,omitempty" json:"max_completion_tokens,omitempty"`
+	// ContextWindow 是模型原生上下文窗口（token）；0 表示未知。用于校验/压缩 max_total_tokens。
+	ContextWindow int `yaml:"context_window,omitempty" json:"context_window,omitempty"`
+	// ContextProfile 选择上下文预算档位：""/"auto" 通用；"local" 针对 32K-256K 本地模型收紧预算。
+	ContextProfile string `yaml:"context_profile,omitempty" json:"context_profile,omitempty"`
 	// Reasoning 控制 Eino ChatModel 的 thinking / reasoning_effort / output_config 等（Eino 单/多代理路径生效）。
 	Reasoning OpenAIReasoningConfig `yaml:"reasoning,omitempty" json:"reasoning,omitempty"`
 }
@@ -866,6 +877,8 @@ type AIChannelConfig struct {
 	Model               string                `yaml:"model" json:"model"`
 	MaxTotalTokens      int                   `yaml:"max_total_tokens,omitempty" json:"max_total_tokens,omitempty"`
 	MaxCompletionTokens int                   `yaml:"max_completion_tokens,omitempty" json:"max_completion_tokens,omitempty"`
+	ContextWindow       int                   `yaml:"context_window,omitempty" json:"context_window,omitempty"`
+	ContextProfile      string                `yaml:"context_profile,omitempty" json:"context_profile,omitempty"`
 	Reasoning           OpenAIReasoningConfig `yaml:"reasoning,omitempty" json:"reasoning,omitempty"`
 }
 
@@ -881,6 +894,8 @@ func (c AIChannelConfig) ToOpenAIConfig() OpenAIConfig {
 		Model:               c.Model,
 		MaxTotalTokens:      c.MaxTotalTokens,
 		MaxCompletionTokens: c.MaxCompletionTokens,
+		ContextWindow:       c.ContextWindow,
+		ContextProfile:      NormalizeContextProfile(c.ContextProfile),
 		Reasoning:           c.Reasoning,
 	}
 }
@@ -897,6 +912,8 @@ func AIChannelFromOpenAI(id, name string, oa OpenAIConfig) AIChannelConfig {
 		Model:               oa.Model,
 		MaxTotalTokens:      oa.MaxTotalTokens,
 		MaxCompletionTokens: oa.MaxCompletionTokens,
+		ContextWindow:       oa.ContextWindow,
+		ContextProfile:      oa.ContextProfile,
 		Reasoning:           oa.Reasoning,
 	}
 }
@@ -978,10 +995,14 @@ func (c *Config) ApplyDefaultAIChannel() {
 }
 
 func (c OpenAIConfig) MaxCompletionTokensEffective() int {
-	if c.MaxCompletionTokens > 0 {
-		return c.MaxCompletionTokens
+	out := c.MaxCompletionTokens
+	if out <= 0 {
+		out = DefaultMaxCompletionTokens
 	}
-	return DefaultMaxCompletionTokens
+	if c.ContextWindow > 0 && out > c.ContextWindow/2 {
+		out = c.ContextWindow / 2
+	}
+	return out
 }
 
 // IsDeepSeekEndpointOrModel reports whether the channel targets DeepSeek's
@@ -1060,6 +1081,20 @@ func (c OpenAIReasoningConfig) ModeEffective() string {
 		return "auto"
 	}
 	return m
+}
+
+// ApplyExtraRequestFields merges admin-provided root JSON fields into a
+// Chat Completions payload. Existing fields win, matching the Eino path.
+func ApplyExtraRequestFields(payload map[string]interface{}, fields map[string]interface{}) {
+	if payload == nil || len(fields) == 0 {
+		return
+	}
+	for key, value := range fields {
+		if _, exists := payload[key]; exists {
+			continue
+		}
+		payload[key] = value
+	}
 }
 
 // ProfileEffective returns auto when empty.
@@ -1666,6 +1701,11 @@ func Load(path string) (*Config, error) {
 	if err := validateOpenAIOutputLimits(cfg.OpenAI); err != nil {
 		return nil, err
 	}
+	for id, ch := range cfg.AI.Channels {
+		if err := ValidateContextSettings("ai.channels."+id, ch.ContextWindow, ch.ContextProfile); err != nil {
+			return nil, err
+		}
+	}
 	// 如果配置了工具目录，从目录加载工具配置
 	if cfg.Security.ToolsDir != "" {
 		inlineTools := append([]ToolConfig(nil), cfg.Security.Tools...)
@@ -1731,6 +1771,22 @@ func Load(path string) (*Config, error) {
 func validateOpenAIOutputLimits(openAI OpenAIConfig) error {
 	if openAI.MaxCompletionTokens < 0 {
 		return fmt.Errorf("openai.max_completion_tokens 必须为正数")
+	}
+	return ValidateContextSettings("openai", openAI.ContextWindow, openAI.ContextProfile)
+}
+
+// ValidateContextSettings 校验主通道与 ai.channels 共用的上下文配置。
+func ValidateContextSettings(prefix string, window int, profile string) error {
+	prefix = strings.TrimSpace(prefix)
+	if prefix == "" {
+		prefix = "openai"
+	}
+	if window < 0 {
+		return fmt.Errorf("%s.context_window 不能为负数", prefix)
+	}
+	if raw := strings.TrimSpace(profile); raw != "" &&
+		!strings.EqualFold(raw, "auto") && NormalizeContextProfile(raw) == "" {
+		return fmt.Errorf("%s.context_profile 只支持 auto 或 local", prefix)
 	}
 	return nil
 }

@@ -80,7 +80,7 @@ func splitToolsForToolSearchByNames(all []tool.BaseTool, names []string, fallbac
 	return static, dynamic, true
 }
 
-func mergeAlwaysVisibleToolNames(configured []string) []string {
+func mergeAlwaysVisibleToolNames(configured []string, includeBuiltins bool) []string {
 	merged := make([]string, 0, len(configured)+32)
 	seen := make(map[string]struct{}, len(configured)+32)
 	add := func(name string) {
@@ -97,9 +97,11 @@ func mergeAlwaysVisibleToolNames(configured []string) []string {
 	for _, n := range configured {
 		add(n)
 	}
-	// Always include hardcoded backend builtin MCP tools from constants.
-	for _, n := range builtin.GetAllBuiltinTools() {
-		add(n)
+	if includeBuiltins {
+		// Always include hardcoded backend builtin MCP tools from constants.
+		for _, n := range builtin.GetAllBuiltinTools() {
+			add(n)
+		}
 	}
 	return merged
 }
@@ -235,7 +237,7 @@ func prependEinoMiddlewares(
 		alwaysVis = 12
 	}
 	if mw.ToolSearchEnable && len(tools) >= minTools {
-		static, dynamic, split := splitToolsForToolSearchByNames(tools, mergeAlwaysVisibleToolNames(mw.ToolSearchAlwaysVisibleTools), alwaysVis)
+		static, dynamic, split := splitToolsForToolSearchByNames(tools, mergeAlwaysVisibleToolNames(mw.ToolSearchAlwaysVisibleTools, mw.ToolSearchIncludeBuiltinsEffective()), alwaysVis)
 		if split && len(dynamic) > 0 {
 			ts, terr := toolsearch.New(ctx, &toolsearch.Config{DynamicTools: dynamic})
 			if terr != nil {
@@ -326,7 +328,7 @@ func prependEinoAgenticMiddlewares(
 		alwaysVis = 12
 	}
 	if mw.ToolSearchEnable && len(tools) >= minTools {
-		static, dynamic, split := splitToolsForToolSearchByNames(tools, mergeAlwaysVisibleToolNames(mw.ToolSearchAlwaysVisibleTools), alwaysVis)
+		static, dynamic, split := splitToolsForToolSearchByNames(tools, mergeAlwaysVisibleToolNames(mw.ToolSearchAlwaysVisibleTools, mw.ToolSearchIncludeBuiltinsEffective()), alwaysVis)
 		if split && len(dynamic) > 0 {
 			ts, terr := toolsearch.NewTyped[*schema.AgenticMessage](ctx, &toolsearch.Config{DynamicTools: dynamic})
 			if terr != nil {

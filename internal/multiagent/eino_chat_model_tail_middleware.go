@@ -31,6 +31,7 @@ type einoChatModelTailConfig struct {
 	agenticSummarization adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage]
 	modelName            string
 	maxTotalTokens       int
+	tokenSafetyPercent   int
 	toolMaxBytes         int
 	conversationID       string
 	trace                *modelFacingTraceHolder
@@ -50,7 +51,7 @@ func appendEinoChatModelTailMiddlewares(handlers []adk.ChatModelAgentMiddleware,
 		handlers = append(handlers, newToolPairReconcilerMiddleware(cfg.logger, cfg.phase+"_pre_summarization"))
 		handlers = append(handlers, cfg.summarization)
 	}
-	handlers = append(handlers, newModelInputSoftBudgetMiddleware(cfg.maxTotalTokens, cfg.toolMaxBytes, cfg.modelName, cfg.logger, cfg.phase))
+	handlers = append(handlers, newModelInputSoftBudgetMiddleware(cfg.maxTotalTokens, cfg.toolMaxBytes, cfg.modelName, cfg.tokenSafetyPercent, cfg.logger, cfg.phase))
 	handlers = append(handlers, newToolCallArgumentsSanitizerMiddleware(cfg.logger, cfg.phase))
 	handlers = append(handlers, newToolPairReconcilerMiddleware(cfg.logger, cfg.phase))
 	if !cfg.skipOrphanPruner {

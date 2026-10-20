@@ -2,7 +2,10 @@ package multiagent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -382,6 +385,82 @@ func TestNewEinoToolCallingChatModelFactoryUsesNativeClaudeAdapter(t *testing.T)
 	}
 	if _, ok := m.(*agenticToolCallingChatModelAdapter); !ok {
 		t.Fatalf("claude planner factory returned %T, want native agentic adapter", m)
+	}
+}
+
+func TestLocalContextProfileUsesMaxTokensForBothModelFactories(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		agentic bool
+	}{
+		{name: "classic"},
+		{name: "agentic", agentic: true},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			bodyCh := make(chan map[string]any, 1)
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Errorf("decode body: %v", err)
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				bodyCh <- body
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"id":      "test",
+					"object":  "chat.completion",
+					"created": 1,
+					"model":   "qwen3-8b",
+					"choices": []map[string]any{{
+						"index":         0,
+						"message":       map[string]any{"role": "assistant", "content": "ok"},
+						"finish_reason": "stop",
+					}},
+				})
+			}))
+			defer srv.Close()
+
+			oa := config.OpenAIConfig{
+				Provider:            "openai_compatible",
+				APIKey:              "test-key",
+				BaseURL:             srv.URL,
+				Model:               "qwen3-8b",
+				ContextWindow:       32768,
+				ContextProfile:      "local",
+				MaxCompletionTokens: 32768,
+			}
+			ctx := context.Background()
+			if tc.agentic {
+				m, err := newEinoAgenticChatModelFactory(srv.Client(), nil, nil)(ctx, oa, einoModelModeNormal)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err := m.Generate(ctx, []*schema.AgenticMessage{schema.UserAgenticMessage("hi")}); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				m, err := newEinoToolCallingChatModelFactory(srv.Client(), nil, nil)(ctx, oa, einoModelModeNormal)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err := m.Generate(ctx, []*schema.Message{schema.UserMessage("hi")}); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			body := <-bodyCh
+			if _, ok := body["max_completion_tokens"]; ok {
+				t.Fatalf("local request contained max_completion_tokens: %#v", body)
+			}
+			if got, ok := body["max_tokens"].(float64); !ok || int(got) != 16384 {
+				t.Fatalf("max_tokens = %#v, want 16384", body["max_tokens"])
+			}
+		})
 	}
 }
 

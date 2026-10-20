@@ -45,6 +45,14 @@ func RunEinoSingleChatModelAgent(
 	if ma == nil {
 		return nil, fmt.Errorf("eino single: multi_agent 配置为空")
 	}
+	appCfg = appCfg.WithEffectiveContextBudget()
+	{
+		maCopy := *ma
+		maCopy.EinoMiddleware = appCfg.MultiAgent.EinoMiddleware
+		ma = &maCopy
+	}
+	logContextBudgetWarnings(appCfg.OpenAI, logger, "eino_single")
+
 	runtimeUserMessage := prepareLatestUserMessageForModel(userMessage, appCfg, &ma.EinoMiddleware, conversationID, logger)
 
 	einoLoc, einoSkillMW, einoFSTools, skillsRoot, einoErr := prepareEinoAgenticSkills(ctx, appCfg.SkillsDir, ma, logger)
@@ -134,6 +142,7 @@ func RunEinoSingleChatModelAgent(
 		agenticSummarization: mainSumMw,
 		modelName:            appCfg.OpenAI.Model,
 		maxTotalTokens:       appCfg.OpenAI.MaxTotalTokens,
+		tokenSafetyPercent:   appCfg.OpenAI.TokenEstimateSafetyPercent(),
 		toolMaxBytes:         toolMaxBytesFromMW(&ma.EinoMiddleware),
 		conversationID:       conversationID,
 		trace:                modelFacingTrace,
@@ -227,6 +236,7 @@ func RunEinoSingleChatModelAgent(
 		ModelFacingTrace:        modelFacingTrace,
 		EinoCallbacks:           &ma.EinoCallbacks,
 		MaxTotalTokens:          appCfg.OpenAI.MaxTotalTokens,
+		TokenSafetyPercent:      appCfg.OpenAI.TokenEstimateSafetyPercent(),
 		ToolMaxBytes:            toolMaxBytesFromMW(&ma.EinoMiddleware),
 		ModelName:               appCfg.OpenAI.Model,
 		MiddlewareConfig:        &ma.EinoMiddleware,

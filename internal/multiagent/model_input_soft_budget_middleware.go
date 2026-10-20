@@ -24,6 +24,7 @@ func newModelInputSoftBudgetMiddleware(
 	maxTotalTokens int,
 	toolMaxBytes int,
 	modelName string,
+	tokenSafetyPercent int,
 	logger *zap.Logger,
 	phase string,
 ) adk.ChatModelAgentMiddleware {
@@ -36,7 +37,7 @@ func newModelInputSoftBudgetMiddleware(
 	return &modelInputSoftBudgetMiddleware{
 		maxTokens:    maxTotalTokens,
 		toolMaxBytes: toolMaxBytes,
-		counter:      einoSummarizationTokenCounter(modelName),
+		counter:      einoSummarizationTokenCounterWithSafety(modelName, tokenSafetyPercent),
 		logger:       logger,
 		phase:        phase,
 	}
@@ -53,6 +54,7 @@ func (m *modelInputSoftBudgetMiddleware) BeforeModelRewriteState(
 	compacted, changed := compactMessagesByDroppingRounds(ctx, state.Messages, compactMessagesOpts{
 		maxTokens:    m.maxTokens,
 		counter:      m.counter,
+		tools:        state.ToolInfos,
 		toolMaxBytes: m.toolMaxBytes,
 		phase:        m.phase,
 		logger:       m.logger,

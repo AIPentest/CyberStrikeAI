@@ -145,10 +145,12 @@ type einoADKRunLoopArgs struct {
 	EinoCallbacks *config.MultiAgentEinoCallbacksConfig
 
 	// MaxTotalTokens / ToolMaxBytes / ModelName 用于 context overflow 时的激进压缩续跑。
-	MaxTotalTokens   int
-	ToolMaxBytes     int
-	ModelName        string
-	MiddlewareConfig *config.MultiAgentEinoMiddlewareConfig
+	MaxTotalTokens int
+	ToolMaxBytes   int
+	ModelName      string
+	// TokenSafetyPercent 是 local 档位对 token 估算的保守放大比例（auto 为 100）。
+	TokenSafetyPercent int
+	MiddlewareConfig   *config.MultiAgentEinoMiddlewareConfig
 
 	// TurnLoopInterruptTimeout 仅供测试/特殊运行时覆盖；0 使用 EinoTurnLoopRuntime 默认值。
 	TurnLoopInterruptTimeout time.Duration

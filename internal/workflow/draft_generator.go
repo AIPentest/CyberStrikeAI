@@ -303,11 +303,12 @@ func GenerateDraftFromLLM(ctx context.Context, req DraftRequest, oa config.OpenA
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt},
 		},
-		"temperature":           0,
-		"max_completion_tokens": 4096,
-		"response_format":       map[string]interface{}{"type": "json_object"},
-		"thinking":              map[string]interface{}{"type": "disabled"},
+		"temperature":         0,
+		oa.OutputLimitField(): 4096,
+		"response_format":     map[string]interface{}{"type": "json_object"},
+		"thinking":            map[string]interface{}{"type": "disabled"},
 	}
+	config.ApplyExtraRequestFields(requestBody, oa.Reasoning.ExtraRequestFields)
 	var apiResponse struct {
 		Choices []struct {
 			Message struct {

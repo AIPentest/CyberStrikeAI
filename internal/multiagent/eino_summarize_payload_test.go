@@ -151,6 +151,48 @@ func TestEinoSummarizationModelOptionsSetOnlyMaxCompletionTokens(t *testing.T) {
 	}
 }
 
+func TestEinoSummarizationModelOptionsLocalUsesMaxTokens(t *testing.T) {
+	const outputReserve = 4096
+	oa := &config.OpenAIConfig{ContextProfile: "local", ContextWindow: 131072}
+	opts := newEinoSummarizationModelOptions(outputReserve, "qwen3-8b", "agentic", oa, nil)
+
+	bodyCh := make(chan map[string]any, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode request body: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		bodyCh <- body
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Write([]byte("data: {\"id\":\"test\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"summary\"},\"finish_reason\":null}]}\n\n"))
+		w.Write([]byte("data: {\"id\":\"test\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"))
+		w.Write([]byte("data: [DONE]\n\n"))
+	}))
+	defer server.Close()
+
+	chatModel, err := einoopenai.NewChatModel(context.Background(), &einoopenai.ChatModelConfig{
+		APIKey:     "test-key",
+		BaseURL:    server.URL,
+		Model:      "qwen3-8b",
+		HTTPClient: server.Client(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := newNonEmptySummaryChatModel(chatModel).Generate(context.Background(), []*schema.Message{schema.UserMessage("summarize")}, opts...); err != nil {
+		t.Fatal(err)
+	}
+	body := <-bodyCh
+	if _, ok := body["max_completion_tokens"]; ok {
+		t.Fatalf("local request contained max_completion_tokens: %#v", body)
+	}
+	if got, ok := body["max_tokens"].(float64); !ok || int(got) != outputReserve {
+		t.Fatalf("max_tokens = %#v, want %d", body["max_tokens"], outputReserve)
+	}
+}
+
 // Exercise both production factories and their real SDK options, not just a
 // fake model: a truncated summary must be replaced only by a complete retry.
 func TestSummaryOutputLimitConciseRetry(t *testing.T) {

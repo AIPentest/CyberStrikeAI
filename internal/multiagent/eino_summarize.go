@@ -135,7 +135,7 @@ func newEinoSummarizationMiddleware(
 	if modelName == "" {
 		modelName = "gpt-4o"
 	}
-	tokenCounter := einoSummarizationTokenCounter(modelName)
+	tokenCounter := einoSummarizationTokenCounterForChannel(modelName, appCfg.OpenAI)
 	recentTrailMax := trigger / 4
 	if recentTrailMax < 2048 {
 		recentTrailMax = 2048
@@ -314,9 +314,12 @@ func newEinoSummarizationModelOptions(outputReserve int, modelName, kind string,
 		label = "eino " + kind + " summarization generate request"
 	}
 	opts := make([]model.Option, 0, 4)
-	if oa != nil && isEinoAgenticClaudeProvider(oa.Provider) {
+	switch {
+	case oa != nil && isEinoAgenticClaudeProvider(oa.Provider):
 		opts = append(opts, model.WithMaxTokens(outputReserve))
-	} else {
+	case oa != nil && oa.IsLocalContextProfile():
+		opts = append(opts, einoopenai.WithExtraFields(map[string]any{"max_tokens": outputReserve}))
+	default:
 		opts = append(opts, einoopenai.WithMaxCompletionTokens(outputReserve))
 	}
 	opts = append(opts,
@@ -700,6 +703,16 @@ func writeSummarizationTranscript(path string, msgs []adk.Message) error {
 }
 
 func einoSummarizationTokenCounter(openAIModel string) summarization.TokenCounterFunc {
+	return einoSummarizationTokenCounterWithSafety(openAIModel, 100)
+}
+
+// einoSummarizationTokenCounterForChannel applies the channel's conservative
+// estimate margin so local tokenizers do not silently overflow the runtime window.
+func einoSummarizationTokenCounterForChannel(openAIModel string, oa config.OpenAIConfig) summarization.TokenCounterFunc {
+	return einoSummarizationTokenCounterWithSafety(openAIModel, oa.TokenEstimateSafetyPercent())
+}
+
+func einoSummarizationTokenCounterWithSafety(openAIModel string, safetyPercent int) summarization.TokenCounterFunc {
 	tc := agent.NewTikTokenCounter()
 	return func(ctx context.Context, input *summarization.TokenCounterInput) (int, error) {
 		var sb strings.Builder
@@ -744,7 +757,10 @@ func einoSummarizationTokenCounter(openAIModel string) summarization.TokenCounte
 		text := sb.String()
 		n, err := tc.Count(openAIModel, text)
 		if err != nil {
-			return (len(text) + 3) / 4, nil
+			n = (len(text) + 3) / 4
+		}
+		if safetyPercent > 100 {
+			n = (n*safetyPercent + 99) / 100
 		}
 		return n, nil
 	}
