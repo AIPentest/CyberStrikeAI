@@ -11,6 +11,9 @@ import (
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/adk/middlewares/summarization"
 	"github.com/cloudwego/eino/schema"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 func TestIsEinoContextOverflowError(t *testing.T) {
@@ -87,6 +90,62 @@ func TestBuildBudgetedSummarizationModelInputTruncatesOversizedLatestRound(t *te
 	if len(toolContent) >= len(huge) {
 		t.Fatalf("expected oversized tool output to be compacted, got len=%d", len(toolContent))
 	}
+}
+
+func TestLogContextBudgetWarningsKeepsConfiguredValue(t *testing.T) {
+	t.Parallel()
+	core, logs := observer.New(zapcore.WarnLevel)
+	logger := zap.New(core)
+	configured := config.OpenAIConfig{
+		ContextWindow:  131073,
+		ContextProfile: "local",
+		MaxTotalTokens: 120000,
+	}
+	effective := configured
+	effective.MaxTotalTokens = configured.EffectiveMaxTotalTokens()
+	logContextBudgetWarnings(configured, effective, logger, "test")
+
+	entries := logs.All()
+	if len(entries) != 1 {
+		t.Fatalf("warn entries = %d, want 1", len(entries))
+	}
+	fields := entries[0].ContextMap()
+	if got, ok := fields["configured_max_total_tokens"].(int64); !ok || got != 120000 {
+		t.Fatalf("configured_max_total_tokens = %#v, want 120000", fields["configured_max_total_tokens"])
+	}
+	if got, ok := fields["effective_max_total_tokens"].(int64); !ok || got != 78643 {
+		t.Fatalf("effective_max_total_tokens = %#v, want 78643", fields["effective_max_total_tokens"])
+	}
+	warnings := warningCodes(fields["warnings"])
+	if !hasWarningCode(warnings, config.ContextWarningMaxTotalClamped) {
+		t.Fatalf("warnings = %#v, want clamp warning", fields["warnings"])
+	}
+}
+
+func warningCodes(value interface{}) []string {
+	switch v := value.(type) {
+	case []string:
+		return v
+	case []interface{}:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			if code, ok := item.(string); ok {
+				out = append(out, code)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func hasWarningCode(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestLocalTokenCounterSafetyMargin(t *testing.T) {

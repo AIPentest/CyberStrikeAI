@@ -45,13 +45,14 @@ func RunEinoSingleChatModelAgent(
 	if ma == nil {
 		return nil, fmt.Errorf("eino single: multi_agent 配置为空")
 	}
+	configuredOpenAI := appCfg.OpenAI
 	appCfg = appCfg.WithEffectiveContextBudget()
 	{
 		maCopy := *ma
 		maCopy.EinoMiddleware = appCfg.MultiAgent.EinoMiddleware
 		ma = &maCopy
 	}
-	logContextBudgetWarnings(appCfg.OpenAI, logger, "eino_single")
+	logContextBudgetWarnings(configuredOpenAI, appCfg.OpenAI, logger, "eino_single")
 
 	runtimeUserMessage := prepareLatestUserMessageForModel(userMessage, appCfg, &ma.EinoMiddleware, conversationID, logger)
 

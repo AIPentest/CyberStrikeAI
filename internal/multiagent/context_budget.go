@@ -17,23 +17,31 @@ import (
 
 var contextBudgetWarned sync.Map
 
-func logContextBudgetWarnings(oa config.OpenAIConfig, logger *zap.Logger, phase string) {
+// logContextBudgetWarnings reports the clamp applied by WithEffectiveContextBudget.
+// configured must be the pre-clamp channel config so the warning set and the
+// configured value stay meaningful.
+func logContextBudgetWarnings(configured, effective config.OpenAIConfig, logger *zap.Logger, phase string) {
 	if logger == nil {
 		return
 	}
-	warnings := oa.ContextBudgetWarnings()
+	warnings := configured.ContextBudgetWarnings()
 	if len(warnings) == 0 {
 		return
 	}
-	key := fmt.Sprintf("%d|%d|%s", oa.EffectiveContextWindow(), oa.MaxTotalTokens, strings.Join(warnings, ","))
+	key := fmt.Sprintf("%d|%d|%d|%s",
+		configured.EffectiveContextWindow(),
+		configured.MaxTotalTokens,
+		effective.MaxTotalTokens,
+		strings.Join(warnings, ","),
+	)
 	if _, loaded := contextBudgetWarned.LoadOrStore(key, struct{}{}); loaded {
 		return
 	}
 	logger.Warn("model context budget adjusted",
 		zap.String("phase", phase),
-		zap.Int("context_window", oa.EffectiveContextWindow()),
-		zap.Int("configured_max_total_tokens", oa.MaxTotalTokens),
-		zap.Int("effective_max_total_tokens", oa.EffectiveMaxTotalTokens()),
+		zap.Int("context_window", configured.EffectiveContextWindow()),
+		zap.Int("configured_max_total_tokens", configured.MaxTotalTokens),
+		zap.Int("effective_max_total_tokens", effective.MaxTotalTokens),
 		zap.Strings("warnings", warnings),
 	)
 }

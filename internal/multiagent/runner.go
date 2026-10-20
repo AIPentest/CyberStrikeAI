@@ -84,13 +84,14 @@ func RunDeepAgent(
 		return nil, fmt.Errorf("multiagent: 配置或 Agent 为空")
 	}
 
+	configuredOpenAI := appCfg.OpenAI
 	appCfg = appCfg.WithEffectiveContextBudget()
 	if ma != nil {
 		maCopy := *ma
 		maCopy.EinoMiddleware = appCfg.MultiAgent.EinoMiddleware
 		ma = &maCopy
 	}
-	logContextBudgetWarnings(appCfg.OpenAI, logger, "deep")
+	logContextBudgetWarnings(configuredOpenAI, appCfg.OpenAI, logger, "deep")
 
 	runtimeUserMessage := prepareLatestUserMessageForModel(userMessage, appCfg, &ma.EinoMiddleware, conversationID, logger)
 
