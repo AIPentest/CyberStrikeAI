@@ -71,8 +71,8 @@ ai:
 | `name` | Web UI 展示名。留空时使用通道 ID。 |
 | `provider` | `openai_compatible` 或 `claude`。`openai_compatible` 会在运行时映射为 `openai`；`claude` 使用 Eino 原生 Anthropic Messages API。 |
 | `base_url/api_key/model` | 必填。Base URL 通常需要包含版本路径，如 OpenAI/兼容网关的 `/v1`。 |
-| `max_total_tokens` | 上下文压缩、攻击链构建、多代理摘要等共用的总预算。 |
-| `max_completion_tokens` | 单次模型输出上限；未填时使用默认值。 |
+| `max_total_tokens` | 上下文压缩、攻击链构建、多代理摘要等共用的总预算。已知 `context_window` 时会收紧到“窗口 − 输出预留”。 |
+| `max_completion_tokens` | 单次模型输出上限；未填时使用默认值，并会被压到已知/假定窗口的一半以内。 |
 | `context_window` | 模型原生上下文窗口（token）。填写后运行时会按窗口收紧 `max_total_tokens`；0/省略表示未知。 |
 | `context_profile` | `auto`（默认）或 `local`。`local` 面向 32K–256K 本地模型：预算折到窗口的 60%（上限 128K），收紧摘要预留、工具输出截断/清理、用户消息与账本上限，并启用 `tool_search` 与精简常驻工具。数值参数只收紧、不放大，同时按需启用 tool_search/reduction。 |
 | `reasoning` | 该通道的默认推理扩展字段。不同网关支持差异较大，异常时先尝试 `mode: off`。 |
@@ -82,16 +82,17 @@ ai:
 本地模型的有效上下文通常明显小于标称窗口，且不同后端的“模型上限”和“运行时窗口”可能不一致。建议：
 
 1. **先确认运行时窗口**：在 **系统设置 → 基本设置 → AI 通道配置 → 模型上下文窗口** 右侧点击「自动检测」。探测顺序为 Ollama `/api/ps`、`/api/show`，llama.cpp `/props`，LM Studio `/api/v0/models`，vLLM/OpenAI 兼容 `/v1/models`；同时支持反向代理子路径（如 `https://host/ollama/v1`）。检测结果会显示按当前档位折算后的有效预算。检测不到时请手动填写服务端实际配置。
-2. **启用本地档位**：把 `context_profile` 设为 `local`。预算按窗口 60% 计算，摘要更早触发；工具输出截断阈值约为窗口/6（8–32 KB），历史工具结果清理阈值约为预算的 35%；常驻工具收敛到核心集合，内置工具也进入 `tool_search` 动态池，其余工具按需解锁。token 估算会额外放大 10%，抵消本地 tokenizer 与 tiktoken 在中英文上的差异。该档位还会把输出上限字段切换为更通用的 `max_tokens`（Ollama/llama.cpp 等常不识别 `max_completion_tokens`），攻击链、FOFA 语法生成、工作流草稿、HITL 审计等旁路调用同样生效。
+2. **启用本地档位**：把 `context_profile` 设为 `local`。预算按窗口 60% 计算，同时不超过“窗口 − 输出预留”（例如 32K 窗口、默认输出上限 16K 时预算为 16K）；单次输出上限也会被压到窗口的一半以内。摘要更早触发；工具输出截断阈值约为窗口/6（8–32 KB），历史工具结果清理阈值约为预算的 35%；常驻工具收敛到核心集合，内置工具也进入 `tool_search` 动态池，其余工具按需解锁。token 估算会额外放大 10%，抵消本地 tokenizer 与 tiktoken 在中英文上的差异。该档位还会把输出上限字段切换为更通用的 `max_tokens`（Ollama/llama.cpp 等常不识别 `max_completion_tokens`），攻击链、FOFA 语法生成、工作流草稿、HITL 审计等旁路调用同样生效。
 3. **不要按标称 1M 规划**：Qwen3.5 等模型原生 262,144，可用 YaRN 扩到 1M，但本地显存与长上下文性能衰减（context rot）会让实际效果明显下降；带工具的 agent 建议把有效预算控制在 64K–128K。
 4. **Ollama 必须设置 `num_ctx`**：Ollama 的 `/v1` 兼容端点会忽略请求里的 `num_ctx`，并按显存选择默认窗口（约 4K/32K/256K）；超长时从开头截断，系统提示词和工具定义会先丢失。请用 `OLLAMA_CONTEXT_LENGTH=65536 ollama serve` 或 Modelfile `PARAMETER num_ctx 65536`，重启后用 `ollama ps` 确认 `CONTEXT`。
 5. **KV cache 与前缀缓存**：
-   - llama.cpp：`--ctx-size 65536 --cache-type-k q8_0 --cache-type-v q8_0 -fa`；`--cache-prompt` 默认开启。`--parallel` 会让每个槽位分摊上下文。
+   - llama.cpp：`--ctx-size 65536 --cache-type-k q8_0 --cache-type-v q8_0 -fa`；`--cache-prompt` 默认开启。`--parallel` 会让每个槽位分摊上下文；检测结果会返回 `context_slots` 并在大于 1 时提示，请按实际 KV 模式（如 `--kv-unified`）确认单请求可用窗口。
    - vLLM：`--max-model-len 65536 --enable-prefix-caching --kv-cache-dtype fp8`；用 `--max-num-seqs` 控制并发 KV 占用。
    - Ollama：`OLLAMA_KV_CACHE_TYPE=q8_0`、`OLLAMA_NUM_PARALLEL=1`；窗口越大 KV cache 越大。
    - LM Studio：在模型设置中显式设置 Context Length，并开启可用的 KV cache 量化。
 6. **思考模型**：Qwen3.5 等默认开启 thinking，会在工具循环中消耗大量上下文。可通过通道的 `reasoning.extra_request_fields.chat_template_kwargs.enable_thinking: false` 关闭（vLLM、llama.cpp `--jinja` 支持）；`reasoning.mode: off` 只清理 OpenAI/DeepSeek 推理字段，不一定能关闭本地 chat template 的 thinking。
 7. **建议窗口下限**：带 90+ 工具的 agent 在 16K 以下很难稳定运行；32K 需要依赖 `tool_search` 和 `context_profile: local`；64K 以上更接近云端模型的使用体验。
+8. **故障转移通道不会重新预算**：`multi_agent.eino_middleware.model_failover_channels` 只切换模型端点，预算仍按主通道计算；请让 failover 通道的可用窗口不小于主通道，否则可能依赖超窗压缩/重试。
 
 对话页的“AI 通道”下拉框会读取已保存通道。请求体中的 `aiChannelId` 非空时仅对本次/本会话运行配置生效，不会把 API Key 发送给模型；为空时跟随 `ai.default_channel`。
 

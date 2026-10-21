@@ -5,6 +5,16 @@ import (
 	"testing"
 )
 
+func TestEffectiveMaxTotalTokensNeverExceedsWindow(t *testing.T) {
+	t.Parallel()
+	for _, window := range []int{512, 1024, 2048, 4096, 8192} {
+		oa := OpenAIConfig{ContextWindow: window, ContextProfile: "local", MaxTotalTokens: 120000}
+		if got := oa.EffectiveMaxTotalTokens(); got > window {
+			t.Fatalf("window %d: effective budget %d exceeds window", window, got)
+		}
+	}
+}
+
 func TestTokenEstimateSafetyPercent(t *testing.T) {
 	t.Parallel()
 	if got := (OpenAIConfig{}).TokenEstimateSafetyPercent(); got != 100 {
@@ -129,6 +139,7 @@ func TestMaxCompletionTokensEffectiveClampsToWindow(t *testing.T) {
 		{name: "no window uses configured", oa: OpenAIConfig{MaxCompletionTokens: 32768}, want: 32768},
 		{name: "no window uses default", oa: OpenAIConfig{}, want: DefaultMaxCompletionTokens},
 		{name: "32k window halves output", oa: OpenAIConfig{ContextWindow: 32768, MaxCompletionTokens: 32768}, want: 16384},
+		{name: "local missing window assumes 32k", oa: OpenAIConfig{ContextProfile: "local", MaxCompletionTokens: 32768}, want: 16384},
 		{name: "128k window keeps output", oa: OpenAIConfig{ContextWindow: 131072, MaxCompletionTokens: 16384}, want: 16384},
 	}
 	for _, tc := range cases {
@@ -167,6 +178,11 @@ func TestContextBudgetWarnings(t *testing.T) {
 			name: "remote oversized budget clamps",
 			oa:   OpenAIConfig{ContextWindow: 32768, MaxTotalTokens: 64000},
 			want: []string{ContextWarningMaxTotalClamped},
+		},
+		{
+			name: "oversized output cap warns",
+			oa:   OpenAIConfig{ContextWindow: 32768, MaxCompletionTokens: 32768},
+			want: []string{ContextWarningMaxTotalClamped, ContextWarningMaxCompletionClamped},
 		},
 	}
 	for _, tc := range cases {

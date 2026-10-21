@@ -3238,6 +3238,7 @@ async function probeSelectedAIChannels() {
                     api_key: ch.api_key || '',
                     model: ch.model || '',
                     max_total_tokens: parseInt(ch.max_total_tokens, 10) || 0,
+                    max_completion_tokens: parseInt(ch.max_completion_tokens, 10) || 0,
                     context_profile: ch.context_profile || ''
                 })
             });
@@ -3900,10 +3901,12 @@ function contextWarningText(code) {
         local_context_window_unknown: settingsT('settingsBasic.contextWarnWindowUnknown', '本地档位未填写窗口，按 32768 估算'),
         local_context_window_small: settingsT('settingsBasic.contextWarnWindowSmall', '窗口小于 16384，带工具的 agent 可能无法稳定运行'),
         max_total_tokens_clamped: settingsT('settingsBasic.contextWarnBudgetClamped', '最大上下文预算已按模型窗口收紧'),
+        max_completion_tokens_clamped: settingsT('settingsBasic.contextWarnCompletionClamped', '最大输出 Token 数已按模型窗口收紧'),
         configured_budget_exceeds_context_window: settingsT('settingsBasic.contextWarnBudgetExceedsWindow', '填写的预算超过模型窗口，运行时会自动收紧'),
         ollama_v1_ignores_num_ctx: settingsT('settingsBasic.contextWarnOllamaV1', 'Ollama 的 /v1 接口忽略 num_ctx，请在服务端设置 OLLAMA_CONTEXT_LENGTH 或 Modelfile'),
         ollama_runtime_context_unknown: settingsT('settingsBasic.contextWarnOllamaRuntime', 'Ollama 可能按显存把窗口压到模型上限以下，建议启动后查看 ollama ps'),
         context_runtime_unknown: settingsT('settingsBasic.contextWarnRuntimeUnknown', '无法确认运行时窗口，可能小于模型上限'),
+        llamacpp_parallel_slots: settingsT('settingsBasic.contextWarnLlamaCppSlots', 'llama.cpp 配置了多个并行槽位，单请求可用窗口可能小于 n_ctx；请按 --parallel/KV 模式确认'),
         context_window_unknown: settingsT('settingsBasic.contextWarnUnknown', '未检测到上下文窗口，请手动填写')
     };
     return messages[code] || code;
@@ -3923,10 +3926,12 @@ function formatDetectedContext(result) {
     return parts.join(' · ');
 }
 
-function applyDetectedContext(result) {
+function applyDetectedContext(result, force) {
     if (!result || !result.context_window) return;
     const input = document.getElementById('openai-context-window');
-    if (input && !String(input.value || '').trim()) {
+    // Explicit auto-detect overwrites the field so the effective-budget preview
+    // matches what will be saved; a connection test only fills an empty field.
+    if (input && (force || !String(input.value || '').trim())) {
         input.value = String(result.context_window);
     }
     const resultEl = document.getElementById('detect-context-result');
@@ -3970,16 +3975,13 @@ async function detectAIContext() {
                 api_key: apiKey,
                 model: model,
                 max_total_tokens: parseInt(document.getElementById('openai-max-total-tokens')?.value, 10) || 0,
+                max_completion_tokens: parseInt(document.getElementById('openai-max-completion-tokens')?.value, 10) || 0,
                 context_profile: document.getElementById('openai-context-profile')?.value || ''
             })
         });
         const result = await response.json().catch(() => ({}));
         if (result.success && result.context_window) {
-            applyDetectedContext(result);
-            if (resultEl) {
-                resultEl.textContent = formatDetectedContext(result);
-                resultEl.className = 'form-inline-result is-success';
-            }
+            applyDetectedContext(result, true);
         } else {
             const message = result.error || contextWarningText('context_window_unknown');
             if (resultEl) {
@@ -4043,6 +4045,7 @@ async function testOpenAIConnection() {
                 api_key: apiKey,
                 model: model,
                 max_total_tokens: parseInt(document.getElementById('openai-max-total-tokens')?.value, 10) || 0,
+                max_completion_tokens: parseInt(document.getElementById('openai-max-completion-tokens')?.value, 10) || 0,
                 context_profile: document.getElementById('openai-context-profile')?.value || ''
             })
         });

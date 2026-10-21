@@ -92,6 +92,48 @@ func TestDetectContextOllamaShowModelMax(t *testing.T) {
 	}
 }
 
+func TestDetectContextLlamaCppParallelSlotsWarns(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/props", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"default_generation_settings": map[string]interface{}{"n_ctx": 32768},
+			"total_slots":                 2,
+		})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	info := DetectContext(context.Background(), srv.URL+"/v1", "local-model", "", srv.Client())
+	if info.ContextWindow != 32768 || info.RuntimeSlots != 2 {
+		t.Fatalf("unexpected info: %+v", info)
+	}
+	if !contains(info.Warnings, WarningLlamaCppParallelSlots) {
+		t.Fatalf("missing parallel-slots warning: %+v", info.Warnings)
+	}
+}
+
+func TestDetectContextLlamaCppSingleSlotNoWarning(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/props", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"default_generation_settings": map[string]interface{}{"n_ctx": 32768},
+			"total_slots":                 1,
+		})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	info := DetectContext(context.Background(), srv.URL+"/v1", "local-model", "", srv.Client())
+	if info.RuntimeSlots != 1 {
+		t.Fatalf("slots = %d, want 1", info.RuntimeSlots)
+	}
+	if contains(info.Warnings, WarningLlamaCppParallelSlots) {
+		t.Fatalf("unexpected parallel-slots warning: %+v", info.Warnings)
+	}
+}
+
 func TestDetectContextLlamaCpp(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()

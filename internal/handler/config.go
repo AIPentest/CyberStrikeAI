@@ -1277,26 +1277,28 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 
 // TestOpenAIRequest 测试OpenAI连接请求
 type TestOpenAIRequest struct {
-	CredentialScope string `json:"credential_scope,omitempty"`
-	ChannelID       string `json:"channel_id,omitempty"`
-	Provider        string `json:"provider"`
-	BaseURL         string `json:"base_url"`
-	APIKey          string `json:"api_key"`
-	Model           string `json:"model"`
-	MaxTotalTokens  int    `json:"max_total_tokens,omitempty"`
-	ContextProfile  string `json:"context_profile,omitempty"`
+	CredentialScope     string `json:"credential_scope,omitempty"`
+	ChannelID           string `json:"channel_id,omitempty"`
+	Provider            string `json:"provider"`
+	BaseURL             string `json:"base_url"`
+	APIKey              string `json:"api_key"`
+	Model               string `json:"model"`
+	MaxTotalTokens      int    `json:"max_total_tokens,omitempty"`
+	MaxCompletionTokens int    `json:"max_completion_tokens,omitempty"`
+	ContextProfile      string `json:"context_profile,omitempty"`
 }
 
 // DetectContextRequest probes model metadata without issuing a completion.
 type DetectContextRequest struct {
-	CredentialScope string `json:"credential_scope,omitempty"`
-	ChannelID       string `json:"channel_id,omitempty"`
-	Provider        string `json:"provider"`
-	BaseURL         string `json:"base_url"`
-	APIKey          string `json:"api_key"`
-	Model           string `json:"model"`
-	MaxTotalTokens  int    `json:"max_total_tokens,omitempty"`
-	ContextProfile  string `json:"context_profile,omitempty"`
+	CredentialScope     string `json:"credential_scope,omitempty"`
+	ChannelID           string `json:"channel_id,omitempty"`
+	Provider            string `json:"provider"`
+	BaseURL             string `json:"base_url"`
+	APIKey              string `json:"api_key"`
+	Model               string `json:"model"`
+	MaxTotalTokens      int    `json:"max_total_tokens,omitempty"`
+	MaxCompletionTokens int    `json:"max_completion_tokens,omitempty"`
+	ContextProfile      string `json:"context_profile,omitempty"`
 }
 
 func probeModelContext(ctx context.Context, provider, baseURL, apiKey, model string) modelmeta.ContextInfo {
@@ -1308,7 +1310,7 @@ func probeModelContext(ctx context.Context, provider, baseURL, apiKey, model str
 	return modelmeta.DetectContext(probeCtx, baseURL, model, apiKey, nil)
 }
 
-func addModelContextToResponse(resp gin.H, info modelmeta.ContextInfo, maxTotalTokens int, contextProfile string) {
+func addModelContextToResponse(resp gin.H, info modelmeta.ContextInfo, maxTotalTokens, maxCompletionTokens int, contextProfile string) {
 	if info.Backend != "" {
 		resp["context_backend"] = info.Backend
 	}
@@ -1321,14 +1323,18 @@ func addModelContextToResponse(resp gin.H, info modelmeta.ContextInfo, maxTotalT
 	if info.Loaded {
 		resp["context_loaded"] = true
 	}
+	if info.RuntimeSlots > 0 {
+		resp["context_slots"] = info.RuntimeSlots
+	}
 	if info.RuntimeUnknown {
 		resp["context_runtime_unknown"] = true
 	}
 	profile := config.NormalizeContextProfile(contextProfile)
 	oa := config.OpenAIConfig{
-		ContextWindow:  info.ContextWindow,
-		ContextProfile: profile,
-		MaxTotalTokens: maxTotalTokens,
+		ContextWindow:       info.ContextWindow,
+		ContextProfile:      profile,
+		MaxTotalTokens:      maxTotalTokens,
+		MaxCompletionTokens: maxCompletionTokens,
 	}
 	if info.ContextWindow > 0 || profile != "" {
 		resp["effective_max_total_tokens"] = oa.EffectiveMaxTotalTokens()
@@ -1391,7 +1397,7 @@ func (h *ConfigHandler) DetectContext(c *gin.Context) {
 	}
 	info := probeModelContext(c.Request.Context(), req.Provider, baseURL, req.APIKey, req.Model)
 	resp := gin.H{"success": true, "model": req.Model}
-	addModelContextToResponse(resp, info, req.MaxTotalTokens, req.ContextProfile)
+	addModelContextToResponse(resp, info, req.MaxTotalTokens, req.MaxCompletionTokens, req.ContextProfile)
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -1523,7 +1529,7 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 		"model":      chatResp.Model,
 		"latency_ms": latency.Milliseconds(),
 	}
-	addModelContextToResponse(resp, probeModelContext(c.Request.Context(), req.Provider, baseURL, req.APIKey, req.Model), req.MaxTotalTokens, req.ContextProfile)
+	addModelContextToResponse(resp, probeModelContext(c.Request.Context(), req.Provider, baseURL, req.APIKey, req.Model), req.MaxTotalTokens, req.MaxCompletionTokens, req.ContextProfile)
 	c.JSON(http.StatusOK, resp)
 }
 

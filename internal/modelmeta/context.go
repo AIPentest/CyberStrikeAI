@@ -22,6 +22,7 @@ const (
 	WarningOllamaV1IgnoresNumCtx = "ollama_v1_ignores_num_ctx"
 	WarningOllamaRuntimeUnknown  = "ollama_runtime_context_unknown"
 	WarningRuntimeUnknown        = "context_runtime_unknown"
+	WarningLlamaCppParallelSlots = "llamacpp_parallel_slots"
 	WarningContextUnknown        = "context_window_unknown"
 	WarningBudgetExceedsWindow   = "configured_budget_exceeds_context_window"
 	probeTimeout                 = 2 * time.Second
@@ -32,6 +33,7 @@ type ContextInfo struct {
 	ContextWindow  int      `json:"context_window,omitempty"`
 	Source         string   `json:"context_source,omitempty"`
 	Loaded         bool     `json:"context_loaded,omitempty"`
+	RuntimeSlots   int      `json:"context_slots,omitempty"`
 	RuntimeUnknown bool     `json:"context_runtime_unknown,omitempty"`
 	Warnings       []string `json:"context_warnings,omitempty"`
 }
@@ -237,6 +239,14 @@ func detectLlamaCpp(ctx context.Context, client *http.Client, root, model, apiKe
 		n = props.NCtx
 	}
 	info := ContextInfo{Backend: BackendLlamaCpp, Loaded: true}
+	if props.TotalSlots > 0 {
+		info.RuntimeSlots = props.TotalSlots
+	}
+	if props.TotalSlots > 1 {
+		// n_ctx is the shared pool; per-slot capacity depends on the KV mode
+		// (--parallel historically divides it, unified KV may not).
+		info.Warnings = append(info.Warnings, WarningLlamaCppParallelSlots)
+	}
 	if n > 0 {
 		info.ContextWindow = n
 		info.Source = "llamacpp_props"

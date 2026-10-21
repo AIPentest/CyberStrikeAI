@@ -17,9 +17,10 @@ const (
 	// 本地 tokenizer 与 tiktoken 不一致（CJK 尤甚），留出余量避免踩到运行时窗口。
 	LocalTokenEstimateSafetyPercent = 110
 
-	ContextWarningLocalWindowUnknown = "local_context_window_unknown"
-	ContextWarningLocalWindowSmall   = "local_context_window_small"
-	ContextWarningMaxTotalClamped    = "max_total_tokens_clamped"
+	ContextWarningLocalWindowUnknown   = "local_context_window_unknown"
+	ContextWarningLocalWindowSmall     = "local_context_window_small"
+	ContextWarningMaxTotalClamped      = "max_total_tokens_clamped"
+	ContextWarningMaxCompletionClamped = "max_completion_tokens_clamped"
 )
 
 // NormalizeContextProfile 只接受 auto（空）与 local；未知值按 auto 处理，避免配置拼写错误放大预算。
@@ -107,6 +108,9 @@ func (c OpenAIConfig) EffectiveMaxTotalTokens() int {
 	if budget < 1024 {
 		budget = 1024
 	}
+	if window > 0 && budget > window {
+		budget = window
+	}
 	return budget
 }
 
@@ -126,6 +130,9 @@ func (c OpenAIConfig) ContextBudgetWarnings() []string {
 	}
 	if c.EffectiveContextWindow() > 0 && configured > c.EffectiveMaxTotalTokens() {
 		out = append(out, ContextWarningMaxTotalClamped)
+	}
+	if c.EffectiveContextWindow() > 0 && c.MaxCompletionTokens > c.MaxCompletionTokensEffective() {
+		out = append(out, ContextWarningMaxCompletionClamped)
 	}
 	return out
 }

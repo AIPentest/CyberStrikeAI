@@ -999,8 +999,8 @@ func (c OpenAIConfig) MaxCompletionTokensEffective() int {
 	if out <= 0 {
 		out = DefaultMaxCompletionTokens
 	}
-	if c.ContextWindow > 0 && out > c.ContextWindow/2 {
-		out = c.ContextWindow / 2
+	if window := c.EffectiveContextWindow(); window > 0 && out > window/2 {
+		out = window / 2
 	}
 	return out
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"cyberstrike-ai/internal/config"
@@ -15,6 +16,8 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 )
+
+var budgetWarningTestSeq atomic.Int64
 
 func TestIsEinoContextOverflowError(t *testing.T) {
 	t.Parallel()
@@ -96,8 +99,11 @@ func TestLogContextBudgetWarningsKeepsConfiguredValue(t *testing.T) {
 	t.Parallel()
 	core, logs := observer.New(zapcore.WarnLevel)
 	logger := zap.New(core)
+	// The warning dedupe map is process-global; use a unique window so
+	// -count>1 keeps exercising the logging path.
+	window := 131000 + int(budgetWarningTestSeq.Add(1))
 	configured := config.OpenAIConfig{
-		ContextWindow:  131073,
+		ContextWindow:  window,
 		ContextProfile: "local",
 		MaxTotalTokens: 120000,
 	}
@@ -113,8 +119,8 @@ func TestLogContextBudgetWarningsKeepsConfiguredValue(t *testing.T) {
 	if got, ok := fields["configured_max_total_tokens"].(int64); !ok || got != 120000 {
 		t.Fatalf("configured_max_total_tokens = %#v, want 120000", fields["configured_max_total_tokens"])
 	}
-	if got, ok := fields["effective_max_total_tokens"].(int64); !ok || got != 78643 {
-		t.Fatalf("effective_max_total_tokens = %#v, want 78643", fields["effective_max_total_tokens"])
+	if got, ok := fields["effective_max_total_tokens"].(int64); !ok || got != int64(effective.MaxTotalTokens) {
+		t.Fatalf("effective_max_total_tokens = %#v, want %d", fields["effective_max_total_tokens"], effective.MaxTotalTokens)
 	}
 	warnings := warningCodes(fields["warnings"])
 	if !hasWarningCode(warnings, config.ContextWarningMaxTotalClamped) {
