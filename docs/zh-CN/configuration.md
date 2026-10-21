@@ -75,6 +75,18 @@ ai:
 | `max_completion_tokens` | 单次模型输出上限；未填时使用默认值。 |
 | `reasoning` | 该通道的默认推理扩展字段。不同网关支持差异较大，异常时先尝试 `mode: off`。 |
 
+### 按提供商和模型关闭推理
+
+使用 `reasoning.mode: off`，或在对话中选择“推理 → 关闭”。实际请求参数按通道区分：
+
+- 官方 `https://api.openai.com/v1`、OpenAI 兼容提供商、`auto` 或 `openai_compat` profile 下，已知支持 `none` 的模型发送 `reasoning_effort: "none"`。覆盖 GPT-5.5、GPT-5.6（Sol/Terra/Luna 及 `gpt-5.6` 别名）、GPT-6 Sol/Luna 和对应日期快照；这些模型也接受配置或请求中的 `reasoning.effort: none`。Planner 的强制工具选择同样保留显式 `none`。
+- DeepSeek 在 `auto` 或 `deepseek_compat` profile 下，关闭时仍发送 `thinking: {type: disabled}`。显式 profile 优先于自动识别。
+- 其他模型和第三方兼容网关保持原有行为：关闭时省略推理字段。第三方网关使用 OpenAI 同名模型，不会被自动视为官方服务。
+
+GPT-5.6 和 GPT-6 Sol/Luna 在 Chat Completions 中使用函数工具时，应明确选择“关闭”；不指定强度会采用模型默认推理，不等同于关闭。工具与推理不兼容时会提示关闭推理，不会静默改写用户选择的强度。GPT-6.1 Sol 和 GPT-6 Astra 不支持 `none`，工具调用必须使用 Responses；当前 Chat Completions 后端会明确提示该限制，需要选择兼容模型。仅把 `base_url` 改成 Responses URL 不能完成协议适配。详见 [OpenAI 官方推理说明](https://developers.openai.com/api/docs/guides/reasoning)。
+
+`allow_client_reasoning: false` 时忽略对话或请求的推理覆盖，按通道设置执行。
+
 对话页的“AI 通道”下拉框会读取已保存通道。请求体中的 `aiChannelId` 非空时仅对本次/本会话运行配置生效，不会把 API Key 发送给模型；为空时跟随 `ai.default_channel`。
 
 常用操作：

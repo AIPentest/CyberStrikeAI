@@ -1040,16 +1040,16 @@ func (c *Config) NormalizeAIProviderProfiles() {
 // OpenAIReasoningConfig 全局默认与网关 profile（对话页可通过 ChatRequest.reasoning 覆盖，受 AllowClientReasoning 约束）。
 type OpenAIReasoningConfig struct {
 	// Mode: auto（默认）| on | off | default（与 auto 相同）。
-	// off 在 OpenAI/Claude profile 下省略推理字段；DeepSeek profile 下发送 thinking.type=disabled（其默认开启思考）。
+	// off 对已知支持 none 的官方 OpenAI 模型发送 reasoning_effort=none；DeepSeek profile 发送 thinking.type=disabled；其他服务保持省略推理字段。
 	Mode string `yaml:"mode,omitempty" json:"mode,omitempty"`
-	// Effort: low | medium | high | max | xhigh；max/xhigh 为不同网关最高档命名，原样下发、不互转。空表示不单独指定强度。
+	// Effort: low | medium | high | max | xhigh；已知支持 none 的官方 OpenAI 模型另接受 none（等同关闭）。空表示不单独指定强度。
 	Effort string `yaml:"effort,omitempty" json:"effort,omitempty"`
 	// AllowClientReasoning 为 false 时忽略请求体 reasoning；nil 或未设置等同于 true。
 	AllowClientReasoning *bool `yaml:"allow_client_reasoning,omitempty" json:"allow_client_reasoning,omitempty"`
 	// Profile: auto | deepseek_compat | openai_compat | output_config_effort
 	Profile string `yaml:"profile,omitempty" json:"profile,omitempty"`
 	// ExtraRequestFields 合并进 Chat Completions 根 JSON（管理员用；与自动字段同名时后者覆盖）。
-	// Mode=off 时会移除其中的推理控制字段，但保留其他扩展字段；DeepSeek profile 随后补充显式关闭开关。
+	// Mode=off 时移除其中的推理控制字段，保留其他扩展字段，再按提供商与已知模型能力补充显式关闭参数。
 	ExtraRequestFields map[string]interface{} `yaml:"extra_request_fields,omitempty" json:"extra_request_fields,omitempty"`
 }
 

@@ -76,6 +76,18 @@ ai:
 
 The chat page reads saved channels into the “AI Channel” selector. A non-empty request `aiChannelId` selects a channel for that run/session without sending API credentials through the prompt path. Empty `aiChannelId` follows `ai.default_channel`.
 
+### Disabling reasoning by provider and model
+
+Use `reasoning.mode: off` (or **Reasoning → Off** in chat) to disable reasoning. The request format depends on the channel:
+
+- On `https://api.openai.com/v1`, with an OpenAI-compatible provider and the `auto` or `openai_compat` profile, known models that support `none` send `reasoning_effort: "none"`. This covers GPT-5.5, GPT-5.6 (Sol/Terra/Luna and the `gpt-5.6` alias), GPT-6 Sol/Luna, and their dated snapshots. These models also accept `reasoning.effort: none` in configuration or the request. Planner requests retain explicit `none` through forced tool selection.
+- DeepSeek channels using the `auto` or `deepseek_compat` profile retain `thinking: {type: disabled}` when off. An explicit profile takes precedence over automatic detection.
+- Other models and third-party gateways retain the existing behavior: off omits reasoning fields. A gateway using an OpenAI model name is not automatically treated as the native OpenAI service.
+
+For GPT-5.6 and GPT-6 Sol/Luna function tools on Chat Completions, choose **Off** explicitly; leaving effort unspecified uses the model's default reasoning and does not disable it. Requests combining these tools with reasoning return guidance to turn reasoning off instead of silently changing the requested effort. GPT-6.1 Sol and GPT-6 Astra require the Responses API for tools and do not support `none`; this Chat Completions backend reports that limitation and requires selecting a compatible model. Changing only `base_url` to a Responses URL does not adapt the protocol. See the [official reasoning guide](https://developers.openai.com/api/docs/guides/reasoning).
+
+When `allow_client_reasoning: false`, chat/request reasoning overrides are ignored and the channel's settings apply.
+
 Common Web UI operations:
 
 - Add: click `+`, fill required fields, then save.
