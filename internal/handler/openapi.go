@@ -5033,10 +5033,13 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 									"type":     "object",
 									"required": []string{"api_key", "model"},
 									"properties": map[string]interface{}{
-										"provider": map[string]interface{}{"type": "string", "description": "LLM提供商（openai/claude）", "example": "openai"},
-										"base_url": map[string]interface{}{"type": "string", "description": "API基地址（可选，默认根据provider自动选择）"},
-										"api_key":  map[string]interface{}{"type": "string", "description": "API密钥"},
-										"model":    map[string]interface{}{"type": "string", "description": "模型名称", "example": "gpt-4"},
+										"provider":              map[string]interface{}{"type": "string", "description": "LLM提供商（openai/claude）", "example": "openai"},
+										"base_url":              map[string]interface{}{"type": "string", "description": "API基地址（可选，默认根据provider自动选择）"},
+										"api_key":               map[string]interface{}{"type": "string", "description": "API密钥"},
+										"model":                 map[string]interface{}{"type": "string", "description": "模型名称", "example": "gpt-4"},
+										"max_total_tokens":      map[string]interface{}{"type": "integer", "description": "可选：当前最大上下文预算，用于计算有效预算预览"},
+										"max_completion_tokens": map[string]interface{}{"type": "integer", "description": "可选：当前单次输出上限，用于计算有效预算预览"},
+										"context_profile":       map[string]interface{}{"type": "string", "enum": []string{"auto", "local"}, "description": "可选：上下文优化档位"},
 									},
 								},
 							},
@@ -5050,10 +5053,70 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 									"schema": map[string]interface{}{
 										"type": "object",
 										"properties": map[string]interface{}{
-											"success":    map[string]interface{}{"type": "boolean", "description": "是否连接成功"},
-											"error":      map[string]interface{}{"type": "string", "description": "失败原因（success=false时）"},
-											"model":      map[string]interface{}{"type": "string", "description": "实际使用的模型（success=true时）"},
-											"latency_ms": map[string]interface{}{"type": "number", "description": "延迟毫秒数（success=true时）"},
+											"success":                    map[string]interface{}{"type": "boolean", "description": "是否连接成功"},
+											"error":                      map[string]interface{}{"type": "string", "description": "失败原因（success=false时）"},
+											"model":                      map[string]interface{}{"type": "string", "description": "实际使用的模型（success=true时）"},
+											"latency_ms":                 map[string]interface{}{"type": "number", "description": "延迟毫秒数（success=true时）"},
+											"context_window":             map[string]interface{}{"type": "integer", "description": "探测到的运行时上下文窗口（可选）"},
+											"context_slots":              map[string]interface{}{"type": "integer", "description": "llama.cpp 并行槽位数（可选）"},
+											"effective_max_total_tokens": map[string]interface{}{"type": "integer", "description": "按档位折算后的有效预算（可选）"},
+											"context_warnings":           map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "上下文告警码（可选）"},
+										},
+									},
+								},
+							},
+						},
+						"400": map[string]interface{}{"description": "参数错误"},
+						"401": map[string]interface{}{"description": "未授权"},
+					},
+				},
+			},
+			"/api/config/detect-context": map[string]interface{}{
+				"post": map[string]interface{}{
+					"tags":        []string{"配置管理"},
+					"summary":     "探测模型运行时上下文窗口",
+					"description": "探测 Ollama、llama.cpp、LM Studio、vLLM/OpenAI 兼容端点的运行时上下文窗口，并按当前档位计算有效预算；不会发起推理请求。",
+					"operationId": "detectModelContext",
+					"requestBody": map[string]interface{}{
+						"required": true,
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{
+									"type":     "object",
+									"required": []string{"model"},
+									"properties": map[string]interface{}{
+										"provider":              map[string]interface{}{"type": "string", "description": "LLM提供商（openai_compatible/claude等）", "example": "openai_compatible"},
+										"base_url":              map[string]interface{}{"type": "string", "description": "API基地址（可选，默认 OpenAI）", "example": "http://127.0.0.1:11434/v1"},
+										"api_key":               map[string]interface{}{"type": "string", "description": "API密钥（可选，可回退到已保存通道）"},
+										"model":                 map[string]interface{}{"type": "string", "description": "模型名称", "example": "qwen3:8b"},
+										"channel_id":            map[string]interface{}{"type": "string", "description": "已保存的 AI 通道 ID（用于复用密钥）"},
+										"credential_scope":      map[string]interface{}{"type": "string", "description": "凭据作用域（可选）"},
+										"max_total_tokens":      map[string]interface{}{"type": "integer", "description": "当前配置的最大上下文预算，用于计算有效预算与告警"},
+										"max_completion_tokens": map[string]interface{}{"type": "integer", "description": "当前配置的单次输出上限，用于计算有效预算与输出预留"},
+										"context_profile":       map[string]interface{}{"type": "string", "enum": []string{"auto", "local"}, "description": "上下文优化档位"},
+									},
+								},
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{
+							"description": "探测结果",
+							"content": map[string]interface{}{
+								"application/json": map[string]interface{}{
+									"schema": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"success":                    map[string]interface{}{"type": "boolean", "description": "探测是否执行成功"},
+											"model":                      map[string]interface{}{"type": "string", "description": "被探测的模型"},
+											"context_backend":            map[string]interface{}{"type": "string", "description": "识别到的后端类型（ollama/llamacpp/lmstudio/openai_compatible）"},
+											"context_window":             map[string]interface{}{"type": "integer", "description": "运行时上下文窗口（token）"},
+											"context_source":             map[string]interface{}{"type": "string", "description": "窗口来源（如 ollama_ps、llamacpp_props）"},
+											"context_loaded":             map[string]interface{}{"type": "boolean", "description": "窗口是否来自已加载实例"},
+											"context_slots":              map[string]interface{}{"type": "integer", "description": "llama.cpp 并行槽位数（--parallel）；大于 1 时单请求窗口可能小于 n_ctx"},
+											"context_runtime_unknown":    map[string]interface{}{"type": "boolean", "description": "只能确认模型上限，无法确认运行时窗口"},
+											"effective_max_total_tokens": map[string]interface{}{"type": "integer", "description": "按 context_profile 折算后的有效预算"},
+											"context_warnings":           map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "告警码列表（如 ollama_v1_ignores_num_ctx、max_total_tokens_clamped）"},
 										},
 									},
 								},

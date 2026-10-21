@@ -418,9 +418,10 @@ Shodan 官方查询语法参考：
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt},
 		},
-		"temperature":           0.1,
-		"max_completion_tokens": 12000,
+		"temperature":                   0.1,
+		h.cfg.OpenAI.OutputLimitField(): 12000,
 	}
+	config.ApplyExtraRequestFields(requestBody, h.cfg.OpenAI.Reasoning.ExtraRequestFields)
 
 	// OpenAI 返回结构：只需要 choices[0].message.content
 	var apiResponse struct {

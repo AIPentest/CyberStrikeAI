@@ -66,7 +66,7 @@ func newEinoAgenticSummarizationMiddleware(
 	if modelName == "" {
 		modelName = "gpt-4o"
 	}
-	classicTokenCounter := einoSummarizationTokenCounter(modelName)
+	classicTokenCounter := einoSummarizationTokenCounterForChannel(modelName, appCfg.OpenAI)
 	agenticTokenCounter := func(ctx context.Context, input *summarization.TypedTokenCounterInput[*schema.AgenticMessage]) (int, error) {
 		if input == nil {
 			return 0, nil

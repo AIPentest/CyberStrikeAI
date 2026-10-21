@@ -53,6 +53,7 @@ func (h *einoContextOverflowRetryHandler) Prepare(
 		restartMsgs,
 		h.cfg.Args.MaxTotalTokens,
 		h.cfg.Args.ModelName,
+		h.cfg.Args.TokenSafetyPercent,
 		h.cfg.Args.ToolMaxBytes,
 		h.cfg.OrchMode,
 		h.cfg.Logger,

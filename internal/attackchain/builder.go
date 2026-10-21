@@ -52,25 +52,10 @@ func NewBuilder(db *database.DB, openAIConfig *config.OpenAIConfig, logger *zap.
 	}
 	httpClient := &http.Client{Timeout: 5 * time.Minute, Transport: transport}
 
-	// 优先使用配置文件中的统一 Token 上限（config.yaml -> openai.max_total_tokens）
-	maxTokens := 0
-	if openAIConfig != nil && openAIConfig.MaxTotalTokens > 0 {
-		maxTokens = openAIConfig.MaxTotalTokens
-	} else if openAIConfig != nil {
-		// 如果未显式配置 max_total_tokens，则根据模型设置一个合理的默认值
-		model := strings.ToLower(openAIConfig.Model)
-		if strings.Contains(model, "gpt-4") {
-			maxTokens = 128000 // gpt-4通常支持128k
-		} else if strings.Contains(model, "gpt-3.5") {
-			maxTokens = 16000 // gpt-3.5-turbo通常支持16k
-		} else if strings.Contains(model, "deepseek") {
-			maxTokens = 131072 // deepseek-chat通常支持131k
-		} else {
-			maxTokens = 100000 // 兜底默认值
-		}
-	} else {
-		// 没有 OpenAI 配置时使用兜底值，避免为 0
-		maxTokens = 100000
+	// 统一走通道的有效预算：已按 context_window / context_profile 收紧。
+	maxTokens := 100000
+	if openAIConfig != nil {
+		maxTokens = openAIConfig.EffectiveMaxTotalTokens()
 	}
 
 	return &Builder{
@@ -897,9 +882,10 @@ func (b *Builder) callAIForChainGeneration(ctx context.Context, prompt string) (
 				"content": prompt,
 			},
 		},
-		"temperature":           0.3,
-		"max_completion_tokens": attackChainMaxCompletionTokens(b.maxTokens),
+		"temperature":                     0.3,
+		b.openAIConfig.OutputLimitField(): attackChainMaxCompletionTokens(b.maxTokens),
 	}
+	config.ApplyExtraRequestFields(requestBody, b.openAIConfig.Reasoning.ExtraRequestFields)
 
 	var apiResponse struct {
 		Choices []struct {

@@ -70,11 +70,16 @@ func newEinoToolCallingChatModelFactory(
 		openai.AttachSummarizationDiagTransport(httpClient, logger)
 		maxCompletionTokens := oa.MaxCompletionTokensEffective()
 		modelCfg := &einoopenai.ChatModelConfig{
-			APIKey:              oa.APIKey,
-			BaseURL:             strings.TrimSuffix(oa.BaseURL, "/"),
-			Model:               oa.Model,
-			HTTPClient:          httpClient,
-			MaxCompletionTokens: &maxCompletionTokens,
+			APIKey:     oa.APIKey,
+			BaseURL:    strings.TrimSuffix(oa.BaseURL, "/"),
+			Model:      oa.Model,
+			HTTPClient: httpClient,
+		}
+		if oa.IsLocalContextProfile() {
+			// Ollama/llama.cpp 等本地端点普遍只认旧字段 max_tokens。
+			modelCfg.MaxTokens = &maxCompletionTokens
+		} else {
+			modelCfg.MaxCompletionTokens = &maxCompletionTokens
 		}
 		if mode == einoModelModePlanner {
 			reasoning.ApplyPlanExecutePlannerModelConfig(modelCfg, &oa)
@@ -107,16 +112,24 @@ func newEinoAgenticChatModelFactory(
 		httpClient := openai.NewEinoHTTPClient(&oa, baseHTTPClient)
 		openai.AttachSummarizationDiagTransport(httpClient, logger)
 		maxCompletionTokens := oa.MaxCompletionTokensEffective()
-		modelCfg := &agenticopenai.ChatConfig{
-			APIKey:              oa.APIKey,
-			BaseURL:             strings.TrimSuffix(oa.BaseURL, "/"),
-			Model:               oa.Model,
-			HTTPClient:          httpClient,
-			MaxCompletionTokens: &maxCompletionTokens,
-			ExtraFields:         reasoning.AgenticOpenAIExtraFields(&oa, reasoningClient),
-		}
+		fields := reasoning.AgenticOpenAIExtraFields(&oa, reasoningClient)
 		if mode == einoModelModePlanner {
-			modelCfg.ExtraFields = reasoning.AgenticOpenAIPlannerExtraFields(&oa)
+			fields = reasoning.AgenticOpenAIPlannerExtraFields(&oa)
+		}
+		modelCfg := &agenticopenai.ChatConfig{
+			APIKey:      oa.APIKey,
+			BaseURL:     strings.TrimSuffix(oa.BaseURL, "/"),
+			Model:       oa.Model,
+			HTTPClient:  httpClient,
+			ExtraFields: fields,
+		}
+		if oa.IsLocalContextProfile() {
+			if modelCfg.ExtraFields == nil {
+				modelCfg.ExtraFields = make(map[string]any)
+			}
+			modelCfg.ExtraFields["max_tokens"] = maxCompletionTokens
+		} else {
+			modelCfg.MaxCompletionTokens = &maxCompletionTokens
 		}
 		return agenticopenai.NewChatModel(ctx, modelCfg)
 	}

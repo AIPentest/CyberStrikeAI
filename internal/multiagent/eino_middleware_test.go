@@ -15,6 +15,18 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
+func TestMergeAlwaysVisibleToolNamesCanExcludeBuiltins(t *testing.T) {
+	t.Parallel()
+	coreOnly := mergeAlwaysVisibleToolNames([]string{"read_file"}, false)
+	if len(coreOnly) != 1 || coreOnly[0] != "read_file" {
+		t.Fatalf("core only = %#v, want [read_file]", coreOnly)
+	}
+	withBuiltins := mergeAlwaysVisibleToolNames([]string{"read_file"}, true)
+	if len(withBuiltins) <= len(coreOnly) {
+		t.Fatalf("builtins were not merged: %#v", withBuiltins)
+	}
+}
+
 func TestReductionCacheRootDir(t *testing.T) {
 	got := reductionCacheRootDir("", "proj-1", "conv-1")
 	want := filepath.Join("tmp", "reduction", "projects", "proj-1")

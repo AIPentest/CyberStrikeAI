@@ -21,6 +21,7 @@ import (
 	"cyberstrike-ai/internal/llm"
 	"cyberstrike-ai/internal/mcp"
 	"cyberstrike-ai/internal/mcp/builtin"
+	"cyberstrike-ai/internal/modelmeta"
 	"cyberstrike-ai/internal/openai"
 	"cyberstrike-ai/internal/security"
 	"cyberstrike-ai/internal/toolguard"
@@ -806,6 +807,20 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if req.OpenAI != nil {
+		if err := config.ValidateContextSettings("openai", req.OpenAI.ContextWindow, req.OpenAI.ContextProfile); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	if req.AI != nil {
+		for id, ch := range req.AI.Channels {
+			if err := config.ValidateContextSettings("ai.channels."+id, ch.ContextWindow, ch.ContextProfile); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+	}
 
 	// 更新OpenAI配置
 	if req.AI != nil {
@@ -1262,12 +1277,128 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 
 // TestOpenAIRequest 测试OpenAI连接请求
 type TestOpenAIRequest struct {
-	CredentialScope string `json:"credential_scope,omitempty"`
-	ChannelID       string `json:"channel_id,omitempty"`
-	Provider        string `json:"provider"`
-	BaseURL         string `json:"base_url"`
-	APIKey          string `json:"api_key"`
-	Model           string `json:"model"`
+	CredentialScope     string `json:"credential_scope,omitempty"`
+	ChannelID           string `json:"channel_id,omitempty"`
+	Provider            string `json:"provider"`
+	BaseURL             string `json:"base_url"`
+	APIKey              string `json:"api_key"`
+	Model               string `json:"model"`
+	MaxTotalTokens      int    `json:"max_total_tokens,omitempty"`
+	MaxCompletionTokens int    `json:"max_completion_tokens,omitempty"`
+	ContextProfile      string `json:"context_profile,omitempty"`
+}
+
+// DetectContextRequest probes model metadata without issuing a completion.
+type DetectContextRequest struct {
+	CredentialScope     string `json:"credential_scope,omitempty"`
+	ChannelID           string `json:"channel_id,omitempty"`
+	Provider            string `json:"provider"`
+	BaseURL             string `json:"base_url"`
+	APIKey              string `json:"api_key"`
+	Model               string `json:"model"`
+	MaxTotalTokens      int    `json:"max_total_tokens,omitempty"`
+	MaxCompletionTokens int    `json:"max_completion_tokens,omitempty"`
+	ContextProfile      string `json:"context_profile,omitempty"`
+}
+
+func probeModelContext(ctx context.Context, provider, baseURL, apiKey, model string) modelmeta.ContextInfo {
+	if llm.IsClaudeProvider(provider) {
+		return modelmeta.ContextInfo{}
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	return modelmeta.DetectContext(probeCtx, baseURL, model, apiKey, nil)
+}
+
+func addModelContextToResponse(resp gin.H, info modelmeta.ContextInfo, maxTotalTokens, maxCompletionTokens int, contextProfile string) {
+	if info.Backend != "" {
+		resp["context_backend"] = info.Backend
+	}
+	if info.ContextWindow > 0 {
+		resp["context_window"] = info.ContextWindow
+	}
+	if info.Source != "" {
+		resp["context_source"] = info.Source
+	}
+	if info.Loaded {
+		resp["context_loaded"] = true
+	}
+	if info.RuntimeSlots > 0 {
+		resp["context_slots"] = info.RuntimeSlots
+	}
+	if info.RuntimeUnknown {
+		resp["context_runtime_unknown"] = true
+	}
+	profile := config.NormalizeContextProfile(contextProfile)
+	oa := config.OpenAIConfig{
+		ContextWindow:       info.ContextWindow,
+		ContextProfile:      profile,
+		MaxTotalTokens:      maxTotalTokens,
+		MaxCompletionTokens: maxCompletionTokens,
+	}
+	if info.ContextWindow > 0 || profile != "" {
+		resp["effective_max_total_tokens"] = oa.EffectiveMaxTotalTokens()
+	}
+	warnings := append([]string(nil), info.Warnings...)
+	if info.ContextWindow > 0 && maxTotalTokens > info.ContextWindow {
+		warnings = append(warnings, modelmeta.WarningBudgetExceedsWindow)
+	}
+	warnings = append(warnings, oa.ContextBudgetWarnings()...)
+	if len(warnings) > 0 {
+		resp["context_warnings"] = dedupeContextWarnings(warnings)
+	}
+}
+
+func dedupeContextWarnings(warnings []string) []string {
+	out := make([]string, 0, len(warnings))
+	seen := make(map[string]struct{}, len(warnings))
+	for _, code := range warnings {
+		code = strings.TrimSpace(code)
+		if code == "" {
+			continue
+		}
+		if _, ok := seen[code]; ok {
+			continue
+		}
+		seen[code] = struct{}{}
+		out = append(out, code)
+	}
+	return out
+}
+
+// DetectContext probes local inference metadata (context window, runtime source).
+func (h *ConfigHandler) DetectContext(c *gin.Context) {
+	var req DetectContextRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		return
+	}
+	resolvedKey, resolveErr := h.resolveProbeSecret(req.APIKey, req.ChannelID, req.BaseURL, req.CredentialScope)
+	if resolveErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": resolveErr.Error()})
+		return
+	}
+	req.APIKey = resolvedKey
+	if llm.IsClaudeProvider(req.Provider) {
+		c.JSON(http.StatusOK, gin.H{
+			"success":   false,
+			"supported": false,
+			"error":     "Claude (Anthropic Messages API) 不提供上下文窗口探测，请手动填写",
+		})
+		return
+	}
+	if strings.TrimSpace(req.Model) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "模型不能为空"})
+		return
+	}
+	baseURL := strings.TrimSuffix(strings.TrimSpace(req.BaseURL), "/")
+	if baseURL == "" {
+		baseURL = "https://api.openai.com/v1"
+	}
+	info := probeModelContext(c.Request.Context(), req.Provider, baseURL, req.APIKey, req.Model)
+	resp := gin.H{"success": true, "model": req.Model}
+	addModelContextToResponse(resp, info, req.MaxTotalTokens, req.MaxCompletionTokens, req.ContextProfile)
+	c.JSON(http.StatusOK, resp)
 }
 
 // TestOpenAI 测试OpenAI API连接是否可用
@@ -1302,13 +1433,14 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 		}
 	}
 
-	// 构造一个最小的 chat completion 请求
+	// 构造一个最小的 chat completion 请求；本地档位使用更通用的 max_tokens。
+	maxTokensField := (config.OpenAIConfig{ContextProfile: req.ContextProfile}).OutputLimitField()
 	payload := map[string]interface{}{
 		"model": req.Model,
 		"messages": []map[string]string{
 			{"role": "user", "content": "Hi"},
 		},
-		"max_completion_tokens": 5,
+		maxTokensField: 5,
 	}
 
 	// OpenAI-compatible 通道使用内部客户端；Claude 通道在下方直接使用 Eino agenticclaude。
@@ -1392,11 +1524,13 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	resp := gin.H{
 		"success":    true,
 		"model":      chatResp.Model,
 		"latency_ms": latency.Milliseconds(),
-	})
+	}
+	addModelContextToResponse(resp, probeModelContext(c.Request.Context(), req.Provider, baseURL, req.APIKey, req.Model), req.MaxTotalTokens, req.MaxCompletionTokens, req.ContextProfile)
+	c.JSON(http.StatusOK, resp)
 }
 
 // TestTypeSafeRequest 测试 TypeSafe / Jev 连接。
@@ -1595,7 +1729,7 @@ func (h *ConfigHandler) TestVision(c *gin.Context) {
 		"messages": []map[string]string{
 			{"role": "user", "content": "Hi"},
 		},
-		"max_completion_tokens": 5,
+		oa.OutputLimitField(): 5,
 	}
 
 	tmpCfg := &config.OpenAIConfig{
@@ -2153,6 +2287,16 @@ func updateOpenAIConfig(doc *yaml.Node, cfg config.OpenAIConfig) {
 	if cfg.MaxTotalTokens > 0 {
 		setIntInMap(openaiNode, "max_total_tokens", cfg.MaxTotalTokens)
 	}
+	if cfg.ContextWindow > 0 {
+		setIntInMap(openaiNode, "context_window", cfg.ContextWindow)
+	} else {
+		removeKeyFromMap(openaiNode, "context_window")
+	}
+	if profile := config.NormalizeContextProfile(cfg.ContextProfile); profile != "" {
+		setStringInMap(openaiNode, "context_profile", profile)
+	} else {
+		removeKeyFromMap(openaiNode, "context_profile")
+	}
 	rn := ensureMap(openaiNode, "reasoning")
 	if strings.TrimSpace(cfg.Reasoning.Mode) != "" {
 		setStringInMap(rn, "mode", cfg.Reasoning.Mode)
@@ -2211,6 +2355,16 @@ func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) {
 		}
 		if ch.MaxCompletionTokens > 0 {
 			setIntInMap(channelNode, "max_completion_tokens", ch.MaxCompletionTokens)
+		}
+		if ch.ContextWindow > 0 {
+			setIntInMap(channelNode, "context_window", ch.ContextWindow)
+		} else {
+			removeKeyFromMap(channelNode, "context_window")
+		}
+		if profile := config.NormalizeContextProfile(ch.ContextProfile); profile != "" {
+			setStringInMap(channelNode, "context_profile", profile)
+		} else {
+			removeKeyFromMap(channelNode, "context_profile")
 		}
 		rn := ensureMap(channelNode, "reasoning")
 		if strings.TrimSpace(ch.Reasoning.Mode) != "" {

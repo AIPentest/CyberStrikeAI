@@ -5403,6 +5403,14 @@ html[data-theme="dark"] .conversation-reasoning-card:not(.conversation-reasoning
     line-height: 1.45;
 }
 
+#detect-context-result.is-success {
+    color: var(--success-color, #38a169);
+}
+
+#detect-context-result.is-error {
+    color: var(--danger-color, #e53e3e);
+}
+
 .ai-channel-reasoning-toggle {
     margin-top: 8px;
 }

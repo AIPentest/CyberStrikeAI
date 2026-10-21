@@ -49,11 +49,12 @@ func (h *AgentHandler) auditAgentReview(ctx context.Context, hitlMode, toolName 
 			{"role": "system", "content": prompt},
 			{"role": "user", "content": userContent},
 		},
-		"temperature":           0.1,
-		"max_completion_tokens": 1024,
+		"temperature":             0.1,
+		llmCfg.OutputLimitField(): 1024,
 		// 审计裁决需要结构化 JSON；关闭 thinking 避免 Qwen 等把正文放进 reasoning_content 导致解析失败。
 		"thinking": map[string]interface{}{"type": "disabled"},
 	}
+	config.ApplyExtraRequestFields(requestBody, llmCfg.Reasoning.ExtraRequestFields)
 
 	var apiResponse struct {
 		Choices []struct {

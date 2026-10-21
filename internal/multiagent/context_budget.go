@@ -4,13 +4,47 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"unicode/utf8"
+
+	"cyberstrike-ai/internal/config"
 
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/adk/middlewares/summarization"
 	"github.com/cloudwego/eino/schema"
 	"go.uber.org/zap"
 )
+
+var contextBudgetWarned sync.Map
+
+// logContextBudgetWarnings reports the clamp applied by WithEffectiveContextBudget.
+// configured must be the pre-clamp channel config so the warning set and the
+// configured value stay meaningful.
+func logContextBudgetWarnings(configured, effective config.OpenAIConfig, logger *zap.Logger, phase string) {
+	if logger == nil {
+		return
+	}
+	warnings := configured.ContextBudgetWarnings()
+	if len(warnings) == 0 {
+		return
+	}
+	key := fmt.Sprintf("%d|%d|%d|%s",
+		configured.EffectiveContextWindow(),
+		configured.MaxTotalTokens,
+		effective.MaxTotalTokens,
+		strings.Join(warnings, ","),
+	)
+	if _, loaded := contextBudgetWarned.LoadOrStore(key, struct{}{}); loaded {
+		return
+	}
+	logger.Warn("model context budget adjusted",
+		zap.String("phase", phase),
+		zap.Int("context_window", configured.EffectiveContextWindow()),
+		zap.Int("configured_max_total_tokens", configured.MaxTotalTokens),
+		zap.Int("effective_max_total_tokens", effective.MaxTotalTokens),
+		zap.Strings("warnings", warnings),
+	)
+}
 
 const (
 	toolOutputTruncationMarker = "\n\n...[tool output truncated; full text persisted in reduction cache or summarization transcript]...\n\n"
@@ -37,9 +71,16 @@ func isEinoContextOverflowError(err error) bool {
 		"token limit",
 		"tokens exceed",
 		"exceeds the context",
+		"exceeds the available context", // llama.cpp: request exceeds the available context size
+		"available context size",
 		"input is too long",
+		"input length exceeds",
 		"prompt is too long",
+		"prompt too long",
+		"max_model_len", // vLLM: input tokens exceed max_model_len
+		"maximum model length",
 		"request too large",
+		"tokens to keep", // LM Studio truncation warning
 	}
 	for _, m := range markers {
 		if strings.Contains(msg, m) {
@@ -174,11 +215,34 @@ func truncateRoundMessagesToTokenBudget(
 type compactMessagesOpts struct {
 	maxTokens    int
 	counter      summarization.TokenCounterFunc
+	tools        []*schema.ToolInfo
 	toolMaxBytes int
 	spillRef     string
 	aggressive   bool
 	logger       *zap.Logger
 	phase        string
+}
+
+func countToolTokens(ctx context.Context, counter summarization.TokenCounterFunc, tools []*schema.ToolInfo) int {
+	if counter == nil || len(tools) == 0 {
+		return 0
+	}
+	n, err := countMessagesTokens(ctx, nil, counter, tools)
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
+func countMessagesTokensNoTools(ctx context.Context, msgs []adk.Message, counter summarization.TokenCounterFunc) int {
+	if counter == nil {
+		return 0
+	}
+	n, err := countMessagesTokens(ctx, msgs, counter, nil)
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 func compactMessagesByDroppingRounds(
@@ -189,8 +253,21 @@ func compactMessagesByDroppingRounds(
 	if opts.maxTokens <= 0 || len(messages) == 0 || opts.counter == nil {
 		return messages, false
 	}
-	before, err := countMessagesTokens(ctx, messages, opts.counter, nil)
+	before, err := countMessagesTokens(ctx, messages, opts.counter, opts.tools)
 	if err != nil || before <= opts.maxTokens {
+		return messages, false
+	}
+	toolTokens := countToolTokens(ctx, opts.counter, opts.tools)
+	if toolTokens >= opts.maxTokens {
+		if opts.logger != nil {
+			opts.logger.Warn("model input budget exhausted by tool schemas",
+				zap.String("phase", opts.phase),
+				zap.Int("tool_tokens_estimated", toolTokens),
+				zap.Int("message_tokens_estimated", countMessagesTokensNoTools(ctx, messages, opts.counter)),
+				zap.Int("max_tokens", opts.maxTokens),
+				zap.Int("tools", len(opts.tools)),
+			)
+		}
 		return messages, false
 	}
 
@@ -232,7 +309,7 @@ func compactMessagesByDroppingRounds(
 		for _, round := range rounds {
 			candidate = append(candidate, round.messages...)
 		}
-		after, countErr := countMessagesTokens(ctx, candidate, opts.counter, nil)
+		after, countErr := countMessagesTokens(ctx, candidate, opts.counter, opts.tools)
 		if countErr != nil {
 			break
 		}
@@ -243,6 +320,7 @@ func compactMessagesByDroppingRounds(
 					zap.Int("tokens_before", before),
 					zap.Int("tokens_after", after),
 					zap.Int("max_tokens", opts.maxTokens),
+					zap.Int("tool_tokens_estimated", toolTokens),
 					zap.Int("dropped_rounds", dropped),
 					zap.Bool("aggressive", opts.aggressive),
 				)
@@ -258,8 +336,12 @@ func compactMessagesByDroppingRounds(
 		return messages, false
 	}
 	latest := rounds[len(rounds)-1]
+	messageBudget := opts.maxTokens - toolTokens
+	if messageBudget < 1024 {
+		messageBudget = 1024
+	}
 	truncated, truncErr := truncateRoundMessagesToTokenBudget(
-		ctx, latest, opts.maxTokens, opts.counter, opts.toolMaxBytes, opts.spillRef,
+		ctx, latest, messageBudget, opts.counter, opts.toolMaxBytes, opts.spillRef,
 	)
 	if truncErr != nil || len(truncated) == 0 {
 		if opts.logger != nil {
@@ -267,6 +349,7 @@ func compactMessagesByDroppingRounds(
 				zap.String("phase", opts.phase),
 				zap.Int("tokens_before", before),
 				zap.Int("max_tokens", opts.maxTokens),
+				zap.Int("tool_tokens_estimated", toolTokens),
 				zap.Bool("aggressive", opts.aggressive),
 			)
 		}
@@ -279,7 +362,7 @@ func compactMessagesByDroppingRounds(
 		}
 	}
 	candidate = append(candidate, truncated...)
-	after, countErr := countMessagesTokens(ctx, candidate, opts.counter, nil)
+	after, countErr := countMessagesTokens(ctx, candidate, opts.counter, opts.tools)
 	if countErr != nil {
 		return messages, false
 	}
@@ -289,6 +372,7 @@ func compactMessagesByDroppingRounds(
 			zap.Int("tokens_before", before),
 			zap.Int("tokens_after", after),
 			zap.Int("max_tokens", opts.maxTokens),
+			zap.Int("tool_tokens_estimated", toolTokens),
 			zap.Int("dropped_rounds", dropped),
 			zap.Bool("aggressive", opts.aggressive),
 		)
@@ -301,6 +385,7 @@ func aggressiveCompactMessagesForOverflow(
 	messages []adk.Message,
 	maxTotalTokens int,
 	modelName string,
+	tokenSafetyPercent int,
 	toolMaxBytes int,
 	phase string,
 	logger *zap.Logger,
@@ -318,7 +403,7 @@ func aggressiveCompactMessagesForOverflow(
 	}
 	out, _ := compactMessagesByDroppingRounds(ctx, messages, compactMessagesOpts{
 		maxTokens:    budget,
-		counter:      einoSummarizationTokenCounter(modelName),
+		counter:      einoSummarizationTokenCounterWithSafety(modelName, tokenSafetyPercent),
 		toolMaxBytes: aggressiveToolMax,
 		aggressive:   true,
 		logger:       logger,

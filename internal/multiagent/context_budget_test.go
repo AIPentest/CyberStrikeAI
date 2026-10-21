@@ -4,11 +4,20 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync/atomic"
 	"testing"
 
+	"cyberstrike-ai/internal/config"
+
 	"github.com/cloudwego/eino/adk"
+	"github.com/cloudwego/eino/adk/middlewares/summarization"
 	"github.com/cloudwego/eino/schema"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 )
+
+var budgetWarningTestSeq atomic.Int64
 
 func TestIsEinoContextOverflowError(t *testing.T) {
 	t.Parallel()
@@ -20,6 +29,10 @@ func TestIsEinoContextOverflowError(t *testing.T) {
 		{errors.New("context length exceeded"), true},
 		{errors.New("maximum context length"), true},
 		{errors.New("input is too long for model"), true},
+		{errors.New("the request exceeds the available context size, try increasing it"), true},
+		{errors.New("input length exceeds the context length"), true},
+		{errors.New("prompt too long"), true},
+		{errors.New("The input length of the prompt is 9000, exceeding max_model_len 8192"), true},
 		{errors.New("HTTP 429 Too Many Requests"), false},
 		{errors.New("invalid api key"), false},
 	}
@@ -79,6 +92,155 @@ func TestBuildBudgetedSummarizationModelInputTruncatesOversizedLatestRound(t *te
 	}
 	if len(toolContent) >= len(huge) {
 		t.Fatalf("expected oversized tool output to be compacted, got len=%d", len(toolContent))
+	}
+}
+
+func TestLogContextBudgetWarningsKeepsConfiguredValue(t *testing.T) {
+	t.Parallel()
+	core, logs := observer.New(zapcore.WarnLevel)
+	logger := zap.New(core)
+	// The warning dedupe map is process-global; use a unique window so
+	// -count>1 keeps exercising the logging path.
+	window := 131000 + int(budgetWarningTestSeq.Add(1))
+	configured := config.OpenAIConfig{
+		ContextWindow:  window,
+		ContextProfile: "local",
+		MaxTotalTokens: 120000,
+	}
+	effective := configured
+	effective.MaxTotalTokens = configured.EffectiveMaxTotalTokens()
+	logContextBudgetWarnings(configured, effective, logger, "test")
+
+	entries := logs.All()
+	if len(entries) != 1 {
+		t.Fatalf("warn entries = %d, want 1", len(entries))
+	}
+	fields := entries[0].ContextMap()
+	if got, ok := fields["configured_max_total_tokens"].(int64); !ok || got != 120000 {
+		t.Fatalf("configured_max_total_tokens = %#v, want 120000", fields["configured_max_total_tokens"])
+	}
+	if got, ok := fields["effective_max_total_tokens"].(int64); !ok || got != int64(effective.MaxTotalTokens) {
+		t.Fatalf("effective_max_total_tokens = %#v, want %d", fields["effective_max_total_tokens"], effective.MaxTotalTokens)
+	}
+	warnings := warningCodes(fields["warnings"])
+	if !hasWarningCode(warnings, config.ContextWarningMaxTotalClamped) {
+		t.Fatalf("warnings = %#v, want clamp warning", fields["warnings"])
+	}
+}
+
+func warningCodes(value interface{}) []string {
+	switch v := value.(type) {
+	case []string:
+		return v
+	case []interface{}:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			if code, ok := item.(string); ok {
+				out = append(out, code)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func hasWarningCode(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestLocalTokenCounterSafetyMargin(t *testing.T) {
+	t.Parallel()
+	input := &summarization.TokenCounterInput{Messages: []adk.Message{
+		schema.UserMessage(strings.Repeat("目标主机存在漏洞，需要进一步验证。", 40)),
+	}}
+	baseline := einoSummarizationTokenCounterWithSafety("qwen3-8b", 100)
+	local := einoSummarizationTokenCounterWithSafety("qwen3-8b", config.LocalTokenEstimateSafetyPercent)
+	baseCount, err := baseline(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	localCount, err := local(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := (baseCount*config.LocalTokenEstimateSafetyPercent + 99) / 100
+	if localCount != want {
+		t.Fatalf("local count = %d, want %d (baseline %d)", localCount, want, baseCount)
+	}
+	if localCount <= baseCount {
+		t.Fatalf("local count %d must exceed baseline %d", localCount, baseCount)
+	}
+}
+
+func TestCompactMessagesCountsToolSchemas(t *testing.T) {
+	t.Parallel()
+	counter := func(_ context.Context, in *summarization.TokenCounterInput) (int, error) {
+		n := 100 * len(in.Tools)
+		for _, msg := range in.Messages {
+			if msg != nil {
+				n += len(msg.Content)
+			}
+		}
+		return n, nil
+	}
+	msgs := []adk.Message{
+		schema.UserMessage(strings.Repeat("a", 25)),
+		schema.AssistantMessage(strings.Repeat("b", 25), nil),
+		schema.UserMessage(strings.Repeat("c", 25)),
+		schema.AssistantMessage(strings.Repeat("d", 25), nil),
+	}
+	out, changed := compactMessagesByDroppingRounds(context.Background(), msgs, compactMessagesOpts{
+		maxTokens: 150,
+		counter:   counter,
+		tools:     []*schema.ToolInfo{{Name: "t"}},
+		phase:     "test",
+	})
+	if !changed {
+		t.Fatal("expected compaction once tool schema tokens are included")
+	}
+	total := 100
+	for _, msg := range out {
+		if msg != nil {
+			total += len(msg.Content)
+		}
+	}
+	if total > 150 {
+		t.Fatalf("compacted input = %d tokens, want <= 150", total)
+	}
+}
+
+func TestCompactMessagesLeavesInputWhenToolsExceedBudget(t *testing.T) {
+	t.Parallel()
+	counter := func(_ context.Context, in *summarization.TokenCounterInput) (int, error) {
+		n := 100 * len(in.Tools)
+		for _, msg := range in.Messages {
+			if msg != nil {
+				n += len(msg.Content)
+			}
+		}
+		return n, nil
+	}
+	msgs := []adk.Message{
+		schema.UserMessage(strings.Repeat("a", 25)),
+		schema.AssistantMessage(strings.Repeat("b", 25), nil),
+	}
+	out, changed := compactMessagesByDroppingRounds(context.Background(), msgs, compactMessagesOpts{
+		maxTokens: 50,
+		counter:   counter,
+		tools:     []*schema.ToolInfo{{Name: "t"}},
+		phase:     "test",
+	})
+	if changed {
+		t.Fatal("message compaction cannot fix a tool-schema budget overrun")
+	}
+	if len(out) != len(msgs) {
+		t.Fatalf("messages changed: %d -> %d", len(msgs), len(out))
 	}
 }
 
