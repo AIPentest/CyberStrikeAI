@@ -182,6 +182,8 @@ func discardPlanningIfEchoesToolResult(respPlan *responsePlanAgg, toolData inter
 
 // AgentHandler Agent处理器
 type AgentHandler struct {
+	asyncWorkers     sync.WaitGroup
+	asyncSubmitMu    sync.Mutex
 	agent            *agent.Agent
 	db               *database.DB
 	logger           *zap.Logger

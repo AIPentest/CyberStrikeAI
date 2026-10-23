@@ -108,6 +108,8 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 		zap.String("conversationId", req.ConversationID),
 	)
 
+	releaseAdmission := h.lockAgentAdmission()
+	defer releaseAdmission()
 	prep, err := h.prepareMultiAgentSession(&req, c, "multi_agent_stream")
 	if err != nil {
 		sendEvent("error", err.Error(), nil)
@@ -134,7 +136,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 			"userMessageId":  prep.UserMessageID,
 		})
 	}
-	if h.runRoleWorkflowStreamIfBound(c, &req, prep, sendEvent) {
+	if h.runRoleWorkflowStreamIfBound(c, &req, prep, sendEvent, releaseAdmission) {
 		return
 	}
 
@@ -194,6 +196,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	} else {
 		taskRunID = startedTask.RunID
 	}
+	releaseAdmission()
 	baseCtx = h.tasks.BindProcessScope(baseCtx, conversationID, taskRunID)
 	taskCtx = h.tasks.BindProcessScope(taskCtx, conversationID, taskRunID)
 	taskOwned = true
@@ -456,6 +459,8 @@ func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 
 	h.logger.Info("收到 Eino DeepAgent 非流式请求", zap.String("conversationId", req.ConversationID))
 
+	releaseAdmission := h.lockAgentAdmission()
+	defer releaseAdmission()
 	prep, err := h.prepareMultiAgentSession(&req, c, "multi_agent")
 	if err != nil {
 		status, msg := multiAgentHTTPErrorStatus(err)
@@ -466,7 +471,7 @@ func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 	if h.hitlManager != nil {
 		defer h.hitlManager.DeactivateConversation(prep.ConversationID)
 	}
-	if h.runRoleWorkflowJSONIfBound(c, &req, prep) {
+	if h.runRoleWorkflowJSONIfBound(c, &req, prep, releaseAdmission) {
 		return
 	}
 
@@ -479,6 +484,7 @@ func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": startErr.Error()})
 		return
 	}
+	releaseAdmission()
 	taskCtx = h.tasks.BindProcessScope(taskCtx, prep.ConversationID, jsonTask.RunID)
 	taskCtx = mcp.WithMCPConversationID(taskCtx, prep.ConversationID)
 	taskCtx = mcp.WithToolRunRegistry(taskCtx, h.tasks)
@@ -487,110 +493,7 @@ func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 	defer func() { _ = h.tasks.FinishTaskRun(prep.ConversationID, jsonTask.RunID, jsonTaskStatus) }()
 	respond := h.taskFinishingJSONResponder(c, prep.ConversationID, jsonTask.RunID, func() string { return jsonTaskStatus })
 
-	progressCallback := h.createProgressCallback(taskCtx, cancelWithCause, prep.ConversationID, prep.AssistantMessageID, nil)
-	taskCtx = multiagent.WithHITLToolInterceptor(taskCtx, func(ctx context.Context, toolName, arguments string) (string, error) {
-		return h.interceptHITLForEinoTool(ctx, cancelWithCause, prep.ConversationID, prep.AssistantMessageID, nil, toolName, arguments)
-	})
-	runCfg, _, err := h.configForAIChannel(req.AIChannelID)
-	if err != nil {
-		respond(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	curHist := prep.History
-	curMsg := prep.FinalMessage
-	var result *multiagent.RunResult
-	var runErr error
-	var emptyResponseContinueAttempt int
-	var finalizationAutoContinueAttempt int
-	effectiveOrch := config.NormalizeMultiAgentOrchestration(h.config.MultiAgent.Orchestration)
-	if o := strings.TrimSpace(req.Orchestration); o != "" {
-		effectiveOrch = config.NormalizeMultiAgentOrchestration(o)
-	}
-	agentMode := "eino_" + effectiveOrch
-	var decision agentfinalizer.Decision
-	var autoCancelledPendingExecutionIDs []string
-	for {
-		result, runErr = multiagent.RunDeepAgent(
-			taskCtx,
-			runCfg,
-			&runCfg.MultiAgent,
-			h.agent,
-			h.db,
-			h.logger,
-			prep.ConversationID,
-			h.conversationProjectID(prep.ConversationID),
-			curMsg,
-			curHist,
-			prep.RoleTools,
-			progressCallback,
-			h.agentsMarkdownDir,
-			strings.TrimSpace(req.Orchestration),
-			chatReasoningToClientIntent(req.Reasoning),
-			h.agentSessionContextBlock(prep.ConversationID),
-		)
-		if runErr != nil {
-			if shouldPersistEinoAgentTraceAfterRunError(baseCtx) {
-				h.persistEinoAgentTraceForResume(prep.ConversationID, result)
-			}
-			h.logger.Error("Eino DeepAgent 执行失败", zap.Error(runErr))
-			clientErr := multiagent.EinoClientRunErrorMessage(runErr)
-			errMsg := "执行失败: " + clientErr
-			if prep.AssistantMessageID != "" {
-				_, _ = h.db.Exec("UPDATE messages SET content = ?, updated_at = ? WHERE id = ?", errMsg, time.Now(), prep.AssistantMessageID)
-			}
-			errData := multiagent.EinoClientRunErrorFields(runErr)
-			errData["error"] = errMsg
-			respond(http.StatusInternalServerError, errData)
-			return
-		}
-		mw := &h.config.MultiAgent.EinoMiddleware
-		if h.tryContinueOnEinoEmptyResponse(taskCtx, mw, prep.ConversationID, result, &emptyResponseContinueAttempt, &curHist, &curMsg, progressCallback) {
-			continue
-		}
-		decision = h.decideAgentRunForDeliveryWithPolicy(prep.ConversationID, prep.AssistantMessageID, agentMode, result, result.MCPExecutionIDs, requestRequiresExecutionEvidence(&req))
-		if cancelled := h.cleanupPendingToolExecutionsAfterIteration(taskCtx, prep.ConversationID, decision, progressCallback); len(cancelled) > 0 {
-			autoCancelledPendingExecutionIDs = mergeMCPExecutionIDLists(autoCancelledPendingExecutionIDs, cancelled)
-			decision = h.decideAgentRunForDeliveryWithPolicy(prep.ConversationID, prep.AssistantMessageID, agentMode, result, result.MCPExecutionIDs, requestRequiresExecutionEvidence(&req))
-		}
-		if h.tryAutoContinueAfterFinalization(taskCtx, prep.ConversationID, result, decision, &finalizationAutoContinueAttempt, &curHist, &curMsg, progressCallback) {
-			continue
-		}
-		break
-	}
-
-	h.persistFinalizationDecision(prep.ConversationID, prep.AssistantMessageID, agentMode, result.MCPExecutionIDs, multiagent.AggregatedReasoningFromTraceJSON(result.LastAgentTraceInput), decision)
-
-	if result.LastAgentTraceInput != "" || result.LastAgentTraceOutput != "" {
-		if err := h.db.SaveAgentTrace(prep.ConversationID, result.LastAgentTraceInput, result.LastAgentTraceOutput); err != nil {
-			h.logger.Warn("保存代理轨迹失败", zap.Error(err))
-		}
-	}
-
-	responseText := decision.FinalText
-	if !decision.Finalizable {
-		responseText = finalizationBlockedMessage(decision)
-	}
-
-	jsonTaskStatus = decision.Status
-	if jsonTaskStatus == "" {
-		jsonTaskStatus = "completed"
-	}
-	respond(http.StatusOK, ChatResponse{
-		Response:                         responseText,
-		MCPExecutionIDs:                  result.MCPExecutionIDs,
-		ConversationID:                   prep.ConversationID,
-		Time:                             time.Now(),
-		Finalizable:                      decision.Finalizable,
-		Finalized:                        decision.Finalized,
-		Status:                           decision.Status,
-		CompletionReason:                 decision.CompletionReason,
-		EvidenceVerified:                 decision.EvidenceVerified,
-		EvidenceRefs:                     decision.EvidenceRefs,
-		PendingExecutionIDs:              decision.PendingExecutionIDs,
-		MissingChecks:                    decision.MissingChecks,
-		AutoCancelledPendingExecutionIDs: autoCancelledPendingExecutionIDs,
-	})
+	h.runMultiJSON(taskCtx, baseCtx, cancelWithCause, &req, prep, &jsonTaskStatus, respond)
 }
 
 // persistEinoAgentTraceForResume 在 Eino 运行异常结束时写入代理轨迹（库列 last_react_*），供下一请求 loadHistoryFromAgentTrace 软续跑。
@@ -655,6 +558,8 @@ func formatInterruptContinueUserMessage(note string) string {
 func multiAgentHTTPErrorStatus(err error) (int, string) {
 	msg := err.Error()
 	switch {
+	case errors.Is(err, ErrTaskAlreadyRunning):
+		return http.StatusConflict, msg
 	case strings.Contains(msg, "无权访问"):
 		return http.StatusForbidden, msg
 	case strings.Contains(msg, "对话不存在"):

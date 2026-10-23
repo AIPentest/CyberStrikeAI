@@ -11,7 +11,10 @@ import (
 // ShutdownTasks stops local work before shared MCP clients and databases close.
 func (h *AgentHandler) ShutdownTasks() {
 	if h != nil && h.tasks != nil {
+		h.asyncSubmitMu.Lock()
 		h.tasks.Shutdown()
+		h.asyncSubmitMu.Unlock()
+		h.asyncWorkers.Wait()
 		if h.logger != nil {
 			for _, task := range h.tasks.GetActiveTasks() {
 				h.logger.Warn("服务关闭时任务仍有未完成的清理", zap.String("runId", task.RunID), zap.String("cleanupError", task.CleanupError))
