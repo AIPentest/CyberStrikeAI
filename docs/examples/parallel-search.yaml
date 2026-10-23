@@ -1,0 +1,12 @@
+# Merge this server into external_mcp.servers in your own config.yaml.
+# Keep existing servers and other settings. Set disabled: false to opt in.
+external_mcp:
+  servers:
+    parallel-search:
+      type: http
+      url: https://search.parallel.ai/mcp
+      headers:
+        User-Agent: CyberStrikeAI/1.0.0
+      disabled: true
+      timeout: 60
+      description: Public web research with Parallel Search MCP (no API key)

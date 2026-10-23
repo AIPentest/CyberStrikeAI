@@ -187,3 +187,7 @@ cloud_list_public_buckets
 - MCP 工具适配：`internal/einomcp/mcp_tools.go`
 - 外部 MCP Handler：`internal/handler/external_mcp.go`
 - 工具调用通知：`internal/einomcp/tool_invoke_notify.go`
+
+## Parallel Search MCP
+
+[Parallel Search MCP](parallel-search.md) 提供主动启用、无需 API Key 的公开网页检索配置示例。
