@@ -46,6 +46,16 @@ function skillDisplayDescription(skill, fallback) {
     return raw;
 }
 
+// 种子技能 frontmatter tags（skills/*/SKILL.md）仅按种子值翻译；用户自改的
+// 描述/分类按原文保留。非种子技能的 tags 也按原文。
+function skillDisplayTag(skill, tag) {
+    const raw = String(tag || '').trim();
+    if (!raw) return raw;
+    const translated = typeof window.t === 'function' ? window.t(`skills.seedTags.${raw}`) : '';
+    if (translated && translated !== `skills.seedTags.${raw}`) return translated;
+    return raw;
+}
+
 let skillsList = [];
 let currentEditingSkillName = null;
 let skillModalAddMode = true;
@@ -213,7 +223,7 @@ function renderSkillsList() {
             ? _t('skills.cardFiles', { count: skill.file_count })
             : '';
         const metaItems = [ver, fc, sc].filter(Boolean);
-        const tags = Array.isArray(skill.tags) ? skill.tags.filter(Boolean) : [];
+        const tags = Array.isArray(skill.tags) ? skill.tags.filter(Boolean).map(t => skillDisplayTag(skill, t)) : [];
         const visibleTags = tags.slice(0, 4);
         const hiddenTagCount = Math.max(0, tags.length - visibleTags.length);
         const tagsHtml = visibleTags.length

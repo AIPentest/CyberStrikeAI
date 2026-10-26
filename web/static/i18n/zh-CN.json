@@ -2798,6 +2798,11 @@
       "web-attack-methods": "Web全栈攻击:SQLi/命令注入/SSTI/XSS/SSRF/NoSQL,认证JWT/OAuth/SAML,LFI/上传,Tomcat/WS/STOMP/XFF/PATH_INFO/CDN502/网宿JS挑战绕过。Use when testing Web injection, auth bypass, server-side, WAF/CDN bypass.",
       "wireless-hardware-attack": "无线/硬件:WiFi PMKID/WPS/Evil Twin,BLE,Zigbee,NFC,SDR,UART/JTAG/SPI,侧信道,故障注入。Use when attacking WiFi, BLE, RFID, SDR, or hardware interfaces.",
       "zero-day-discovery": "0day自主发现引擎:变体分析/补丁间隙/差分/Fuzzing/污点推理/N-day武器化/猎人思维。Use when public vulns not found and need to discover 0day or weaponize N-day."
+    },
+    "seedTags": {
+      "渗透测试": "渗透测试",
+      "红队": "红队",
+      "项目黑板": "项目黑板"
     }
   },
   "apiDocs": {

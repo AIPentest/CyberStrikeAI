@@ -2822,6 +2822,11 @@
       "web-attack-methods": "Web full-stack attacks: SQLi/command injection/SSTI/XSS/SSRF/NoSQL, auth JWT/OAuth/SAML, LFI/upload, Tomcat/WS/STOMP/XFF/PATH_INFO/CDN502/netcup JS challenge bypass. Use when testing Web injection, auth bypass, server-side, WAF/CDN bypass.",
       "wireless-hardware-attack": "Wireless and hardware: WiFi PMKID/WPS/Evil Twin, BLE, Zigbee, NFC, SDR, UART/JTAG/SPI, side-channel, fault injection. Use when attacking WiFi, BLE, RFID, SDR, or hardware interfaces.",
       "zero-day-discovery": "0day autonomous discovery engine: variant analysis, patch gap, diff, fuzzing, taint reasoning, N-day weaponization, hunter mindset. Use when when public vulns are not found and you need to discover 0day or weaponize N-day."
+    },
+    "seedTags": {
+      "渗透测试": "penetration-testing",
+      "红队": "red-team",
+      "项目黑板": "project blackboard"
     }
   },
   "apiDocs": {
