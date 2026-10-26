@@ -6,7 +6,29 @@ function _t(key, opts) {
 // 仓库内置技能包的种子描述（skills/*/SKILL.md frontmatter）。仅与种子值精确
 // 匹配时按 id 翻译展示；用户自行编辑的描述按原值展示。
 const SEED_SKILL_DESCRIPTIONS = {
-    'cyberstrike-eino-demo': '满配示例技能包：SKILL.md + scripts/、references/、assets/ 等可选目录；验证 Eino skill 与 HTTP 包内路径（仅授权安全测试与教学）。'
+    'active-directory-attack': "内网域攻击:BloodHound,Kerberoast,ADCS ESC1/ESC8,NTLM Relay,Coerce,DACL,DCSync,Zerologon/NoPac/PrintNightmare,mitm6,LLMNR,Linux内网。Use when attacking Active Directory, ADCS, NTLM relay, or internal domain.",
+    'ai-llm-app-attack': "AI/LLM应用攻击:提示注入,Agent工具滥用RCE,RAG投毒,MCP供应链,torch.load pickle RCE。Use when testing LLM apps, agents, RAG, MCP plugins, or AI model file risks.",
+    'attack-surface-recon': "侦察/攻击面测绘:被动whois/amass/crt.sh/FOFA/Shodan,主动subfinder/httpx/naabu/katana/nuclei,DNS地域/CDN/Nginx catch-all/宝塔/UniApp指纹。开局第一动作,认知写入项目黑板。Use when starting recon, asset mapping, fingerprinting, or CDN/DNS bypass discovery.",
+    'binary-mobile-reversing': "APK/EXE/二进制:UniApp/DCloud/Flutter逆向,证书固定绕过,导出组件,内存破坏exploit链,IoT固件。Use when reversing APK/EXE, UniApp/Flutter, native .so, or memory-corruption exploits.",
+    'blockchain-contract-attack': "区块链/智能合约:Etherscan,slither/mythril,重入/访问控制/预言机/闪电贷,跨链桥,RPC暴露。Use when auditing smart contracts, DeFi, or blockchain attack surfaces.",
+    'capability-primitive-search': "能力原语+状态空间搜索:read/write/exec/ssrf等原语凑RCE等式A-F,低危映射,正反向搜索,跨域兑现。Use when no single RCE, chaining low-severity vulns, or deriving novel attack chains.",
+    'cloud-attack-methods': "云攻击:元数据API,S3/K8s,AWS/Azure/GCP身份提权,MinIO矩阵,阿里云FC,ChengZi SDK解密。Use when attacking cloud metadata, IAM, K8s, MinIO, Aliyun FC, or cloud post-ex.",
+    'component-vuln-intel': "联网情报收集:识别组件后必做CVE/搜索引擎/中文社区/GitHub PoC/资产引擎/即时情报/依赖扩展+受阻换路。Use when a framework/component/version is identified and must search before exploit.",
+    'cyberstrike-eino-demo': "满配示例技能包：SKILL.md + scripts/、references/、assets/ 等可选目录；验证 Eino skill 与 HTTP 包内路径（仅授权安全测试与教学）。",
+    'initial-access-phishing': "初始访问/钓鱼/社工:凭据喷洒,AiTM,设备码,OAuth同意钓鱼,载荷,vishing。Use when needing initial access, phishing, AiTM, device code, or social engineering.",
+    'pentest-agent-os': "渗透测试Agent操作系统。把渗透抽象成状态空间搜索:不预设固定路径,以项目黑板 Fact 图 (upsert_project_fact)+漏洞记录沉淀认知,路径从已验证事实上涌现。覆盖全杀伤链攻击手法 (联网情报/Web/认证/服务端/源码/社工/后渗透/二进制/内网域/云/区块链/AI/无线/硬件)+0day+ 组合拳+代理自举。核心:全网搜不到洞时现场推导独属于目标的攻击链。本文件为套件索引。 Use when starting a full-chain pentest engagement or needing the skill map for this suite.",
+    'pentest-blackboard': "CyberStrikeAI 项目黑板：跨会话 Fact 图（SQLite）+ upsert_project_fact/record_vulnerability 边渗透边记录节奏、关系边 links、confidence、与多代理协调落库。Use when managing project facts, blackboard index, writing evidence, or avoiding context-loss after compression.",
+    'pentest-output-standards': "输出规范:中文分析,思维链,漏洞报告模板,负结果,黑板状态总览,改动台账,死锁突破。 Use when reporting findings, maintaining change ledger, or formatting pentest output.",
+    'pentest-verification': "验证铁律:搜索≠漏洞,confirmed Fact须证据,tentative表线索,禁止空泛推测,负结果也落库, 想象力拉满+单步验证零容忍。Use when writing project facts, validating findings, or avoiding hallucination.",
+    'post-exploitation': "后渗透/提权+凭据破解+密码学:反弹shell,Linux/Windows提权,横向,隧道,免杀,C2持久化,hashcat/Padding Oracle/hash长度扩展。Use when post-exploitation, privilege escalation, lateral movement, or cracking crypto.",
+    'proxy-tool-bootstrap': "自找代理+工具自举:SOCKS5/HTTP/Tor换路序列,工具Python自举,字典自生成,OOB基础设施。Use when blocked by 403/429/WAF/timeout, missing tools, or needing OOB confirmation.",
+    'redteam-opsec': "OPSEC隐蔽作战纪律:IP黑名单绕过,速率时序,流量混淆,最小足迹,反取证,渐进暴露。Use when maintaining stealth, bypassing IP bans, or planning covert red-team ops.",
+    'source-code-hunting': "源码狩猎:.git泄露,危险函数grep,JS RC4解混淆,semgrep/CodeQL,trufflehog,patch diff,供应链/CI。Use when hunting source leaks, secrets, JS deobfuscation, or supply-chain issues.",
+    'specialized-attack-playbooks': "专题实战利用:GoEdge私钥导出,灰产CDN取证,ARP MITM,CDN→S3 STS链,宝塔+UniApp,AI IDE API反代,OCS+MinIO;含references/scripts支持文件索引。Use when applying specialized playbooks for GoEdge, CDN, ARP MITM, BT Panel, OCS, MinIO.",
+    'unlimited-attack-scope': "不设限原则:搜索/验证/串联/记录一切,全领域适用,被拦换路,不达不休。Use when reminding scope is unlimited across Web/APK/cloud/AI/wireless/social eng.",
+    'web-attack-methods': "Web全栈攻击:SQLi/命令注入/SSTI/XSS/SSRF/NoSQL,认证JWT/OAuth/SAML,LFI/上传,Tomcat/WS/STOMP/XFF/PATH_INFO/CDN502/网宿JS挑战绕过。Use when testing Web injection, auth bypass, server-side, WAF/CDN bypass.",
+    'wireless-hardware-attack': "无线/硬件:WiFi PMKID/WPS/Evil Twin,BLE,Zigbee,NFC,SDR,UART/JTAG/SPI,侧信道,故障注入。Use when attacking WiFi, BLE, RFID, SDR, or hardware interfaces.",
+    'zero-day-discovery': "0day自主发现引擎:变体分析/补丁间隙/差分/Fuzzing/污点推理/N-day武器化/猎人思维。Use when public vulns not found and need to discover 0day or weaponize N-day."
 };
 
 function skillDisplayDescription(skill, fallback) {
