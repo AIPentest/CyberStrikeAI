@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"encoding/json"
 	"errors"
 	"io"
@@ -551,7 +552,7 @@ func (h *MonitorHandler) loadStatsMap() map[string]*mcp.ToolStats {
 func (h *MonitorHandler) GetExecution(c *gin.Context) {
 	id := c.Param("id")
 	if !h.monitorExecutionAllowed(c, id) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 
@@ -583,7 +584,7 @@ func (h *MonitorHandler) GetExecution(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusNotFound, gin.H{"error": "执行记录未找到"})
+	respondError(c, http.StatusNotFound, "执行记录未找到", "execution record not found")
 }
 
 // CancelExecution 手动取消进行中的 MCP 工具调用（仅取消该次 tools/call 的上下文，不停止整条 Agent / 迭代任务）
@@ -591,11 +592,11 @@ func (h *MonitorHandler) GetExecution(c *gin.Context) {
 func (h *MonitorHandler) CancelExecution(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "执行记录ID不能为空"})
+		respondError(c, http.StatusBadRequest, "执行记录ID不能为空", "execution record ID must not be empty")
 		return
 	}
 	if !h.monitorExecutionAllowed(c, id) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	note := ""
@@ -604,14 +605,14 @@ func (h *MonitorHandler) CancelExecution(c *gin.Context) {
 		Note string `json:"note"`
 	}
 	if err := dec.Decode(&body); err != nil && !errors.Is(err, io.EOF) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求体须为 JSON，例如 {\"note\":\"说明\"}，可为空对象"})
+		respondError(c, http.StatusBadRequest, "请求体须为 JSON，例如 {\"note\":\"说明\"}，可为空对象", "request body must be JSON, e.g. {\"note\":\"description\"}; an empty object is allowed")
 		return
 	}
 	note = strings.TrimSpace(body.Note)
 
 	convID := h.conversationIDForRunningExecution(id)
 	if convID != "" && h.agentHandler != nil {
-		if ok, payload := h.agentHandler.cancelToolContinueAfter(convID, id, note); ok {
+		if ok, payload := h.agentHandler.cancelToolContinueAfter(c, convID, id, note); ok {
 			h.logger.Info("MCP 监控页终止工具（与对话中断并继续一致）",
 				zap.String("executionId", id),
 				zap.String("conversationId", convID),
@@ -623,15 +624,15 @@ func (h *MonitorHandler) CancelExecution(c *gin.Context) {
 	}
 	if h.mcpServer.CancelToolExecutionWithNote(id, note) {
 		h.logger.Info("已请求取消 MCP 工具执行", zap.String("executionId", id), zap.String("source", "internal"), zap.Bool("hasNote", note != ""))
-		c.JSON(http.StatusOK, gin.H{"message": "已发送终止信号", "executionId": id})
+		c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "已发送终止信号", "termination signal sent"), "executionId": id})
 		return
 	}
 	if h.externalMCPMgr != nil && h.externalMCPMgr.CancelToolExecutionWithNote(id, note) {
 		h.logger.Info("已请求取消 MCP 工具执行", zap.String("executionId", id), zap.String("source", "external"), zap.Bool("hasNote", note != ""))
-		c.JSON(http.StatusOK, gin.H{"message": "已发送终止信号", "executionId": id})
+		c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "已发送终止信号", "termination signal sent"), "executionId": id})
 		return
 	}
-	c.JSON(http.StatusNotFound, gin.H{"error": "未找到进行中的工具执行，或该任务已结束"})
+	respondError(c, http.StatusNotFound, "未找到进行中的工具执行，或该任务已结束", "no in-progress tool execution, or the task has ended")
 }
 
 func (h *MonitorHandler) enrichExecutionsConversationID(executions []*mcp.ToolExecution) {
@@ -865,11 +866,11 @@ func (h *MonitorHandler) GetCallsTimeline(c *gin.Context) {
 func (h *MonitorHandler) DeleteExecution(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "执行记录ID不能为空"})
+		respondError(c, http.StatusBadRequest, "执行记录ID不能为空", "execution record ID must not be empty")
 		return
 	}
 	if !h.monitorExecutionAllowed(c, id) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 
@@ -880,7 +881,7 @@ func (h *MonitorHandler) DeleteExecution(c *gin.Context) {
 		if err != nil {
 			// 如果找不到记录，可能已经被删除，直接返回成功
 			h.logger.Warn("执行记录不存在，可能已被删除", zap.String("executionId", id), zap.Error(err))
-			c.JSON(http.StatusOK, gin.H{"message": "执行记录不存在或已被删除"})
+			c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "执行记录不存在或已被删除", "execution record not found or already deleted")})
 			return
 		}
 
@@ -888,7 +889,7 @@ func (h *MonitorHandler) DeleteExecution(c *gin.Context) {
 		err = h.db.DeleteToolExecution(id)
 		if err != nil {
 			h.logger.Error("删除执行记录失败", zap.Error(err), zap.String("executionId", id))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "删除执行记录失败: " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "删除执行记录失败: %s", "failed to delete execution record: %s"), err.Error())})
 			return
 		}
 
@@ -915,14 +916,14 @@ func (h *MonitorHandler) DeleteExecution(c *gin.Context) {
 				"tool_name": exec.ToolName,
 			})
 		}
-		c.JSON(http.StatusOK, gin.H{"message": "执行记录已删除"})
+		c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "执行记录已删除", "execution record deleted")})
 		return
 	}
 
 	// 如果不使用数据库，尝试从内存中删除（内部MCP服务器）
 	// 注意：内存中的记录可能已经被清理，所以这里只记录日志
 	h.logger.Info("尝试删除内存中的执行记录", zap.String("executionId", id))
-	c.JSON(http.StatusOK, gin.H{"message": "执行记录已删除（如果存在）"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "执行记录已删除（如果存在）", "execution record deleted (if present)")})
 }
 
 // DeleteExecutions 批量删除执行记录
@@ -932,17 +933,17 @@ func (h *MonitorHandler) DeleteExecutions(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数无效: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "请求参数无效: %s", "invalid request parameter: %s"), err.Error())})
 		return
 	}
 
 	if len(request.IDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "执行记录ID列表不能为空"})
+		respondError(c, http.StatusBadRequest, "执行记录ID列表不能为空", "execution record ID list must not be empty")
 		return
 	}
 	for _, id := range request.IDs {
 		if !h.monitorExecutionAllowed(c, id) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问一个或多个执行记录"})
+			respondError(c, http.StatusForbidden, "无权访问一个或多个执行记录", "no permission to access one or more execution records")
 			return
 		}
 	}
@@ -953,7 +954,7 @@ func (h *MonitorHandler) DeleteExecutions(c *gin.Context) {
 		executions, err := h.db.GetToolExecutionsByIds(request.IDs)
 		if err != nil {
 			h.logger.Error("获取执行记录失败", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取执行记录失败: " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "获取执行记录失败: %s", "failed to get execution record: %s"), err.Error())})
 			return
 		}
 
@@ -983,7 +984,7 @@ func (h *MonitorHandler) DeleteExecutions(c *gin.Context) {
 		err = h.db.DeleteToolExecutions(request.IDs)
 		if err != nil {
 			h.logger.Error("批量删除执行记录失败", zap.Error(err), zap.Int("count", len(request.IDs)))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "批量删除执行记录失败: " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "批量删除执行记录失败: %s", "failed to batch delete execution records: %s"), err.Error())})
 			return
 		}
 
@@ -1001,14 +1002,14 @@ func (h *MonitorHandler) DeleteExecutions(c *gin.Context) {
 				"count": len(request.IDs),
 			})
 		}
-		c.JSON(http.StatusOK, gin.H{"message": "成功删除执行记录", "deleted": len(executions)})
+		c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "成功删除执行记录", "execution records deleted successfully"), "deleted": len(executions)})
 		return
 	}
 
 	// 如果不使用数据库，尝试从内存中删除（内部MCP服务器）
 	// 注意：内存中的记录可能已经被清理，所以这里只记录日志
 	h.logger.Info("尝试批量删除内存中的执行记录", zap.Int("count", len(request.IDs)))
-	c.JSON(http.StatusOK, gin.H{"message": "执行记录已删除（如果存在）"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "执行记录已删除（如果存在）", "execution record deleted (if present)")})
 }
 
 // normalizeToolNameFilter 将模型侧 mcp__tool 转为内部存储用的 mcp::tool。

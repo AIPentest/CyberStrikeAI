@@ -391,7 +391,7 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 		MultiAgent: multiPub,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "配置序列化失败"})
+		respondError(c, http.StatusInternalServerError, "配置序列化失败", "failed to serialize config")
 		return
 	}
 	c.JSON(http.StatusOK, response)
@@ -796,7 +796,7 @@ type ToolEnableStatus struct {
 func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 	var req UpdateConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的请求参数: %s", "invalid request parameter: %s"), err.Error())})
 		return
 	}
 
@@ -1250,14 +1250,14 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 	// 保存配置到文件
 	if err := h.saveConfig(); err != nil {
 		h.logger.Error("保存配置失败", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "保存配置失败: %s", "failed to save config: %s"), err.Error())})
 		return
 	}
 
 	if h.audit != nil {
 		h.audit.RecordOK(c, "config", "update", "更新内存配置", "config", "", nil)
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "配置已更新"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "配置已更新", "config updated")})
 }
 
 // TestOpenAIRequest 测试OpenAI连接请求
@@ -1274,7 +1274,7 @@ type TestOpenAIRequest struct {
 func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 	var req TestOpenAIRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的请求参数: %s", "invalid request parameter: %s"), err.Error())})
 		return
 	}
 
@@ -1285,11 +1285,11 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 	}
 	req.APIKey = resolvedKey
 	if strings.TrimSpace(req.APIKey) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "API Key 不能为空"})
+		respondError(c, http.StatusBadRequest, "API Key 不能为空", "API Key must not be empty")
 		return
 	}
 	if strings.TrimSpace(req.Model) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "模型不能为空"})
+		respondError(c, http.StatusBadRequest, "模型不能为空", "model must not be empty")
 		return
 	}
 
@@ -1334,7 +1334,7 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"error":   "连接失败: " + err.Error(),
+				"error":   fmt.Sprintf(i18nText(requestWantsEnglish(c), "连接失败: %s", "connection failed: %s"), err.Error()),
 			})
 			return
 		}
@@ -1364,31 +1364,25 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 		if apiErr, ok := err.(*openai.APIError); ok {
 			c.JSON(http.StatusOK, gin.H{
 				"success":     false,
-				"error":       fmt.Sprintf("API 返回错误 (HTTP %d): %s", apiErr.StatusCode, apiErr.Body),
+				"error":       fmt.Sprintf(i18nText(requestWantsEnglish(c), "API 返回错误 (HTTP %d): %s", "API error (HTTP %d): %s"), apiErr.StatusCode, apiErr.Body),
 				"status_code": apiErr.StatusCode,
 			})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"error":   "连接失败: " + err.Error(),
+			"error":   fmt.Sprintf(i18nText(requestWantsEnglish(c), "连接失败: %s", "connection failed: %s"), err.Error()),
 		})
 		return
 	}
 
 	// 严格校验：必须包含 choices 且有 assistant 回复
 	if len(chatResp.Choices) == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"error":   "API 响应缺少 choices 字段，请检查 Base URL 路径是否正确",
-		})
+		respondError(c, http.StatusOK, "API 响应缺少 choices 字段，请检查 Base URL 路径是否正确", "API response lacks the choices field, check the Base URL path")
 		return
 	}
 	if chatResp.ID == "" && chatResp.Model == "" {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"error":   "API 响应格式不符合预期，请检查 Base URL 是否正确",
-		})
+		respondError(c, http.StatusOK, "API 响应格式不符合预期，请检查 Base URL 是否正确", "API response format is unexpected, check the Base URL")
 		return
 	}
 
@@ -1412,7 +1406,7 @@ type TestTypeSafeRequest struct {
 func (h *ConfigHandler) TestTypeSafe(c *gin.Context) {
 	var req TestTypeSafeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的请求参数: %s", "invalid request parameter: %s"), err.Error())})
 		return
 	}
 	resolvedKey, resolveErr := h.resolveProbeSecret(req.APIKey, req.ChannelID, req.BaseURL, req.CredentialScope)
@@ -1422,7 +1416,7 @@ func (h *ConfigHandler) TestTypeSafe(c *gin.Context) {
 	}
 	req.APIKey = resolvedKey
 	if strings.TrimSpace(req.APIKey) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "TypeSafe API Key 不能为空"})
+		respondError(c, http.StatusBadRequest, "TypeSafe API Key 不能为空", "TypeSafe API Key must not be empty")
 		return
 	}
 
@@ -1437,14 +1431,14 @@ func (h *ConfigHandler) TestTypeSafe(c *gin.Context) {
 		if apiErr, ok := err.(*typesafe.APIError); ok {
 			c.JSON(http.StatusOK, gin.H{
 				"success":     false,
-				"error":       fmt.Sprintf("API 返回错误 (HTTP %d): %s", apiErr.StatusCode, apiErr.Body),
+				"error":       fmt.Sprintf(i18nText(requestWantsEnglish(c), "API 返回错误 (HTTP %d): %s", "API error (HTTP %d): %s"), apiErr.StatusCode, apiErr.Body),
 				"status_code": apiErr.StatusCode,
 			})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"error":   "连接失败: " + err.Error(),
+			"error":   fmt.Sprintf(i18nText(requestWantsEnglish(c), "连接失败: %s", "connection failed: %s"), err.Error()),
 		})
 		return
 	}
@@ -1475,7 +1469,7 @@ type ListModelsRequest struct {
 func (h *ConfigHandler) ListModels(c *gin.Context) {
 	var req ListModelsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的请求参数: %s", "invalid request parameter: %s"), err.Error())})
 		return
 	}
 
@@ -1493,13 +1487,13 @@ func (h *ConfigHandler) ListModels(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"success":   false,
 			"supported": false,
-			"error":     "Claude (Anthropic Messages API) 不支持自动获取模型列表，请手动填写",
+			"error":     i18nText(requestWantsEnglish(c), "Claude (Anthropic Messages API) 不支持自动获取模型列表，请手动填写", "Claude (Anthropic Messages API) does not support automatic model listing, fill it in manually"),
 		})
 		return
 	}
 
 	if strings.TrimSpace(req.APIKey) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "API Key 不能为空"})
+		respondError(c, http.StatusBadRequest, "API Key 不能为空", "API Key must not be empty")
 		return
 	}
 
@@ -1524,7 +1518,7 @@ func (h *ConfigHandler) ListModels(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"success":   false,
 				"supported": true,
-				"error":     fmt.Sprintf("API 返回错误 (HTTP %d): %s", apiErr.StatusCode, apiErr.Body),
+				"error":     fmt.Sprintf(i18nText(requestWantsEnglish(c), "API 返回错误 (HTTP %d): %s", "API error (HTTP %d): %s"), apiErr.StatusCode, apiErr.Body),
 			})
 			return
 		}
@@ -1555,7 +1549,7 @@ type TestVisionRequest struct {
 func (h *ConfigHandler) TestVision(c *gin.Context) {
 	var req TestVisionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的请求参数: %s", "invalid request parameter: %s"), err.Error())})
 		return
 	}
 	mainKey, mainErr := h.resolveProbeSecret(req.OpenAI.APIKey, req.ChannelID, req.OpenAI.BaseURL, "openai")
@@ -1573,11 +1567,11 @@ func (h *ConfigHandler) TestVision(c *gin.Context) {
 	}
 	oa := req.Vision.OpenAICfgEffective(req.OpenAI)
 	if strings.TrimSpace(oa.APIKey) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "API Key 不能为空（可填写 vision.api_key 或 openai.api_key）"})
+		respondError(c, http.StatusBadRequest, "API Key 不能为空（可填写 vision.api_key 或 openai.api_key）", "API Key must not be empty (fill vision.api_key or openai.api_key)")
 		return
 	}
 	if strings.TrimSpace(oa.Model) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "视觉模型不能为空"})
+		respondError(c, http.StatusBadRequest, "视觉模型不能为空", "vision model must not be empty")
 		return
 	}
 
@@ -1625,22 +1619,19 @@ func (h *ConfigHandler) TestVision(c *gin.Context) {
 		if apiErr, ok := err.(*openai.APIError); ok {
 			c.JSON(http.StatusOK, gin.H{
 				"success":     false,
-				"error":       fmt.Sprintf("API 返回错误 (HTTP %d): %s", apiErr.StatusCode, apiErr.Body),
+				"error":       fmt.Sprintf(i18nText(requestWantsEnglish(c), "API 返回错误 (HTTP %d): %s", "API error (HTTP %d): %s"), apiErr.StatusCode, apiErr.Body),
 				"status_code": apiErr.StatusCode,
 			})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"error":   "连接失败: " + err.Error(),
+			"error":   fmt.Sprintf(i18nText(requestWantsEnglish(c), "连接失败: %s", "connection failed: %s"), err.Error()),
 		})
 		return
 	}
 	if len(chatResp.Choices) == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"error":   "API 响应缺少 choices 字段，请检查 Base URL 与视觉模型名称",
-		})
+		respondError(c, http.StatusOK, "API 响应缺少 choices 字段，请检查 Base URL 与视觉模型名称", "API response lacks the choices field, check the Base URL and vision model name")
 		return
 	}
 
@@ -1672,7 +1663,7 @@ func (h *ConfigHandler) ApplyConfig(c *gin.Context) {
 			if h.audit != nil {
 				h.audit.RecordFail(c, "config", "apply", "应用配置失败：初始化知识库", map[string]interface{}{"error": err.Error()})
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "初始化知识库失败: " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "初始化知识库失败: %s", "failed to initialize knowledge base: %s"), err.Error())})
 			return
 		}
 		h.logger.Debug("知识库动态初始化完成，工具已注册")
@@ -1709,7 +1700,7 @@ func (h *ConfigHandler) ApplyConfig(c *gin.Context) {
 			if h.audit != nil {
 				h.audit.RecordFail(c, "config", "apply", "应用配置失败：重新初始化知识库", map[string]interface{}{"error": err.Error()})
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "重新初始化知识库失败: " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "重新初始化知识库失败: %s", "failed to re-initialize knowledge base: %s"), err.Error())})
 			return
 		}
 		h.logger.Info("知识库组件重新初始化完成")
@@ -1725,7 +1716,7 @@ func (h *ConfigHandler) ApplyConfig(c *gin.Context) {
 			if h.audit != nil {
 				h.audit.RecordFail(c, "config", "apply", "应用配置失败：C2", map[string]interface{}{"error": err.Error()})
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "C2 启动失败: " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "C2 启动失败: %s", "failed to start C2: %s"), err.Error())})
 			return
 		}
 	}
@@ -1751,7 +1742,7 @@ func (h *ConfigHandler) ApplyConfig(c *gin.Context) {
 		if h.audit != nil {
 			h.audit.RecordFail(c, "config", "apply", "应用配置失败：重新加载工具", map[string]interface{}{"error": err.Error()})
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "重新加载工具配置失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "重新加载工具配置失败: %s", "failed to reload tool config: %s"), err.Error())})
 		return
 	}
 	h.logger.Debug("已从 tools 目录重新加载工具配置", zap.Int("tools_count", len(h.config.Security.Tools)))
@@ -1908,7 +1899,7 @@ func (h *ConfigHandler) ApplyConfig(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":     "配置已应用",
+		"message":     i18nText(requestWantsEnglish(c), "配置已应用", "config applied"),
 		"tools_count": len(h.config.Security.Tools),
 	})
 }
@@ -2835,7 +2826,7 @@ func pickToolDescriptionWithMode(mode, shortDesc, fullDesc string) string {
 func (h *ConfigHandler) GetToolSchema(c *gin.Context) {
 	toolName := c.Param("name")
 	if toolName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "工具名称不能为空"})
+		respondError(c, http.StatusBadRequest, "工具名称不能为空", "tool name must not be empty")
 		return
 	}
 
@@ -2857,7 +2848,7 @@ func (h *ConfigHandler) GetToolSchema(c *gin.Context) {
 				}
 			}
 		}
-		c.JSON(http.StatusNotFound, gin.H{"error": "外部工具未找到"})
+		respondError(c, http.StatusNotFound, "外部工具未找到", "external tool not found")
 		return
 	}
 
@@ -2883,7 +2874,7 @@ func (h *ConfigHandler) GetToolSchema(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusNotFound, gin.H{"error": "工具未找到"})
+	respondError(c, http.StatusNotFound, "工具未找到", "tool not found")
 }
 
 // buildInputSchemaFromParams 从 YAML 工具的 ParameterConfig 构建 JSON Schema（用于前端展示）。

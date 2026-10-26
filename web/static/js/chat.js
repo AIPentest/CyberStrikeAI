@@ -946,7 +946,7 @@ function getAgentModeLabelForValue(mode) {
         }
     }
     switch (mode) {
-        case CHAT_AGENT_MODE_EINO_SINGLE: return 'Eino 单代理';
+        case CHAT_AGENT_MODE_EINO_SINGLE: return (typeof window.t === 'function' ? window.t('chat.agentModeEinoSingleFallback') : 'Eino 单代理');
         case 'deep': return 'Deep';
         case 'plan_execute': return 'Plan-Execute';
         case 'supervisor': return 'Supervisor';
@@ -2437,7 +2437,7 @@ async function sendMessage(options = {}) {
         });
 
         if (!response.ok) {
-            throw new Error('请求失败: ' + response.status);
+            throw new Error((typeof window.t === 'function' ? window.t('chat.requestFailedPrefix') : '请求失败: ') + response.status);
         }
 
         if (typeof options.onRequestAccepted === 'function') options.onRequestAccepted();
@@ -2564,9 +2564,9 @@ async function sendMessage(options = {}) {
         if (isNetwork && typeof window.t === 'function') {
             addMessage('system', window.t('chat.streamNetworkErrorHint', { detail: msg }));
         } else if (isNetwork) {
-            addMessage('system', '连接已中断（' + msg + '）。长时间任务可能仍在后端执行，请查看顶部运行中任务或稍后刷新对话。');
+            addMessage('system', (typeof window.t === 'function' ? window.t('chat.streamNetworkErrorHint', { detail: msg }) : '连接已中断（' + msg + '）。长时间任务可能仍在后端执行，请查看顶部运行中任务或稍后刷新对话。'));
         } else {
-            addMessage('system', '错误: ' + msg);
+            addMessage('system', (typeof window.t === 'function' ? window.t('chat.errorPrefix') : '错误: ') + msg);
         }
         if (typeof loadActiveTasks === 'function') {
             loadActiveTasks();
@@ -2602,7 +2602,7 @@ function renderChatFileChips() {
         remove.className = 'chat-file-chip-remove';
         remove.title = typeof window.t === 'function' ? window.t('common.remove') : '移除';
         remove.innerHTML = '×';
-        remove.setAttribute('aria-label', '移除 ' + a.fileName);
+        remove.setAttribute('aria-label', (typeof window.t === 'function' ? window.t('chat.removeAttachmentAria', { name: a.fileName }) : '移除 ' + a.fileName));
         remove.addEventListener('click', () => removeChatAttachment(i));
         chip.appendChild(name);
         chip.appendChild(remove);
@@ -2721,7 +2721,7 @@ async function addFilesToChat(files) {
     if (!files || !files.length) return;
     const next = Array.from(files);
     if (chatAttachments.length + next.length > MAX_CHAT_FILES) {
-        alert('最多同时上传 ' + MAX_CHAT_FILES + ' 个文件，当前已选 ' + chatAttachments.length + ' 个。');
+        alert((typeof window.t === 'function' ? window.t('chat.uploadMaxFilesAlert', { max: MAX_CHAT_FILES, selected: chatAttachments.length }) : '最多同时上传 ' + MAX_CHAT_FILES + ' 个文件，当前已选 ' + chatAttachments.length + ' 个。'));
         return;
     }
     next.forEach((file) => {
@@ -3154,16 +3154,24 @@ function renderMentionSuggestions({ showLoading = false } = {}) {
         // 如果工具有 roleEnabled 字段（指定了角色），使用它；否则使用 enabled
         const toolEnabled = tool.roleEnabled !== undefined ? tool.roleEnabled : tool.enabled;
         const disabledClass = toolEnabled ? '' : 'disabled';
-        const badge = tool.isExternal ? '<span class="mention-item-badge">外部</span>' : '<span class="mention-item-badge internal">内置</span>';
+        const badge = tool.isExternal
+            ? '<span class="mention-item-badge">' + (typeof window.t === 'function' ? window.t('mcp.externalBadge') : '外部') + '</span>'
+            : '<span class="mention-item-badge internal">' + (typeof window.t === 'function' ? window.t('chat.mentionBuiltinBadge') : '内置') + '</span>';
         const nameHtml = escapeHtml(tool.name);
         const description = tool.description && tool.description.length > 0 ? escapeHtml(tool.description) : (typeof window.t === 'function' ? window.t('chat.noDescription') : '暂无描述');
         const descHtml = `<div class="mention-item-desc">${description}</div>`;
         // 根据工具在当前角色中的启用状态显示状态标签
-        const statusLabel = toolEnabled ? '可用' : (tool.roleEnabled !== undefined ? '已禁用（当前角色）' : '已禁用');
+        const statusLabel = toolEnabled
+            ? (typeof window.t === 'function' ? window.t('chat.mentionToolAvailable') : '可用')
+            : (tool.roleEnabled !== undefined
+                ? (typeof window.t === 'function' ? window.t('chat.mentionToolDisabledRole') : '已禁用（当前角色）')
+                : (typeof window.t === 'function' ? window.t('chat.mentionToolDisabled') : '已禁用'));
         const statusClass = toolEnabled ? 'enabled' : 'disabled';
         const originLabel = tool.isExternal
-            ? (tool.externalMcp ? `来源：${escapeHtml(tool.externalMcp)}` : '来源：外部MCP')
-            : '来源：内置工具';
+            ? (tool.externalMcp
+                ? (typeof window.t === 'function' ? window.t('chat.mentionOriginFrom', { name: escapeHtml(tool.externalMcp) }) : `来源：${escapeHtml(tool.externalMcp)}`)
+                : (typeof window.t === 'function' ? window.t('chat.mentionOriginExternalMcp') : '来源：外部MCP'))
+            : (typeof window.t === 'function' ? window.t('chat.mentionOriginBuiltin') : '来源：内置工具');
 
         return `
             <button type="button" class="mention-item ${activeClass} ${disabledClass}" data-index="${index}">
@@ -4150,7 +4158,7 @@ function renderProcessDetails(messageId, processDetails, options) {
         detailsContainer.dataset.lazyNotLoaded = '1';
         detailsContainer.dataset.loaded = '0';
         const expandLabel = typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情';
-        let lazyHint = expandLabel + '（点击后加载迭代详情）';
+        let lazyHint = expandLabel + (typeof window.t === 'function' ? window.t('chat.expandDetailRoundsLazyHint') : '（点击后加载迭代详情）');
         timeline.innerHTML = '<div class="progress-timeline-empty">' + lazyHint + '</div>';
         bindProcessDetailsLazyHint(timeline, messageId);
         timeline.classList.remove('expanded');
@@ -4304,41 +4312,46 @@ function renderProcessDetails(messageId, processDetails, options) {
         let itemTitle = title;
         if (eventType === 'workflow_start') {
             const name = data.workflowName || data.workflowId || '';
-            itemTitle = '🧭 工作流开始' + (name ? (' · ' + name) : '');
+            itemTitle = (typeof window.t === 'function' ? window.t('timeline.workflowStart') : '🧭 工作流开始') + (name ? (' · ' + name) : '');
         } else if (eventType === 'workflow_done') {
             const name = data.workflowName || data.workflowId || '';
-            itemTitle = '✅ 工作流完成' + (name ? (' · ' + name) : '');
+            itemTitle = (typeof window.t === 'function' ? window.t('timeline.workflowDone') : '✅ 工作流完成') + (name ? (' · ' + name) : '');
         } else if (eventType === 'workflow_node_start') {
             const label = data.label || title || data.nodeId || '';
-            itemTitle = '▶ 节点开始' + (label ? (' · ' + label) : '');
+            itemTitle = (typeof window.t === 'function' ? window.t('timeline.workflowNodeStart') : '▶ 节点开始') + (label ? (' · ' + label) : '');
         } else if (eventType === 'workflow_node_result') {
             const label = data.label || data.nodeId || '';
             const status = data.status || '';
             const nodeType = data.nodeType != null ? String(data.nodeType).toLowerCase() : '';
             if (nodeType === 'condition') {
                 const matched = data.matched === true || data.matched === 'true' || (data.output && (data.output.matched === true || data.output.matched === 'true'));
-                itemTitle = (matched ? '✅' : '🔀') + ' 条件判断' + (label ? (' · ' + label) : '') + ' → ' + (matched ? '是' : '否');
+                itemTitle = (matched ? '✅' : '🔀') + ' ' + (typeof window.t === 'function' ? window.t('timeline.workflowConditionMet') : '条件判断') + (label ? (' · ' + label) : '') + ' → ' + (matched
+                    ? (typeof window.t === 'function' ? window.t('workflows.edges.yes') : '是')
+                    : (typeof window.t === 'function' ? window.t('workflows.edges.no') : '否'));
             } else {
                 const icon = status === 'failed' ? '❌' : (status === 'skipped' ? '⏭️' : '✅');
-                itemTitle = icon + ' 节点完成' + (label ? (' · ' + label) : '') + (status ? ('（' + status + '）') : '');
+                itemTitle = icon + ' ' + (typeof window.t === 'function' ? window.t('timeline.workflowNodeComplete') : '节点完成') + (label ? (' · ' + label) : '') + (status ? ('（' + status + '）') : '');
             }
         } else if (eventType === 'workflow_branch_taken' || eventType === 'workflow_branch_skipped') {
             const branch = data.branchLabel || '';
             const target = data.targetLabel || data.targetId || '';
             const taken = eventType === 'workflow_branch_taken';
-            itemTitle = (taken ? '➡️' : '⏭️') + (taken ? ' 执行分支' : ' 跳过分支') + (branch ? (' · ' + branch) : '') + (target ? (' → ' + target) : '');
+            itemTitle = (taken ? '➡️' : '⏭️') + ' ' + (taken
+                ? (typeof window.t === 'function' ? window.t('timeline.workflowBranchTaken') : '执行分支')
+                : (typeof window.t === 'function' ? window.t('timeline.workflowBranchSkipped') : '跳过分支'))
+                + (branch ? (' · ' + branch) : '') + (target ? (' → ' + target) : '');
         } else if (eventType === 'workflow_tool_start') {
             const tool = data.tool || data.toolName || '';
-            itemTitle = '🔧 工具节点' + (tool ? (' · ' + tool) : '');
+            itemTitle = (typeof window.t === 'function' ? window.t('timeline.workflowToolNode') : '🔧 工具节点') + (tool ? (' · ' + tool) : '');
         } else if (eventType === 'workflow_agent_output') {
             const label = data.label || data.nodeId || '';
-            itemTitle = '🤖 Agent 输出' + (label ? (' · ' + label) : '');
+            itemTitle = (typeof window.t === 'function' ? window.t('timeline.workflowAgentOutput') : '🤖 Agent 输出') + (label ? (' · ' + label) : '');
         } else if (eventType === 'workflow_hitl_checkpoint') {
-            itemTitle = '🧑‍⚖️ 人工确认检查点';
+            itemTitle = typeof window.t === 'function' ? window.t('timeline.workflowHitlCheckpoint') : '🧑‍⚖️ 人工确认检查点';
         } else if (eventType === 'workflow_hitl_waiting') {
-            itemTitle = '🧑‍⚖️ 工作流等待审批';
+            itemTitle = typeof window.t === 'function' ? window.t('timeline.workflowHitlWaiting') : '🧑‍⚖️ 工作流等待审批';
         } else if (eventType === 'workflow_paused') {
-            itemTitle = '⏸️ 工作流已暂停';
+            itemTitle = typeof window.t === 'function' ? window.t('timeline.workflowPaused') : '⏸️ 工作流已暂停';
         } else if (eventType === 'iteration') {
             const n = data.iteration || 1;
             if (data.orchestration === 'plan_execute' && data.einoScope === 'main') {
@@ -4393,7 +4406,7 @@ function renderProcessDetails(messageId, processDetails, options) {
             const execText = displayState.kind === 'blocked'
                 ? (typeof window.t === 'function' ? window.t('chat.toolExecBlocked', { name: escapeHtml(toolName) }) : '工具 ' + escapeHtml(toolName) + ' 已拦截')
                 : backgroundRunning
-                ? ((typeof window.getBackgroundRunningToolLabel === 'function' ? window.getBackgroundRunningToolLabel() : '后台执行中') + ': ' + escapeHtml(toolName))
+                ? ((typeof window.getBackgroundRunningToolLabel === 'function' ? window.getBackgroundRunningToolLabel() : (typeof window.t === 'function' ? window.t('timeline.backgroundRunning') : '后台执行中')) + ': ' + escapeHtml(toolName))
                 : (success ? (typeof window.t === 'function' ? window.t('chat.toolExecComplete', { name: escapeHtml(toolName) }) : '工具 ' + escapeHtml(toolName) + ' 执行完成') : (typeof window.t === 'function' ? window.t('chat.toolExecFailed', { name: escapeHtml(toolName) }) : '工具 ' + escapeHtml(toolName) + ' 执行失败'));
             let execLine = statusIcon + ' ' + execText;
             if (toolName === BuiltinTools.SEARCH_KNOWLEDGE_BASE && success) {
@@ -4419,13 +4432,13 @@ function renderProcessDetails(messageId, processDetails, options) {
             const hitlMsg = (detail.message && String(detail.message).trim()) ? String(detail.message).trim() : (typeof window.t === 'function' ? window.t('hitl.pendingTitle') : '待审批');
             itemTitle = agPx + '🧑‍⚖️ HITL · ' + hitlMsg;
         } else if (eventType === 'hitl_audit_agent_started') {
-            itemTitle = agPx + '审计 Agent 正在审查';
+            itemTitle = agPx + (typeof window.t === 'function' ? window.t('chat.finalizationAuditAgentReviewing') : '审计 Agent 正在审查');
         } else if (eventType === 'hitl_audit_agent') {
-            itemTitle = agPx + '审计 Agent 已完成审查';
+            itemTitle = agPx + (typeof window.t === 'function' ? window.t('chat.auditAgentReviewDone') : '审计 Agent 已完成审查');
         } else if (eventType === 'hitl_resumed') {
-            itemTitle = agPx + '审批已通过';
+            itemTitle = agPx + (typeof window.t === 'function' ? window.t('chat.approvalPassed') : '审批已通过');
         } else if (eventType === 'hitl_rejected') {
-            itemTitle = agPx + '审批已拒绝';
+            itemTitle = agPx + (typeof window.t === 'function' ? window.t('chat.approvalRejected') : '审批已拒绝');
         } else if (eventType === 'progress') {
             itemTitle = typeof window.translateProgressMessage === 'function' ? window.translateProgressMessage(detail.message || '') : (detail.message || '');
         } else if (eventType === 'user_interrupt_continue') {
@@ -4540,7 +4553,7 @@ function finishProcessDetailsRender(messageElement, processDetails, isLazyNotLoa
         const lazyHint = document.createElement('div');
         lazyHint.className = 'progress-timeline-empty progress-timeline-lazy-hint';
         lazyHint.textContent = (typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情') +
-            '（点击后加载完整过程详情）';
+            (typeof window.t === 'function' ? window.t('chat.expandFullDetailLazyHint') : '（点击后加载完整过程详情）');
         timeline.appendChild(lazyHint);
         bindProcessDetailsLazyHint(lazyHint, messageElement.id);
     }
@@ -4612,11 +4625,15 @@ function prefetchProcessDetailsSummaryHint(messageId, messageElement) {
             const timeline = detailsContainer.querySelector('.progress-timeline');
             if (!timeline || detailsContainer.dataset.loaded === '1') return;
             const expandLabel = typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情';
-            let hint = expandLabel + '（点击后加载迭代详情）';
+            let hint = expandLabel + (typeof window.t === 'function' ? window.t('chat.expandDetailRoundsLazyHint') : '（点击后加载迭代详情）');
             if (s.maxIteration > 0) {
-                hint = expandLabel + '（共 ' + s.maxIteration + ' 轮迭代，' + (s.total || 0) + ' 条详情）';
+                hint = expandLabel + (typeof window.t === 'function'
+                    ? window.t('chat.lazyHintRounds', { iterations: s.maxIteration, total: s.total || 0 })
+                    : '（共 ' + s.maxIteration + ' 轮迭代，' + (s.total || 0) + ' 条详情）');
             } else if (s.total > 0) {
-                hint = expandLabel + '（共 ' + (s.total || 0) + ' 条详情）';
+                hint = expandLabel + (typeof window.t === 'function'
+                    ? window.t('chat.lazyHintTotal', { total: s.total || 0 })
+                    : '（共 ' + (s.total || 0) + ' 条详情）');
             }
             const empty = timeline.querySelector('.progress-timeline-empty');
             if (empty) {
@@ -5467,13 +5484,13 @@ function getToolExecutionStatusLabel(status) {
         }
     }
     const fallback = {
-        completed: '成功',
-        failed: '失败',
-        blocked: '已拦截',
+        completed: (typeof window.t === 'function' ? window.t('timeline.toolSucceeded') : '成功'),
+        failed: (typeof window.t === 'function' ? window.t('timeline.toolFailed') : '失败'),
+        blocked: (typeof window.t === 'function' ? window.t('timeline.blocked') : '已拦截'),
         running: '运行中',
-        cancelled: '已取消',
-        pending: '等待中',
-        result_missing: '结果记录缺失'
+        cancelled: (typeof window.t === 'function' ? window.t('tasks.cancelledLabel') : '已取消'),
+        pending: (typeof window.t === 'function' ? window.t('mcpMonitor.statusPending') : '等待中'),
+        result_missing: (typeof window.t === 'function' ? window.t('timeline.resultMissing') : '结果记录缺失')
     };
     return fallback[normalized] || '';
 }
@@ -5858,11 +5875,11 @@ function copyDetailBlock(elementId, triggerBtn = null) {
         if (!triggerBtn) {
             return;
         }
-        triggerBtn.textContent = '已复制';
+        triggerBtn.textContent = (typeof window.t === 'function' ? window.t('common.copied') : '已复制');
         triggerBtn.disabled = true;
         setTimeout(() => {
             triggerBtn.disabled = false;
-            triggerBtn.textContent = triggerBtn.dataset.originalLabel || originalLabel || '复制';
+            triggerBtn.textContent = triggerBtn.dataset.originalLabel || originalLabel || (typeof window.t === 'function' ? window.t('common.copy') : '复制');
         }, 1200);
     };
 
@@ -5901,9 +5918,9 @@ function copyDetailBlock(elementId, triggerBtn = null) {
         .catch(() => {
             if (triggerBtn) {
                 triggerBtn.disabled = false;
-                triggerBtn.textContent = triggerBtn.dataset.originalLabel || originalLabel || '复制';
+                triggerBtn.textContent = triggerBtn.dataset.originalLabel || originalLabel || (typeof window.t === 'function' ? window.t('common.copy') : '复制');
             }
-            alert('复制失败，请手动选择文本复制。');
+            alert((typeof window.t === 'function' ? window.t('chat.copyFailedTextAlert') : '复制失败，请手动选择文本复制。'));
         });
 }
 
@@ -5979,7 +5996,7 @@ function createConversationListItem(conversation) {
 
     const title = document.createElement('div');
     title.className = 'conversation-title';
-    const titleText = conversation.title || '未命名对话';
+    const titleText = conversation.title || (typeof window.t === 'function' ? window.t('projects.untitledConversation') : '未命名对话');
     title.textContent = safeTruncateText(titleText, 60);
     title.title = titleText; // 设置完整标题以便悬停查看
     contentWrapper.appendChild(title);
@@ -6011,7 +6028,7 @@ function createConversationListItem(conversation) {
                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
     `;
-    deleteBtn.title = '删除对话';
+    deleteBtn.title = typeof window.t === 'function' ? window.t('chat.deleteConversationAction') : '删除对话';
     deleteBtn.onclick = (e) => {
         e.stopPropagation();
         deleteConversation(conversation.id);
@@ -6437,7 +6454,7 @@ async function loadConversation(conversationId) {
                 if (previousConversationId) syncChatConversationHash(previousConversationId);
                 else clearChatConversationHash();
             }
-            showChatToast('加载对话失败: ' + (conversation.error || '未知错误'), 'error');
+            showChatToast((typeof window.t === 'function' ? window.t('chat.loadConversationFailedPrefix') : '加载对话失败: ') + (conversation.error || (typeof window.t === 'function' ? window.t('settingsBasic.unknownError') : '未知错误')), 'error');
             return;
         }
         if (response && response.ok) {
@@ -6715,7 +6732,7 @@ async function loadConversation(conversationId) {
             }
         }
         console.error('加载对话失败:', error);
-        showChatToast('加载对话失败: ' + (error && error.message ? error.message : String(error)), 'error');
+        showChatToast((typeof window.t === 'function' ? window.t('chat.loadConversationFailedPrefix') : '加载对话失败: ') + (error && error.message ? error.message : String(error)), 'error');
     } finally {
         if (seq === loadConversationRequestSeq && typeof window.finishChatConversationRestore === 'function') {
             window.finishChatConversationRestore(conversationId);
@@ -6796,7 +6813,8 @@ async function deleteConversationTurnFromUI(anchorBackendMessageId) {
 async function deleteConversation(conversationId, skipConfirm = false) {
     // 确认删除（如果调用者没有跳过确认）
     if (!skipConfirm) {
-        if (!confirm('确定要删除这个对话吗？对话消息将不可恢复，但已记录的漏洞会保留在漏洞库中。')) {
+        const confirmMsg = (typeof window.t === 'function' ? window.t('chat.deleteConversationConfirm') : '确定要删除这个对话吗？对话消息将不可恢复，但已记录的漏洞会保留在漏洞库中。');
+        if (!confirm(confirmMsg)) {
             return;
         }
     }
@@ -6808,7 +6826,7 @@ async function deleteConversation(conversationId, skipConfirm = false) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || '删除失败');
+            throw new Error(error.error || (typeof window.t === 'function' ? window.t('chat.deleteFailed') : '删除失败'));
         }
 
         // 如果删除的是当前对话，清空对话界面
@@ -6844,7 +6862,7 @@ async function deleteConversation(conversationId, skipConfirm = false) {
 
     } catch (error) {
         console.error('删除对话失败:', error);
-        alert('删除对话失败: ' + error.message);
+        alert((typeof window.t === 'function' ? window.t('chat.deleteConversationFailedPrefix') : '删除对话失败: ') + error.message);
     }
 }
 
@@ -7056,10 +7074,10 @@ async function loadAttackChain(conversationId) {
                         <div style="text-align: center; padding: 28px 24px; color: var(--text-secondary);">
                             <div style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.95rem; color: var(--text-primary);">
                                 <span role="presentation" aria-hidden="true">⏳</span>
-                                <span>攻击链生成中，请稍候</span>
+                                <span>' + (typeof window.t === 'function' ? window.t('chat.attackChainGenerating') : '攻击链生成中，请稍候') + '</span>
                             </div>
                             <button class="btn-secondary" onclick="refreshAttackChain()" style="margin-top: 12px; font-size: 0.78rem; padding: 4px 12px;">
-                                刷新
+                                ' + (typeof window.t === 'function' ? window.t('common.refresh') : '刷新') + '
                             </button>
                         </div>
                     `;
@@ -7086,7 +7104,7 @@ async function loadAttackChain(conversationId) {
             }
 
             const error = await response.json();
-            throw new Error(error.error || '加载攻击链失败');
+            throw new Error(error.error || (typeof window.t === 'function' ? window.t('chat.loadAttackChainFailed') : '加载攻击链失败'));
         }
 
         const chainData = await response.json();
@@ -7189,7 +7207,7 @@ function renderAttackChain(chainData) {
         const metadata = node.metadata || {};
 
         // 统一的主题系统（与导出一致）
-        let typeLabel = '节点';
+        let typeLabel = (typeof window.t === 'function' ? window.t('chat.nodeTypeDefault') : '节点');
         let typeEn = 'NODE';
         let typeColor = '#334155';      // 主文字色
         let accentColor = '#94a3b8';    // 强调色（图标/边框）
@@ -7199,7 +7217,7 @@ function renderAttackChain(chainData) {
         let iconType = 'default';       // 图标类型
 
         if (nodeType === 'target') {
-            typeLabel = '目标';
+            typeLabel = (typeof window.t === 'function' ? window.t('attackChainModal.target') : '目标');
             typeEn = 'TARGET';
             typeColor = '#312E81';
             accentColor = '#4F46E5';
@@ -7208,7 +7226,7 @@ function renderAttackChain(chainData) {
             bgGradientEnd = '#F5F3FF';
             iconType = 'target';
         } else if (nodeType === 'action') {
-            typeLabel = '行动';
+            typeLabel = (typeof window.t === 'function' ? window.t('attackChainModal.action') : '行动');
             typeEn = 'ACTION';
             const findings = metadata.findings || [];
             const hasFindings = Array.isArray(findings) && findings.length > 0;
@@ -7228,7 +7246,7 @@ function renderAttackChain(chainData) {
             }
             iconType = 'action';
         } else if (nodeType === 'vulnerability') {
-            typeLabel = '漏洞';
+            typeLabel = (typeof window.t === 'function' ? window.t('attackChainModal.vulnerability') : '漏洞');
             typeEn = 'VULNERABILITY';
             if (riskScore >= 80) {
                 typeColor = '#881337';
@@ -7287,17 +7305,17 @@ function renderAttackChain(chainData) {
         // 计算徽章文本（右上角）
         let badgeText = '';
         if (nodeType === 'vulnerability' && riskScore > 0) {
-            const rl = riskScore >= 80 ? '严重' : riskScore >= 60 ? '高' : riskScore >= 40 ? '中' : '低';
+            const rl = riskScore >= 80 ? (typeof window.t === 'function' ? window.t('chat.riskCritical') : '严重') : riskScore >= 60 ? (typeof window.t === 'function' ? window.t('chat.riskHigh') : '高') : riskScore >= 40 ? (typeof window.t === 'function' ? window.t('chat.riskMedium') : '中') : (typeof window.t === 'function' ? window.t('chat.riskLow') : '低');
             badgeText = rl + ' · ' + riskScore;
         } else if (nodeType === 'action') {
             const findings = metadata.findings || [];
             if (Array.isArray(findings) && findings.length > 0 && metadata.status !== 'failed_insight') {
-                badgeText = '发现 ' + findings.length;
+                badgeText = (typeof window.t === 'function' ? window.t('chat.findingsCount', { count: findings.length }) : '发现 ' + findings.length);
             } else if (metadata.status === 'failed_insight') {
-                badgeText = '有线索';
+                badgeText = (typeof window.t === 'function' ? window.t('chat.hasLeads') : '有线索');
             }
         } else if (nodeType === 'target') {
-            badgeText = '主目标';
+            badgeText = (typeof window.t === 'function' ? window.t('chat.mainTarget') : '主目标');
         }
 
         elements.push({
@@ -7614,7 +7632,7 @@ function renderAttackChain(chainData) {
                         centerAttackChain();
                     }, 150);
                 } else {
-                    throw new Error('ELK布局返回无效结果');
+                    throw new Error((typeof window.t === 'function' ? window.t('chat.elkLayoutInvalidResult') : 'ELK布局返回无效结果'));
                 }
             }).catch(err => {
                 console.warn('ELK布局计算失败，使用默认布局:', err);
@@ -7978,16 +7996,16 @@ function showNodeDetails(nodeData) {
 
     let html = `
         <div class="node-detail-item">
-            <strong>节点ID:</strong> <code>${nodeData.id}</code>
+            <strong>${(typeof window.t === 'function' ? window.t('chat.nodeDetailId') : '节点ID')}</strong> <code>${nodeData.id}</code>
         </div>
         <div class="node-detail-item">
-            <strong>类型:</strong> ${getNodeTypeLabel(nodeData.type)}
+            <strong>${(typeof window.t === 'function' ? window.t('chat.nodeDetailType') : '类型')}</strong> ${getNodeTypeLabel(nodeData.type)}
         </div>
         <div class="node-detail-item">
-            <strong>标签:</strong> ${escapeHtml(nodeData.originalLabel || nodeData.label)}
+            <strong>${(typeof window.t === 'function' ? window.t('chat.nodeDetailLabel') : '标签')}</strong> ${escapeHtml(nodeData.originalLabel || nodeData.label)}
         </div>
         <div class="node-detail-item">
-            <strong>风险评分:</strong> ${nodeData.riskScore}/100
+            <strong>${(typeof window.t === 'function' ? window.t('chat.nodeDetailRisk') : '风险评分')}</strong> ${nodeData.riskScore}/100
         </div>
     `;
 
@@ -7996,35 +8014,35 @@ function showNodeDetails(nodeData) {
         if (nodeData.metadata.tool_name) {
             html += `
                 <div class="node-detail-item">
-                    <strong>工具名称:</strong> <code>${escapeHtml(nodeData.metadata.tool_name)}</code>
+                    <strong>${(typeof window.t === 'function' ? window.t('chat.nodeDetailToolName') : '工具名称')}</strong> <code>${escapeHtml(nodeData.metadata.tool_name)}</code>
                 </div>
             `;
         }
         if (nodeData.metadata.tool_intent) {
             html += `
                 <div class="node-detail-item">
-                    <strong>工具意图:</strong> <span style="color: #0066ff; font-weight: bold;">${escapeHtml(nodeData.metadata.tool_intent)}</span>
+                    <strong>${(typeof window.t === 'function' ? window.t('chat.nodeDetailToolIntent') : '工具意图')}</strong> <span style="color: #0066ff; font-weight: bold;">${escapeHtml(nodeData.metadata.tool_intent)}</span>
                 </div>
             `;
         }
         if (nodeData.metadata.status === 'failed_insight') {
             html += `
                 <div class="node-detail-item">
-                    <strong>执行状态:</strong> <span style="color: #ff9800; font-weight: bold;">失败但有线索</span>
+                    <strong>${(typeof window.t === 'function' ? window.t('chat.nodeDetailExecStatus') : '执行状态')}</strong> <span style="color: #ff9800; font-weight: bold;">${(typeof window.t === 'function' ? window.t('chat.failedWithLeads') : '失败但有线索')}</span>
                 </div>
             `;
         }
         if (nodeData.metadata.ai_analysis) {
             html += `
                 <div class="node-detail-item">
-                    <strong>AI分析:</strong> <div class="node-detail-ai-analysis">${escapeHtml(nodeData.metadata.ai_analysis)}</div>
+                    <strong>${(typeof window.t === 'function' ? window.t('chat.nodeDetailAIAnalysis') : 'AI分析')}</strong> <div class="node-detail-ai-analysis">${escapeHtml(nodeData.metadata.ai_analysis)}</div>
                 </div>
             `;
         }
         if (nodeData.metadata.findings && Array.isArray(nodeData.metadata.findings) && nodeData.metadata.findings.length > 0) {
             html += `
                 <div class="node-detail-item">
-                    <strong>关键发现:</strong>
+                    <strong>${(typeof window.t === 'function' ? window.t('chat.nodeDetailKeyFindings') : '关键发现')}</strong>
                     <ul style="margin: 5px 0; padding-left: 20px;">
                         ${nodeData.metadata.findings.map(f => `<li>${escapeHtml(f)}</li>`).join('')}
                     </ul>
@@ -8037,7 +8055,7 @@ function showNodeDetails(nodeData) {
     if (nodeData.type === 'target' && nodeData.metadata && nodeData.metadata.target) {
         html += `
             <div class="node-detail-item">
-                <strong>测试目标:</strong> <code>${escapeHtml(nodeData.metadata.target)}</code>
+                <strong>${(typeof window.t === 'function' ? window.t('chat.nodeDetailTestTarget') : '测试目标')}</strong> <code>${escapeHtml(nodeData.metadata.target)}</code>
             </div>
         `;
     }
@@ -8047,28 +8065,28 @@ function showNodeDetails(nodeData) {
         if (nodeData.metadata.vulnerability_type) {
             html += `
                 <div class="node-detail-item">
-                    <strong>漏洞类型:</strong> ${escapeHtml(nodeData.metadata.vulnerability_type)}
+                    <strong>${(typeof window.t === 'function' ? window.t('chat.nodeDetailVulnType') : '漏洞类型')}</strong> ${escapeHtml(nodeData.metadata.vulnerability_type)}
                 </div>
             `;
         }
         if (nodeData.metadata.description) {
             html += `
                 <div class="node-detail-item">
-                    <strong>描述:</strong> ${escapeHtml(nodeData.metadata.description)}
+                    <strong>${(typeof window.t === 'function' ? window.t('chat.nodeDetailDescription') : '描述')}</strong> ${escapeHtml(nodeData.metadata.description)}
                 </div>
             `;
         }
         if (nodeData.metadata.severity) {
             html += `
                 <div class="node-detail-item">
-                    <strong>严重程度:</strong> <span style="color: ${getSeverityColor(nodeData.metadata.severity)}; font-weight: bold;">${escapeHtml(nodeData.metadata.severity)}</span>
+                    <strong>${(typeof window.t === 'function' ? window.t('chat.nodeDetailSeverity') : '严重程度')}</strong> <span style="color: ${getSeverityColor(nodeData.metadata.severity)}; font-weight: bold;">${escapeHtml(nodeData.metadata.severity)}</span>
                 </div>
             `;
         }
         if (nodeData.metadata.location) {
             html += `
                 <div class="node-detail-item">
-                    <strong>位置:</strong> <code>${escapeHtml(nodeData.metadata.location)}</code>
+                    <strong>${(typeof window.t === 'function' ? window.t('chat.nodeDetailLocation') : '位置')}</strong> <code>${escapeHtml(nodeData.metadata.location)}</code>
                 </div>
             `;
         }
@@ -8077,7 +8095,7 @@ function showNodeDetails(nodeData) {
     if (nodeData.toolExecutionId) {
         html += `
             <div class="node-detail-item">
-                <strong>工具执行ID:</strong> <code>${nodeData.toolExecutionId}</code>
+                <strong>${(typeof window.t === 'function' ? window.t('chat.nodeDetailExecId') : '工具执行ID')}</strong> <code>${nodeData.toolExecutionId}</code>
             </div>
         `;
     }
@@ -8111,9 +8129,9 @@ function getSeverityColor(severity) {
 // 获取节点类型标签
 function getNodeTypeLabel(type) {
     const labels = {
-        'action': '行动',
-        'vulnerability': '漏洞',
-        'target': '目标'
+        'action': (typeof window.t === 'function' ? window.t('attackChainModal.action') : '行动'),
+        'vulnerability': (typeof window.t === 'function' ? window.t('attackChainModal.vulnerability') : '漏洞'),
+        'target': (typeof window.t === 'function' ? window.t('attackChainModal.target') : '目标')
     };
     return labels[type] || type;
 }
@@ -8222,7 +8240,7 @@ async function regenerateAttackChain() {
 
     const container = document.getElementById('attack-chain-container');
     if (container) {
-        container.innerHTML = '<div class="loading-spinner">重新生成中...</div>';
+        container.innerHTML = '<div class="loading-spinner">' + (typeof window.t === 'function' ? window.t('chat.regenerating') : '重新生成中...') + '</div>';
     }
 
     // 禁用重新生成按钮
@@ -8247,12 +8265,12 @@ async function regenerateAttackChain() {
                 if (container) {
                     container.innerHTML = `
                         <div class="loading-spinner" style="text-align: center; padding: 40px;">
-                            <div style="margin-bottom: 16px;">⏳ 攻击链正在生成中...</div>
+                            <div style="margin-bottom: 16px;">' + (typeof window.t === 'function' ? window.t('chat.attackChainGeneratingInProgress') : '⏳ 攻击链正在生成中...') + '</div>
                             <div style="color: var(--text-secondary); font-size: 0.875rem;">
-                                请稍候，生成完成后将自动显示
+                                ' + (typeof window.t === 'function' ? window.t('chat.attackChainGeneratingHint') : '请稍候，生成完成后将自动显示') + '
                             </div>
                             <button class="btn-secondary" onclick="refreshAttackChain()" style="margin-top: 16px;">
-                                刷新查看进度
+                                ' + (typeof window.t === 'function' ? window.t('chat.refreshToViewProgress') : '刷新查看进度') + '
                             </button>
                         </div>
                     `;
@@ -8269,7 +8287,7 @@ async function regenerateAttackChain() {
             }
 
             const error = await response.json();
-            throw new Error(error.error || '重新生成攻击链失败');
+            throw new Error(error.error || (typeof window.t === 'function' ? window.t('chat.regenAttackChainFailed') : '重新生成攻击链失败'));
         }
 
         const chainData = await response.json();
@@ -8471,17 +8489,17 @@ function _acGetNodeIconPath(type) {
 
 // 获取节点风险等级标签（漏洞节点用）
 function _acGetRiskLabel(score) {
-    if (score >= 80) return '严重';
-    if (score >= 60) return '高';
-    if (score >= 40) return '中';
-    if (score > 0) return '低';
+    if (score >= 80) return (typeof window.t === 'function' ? window.t('chat.riskCritical') : '严重');
+    if (score >= 60) return (typeof window.t === 'function' ? window.t('chat.riskHigh') : '高');
+    if (score >= 40) return (typeof window.t === 'function' ? window.t('chat.riskMedium') : '中');
+    if (score > 0) return (typeof window.t === 'function' ? window.t('chat.riskLow') : '低');
     return '';
 }
 
 // 生成精美 SVG 字符串（高端商业报告风格）
 function _acBuildSvgString() {
     const data = _acCollectExportData();
-    if (!data || data.nodes.length === 0) throw new Error('没有可导出的数据');
+    if (!data || data.nodes.length === 0) throw new Error((typeof window.t === 'function' ? window.t('chat.noExportData') : '没有可导出的数据'));
 
     const { nodes, edges } = data;
 
@@ -8559,13 +8577,13 @@ function _acBuildSvgString() {
 
     // 类型主题色（高级感配色）
     const typeTheme = {
-        'target': { primary: '#4F46E5', light: '#EEF2FF', dark: '#3730A3', text: '#312E81', label: '目标' },
-        'action-success': { primary: '#10B981', light: '#ECFDF5', dark: '#047857', text: '#064E3B', label: '行动' },
-        'action-neutral': { primary: '#64748B', light: '#F8FAFC', dark: '#475569', text: '#334155', label: '行动' },
-        'vuln-critical': { primary: '#E11D48', light: '#FFF1F2', dark: '#BE123C', text: '#881337', label: '漏洞' },
-        'vuln-high': { primary: '#EA580C', light: '#FFF7ED', dark: '#C2410C', text: '#7C2D12', label: '漏洞' },
-        'vuln-med': { primary: '#CA8A04', light: '#FEFCE8', dark: '#A16207', text: '#713F12', label: '漏洞' },
-        'vuln-low': { primary: '#0D9488', light: '#F0FDFA', dark: '#0F766E', text: '#134E4A', label: '漏洞' }
+        'target': { primary: '#4F46E5', light: '#EEF2FF', dark: '#3730A3', text: '#312E81', label: (typeof window.t === 'function' ? window.t('attackChainModal.target') : '目标') },
+        'action-success': { primary: '#10B981', light: '#ECFDF5', dark: '#047857', text: '#064E3B', label: (typeof window.t === 'function' ? window.t('attackChainModal.action') : '行动') },
+        'action-neutral': { primary: '#64748B', light: '#F8FAFC', dark: '#475569', text: '#334155', label: (typeof window.t === 'function' ? window.t('attackChainModal.action') : '行动') },
+        'vuln-critical': { primary: '#E11D48', light: '#FFF1F2', dark: '#BE123C', text: '#881337', label: (typeof window.t === 'function' ? window.t('attackChainModal.vulnerability') : '漏洞') },
+        'vuln-high': { primary: '#EA580C', light: '#FFF7ED', dark: '#C2410C', text: '#7C2D12', label: (typeof window.t === 'function' ? window.t('attackChainModal.vulnerability') : '漏洞') },
+        'vuln-med': { primary: '#CA8A04', light: '#FEFCE8', dark: '#A16207', text: '#713F12', label: (typeof window.t === 'function' ? window.t('attackChainModal.vulnerability') : '漏洞') },
+        'vuln-low': { primary: '#0D9488', light: '#F0FDFA', dark: '#0F766E', text: '#134E4A', label: (typeof window.t === 'function' ? window.t('attackChainModal.vulnerability') : '漏洞') }
     };
 
     function themeFor(n) {
@@ -8703,7 +8721,7 @@ function _acBuildSvgString() {
     parts.push(`</g>`);
 
     // 主标题（超大、粗体）
-    parts.push(`<text x="${tX + 56}" y="${tY + 26}" font-size="26" font-weight="800" fill="#0F172A" letter-spacing="-0.6px">攻击链可视化报告</text>`);
+    parts.push(`<text x="${tX + 56}" y="${tY + 26}" font-size="26" font-weight="800" fill="#0F172A" letter-spacing="-0.6px">${(typeof window.t === 'function' ? window.t('chat.attackChainReportTitle') : '攻击链可视化报告')}</text>`);
 
     // 副标题（小字、次要色）
     parts.push(`<text x="${tX + 56}" y="${tY + 50}" font-size="13" font-weight="500" fill="#64748B" letter-spacing="0.1px">Attack Chain Analysis · ${_acEscapeXml(ts)}</text>`);
@@ -8714,9 +8732,9 @@ function _acBuildSvgString() {
     const kpiGap = 12;
     const kpiW = 110;
     const kpiItems = [
-        { label: '节点', value: nodeCount, color: '#4F46E5' },
-        { label: '连线', value: edgeCount, color: '#06B6D4' },
-        { label: '严重漏洞', value: criticalCount, color: criticalCount > 0 ? '#E11D48' : '#94A3B8' }
+        { label: (typeof window.t === 'function' ? window.t('projects.graphLegendNodes') : '节点'), value: nodeCount, color: '#4F46E5' },
+        { label: (typeof window.t === 'function' ? window.t('projects.graphLegendEdges') : '连线'), value: edgeCount, color: '#06B6D4' },
+        { label: (typeof window.t === 'function' ? window.t('chat.criticalVulns') : '严重漏洞'), value: criticalCount, color: criticalCount > 0 ? '#E11D48' : '#94A3B8' }
     ];
     let kpiXStart = OUTER_PAD + contentW - 40 - (kpiW * kpiItems.length + kpiGap * (kpiItems.length - 1));
     kpiItems.forEach((kpi, i) => {
@@ -8839,7 +8857,7 @@ function _acBuildSvgString() {
             const hasFindings = Array.isArray(findings) && findings.length > 0;
             const isFailed = m.status === 'failed_insight';
             if (hasFindings || isFailed) {
-                const text = isFailed ? '有线索' : `发现 ${findings.length}`;
+                const text = isFailed ? (typeof window.t === 'function' ? window.t('chat.hasLeads') : '有线索') : (typeof window.t === 'function' ? window.t('chat.findingsCount', { count: findings.length }) : '发现 ' + findings.length);
                 const badgeW = 70;
                 const bx = x + n.w - badgeW - padX;
                 parts.push(`<rect x="${bx}" y="${badgeY}" width="${badgeW}" height="${badgeH}" rx="${badgeH / 2}" fill="${theme.primary}" fill-opacity="0.12" stroke="${theme.primary}" stroke-opacity="0.4" stroke-width="1"/>`);
@@ -8852,7 +8870,7 @@ function _acBuildSvgString() {
             const badgeW = 60;
             const bx = x + n.w - badgeW - padX;
             parts.push(`<rect x="${bx}" y="${badgeY}" width="${badgeW}" height="${badgeH}" rx="${badgeH / 2}" fill="${theme.primary}" fill-opacity="0.12" stroke="${theme.primary}" stroke-opacity="0.4" stroke-width="1"/>`);
-            parts.push(`<text x="${bx + badgeW / 2}" y="${badgeY + badgeH / 2 + 4.5}" text-anchor="middle" font-size="11.5" font-weight="700" fill="${theme.dark}" letter-spacing="0.3px">主目标</text>`);
+            parts.push(`<text x="${bx + badgeW / 2}" y="${badgeY + badgeH / 2 + 4.5}" text-anchor="middle" font-size="11.5" font-weight="700" fill="${theme.dark}" letter-spacing="0.3px">${(typeof window.t === 'function' ? window.t('chat.mainTarget') : '主目标')}</text>`);
         }
 
         // ========== 主标题 ==========
@@ -8937,16 +8955,16 @@ function _acBuildSvgString() {
     let curY = ly + 26;
 
     // --- 节点类型 ---
-    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">NODE TYPES · 节点类型</text>`);
+    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">NODE TYPES · ${(typeof window.t === 'function' ? window.t('chat.legendNodeTypes') : '节点类型')}</text>`);
     curY += 22;
     const typeSummary = [
-        { key: 'target', count: targetNodes.length, text: '目标' },
-        { key: 'action-success', count: actionNodes.filter(a => { const m = a.metadata || {}; return Array.isArray(m.findings) && m.findings.length > 0 && m.status !== 'failed_insight'; }).length, text: '行动（有发现）' },
-        { key: 'action-neutral', count: actionNodes.filter(a => { const m = a.metadata || {}; const f = Array.isArray(m.findings) ? m.findings : []; return f.length === 0 || m.status === 'failed_insight'; }).length, text: '行动（其他）' },
-        { key: 'vuln-critical', count: criticalCount, text: '严重漏洞' },
-        { key: 'vuln-high', count: highCount, text: '高风险漏洞' },
-        { key: 'vuln-med', count: medCount, text: '中风险漏洞' },
-        { key: 'vuln-low', count: lowCount, text: '低风险漏洞' }
+        { key: 'target', count: targetNodes.length, text: (typeof window.t === 'function' ? window.t('attackChainModal.target') : '目标') },
+        { key: 'action-success', count: actionNodes.filter(a => { const m = a.metadata || {}; return Array.isArray(m.findings) && m.findings.length > 0 && m.status !== 'failed_insight'; }).length, text: (typeof window.t === 'function' ? window.t('chat.actionWithFindings') : '行动（有发现）') },
+        { key: 'action-neutral', count: actionNodes.filter(a => { const m = a.metadata || {}; const f = Array.isArray(m.findings) ? m.findings : []; return f.length === 0 || m.status === 'failed_insight'; }).length, text: (typeof window.t === 'function' ? window.t('chat.actionOther') : '行动（其他）') },
+        { key: 'vuln-critical', count: criticalCount, text: (typeof window.t === 'function' ? window.t('chat.criticalVulns') : '严重漏洞') },
+        { key: 'vuln-high', count: highCount, text: (typeof window.t === 'function' ? window.t('chat.highRiskVuln') : '高风险漏洞') },
+        { key: 'vuln-med', count: medCount, text: (typeof window.t === 'function' ? window.t('chat.medRiskVuln') : '中风险漏洞') },
+        { key: 'vuln-low', count: lowCount, text: (typeof window.t === 'function' ? window.t('chat.lowRiskVuln') : '低风险漏洞') }
     ];
     typeSummary.forEach(item => {
         const t = typeTheme[item.key];
@@ -8962,13 +8980,13 @@ function _acBuildSvgString() {
     curY += 10;
 
     // --- 连线含义 ---
-    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">CONNECTIONS · 连线含义</text>`);
+    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">CONNECTIONS · ${(typeof window.t === 'function' ? window.t('chat.legendConnections') : '连线含义')}</text>`);
     curY += 22;
     const lineItems = [
-        { label: '行动发现漏洞', color: '#4F46E5', dash: '' },
-        { label: '使能 / 促成关系', color: '#E11D48', dash: '' },
-        { label: '逻辑顺序', color: '#64748B', dash: '' },
-        { label: '目标定位', color: '#4F46E5', dash: '6,3' }
+        { label: (typeof window.t === 'function' ? window.t('chat.lineActionFindVuln') : '行动发现漏洞'), color: '#4F46E5', dash: '' },
+        { label: (typeof window.t === 'function' ? window.t('chat.lineEnableContribute') : '使能 / 促成关系'), color: '#E11D48', dash: '' },
+        { label: (typeof window.t === 'function' ? window.t('chat.lineLogicalOrder') : '逻辑顺序'), color: '#64748B', dash: '' },
+        { label: (typeof window.t === 'function' ? window.t('chat.lineTargetLocation') : '目标定位'), color: '#4F46E5', dash: '6,3' }
     ];
     lineItems.forEach(l => {
         const dashAttr = l.dash ? `stroke-dasharray="${l.dash}"` : '';
@@ -8980,20 +8998,20 @@ function _acBuildSvgString() {
     curY += 10;
 
     // --- 风险等级条 ---
-    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">RISK LEVELS · 风险等级</text>`);
+    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">RISK LEVELS · ${(typeof window.t === 'function' ? window.t('chat.legendRiskLevels') : '风险等级')}</text>`);
     curY += 22;
     const riskBar = [
-        { label: '严重', range: '80-100', color: '#E11D48' },
-        { label: '高', range: '60-79', color: '#EA580C' },
-        { label: '中', range: '40-59', color: '#CA8A04' },
-        { label: '低', range: '0-39', color: '#0D9488' }
+        { label: (typeof window.t === 'function' ? window.t('chat.riskCritical') : '严重'), range: '80-100', color: '#E11D48' },
+        { label: (typeof window.t === 'function' ? window.t('chat.riskHigh') : '高'), range: '60-79', color: '#EA580C' },
+        { label: (typeof window.t === 'function' ? window.t('chat.riskMedium') : '中'), range: '40-59', color: '#CA8A04' },
+        { label: (typeof window.t === 'function' ? window.t('chat.riskLow') : '低'), range: '0-39', color: '#0D9488' }
     ];
     riskBar.forEach(r => {
         // 风险等级胶囊
         parts.push(`<rect x="${lx + 24}" y="${curY - 10}" width="46" height="18" rx="9" fill="${r.color}"/>`);
         parts.push(`<text x="${lx + 47}" y="${curY + 2}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#FFFFFF" letter-spacing="0.3px">${_acEscapeXml(r.label)}</text>`);
         // 分数范围
-        parts.push(`<text x="${lx + 80}" y="${curY + 1}" font-size="12" font-weight="500" fill="#64748B">分数 ${_acEscapeXml(r.range)}</text>`);
+        parts.push(`<text x="${lx + 80}" y="${curY + 1}" font-size="12" font-weight="500" fill="#64748B">${(typeof window.t === 'function' ? window.t('chat.riskScoreRange', { range: _acEscapeXml(r.range) }) : '分数 ' + _acEscapeXml(r.range))}</text>`);
         curY += 26;
     });
 
@@ -9049,7 +9067,7 @@ function _acSvgToPng(svgString, scale) {
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     URL.revokeObjectURL(url);
                     canvas.toBlob(pngBlob => {
-                        if (!pngBlob) reject(new Error('PNG 生成失败'));
+                        if (!pngBlob) reject(new Error((typeof window.t === 'function' ? window.t('chat.pngGenerateFailed') : 'PNG 生成失败')));
                         else resolve(pngBlob);
                     }, 'image/png', 0.95);
                 } catch (err) {
@@ -9059,7 +9077,7 @@ function _acSvgToPng(svgString, scale) {
             };
             img.onerror = function (e) {
                 URL.revokeObjectURL(url);
-                reject(new Error('SVG 加载失败'));
+                reject(new Error((typeof window.t === 'function' ? window.t('chat.svgLoadFailed') : 'SVG 加载失败')));
             };
             img.src = url;
         } catch (e) {
@@ -9095,22 +9113,22 @@ function exportAttackChain(format) {
                             const p = attackChainCytoscape.png({ output: 'blob', bg: '#ffffff', full: true, scale: 2 });
                             if (p && typeof p.then === 'function') {
                                 p.then(b => _acDownloadBlob(b, `attack-chain-${convId}-${tsName}.png`))
-                                    .catch(e => alert('导出 PNG 失败: ' + (e && e.message || e)));
+                                    .catch(e => alert((typeof window.t === 'function' ? window.t('chat.exportPngFailedPrefix') : '导出 PNG 失败: ') + (e && e.message || e)));
                             } else if (p) {
                                 _acDownloadBlob(p, `attack-chain-${convId}-${tsName}.png`);
                             } else {
-                                alert('导出 PNG 失败');
+                                alert((typeof window.t === 'function' ? window.t('chat.exportPngFailed') : '导出 PNG 失败'));
                             }
                         } catch (e2) {
-                            alert('导出 PNG 失败: ' + (e2 && e2.message || e2));
+                            alert((typeof window.t === 'function' ? window.t('chat.exportPngFailedPrefix') : '导出 PNG 失败: ') + (e2 && e2.message || e2));
                         }
                     });
             } else {
-                alert('不支持的导出格式: ' + format);
+                alert((typeof window.t === 'function' ? window.t('chat.unsupportedExportFormatPrefix') : '不支持的导出格式: ') + format);
             }
         } catch (error) {
             console.error('导出失败:', error);
-            alert('导出失败: ' + (error && error.message || '未知错误'));
+            alert((typeof window.t === 'function' ? window.t('chat.exportFailedPrefix') : '导出失败: ') + (error && error.message || (typeof window.t === 'function' ? window.t('settingsBasic.unknownError') : '未知错误')));
         }
     }, 80);
 }
@@ -10236,7 +10254,7 @@ function createConversationListItemWithMenu(conversation, isPinned) {
 
     const title = document.createElement('div');
     title.className = 'conversation-title';
-    const titleText = conversation.title || '未命名对话';
+    const titleText = conversation.title || (typeof window.t === 'function' ? window.t('projects.untitledConversation') : '未命名对话');
     title.textContent = safeTruncateText(titleText, 60);
     title.title = titleText; // 设置完整标题以便悬停查看
     titleWrapper.appendChild(title);
@@ -10245,7 +10263,7 @@ function createConversationListItemWithMenu(conversation, isPinned) {
         const pinIcon = document.createElement('span');
         pinIcon.className = 'conversation-item-pinned';
         pinIcon.innerHTML = '📌';
-        pinIcon.title = '已置顶';
+        pinIcon.title = typeof window.t === 'function' ? window.t('chat.pinnedIndicator') : '已置顶';
         titleWrapper.appendChild(pinIcon);
     }
 
@@ -10318,7 +10336,7 @@ function updateConversationContextPinText(isPinned) {
     if (typeof window.t === 'function') {
         pinMenuText.textContent = isPinned ? window.t('contextMenu.unpinConversation') : window.t('contextMenu.pinConversation');
     } else {
-        pinMenuText.textContent = isPinned ? '取消置顶' : '置顶此对话';
+        pinMenuText.textContent = isPinned ? (typeof window.t === 'function' ? window.t('contextMenu.unpinConversation') : '取消置顶') : (typeof window.t === 'function' ? window.t('contextMenu.pinConversation') : '置顶此对话');
     }
 }
 
@@ -10363,7 +10381,7 @@ async function showConversationContextMenu(event) {
                 attackChainMenuItem.style.opacity = '0.5';
                 attackChainMenuItem.style.cursor = 'not-allowed';
                 attackChainMenuItem.onclick = null;
-                attackChainMenuItem.title = '当前对话正在执行，请稍后再生成攻击链';
+                attackChainMenuItem.title = (typeof window.t === 'function' ? window.t('chat.attackChainTaskRunning') : '当前对话正在执行，请稍后再生成攻击链');
             } else {
                 attackChainMenuItem.style.opacity = '1';
                 attackChainMenuItem.style.cursor = 'pointer';
@@ -10557,7 +10575,7 @@ async function saveConversationRename() {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || '更新失败');
+            throw new Error(error.error || (typeof window.t === 'function' ? window.t('chat.updateFailed') : '更新失败'));
         }
 
         // 更新前端显示
@@ -10584,7 +10602,7 @@ async function saveConversationRename() {
     } catch (error) {
         console.error('重命名对话失败:', error);
         const failedLabel = typeof window.t === 'function' ? window.t('chat.renameFailed') : '重命名失败';
-        const unknownErr = '未知错误';
+        const unknownErr = typeof window.t === 'function' ? window.t('settingsBasic.unknownError') : '未知错误';
         alert(failedLabel + ': ' + (error.message || unknownErr));
     } finally {
         if (submitButton) submitButton.disabled = false;
@@ -10618,7 +10636,7 @@ async function pinConversation() {
 
     try {
         const response = await apiFetch(`/api/conversations/${convId}`);
-        await assertConversationActionResponse(response, '获取对话失败');
+        await assertConversationActionResponse(response, typeof window.t === 'function' ? window.t('chat.getConversationFailed') : '获取对话失败');
         const conv = await response.json();
         const newPinned = !conv.pinned;
 
@@ -10629,13 +10647,13 @@ async function pinConversation() {
             },
             body: JSON.stringify({ pinned: newPinned }),
         });
-        await assertConversationActionResponse(updateResponse, '更新置顶状态失败');
+        await assertConversationActionResponse(updateResponse, typeof window.t === 'function' ? window.t('chat.updatePinFailed') : '更新置顶状态失败');
 
         notifyConversationPinnedChanged(convId, newPinned);
         loadConversations();
     } catch (error) {
         console.error('置顶对话失败:', error);
-        alert('置顶失败: ' + (error.message || '未知错误'));
+        alert((typeof window.t === 'function' ? window.t('chat.pinFailedPrefix') : '置顶失败: ') + (error.message || (typeof window.t === 'function' ? window.t('settingsBasic.unknownError') : '未知错误')));
     }
 
 }
@@ -11131,7 +11149,7 @@ async function deleteSelectedConversations() {
     } catch (error) {
         console.error('删除失败:', error);
         const failedMsg = typeof window.t === 'function' ? window.t('batchManageModal.deleteFailed') : '删除失败';
-        const unknownErr = '未知错误';
+        const unknownErr = typeof window.t === 'function' ? window.t('settingsBasic.unknownError') : '未知错误';
         alert(failedMsg + ': ' + (error.message || unknownErr));
     }
 }

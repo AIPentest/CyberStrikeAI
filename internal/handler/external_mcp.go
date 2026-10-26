@@ -91,7 +91,7 @@ func (h *ExternalMCPHandler) GetExternalMCP(c *gin.Context) {
 	configs := h.manager.GetConfigs()
 	cfg, exists := configs[name]
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "外部MCP配置不存在"})
+		respondError(c, http.StatusNotFound, "外部MCP配置不存在", "external MCP config not found")
 		return
 	}
 
@@ -153,13 +153,13 @@ func externalMCPStatusError(manager *mcp.ExternalMCPManager, name, status string
 func (h *ExternalMCPHandler) AddOrUpdateExternalMCP(c *gin.Context) {
 	var req AddOrUpdateExternalMCPRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的请求参数: %s", "invalid request parameter: %s"), err.Error())})
 		return
 	}
 
 	name := c.Param("name")
 	if name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "名称不能为空"})
+		respondError(c, http.StatusBadRequest, "名称不能为空", "name must not be empty")
 		return
 	}
 
@@ -190,7 +190,7 @@ func (h *ExternalMCPHandler) AddOrUpdateExternalMCP(c *gin.Context) {
 	// 添加或更新配置
 	if err := h.manager.AddOrUpdateConfig(name, cfg); err != nil {
 		h.logger.Error("添加或更新外部MCP配置失败", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "添加或更新配置失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "添加或更新配置失败: %s", "failed to add or update config: %s"), err.Error())})
 		return
 	}
 
@@ -199,7 +199,7 @@ func (h *ExternalMCPHandler) AddOrUpdateExternalMCP(c *gin.Context) {
 	// 保存到配置文件
 	if err := h.saveConfig(); err != nil {
 		h.logger.Error("保存配置失败", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "保存配置失败: %s", "failed to save config: %s"), err.Error())})
 		return
 	}
 
@@ -214,7 +214,7 @@ func (h *ExternalMCPHandler) AddOrUpdateExternalMCP(c *gin.Context) {
 			Message:      "更新外部 MCP 配置",
 		})
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "配置已更新"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "配置已更新", "config updated")})
 }
 
 // DeleteExternalMCP 删除外部MCP配置
@@ -226,7 +226,7 @@ func (h *ExternalMCPHandler) DeleteExternalMCP(c *gin.Context) {
 
 	// 移除配置
 	if err := h.manager.RemoveConfig(name); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "配置不存在"})
+		respondError(c, http.StatusNotFound, "配置不存在", "config not found")
 		return
 	}
 
@@ -238,7 +238,7 @@ func (h *ExternalMCPHandler) DeleteExternalMCP(c *gin.Context) {
 	// 保存到配置文件
 	if err := h.saveConfig(); err != nil {
 		h.logger.Error("保存配置失败", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "保存配置失败: %s", "failed to save config: %s"), err.Error())})
 		return
 	}
 
@@ -253,7 +253,7 @@ func (h *ExternalMCPHandler) DeleteExternalMCP(c *gin.Context) {
 			Message:      "删除外部 MCP 配置",
 		})
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "配置已删除"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "配置已删除", "config deleted")})
 }
 
 // StartExternalMCP 启动外部MCP
@@ -275,7 +275,7 @@ func (h *ExternalMCPHandler) StartExternalMCP(c *gin.Context) {
 	// 保存到配置文件
 	if err := h.saveConfig(); err != nil {
 		h.logger.Error("保存配置失败", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "保存配置失败: %s", "failed to save config: %s"), err.Error())})
 		return
 	}
 
@@ -300,7 +300,7 @@ func (h *ExternalMCPHandler) StartExternalMCP(c *gin.Context) {
 	// 立即返回，不等待连接完成
 	// 客户端会在后台异步连接，用户可以通过状态查询接口查看连接状态
 	c.JSON(http.StatusOK, gin.H{
-		"message": "外部MCP启动请求已提交，正在后台连接中",
+		"message": i18nText(requestWantsEnglish(c), "外部MCP启动请求已提交，正在后台连接中", "external MCP start request submitted; connecting in the background"),
 		"status":  status,
 	})
 }
@@ -330,12 +330,12 @@ func (h *ExternalMCPHandler) StopExternalMCP(c *gin.Context) {
 	// 保存到配置文件
 	if err := h.saveConfig(); err != nil {
 		h.logger.Error("保存配置失败", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "保存配置失败: %s", "failed to save config: %s"), err.Error())})
 		return
 	}
 
 	h.logger.Info("外部MCP已停止", zap.String("name", name))
-	c.JSON(http.StatusOK, gin.H{"message": "外部MCP已停止"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "外部MCP已停止", "external MCP stopped")})
 }
 
 // GetExternalMCPStats 获取统计信息

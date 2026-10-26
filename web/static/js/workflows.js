@@ -2630,6 +2630,7 @@
             WFPKG_CHECKSUM_MISMATCH: 'checksumMismatch',
             WFPKG_MULTIPLE_WORKFLOWS: 'multipleWorkflows',
             WFPKG_WORKFLOW_INVALID: 'workflowInvalid',
+            WFPKG_INSPECTION_REQUIRED: 'inspectionRequired',
             WFPKG_INSPECTION_NOT_FOUND: 'inspectionNotFound',
             WFPKG_INSPECTION_EXPIRED: 'inspectionExpired',
             WFPKG_INSPECTION_CONSUMED: 'inspectionConsumed',

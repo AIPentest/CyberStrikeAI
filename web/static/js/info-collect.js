@@ -3,138 +3,223 @@ function _t(key, opts) {
     return typeof window.t === 'function' ? window.t(key, opts) : key;
 }
 
+// 翻译带回退中文（i18n 未就绪时仍显示原文，避免暴露内部键名）
+function _tf(key, fallback, opts) {
+    return typeof window.t === 'function' ? window.t(key, opts) : fallback;
+}
+
 const FOFA_FORM_STORAGE_KEY = 'info-collect-fofa-form';
 const FOFA_HIDDEN_FIELDS_STORAGE_KEY = 'info-collect-fofa-hidden-fields';
 
 const INFO_COLLECT_PROVIDERS = {
     fofa: {
         label: 'FOFA',
-        placeholder: '例如：app="Apache" && country="CN"',
-        nlPlaceholder: '例如：找美国 Missouri 的 Apache 站点，标题包含 Home',
-        hint: '查询语法参考 FOFA 文档，支持 && / || / () 等。',
-        parseHint: '解析后会弹窗展示 FOFA 语法（可编辑），确认无误后再填入查询框并执行查询。',
+        get placeholder() {
+            return _tf('infoCollect.queryPlaceholder', '例如：app="Apache" && country="CN"');
+        },
+        get nlPlaceholder() {
+            return _tf('infoCollectPage.nlPlaceholder', '例如：找美国 Missouri 的 Apache 站点，标题包含 Home');
+        },
+        get hint() {
+            return _tf('infoCollectPage.formHint', '查询语法参考 FOFA 文档，支持 && / || / () 等。');
+        },
+        get parseHint() {
+            return _tf('infoCollectPage.parseHint', '解析后会弹窗展示 FOFA 语法（可编辑），确认无误后再填入查询框并执行查询。');
+        },
         maxSize: 10000,
-        sizeHint: 'FOFA 返回数量上限与账号权限相关，前端最多允许 10000。',
+        get sizeHint() {
+            return _tf('infoCollectPage.fofaSizeHint', 'FOFA 返回数量上限与账号权限相关，前端最多允许 10000。');
+        },
         fullOption: {
-            label: '完整模式',
-            hint: '向 FOFA 传 full=true，返回更完整/更实时的数据，可能消耗更多额度。'
+            get label() {
+                return _tf('infoCollectPage.fofaFullLabel', '完整模式');
+            },
+            get hint() {
+                return _tf('infoCollectPage.fofaFullHint', '向 FOFA 传 full=true，返回更完整/更实时的数据，可能消耗更多额度。');
+            }
         },
         fields: 'host,ip,port,domain,title,protocol,country,region,city,server',
-        presets: [
-            ['Apache + 中国', 'app="Apache" && country="CN"'],
-            ['登录页 + 中国', 'title="登录" && country="CN"'],
-            ['指定域名', 'domain="example.com"'],
-            ['指定 IP', 'ip="1.1.1.1"']
-        ],
-        fieldPresets: [
-            ['最小字段', 'host,ip,port,domain'],
-            ['Web 常用', 'host,title,ip,port,domain,protocol,server,icp,country,region,city'],
-            ['情报增强', 'host,ip,port,domain,title,protocol,country,region,city,server,asn,org,icp,header,banner']
-        ],
+        get presets() {
+            return [
+                [_tf('infoCollectPage.presetApache', 'Apache + 中国'), 'app="Apache" && country="CN"'],
+                [_tf('infoCollectPage.presetLogin', '登录页 + 中国'), 'title="登录" && country="CN"'],
+                [_tf('infoCollectPage.presetDomain', '指定域名'), 'domain="example.com"'],
+                [_tf('infoCollectPage.presetIp', '指定 IP'), 'ip="1.1.1.1"']
+            ];
+        },
+        get fieldPresets() {
+            return [
+                [_tf('infoCollectPage.minFields', '最小字段'), 'host,ip,port,domain'],
+                [_tf('infoCollectPage.webCommon', 'Web 常用'), 'host,title,ip,port,domain,protocol,server,icp,country,region,city'],
+                [_tf('infoCollectPage.intelEnhanced', '情报增强'), 'host,ip,port,domain,title,protocol,country,region,city,server,asn,org,icp,header,banner']
+            ];
+        },
         syntaxGuide: {
-            summary: 'FOFA 使用 field="value" 精确匹配，支持 &&、||、! 和括号组合；字符串建议用双引号包裹。',
+            get summary() {
+                return _tf('infoCollectPage.fofaSyntaxSummary', 'FOFA 使用 field="value" 精确匹配，支持 &&、||、! 和括号组合；字符串建议用双引号包裹。');
+            },
             docsUrl: 'https://en.fofa.info/api',
-            sections: [
-                ['常用字段', ['app="Apache"', 'title="后台管理"', 'body="Powered by"', 'domain="example.com"', 'host="https://example.com"', 'ip="1.1.1.1"', 'port="443"', 'country="CN"', 'city="Hangzhou"', 'server="nginx"']],
-                ['组合写法', ['app="nginx" && country="CN"', 'title="login" || title="登录"', '(app="Apache" || app="nginx") && port="443"', 'domain="example.com" && !title="404"']],
-                ['场景示例', ['cert="example.com" && port="443"', 'header="JSESSIONID" && country="CN"', 'icon_hash="-247388890"', 'fid="sZyXkR9e" && domain="example.com"']]
-            ]
+            get sections() {
+                return [
+                    [_tf('infoCollectPage.syntaxSectionCommonFields', '常用字段'), ['app="Apache"', 'title="后台管理"', 'body="Powered by"', 'domain="example.com"', 'host="https://example.com"', 'ip="1.1.1.1"', 'port="443"', 'country="CN"', 'city="Hangzhou"', 'server="nginx"']],
+                    [_tf('infoCollectPage.syntaxSectionConbinations', '组合写法'), ['app="nginx" && country="CN"', 'title="login" || title="登录"', '(app="Apache" || app="nginx") && port="443"', 'domain="example.com" && !title="404"']],
+                    [_tf('infoCollectPage.syntaxSectionExamples', '场景示例'), ['cert="example.com" && port="443"', 'header="JSESSIONID" && country="CN"', 'icon_hash="-247388890"', 'fid="sZyXkR9e" && domain="example.com"']]
+                ];
+            }
         }
     },
     zoomeye: {
         label: 'ZoomEye',
-        placeholder: '例如：app="Apache" && country="CN"',
-        nlPlaceholder: '例如：找中国的 SSH 服务，排除蜜罐',
-        hint: 'ZoomEye 支持 app/title/domain/ip/port/country/city 等语法。',
-        parseHint: '解析后会弹窗展示 ZoomEye 语法（可编辑），确认无误后再填入查询框并执行查询。',
+        get placeholder() {
+            return _tf('infoCollect.queryPlaceholder', '例如：app="Apache" && country="CN"');
+        },
+        get nlPlaceholder() {
+            return _tf('infoCollectPage.zoomeyeNlPlaceholder', '例如：找中国的 SSH 服务，排除蜜罐');
+        },
+        get hint() {
+            return _tf('infoCollectPage.zoomeyeHint', 'ZoomEye 支持 app/title/domain/ip/port/country/city 等语法。');
+        },
+        get parseHint() {
+            return _tf('infoCollectPage.zoomeyeParseHint', '解析后会弹窗展示 ZoomEye 语法（可编辑），确认无误后再填入查询框并执行查询。');
+        },
         maxSize: 10000,
-        sizeHint: 'ZoomEye pagesize 最高支持到 10000，实际额度以账号为准。',
+        get sizeHint() {
+            return _tf('infoCollectPage.zoomeyeSizeHint', 'ZoomEye pagesize 最高支持到 10000，实际额度以账号为准。');
+        },
         fullOption: null,
         fields: 'ip,port,domain,hostname,title,service,app,country,city',
-        presets: [
-            ['Apache + 中国', 'app="Apache" && country="CN"'],
-            ['SSH 服务', 'service="ssh"'],
-            ['指定域名', 'domain="example.com"'],
-            ['指定 IP', 'ip="1.1.1.1"']
-        ],
-        fieldPresets: [
-            ['最小字段', 'ip,port,domain,hostname'],
-            ['Web 常用', 'ip,port,domain,hostname,title,service,app,country,city'],
-            ['情报增强', 'ip,port,domain,hostname,title,service,app,country,city,org,isp,ssl']
-        ],
+        get presets() {
+            return [
+                [_tf('infoCollectPage.presetApache', 'Apache + 中国'), 'app="Apache" && country="CN"'],
+                [_tf('infoCollectPage.presetSsh', 'SSH 服务'), 'service="ssh"'],
+                [_tf('infoCollectPage.presetDomain', '指定域名'), 'domain="example.com"'],
+                [_tf('infoCollectPage.presetIp', '指定 IP'), 'ip="1.1.1.1"']
+            ];
+        },
+        get fieldPresets() {
+            return [
+                [_tf('infoCollectPage.minFields', '最小字段'), 'ip,port,domain,hostname'],
+                [_tf('infoCollectPage.webCommon', 'Web 常用'), 'ip,port,domain,hostname,title,service,app,country,city'],
+                [_tf('infoCollectPage.intelEnhanced', '情报增强'), 'ip,port,domain,hostname,title,service,app,country,city,org,isp,ssl']
+            ];
+        },
         syntaxGuide: {
-            summary: 'ZoomEye 支持字段检索、引号短语、AND/OR/NOT 与括号组合；字段名以官方控制台实际支持为准。',
+            get summary() {
+                return _tf('infoCollectPage.zoomeyeSyntaxSummary', 'ZoomEye 支持字段检索、引号短语、AND/OR/NOT 与括号组合；字段名以官方控制台实际支持为准。');
+            },
             docsUrl: 'https://www.zoomeye.ai/help',
-            sections: [
-                ['常用字段', ['app="Apache"', 'service="ssh"', 'title="登录"', 'domain="example.com"', 'hostname="example.com"', 'ip="1.1.1.1"', 'port=443', 'country="CN"', 'city="Beijing"', 'org="Tencent"']],
-                ['组合写法', ['app="nginx" AND country="CN"', 'service="http" AND (title="login" OR title="登录")', 'domain="example.com" AND NOT app="cloudflare"', 'port=443 AND country="US"']],
-                ['场景示例', ['ssl.cert.fingerprint="SHA256值"', 'iconhash="-247388890"', 'service="rdp" AND country="CN"', 'app="Elasticsearch" AND port=9200']]
-            ]
+            get sections() {
+                return [
+                    [_tf('infoCollectPage.syntaxSectionCommonFields', '常用字段'), ['app="Apache"', 'service="ssh"', 'title="登录"', 'domain="example.com"', 'hostname="example.com"', 'ip="1.1.1.1"', 'port=443', 'country="CN"', 'city="Beijing"', 'org="Tencent"']],
+                    [_tf('infoCollectPage.syntaxSectionConbinations', '组合写法'), ['app="nginx" AND country="CN"', 'service="http" AND (title="login" OR title="登录")', 'domain="example.com" AND NOT app="cloudflare"', 'port=443 AND country="US"']],
+                    [_tf('infoCollectPage.syntaxSectionExamples', '场景示例'), ['ssl.cert.fingerprint="SHA256值"', 'iconhash="-247388890"', 'service="rdp" AND country="CN"', 'app="Elasticsearch" AND port=9200']]
+                ];
+            }
         }
     },
     quake: {
         label: 'Quake',
-        placeholder: '例如：service.name:"http" AND country_cn:"中国"',
-        nlPlaceholder: '例如：找中国的 HTTP 服务，标题包含登录',
-        hint: 'Quake 使用 DSL 语法，常见字段如 service.name、domain、ip、port、country_cn。',
-        parseHint: '解析后会弹窗展示 Quake DSL（可编辑），确认无误后再填入查询框并执行查询。',
+        get placeholder() {
+            return _tf('infoCollectPage.quakeQueryPlaceholder', '例如：service.name:"http" AND country_cn:"中国"');
+        },
+        get nlPlaceholder() {
+            return _tf('infoCollectPage.quakeNlPlaceholder', '例如：找中国的 HTTP 服务，标题包含登录');
+        },
+        get hint() {
+            return _tf('infoCollectPage.quakeHint', 'Quake 使用 DSL 语法，常见字段如 service.name、domain、ip、port、country_cn。');
+        },
+        get parseHint() {
+            return _tf('infoCollectPage.quakeParseHint', '解析后会弹窗展示 Quake DSL（可编辑），确认无误后再填入查询框并执行查询。');
+        },
         maxSize: 10000,
-        sizeHint: 'Quake size 会消耗积分，建议按需控制返回数量。',
+        get sizeHint() {
+            return _tf('infoCollectPage.quakeSizeHint', 'Quake size 会消耗积分，建议按需控制返回数量。');
+        },
         fullOption: {
-            label: '最新数据',
-            hint: '向 Quake 传 latest=true，优先查询最新数据。'
+            get label() {
+                return _tf('infoCollectPage.quakeFullLabel', '最新数据');
+            },
+            get hint() {
+                return _tf('infoCollectPage.quakeFullHint', '向 Quake 传 latest=true，优先查询最新数据。');
+            }
         },
         fields: 'ip,port,domain,service.name,service.http.title,location.country_cn,location.province_cn,location.city_cn',
-        presets: [
-            ['HTTP + 中国', 'service.name:"http" AND country_cn:"中国"'],
-            ['443 端口', 'port:443'],
-            ['指定域名', 'domain:"example.com"'],
-            ['指定 IP', 'ip:"1.1.1.1"']
-        ],
-        fieldPresets: [
-            ['最小字段', 'ip,port,domain'],
-            ['Web 常用', 'ip,port,domain,service.name,service.http.title,location.country_cn,location.city_cn'],
-            ['情报增强', 'ip,port,domain,service.name,service.http.title,service.http.server,location.country_cn,location.province_cn,location.city_cn,asn']
-        ],
+        get presets() {
+            return [
+                [_tf('infoCollectPage.presetHttpChina', 'HTTP + 中国'), 'service.name:"http" AND country_cn:"中国"'],
+                [_tf('infoCollectPage.presetPort443', '443 端口'), 'port:443'],
+                [_tf('infoCollectPage.presetDomain', '指定域名'), 'domain:"example.com"'],
+                [_tf('infoCollectPage.presetIp', '指定 IP'), 'ip:"1.1.1.1"']
+            ];
+        },
+        get fieldPresets() {
+            return [
+                [_tf('infoCollectPage.minFields', '最小字段'), 'ip,port,domain'],
+                [_tf('infoCollectPage.webCommon', 'Web 常用'), 'ip,port,domain,service.name,service.http.title,location.country_cn,location.city_cn'],
+                [_tf('infoCollectPage.intelEnhanced', '情报增强'), 'ip,port,domain,service.name,service.http.title,service.http.server,location.country_cn,location.province_cn,location.city_cn,asn']
+            ];
+        },
         syntaxGuide: {
-            summary: 'Quake 使用 Lucene/DSL 风格查询，常见形式是 field:"value"，逻辑运算符通常使用 AND、OR、NOT。',
+            get summary() {
+                return _tf('infoCollectPage.quakeSyntaxSummary', 'Quake 使用 Lucene/DSL 风格查询，常见形式是 field:"value"，逻辑运算符通常使用 AND、OR、NOT。');
+            },
             docsUrl: 'https://quake.360.net/quake/#/help',
-            sections: [
-                ['常用字段', ['service.name:"http"', 'service.http.title:"登录"', 'service.http.server:"nginx"', 'domain:"example.com"', 'ip:"1.1.1.1"', 'port:443', 'country_cn:"中国"', 'province_cn:"浙江"', 'city_cn:"杭州"']],
-                ['组合写法', ['service.name:"http" AND country_cn:"中国"', '(service.name:"http" OR service.name:"https") AND port:443', 'domain:"example.com" AND NOT service.http.title:"404"', 'service.http.title:"login" AND port:443']],
-                ['场景示例', ['service.http.favicon.hash:"-247388890"', 'service.http.response.header:"JSESSIONID"', 'service.name:"ssh" AND country_cn:"中国"', 'service.http.title:"Dashboard" AND NOT ip:"127.0.0.1"']]
-            ]
+            get sections() {
+                return [
+                    [_tf('infoCollectPage.syntaxSectionCommonFields', '常用字段'), ['service.name:"http"', 'service.http.title:"登录"', 'service.http.server:"nginx"', 'domain:"example.com"', 'ip:"1.1.1.1"', 'port:443', 'country_cn:"中国"', 'province_cn:"浙江"', 'city_cn:"杭州"']],
+                    [_tf('infoCollectPage.syntaxSectionConbinations', '组合写法'), ['service.name:"http" AND country_cn:"中国"', '(service.name:"http" OR service.name:"https") AND port:443', 'domain:"example.com" AND NOT service.http.title:"404"', 'service.http.title:"login" AND port:443']],
+                    [_tf('infoCollectPage.syntaxSectionExamples', '场景示例'), ['service.http.favicon.hash:"-247388890"', 'service.http.response.header:"JSESSIONID"', 'service.name:"ssh" AND country_cn:"中国"', 'service.http.title:"Dashboard" AND NOT ip:"127.0.0.1"']]
+                ];
+            }
         }
     },
     shodan: {
         label: 'Shodan',
-        placeholder: '例如：product:nginx country:CN',
-        nlPlaceholder: '例如：找中国的 nginx 资产，端口 443',
-        hint: 'Shodan 使用 filter:value 语法，常见字段如 product、port、country、org。',
-        parseHint: '解析后会弹窗展示 Shodan filter 语法（可编辑），确认无误后再填入查询框并执行查询。',
+        get placeholder() {
+            return _tf('infoCollectPage.shodanQueryPlaceholder', '例如：product:nginx country:CN');
+        },
+        get nlPlaceholder() {
+            return _tf('infoCollectPage.shodanNlPlaceholder', '例如：找中国的 nginx 资产，端口 443');
+        },
+        get hint() {
+            return _tf('infoCollectPage.shodanHint', 'Shodan 使用 filter:value 语法，常见字段如 product、port、country、org。');
+        },
+        get parseHint() {
+            return _tf('infoCollectPage.shodanParseHint', '解析后会弹窗展示 Shodan filter 语法（可编辑），确认无误后再填入查询框并执行查询。');
+        },
         maxSize: 1000,
-        sizeHint: 'Shodan 官方每页 100 条；后端会自动翻页聚合，单次最多 1000 条以控制额度消耗。',
+        get sizeHint() {
+            return _tf('infoCollectPage.shodanSizeHint', 'Shodan 官方每页 100 条；后端会自动翻页聚合，单次最多 1000 条以控制额度消耗。');
+        },
         fullOption: null,
         fields: 'ip_str,port,hostnames,domains,org,isp,location.country_name,location.city,product,transport',
-        presets: [
-            ['Nginx + 中国', 'product:nginx country:CN'],
-            ['SSH 服务', 'port:22'],
-            ['证书域名', 'ssl.cert.subject.cn:example.com'],
-            ['Amazon 443', 'org:"Amazon" port:443']
-        ],
-        fieldPresets: [
-            ['最小字段', 'ip_str,port,hostnames,domains'],
-            ['Web 常用', 'ip_str,port,hostnames,domains,product,org,location.country_name,location.city'],
-            ['情报增强', 'ip_str,port,hostnames,domains,org,isp,asn,location.country_name,location.city,product,transport,ssl.cert.subject.cn']
-        ],
+        get presets() {
+            return [
+                [_tf('infoCollectPage.presetNginxChina', 'Nginx + 中国'), 'product:nginx country:CN'],
+                [_tf('infoCollectPage.presetSsh', 'SSH 服务'), 'port:22'],
+                [_tf('infoCollectPage.presetCertDomain', '证书域名'), 'ssl.cert.subject.cn:example.com'],
+                [_tf('infoCollectPage.presetAmazon443', 'Amazon 443'), 'org:"Amazon" port:443']
+            ];
+        },
+        get fieldPresets() {
+            return [
+                [_tf('infoCollectPage.minFields', '最小字段'), 'ip_str,port,hostnames,domains'],
+                [_tf('infoCollectPage.webCommon', 'Web 常用'), 'ip_str,port,hostnames,domains,product,org,location.country_name,location.city'],
+                [_tf('infoCollectPage.intelEnhanced', '情报增强'), 'ip_str,port,hostnames,domains,org,isp,asn,location.country_name,location.city,product,transport,ssl.cert.subject.cn']
+            ];
+        },
         syntaxGuide: {
-            summary: 'Shodan 默认搜索 banner data；精确条件使用 filter:value，值含空格时用双引号，多个过滤器并列表示收窄结果。',
+            get summary() {
+                return _tf('infoCollectPage.shodanSyntaxSummary', 'Shodan 默认搜索 banner data；精确条件使用 filter:value，值含空格时用双引号，多个过滤器并列表示收窄结果。');
+            },
             docsUrl: 'https://help.shodan.io/the-basics/search-query-fundamentals',
-            sections: [
-                ['常用过滤器', ['product:nginx', 'port:443', 'country:CN', 'city:Shanghai', 'org:"Amazon"', 'asn:AS15169', 'hostname:example.com', 'ssl.cert.subject.cn:example.com', 'http.title:"Dashboard"']],
-                ['组合写法', ['product:nginx country:CN', 'apache port:443 country:DE', 'org:"Amazon" port:443', 'ssl.cert.subject.cn:example.com port:443']],
-                ['场景示例', ['http.title:"login" country:CN', 'ssl:true port:443 hostname:example.com', 'vuln:CVE-2021-41773', 'has_screenshot:true product:nginx']]
-            ]
+            get sections() {
+                return [
+                    [_tf('infoCollectPage.syntaxSectionCommonFilters', '常用过滤器'), ['product:nginx', 'port:443', 'country:CN', 'city:Shanghai', 'org:"Amazon"', 'asn:AS15169', 'hostname:example.com', 'ssl.cert.subject.cn:example.com', 'http.title:"Dashboard"']],
+                    [_tf('infoCollectPage.syntaxSectionConbinations', '组合写法'), ['product:nginx country:CN', 'apache port:443 country:DE', 'org:"Amazon" port:443', 'ssl.cert.subject.cn:example.com port:443']],
+                    [_tf('infoCollectPage.syntaxSectionExamples', '场景示例'), ['http.title:"login" country:CN', 'ssl:true port:443 hostname:example.com', 'vuln:CVE-2021-41773', 'has_screenshot:true product:nginx']]
+                ];
+            }
         }
     }
 };
@@ -347,11 +432,11 @@ function setInfoCollectQueryMode(mode, options) {
     const queryLabel = document.getElementById('info-collect-query-label');
     const cfg = INFO_COLLECT_PROVIDERS[getInfoCollectProvider()] || INFO_COLLECT_PROVIDERS.fofa;
     if (queryLabel) {
-        queryLabel.textContent = cfg.label + ' 查询语法（可编辑，可直接查询）';
+        queryLabel.textContent = cfg.label + ' ' + _tf('infoCollectPage.syntaxLabel', '查询语法（可编辑，可直接查询）');
     }
     const nlLabel = document.getElementById('info-collect-nl-label');
     if (nlLabel) {
-        nlLabel.textContent = '自然语言（可选，AI 解析为 ' + cfg.label + ' 语法）';
+        nlLabel.textContent = _tf('infoCollectPage.naturalLabel', '自然语言（可选，AI 解析为查询语法）');
     }
 
     if (shouldFocus) {
@@ -401,7 +486,7 @@ function stabilizeInfoCollectQueryCardHeight() {
     const queryLabel = clone.querySelector('#info-collect-query-label');
     if (queryLabel) {
         const cfg = INFO_COLLECT_PROVIDERS[getInfoCollectProvider()] || INFO_COLLECT_PROVIDERS.fofa;
-        queryLabel.textContent = cfg.label + ' 查询语法（可编辑，可直接查询）';
+        queryLabel.textContent = cfg.label + ' ' + _tf('infoCollectPage.syntaxLabel', '查询语法（可编辑，可直接查询）');
     }
 
     document.body.appendChild(clone);
@@ -591,12 +676,12 @@ function renderInfoCollectSyntaxGuide(cfg) {
         return;
     }
     const docsLink = guide.docsUrl
-        ? `<a class="info-collect-doc-link" href="${presetDataAttr(guide.docsUrl)}" target="_blank" rel="noopener noreferrer">官方文档</a>`
+        ? `<a class="info-collect-doc-link" href="${presetDataAttr(guide.docsUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(_tf('infoCollectPage.officialDocs', '官方文档'))}</a>`
         : '';
     const expanded = !!infoCollectState.syntaxGuideExpanded;
     const sections = (guide.sections || []).map(([title, examples]) => {
         const chips = (examples || []).map(example => {
-            return `<button class="syntax-example-chip" type="button" data-info-query-preset="${presetDataAttr(example)}" title="填入查询框">${escapeHtml(example)}</button>`;
+            return `<button class="syntax-example-chip" type="button" data-info-query-preset="${presetDataAttr(example)}" title="${escapeAttr(_tf('infoCollect.parseModalApply', '填入查询框'))}">${escapeHtml(example)}</button>`;
         }).join('');
         return `<div class="syntax-guide-section"><div class="syntax-guide-title">${escapeHtml(title)}</div><div class="syntax-guide-examples">${chips}</div></div>`;
     }).join('');
@@ -607,7 +692,7 @@ function renderInfoCollectSyntaxGuide(cfg) {
             <div class="syntax-guide-summary">${escapeHtml(guide.summary || '')}</div>
             <div class="syntax-guide-actions">
                 ${docsLink}
-                <button class="syntax-guide-toggle" type="button" data-info-syntax-guide-toggle aria-expanded="${expanded ? 'true' : 'false'}">${expanded ? '收起示例' : '展开示例'}</button>
+                <button class="syntax-guide-toggle" type="button" data-info-syntax-guide-toggle aria-expanded="${expanded ? 'true' : 'false'}">${escapeHtml(expanded ? _tf('infoCollectPage.collapseExamples', '收起示例') : _tf('infoCollectPage.expandExamples', '展开示例'))}</button>
             </div>
         </div>
         <div class="syntax-guide-body"${expanded ? '' : ' hidden'}>${sections}</div>
@@ -637,12 +722,12 @@ function refreshInfoCollectProviderUI(resetProviderFields) {
     const fullOption = document.getElementById('info-collect-full-option');
     const fullText = fullOption ? fullOption.querySelector('.checkbox-text') : null;
     const fullConfig = getInfoCollectFullOption(provider);
-    if (queryLabel) queryLabel.textContent = cfg.label + ' 查询语法';
-    if (nlLabel) nlLabel.textContent = '自然语言（AI 解析为 ' + cfg.label + ' 语法）';
+    if (queryLabel) queryLabel.textContent = cfg.label + ' ' + _tf('infoCollectPage.querySyntax', '查询语法');
+    if (nlLabel) nlLabel.textContent = _tf('infoCollect.naturalLanguageProviderLabel', '自然语言（AI 解析为 {{provider}} 语法）', { provider: cfg.label }).replace('{{provider}}', cfg.label);
     if (queryHint) queryHint.textContent = cfg.hint;
     if (parseHint) parseHint.textContent = cfg.parseHint;
     if (sizeHint) sizeHint.textContent = cfg.sizeHint;
-    if (parseBtn && parseBtn.dataset.loading !== '1') parseBtn.title = '将自然语言解析为 ' + cfg.label + ' 查询语法';
+    if (parseBtn && parseBtn.dataset.loading !== '1') parseBtn.title = _tf('infoCollect.parseToProviderQuery', '将自然语言解析为 {{provider}} 查询语法', { provider: cfg.label }).replace('{{provider}}', cfg.label);
     if (els.query) els.query.placeholder = cfg.placeholder;
     if (els.nl) els.nl.placeholder = cfg.nlPlaceholder;
     if (els.size) {
@@ -664,12 +749,12 @@ function refreshInfoCollectProviderUI(resetProviderFields) {
     if (els.fields && (resetProviderFields || !els.fields.value.trim())) els.fields.value = cfg.fields;
     if (presets) {
         presets.innerHTML = cfg.presets.map(([label, query]) => {
-            return `<button class="preset-chip" type="button" data-info-query-preset="${presetDataAttr(query)}" title="填入示例">${escapeHtml(label)}</button>`;
+            return `<button class="preset-chip" type="button" data-info-query-preset="${presetDataAttr(query)}" title="${escapeAttr(_tf('infoCollectPage.fillExample', '填入示例'))}">${escapeHtml(label)}</button>`;
         }).join('');
     }
     if (fieldPresets) {
         fieldPresets.innerHTML = cfg.fieldPresets.map(([label, fields]) => {
-            return `<button class="preset-chip" type="button" data-info-fields-preset="${presetDataAttr(fields)}" title="填入字段模板">${escapeHtml(label)}</button>`;
+            return `<button class="preset-chip" type="button" data-info-fields-preset="${presetDataAttr(fields)}" title="${escapeAttr(_tf('infoCollectPage.fillFieldsTemplate', '填入字段模板'))}">${escapeHtml(label)}</button>`;
         }).join('');
     }
     renderInfoCollectSyntaxGuide(cfg);
@@ -749,7 +834,8 @@ async function submitFofaSearch() {
     if (size > maxSize) {
         size = maxSize;
         if (els.size) els.size.value = String(maxSize);
-        showInlineToast(providerCfg.label + ' 单次最多返回 ' + maxSize + ' 条，已自动调整。');
+        const sizeMsg = _tf('infoCollectPage.maxSizeAdjusted', '单次最多返回 {{maxSize}} 条，已自动调整。', { maxSize });
+        showInlineToast(providerCfg.label + ' ' + sizeMsg.replace('{{maxSize}}', String(maxSize)));
     }
     const page = parseInt(els.page?.value, 10) || 1;
     const fields = (els.fields?.value || '').trim();
@@ -773,11 +859,11 @@ async function submitFofaSearch() {
 
         const result = await response.json().catch(() => ({}));
         if (!response.ok) {
-            throw new Error(result.error || `请求失败: ${response.status}`);
+            throw new Error(result.error || _tf('infoCollectPage.requestFailed', '请求失败') + ': ' + response.status);
         }
         renderFofaResults(result);
     } catch (e) {
-        console.error(providerLabel(provider) + ' 查询失败:', e);
+        console.error(providerLabel(provider) + ' ' + _tf('infoCollect.queryFailed', '查询失败') + ':', e);
         setFofaMeta(_t('infoCollect.queryFailed'));
         renderFofaResults({ provider, query, fields: [], results: [], total: 0, page: 1, size: 0 });
         alert(_t('infoCollect.queryFailed') + ': ' + (e && e.message ? e.message : String(e)));
@@ -826,7 +912,7 @@ async function parseFofaNaturalLanguage() {
         });
         const result = await resp.json().catch(() => ({}));
         if (!resp.ok) {
-            throw new Error(result.error || `请求失败: ${resp.status}`);
+            throw new Error(result.error || _tf('infoCollectPage.requestFailed', '请求失败') + ': ' + resp.status);
         }
         showFofaParseModal(text, result);
         showInlineToast(_t('infoCollect.parseDone'));
@@ -836,7 +922,7 @@ async function parseFofaNaturalLanguage() {
             showInlineToast(_t('infoCollect.parseCancelled'));
             return;
         }
-        console.error('FOFA 自然语言解析失败:', e);
+        console.error(_t('infoCollect.parseFailed') + ':', e);
         showInlineToast(_t('infoCollect.parseFailed') + (e && e.message ? e.message : String(e)), { duration: 2800 });
     }
     finally {
@@ -870,7 +956,7 @@ function setFofaParseLoading(loading, statusText) {
             const cfg = INFO_COLLECT_PROVIDERS[provider] || INFO_COLLECT_PROVIDERS.fofa;
             btn.classList.remove('btn-loading');
             btn.textContent = btn.dataset.originalText || _t('infoCollectPage.parseBtn');
-            btn.title = '将自然语言解析为 ' + cfg.label + ' 查询语法';
+            btn.title = _tf('infoCollect.parseToProviderQuery', '将自然语言解析为 {{provider}} 查询语法', { provider: cfg.label }).replace('{{provider}}', cfg.label);
             btn.disabled = false;
             delete btn.dataset.loading;
             btn.removeAttribute('aria-busy');
@@ -921,7 +1007,7 @@ function showFofaParseModal(nlText, parsed) {
                 </div>
 
                 <div class="form-group info-collect-parse-form-group">
-                    <label for="fofa-parse-query">${escapeHtml(cfg.label)} 查询语法（可编辑）</label>
+                    <label for="fofa-parse-query">${escapeHtml(cfg.label + ' ' + _tf('infoCollect.providerQueryEditable', '查询语法（可编辑）'))}</label>
                     <textarea id="fofa-parse-query" class="info-collect-query-input" rows="2" placeholder="${escapeHtml(cfg.placeholder)}"></textarea>
                     <small class="form-hint">${_t('infoCollect.confirmBeforeQuery')}</small>
                 </div>
@@ -1297,7 +1383,7 @@ function scanFofaRow(encodedRowJson, clickEvent) {
     try {
         row = JSON.parse(decodeURIComponent(encodedRowJson));
     } catch (e) {
-        console.warn('解析行数据失败', e);
+        console.warn(_t('infoCollectPage.parseRowFailed') + ':', e);
     }
 
     const fields = (document.getElementById('fofa-fields')?.value || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -1356,7 +1442,19 @@ function buildScanMessage(target, row, options) {
 
     const summary = formatFofaRowSummary(row || {}, fields);
     const provider = providerLabel(infoCollectState.currentPayload?.provider || getInfoCollectProvider());
-    return `对以下目标做信息收集与基础扫描：\n${target}\n\n要求：\n1) 识别服务/框架与关键指纹\n2) 枚举开放端口与常见管理入口\n3) 用 httpx/指纹/目录探测等方式快速确认可访问面\n4) 输出可复现的命令与结论\n\n已知信息（来自 ${provider} 该行全部字段）：\n${summary}`.trim();
+    // 插值不转 HTML 实体（target 可能是 URL，避免 / 变 &#x2F;）；i18n 未就绪时手动替换占位符
+    const values = {
+        target, provider, summary,
+        interpolation: { escapeValue: false }
+    };
+    const template = '对以下目标做信息收集与基础扫描：\n{{target}}\n\n要求：\n1) 识别服务/框架与关键指纹\n2) 枚举开放端口与常见管理入口\n3) 用 httpx/指纹/目录探测等方式快速确认可访问面\n4) 输出可复现的命令与结论\n\n已知信息（来自 {{provider}} 该行全部字段）：\n{{summary}}';
+    let text = _tf('infoCollect.scanMessageTemplate', template, values);
+    if (text === template) {
+        Object.entries({ target, provider, summary }).forEach(([name, value]) => {
+            text = text.replace('{{' + name + '}}', String(value));
+        });
+    }
+    return text.trim();
 }
 
 function bindFofaTableEvents() {
@@ -1638,7 +1736,7 @@ async function batchScanSelectedFofaRows() {
         }
         const queueId = result.queueId;
         if (!queueId) {
-            throw new Error('创建成功但未返回 queueId');
+            throw new Error(_tf('infoCollectPage.createQueueNoId', '创建成功但未返回 queueId'));
         }
 
         // 跳到任务管理并打开队列详情
@@ -1655,7 +1753,7 @@ async function batchScanSelectedFofaRows() {
             showInlineToast(_t('infoCollect.batchQueueCreated'));
         }
     } catch (e) {
-        console.error('批量扫描失败:', e);
+        console.error(_t('infoCollect.batchScanFailed') + ':', e);
         alert(_t('infoCollect.batchScanFailed') + ': ' + (e && e.message ? e.message : String(e)));
     }
 }

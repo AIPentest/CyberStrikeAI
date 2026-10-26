@@ -186,16 +186,16 @@ func (h *UpdateHandler) SaveSource(c *gin.Context) {
 		Repo string `json:"repo"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求体不是合法 JSON"})
+		respondError(c, http.StatusBadRequest, "请求体不是合法 JSON", "request body is not valid JSON")
 		return
 	}
 	body.Repo = strings.TrimSpace(body.Repo)
 	if body.Repo != "" && !update.ValidRemoteURL(body.Repo) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "仓库地址不合法（只允许 https/http/ssh/git/file:// 或本机绝对路径）"})
+		respondError(c, http.StatusBadRequest, "仓库地址不合法（只允许 https/http/ssh/git/file:// 或本机绝对路径）", "invalid repository URL (only https/http/ssh/git/file:// or a local absolute path)")
 		return
 	}
 	if h.saveSource == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "本次启动没有接入配置保存，更新源改不了"})
+		respondError(c, http.StatusInternalServerError, "本次启动没有接入配置保存，更新源改不了", "no update-source config was saved on this launch; the update source cannot be changed")
 		return
 	}
 	release, err := update.LockInstall(h.options())
@@ -205,12 +205,12 @@ func (h *UpdateHandler) SaveSource(c *gin.Context) {
 	}
 	defer release()
 	if busy := h.activeJob(); busy != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "更新进行中，不能切换更新源", "job": busy})
+		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "更新进行中，不能切换更新源", "an update is in progress, cannot switch update source"), "job": busy})
 		return
 	}
 	if err := h.saveSource(body.Repo); err != nil {
 		h.record(c, "update.source", "failure", "保存更新源失败: "+err.Error(), map[string]interface{}{"error": err.Error()})
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败：" + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "保存失败：%s", "save failed: %s"), err.Error())})
 		return
 	}
 	message := "更新源已保存：" + body.Repo
@@ -231,12 +231,12 @@ func (h *UpdateHandler) Adopt(c *gin.Context) {
 	}
 	if c.Request.ContentLength > 0 {
 		if err := c.ShouldBindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "请求体不是合法 JSON"})
+			respondError(c, http.StatusBadRequest, "请求体不是合法 JSON", "request body is not valid JSON")
 			return
 		}
 	}
 	if body.Confirm && body.Restart && h.restart == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "本次启动没有提供重启钩子，接入完成后请由外部进程管理器重启服务"})
+		respondError(c, http.StatusBadRequest, "本次启动没有提供重启钩子，接入完成后请由外部进程管理器重启服务", "this launch provides no restart hook; after intake completes, restart the service with an external process manager")
 		return
 	}
 	if !body.Confirm {
@@ -251,7 +251,7 @@ func (h *UpdateHandler) Adopt(c *gin.Context) {
 	}
 	job, started := h.startJob("adopt", body.Restart)
 	if !started {
-		c.JSON(http.StatusConflict, gin.H{"error": "已有一次更新在进行中", "job": job})
+		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "已有一次更新在进行中", "an update is already in progress"), "job": job})
 		return
 	}
 	h.record(c, "update.adopt", "started", "开始把目录接入更新源", map[string]interface{}{"job": job.ID, "restart": body.Restart})
@@ -267,18 +267,18 @@ func (h *UpdateHandler) Apply(c *gin.Context) {
 	}
 	if c.Request.ContentLength > 0 {
 		if err := c.ShouldBindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "请求体不是合法 JSON"})
+			respondError(c, http.StatusBadRequest, "请求体不是合法 JSON", "request body is not valid JSON")
 			return
 		}
 	}
 	if body.Restart && h.restart == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "本次启动没有提供重启钩子，更新完成后请由外部进程管理器重启服务"})
+		respondError(c, http.StatusBadRequest, "本次启动没有提供重启钩子，更新完成后请由外部进程管理器重启服务", "this launch provides no restart hook; after the update completes, restart the service with an external process manager")
 		return
 	}
 
 	job, started := h.startJob("apply", body.Restart)
 	if !started {
-		c.JSON(http.StatusConflict, gin.H{"error": "已有一次更新在进行中", "job": job})
+		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "已有一次更新在进行中", "an update is already in progress"), "job": job})
 		return
 	}
 	h.record(c, "update.apply", "started", "开始一键更新源码并重编译", map[string]interface{}{"job": job.ID, "restart": body.Restart})
@@ -303,19 +303,19 @@ func (h *UpdateHandler) Restart(c *gin.Context) {
 		}
 	}()
 	if busy := h.activeJob(); busy != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "更新进行中，等它结束再重启", "job": busy})
+		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "更新进行中，等它结束再重启", "an update is in progress; wait for it to finish before restarting"), "job": busy})
 		return
 	}
 	if h.restart == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "本次启动没有提供重启钩子，请由外部进程管理器重启服务"})
+		respondError(c, http.StatusBadRequest, "本次启动没有提供重启钩子，请由外部进程管理器重启服务", "this launch provides no restart hook; restart the service with an external process manager")
 		return
 	}
 	if needsRestart, _ := h.restartPending(); !needsRestart {
-		c.JSON(http.StatusConflict, gin.H{"error": "磁盘上的二进制与当前进程一致，没有待生效的版本", "reason": "nothing_pending"})
+		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "磁盘上的二进制与当前进程一致，没有待生效的版本", "the binary on disk matches the current process, no pending version to apply"), "reason": "nothing_pending"})
 		return
 	}
 	if !update.StampBinary(h.root, h.options()).Exists {
-		c.JSON(http.StatusConflict, gin.H{"error": "磁盘上的二进制不存在，无法重启", "reason": "no_binary"})
+		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "磁盘上的二进制不存在，无法重启", "no binary on disk, cannot restart"), "reason": "no_binary"})
 		return
 	}
 	h.record(c, "update.restart", "started", "重启安装以运行磁盘上的新二进制", nil)
@@ -335,7 +335,7 @@ func (h *UpdateHandler) Job(c *gin.Context) {
 // that update, rather than resetting away work nobody asked it to touch.
 func (h *UpdateHandler) Rollback(c *gin.Context) {
 	if busy := h.activeJob(); busy != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "更新进行中，不能同时回滚", "job": busy})
+		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "更新进行中，不能同时回滚", "an update is in progress, cannot roll back at the same time"), "job": busy})
 		return
 	}
 	res, err := update.Rollback(c.Request.Context(), h.options())

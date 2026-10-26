@@ -149,7 +149,7 @@ func (h *AgentHandler) EinoSingleAgentLoopStream(c *gin.Context) {
 	if h.config == nil {
 		taskStatus = "failed"
 		h.tasks.UpdateTaskStatus(conversationID, taskStatus)
-		sendEvent("error", "服务器配置未加载", nil)
+		sendEvent("error", i18nText(requestWantsEnglish(c), "服务器配置未加载", "server config not loaded"), nil)
 		sendEvent("done", "", map[string]interface{}{"conversationId": conversationID})
 		return
 	}
@@ -338,7 +338,7 @@ func (h *AgentHandler) EinoSingleAgentLoopStream(c *gin.Context) {
 		if errors.Is(cause, ErrTaskCancelled) {
 			taskStatus = "cancelled"
 			h.tasks.UpdateTaskStatus(conversationID, taskStatus)
-			cancelMsg := "任务已被用户取消，后续操作已停止。"
+			cancelMsg := i18nText(requestWantsEnglish(c), "任务已被用户取消，后续操作已停止。", "task cancelled by the user, subsequent operations stopped.")
 			if assistantMessageID != "" {
 				if result != nil {
 					if err := h.mergeAssistantMessagePartialOnCancel(assistantMessageID, result.Response); err != nil {
@@ -474,5 +474,5 @@ func (h *AgentHandler) EinoSingleAgentLoop(c *gin.Context) {
 	defer func() { _ = h.tasks.FinishTaskRun(prep.ConversationID, jsonTask.RunID, jsonTaskStatus) }()
 	respond := h.taskFinishingJSONResponder(c, prep.ConversationID, jsonTask.RunID, func() string { return jsonTaskStatus })
 
-	h.runSingleJSON(taskCtx, baseCtx, cancelWithCause, &req, prep, &jsonTaskStatus, respond)
+	h.runSingleJSON(taskCtx, baseCtx, cancelWithCause, &req, prep, &jsonTaskStatus, requestWantsEnglish(c), respond)
 }

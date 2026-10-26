@@ -1232,7 +1232,7 @@
             showToast(c2t('projects.projectBound') || '已绑定项目', 'success');
             C2.loadListeners();
         }).catch(err => {
-            showToast(err && err.message ? err.message : '绑定项目失败', 'error');
+            showToast(err && err.message ? err.message : (c2t('c2.listeners.toastBindProjectFailed') || '绑定项目失败'), 'error');
             C2.renderListeners();
         });
     };

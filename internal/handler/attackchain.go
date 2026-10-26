@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"context"
 	"net/http"
 	"sync"
@@ -56,7 +57,7 @@ func (h *AttackChainHandler) getOpenAIConfig() *config.OpenAIConfig {
 func (h *AttackChainHandler) GetAttackChain(c *gin.Context) {
 	conversationID := c.Param("conversationId")
 	if conversationID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "conversationId is required"})
+		respondError(c, http.StatusBadRequest, "conversationId 必填", "conversationId is required")
 		return
 	}
 
@@ -64,7 +65,7 @@ func (h *AttackChainHandler) GetAttackChain(c *gin.Context) {
 	_, err := h.db.GetConversation(conversationID)
 	if err != nil {
 		h.logger.Warn("对话不存在", zap.String("conversationId", conversationID), zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": "对话不存在"})
+		respondError(c, http.StatusNotFound, "对话不存在", "conversation not found")
 		return
 	}
 
@@ -88,7 +89,7 @@ func (h *AttackChainHandler) GetAttackChain(c *gin.Context) {
 	acquired := lock.TryLock()
 	if !acquired {
 		h.logger.Info("攻击链正在生成中，请稍后再试", zap.String("conversationId", conversationID))
-		c.JSON(http.StatusConflict, gin.H{"error": "攻击链正在生成中，请稍后再试"})
+		respondError(c, http.StatusConflict, "攻击链正在生成中，请稍后再试", "attack chain is being generated; try again later")
 		return
 	}
 	defer lock.Unlock()
@@ -109,7 +110,7 @@ func (h *AttackChainHandler) GetAttackChain(c *gin.Context) {
 	chain, err = builder.BuildChainFromConversation(ctx, conversationID)
 	if err != nil {
 		h.logger.Error("生成攻击链失败", zap.String("conversationId", conversationID), zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成攻击链失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "生成攻击链失败: %s", "failed to generate attack chain: %s"), err.Error())})
 		return
 	}
 
@@ -124,7 +125,7 @@ func (h *AttackChainHandler) GetAttackChain(c *gin.Context) {
 func (h *AttackChainHandler) RegenerateAttackChain(c *gin.Context) {
 	conversationID := c.Param("conversationId")
 	if conversationID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "conversationId is required"})
+		respondError(c, http.StatusBadRequest, "conversationId 必填", "conversationId is required")
 		return
 	}
 
@@ -132,7 +133,7 @@ func (h *AttackChainHandler) RegenerateAttackChain(c *gin.Context) {
 	_, err := h.db.GetConversation(conversationID)
 	if err != nil {
 		h.logger.Warn("对话不存在", zap.String("conversationId", conversationID), zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": "对话不存在"})
+		respondError(c, http.StatusNotFound, "对话不存在", "conversation not found")
 		return
 	}
 
@@ -143,7 +144,7 @@ func (h *AttackChainHandler) RegenerateAttackChain(c *gin.Context) {
 	acquired := lock.TryLock()
 	if !acquired {
 		h.logger.Info("攻击链正在生成中，请稍后再试", zap.String("conversationId", conversationID))
-		c.JSON(http.StatusConflict, gin.H{"error": "攻击链正在生成中，请稍后再试"})
+		respondError(c, http.StatusConflict, "攻击链正在生成中，请稍后再试", "attack chain is being generated; try again later")
 		return
 	}
 	defer lock.Unlock()
@@ -164,7 +165,7 @@ func (h *AttackChainHandler) RegenerateAttackChain(c *gin.Context) {
 	chain, err := builder.BuildChainFromConversation(ctx, conversationID)
 	if err != nil {
 		h.logger.Error("生成攻击链失败", zap.String("conversationId", conversationID), zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成攻击链失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "生成攻击链失败: %s", "failed to generate attack chain: %s"), err.Error())})
 		return
 	}
 

@@ -3484,7 +3484,8 @@
         "update": "Конфигурация в памяти обновлена",
         "apply_fail_kb_init": "Не удалось применить конфигурацию: инициализация базы знаний",
         "apply_fail_kb_reinit": "Не удалось применить конфигурацию: повторная инициализация базы знаний",
-        "apply_fail_c2": "Не удалось применить конфигурацию: C2"
+        "apply_fail_c2": "Не удалось применить конфигурацию: C2",
+        "tool_guard_update": "Tool-guard rules updated"
       },
       "conversation": {
         "create": "Диалог создан",
@@ -3499,7 +3500,8 @@
         "session_delete": "Сессия C2 удалена",
         "task_create": "Задача C2 создана",
         "task_cancel": "Задача C2 отменена",
-        "task_delete": "Задачи C2 удалены (пакет)"
+        "task_delete": "Задачи C2 удалены (пакет)",
+        "session_note": "C2 session note updated"
       },
       "webshell": {
         "connection_create": "Подключение WebShell создано",
@@ -3514,7 +3516,8 @@
         "create": "Запись об уязвимости создана",
         "update": "Запись об уязвимости обновлена",
         "delete": "Запись об уязвимости удалена",
-        "delete_batch": "Записи об уязвимостях удалены (пакет)"
+        "delete_batch": "Записи об уязвимостях удалены (пакет)",
+        "alert_subscription_update": "Vulnerability alert subscription updated"
       },
       "external_mcp": {
         "upsert": "Конфигурация внешнего MCP обновлена",
@@ -3526,7 +3529,8 @@
         "delete_queue": "Пакетная очередь задач удалена",
         "pause_queue": "Пакетная очередь задач приостановлена",
         "rerun_queue": "Пакетная очередь задач повторена",
-        "delete_batch_task": "Подзадача пакета удалена"
+        "delete_batch_task": "Подзадача пакета удалена",
+        "run_single_batch_task": "Single batch subtask executed"
       },
       "tool": {
         "execution_delete": "Запись выполнения инструмента удалена",
@@ -3534,10 +3538,17 @@
       },
       "file": {
         "upload": "Вложение чата загружено",
-        "delete": "Вложение чата удалено"
+        "delete": "Вложение чата удалено",
+        "export": "Chat attachment exported"
       },
       "hitl": {
-        "decision": "Решение об одобрении HITL"
+        "decision": "Решение об одобрении HITL",
+        "audit_strategy_update": "HITL audit strategy updated",
+        "default_config_update": "HITL global default config updated",
+        "default_reviewer_update": "HITL global default reviewer updated",
+        "logs_clear": "HITL audit logs cleared",
+        "logs_delete_batch": "HITL audit logs deleted (batch)",
+        "tool_whitelist_update": "HITL global whitelist updated"
       },
       "role": {
         "create": "Роль создана",
@@ -3553,6 +3564,28 @@
         "markdown_create": "Субагент Markdown создан",
         "markdown_update": "Субагент Markdown обновлён",
         "markdown_delete": "Субагент Markdown удалён"
+      },
+      "rbac": {
+        "assign_resource": "Resource access granted",
+        "create_role": "Platform role created",
+        "create_user": "Platform user created",
+        "delete_resource_assignment": "Resource access revoked",
+        "delete_role": "Platform role deleted",
+        "delete_user": "Platform user deleted",
+        "update_role": "Platform role updated",
+        "update_user": "Platform user updated"
+      },
+      "storage": {
+        "cleanup": "Runtime storage garbage cleaned",
+        "cleanup_partial": "Storage cleanup finished with some failed items"
+      },
+      "workflow": {
+        "delete": "Workflow deleted",
+        "generate_draft": "Workflow draft generated from natural language"
+      },
+      "workflow_package": {
+        "inspect_failed": "Workflow package preflight inspection failed",
+        "import_failed": "Workflow package import failed"
       }
     },
     "paginationShow": "{{start}}-{{end}} из {{total}}",

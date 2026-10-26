@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -860,11 +861,11 @@ func (h *AgentHandler) DecideHITLInterrupt(c *gin.Context) {
 		return
 	}
 	if h.hitlManager == nil {
-		c.JSON(500, gin.H{"error": "hitl manager unavailable"})
+		respondError(c, http.StatusInternalServerError, "HITL 管理器不可用", "hitl manager unavailable")
 		return
 	}
 	if !h.hitlInterruptAllowed(c, req.InterruptID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	if err := h.hitlManager.ResolveInterrupt(req.InterruptID, req.Decision, req.Comment, req.EditedArguments); err != nil {
@@ -888,11 +889,11 @@ func (h *AgentHandler) DismissHITLInterrupt(c *gin.Context) {
 		return
 	}
 	if h.hitlManager == nil {
-		c.JSON(500, gin.H{"error": "hitl manager unavailable"})
+		respondError(c, http.StatusInternalServerError, "HITL 管理器不可用", "hitl manager unavailable")
 		return
 	}
 	if !h.hitlInterruptAllowed(c, req.InterruptID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	res, err := h.db.Exec(`UPDATE hitl_interrupts SET status='cancelled', decision='reject',
@@ -904,7 +905,7 @@ func (h *AgentHandler) DismissHITLInterrupt(c *gin.Context) {
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		c.JSON(404, gin.H{"error": "interrupt not found or already resolved"})
+		respondError(c, http.StatusNotFound, "审批中断不存在或已处理", "interrupt not found or already resolved")
 		return
 	}
 	// Also drain from in-memory map if present
@@ -958,11 +959,11 @@ type hitlConfigReq struct {
 func (h *AgentHandler) GetHITLConversationConfig(c *gin.Context) {
 	conversationID := strings.TrimSpace(c.Param("conversationId"))
 	if conversationID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "conversationId is required"})
+		respondError(c, http.StatusBadRequest, "conversationId 必填", "conversationId is required")
 		return
 	}
 	if !h.hitlConversationAllowed(c, conversationID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	cfg, err := h.loadHITLConversationConfig(conversationID)
@@ -998,7 +999,7 @@ func (h *AgentHandler) UpsertHITLConversationConfig(c *gin.Context) {
 		return
 	}
 	if !h.hitlConversationAllowed(c, req.ConversationID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	req.Mode = normalizeHitlMode(req.Mode)
@@ -1014,7 +1015,7 @@ func (h *AgentHandler) UpsertHITLConversationConfig(c *gin.Context) {
 		if err := h.hitlWhitelistSaver.MergeHitlToolWhitelistIntoConfig(req.SensitiveTools); err != nil {
 			h.logger.Warn("HITL 会话配置已保存，但合并工具白名单到 config.yaml 失败", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "会话配置已保存，但写入 config.yaml 失败: " + err.Error(),
+				"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "会话配置已保存，但写入 config.yaml 失败: %s", "session config saved, but writing config.yaml failed: %s"), err.Error()),
 			})
 			return
 		}
@@ -1069,7 +1070,7 @@ func (h *AgentHandler) GetHITLDefaultConfig(c *gin.Context) {
 // UpdateHITLDefaultConfig 将全局默认人机协同配置写入 config.yaml。
 func (h *AgentHandler) UpdateHITLDefaultConfig(c *gin.Context) {
 	if h.hitlDefaultReviewerSaver == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "HITL 配置持久化不可用"})
+		respondError(c, http.StatusInternalServerError, "HITL 配置持久化不可用", "HITL config persistence unavailable")
 		return
 	}
 	var req setHitlDefaultConfigReq
@@ -1109,7 +1110,7 @@ func (h *AgentHandler) GetHITLDefaultReviewer(c *gin.Context) {
 // UpdateHITLDefaultReviewer 将全局默认审批方写入 config.yaml（未选会话时切换审批方）。
 func (h *AgentHandler) UpdateHITLDefaultReviewer(c *gin.Context) {
 	if h.hitlDefaultReviewerSaver == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "HITL 配置持久化不可用"})
+		respondError(c, http.StatusInternalServerError, "HITL 配置持久化不可用", "HITL config persistence unavailable")
 		return
 	}
 	var req setHitlDefaultReviewerReq
@@ -1137,7 +1138,7 @@ func (h *AgentHandler) UpdateHITLDefaultReviewer(c *gin.Context) {
 // SetHITLGlobalToolWhitelist 整表替换 config.yaml 中的全局免审批工具白名单。
 func (h *AgentHandler) SetHITLGlobalToolWhitelist(c *gin.Context) {
 	if h.hitlWhitelistSaver == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "HITL 配置持久化不可用"})
+		respondError(c, http.StatusInternalServerError, "HITL 配置持久化不可用", "HITL config persistence unavailable")
 		return
 	}
 	var req setHitlGlobalWhitelistReq
@@ -1164,7 +1165,7 @@ func (h *AgentHandler) SetHITLGlobalToolWhitelist(c *gin.Context) {
 // MergeHITLGlobalToolWhitelist 无会话 ID 时将侧栏提交的免审批工具合并进 config.yaml（与 PUT /hitl/config 中白名单落盘规则一致）。
 func (h *AgentHandler) MergeHITLGlobalToolWhitelist(c *gin.Context) {
 	if h.hitlWhitelistSaver == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "HITL 配置持久化不可用"})
+		respondError(c, http.StatusInternalServerError, "HITL 配置持久化不可用", "HITL config persistence unavailable")
 		return
 	}
 	var req mergeHitlGlobalWhitelistReq

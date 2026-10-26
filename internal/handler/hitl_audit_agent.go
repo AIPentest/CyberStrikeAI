@@ -351,7 +351,7 @@ func (h *AgentHandler) GetHITLAuditStrategy(c *gin.Context) {
 
 func (h *AgentHandler) UpdateHITLAuditStrategy(c *gin.Context) {
 	if h.hitlStrategySaver == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "HITL 策略持久化不可用"})
+		respondError(c, http.StatusInternalServerError, "HITL 策略持久化不可用", "HITL policy persistence unavailable")
 		return
 	}
 	var req hitlAuditStrategyReq

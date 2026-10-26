@@ -87,7 +87,7 @@ func (h *ConversationHandler) CreateConversation(c *gin.Context) {
 	meta := audit.ConversationCreateMetaFromGin(c, "api")
 	meta.ProjectID = strings.TrimSpace(req.ProjectID)
 	if !h.conversationProjectAllowed(c, meta.ProjectID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问目标项目"})
+		respondError(c, http.StatusForbidden, "无权访问目标项目", "no permission to access the target project")
 		return
 	}
 	conv, err := h.db.CreateConversation(title, meta)
@@ -116,12 +116,12 @@ func (h *ConversationHandler) SetConversationProject(c *gin.Context) {
 		return
 	}
 	if _, err := h.db.GetConversation(id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "对话不存在"})
+		respondError(c, http.StatusNotFound, "对话不存在", "conversation not found")
 		return
 	}
 	projectID := strings.TrimSpace(req.ProjectID)
 	if !h.conversationProjectAllowed(c, projectID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问目标项目"})
+		respondError(c, http.StatusForbidden, "无权访问目标项目", "no permission to access the target project")
 		return
 	}
 	if err := h.db.SetConversationProjectID(id, projectID); err != nil {
@@ -196,7 +196,7 @@ func (h *ConversationHandler) UpdateConversationPinned(c *gin.Context) {
 	conversationID := c.Param("id")
 	session, ok := security.CurrentSession(c)
 	if !ok || !h.db.UserCanAccessResource(session.UserID, session.Scope, "conversation", conversationID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 
@@ -212,7 +212,7 @@ func (h *ConversationHandler) UpdateConversationPinned(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "更新成功"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "更新成功", "updated successfully")})
 }
 
 // GetConversation 获取对话
@@ -235,13 +235,13 @@ func (h *ConversationHandler) GetConversation(c *gin.Context) {
 	}
 	if err != nil {
 		h.logger.Error("获取对话失败", zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": "对话不存在"})
+		respondError(c, http.StatusNotFound, "对话不存在", "conversation not found")
 		return
 	}
 
 	conv.Retest, err = h.db.GetVulnerabilityRetest(id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "读取复测分支失败"})
+		respondError(c, http.StatusInternalServerError, "读取复测分支失败", "failed to read retest branch")
 		return
 	}
 	c.JSON(http.StatusOK, conv)
@@ -253,11 +253,11 @@ func (h *ConversationHandler) GetConversationPlanTasks(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	session, ok := security.CurrentSession(c)
 	if !ok || !h.db.UserCanAccessResource(session.UserID, session.Scope, "conversation", id) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该对话"})
+		respondError(c, http.StatusForbidden, "无权访问该对话", "no permission to access the conversation")
 		return
 	}
 	if _, err := h.db.GetConversationLite(id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "对话不存在"})
+		respondError(c, http.StatusNotFound, "对话不存在", "conversation not found")
 		return
 	}
 	running := false
@@ -275,7 +275,7 @@ func (h *ConversationHandler) GetConversationPlanTasks(c *gin.Context) {
 	tasks, err := h.db.ListConversationPlanTasksSince(id, startedAt)
 	if err != nil {
 		h.logger.Error("获取对话任务列表失败", zap.String("conversationId", id), zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取任务列表失败"})
+		respondError(c, http.StatusInternalServerError, "获取任务列表失败", "failed to get task list")
 		return
 	}
 
@@ -325,7 +325,7 @@ const (
 func (h *ConversationHandler) GetMessageProcessDetails(c *gin.Context) {
 	messageID := c.Param("id")
 	if messageID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "message id required"})
+		respondError(c, http.StatusBadRequest, "message id 必填", "message id required")
 		return
 	}
 
@@ -367,7 +367,7 @@ func (h *ConversationHandler) GetMessageProcessDetails(c *gin.Context) {
 	if limitStr != "" {
 		parsedLimit, err := strconv.Atoi(limitStr)
 		if err != nil || parsedLimit <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit"})
+			respondError(c, http.StatusBadRequest, "limit 无效", "invalid limit")
 			return
 		}
 		limit = parsedLimit
@@ -426,18 +426,18 @@ func (h *ConversationHandler) GetMessageProcessDetails(c *gin.Context) {
 func (h *ConversationHandler) GetProcessDetail(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "process detail id required"})
+		respondError(c, http.StatusBadRequest, "process detail id 必填", "process detail id required")
 		return
 	}
 	detail, err := h.db.GetProcessDetailByID(id)
 	if err != nil {
 		h.logger.Error("获取过程详情失败", zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": "过程详情不存在"})
+		respondError(c, http.StatusNotFound, "过程详情不存在", "process detail not found")
 		return
 	}
 	out := processDetailsToJSON(h.logger, h.db, []database.ProcessDetail{*detail}, true)
 	if len(out) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "过程详情不存在"})
+		respondError(c, http.StatusNotFound, "过程详情不存在", "process detail not found")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"processDetail": out[0]})
@@ -554,7 +554,7 @@ func (h *ConversationHandler) UpdateConversation(c *gin.Context) {
 	}
 
 	if req.Title == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "标题不能为空"})
+		respondError(c, http.StatusBadRequest, "标题不能为空", "title must not be empty")
 		return
 	}
 
@@ -600,7 +600,7 @@ func (h *ConversationHandler) DeleteConversation(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "删除成功"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "删除成功", "deleted successfully")})
 }
 
 // DeleteTurnRequest 删除一轮对话（POST /api/conversations/:id/delete-turn）
@@ -612,18 +612,18 @@ type DeleteTurnRequest struct {
 func (h *ConversationHandler) DeleteConversationTurn(c *gin.Context) {
 	conversationID := c.Param("id")
 	if conversationID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "conversation id required"})
+		respondError(c, http.StatusBadRequest, "conversation id 必填", "conversation id required")
 		return
 	}
 
 	var req DeleteTurnRequest
 	if err := c.ShouldBindJSON(&req); err != nil || req.MessageID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "messageId required"})
+		respondError(c, http.StatusBadRequest, "messageId 必填", "messageId required")
 		return
 	}
 
 	if _, err := h.db.GetConversation(conversationID); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "对话不存在"})
+		respondError(c, http.StatusNotFound, "对话不存在", "conversation not found")
 		return
 	}
 

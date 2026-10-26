@@ -630,12 +630,12 @@ func normalizeMarkableEventID(id string) (string, bool) {
 // MarkRead 按事件 ID 标记已读
 func (h *NotificationHandler) MarkRead(c *gin.Context) {
 	if h.db == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to prepare notification read table"})
+		respondError(c, http.StatusInternalServerError, "准备通知已读表失败", "failed to prepare notification read table")
 		return
 	}
 	var req markReadRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		respondError(c, http.StatusBadRequest, "无效的请求体", "invalid request body")
 		return
 	}
 	if len(req.EventIDs) == 0 {
@@ -644,12 +644,12 @@ func (h *NotificationHandler) MarkRead(c *gin.Context) {
 	}
 	session, ok := security.CurrentSession(c)
 	if !ok || strings.TrimSpace(session.UserID) == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing authenticated user"})
+		respondError(c, http.StatusUnauthorized, "缺少已认证用户", "missing authenticated user")
 		return
 	}
 	tx, err := h.db.Begin()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to begin transaction"})
+		respondError(c, http.StatusInternalServerError, "开始事务失败", "failed to begin transaction")
 		return
 	}
 	defer func() {
@@ -661,7 +661,7 @@ func (h *NotificationHandler) MarkRead(c *gin.Context) {
 		ON CONFLICT(user_id, event_id) DO UPDATE SET read_at = CURRENT_TIMESTAMP
 	`)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to prepare statement"})
+		respondError(c, http.StatusInternalServerError, "准备语句失败", "failed to prepare statement")
 		return
 	}
 	defer stmt.Close()
@@ -672,13 +672,13 @@ func (h *NotificationHandler) MarkRead(c *gin.Context) {
 			continue
 		}
 		if _, err := stmt.Exec(session.UserID, id); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark read"})
+			respondError(c, http.StatusInternalServerError, "标记已读失败", "failed to mark read")
 			return
 		}
 		marked++
 	}
 	if err := tx.Commit(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to commit read marks"})
+		respondError(c, http.StatusInternalServerError, "提交已读标记失败", "failed to commit read marks")
 		return
 	}
 	if err := pruneNotificationReads(h.db, session.UserID, notificationReadMaxRows); err != nil {
@@ -690,7 +690,7 @@ func (h *NotificationHandler) MarkRead(c *gin.Context) {
 // GetSummary 返回通知聚合视图（用于头部铃铛）
 func (h *NotificationHandler) GetSummary(c *gin.Context) {
 	if h.db == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "database unavailable"})
+		respondError(c, http.StatusInternalServerError, "数据库不可用", "database unavailable")
 		return
 	}
 
@@ -711,7 +711,7 @@ func (h *NotificationHandler) GetSummary(c *gin.Context) {
 		hitlItems, err = h.loadPendingHITLItems(limit, english, access)
 		if err != nil {
 			h.logger.Warn("加载 HITL 通知失败", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to summarize hitl notifications"})
+			respondError(c, http.StatusInternalServerError, "汇总 HITL 通知失败", "failed to summarize hitl notifications")
 			return
 		}
 	}
@@ -729,7 +729,7 @@ func (h *NotificationHandler) GetSummary(c *gin.Context) {
 		vulnItems, vulnCounts, err = h.loadVulnerabilityItems(sinceMs, limit, english, access)
 		if err != nil {
 			h.logger.Warn("加载漏洞通知失败", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to summarize vulnerabilities"})
+			respondError(c, http.StatusInternalServerError, "汇总漏洞失败", "failed to summarize vulnerabilities")
 			return
 		}
 	}
@@ -741,7 +741,7 @@ func (h *NotificationHandler) GetSummary(c *gin.Context) {
 		c2OnlineItems, c2OnlineCount, err = h.loadC2SessionOnlineEvents(sinceMs, limit, english, access)
 		if err != nil {
 			h.logger.Warn("加载 C2 会话上线通知失败", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to summarize c2 session events"})
+			respondError(c, http.StatusInternalServerError, "汇总 C2 会话事件失败", "failed to summarize c2 session events")
 			return
 		}
 	}
@@ -766,7 +766,7 @@ func (h *NotificationHandler) GetSummary(c *gin.Context) {
 	items, err := h.applyReadStates(session.UserID, items)
 	if err != nil {
 		h.logger.Warn("加载通知已读状态失败", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load notification read states"})
+		respondError(c, http.StatusInternalServerError, "加载通知已读状态失败", "failed to load notification read states")
 		return
 	}
 	items = filterVisibleItems(items)

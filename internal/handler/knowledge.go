@@ -314,13 +314,13 @@ func (h *KnowledgeHandler) DeleteItem(c *gin.Context) {
 	if h.audit != nil {
 		h.audit.RecordOK(c, "knowledge", "item_delete", "删除知识项", "knowledge_item", id, nil)
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "删除成功"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "删除成功", "deleted successfully")})
 }
 
 // StartIndex 构建知识库向量索引。默认仅补齐尚无向量的知识项；mode=full 时全量重建。
 func (h *KnowledgeHandler) StartIndex(c *gin.Context) {
 	if err := h.indexer.TryBeginIndexRun(); err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "已有索引任务正在进行，请等待完成"})
+		respondError(c, http.StatusConflict, "已有索引任务正在进行，请等待完成", "an indexing job is already running; wait for it to finish")
 		return
 	}
 
@@ -330,7 +330,7 @@ func (h *KnowledgeHandler) StartIndex(c *gin.Context) {
 	}
 	if mode != "full" && mode != "missing" {
 		h.indexer.FinishIndexRun()
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的 mode 参数，可选值：missing、full"})
+		respondError(c, http.StatusBadRequest, "无效的 mode 参数，可选值：missing、full", "invalid mode parameter; choose missing or full")
 		return
 	}
 
@@ -378,7 +378,7 @@ func (h *KnowledgeHandler) ScanKnowledgeBase(c *gin.Context) {
 	}
 
 	if len(itemsToIndex) == 0 {
-		c.JSON(http.StatusOK, gin.H{"message": "扫描完成，没有需要索引的新项或更新项"})
+		c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "扫描完成，没有需要索引的新项或更新项", "scan complete; no new or updated items to index")})
 		return
 	}
 
@@ -474,7 +474,7 @@ func (h *KnowledgeHandler) DeleteRetrievalLog(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "删除成功"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "删除成功", "deleted successfully")})
 }
 
 // GetIndexStatus 获取索引状态

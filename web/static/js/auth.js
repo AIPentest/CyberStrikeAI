@@ -205,6 +205,11 @@ async function apiFetch(url, options = {}) {
     if (authToken && !headers.has('Authorization')) {
         headers.set('Authorization', `Bearer ${authToken}`);
     }
+    // 让后端按 UI 语言返回错误文案（notification.go requestWantsEnglish 同一协议）。
+    if (typeof window !== 'undefined' && typeof window.uiLocale === 'function' && !headers.has('Accept-Language')) {
+        const locale = String(window.uiLocale() || '');
+        if (locale) headers.set('Accept-Language', locale);
+    }
     opts.headers = headers;
 
     const response = await fetch(url, opts);
@@ -231,6 +236,11 @@ async function apiUploadWithProgress(url, formData, options = {}) {
         xhr.open('POST', url);
         if (authToken) {
             xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
+        }
+        // 让后端按 UI 语言返回错误文案（与 apiFetch 同一协议）。
+        if (typeof window !== 'undefined' && typeof window.uiLocale === 'function') {
+            const locale = String(window.uiLocale() || '');
+            if (locale) xhr.setRequestHeader('Accept-Language', locale);
         }
         xhr.upload.onprogress = (e) => {
             if (!onProgress || !e.lengthComputable) return;
@@ -600,8 +610,14 @@ function getAuthDisplayName() {
     if (!authUser) {
         return authT('header.unknownUser', '未知用户');
     }
-    return String(authUser.display_name || authUser.displayName || authUser.username || '').trim()
-        || authT('header.unknownUser', '未知用户');
+    const displayName = String(authUser.display_name || authUser.displayName || authUser.username || '').trim();
+    if (!displayName) return authT('header.unknownUser', '未知用户');
+    // 内置 admin 的种子显示名（管理员）；与种子值精确匹配时按 UI 语言翻译。
+    if (authUser.id === 'admin' && displayName === '管理员') {
+        const translated = authT('header.builtinAdminDisplayName', '');
+        if (translated) return translated;
+    }
+    return displayName;
 }
 
 function getAuthUsername() {
@@ -684,13 +700,13 @@ function formatDuration(ms) {
     const seconds = Math.floor(ms / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
-    
+
     if (hours > 0) {
-        return `${hours}小时${minutes % 60}分钟`;
+        return authT('auth.durationHours', '{{hours}}小时{{minutes}}分钟', { hours, minutes: minutes % 60 });
     } else if (minutes > 0) {
-        return `${minutes}分钟${seconds % 60}秒`;
+        return authT('auth.durationMinutes', '{{minutes}}分钟{{seconds}}秒', { minutes, seconds: seconds % 60 });
     } else {
-        return `${seconds}秒`;
+        return authT('auth.durationSeconds', '{{seconds}}秒', { seconds });
     }
 }
 
@@ -804,7 +820,7 @@ async function generateRobotBindingCode() {
     const generateBtn = document.getElementById('robot-binding-generate-btn');
     if (generateBtn) {
         generateBtn.disabled = true;
-        generateBtn.textContent = '正在生成…';
+        generateBtn.textContent = authT('auth.robotBinding.generating', '正在生成…');
     }
     let response;
     let data;
@@ -812,12 +828,12 @@ async function generateRobotBindingCode() {
         response = await apiFetch('/api/auth/robot-binding-code', { method: 'POST' });
         data = await response.json().catch(() => ({}));
     } catch (error) {
-        if (typeof showNotification === 'function') showNotification('生成绑定码失败，请检查网络连接', 'error');
+        if (typeof showNotification === 'function') showNotification(authT('auth.robotBinding.generateFailedNetwork', '生成绑定码失败，请检查网络连接'), 'error');
         resetRobotBindingGenerateButton();
         return;
     }
     if (!response.ok || !data.code) {
-        if (typeof showNotification === 'function') showNotification(data.error || '生成绑定码失败', 'error');
+        if (typeof showNotification === 'function') showNotification(data.error || authT('auth.robotBinding.generateFailed', '生成绑定码失败'), 'error');
         resetRobotBindingGenerateButton();
         return;
     }
@@ -835,10 +851,10 @@ async function generateRobotBindingCode() {
     if (copyBtn) copyBtn.disabled = false;
     if (card) card.className = 'robot-binding-code-card is-active';
     if (timer) timer.hidden = false;
-    if (state) state.textContent = '等待绑定';
+    if (state) state.textContent = authT('auth.robotBinding.waitingBinding', '等待绑定');
     if (generateBtn) {
         generateBtn.disabled = false;
-        generateBtn.textContent = '重新生成';
+        generateBtn.textContent = authT('auth.robotBinding.reGenerate', '重新生成');
     }
     startRobotBindingCountdown();
 }
@@ -847,7 +863,7 @@ function resetRobotBindingGenerateButton() {
     const generateBtn = document.getElementById('robot-binding-generate-btn');
     if (generateBtn) {
         generateBtn.disabled = false;
-        generateBtn.textContent = activeRobotBindingCode ? '重新生成' : '生成绑定码';
+        generateBtn.textContent = activeRobotBindingCode ? authT('auth.robotBinding.reGenerate', '重新生成') : authT('auth.robotBinding.generateCode', '生成绑定码');
     }
 }
 
@@ -868,7 +884,7 @@ function updateRobotBindingCountdown() {
     const expiry = document.getElementById('robot-binding-expiry');
     if (countdown) countdown.textContent = `${minutesPart}:${secondsPart}`;
     if (progress) progress.style.width = `${Math.max(0, Math.min(100, remaining / robotBindingLifetimeMs * 100))}%`;
-    if (expiry && activeRobotBindingCode) expiry.textContent = `请发送：绑定 ${activeRobotBindingCode}`;
+    if (expiry && activeRobotBindingCode) expiry.textContent = authT('auth.robotBinding.expiryPrompt', '请发送：绑定 {{code}}', { code: activeRobotBindingCode });
     if (remaining <= 0) expireRobotBindingCode();
 }
 
@@ -885,21 +901,21 @@ function expireRobotBindingCode() {
     const progress = document.getElementById('robot-binding-progress-bar');
     const copyBtn = document.getElementById('robot-binding-copy-btn');
     if (card) card.className = 'robot-binding-code-card is-expired';
-    if (codeEl) codeEl.textContent = '已失效';
-    if (state) state.textContent = '已过期';
-    if (expiry) expiry.textContent = '绑定码已过期，请重新生成';
+    if (codeEl) codeEl.textContent = authT('auth.robotBinding.codeExpired', '已失效');
+    if (state) state.textContent = authT('auth.robotBinding.stateExpired', '已过期');
+    if (expiry) expiry.textContent = authT('auth.robotBinding.expiryHint', '绑定码已过期，请重新生成');
     if (countdown) countdown.textContent = '00:00';
     if (progress) progress.style.width = '0%';
     if (copyBtn) copyBtn.disabled = true;
     resetRobotBindingGenerateButton();
     const generateBtn = document.getElementById('robot-binding-generate-btn');
-    if (generateBtn) generateBtn.textContent = '重新生成';
+    if (generateBtn) generateBtn.textContent = authT('auth.robotBinding.reGenerate', '重新生成');
     loadRobotAccountBindings();
 }
 
 async function copyRobotBindingCode() {
     if (!activeRobotBindingCode || !robotBindingExpiresAt || robotBindingExpiresAt <= Date.now()) return;
-    const command = `绑定 ${activeRobotBindingCode}`;
+    const command = authT('auth.robotBinding.bindCommand', '绑定 {{code}}', { code: activeRobotBindingCode });
     try {
         await navigator.clipboard.writeText(command);
     } catch (_) {
@@ -914,9 +930,9 @@ async function copyRobotBindingCode() {
     }
     const copyBtn = document.getElementById('robot-binding-copy-btn');
     const label = copyBtn?.querySelector('span');
-    if (label) label.textContent = '已复制';
-    setTimeout(() => { if (label) label.textContent = '复制命令'; }, 1400);
-    if (typeof showNotification === 'function') showNotification('绑定命令已复制', 'success');
+    if (label) label.textContent = authT('auth.robotBinding.copyLabel', '已复制');
+    setTimeout(() => { if (label) label.textContent = authT('auth.robotBinding.copyCommand', '复制命令'); }, 1400);
+    if (typeof showNotification === 'function') showNotification(authT('auth.robotBinding.copyCopiedToast', '绑定命令已复制'), 'success');
 }
 
 async function loadRobotAccountBindings() {
@@ -925,26 +941,26 @@ async function loadRobotAccountBindings() {
     const response = await apiFetch('/api/auth/robot-bindings');
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        list.textContent = data.error || '获取绑定失败';
+        list.textContent = data.error || authT('auth.robotBinding.loadFailed', '获取绑定失败');
         return;
     }
     const bindings = Array.isArray(data.bindings) ? data.bindings : [];
     if (!bindings.length) {
         list.innerHTML = `<div class="robot-binding-empty-state">
             <span class="robot-binding-empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" stroke-width="2"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="2"/></svg></span>
-            <div><strong>暂无绑定账号</strong><p>生成绑定码并在机器人中发送，即可完成首次绑定。</p></div>
+            <div><strong>${escapeHtml(authT('auth.robotBinding.emptyTitle', '暂无绑定账号'))}</strong><p>${escapeHtml(authT('auth.robotBinding.emptyHint', '生成绑定码并在机器人中发送，即可完成首次绑定。'))}</p></div>
         </div>`;
         return;
     }
-    const platformLabels = { wechat: '微信', wecom: '企业微信', dingtalk: '钉钉', lark: '飞书', telegram: 'Telegram', slack: 'Slack', discord: 'Discord', qq: 'QQ' };
+    const platformLabels = { wechat: authT('auth.robotBinding.platform.wechat', '微信'), wecom: authT('auth.robotBinding.platform.wecom', '企业微信'), dingtalk: authT('auth.robotBinding.platform.dingtalk', '钉钉'), lark: authT('auth.robotBinding.platform.lark', '飞书'), telegram: 'Telegram', slack: 'Slack', discord: 'Discord', qq: 'QQ' };
     list.innerHTML = bindings.map(binding => `
         <div class="robot-binding-account-card">
             <span class="robot-binding-platform-icon">${escapeHtml((platformLabels[binding.platform] || binding.platform || '?').slice(0, 1).toUpperCase())}</span>
             <div class="robot-binding-account-main">
-                <div class="robot-binding-account-name"><strong>${escapeHtml(platformLabels[binding.platform] || binding.platform || '-')}</strong><span>已连接</span></div>
-                <small>账号标识 ${escapeHtml(binding.external_user_hint || '-')} · 更新于 ${escapeHtml(formatRobotBindingTime(binding.updated_at))}</small>
+                <div class="robot-binding-account-name"><strong>${escapeHtml(platformLabels[binding.platform] || binding.platform || '-')}</strong><span>${escapeHtml(authT('auth.robotBinding.connected', '已连接'))}</span></div>
+                <small>${escapeHtml(authT('auth.robotBinding.accountLabel', '账号标识'))} ${escapeHtml(binding.external_user_hint || '-')} · ${escapeHtml(authT('auth.robotBinding.updatedAt', '更新于'))} ${escapeHtml(formatRobotBindingTime(binding.updated_at))}</small>
             </div>
-            <button type="button" class="btn-secondary btn-small robot-binding-unbind-btn" onclick="deleteRobotAccountBinding(${escapeJsStringAttr(binding.id || '')})">解除绑定</button>
+            <button type="button" class="btn-secondary btn-small robot-binding-unbind-btn" onclick="deleteRobotAccountBinding(${escapeJsStringAttr(binding.id || '')})">${escapeHtml(authT('auth.robotBinding.unbindBtn', '解除绑定'))}</button>
         </div>`).join('');
 	if (typeof window.loadVulnerabilityAlertSubscription === 'function') {
 		window.loadVulnerabilityAlertSubscription();
@@ -953,16 +969,16 @@ async function loadRobotAccountBindings() {
 
 function formatRobotBindingTime(value) {
     const date = new Date(value || '');
-    if (Number.isNaN(date.getTime())) return '未知时间';
+    if (Number.isNaN(date.getTime())) return authT('auth.robotBinding.unknownTime', '未知时间');
     return date.toLocaleString([], { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 async function deleteRobotAccountBinding(id) {
-    if (!id || !window.confirm('确定解除该机器人账号绑定吗？')) return;
+    if (!id || !window.confirm(authT('auth.robotBinding.confirmUnbind', '确定解除该机器人账号绑定吗？'))) return;
     const response = await apiFetch(`/api/auth/robot-bindings/${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        if (typeof showNotification === 'function') showNotification(data.error || '解绑失败', 'error');
+        if (typeof showNotification === 'function') showNotification(data.error || authT('auth.robotBinding.unbindFailed', '解绑失败'), 'error');
         return;
     }
     await loadRobotAccountBindings();

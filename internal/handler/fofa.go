@@ -227,33 +227,33 @@ func canonicalizeSpaceSearchBaseURL(provider, raw string) string {
 func (h *FofaHandler) ParseNaturalLanguage(c *gin.Context) {
 	var req fofaParseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的请求参数: %s", "invalid request parameter: %s"), err.Error())})
 		return
 	}
 	req.Text = strings.TrimSpace(req.Text)
 	provider := normalizeSpaceSearchProvider(req.Provider)
 	if provider == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "provider 不支持，可选：fofa、zoomeye、quake、shodan"})
+		respondError(c, http.StatusBadRequest, "provider 不支持，可选：fofa、zoomeye、quake、shodan", "provider not supported; choose fofa, zoomeye, quake, or shodan")
 		return
 	}
 	if req.Text == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "text 不能为空"})
+		respondError(c, http.StatusBadRequest, "text 不能为空", "text must not be empty")
 		return
 	}
 
 	if h.cfg == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "系统配置未初始化"})
+		respondError(c, http.StatusInternalServerError, "系统配置未初始化", "system config not initialized")
 		return
 	}
 	if strings.TrimSpace(h.cfg.OpenAI.APIKey) == "" || strings.TrimSpace(h.cfg.OpenAI.Model) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "未配置 AI 模型：请在系统设置中填写 openai.api_key 与 openai.model（支持 OpenAI 兼容 API，如 DeepSeek）",
+			"error": i18nText(requestWantsEnglish(c), "未配置 AI 模型：请在系统设置中填写 openai.api_key 与 openai.model（支持 OpenAI 兼容 API，如 DeepSeek）", "AI model not configured: fill in openai.api_key and openai.model in system settings (OpenAI-compatible APIs such as DeepSeek are supported)"),
 			"need":  []string{"openai.api_key", "openai.model"},
 		})
 		return
 	}
 	if h.openAIClient == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI 客户端未初始化"})
+		respondError(c, http.StatusInternalServerError, "AI 客户端未初始化", "AI client not initialized")
 		return
 	}
 
@@ -438,14 +438,14 @@ Shodan 官方查询语法参考：
 		var apiErr *openaiClient.APIError
 		if errors.As(err, &apiErr) {
 			h.logger.Warn("FOFA自然语言解析：LLM返回错误", zap.Int("status", apiErr.StatusCode))
-			c.JSON(http.StatusBadGateway, gin.H{"error": "AI 解析失败（上游返回非 200），请检查模型配置或稍后重试"})
+			respondError(c, http.StatusBadGateway, "AI 解析失败（上游返回非 200），请检查模型配置或稍后重试", "AI parse failed (non-200 from upstream); check the model config or retry later")
 			return
 		}
-		c.JSON(http.StatusBadGateway, gin.H{"error": "AI 解析失败: " + err.Error()})
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "AI 解析失败: %s", "AI parsing failed: %s"), err.Error())})
 		return
 	}
 	if len(apiResponse.Choices) == 0 {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "AI 未返回有效结果"})
+		respondError(c, http.StatusBadGateway, "AI 未返回有效结果", "AI did not return a valid result")
 		return
 	}
 
@@ -454,7 +454,7 @@ Shodan 官方查询语法参考：
 	if extractErr != nil {
 		snippet := trimSnippet(content, 1200)
 		c.JSON(http.StatusBadGateway, gin.H{
-			"error":   "AI 返回内容无法解析为 JSON，请稍后重试或换个描述方式",
+			"error":   i18nText(requestWantsEnglish(c), "AI 返回内容无法解析为 JSON，请稍后重试或换个描述方式", "AI response could not be parsed as JSON, try again later or rephrase"),
 			"snippet": snippet,
 		})
 		return
@@ -465,7 +465,7 @@ Shodan 官方查询语法参考：
 		// 直接回传一部分原文，方便排查，但避免太大
 		snippet := trimSnippet(content, 1200)
 		c.JSON(http.StatusBadGateway, gin.H{
-			"error":   "AI 返回内容无法解析为 JSON，请稍后重试或换个描述方式",
+			"error":   i18nText(requestWantsEnglish(c), "AI 返回内容无法解析为 JSON，请稍后重试或换个描述方式", "AI response could not be parsed as JSON, try again later or rephrase"),
 			"snippet": snippet,
 		})
 		return
@@ -578,18 +578,18 @@ func trimSnippet(s string, maxRunes int) string {
 func (h *FofaHandler) Search(c *gin.Context) {
 	var req fofaSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的请求参数: %s", "invalid request parameter: %s"), err.Error())})
 		return
 	}
 	provider := normalizeSpaceSearchProvider(req.Provider)
 	if provider == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "provider 不支持，可选：fofa、zoomeye、quake、shodan"})
+		respondError(c, http.StatusBadRequest, "provider 不支持，可选：fofa、zoomeye、quake、shodan", "provider not supported; choose fofa, zoomeye, quake, or shodan")
 		return
 	}
 
 	req.Query = strings.TrimSpace(req.Query)
 	if req.Query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "query 不能为空"})
+		respondError(c, http.StatusBadRequest, "query 不能为空", "query must not be empty")
 		return
 	}
 	if req.Size <= 0 {
@@ -616,7 +616,7 @@ func (h *FofaHandler) Search(c *gin.Context) {
 	apiKey := h.resolveAPIKey(provider)
 	if apiKey == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "FOFA 未配置：请在系统设置的资产管理中填写 FOFA API Key，或设置环境变量 FOFA_API_KEY",
+			"error":   i18nText(requestWantsEnglish(c), "FOFA 未配置：请在系统设置的资产管理中填写 FOFA API Key，或设置环境变量 FOFA_API_KEY", "FOFA not configured: fill in the FOFA API Key in asset management of system settings, or set the environment variable FOFA_API_KEY"),
 			"need":    []string{"fofa.api_key"},
 			"env_key": []string{"FOFA_API_KEY"},
 		})
@@ -628,7 +628,7 @@ func (h *FofaHandler) Search(c *gin.Context) {
 
 	u, err := url.Parse(baseURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "FOFA base_url 无效: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "FOFA base_url 无效: %s", "invalid FOFA base_url: %s"), err.Error())})
 		return
 	}
 
@@ -648,7 +648,7 @@ func (h *FofaHandler) Search(c *gin.Context) {
 
 	httpReq, err := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, u.String(), nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建请求失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "创建请求失败: %s", "failed to create request: %s"), err.Error())})
 		return
 	}
 	httpReq.Header.Set("User-Agent", "CyberStrikeAI/1.7.4")
@@ -668,13 +668,13 @@ func (h *FofaHandler) Search(c *gin.Context) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("FOFA 返回非 2xx: %d", resp.StatusCode)})
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "FOFA 返回非 2xx: %d", "FOFA returned non-2xx: %d"), resp.StatusCode)})
 		return
 	}
 
 	var apiResp fofaAPIResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "解析 FOFA 响应失败: " + err.Error()})
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "解析 FOFA 响应失败: %s", "failed to parse FOFA response: %s"), err.Error())})
 		return
 	}
 	if apiResp.Error {
@@ -721,7 +721,7 @@ func (h *FofaHandler) searchExternalProvider(c *gin.Context, provider string, re
 			"shodan":  "SHODAN_API_KEY",
 		}[provider]
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   providerDisplayName(provider) + " 未配置：请在 config.yaml 中填写 api_key，或设置环境变量 " + envKey,
+			"error":   fmt.Sprintf(i18nText(requestWantsEnglish(c), "%s 未配置：请在 config.yaml 中填写 api_key，或设置环境变量 %s", "%s is not configured: fill in api_key in config.yaml, or set environment variable %s"), providerDisplayName(provider), envKey),
 			"need":    []string{provider + ".api_key"},
 			"env_key": []string{envKey},
 		})
@@ -742,7 +742,7 @@ func (h *FofaHandler) searchZoomEye(c *gin.Context, req fofaSearchRequest, apiKe
 	baseURL := h.resolveBaseURL("zoomeye")
 	u, err := url.Parse(baseURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "ZoomEye base_url 无效: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "ZoomEye base_url 无效: %s", "invalid ZoomEye base_url: %s"), err.Error())})
 		return
 	}
 	body := map[string]interface{}{
@@ -759,7 +759,7 @@ func (h *FofaHandler) searchZoomEye(c *gin.Context, req fofaSearchRequest, apiKe
 	}
 	rows, err := decodeSpaceSearchRows(apiResp.Data)
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "解析 ZoomEye 响应失败: " + err.Error()})
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "解析 ZoomEye 响应失败: %s", "failed to parse ZoomEye response: %s"), err.Error())})
 		return
 	}
 	if zoomEyeRequestFailed(apiResp.Code, apiResp.Message) {
@@ -784,7 +784,7 @@ func (h *FofaHandler) searchQuake(c *gin.Context, req fofaSearchRequest, apiKey 
 	baseURL := h.resolveBaseURL("quake")
 	u, err := url.Parse(baseURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Quake base_url 无效: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "Quake base_url 无效: %s", "invalid Quake base_url: %s"), err.Error())})
 		return
 	}
 	fields := splitAndCleanCSV(req.Fields)
@@ -803,7 +803,7 @@ func (h *FofaHandler) searchQuake(c *gin.Context, req fofaSearchRequest, apiKey 
 	}
 	rows, err := decodeSpaceSearchRows(apiResp.Data)
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "解析 Quake 响应失败: " + err.Error()})
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "解析 Quake 响应失败: %s", "failed to parse Quake response: %s"), err.Error())})
 		return
 	}
 	if !isZeroSpaceSearchCode(apiResp.Code) {
@@ -970,7 +970,7 @@ func (h *FofaHandler) searchShodan(c *gin.Context, req fofaSearchRequest, apiKey
 	baseURL := strings.TrimRight(h.resolveBaseURL("shodan"), "/") + "/shodan/host/search"
 	u, err := url.Parse(baseURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Shodan base_url 无效: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "Shodan base_url 无效: %s", "invalid Shodan base_url: %s"), err.Error())})
 		return
 	}
 
@@ -1006,7 +1006,7 @@ func (h *FofaHandler) searchShodan(c *gin.Context, req fofaSearchRequest, apiKey
 		}
 		pageMatches, err := decodeSpaceSearchRows(apiResp.Matches)
 		if err != nil {
-			c.JSON(http.StatusBadGateway, gin.H{"error": "解析 Shodan 响应失败: " + err.Error()})
+			c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "解析 Shodan 响应失败: %s", "failed to parse Shodan response: %s"), err.Error())})
 			return
 		}
 		if len(pageMatches) == 0 {
@@ -1063,7 +1063,7 @@ func (h *FofaHandler) doJSONRequest(c *gin.Context, method, endpoint, apiKey, he
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "创建请求失败: " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "创建请求失败: %s", "failed to create request: %s"), err.Error())})
 			return false
 		}
 		reqBody = strings.NewReader(string(b))
@@ -1072,7 +1072,7 @@ func (h *FofaHandler) doJSONRequest(c *gin.Context, method, endpoint, apiKey, he
 	}
 	httpReq, err := http.NewRequestWithContext(c.Request.Context(), method, endpoint, reqBody)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建请求失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "创建请求失败: %s", "failed to create request: %s"), err.Error())})
 		return false
 	}
 	httpReq.Header.Set("User-Agent", "CyberStrikeAI/1.7.4")
@@ -1097,7 +1097,7 @@ func (h *FofaHandler) doJSONRequest(c *gin.Context, method, endpoint, apiKey, he
 	defer resp.Body.Close()
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "读取 " + label + " 响应失败: " + err.Error()})
+		respondErrorf(c, http.StatusBadGateway, "读取 %s 响应失败: %s", "failed to read %s response: %s", label, err.Error())
 		return false
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -1110,7 +1110,7 @@ func (h *FofaHandler) doJSONRequest(c *gin.Context, method, endpoint, apiKey, he
 			c.JSON(http.StatusBadGateway, gin.H{"error": msg})
 			return false
 		}
-		c.JSON(http.StatusBadGateway, gin.H{"error": "解析 " + label + " 响应失败: " + err.Error()})
+		respondErrorf(c, http.StatusBadGateway, "解析 %s 响应失败: %s", "failed to parse %s response: %s", label, err.Error())
 		return false
 	}
 	return true

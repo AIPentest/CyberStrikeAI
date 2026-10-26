@@ -2,6 +2,28 @@
 function _t(key, opts) {
     return typeof window.t === 'function' ? window.t(key, opts) : key;
 }
+
+// 仓库内置技能包的种子描述（skills/*/SKILL.md frontmatter）。仅与种子值精确
+// 匹配时按 id 翻译展示；用户自行编辑的描述按原值展示。
+const SEED_SKILL_DESCRIPTIONS = {
+    'cyberstrike-eino-demo': '满配示例技能包：SKILL.md + scripts/、references/、assets/ 等可选目录；验证 Eino skill 与 HTTP 包内路径（仅授权安全测试与教学）。'
+};
+
+function skillDisplayDescription(skill, fallback) {
+    if (!skill) return fallback || '';
+    const id = String(skill.id || skill.name || '').trim();
+    const raw = String(skill.description || '').trim();
+    if (!raw) return fallback || '';
+    if (SEED_SKILL_DESCRIPTIONS[id] === raw) {
+        const key = `skills.seedDescriptions.${id}`;
+        if (typeof window.t === 'function') {
+            const translated = window.t(key);
+            if (translated && translated !== key) return translated;
+        }
+    }
+    return raw;
+}
+
 let skillsList = [];
 let currentEditingSkillName = null;
 let skillModalAddMode = true;
@@ -183,7 +205,7 @@ function renderSkillsList() {
                             <h3 class="skill-card-title">${escapeHtml(skill.name || sid)}</h3>
                             ${metaItems.length ? `<div class="skill-card-meta">${metaItems.map(item => `<span>${escapeHtml(item)}</span>`).join('')}</div>` : ''}
                         </div>
-                        <div class="skill-card-description">${escapeHtml(skill.description || _t('skills.noDescription'))}</div>
+                        <div class="skill-card-description">${escapeHtml(skillDisplayDescription(skill, _t('skills.noDescription')))}</div>
                         ${tagsHtml}
                     </div>
                     <div class="skill-card-actions">

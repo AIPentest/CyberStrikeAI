@@ -400,7 +400,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 					"properties": map[string]interface{}{
 						"error": map[string]interface{}{
 							"type":        "string",
-							"description": "错误信息",
+							"description": i18nText(requestWantsEnglish(c), "错误信息", "error message"),
 						},
 					},
 				},
@@ -952,7 +952,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 						},
 						"error": map[string]interface{}{
 							"type":        "string",
-							"description": "错误信息",
+							"description": i18nText(requestWantsEnglish(c), "错误信息", "error message"),
 						},
 					},
 				},
@@ -3835,7 +3835,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 										"$ref": "#/components/schemas/Error",
 									},
 									"example": map[string]interface{}{
-										"error": "stdio模式需要提供command和args参数",
+										"error": i18nText(requestWantsEnglish(c), "stdio模式需要提供command和args参数", "stdio mode requires the command and args parameters"),
 									},
 								},
 							},
@@ -4474,7 +4474,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 										"$ref": "#/components/schemas/Error",
 									},
 									"example": map[string]interface{}{
-										"error": "查询不能为空",
+										"error": i18nText(requestWantsEnglish(c), "查询不能为空", "query cannot be empty"),
 									},
 								},
 							},
@@ -5051,7 +5051,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 										"type": "object",
 										"properties": map[string]interface{}{
 											"success":    map[string]interface{}{"type": "boolean", "description": "是否连接成功"},
-											"error":      map[string]interface{}{"type": "string", "description": "失败原因（success=false时）"},
+											"error":      map[string]interface{}{"type": "string", "description": i18nText(requestWantsEnglish(c), "失败原因（success=false时）", "failure reason (when success=false)")},
 											"model":      map[string]interface{}{"type": "string", "description": "实际使用的模型（success=true时）"},
 											"latency_ms": map[string]interface{}{"type": "number", "description": "延迟毫秒数（success=true时）"},
 										},
@@ -5188,7 +5188,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 											"stdout":    map[string]interface{}{"type": "string", "description": "标准输出"},
 											"stderr":    map[string]interface{}{"type": "string", "description": "标准错误"},
 											"exit_code": map[string]interface{}{"type": "integer", "description": "退出码"},
-											"error":     map[string]interface{}{"type": "string", "description": "执行错误（可选）"},
+											"error":     map[string]interface{}{"type": "string", "description": i18nText(requestWantsEnglish(c), "执行错误（可选）", "execution error (optional)")},
 										},
 									},
 								},
@@ -5521,7 +5521,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 										"properties": map[string]interface{}{
 											"ok":        map[string]interface{}{"type": "boolean"},
 											"output":    map[string]interface{}{"type": "string", "description": "命令输出"},
-											"error":     map[string]interface{}{"type": "string", "description": "错误信息"},
+											"error":     map[string]interface{}{"type": "string", "description": i18nText(requestWantsEnglish(c), "错误信息", "error message")},
 											"http_code": map[string]interface{}{"type": "integer", "description": "HTTP响应码"},
 										},
 									},
@@ -6625,7 +6625,7 @@ func (h *OpenAPIHandler) GetConversationResults(c *gin.Context) {
 	conv, err := h.db.GetConversation(conversationID)
 	if err != nil {
 		h.logger.Error("获取对话失败", zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": "对话不存在"})
+		respondError(c, http.StatusNotFound, "对话不存在", "conversation not found")
 		return
 	}
 

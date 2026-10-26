@@ -231,34 +231,41 @@ function hasFinalizationContract(data) {
 }
 
 function finalizationCheckTitle(data) {
-    return isFinalizedResponseData(data) ? '最终回复检查通过' : '最终回复检查未通过';
+    return isFinalizedResponseData(data)
+        ? (typeof window.t === 'function' ? window.t('chat.finalizationCheckPassed') : '最终回复检查通过')
+        : (typeof window.t === 'function' ? window.t('chat.finalizationCheckFailed') : '最终回复检查未通过');
 }
 
 function finalizationReasonLabel(reason, status) {
     const key = String(reason || status || '').trim();
     const labels = {
-        pending_tool_executions: '等待工具执行完成',
-        missing_execution_evidence: '缺少完成态证据',
-        awaiting_hitl: '等待人工确认',
-        empty_response: '未捕获到有效回复',
-        missing_finalization_contract: '缺少最终化证明',
-        in_progress: '仍在验证',
-        blocked: '检查未通过',
-        failed: '任务失败',
-        cancelled: '任务已取消',
-        verified: '已验证'
+        pending_tool_executions: typeof window.t === 'function' ? window.t('chat.finalizationReasonPendingToolExecutions') : '等待工具执行完成',
+        missing_execution_evidence: typeof window.t === 'function' ? window.t('chat.finalizationReasonMissingExecutionEvidence') : '缺少完成态证据',
+        awaiting_hitl: typeof window.t === 'function' ? window.t('chat.finalizationReasonAwaitingHitl') : '等待人工确认',
+        empty_response: typeof window.t === 'function' ? window.t('chat.finalizationReasonEmptyResponse') : '未捕获到有效回复',
+        missing_finalization_contract: typeof window.t === 'function' ? window.t('chat.finalizationReasonMissingContract') : '缺少最终化证明',
+        in_progress: typeof window.t === 'function' ? window.t('chat.finalizationReasonInProgress') : '仍在验证',
+        blocked: typeof window.t === 'function' ? window.t('chat.finalizationReasonBlocked') : '检查未通过',
+        failed: typeof window.t === 'function' ? window.t('chat.finalizationReasonFailed') : '任务失败',
+        cancelled: typeof window.t === 'function' ? window.t('chat.finalizationReasonCancelled') : '任务已取消',
+        verified: typeof window.t === 'function' ? window.t('chat.finalizationReasonVerified') : '已验证'
     };
-    return labels[key] || key || '检查未通过';
+    return labels[key] || key || (typeof window.t === 'function' ? window.t('chat.finalizationReasonBlocked') : '检查未通过');
 }
 
 function finalizationMissingCheckLabel(check) {
     const s = String(check || '').trim();
     if (!s) return '';
-    if (s.indexOf('tool execution still queued or running') !== -1) return '仍有工具执行未结束';
-    if (s.indexOf('execution evidence is required but no completed tool execution was recorded') !== -1) return '本轮要求执行证据，但没有 completed 工具记录';
-    if (s.indexOf('workflow is awaiting HITL approval') !== -1) return '工作流正在等待人工确认';
-    if (s.indexOf('assistant final text is empty') !== -1) return '未捕获到有效最终文本';
-    if (s.indexOf('agent run status is ') === 0) return '任务状态仍为 ' + s.replace('agent run status is ', '');
+    if (s.indexOf('tool execution still queued or running') !== -1) return typeof window.t === 'function' ? window.t('chat.finalizationMissingCheckQueued') : '仍有工具执行未结束';
+    if (s.indexOf('execution evidence is required but no completed tool execution was recorded') !== -1) return typeof window.t === 'function' ? window.t('chat.finalizationMissingCheckEvidence') : '本轮要求执行证据，但没有 completed 工具记录';
+    if (s.indexOf('workflow is awaiting HITL approval') !== -1) return typeof window.t === 'function' ? window.t('chat.finalizationMissingCheckHitl') : '工作流正在等待人工确认';
+    if (s.indexOf('assistant final text is empty') !== -1) return typeof window.t === 'function' ? window.t('chat.finalizationMissingCheckEmpty') : '未捕获到有效最终文本';
+    if (s.indexOf('agent run status is ') === 0) {
+        const status = s.replace('agent run status is ', '');
+        return (typeof window.t === 'function' && window.t('chat.finalizationMissingCheckRunStatus', { status: status }) !== 'chat.finalizationMissingCheckRunStatus')
+            ? window.t('chat.finalizationMissingCheckRunStatus', { status: status })
+            : '任务状态仍为 ' + status;
+    }
     return s;
 }
 
@@ -266,7 +273,11 @@ function compactStringList(values, limit) {
     const arr = Array.isArray(values) ? values.filter(Boolean).map(String) : [];
     const max = limit || 3;
     if (arr.length <= max) return arr;
-    return arr.slice(0, max).concat('另 ' + (arr.length - max) + ' 项');
+    return arr.slice(0, max).concat(
+        (typeof window.t === 'function' && window.t('chat.finalizationMoreItems', { n: arr.length - max }) !== 'chat.finalizationMoreItems')
+            ? window.t('chat.finalizationMoreItems', { n: arr.length - max })
+            : '另 ' + (arr.length - max) + ' 项'
+    );
 }
 
 function finalizationNoticeMarkdown(responseData, eventMessage) {
@@ -274,10 +285,14 @@ function finalizationNoticeMarkdown(responseData, eventMessage) {
     const reason = hasContract
         ? finalizationReasonLabel(responseData && responseData.completionReason, responseData && responseData.status)
         : finalizationReasonLabel('missing_finalization_contract');
-    const lines = ['**仍在验证，暂不生成最终结论**', '', '状态：' + reason];
+    const noticeTitle = typeof window.t === 'function' ? window.t('chat.finalizationNoticeTitle') : '**仍在验证，暂不生成最终结论**';
+    const statusLabel = (typeof window.t === 'function' && window.t('chat.finalizationStatusLabel', { reason: reason }) !== 'chat.finalizationStatusLabel')
+        ? window.t('chat.finalizationStatusLabel', { reason: reason })
+        : '状态：' + reason;
+    const lines = [noticeTitle, '', statusLabel];
     const pending = compactStringList(responseData && responseData.pendingExecutionIds, 3);
     if (pending.length) {
-        lines.push('待完成工具：`' + pending.join('`, `') + '`');
+        lines.push((typeof window.t === 'function' ? window.t('chat.finalizationPendingToolsLabel') : '待完成工具：') + '`' + pending.join('`, `') + '`');
     }
     const rawMissingChecks = responseData && responseData.missingChecks;
     const missingChecks = Array.isArray(rawMissingChecks)
@@ -285,10 +300,10 @@ function finalizationNoticeMarkdown(responseData, eventMessage) {
         : (rawMissingChecks ? [rawMissingChecks] : []);
     const missing = compactStringList(missingChecks.map(finalizationMissingCheckLabel).filter(Boolean), 3);
     if (missing.length) {
-        lines.push('待完成检查：' + missing.join('；'));
+        lines.push((typeof window.t === 'function' ? window.t('chat.finalizationPendingChecksLabel') : '待完成检查：') + missing.join('；'));
     }
     if (!hasContract && eventMessage != null && String(eventMessage).trim() !== '') {
-        lines.push('', '候选输出已移入过程详情，避免误判为最终结论。');
+        lines.push('', typeof window.t === 'function' ? window.t('chat.finalizationCandidateMovedNote') : '候选输出已移入过程详情，避免误判为最终结论。');
     }
     return lines.join('\n');
 }
@@ -1992,7 +2007,7 @@ function processDetailsContinuousLabel(kind) {
         return typeof window.t === 'function' ? window.t('chat.loadingLaterDetails') : '正在加载更新记录…';
     }
     if (kind === 'retry') {
-        return typeof window.t === 'function' ? window.t('common.retry') : '加载失败，点击重试';
+        return typeof window.t === 'function' ? window.t('chat.retry') : '加载失败，点击重试';
     }
     return '';
 }
@@ -2817,10 +2832,10 @@ function formatEinoModelRetryMessage(message, data) {
     const base = String(message || '').trim();
     if (base) lines.push(base);
     if (d.reason != null && String(d.reason).trim() !== '') {
-        lines.push('原因：' + String(d.reason).trim());
+        lines.push((typeof window.t === 'function' ? window.t('chat.einoModelRetryReasonLabel') : '原因：') + String(d.reason).trim());
     }
     if (d.error != null && String(d.error).trim() !== '') {
-        lines.push('错误详情：' + String(d.error).trim());
+        lines.push((typeof window.t === 'function' ? window.t('chat.einoModelRetryErrorLabel') : '错误详情：') + String(d.error).trim());
     }
     return lines.join('\n');
 }
@@ -2843,10 +2858,10 @@ function formatEinoModelFailoverMessage(message, data) {
     const base = String(message || '').trim();
     if (base) lines.push(base);
     if (d.channel != null && String(d.channel).trim() !== '') {
-        lines.push('通道：' + String(d.channel).trim());
+        lines.push((typeof window.t === 'function' ? window.t('chat.einoModelFailoverChannelLabel') : '通道：') + String(d.channel).trim());
     }
     if (d.model != null && String(d.model).trim() !== '') {
-        lines.push('模型：' + String(d.model).trim());
+        lines.push((typeof window.t === 'function' ? window.t('chat.einoModelFailoverModelLabel') : '模型：') + String(d.model).trim());
     }
     return lines.join('\n');
 }
@@ -3095,7 +3110,7 @@ function handleStreamEvent(event, progressElement, progressId,
             const d = event.data || {};
             const name = d.workflowName || d.workflowId || '';
             addTimelineItem(timeline, 'workflow_start', {
-                title: '🧭 工作流开始' + (name ? (' · ' + name) : ''),
+                title: (typeof window.t === 'function' ? window.t('timeline.workflowStart') : '🧭 工作流开始') + (name ? (' · ' + name) : ''),
                 message: event.message || '',
                 data: d
             });
@@ -3106,7 +3121,7 @@ function handleStreamEvent(event, progressElement, progressId,
             const d = event.data || {};
             const name = d.workflowName || d.workflowId || '';
             addTimelineItem(timeline, 'workflow_done', {
-                title: '✅ 工作流完成' + (name ? (' · ' + name) : ''),
+                title: (typeof window.t === 'function' ? window.t('timeline.workflowDone') : '✅ 工作流完成') + (name ? (' · ' + name) : ''),
                 message: event.message || '',
                 data: d
             });
@@ -3121,7 +3136,7 @@ function handleStreamEvent(event, progressElement, progressId,
                 clearTimelineStreamStates(progressId);
             }
             addTimelineItem(timeline, 'workflow_node_start', {
-                title: '▶ 节点开始' + (label ? (' · ' + label) : ''),
+                title: (typeof window.t === 'function' ? window.t('timeline.workflowNodeStart') : '▶ 节点开始') + (label ? (' · ' + label) : ''),
                 message: event.message || '',
                 data: d
             });
@@ -3136,10 +3151,11 @@ function handleStreamEvent(event, progressElement, progressId,
             let title;
             if (nodeType === 'condition') {
                 const matched = d.matched === true || d.matched === 'true' || (d.output && (d.output.matched === true || d.output.matched === 'true'));
-                title = (matched ? '✅' : '🔀') + ' 条件判断' + (label ? (' · ' + label) : '') + ' → ' + (matched ? '是' : '否');
+                const yesNo = typeof window.t === 'function' ? (matched ? window.t('workflows.edges.yes') : window.t('workflows.edges.no')) : (matched ? '是' : '否');
+                title = (matched ? '✅' : '🔀') + ' ' + (typeof window.t === 'function' ? window.t('timeline.workflowConditionMet') : '条件判断') + (label ? (' · ' + label) : '') + ' → ' + yesNo;
             } else {
                 const icon = status === 'failed' ? '❌' : (status === 'skipped' ? '⏭️' : '✅');
-                title = icon + ' 节点完成' + (label ? (' · ' + label) : '') + (status ? ('（' + status + '）') : '');
+                title = icon + ' ' + (typeof window.t === 'function' ? window.t('timeline.workflowNodeComplete') : '节点完成') + (label ? (' · ' + label) : '') + (status ? ('（' + status + '）') : '');
             }
             addTimelineItem(timeline, 'workflow_node_result', {
                 title: title,
@@ -3156,7 +3172,10 @@ function handleStreamEvent(event, progressElement, progressId,
             const target = d.targetLabel || d.targetId || '';
             const taken = event.type === 'workflow_branch_taken';
             addTimelineItem(timeline, event.type, {
-                title: (taken ? '➡️' : '⏭️') + (taken ? ' 执行分支' : ' 跳过分支') + (branch ? (' · ' + branch) : '') + (target ? (' → ' + target) : ''),
+                title: (taken ? '➡️' : '⏭️') + ' ' + (taken
+                    ? (typeof window.t === 'function' ? window.t('timeline.workflowBranchTaken') : '执行分支')
+                    : (typeof window.t === 'function' ? window.t('timeline.workflowBranchSkipped') : '跳过分支'))
+                    + (branch ? (' · ' + branch) : '') + (target ? (' → ' + target) : ''),
                 message: event.message || '',
                 data: d
             });
@@ -3167,7 +3186,7 @@ function handleStreamEvent(event, progressElement, progressId,
             const d = event.data || {};
             const tool = d.tool || d.toolName || '';
             addTimelineItem(timeline, 'workflow_tool_start', {
-                title: '🔧 工具节点' + (tool ? (' · ' + tool) : ''),
+                title: (typeof window.t === 'function' ? window.t('timeline.workflowToolNode') : '🔧 工具节点') + (tool ? (' · ' + tool) : ''),
                 message: event.message || '',
                 data: d
             });
@@ -3178,7 +3197,7 @@ function handleStreamEvent(event, progressElement, progressId,
             const d = event.data || {};
             const label = d.label || d.nodeId || '';
             addTimelineItem(timeline, 'workflow_agent_output', {
-                title: '🤖 Agent 输出' + (label ? (' · ' + label) : ''),
+                title: (typeof window.t === 'function' ? window.t('timeline.workflowAgentOutput') : '🤖 Agent 输出') + (label ? (' · ' + label) : ''),
                 message: event.message || '',
                 data: d
             });
@@ -3187,7 +3206,7 @@ function handleStreamEvent(event, progressElement, progressId,
 
         case 'workflow_hitl_checkpoint': {
             addTimelineItem(timeline, 'workflow_hitl_checkpoint', {
-                title: '🧑‍⚖️ 人工确认检查点',
+                title: typeof window.t === 'function' ? window.t('timeline.workflowHitlCheckpoint') : '🧑‍⚖️ 人工确认检查点',
                 message: event.message || '',
                 data: event.data || {}
             });
@@ -3197,7 +3216,7 @@ function handleStreamEvent(event, progressElement, progressId,
         case 'workflow_hitl_waiting': {
             const d = event.data || {};
             const hitlItemId = addTimelineItem(timeline, 'workflow_hitl_waiting', {
-                title: '🧑‍⚖️ 工作流等待审批',
+                title: typeof window.t === 'function' ? window.t('timeline.workflowHitlWaiting') : '🧑‍⚖️ 工作流等待审批',
                 message: event.message || '',
                 data: d
             });
@@ -3207,8 +3226,8 @@ function handleStreamEvent(event, progressElement, progressId,
 
         case 'workflow_hitl_resumed': {
             addTimelineItem(timeline, 'workflow_hitl_resumed', {
-                title: '✅ 审批已通过',
-                message: event.message || '人工审批已通过，继续执行',
+                title: typeof window.t === 'function' ? window.t('timeline.workflowHitlApproved') : '✅ 审批已通过',
+                message: event.message || (typeof window.t === 'function' ? window.t('timeline.workflowHitlResumed') : '人工审批已通过，继续执行'),
                 data: event.data || {}
             });
             break;
@@ -3216,7 +3235,7 @@ function handleStreamEvent(event, progressElement, progressId,
 
         case 'workflow_hitl_rejected': {
             addTimelineItem(timeline, 'workflow_hitl_rejected', {
-                title: '❌ 审批已拒绝',
+                title: typeof window.t === 'function' ? window.t('timeline.workflowHitlRejected') : '❌ 审批已拒绝',
                 message: event.message || '',
                 data: event.data || {}
             });
@@ -3225,7 +3244,7 @@ function handleStreamEvent(event, progressElement, progressId,
 
         case 'workflow_paused': {
             addTimelineItem(timeline, 'workflow_paused', {
-                title: '⏸️ 工作流已暂停',
+                title: typeof window.t === 'function' ? window.t('timeline.workflowPaused') : '⏸️ 工作流已暂停',
                 message: event.message || '',
                 data: event.data || {}
             });
@@ -3373,7 +3392,7 @@ function handleStreamEvent(event, progressElement, progressId,
             const finalizationCheckPassed = isFinalizedResponseData(finalizationCheckData);
             addTimelineItem(timeline, 'finalization_check', {
                 title: finalizationCheckTitle(finalizationCheckData),
-                message: finalizationCheckPassed ? (event.message || '最终回复检查通过。') : finalizationNoticeMarkdown(finalizationCheckData, event.message),
+                message: finalizationCheckPassed ? (event.message || (typeof window.t === 'function' ? window.t('chat.finalizationCheckPassedMessage') : '最终回复检查通过。')) : finalizationNoticeMarkdown(finalizationCheckData, event.message),
                 data: event.data,
                 expanded: !finalizationCheckPassed
             });
@@ -3381,7 +3400,7 @@ function handleStreamEvent(event, progressElement, progressId,
 
         case 'finalization_auto_continue':
             addTimelineItem(timeline, 'progress', {
-                title: '继续验证',
+                title: typeof window.t === 'function' ? window.t('chat.finalizationContinueVerifying') : '继续验证',
                 message: event.message,
                 data: event.data,
                 expanded: false
@@ -3392,7 +3411,7 @@ function handleStreamEvent(event, progressElement, progressId,
             const d = event.data || {};
             markToolExecutionItemsCancelled(timeline, autoCancelledExecutionIdsFromData(d));
             addTimelineItem(timeline, 'progress', {
-                title: '工具执行已收尾',
+                title: typeof window.t === 'function' ? window.t('chat.finalizationPendingToolsFinalized') : '工具执行已收尾',
                 message: event.message,
                 data: d,
                 expanded: false
@@ -3410,7 +3429,7 @@ function handleStreamEvent(event, progressElement, progressId,
                 renderInlineHitlApproval(auditTargetItem.id, auditData);
             } else {
                 const auditItemId = addTimelineItem(timeline, 'hitl_audit_agent_started', {
-                    title: '审计 Agent 正在审查',
+                    title: typeof window.t === 'function' ? window.t('chat.finalizationAuditAgentReviewing') : '审计 Agent 正在审查',
                     message: event.message,
                     data: auditData
                 });
@@ -4065,7 +4084,7 @@ function handleStreamEvent(event, progressElement, progressId,
                 });
             } else if (timeline && !responseFinalized && !responseHasFinalizationContract && resolvedResponseText && String(resolvedResponseText).trim()) {
                 addTimelineItem(timeline, 'finalization_check', {
-                    title: '候选输出缺少最终化证明',
+                    title: typeof window.t === 'function' ? window.t('chat.finalizationCandidateMissingContract') : '候选输出缺少最终化证明',
                     message: resolvedResponseText,
                     data: Object.assign({}, responseData, { missingFinalizationContract: true }),
                     expanded: true
@@ -4174,7 +4193,7 @@ function handleStreamEvent(event, progressElement, progressId,
                     waitingTitle.textContent = '⏸️ ' + (typeof window.t === 'function' ? window.t('chat.workflowAwaitingApproval') : '工作流等待审批');
                 }
                 if (progressTaskState.has(progressId)) {
-                    finalizeProgressTask(progressId, typeof window.t === 'function' ? window.t('chat.workflowAwaitingApproval') : '等待审批');
+                    finalizeProgressTask(progressId, typeof window.t === 'function' ? window.t('chat.workflowAwaitingApproval') : '工作流等待审批');
                 }
                 break;
             }
@@ -4507,7 +4526,9 @@ function renderInlineHitlApproval(itemId, data) {
     const allowEdit = mode === 'review_edit';
     const argsObj = payload.argumentsObj && typeof payload.argumentsObj === 'object' ? payload.argumentsObj : {};
     const argsJSON = JSON.stringify(argsObj, null, 2);
-    const modeLabel = mode === 'review_edit' ? '审查编辑' : '审批模式';
+    const modeLabel = mode === 'review_edit'
+        ? (typeof window.t === 'function' ? window.t('chat.hitlModeReviewEdit') : '审查编辑')
+        : (typeof window.t === 'function' ? window.t('chat.hitlModeApproval') : '审批模式');
 
     const panel = document.createElement('div');
     panel.className = 'hitl-inline-approval';
@@ -4759,7 +4780,7 @@ function bindInlineHitlApproval(panel, data, opts) {
                 try {
                     editedArgs = JSON.parse(raw);
                 } catch (e) {
-                    statusEl.textContent = 'JSON 参数格式错误';
+                    statusEl.textContent = hitlApprovalTranslate('hitl.invalidJson', 'JSON 参数格式错误');
                     setBusy(false);
                     return;
                 }
@@ -4775,16 +4796,18 @@ function bindInlineHitlApproval(panel, data, opts) {
                 const convFollow = data.conversationId || (typeof window.currentConversationId === 'string' ? window.currentConversationId : '');
                 const ok = await window.submitHitlDecisionWithPayload(data.interruptId, decision, comment, (decision === 'approve' && allowEdit) ? editedArgs : null, convFollow);
                 if (!ok) {
-                    statusEl.textContent = '提交失败，请重试';
+                    statusEl.textContent = hitlApprovalTranslate('hitl.submitFailedRetry', '提交失败，请重试');
                     setBusy(false);
                     return;
                 }
             } else {
-                statusEl.textContent = '审批函数未加载';
+                statusEl.textContent = hitlApprovalTranslate('hitl.approvalFnMissing', '审批函数未加载');
                 setBusy(false);
                 return;
             }
-            const msg = decision === 'approve' ? '已通过，等待执行继续...' : '已拒绝，反馈已交给模型继续迭代...';
+            const msg = decision === 'approve'
+                ? hitlApprovalTranslate('hitl.decisionApprovedWaiting', '已通过，等待执行继续...')
+                : hitlApprovalTranslate('hitl.decisionRejectedIterating', '已拒绝，反馈已交给模型继续迭代...');
             const toolItem = panel.closest('.timeline-item-tool_call');
             if (toolItem && toolItem.id) {
                 const state = toolCallDetailStateByItemId.get(toolItem.id) || {};
@@ -4815,7 +4838,7 @@ function bindInlineHitlApproval(panel, data, opts) {
                 window.setProjectConversationApprovalStatus(data.conversationId || window.currentConversationId || '', false);
             }
         } catch (e) {
-            statusEl.textContent = '提交失败：' + (e && e.message ? e.message : 'unknown error');
+            statusEl.textContent = hitlApprovalTranslate('hitl.submitFailedPrefix', '提交失败：') + (e && e.message ? e.message : 'unknown error');
             setBusy(false);
         }
     };
@@ -5078,7 +5101,7 @@ function markInlineHitlDecision(panel, decision, message) {
     panel.innerHTML = `
         <div class="hitl-codex-state hitl-codex-state--${ok ? 'approved' : 'rejected'}">
             <span class="hitl-codex-state-icon" aria-hidden="true">${ok ? '✓' : '×'}</span>
-            <strong>${escapeHtml(ok ? '已允许一次' : '人工审批已拒绝')}</strong>
+            <strong>${escapeHtml(ok ? hitlApprovalTranslate('hitl.humanApproved', '已允许一次') : hitlApprovalTranslate('hitl.humanRejected', '人工审批已拒绝'))}</strong>
         </div>
         ${message ? '<p class="hitl-codex-explainer">' + escapeHtml(message) + '</p>' : ''}
     `;
@@ -5107,24 +5130,24 @@ function renderInlineWorkflowHitlApproval(itemId, data) {
         <div class="hitl-inline-header">
             <div class="hitl-inline-title">
                 <span class="hitl-inline-icon" aria-hidden="true">!</span>
-                <span>工作流审批</span>
+                <span>${escapeHtml(hitlApprovalTranslate('hitl.workflowApprovalTitle', '工作流审批'))}</span>
             </div>
             <div class="hitl-inline-badges">
                 <span class="hitl-tool-badge">${escapeHtml(label)}</span>
-                <span class="hitl-mode-tag hitl-mode-tag--approval">审批模式</span>
+                <span class="hitl-mode-tag hitl-mode-tag--approval">${escapeHtml(hitlApprovalTranslate('chat.hitlModeApproval', '审批模式'))}</span>
             </div>
         </div>
         <div class="hitl-inline-body">
-            ${prompt ? `<div class="hitl-inline-note">${escapeHtml(prompt)}</div>` : '<div class="hitl-inline-note">工作流暂停，等待你确认是否继续。</div>'}
+            ${prompt ? `<div class="hitl-inline-note">${escapeHtml(prompt)}</div>` : `<div class="hitl-inline-note">${escapeHtml(hitlApprovalTranslate('hitl.workflowPausedNote', '工作流暂停，等待你确认是否继续。'))}</div>`}
             <label class="hitl-inline-field">
-                <span class="hitl-context-label">备注（可选）</span>
-                <input class="hitl-config-input workflow-hitl-inline-comment" type="text" placeholder="审批意见">
+                <span class="hitl-context-label">${escapeHtml(hitlApprovalTranslate('hitl.commentOptional', '备注（可选）'))}</span>
+                <input class="hitl-config-input workflow-hitl-inline-comment" type="text" placeholder="${escapeHtml(hitlApprovalTranslate('hitl.workflowCommentPlaceholder', '审批意见'))}">
             </label>
         </div>
         <div class="hitl-pending-actions hitl-inline-actions">
             <div class="hitl-input-help workflow-hitl-inline-status" aria-live="polite"></div>
-            <button class="btn-secondary workflow-hitl-inline-reject">拒绝</button>
-            <button class="btn-primary workflow-hitl-inline-approve">通过</button>
+            <button class="btn-secondary workflow-hitl-inline-reject">${escapeHtml(hitlApprovalTranslate('hitl.reject', '拒绝'))}</button>
+            <button class="btn-primary workflow-hitl-inline-approve">${escapeHtml(hitlApprovalTranslate('hitl.approve', '通过'))}</button>
         </div>
     `;
     contentEl.appendChild(panel);
@@ -5151,19 +5174,19 @@ function renderInlineWorkflowHitlApproval(itemId, data) {
             });
             const body = response && typeof response.json === 'function' ? await response.json() : null;
             if (!response || !response.ok) {
-                statusEl.textContent = (body && body.error) ? body.error : '提交失败，请重试';
+                statusEl.textContent = (body && body.error) ? body.error : hitlApprovalTranslate('hitl.submitFailedRetry', '提交失败，请重试');
                 setBusy(false);
                 return;
             }
             if (body && body.streamResuming) {
-                statusEl.textContent = approved ? '已通过，工作流继续执行中…' : '已拒绝';
+                statusEl.textContent = approved ? hitlApprovalTranslate('hitl.workflowApprovedResuming', '已通过，工作流继续执行中…') : hitlApprovalTranslate('hitl.workflowRejected', '已拒绝');
                 panel.classList.add('hitl-inline-done');
                 return;
             }
-            statusEl.textContent = approved ? '已通过，工作流继续执行' : '已拒绝';
+            statusEl.textContent = approved ? hitlApprovalTranslate('hitl.workflowApprovedContinue', '已通过，工作流继续执行') : hitlApprovalTranslate('hitl.workflowRejected', '已拒绝');
             panel.classList.add('hitl-inline-done');
         } catch (e) {
-            statusEl.textContent = '提交失败：' + (e && e.message ? e.message : 'unknown error');
+            statusEl.textContent = hitlApprovalTranslate('hitl.submitFailedPrefix', '提交失败：') + (e && e.message ? e.message : 'unknown error');
             setBusy(false);
         }
     };
@@ -5272,7 +5295,7 @@ async function restoreWorkflowHitlInlineForConversation(conversationId) {
                 const timeline = detailsContainer.querySelector('.progress-timeline');
                 if (timeline && typeof addTimelineItem === 'function') {
                     const itemId = addTimelineItem(timeline, 'workflow_hitl_waiting', {
-                        title: '🧑‍⚖️ 工作流等待审批',
+                        title: typeof window.t === 'function' ? window.t('timeline.workflowHitlWaiting') : '🧑‍⚖️ 工作流等待审批',
                         message: hitlData.label || '',
                         data: hitlData
                     });
@@ -5298,7 +5321,7 @@ window.submitWorkflowHitlDecision = async function submitWorkflowHitlDecision(ru
     });
     const body = response && typeof response.json === 'function' ? await response.json() : null;
     if (!response || !response.ok) {
-        throw new Error((body && body.error) ? body.error : '提交失败');
+        throw new Error((body && body.error) ? body.error : (typeof window.t === 'function' ? window.t('hitl.workflowSubmitFailed') : '提交失败'));
     }
     return body;
 };
@@ -6129,7 +6152,7 @@ async function renderToolCallDetailContent(item) {
             item.classList.remove('tool-call-detail-expanded');
             renderToolCallDetailContent(item);
         } catch (e) {
-            content.innerHTML = '<div class="progress-timeline-empty">' + escapeHtml(e && e.message ? e.message : '加载失败') + '</div>';
+            content.innerHTML = '<div class="progress-timeline-empty">' + escapeHtml(e && e.message ? e.message : (typeof window.t === 'function' ? window.t('common.loadFailed') : '加载失败')) + '</div>';
         }
         return;
     }
@@ -6145,7 +6168,9 @@ async function renderToolCallDetailContent(item) {
         if (state.hitlData && state.hitlData.interruptId) {
             pendingOpts = {
                 pending: true,
-                pendingText: state.hitlData.resolved ? '已通过，等待执行结果' : '等待审批，通过后执行'
+                pendingText: state.hitlData.resolved
+                    ? (typeof window.t === 'function' ? window.t('timeline.pendingApprovedWaiting') : '已通过，等待执行结果')
+                    : (typeof window.t === 'function' ? window.t('timeline.pendingWaitingApproval') : '等待审批，通过后执行')
             };
         }
         resultBlock = '<div class="tool-details tool-result-slot">' +
@@ -6155,7 +6180,7 @@ async function renderToolCallDetailContent(item) {
 
     const paramsLabel = typeof window.t === 'function' ? window.t('timeline.params') : '参数:';
     const hitlEditedArgsLabel = state.argsEditedByHitl
-        ? '<span class="tool-args-hitl-edited">已按 HITL 改参执行</span>'
+        ? `<span class="tool-args-hitl-edited" data-i18n="timeline.argsEditedByHitl">${escapeHtml(typeof window.t === 'function' ? window.t('timeline.argsEditedByHitl') : '已按 HITL 改参执行')}</span>`
         : '';
     const argsBlock = state.hideArgs ? '' :
         '<div class="tool-arg-section">' +
@@ -6543,15 +6568,20 @@ function buildWorkflowConditionResultHtml(data) {
     const expr = (data && data.expression) || output.condition || '';
     const matched = (data && (data.matched === true || data.matched === 'true'))
         || output.matched === true || output.matched === 'true';
-    const branchText = matched ? '是（true）' : '否（false）';
+    const branchText = matched
+        ? (typeof window.t === 'function' ? window.t('timeline.conditionTrue') : '是（true）')
+        : (typeof window.t === 'function' ? window.t('timeline.conditionFalse') : '否（false）');
+    const exprLabel = typeof window.t === 'function' ? window.t('timeline.conditionExpressionLabel') : '表达式';
+    const resultLabel = typeof window.t === 'function' ? window.t('timeline.conditionResultLabel') : '结果';
+    const emptyValue = typeof window.t === 'function' ? window.t('timeline.conditionEmptyValue') : '（空）';
     const branchClass = matched ? 'is-true' : 'is-false';
     return `<div class="timeline-item-content workflow-condition-result">
         <div class="workflow-condition-row">
-            <span class="workflow-agent-io-label">表达式</span>
-            <code>${escapeHtml(String(expr || '（空）'))}</code>
+            <span class="workflow-agent-io-label">${escapeHtml(exprLabel)}</span>
+            <code>${escapeHtml(String(expr || emptyValue))}</code>
         </div>
         <div class="workflow-condition-row">
-            <span class="workflow-agent-io-label">结果</span>
+            <span class="workflow-agent-io-label">${escapeHtml(resultLabel)}</span>
             <span class="workflow-condition-branch ${branchClass}">${escapeHtml(branchText)}</span>
         </div>
     </div>`;
@@ -6560,8 +6590,9 @@ function buildWorkflowConditionResultHtml(data) {
 function buildWorkflowBranchDetailHtml(data) {
     const cond = (data && data.edgeCondition) || '';
     if (!cond) return '';
+    const condLabel = typeof window.t === 'function' ? window.t('workflows.config.edgeCondition') : '连线条件';
     return `<div class="timeline-item-content workflow-branch-detail">
-        <span class="workflow-agent-io-label">连线条件</span>
+        <span class="workflow-agent-io-label">${escapeHtml(condLabel)}</span>
         <code>${escapeHtml(cond)}</code>
     </div>`;
 }
@@ -6835,19 +6866,20 @@ function addTimelineItem(timeline, type, options) {
             if (source || preview) {
                 const previewText = String(preview || '').trim();
                 const summaryPreview = previewText.length > 80 ? (previewText.slice(0, 80) + '...') : previewText;
+                const inputLabel = typeof window.t === 'function' ? window.t('timeline.agentInputLabel') : '输入';
                 prefix = `<details class="workflow-agent-input">
                     <summary>
-                        <span class="workflow-agent-io-label">输入</span>
+                        <span class="workflow-agent-io-label">${escapeHtml(inputLabel)}</span>
                         ${source ? `<code>${escapeHtml(source)}</code>` : ''}
                         ${summaryPreview ? `<span class="workflow-agent-input-summary">${escapeHtml(summaryPreview)}</span>` : ''}
                     </summary>
-                    ${previewText ? `<pre>${escapeHtml(previewText)}</pre>` : '<div class="workflow-agent-empty">暂无输入预览</div>'}
+                    ${previewText ? `<pre>${escapeHtml(previewText)}</pre>` : `<div class="workflow-agent-empty" data-i18n="timeline.agentEmptyInputPreview">${escapeHtml(typeof window.t === 'function' ? window.t('timeline.agentEmptyInputPreview') : '暂无输入预览')}</div>`}
                 </details>`;
             }
         }
         const body = type === 'workflow_agent_output'
             ? `<div class="workflow-agent-output">
-                <div class="workflow-agent-io-label">输出</div>
+                <div class="workflow-agent-io-label">${escapeHtml(typeof window.t === 'function' ? window.t('workflows.nodes.output') : '输出')}</div>
                 <div class="workflow-agent-output-body">${formatTimelinePlainTextHtml(options.message)}</div>
             </div>`
             : formatTimelinePlainTextHtml(options.message);
@@ -7401,7 +7433,7 @@ async function refreshMonitorPanel(page = null) {
         const monitorResp = await apiFetch(url, { method: 'GET' });
         const result = await monitorResp.json().catch(() => ({}));
         if (!monitorResp.ok) {
-            throw new Error(result.error || '获取监控数据失败');
+            throw new Error(result.error || mcpMonitorT('loadMonitorFailed') || '获取监控数据失败');
         }
         if (mySeq !== monitorPanelFetchSeq) {
             return;
@@ -7634,7 +7666,7 @@ async function refreshMonitorPanelWithFilter(statusFilter = 'all', toolFilter = 
         const monitorResp = await apiFetch(url, { method: 'GET' });
         const result = await monitorResp.json().catch(() => ({}));
         if (!monitorResp.ok) {
-            throw new Error(result.error || '获取监控数据失败');
+            throw new Error(result.error || mcpMonitorT('loadMonitorFailed') || '获取监控数据失败');
         }
         if (mySeq !== monitorPanelFetchSeq) {
             return;

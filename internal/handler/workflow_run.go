@@ -23,7 +23,7 @@ func (h *WorkflowHandler) SetRuntime(agent *agent.Agent, cfg *config.Config) {
 func (h *WorkflowHandler) GetRun(c *gin.Context) {
 	runID := strings.TrimSpace(c.Param("runId"))
 	if !h.workflowRunAllowed(c, runID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	run, err := h.db.GetWorkflowRun(runID)
@@ -32,7 +32,7 @@ func (h *WorkflowHandler) GetRun(c *gin.Context) {
 		return
 	}
 	if run == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "工作流运行不存在"})
+		respondError(c, http.StatusNotFound, "工作流运行不存在", "workflow run not found")
 		return
 	}
 	nodeRuns, err := h.db.ListWorkflowNodeRuns(runID)
@@ -46,7 +46,7 @@ func (h *WorkflowHandler) GetRun(c *gin.Context) {
 func (h *WorkflowHandler) ReplayRun(c *gin.Context) {
 	runID := strings.TrimSpace(c.Param("runId"))
 	if !h.workflowRunAllowed(c, runID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	nodeRuns, err := h.db.ListWorkflowNodeRuns(runID)
@@ -78,7 +78,7 @@ func (h *WorkflowHandler) ReplayRun(c *gin.Context) {
 func (h *WorkflowHandler) ListPendingRuns(c *gin.Context) {
 	conversationID := strings.TrimSpace(c.Query("conversationId"))
 	if conversationID != "" && !h.workflowConversationAllowed(c, conversationID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	runs, err := h.db.ListWorkflowRunsAwaitingHITLFiltered(conversationID, 50)
@@ -99,17 +99,17 @@ type workflowResumeRequest struct {
 
 func (h *WorkflowHandler) ResumeRun(c *gin.Context) {
 	if h.agent == nil || h.cfg == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "工作流运行时未初始化"})
+		respondError(c, http.StatusServiceUnavailable, "工作流运行时未初始化", "workflow runtime not initialized")
 		return
 	}
 	runID := strings.TrimSpace(c.Param("runId"))
 	if !h.workflowRunAllowed(c, runID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	var req workflowResumeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的请求参数: %s", "invalid request parameter: %s"), err.Error())})
 		return
 	}
 	run, err := h.db.GetWorkflowRun(runID)
@@ -118,7 +118,7 @@ func (h *WorkflowHandler) ResumeRun(c *gin.Context) {
 		return
 	}
 	if run == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "工作流运行不存在"})
+		respondError(c, http.StatusNotFound, "工作流运行不存在", "workflow run not found")
 		return
 	}
 	role := config.RoleConfig{Name: strings.TrimSpace(run.RoleID)}
@@ -131,7 +131,7 @@ func (h *WorkflowHandler) ResumeRun(c *gin.Context) {
 		}
 	}
 	if run.Status != "awaiting_hitl" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "工作流运行不在等待审批状态: " + run.Status})
+		respondErrorf(c, http.StatusBadRequest, "工作流运行不在等待审批状态: %s", "workflow run is not awaiting approval, current status: %s", run.Status)
 		return
 	}
 	if err := h.db.RecordWorkflowRunHITLDecision(runID, req.Approved, req.Comment); err != nil {

@@ -1776,12 +1776,12 @@ func (h *RobotHandler) sendWecomReply(c *gin.Context, toUser, fromUser, content,
 func (h *RobotHandler) CreateRobotBindingCode(c *gin.Context) {
 	session, ok := security.CurrentSession(c)
 	if !ok || strings.TrimSpace(session.UserID) == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未授权访问"})
+		respondError(c, http.StatusUnauthorized, "未授权访问", "unauthorized access")
 		return
 	}
 	random := make([]byte, 5)
 	if _, err := rand.Read(random); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成绑定码失败"})
+		respondError(c, http.StatusInternalServerError, "生成绑定码失败", "failed to generate binding code")
 		return
 	}
 	raw := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(random)
@@ -1789,7 +1789,7 @@ func (h *RobotHandler) CreateRobotBindingCode(c *gin.Context) {
 	expiresAt := time.Now().Add(robotBindingCodeTTL)
 	if err := h.db.CreateRobotBindingCode(session.UserID, hashRobotBindingCode(code), expiresAt); err != nil {
 		h.logger.Warn("创建机器人绑定码失败", zap.String("user_id", session.UserID), zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成绑定码失败"})
+		respondError(c, http.StatusInternalServerError, "生成绑定码失败", "failed to generate binding code")
 		return
 	}
 	if h.audit != nil {
@@ -1804,12 +1804,12 @@ func (h *RobotHandler) CreateRobotBindingCode(c *gin.Context) {
 func (h *RobotHandler) ListMyRobotBindings(c *gin.Context) {
 	session, ok := security.CurrentSession(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未授权访问"})
+		respondError(c, http.StatusUnauthorized, "未授权访问", "unauthorized access")
 		return
 	}
 	bindings, err := h.db.ListRobotUserBindings(session.UserID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取机器人绑定失败"})
+		respondError(c, http.StatusInternalServerError, "获取机器人绑定失败", "failed to get robot binding")
 		return
 	}
 	items := make([]gin.H, 0, len(bindings))
@@ -1826,11 +1826,11 @@ func (h *RobotHandler) ListMyRobotBindings(c *gin.Context) {
 func (h *RobotHandler) DeleteMyRobotBinding(c *gin.Context) {
 	session, ok := security.CurrentSession(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未授权访问"})
+		respondError(c, http.StatusUnauthorized, "未授权访问", "unauthorized access")
 		return
 	}
 	if err := h.db.DeleteRobotUserBindingForUser(c.Param("id"), session.UserID); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "绑定不存在"})
+		respondError(c, http.StatusNotFound, "绑定不存在", "binding not found")
 		return
 	}
 	if h.audit != nil {
@@ -1850,7 +1850,7 @@ type RobotTestRequest struct {
 func (h *RobotHandler) HandleRobotTest(c *gin.Context) {
 	var req RobotTestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求体需为 JSON，包含 platform、user_id、text"})
+		respondError(c, http.StatusBadRequest, "请求体需为 JSON，包含 platform、user_id、text", "request body must be JSON containing platform, user_id, and text")
 		return
 	}
 	platform := strings.TrimSpace(req.Platform)

@@ -167,11 +167,57 @@ function refreshRoleModalSelects() {
 }
 
 /** 角色配置中的描述：trim，并把误存为 i18n key 的字面量视为空 */
+// roles/ 目录种子角色：种子名/描述随语言翻译；用户自改过的角色名/描述按原文保留
+const SEED_ROLE_NAME_KEYS = {
+    '默认': 'chat.defaultRole',
+    '渗透测试': 'roles.seedPentest.name',
+    'API安全测试': 'roles.seedApiSecurity.name',
+    'Web应用扫描': 'roles.seedWebAppScan.name',
+    'Web框架测试': 'roles.seedWebFramework.name',
+    '信息收集': 'roles.seedInfoCollect.name',
+    '后渗透测试': 'roles.seedPostExploit.name',
+    '容器安全': 'roles.seedContainerSec.name',
+    '云安全审计': 'roles.seedCloudAudit.name',
+    '二进制分析': 'roles.seedBinary.name',
+    '数字取证': 'roles.seedForensics.name',
+    '综合漏洞扫描': 'roles.seedVulnScan.name',
+    'CTF': 'roles.seedCtf.name'
+};
+const SEED_ROLE_DESC_KEYS = {
+    '默认角色，不额外携带用户提示词，使用默认MCP': 'roles.defaultRoleDescription',
+    '专业渗透测试专家，全面深入的漏洞检测': 'roles.seedPentest.description',
+    'API安全测试专家，专注于API接口安全检测': 'roles.seedApiSecurity.description',
+    'Web应用漏洞扫描专家，全面的Web安全检测': 'roles.seedWebAppScan.description',
+    'Web框架安全测试专家，专注于Web应用框架漏洞检测': 'roles.seedWebFramework.description',
+    '资产发现与信息搜集专家': 'roles.seedInfoCollect.description',
+    '后渗透测试专家，权限维持与横向移动': 'roles.seedPostExploit.description',
+    '容器与Kubernetes安全专家，容器环境安全检测': 'roles.seedContainerSec.description',
+    '云安全审计专家，多云环境安全检测': 'roles.seedCloudAudit.description',
+    '二进制分析与利用专家，擅长逆向工程和密码破解': 'roles.seedBinary.description',
+    '数字取证与隐写分析专家，文件与内存取证': 'roles.seedForensics.description',
+    '综合漏洞扫描专家，多类型漏洞检测': 'roles.seedVulnScan.description',
+    'CTF竞赛专家，擅长解题和漏洞利用': 'roles.seedCtf.description'
+};
+
 function rolePlainDescription(role) {
     const raw = typeof role.description === 'string' ? role.description.trim() : '';
     if (!raw) return '';
     if (raw === 'roles.noDescription' || raw === 'roles.noDescriptionShort') return '';
+    const seedKey = SEED_ROLE_DESC_KEYS[raw];
+    if (seedKey) return _t(seedKey);
     return raw;
+}
+
+/** 显示用的角色名：种子名随语言翻译，用户自建的角色名按原文保留 */
+function roleDisplayName(role) {
+    if (role && (role.name === '默认' || !role.name)) {
+        return _t('chat.defaultRole');
+    }
+    if (role && role.name) {
+        const seedNameKey = SEED_ROLE_NAME_KEYS[role.name];
+        if (seedNameKey) return _t(seedNameKey);
+    }
+    return (role && role.name) || '';
 }
 
 function initSelectionDetailTooltip() {
@@ -308,7 +354,7 @@ async function loadRoles() {
     try {
         const response = await apiFetch('/api/roles');
         if (!response.ok) {
-            throw new Error('加载角色失败');
+            throw new Error(typeof window.t === 'function' ? window.t('roles.loadFailed') : '加载角色失败');
         }
         const data = await response.json();
         roles = data.roles || [];
@@ -376,8 +422,7 @@ function updateRoleSelectorDisplay() {
         }
         roleSelectorIcon.textContent = icon;
         const isDefaultRole = selectedRole.name === '默认' || !selectedRole.name;
-        const displayName = isDefaultRole && typeof window.t === 'function'
-            ? window.t('chat.defaultRole') : (selectedRole.name || (typeof window.t === 'function' ? window.t('chat.defaultRole') : '默认'));
+        const displayName = roleDisplayName(selectedRole);
         // 非默认角色时避免被 i18n 的 data-i18n 覆盖成“默认”
         roleSelectorText.setAttribute('data-i18n-skip-text', isDefaultRole ? 'false' : 'true');
         roleSelectorText.textContent = displayName;
@@ -456,7 +501,7 @@ function renderRoleSelectionSidebar() {
         roleItem.innerHTML = `
             <div class="role-selection-item-icon-main">${icon}</div>
             <div class="role-selection-item-content-main">
-                <div class="role-selection-item-name-main">${escapeHtml(role.name)}</div>
+                <div class="role-selection-item-name-main">${escapeHtml(roleDisplayName(role))}</div>
                 <div class="role-selection-item-description-main">${escapeHtml(description)}</div>
             </div>
             ${isSelected ? '<div class="role-selection-checkmark-main">✓</div>' : ''}
@@ -574,7 +619,7 @@ async function refreshRoles() {
     }
     // 始终更新侧边栏角色选择列表
     renderRoleSelectionSidebar();
-    showNotification('已刷新', 'success');
+    showNotification(typeof window.t === 'function' ? window.t('roles.refreshed') : '已刷新', 'success');
 }
 
 // 渲染角色列表
@@ -582,13 +627,14 @@ function renderRolesList() {
     const rolesList = document.getElementById('roles-list');
     if (!rolesList) return;
 
-    // 过滤角色（根据搜索关键词）
+    // 过滤角色（根据搜索关键词）：种子角色也按翻译后的名/描述匹配
     let filteredRoles = roles;
     if (rolesSearchKeyword) {
         const keyword = rolesSearchKeyword.toLowerCase();
-        filteredRoles = roles.filter(role => 
+        filteredRoles = roles.filter(role =>
             role.name.toLowerCase().includes(keyword) ||
-            (role.description && role.description.toLowerCase().includes(keyword))
+            rolePlainDescription(role).toLowerCase().includes(keyword) ||
+            roleDisplayName(role).toLowerCase().includes(keyword)
         );
     }
 
@@ -651,7 +697,7 @@ function renderRolesList() {
             <div class="role-card-header">
                 <h3 class="role-card-title">
                     <span class="role-card-icon">${roleIcon}</span>
-                    ${escapeHtml(role.name)}
+                    ${escapeHtml(roleDisplayName(role))}
                 </h3>
                 <span class="role-card-badge ${role.enabled !== false ? 'enabled' : 'disabled'}">
                     ${role.enabled !== false ? _t('roles.enabled') : _t('roles.disabled')}
@@ -787,7 +833,7 @@ async function fetchAllRoleToolsIntoCache(searchKeyword) {
         }
         const response = await apiFetch(url);
         if (!response.ok) {
-            throw new Error('获取工具列表失败');
+            throw new Error(typeof window.t === 'function' ? window.t('roles.fetchToolsFailed') : '获取工具列表失败');
         }
         const result = await response.json();
         const tools = result.tools || [];
@@ -869,7 +915,7 @@ async function loadRoleTools(page = 1, searchKeyword = '') {
 
             const response = await apiFetch(url);
             if (!response.ok) {
-                throw new Error('获取工具列表失败');
+                throw new Error(typeof window.t === 'function' ? window.t('roles.fetchToolsFailed') : '获取工具列表失败');
             }
 
             const result = await response.json();
@@ -958,8 +1004,12 @@ function renderRoleToolsList() {
         let externalBadge = '';
         if (toolState.is_external || tool.is_external) {
             const externalMcpName = toolState.external_mcp || tool.external_mcp || '';
-            const badgeText = externalMcpName ? `外部 (${escapeHtml(externalMcpName)})` : '外部';
-            const badgeTitle = externalMcpName ? `外部MCP工具 - 来源：${escapeHtml(externalMcpName)}` : '外部MCP工具';
+            const badgeText = externalMcpName
+                ? (typeof window.t === 'function' ? window.t('roles.externalBadgeWithName', { name: escapeHtml(externalMcpName) }) : `外部 (${escapeHtml(externalMcpName)})`)
+                : (typeof window.t === 'function' ? window.t('roles.externalBadge') : '外部');
+            const badgeTitle = externalMcpName
+                ? (typeof window.t === 'function' ? window.t('roles.externalToolBadgeTitleSource', { name: escapeHtml(externalMcpName) }) : `外部MCP工具 - 来源：${escapeHtml(externalMcpName)}`)
+                : (typeof window.t === 'function' ? window.t('roles.externalToolBadgeTitle') : '外部MCP工具');
             externalBadge = `<span class="external-tool-badge" title="${escapeAttr(badgeTitle)}">${badgeText}</span>`;
         }
         let mcpDisabledBadge = '';
@@ -979,7 +1029,7 @@ function renderRoleToolsList() {
                     ${externalBadge}
                     ${mcpDisabledBadge}
                 </div>
-                <div class="role-tool-item-desc">${escapeHtml(tool.description || '无描述')}</div>
+                <div class="role-tool-item-desc">${escapeHtml(tool.description || (typeof window.t === 'function' ? window.t('roles.noDescriptionShort') : '无描述'))}</div>
             </div>
         `;
         listContainer.appendChild(toolItem);
@@ -1589,11 +1639,11 @@ async function loadAllToolsToStateMap() {
             const url = `/api/config/tools?page=${page}&page_size=${pageSize}`;
             const response = await apiFetch(url);
             if (!response.ok) {
-                throw new Error('获取工具列表失败');
+                throw new Error(typeof window.t === 'function' ? window.t('roles.fetchToolsFailed') : '获取工具列表失败');
             }
-            
+
             const result = await response.json();
-            
+
             // 将所有工具添加到状态映射中
             result.tools.forEach(tool => {
                 const toolKey = getToolKey(tool);
@@ -1751,7 +1801,9 @@ async function saveRole() {
         // 如果有未启用的工具，提示用户
         if (disabledTools.length > 0) {
             const toolNames = disabledTools.map(t => t.name).join('、');
-            const message = `以下 ${disabledTools.length} 个工具未在MCP管理中启用，无法在角色中配置：\n\n${toolNames}\n\n请先在"MCP管理"中启用这些工具，然后再在角色中配置。\n\n是否继续保存？（将只保存已启用的工具）`;
+            const message = typeof window.t === 'function'
+                ? window.t('roles.disabledToolsConfirm', { count: disabledTools.length, tools: toolNames })
+                : `以下 ${disabledTools.length} 个工具未在MCP管理中启用，无法在角色中配置：\n\n${toolNames}\n\n请先在"MCP管理"中启用这些工具，然后再在角色中配置。\n\n是否继续保存？（将只保存已启用的工具）`;
             
             if (!confirm(message)) {
                 return; // 用户取消保存
@@ -1790,7 +1842,7 @@ async function saveRole() {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || '保存角色失败');
+            throw new Error(error.error || (typeof window.t === 'function' ? window.t('roles.saveFailed') : '保存角色失败'));
         }
 
         // 如果有未启用的工具被过滤掉了，提示用户
@@ -1800,19 +1852,27 @@ async function saveRole() {
             if (toolNames.length > 100) {
                 toolNames = toolNames.substring(0, 100) + '...';
             }
+            const filteredKey = isEdit ? 'roles.roleUpdatedWithFilteredTools' : 'roles.roleCreatedWithFilteredTools';
             showNotification(
-                `${isEdit ? '角色已更新' : '角色已创建'}，但已过滤 ${disabledTools.length} 个未在MCP管理中启用的工具：${toolNames}。请先在"MCP管理"中启用这些工具，然后再在角色中配置。`,
+                typeof window.t === 'function'
+                    ? window.t(filteredKey, { count: disabledTools.length, tools: toolNames })
+                    : `${isEdit ? '角色已更新' : '角色已创建'}，但已过滤 ${disabledTools.length} 个未在MCP管理中启用的工具：${toolNames}。请先在"MCP管理"中启用这些工具，然后再在角色中配置。`,
                 'warning'
             );
         } else {
-            showNotification(isEdit ? '角色已更新' : '角色已创建', 'success');
+            showNotification(
+                typeof window.t === 'function'
+                    ? window.t(isEdit ? 'roles.roleUpdated' : 'roles.roleCreated')
+                    : (isEdit ? '角色已更新' : '角色已创建'),
+                'success'
+            );
         }
         
         closeRoleModal();
         await refreshRoles();
     } catch (error) {
         console.error('保存角色失败:', error);
-        showNotification('保存角色失败: ' + error.message, 'error');
+        showNotification((typeof window.t === 'function' ? window.t('roles.saveFailed') : '保存角色失败') + ': ' + error.message, 'error');
     }
 }
 
@@ -1823,7 +1883,7 @@ async function deleteRole(roleName) {
         return;
     }
 
-    if (!confirm(`确定要删除角色"${roleName}"吗？此操作不可撤销。`)) {
+    if (!confirm(typeof window.t === 'function' ? window.t('roles.deleteRoleConfirm', { name: roleName }) : `确定要删除角色"${roleName}"吗？此操作不可撤销。`)) {
         return;
     }
 
@@ -1834,10 +1894,10 @@ async function deleteRole(roleName) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || '删除角色失败');
+            throw new Error(error.error || (typeof window.t === 'function' ? window.t('roles.deleteFailed') : '删除角色失败'));
         }
 
-        showNotification('角色已删除', 'success');
+        showNotification(typeof window.t === 'function' ? window.t('roles.deleted') : '角色已删除', 'success');
         
         // 如果删除的是当前选中的角色,切换到默认角色
         if (currentRole === roleName) {
@@ -1847,7 +1907,7 @@ async function deleteRole(roleName) {
         await refreshRoles();
     } catch (error) {
         console.error('删除角色失败:', error);
-        showNotification('删除角色失败: ' + error.message, 'error');
+        showNotification((typeof window.t === 'function' ? window.t('roles.deleteFailed') : '删除角色失败') + ': ' + error.message, 'error');
     }
 }
 
@@ -1894,6 +1954,10 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('languagechange', () => {
     updateRoleSelectorDisplay();
     renderRoleSelectionSidebar();
+    const currentPage = typeof window.currentPage === 'function' ? window.currentPage() : (window.currentPage || 'chat');
+    if (currentPage === 'roles-management') {
+        renderRolesList();
+    }
     syncAllRoleModalSelects();
 });
 

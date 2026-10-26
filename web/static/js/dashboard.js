@@ -851,7 +851,7 @@ function renderDashboardAlertBanner(stats) {
         titleEl.textContent = dt('dashboard.alertTitle', null, '提醒');
     }
 
-    descEl.textContent = reasons.join('；');
+    descEl.textContent = reasons.join(dt('dashboard.alertReasonSeparator', null, '；'));
 
     actsEl.innerHTML = '';
     if (stats.criticalCount > 0) {

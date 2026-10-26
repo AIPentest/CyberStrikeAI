@@ -52,12 +52,12 @@ type changePasswordRequest struct {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "密码不能为空"})
+		respondError(c, http.StatusBadRequest, "密码不能为空", "password must not be empty")
 		return
 	}
 	req.Username = strings.TrimSpace(req.Username)
 	if req.Username == "" || utf8.RuneCountInString(req.Username) > 64 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "用户名不能为空，且不能超过 64 个字符"})
+		respondError(c, http.StatusBadRequest, "用户名不能为空，且不能超过 64 个字符", "username must not be empty and no more than 64 characters")
 		return
 	}
 
@@ -73,7 +73,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 				Actor:    strings.TrimSpace(req.Username),
 			})
 		}
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "密码错误"})
+		respondError(c, http.StatusUnauthorized, "密码错误", "wrong password")
 		return
 	}
 	session, _ := h.manager.ValidateToken(token)
@@ -129,14 +129,14 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 			Message:  "退出登录",
 		})
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "已退出登录"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "已退出登录", "logged out")})
 }
 
 // ChangePassword updates the login password.
 func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	var req changePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "参数无效"})
+		respondError(c, http.StatusBadRequest, "参数无效", "invalid parameter")
 		return
 	}
 
@@ -144,17 +144,17 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	newPassword := strings.TrimSpace(req.NewPassword)
 
 	if oldPassword == "" || newPassword == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "当前密码和新密码均不能为空"})
+		respondError(c, http.StatusBadRequest, "当前密码和新密码均不能为空", "current and new passwords must not be empty")
 		return
 	}
 
 	if len(newPassword) < 8 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "新密码长度至少需要 8 位"})
+		respondError(c, http.StatusBadRequest, "新密码长度至少需要 8 位", "new password must be at least 8 characters")
 		return
 	}
 
 	if oldPassword == newPassword {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "新密码不能与旧密码相同"})
+		respondError(c, http.StatusBadRequest, "新密码不能与旧密码相同", "new password must differ from the old password")
 		return
 	}
 
@@ -172,7 +172,7 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 				Message:  "修改密码失败：当前密码不正确",
 			})
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": "当前密码不正确"})
+		respondError(c, http.StatusBadRequest, "当前密码不正确", "current password is incorrect")
 		return
 	}
 
@@ -183,7 +183,7 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		if h.logger != nil {
 			h.logger.Error("更新用户密码失败", zap.Error(err))
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新用户密码失败"})
+		respondError(c, http.StatusInternalServerError, "更新用户密码失败", "failed to update user password")
 		return
 	}
 
@@ -200,20 +200,20 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "密码已更新，请使用新密码重新登录"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "密码已更新，请使用新密码重新登录", "password updated, please log in again with the new password")})
 }
 
 // Validate returns the current session status.
 func (h *AuthHandler) Validate(c *gin.Context) {
 	token := c.GetString(security.ContextAuthTokenKey)
 	if token == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "会话无效"})
+		respondError(c, http.StatusUnauthorized, "会话无效", "invalid session")
 		return
 	}
 
 	session, ok := h.manager.ValidateToken(token)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "会话已过期"})
+		respondError(c, http.StatusUnauthorized, "会话已过期", "session expired")
 		return
 	}
 

@@ -25,17 +25,17 @@ func (h *AgentHandler) submitAgentRun(c *gin.Context, multi bool) {
 	h.submitAgentRunWithExecutor(c, multi, h.executeAcceptedRun)
 }
 
-type acceptedRunExecutor func(context.Context, context.Context, context.CancelCauseFunc, context.CancelFunc, ChatRequest, *multiAgentPrepared, *database.AgentRun, bool)
+type acceptedRunExecutor func(context.Context, context.Context, context.CancelCauseFunc, context.CancelFunc, ChatRequest, *multiAgentPrepared, *database.AgentRun, bool, bool)
 
 func (h *AgentHandler) submitAgentRunWithExecutor(c *gin.Context, multi bool, execute acceptedRunExecutor) {
 	session, ok := security.CurrentSession(c)
 	if !ok || !session.Permissions["chat:write"] || !session.Permissions["agent:execute"] {
-		c.JSON(403, gin.H{"error": "forbidden"})
+		respondError(c, http.StatusForbidden, "无权访问", "forbidden")
 		return
 	}
 	key := strings.TrimSpace(c.GetHeader("Idempotency-Key"))
 	if key == "" || len(key) > 200 {
-		c.JSON(400, gin.H{"error": "Idempotency-Key must contain 1–200 bytes"})
+		respondError(c, http.StatusBadRequest, "Idempotency-Key 需为 1–200 字字节", "Idempotency-Key must contain 1–200 bytes")
 		return
 	}
 	var req ChatRequest
@@ -55,22 +55,22 @@ func (h *AgentHandler) submitAgentRunWithExecutor(c *gin.Context, multi bool, ex
 	old, err := h.db.FindAgentRun(session.UserID, key)
 	if err == nil {
 		if old.Fingerprint != fingerprint {
-			c.JSON(409, gin.H{"error": "idempotency key reused with different request"})
+			respondError(c, http.StatusConflict, "该 Idempotency-Key 已使用，但与本次请求不一致", "idempotency key reused with different request")
 			return
 		}
 		if !h.agentConversationAllowed(c, old.ConversationID) {
-			c.JSON(403, gin.H{"error": "forbidden"})
+			respondError(c, http.StatusForbidden, "无权访问", "forbidden")
 			return
 		}
 		h.agentRunReceipt(c, old)
 		return
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
-		c.JSON(500, gin.H{"error": "cannot read run receipt"})
+		respondError(c, http.StatusInternalServerError, "读取运行凭证失败", "cannot read run receipt")
 		return
 	}
 	if h.config == nil || (multi && !h.config.MultiAgent.Enabled) {
-		c.JSON(400, gin.H{"error": "agent mode unavailable"})
+		respondError(c, http.StatusBadRequest, "代理模式不可用", "agent mode unavailable")
 		return
 	}
 	if _, _, err := h.configForAIChannel(req.AIChannelID); err != nil {
@@ -79,11 +79,11 @@ func (h *AgentHandler) submitAgentRunWithExecutor(c *gin.Context, multi bool, ex
 	}
 	if id := strings.TrimSpace(req.ConversationID); id != "" {
 		if !h.agentConversationAllowed(c, id) {
-			c.JSON(403, gin.H{"error": "forbidden"})
+			respondError(c, http.StatusForbidden, "无权访问", "forbidden")
 			return
 		}
 		if h.tasks.GetTask(id) != nil {
-			c.JSON(409, gin.H{"error": "conversation already running"})
+			respondError(c, http.StatusConflict, "该对话已有任务正在执行", "conversation already running")
 			return
 		}
 	}
@@ -111,17 +111,19 @@ func (h *AgentHandler) submitAgentRunWithExecutor(c *gin.Context, multi bool, ex
 		timeoutCancel()
 		cancel(nil)
 		_ = h.tasks.FinishTaskRun(prep.ConversationID, task.RunID, "failed")
-		c.JSON(500, gin.H{"error": "cannot persist run receipt"})
+		respondError(c, http.StatusInternalServerError, "保存运行凭证失败", "cannot persist run receipt")
 		return
 	}
 	ctx = h.tasks.BindProcessScope(ctx, prep.ConversationID, task.RunID)
 	ctx = mcp.WithMCPConversationID(ctx, prep.ConversationID)
 	ctx = mcp.WithToolRunRegistry(ctx, h.tasks)
 	ctx = mcp.WithEinoExecuteRunRegistry(ctx, h.tasks)
+	// c 可在 goroutine 启动后才结束；先取语言偏好，避免读取请求状态。
+	wantEnglish := requestWantsEnglish(c)
 	h.asyncWorkers.Add(1)
 	go func() {
 		defer h.asyncWorkers.Done()
-		execute(ctx, base, cancel, timeoutCancel, req, prep, record, multi)
+		execute(ctx, base, cancel, timeoutCancel, req, prep, record, multi, wantEnglish)
 	}()
 	h.agentRunReceipt(c, record)
 }
@@ -133,44 +135,44 @@ func (h *AgentHandler) agentRunReceipt(c *gin.Context, r *database.AgentRun) {
 func (h *AgentHandler) GetAgentRun(c *gin.Context) {
 	r, err := h.db.GetAgentRun(c.Param("runId"))
 	if errors.Is(err, sql.ErrNoRows) {
-		c.JSON(404, gin.H{"error": "run not found"})
+		respondError(c, http.StatusNotFound, "运行不存在", "run not found")
 		return
 	}
 	if err != nil {
-		c.JSON(500, gin.H{"error": "cannot read run"})
+		respondError(c, http.StatusInternalServerError, "读取运行失败", "cannot read run")
 		return
 	}
 	if !h.agentConversationAllowed(c, r.ConversationID) {
-		c.JSON(403, gin.H{"error": "forbidden"})
+		respondError(c, http.StatusForbidden, "无权访问", "forbidden")
 		return
 	}
 	c.JSON(200, r)
 }
-func (h *AgentHandler) executeAcceptedRun(ctx, base context.Context, cancel context.CancelCauseFunc, timeoutCancel context.CancelFunc, req ChatRequest, prep *multiAgentPrepared, record *database.AgentRun, multi bool) {
-	h.executeAcceptedRunBody(ctx, base, cancel, timeoutCancel, prep, record, func(status *string, respond func(int, interface{})) {
+func (h *AgentHandler) executeAcceptedRun(ctx, base context.Context, cancel context.CancelCauseFunc, timeoutCancel context.CancelFunc, req ChatRequest, prep *multiAgentPrepared, record *database.AgentRun, multi bool, wantEnglish bool) {
+	h.executeAcceptedRunBody(ctx, base, cancel, timeoutCancel, prep, record, wantEnglish, func(status *string, respond func(int, interface{})) {
 		h.activateHITLForConversation(prep.ConversationID, req.Hitl)
 		if h.hitlManager != nil {
 			defer h.hitlManager.DeactivateConversation(prep.ConversationID)
 		}
 		if role, ok := h.roleForWorkflow(&req); ok {
-			h.runWorkflowJSON(ctx, base, cancel, &req, prep, role, status, respond)
+			h.runWorkflowJSON(ctx, base, cancel, &req, prep, role, status, wantEnglish, respond)
 			return
 		}
 		if multi {
-			h.runMultiJSON(ctx, base, cancel, &req, prep, status, respond)
+			h.runMultiJSON(ctx, base, cancel, &req, prep, status, wantEnglish, respond)
 		} else {
-			h.runSingleJSON(ctx, base, cancel, &req, prep, status, respond)
+			h.runSingleJSON(ctx, base, cancel, &req, prep, status, wantEnglish, respond)
 		}
 	})
 }
 
-func (h *AgentHandler) executeAcceptedRunBody(ctx, base context.Context, cancel context.CancelCauseFunc, timeoutCancel context.CancelFunc, prep *multiAgentPrepared, record *database.AgentRun, body func(*string, func(int, interface{}))) {
+func (h *AgentHandler) executeAcceptedRunBody(ctx, base context.Context, cancel context.CancelCauseFunc, timeoutCancel context.CancelFunc, prep *multiAgentPrepared, record *database.AgentRun, wantEnglish bool, body func(*string, func(int, interface{}))) {
 	status := "failed"
-	var result interface{} = gin.H{"error": "execution ended without a result"}
+	var result interface{} = gin.H{"error": i18nText(wantEnglish, "执行结束但没有结果", "execution ended without a result")}
 	defer func() {
 		if p := recover(); p != nil {
 			status = "failed"
-			result = gin.H{"error": "internal execution failure"}
+			result = gin.H{"error": i18nText(wantEnglish, "内部执行失败", "internal execution failure")}
 			h.logger.Error("async agent panic", zap.Any("panic", p))
 		}
 		if errors.Is(context.Cause(base), ErrTaskCancelled) {

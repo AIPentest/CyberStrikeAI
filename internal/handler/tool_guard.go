@@ -38,7 +38,7 @@ func (h *ConfigHandler) GetToolGuard(c *gin.Context) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.toolGuard == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "调用拦截服务未初始化"})
+		respondError(c, http.StatusServiceUnavailable, "调用拦截服务未初始化", "tool-guard service not initialized")
 		return
 	}
 	c.Header("ETag", h.toolGuardETag())
@@ -68,11 +68,11 @@ func (h *ConfigHandler) UpdateToolGuard(c *gin.Context) {
 		Rules   *[]toolguard.Rule `json:"rules"`
 	}
 	if err := decodeToolGuardRequest(c, &req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的调用拦截配置: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的调用拦截配置: %s", "invalid tool-guard config: %s"), err.Error())})
 		return
 	}
 	if req.Enabled == nil || req.Rules == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "必须明确提供 enabled 和 rules；清空规则请提供空数组"})
+		respondError(c, http.StatusBadRequest, "必须明确提供 enabled 和 rules；清空规则请提供空数组", "enabled and rules must be provided explicitly; pass an empty array to clear rules")
 		return
 	}
 	cfg := toolguard.Config{Enabled: *req.Enabled, Rules: *req.Rules}
@@ -84,27 +84,27 @@ func (h *ConfigHandler) UpdateToolGuard(c *gin.Context) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.toolGuard == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "调用拦截服务未初始化"})
+		respondError(c, http.StatusServiceUnavailable, "调用拦截服务未初始化", "tool-guard service not initialized")
 		return
 	}
 	if c.GetHeader("If-Match") == "" {
-		c.JSON(http.StatusPreconditionRequired, gin.H{"code": "tool_guard_version_required", "error": "缺少调用拦截配置版本，请刷新页面后重试"})
+		c.JSON(http.StatusPreconditionRequired, gin.H{"code": "tool_guard_version_required", "error": i18nText(requestWantsEnglish(c), "缺少调用拦截配置版本，请刷新页面后重试", "tool-guard config version is missing, refresh the page and try again")})
 		return
 	}
 	if c.GetHeader("If-Match") != h.toolGuardETag() {
-		c.JSON(http.StatusConflict, gin.H{"code": "tool_guard_conflict", "error": "调用拦截配置已被其他用户修改，本次修改未保存。请刷新页面获取最新配置后重试"})
+		c.JSON(http.StatusConflict, gin.H{"code": "tool_guard_conflict", "error": i18nText(requestWantsEnglish(c), "调用拦截配置已被其他用户修改，本次修改未保存。请刷新页面获取最新配置后重试", "tool-guard config was modified by another user, this change was not saved. Refresh the page for the latest config and try again")})
 		return
 	}
 	// Commit the file first; a validation/write failure must leave the current
 	// effective policy and in-memory config intact.
 	if err := h.saveToolGuardConfig(cfg); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存调用拦截配置失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "保存调用拦截配置失败: %s", "failed to save tool-guard config: %s"), err.Error())})
 		return
 	}
 	if err := h.toolGuard.Update(cfg); err != nil {
 		// The same immutable input was compiled above, so this cannot fail
 		// unless validation gains an additional runtime dependency.
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "应用调用拦截配置失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "应用调用拦截配置失败: %s", "failed to apply tool-guard config: %s"), err.Error())})
 		return
 	}
 	h.config.ToolGuard = &cfg
@@ -126,11 +126,11 @@ func (h *ConfigHandler) TestToolGuard(c *gin.Context) {
 		Arguments map[string]interface{} `json:"arguments"`
 	}
 	if err := decodeToolGuardRequest(c, &req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的试匹配参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的试匹配参数: %s", "invalid test-match parameter: %s"), err.Error())})
 		return
 	}
 	if req.Config == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供待测试的 config"})
+		respondError(c, http.StatusBadRequest, "请提供待测试的 config", "provide the config to test")
 		return
 	}
 	policy, err := toolguard.Compile(*req.Config)

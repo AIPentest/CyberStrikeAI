@@ -145,7 +145,7 @@ func TestAsyncWorkerFinalizesCancellationDeadlineAndPanic(t *testing.T) {
 				t.Fatal(err)
 			}
 			prep := &multiAgentPrepared{ConversationID: "conv"}
-			h.executeAcceptedRunBody(ctx, base, cancel, timeout, prep, r, func(status *string, respond func(int, interface{})) {
+			h.executeAcceptedRunBody(ctx, base, cancel, timeout, prep, r, false, func(status *string, respond func(int, interface{})) {
 				if mode == "panic" {
 					panic("test")
 				}

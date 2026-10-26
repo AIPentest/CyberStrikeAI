@@ -793,9 +793,9 @@ async function loadConfig(loadTools = true, options = {}) {
         const response = await apiFetch('/api/config');
         if (!response.ok) {
             if (typeof readApiError === 'function') {
-                throw new Error(await readApiError(response, '获取配置失败'));
+                throw new Error(await readApiError(response, settingsT('settings.apply.getConfigFailed', '获取配置失败')));
             }
-            throw new Error('获取配置失败');
+            throw new Error(settingsT('settings.apply.getConfigFailed', '获取配置失败'));
         }
         
         currentConfig = await response.json();
@@ -1295,11 +1295,11 @@ async function loadToolsList(page = 1, searchKeyword = '', options = {}) {
         
         if (!response.ok) {
             if (typeof readApiError === 'function') {
-                throw new Error(await readApiError(response, '获取工具列表失败'));
+                throw new Error(await readApiError(response, settingsT('mcp.loadToolsFailed', '获取工具列表失败')));
             }
-            throw new Error('获取工具列表失败');
+            throw new Error(settingsT('mcp.loadToolsFailed', '获取工具列表失败'));
         }
-        
+
         const result = await response.json();
         if (requestSequence !== toolsLoadSequence) return;
 
@@ -1464,7 +1464,7 @@ function renderToolsList() {
         if (toolState.is_external || tool.is_external) {
             const externalMcpName = toolState.external_mcp || tool.external_mcp || '';
             const badgeText = externalMcpName ? (typeof window.t === 'function' ? window.t('mcp.externalFrom', { name: escapeHtml(externalMcpName) }) : `外部 (${escapeHtml(externalMcpName)})`) : (typeof window.t === 'function' ? window.t('mcp.externalBadge') : '外部');
-            const badgeTitle = externalMcpName ? (typeof window.t === 'function' ? window.t('mcp.externalToolFrom', { name: escapeHtml(externalMcpName) }) + ' — 点击跳转' : `外部MCP工具 - 来源：${escapeHtml(externalMcpName)} — 点击跳转`) : (typeof window.t === 'function' ? window.t('mcp.externalBadge') : '外部MCP工具');
+            const badgeTitle = externalMcpName ? (typeof window.t === 'function' ? window.t('mcp.externalToolFromClickHint', { name: escapeHtml(externalMcpName) }) : `外部MCP工具 - 来源：${escapeHtml(externalMcpName)} — 点击跳转`) : (typeof window.t === 'function' ? window.t('mcp.externalToolBadgeHint') : '外部MCP工具');
             if (externalMcpName) {
                 externalBadge = `<span class="external-tool-badge clickable" onclick="scrollToExternalMCP(${settingsEscapeJsStringAttr(externalMcpName)}, event)" title="${settingsEscapeAttr(badgeTitle)}">${badgeText}</span>`;
             } else {
@@ -1532,8 +1532,8 @@ function toggleToolDetail(infoEl, toolKey, isExternal, externalMcp, event) {
         // 先显示加载状态
         detail.innerHTML = `
             <div class="tool-detail-desc">${escapeHtml(fullDesc)}</div>
-            <div class="tool-detail-section-title">参数定义</div>
-            <div style="color:var(--text-tertiary);font-size:0.8125rem;padding:4px 0;">加载中...</div>
+            <div class="tool-detail-section-title">${settingsT('mcp.paramDefinition', '参数定义')}</div>
+            <div style="color:var(--text-tertiary);font-size:0.8125rem;padding:4px 0;">${settingsT('common.loading', '加载中...')}</div>
         `;
 
         // 解析工具名（外部工具 toolKey 格式为 mcpName::toolName）
@@ -1556,7 +1556,7 @@ function toggleToolDetail(infoEl, toolKey, isExternal, externalMcp, event) {
                     const paramKeys = Object.keys(props);
                     if (paramKeys.length > 0) {
                         schemaHTML = `<table class="tool-schema-table">
-                            <thead><tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+                            <thead><tr><th>${settingsT('mcp.paramColumn', '参数')}</th><th>${settingsT('mcp.paramTypeColumn', '类型')}</th><th>${settingsT('mcp.paramRequiredColumn', '必填')}</th><th>${settingsT('mcp.paramDescColumn', '说明')}</th></tr></thead>
                             <tbody>`;
                         paramKeys.forEach(key => {
                             const p = props[key] || {};
@@ -1574,19 +1574,19 @@ function toggleToolDetail(infoEl, toolKey, isExternal, externalMcp, event) {
                     }
                 }
                 if (!schemaHTML) {
-                    schemaHTML = '<div style="color:var(--text-tertiary);font-size:0.8125rem;padding:4px 0;">无参数定义</div>';
+                    schemaHTML = `<div style="color:var(--text-tertiary);font-size:0.8125rem;padding:4px 0;">${settingsT('mcp.noParamDefinition', '无参数定义')}</div>`;
                 }
                 detail.innerHTML = `
                     <div class="tool-detail-desc">${escapeHtml(fullDesc)}</div>
-                    <div class="tool-detail-section-title">参数定义</div>
+                    <div class="tool-detail-section-title">${settingsT('mcp.paramDefinition', '参数定义')}</div>
                     ${schemaHTML}
                 `;
             })
             .catch(() => {
                 detail.innerHTML = `
                     <div class="tool-detail-desc">${escapeHtml(fullDesc)}</div>
-                    <div class="tool-detail-section-title">参数定义</div>
-                    <div style="color:var(--text-tertiary);font-size:0.8125rem;padding:4px 0;">加载失败</div>
+                    <div class="tool-detail-section-title">${settingsT('mcp.paramDefinition', '参数定义')}</div>
+                    <div style="color:var(--text-tertiary);font-size:0.8125rem;padding:4px 0;">${settingsT('common.loadFailed', '加载失败')}</div>
                 `;
             });
     }
@@ -2250,7 +2250,7 @@ async function applySettings() {
                 
                 const pageResponse = await apiFetch(url);
                 if (!pageResponse.ok) {
-                    throw new Error('获取工具列表失败');
+                    throw new Error(settingsT('mcp.loadToolsFailed', '获取工具列表失败'));
                 }
                 
                 const pageResult = await pageResponse.json();
@@ -2984,7 +2984,7 @@ function validateSelectedAIChannelPayload(ch) {
     const missing = [];
     if (!String(ch.base_url || '').trim()) missing.push('Base URL');
     if (!String(ch.api_key || '').trim()) missing.push('API Key');
-    if (!String(ch.model || '').trim()) missing.push('模型');
+    if (!String(ch.model || '').trim()) missing.push(settingsT('settingsBasic.model', '模型'));
     if (missing.length) {
         return missing.join(', ');
     }
@@ -3036,8 +3036,9 @@ async function persistAIChannelsToServer(successMessage, options = {}) {
     selectedAIChannelId = id;
     const missing = validateSelectedAIChannelPayload(channelPayload);
     if (missing) {
-        showAIChannelSaveHint(`请填写：${missing}`, false);
-        alert(`请填写：${missing}`);
+        const missingMsg = settingsT('settingsBasic.aiChannelFillMissing', '请填写：{missing}').replace('{missing}', missing);
+        showAIChannelSaveHint(missingMsg, false);
+        alert(missingMsg);
         return false;
     }
     renderAIChannelSelect();
@@ -3065,19 +3066,19 @@ async function persistAIChannelsToServer(successMessage, options = {}) {
         });
         if (!updateResponse.ok) {
             const error = await updateResponse.json().catch(() => ({}));
-            throw new Error(error.error || '保存通道失败');
+            throw new Error(error.error || settingsT('settingsBasic.aiChannelSaveFailed', '保存通道失败'));
         }
         const applyResponse = await apiFetch('/api/config/apply', { method: 'POST' });
         if (!applyResponse.ok) {
             const error = await applyResponse.json().catch(() => ({}));
-            throw new Error(error.error || '应用通道失败');
+            throw new Error(error.error || settingsT('settingsBasic.aiChannelApplyFailed', '应用通道失败'));
         }
         await refreshAIChannelsFromServer(id, channelPayload);
-        showAIChannelSaveHint(successMessage || '通道已保存', true);
+        showAIChannelSaveHint(successMessage || settingsT('settingsBasic.aiChannelSaved', '通道已保存'), true);
         return true;
     } catch (error) {
-        showAIChannelSaveHint(error.message || '保存通道失败', false);
-        alert(error.message || '保存通道失败');
+        showAIChannelSaveHint(error.message || settingsT('settingsBasic.aiChannelSaveFailed', '保存通道失败'), false);
+        alert(error.message || settingsT('settingsBasic.aiChannelSaveFailed', '保存通道失败'));
         return false;
     }
 }
@@ -3096,19 +3097,19 @@ async function persistAIConfigOnlyToServer(successMessage) {
         });
         if (!updateResponse.ok) {
             const error = await updateResponse.json().catch(() => ({}));
-            throw new Error(error.error || '保存通道失败');
+            throw new Error(error.error || settingsT('settingsBasic.aiChannelSaveFailed', '保存通道失败'));
         }
         const applyResponse = await apiFetch('/api/config/apply', { method: 'POST' });
         if (!applyResponse.ok) {
             const error = await applyResponse.json().catch(() => ({}));
-            throw new Error(error.error || '应用通道失败');
+            throw new Error(error.error || settingsT('settingsBasic.aiChannelApplyFailed', '应用通道失败'));
         }
         await refreshAIChannelsFromServer(selectedAIChannelId);
-        showAIChannelSaveHint(successMessage || '通道已保存', true);
+        showAIChannelSaveHint(successMessage || settingsT('settingsBasic.aiChannelSaved', '通道已保存'), true);
         return true;
     } catch (error) {
-        showAIChannelSaveHint(error.message || '保存通道失败', false);
-        alert(error.message || '保存通道失败');
+        showAIChannelSaveHint(error.message || settingsT('settingsBasic.aiChannelSaveFailed', '保存通道失败'), false);
+        alert(error.message || settingsT('settingsBasic.aiChannelSaveFailed', '保存通道失败'));
         return false;
     }
 }
@@ -3187,7 +3188,7 @@ async function deleteSelectedAIChannel() {
     currentConfig.ai = ensureAIConfigShape(currentConfig);
     const ids = Object.keys(currentConfig.ai.channels || {});
     if (ids.length <= 1) {
-        alert('至少保留一个 AI 通道');
+        alert(settingsT('settingsBasic.aiChannelKeepAtLeastOne', '至少保留一个 AI 通道'));
         return;
     }
     const id = selectedAIChannelId || currentConfig.ai.default_channel;
@@ -3288,20 +3289,20 @@ async function deleteCheckedAIChannels() {
     currentConfig.ai = ensureAIConfigShape(currentConfig);
     const ids = Array.from(selectedAIChannelBulkIds).filter((id) => currentConfig.ai.channels[id]);
     if (!ids.length) {
-        alert('请先勾选要删除的通道');
+        alert(settingsT('settingsBasic.aiChannelSelectDeleteFirst', '请先勾选要删除的通道'));
         return;
     }
     const deletable = ids.filter((id) => id !== currentConfig.ai.default_channel);
     if (!deletable.length) {
-        alert('默认通道不能批量删除，请先切换默认通道');
+        alert(settingsT('settingsBasic.aiChannelDefaultNotBulkDeletable', '默认通道不能批量删除，请先切换默认通道'));
         return;
     }
     if (Object.keys(currentConfig.ai.channels || {}).length - deletable.length < 1) {
-        alert('至少保留一个 AI 通道');
+        alert(settingsT('settingsBasic.aiChannelKeepAtLeastOne', '至少保留一个 AI 通道'));
         return;
     }
     const names = deletable.map((id) => currentConfig.ai.channels[id]?.name || id).join('、');
-    if (!confirm(`确定删除 ${deletable.length} 个 AI 通道吗？\n${names}`)) {
+    if (!confirm(settingsT('settingsBasic.aiChannelBulkDeleteConfirm', '确定删除 {count} 个 AI 通道吗？\n{names}').replace('{count}', String(deletable.length)).replace('{names}', names))) {
         return;
     }
     deletable.forEach((id) => {
@@ -3314,7 +3315,7 @@ async function deleteCheckedAIChannels() {
     }
     renderAIChannelSelect();
     writeAIChannelToMainForm(selectedAIChannelId);
-    await persistAIConfigOnlyToServer(`已删除 ${deletable.length} 个通道`);
+    await persistAIConfigOnlyToServer(settingsT('settingsBasic.aiChannelBulkDeleted', '已删除 {count} 个通道').replace('{count}', String(deletable.length)));
 }
 
 if (typeof window !== 'undefined') {
@@ -3646,7 +3647,7 @@ async function fetchModelList(scope) {
         });
         const result = await response.json();
         if (!response.ok) {
-            throw new Error(result.error || '请求失败');
+            throw new Error(result.error || settingsT('auth.requestFailed', '请求失败'));
         }
         if (!result.success) {
             if (resultEl) {
@@ -3711,7 +3712,7 @@ async function testVisionConnection() {
             resultEl.textContent = (typeof window.t === 'function' ? window.t('settingsBasic.testSuccess') : '连接成功') + modelInfo + latency;
             resultEl.style.color = 'var(--success-color, #38a169)';
         } else {
-            resultEl.textContent = (typeof window.t === 'function' ? window.t('settingsBasic.testFailed') : '连接失败') + ': ' + (result.error || '未知错误');
+            resultEl.textContent = (typeof window.t === 'function' ? window.t('settingsBasic.testFailed') : '连接失败') + ': ' + (result.error || settingsT('settingsBasic.unknownError', '未知错误'));
             resultEl.style.color = 'var(--error-color, #e53e3e)';
         }
     } catch (error) {
@@ -3842,7 +3843,7 @@ async function testHitlAuditModelConnection() {
             }
         } else if (resultEl) {
             resultEl.style.color = 'var(--danger-color, #e53e3e)';
-            resultEl.textContent = (typeof window.t === 'function' ? window.t('settingsBasic.testFailed') : '连接失败') + ': ' + (result.error || '未知错误');
+            resultEl.textContent = (typeof window.t === 'function' ? window.t('settingsBasic.testFailed') : '连接失败') + ': ' + (result.error || settingsT('settingsBasic.unknownError', '未知错误'));
         }
     } catch (error) {
         if (resultEl) {
@@ -3967,14 +3968,14 @@ async function testOpenAIConnection() {
                 setConnectionTestResult(resultEl, 'is-success', message);
             }
         } else {
-            const message = formatConnectionTestError(result.error || '未知错误').message;
+            const message = formatConnectionTestError(result.error || settingsT('settingsBasic.unknownError', '未知错误')).message;
             aiChannelProbeResults[channelId] = { status: 'failed', message };
             if (isTestingSameChannel()) {
                 showConnectionTestFailure(resultEl, message);
             }
         }
     } catch (error) {
-        const message = formatConnectionTestError(error.message || '测试出错').message;
+        const message = formatConnectionTestError(error.message || settingsT('settingsBasic.testError', '测试出错')).message;
         aiChannelProbeResults[channelId] = { status: 'failed', message };
         if (isTestingSameChannel()) {
             showConnectionTestFailure(resultEl, message);
@@ -3999,7 +4000,7 @@ async function saveToolsConfig() {
         // 获取当前配置（只获取工具部分）
         const response = await apiFetch('/api/config');
         if (!response.ok) {
-            throw new Error('获取配置失败');
+            throw new Error(settingsT('settings.apply.getConfigFailed', '获取配置失败'));
         }
         
         const currentConfig = await response.json();
@@ -4031,7 +4032,7 @@ async function saveToolsConfig() {
                 
                 const pageResponse = await apiFetch(url);
                 if (!pageResponse.ok) {
-                    throw new Error('获取工具列表失败');
+                    throw new Error(settingsT('mcp.loadToolsFailed', '获取工具列表失败'));
                 }
                 
                 const pageResult = await pageResponse.json();
@@ -4091,19 +4092,19 @@ async function saveToolsConfig() {
         
         if (!updateResponse.ok) {
             const error = await updateResponse.json();
-            throw new Error(error.error || '更新配置失败');
+            throw new Error(error.error || settingsT('mcp.updateConfigFailed', '更新配置失败'));
         }
-        
+
         // 应用配置
         const applyResponse = await apiFetch('/api/config/apply', {
             method: 'POST'
         });
-        
+
         if (!applyResponse.ok) {
             const error = await applyResponse.json();
-            throw new Error(error.error || '应用配置失败');
+            throw new Error(error.error || settingsT('settings.apply.applyFailed', '应用配置失败'));
         }
-        
+
         alert(typeof window.t === 'function' ? window.t('mcp.toolsConfigSaved') : '工具配置已成功保存！');
         
         // 重新加载工具列表以反映最新状态
@@ -4207,7 +4208,7 @@ async function changePassword() {
 
         const result = await response.json().catch(() => ({}));
         if (!response.ok) {
-            throw new Error(result.error || '修改密码失败');
+            throw new Error(result.error || (typeof window.t === 'function' ? window.t('settings.security.changePasswordFailed') : '修改密码失败'));
         }
 
         const pwdMsg = typeof window.t === 'function' ? window.t('settings.security.passwordUpdated') : '密码已更新，请使用新密码重新登录。';
@@ -4235,9 +4236,9 @@ async function fetchExternalMCPs() {
     const response = await apiFetch('/api/external-mcp');
     if (!response.ok) {
         if (typeof readApiError === 'function') {
-            throw new Error(await readApiError(response, '获取外部MCP列表失败'));
+            throw new Error(await readApiError(response, settingsT('mcp.getExternalMcpListFailed', '获取外部MCP列表失败')));
         }
-        throw new Error('获取外部MCP列表失败');
+        throw new Error(settingsT('mcp.getExternalMcpListFailed', '获取外部MCP列表失败'));
     }
     return response.json();
 }
@@ -4683,7 +4684,7 @@ async function saveExternalMCP() {
             
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || '保存失败');
+                throw new Error(error.error || settingsT('mcp.saveFailed', '保存失败'));
             }
         } else {
             // 添加模式：保存所有配置
@@ -4696,10 +4697,10 @@ async function saveExternalMCP() {
                     },
                     body: JSON.stringify({ config }),
                 });
-                
+
                 if (!response.ok) {
                     const error = await response.json();
-                    throw new Error(`保存 "${name}" 失败: ${error.error || '未知错误'}`);
+                    throw new Error(settingsT('mcp.saveNamedFailed', '保存 "{name}" 失败: {error}').replace('{name}', name).replace('{error}', error.error || settingsT('settingsBasic.unknownError', '未知错误')));
                 }
             }
         }
@@ -4733,7 +4734,7 @@ async function deleteExternalMCP(name) {
         
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || '删除失败');
+            throw new Error(error.error || settingsT('mcp.deleteFailed', '删除失败'));
         }
         
         await loadExternalMCPs();
@@ -4759,7 +4760,7 @@ async function toggleExternalMCP(name, currentStatus) {
         button.disabled = true;
         button.style.opacity = '0.6';
         button.style.cursor = 'not-allowed';
-        button.innerHTML = '⏳ 连接中...';
+        button.innerHTML = '⏳ ' + settingsT('mcp.connecting', '连接中...');
     }
     
     try {
@@ -4769,9 +4770,9 @@ async function toggleExternalMCP(name, currentStatus) {
         
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || '操作失败');
+            throw new Error(error.error || settingsT('mcp.operationFailed', '操作失败'));
         }
-        
+
         const result = await response.json();
         
         // 如果是启动操作，先立即检查一次状态
@@ -4818,7 +4819,7 @@ async function toggleExternalMCP(name, currentStatus) {
             button.disabled = false;
             button.style.opacity = '1';
             button.style.cursor = 'pointer';
-            button.innerHTML = '▶ 启动';
+            button.innerHTML = '▶ ' + settingsT('mcp.start', '启动');
         }
         
         // 刷新状态

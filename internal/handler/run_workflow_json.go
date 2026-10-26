@@ -5,12 +5,13 @@ import (
 	"cyberstrike-ai/internal/config"
 	workflowrunner "cyberstrike-ai/internal/workflow"
 	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"time"
 )
 
-func (h *AgentHandler) runWorkflowJSON(taskCtx, baseCtx context.Context, cancelWithCause context.CancelCauseFunc, req *ChatRequest, prep *multiAgentPrepared, role config.RoleConfig, status *string, respond func(int, interface{})) {
+func (h *AgentHandler) runWorkflowJSON(taskCtx, baseCtx context.Context, cancelWithCause context.CancelCauseFunc, req *ChatRequest, prep *multiAgentPrepared, role config.RoleConfig, status *string, wantEnglish bool, respond func(int, interface{})) {
 	*status = "completed"
 	conversationID := prep.ConversationID
 	assistantMessageID := prep.AssistantMessageID
@@ -35,7 +36,7 @@ func (h *AgentHandler) runWorkflowJSON(taskCtx, baseCtx context.Context, cancelW
 		cause := context.Cause(baseCtx)
 		if errors.Is(cause, ErrTaskCancelled) {
 			*status = "cancelled"
-			cancelMsg := "任务已被用户取消，后续操作已停止。"
+			cancelMsg := i18nText(wantEnglish, "任务已被用户取消，后续操作已停止。", "task cancelled by the user, subsequent operations stopped.")
 			if assistantMessageID != "" {
 				_ = h.appendAssistantMessageNotice(assistantMessageID, cancelMsg)
 				_ = h.db.AddProcessDetail(assistantMessageID, conversationID, "cancelled", cancelMsg, nil)
@@ -47,7 +48,7 @@ func (h *AgentHandler) runWorkflowJSON(taskCtx, baseCtx context.Context, cancelW
 			})
 			return
 		}
-		errMsg := "执行角色绑定流程失败: " + err.Error()
+		errMsg := fmt.Sprintf(i18nText(wantEnglish, "执行角色绑定流程失败: %s", "role-bound workflow failed: %s"), err.Error())
 		*status = "failed"
 		if assistantMessageID != "" {
 			_, _ = h.db.Exec("UPDATE messages SET content = ?, updated_at = ? WHERE id = ?", errMsg, time.Now(), assistantMessageID)

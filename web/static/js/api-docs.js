@@ -716,7 +716,7 @@ async function testAPI(method, path, operationId) {
         
         // 显示结果
         resultDiv.className = response.ok ? 'api-test-result success' : 'api-test-result error';
-        resultDiv.textContent = `状态码: ${response.status} ${response.statusText}\n\n${typeof responseData === 'string' ? responseData : JSON.stringify(responseData, null, 2)}`;
+        resultDiv.textContent = `${_t('apiDocs.statusCode')}${response.status} ${response.statusText}\n\n${typeof responseData === 'string' ? responseData : JSON.stringify(responseData, null, 2)}`;
         
     } catch (error) {
         resultDiv.className = 'api-test-result error';

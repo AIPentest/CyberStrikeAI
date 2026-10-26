@@ -1601,7 +1601,7 @@ func (h *AgentHandler) createProgressCallback(runCtx context.Context, cancelRun 
 }
 
 // cancelToolContinueAfter 仅终止当前工具调用，不停止整条 Agent 任务（对话「中断并继续」与 MCP 监控终止共用）。
-func (h *AgentHandler) cancelToolContinueAfter(conversationID, preferredExecID, note string) (bool, gin.H) {
+func (h *AgentHandler) cancelToolContinueAfter(c *gin.Context, conversationID, preferredExecID, note string) (bool, gin.H) {
 	conversationID = strings.TrimSpace(conversationID)
 	if conversationID == "" || h.tasks.GetTask(conversationID) == nil {
 		return false, nil
@@ -1617,7 +1617,7 @@ func (h *AgentHandler) cancelToolContinueAfter(conversationID, preferredExecID, 
 				"status":              "tool_abort_requested",
 				"conversationId":      conversationID,
 				"executionId":         execID,
-				"message":             "已请求终止当前工具调用；工具返回后本轮推理将继续（与 MCP 监控页终止一致）。",
+				"message":             i18nText(requestWantsEnglish(c), "已请求终止当前工具调用；工具返回后本轮推理将继续（与 MCP 监控页终止一致）。", "termination of the current tool call requested; reasoning continues in this turn once the tool returns (same as terminating from the MCP monitoring page)."),
 				"continueAfter":       true,
 				"interruptWithNote":   note != "",
 				"continueWithoutTool": false,
@@ -1628,7 +1628,7 @@ func (h *AgentHandler) cancelToolContinueAfter(conversationID, preferredExecID, 
 				"status":              "tool_abort_requested",
 				"conversationId":      conversationID,
 				"executionId":         execID,
-				"message":             "已请求终止当前 execute 命令；命令返回后本轮推理将继续。",
+				"message":             i18nText(requestWantsEnglish(c), "已请求终止当前 execute 命令；命令返回后本轮推理将继续。", "termination of the current execute command requested; reasoning continues in this turn once the command returns."),
 				"continueAfter":       true,
 				"interruptWithNote":   note != "",
 				"continueWithoutTool": false,
@@ -1640,7 +1640,7 @@ func (h *AgentHandler) cancelToolContinueAfter(conversationID, preferredExecID, 
 		return true, gin.H{
 			"status":              "tool_abort_requested",
 			"conversationId":      conversationID,
-			"message":             "已请求终止当前 execute 命令；命令返回后本轮推理将继续。",
+			"message":             i18nText(requestWantsEnglish(c), "已请求终止当前 execute 命令；命令返回后本轮推理将继续。", "termination of the current execute command requested; reasoning continues in this turn once the command returns."),
 			"continueAfter":       true,
 			"interruptWithNote":   note != "",
 			"continueWithoutTool": false,
@@ -1663,18 +1663,18 @@ func (h *AgentHandler) CancelAgentLoop(c *gin.Context) {
 		return
 	}
 	if !h.agentConversationAllowed(c, req.ConversationID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 
 	if req.ContinueAfter {
 		if h.tasks.GetTask(req.ConversationID) == nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "未找到正在执行的任务"})
+			respondError(c, http.StatusNotFound, "未找到正在执行的任务", "no running task found")
 			return
 		}
 		note := strings.TrimSpace(req.Reason)
 		activeExec := strings.TrimSpace(h.tasks.ActiveMCPExecutionID(req.ConversationID))
-		if ok, payload := h.cancelToolContinueAfter(req.ConversationID, strings.TrimSpace(req.ExecutionID), note); ok {
+		if ok, payload := h.cancelToolContinueAfter(c, req.ConversationID, strings.TrimSpace(req.ExecutionID), note); ok {
 			execID, _ := payload["executionId"].(string)
 			h.logger.Info("对话页仅终止当前工具",
 				zap.String("conversationId", req.ConversationID),
@@ -1685,7 +1685,7 @@ func (h *AgentHandler) CancelAgentLoop(c *gin.Context) {
 			return
 		}
 		if activeExec != "" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "未找到进行中的工具执行或该调用已结束"})
+			respondError(c, http.StatusNotFound, "未找到进行中的工具执行或该调用已结束", "no in-progress tool execution, or the call has ended")
 			return
 		}
 		// 无进行中的 MCP 工具（模型纯推理/流式输出阶段）：取消当前上下文并由 Eino 流式处理器合并用户补充后自动续跑。
@@ -1697,7 +1697,7 @@ func (h *AgentHandler) CancelAgentLoop(c *gin.Context) {
 			return
 		}
 		if !ok {
-			c.JSON(http.StatusNotFound, gin.H{"error": "未找到正在执行的任务"})
+			respondError(c, http.StatusNotFound, "未找到正在执行的任务", "no running task found")
 			return
 		}
 		h.logger.Info("对话页中断并继续（无 MCP 工具，将自动续跑）",
@@ -1707,7 +1707,7 @@ func (h *AgentHandler) CancelAgentLoop(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":              "interrupt_continue_scheduled",
 			"conversationId":      req.ConversationID,
-			"message":             "已请求暂停当前推理；用户补充将合并到上下文并自动继续执行（无需整轮停止）。",
+			"message":             i18nText(requestWantsEnglish(c), "已请求暂停当前推理；用户补充将合并到上下文并自动继续执行（无需整轮停止）。", "current reasoning paused; user input will be merged into the context and execution continues automatically (no need to stop the whole turn)."),
 			"continueAfter":       true,
 			"interruptWithNote":   note != "",
 			"continueWithoutTool": true,
@@ -1716,7 +1716,7 @@ func (h *AgentHandler) CancelAgentLoop(c *gin.Context) {
 	}
 
 	var cause error = ErrTaskCancelled
-	msg := "已提交取消请求，任务将在当前步骤完成后停止。"
+	msg := i18nText(requestWantsEnglish(c), "已提交取消请求，任务将在当前步骤完成后停止。", "cancel request submitted; the task will stop after the current step completes.")
 	h.cancelRunningMCPToolsForConversation(req.ConversationID)
 	h.tasks.AbortActiveEinoExecute(req.ConversationID, "")
 	ok, err := h.tasks.CancelTask(req.ConversationID, cause)
@@ -1727,7 +1727,7 @@ func (h *AgentHandler) CancelAgentLoop(c *gin.Context) {
 	}
 
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"error": "未找到正在执行的任务"})
+		respondError(c, http.StatusNotFound, "未找到正在执行的任务", "no running task found")
 		return
 	}
 
@@ -1744,19 +1744,19 @@ func (h *AgentHandler) CancelAgentLoop(c *gin.Context) {
 func (h *AgentHandler) SubscribeAgentTaskEvents(c *gin.Context) {
 	conversationID := strings.TrimSpace(c.Query("conversationId"))
 	if conversationID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "conversationId is required"})
+		respondError(c, http.StatusBadRequest, "conversationId 必填", "conversationId is required")
 		return
 	}
 	if !h.agentConversationAllowed(c, conversationID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	if h.tasks.GetTask(conversationID) == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "no active task for this conversation"})
+		respondError(c, http.StatusNotFound, "该对话没有进行中的任务", "no active task for this conversation")
 		return
 	}
 	if h.taskEventBus == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "task event bus unavailable"})
+		respondError(c, http.StatusInternalServerError, "任务事件总线不可用", "task event bus unavailable")
 		return
 	}
 
@@ -1900,7 +1900,7 @@ func (h *AgentHandler) CreateBatchQueue(c *gin.Context) {
 	}
 
 	if len(req.Tasks) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "任务列表不能为空"})
+		respondError(c, http.StatusBadRequest, "任务列表不能为空", "task list must not be empty")
 		return
 	}
 
@@ -1913,12 +1913,12 @@ func (h *AgentHandler) CreateBatchQueue(c *gin.Context) {
 	}
 
 	if len(validTasks) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "没有有效的任务"})
+		respondError(c, http.StatusBadRequest, "没有有效的任务", "no valid tasks")
 		return
 	}
 	if session, ok := security.CurrentSession(c); ok && h.db != nil && session.Scope != database.RBACScopeAll && strings.TrimSpace(req.ProjectID) != "" {
 		if !h.db.UserCanAccessResource(session.UserID, session.Scope, "project", strings.TrimSpace(req.ProjectID)) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权在该项目下创建批量任务"})
+			respondError(c, http.StatusForbidden, "无权在该项目下创建批量任务", "no permission to create a batch task under this project")
 			return
 		}
 	}
@@ -1929,12 +1929,12 @@ func (h *AgentHandler) CreateBatchQueue(c *gin.Context) {
 	var nextRunAt *time.Time
 	if scheduleMode == "cron" {
 		if cronExpr == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "启用 Cron 调度时，调度表达式不能为空"})
+			respondError(c, http.StatusBadRequest, "启用 Cron 调度时，调度表达式不能为空", "cron expression must not be empty when Cron scheduling is enabled")
 			return
 		}
 		schedule, err := h.batchCronParser.Parse(cronExpr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "无效的 Cron 表达式: " + err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的 Cron 表达式: %s", "invalid Cron expression: %s"), err.Error())})
 			return
 		}
 		next := schedule.Next(time.Now())
@@ -1954,7 +1954,7 @@ func (h *AgentHandler) CreateBatchQueue(c *gin.Context) {
 	if req.ExecuteNow {
 		ok, err := h.startBatchQueueExecution(queue.ID, false)
 		if !ok {
-			c.JSON(http.StatusNotFound, gin.H{"error": "队列不存在"})
+			respondError(c, http.StatusNotFound, "队列不存在", "queue not found")
 			return
 		}
 		if err != nil {
@@ -1983,7 +1983,7 @@ func (h *AgentHandler) GetBatchQueue(c *gin.Context) {
 	queueID := c.Param("queueId")
 	queue, exists := h.batchTaskManager.GetBatchQueue(queueID)
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "队列不存在"})
+		respondError(c, http.StatusNotFound, "队列不存在", "queue not found")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"queue": queue})
@@ -2077,13 +2077,13 @@ func (h *AgentHandler) StartBatchQueue(c *gin.Context) {
 		return
 	}
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"error": "队列不存在"})
+		respondError(c, http.StatusNotFound, "队列不存在", "queue not found")
 		return
 	}
 	if h.audit != nil {
 		h.audit.RecordOK(c, "task", "start_queue", "启动批量任务队列", "batch_queue", queueID, nil)
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "批量任务已开始执行", "queueId": queueID})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "批量任务已开始执行", "batch tasks started"), "queueId": queueID})
 }
 
 // RerunBatchQueue 重跑批量任务队列（重置所有子任务后重新执行）
@@ -2091,15 +2091,15 @@ func (h *AgentHandler) RerunBatchQueue(c *gin.Context) {
 	queueID := c.Param("queueId")
 	queue, exists := h.batchTaskManager.GetBatchQueue(queueID)
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "队列不存在"})
+		respondError(c, http.StatusNotFound, "队列不存在", "queue not found")
 		return
 	}
 	if queue.Status != "completed" && queue.Status != "cancelled" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "仅已完成或已取消的队列可以重跑"})
+		respondError(c, http.StatusBadRequest, "仅已完成或已取消的队列可以重跑", "only completed or cancelled queues can be rerun")
 		return
 	}
 	if !h.batchTaskManager.ResetQueueForRerun(queueID) {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "重置队列失败"})
+		respondError(c, http.StatusInternalServerError, "重置队列失败", "failed to reset queue")
 		return
 	}
 	h.batchTaskManager.ClearSingleRunTask(queueID)
@@ -2109,13 +2109,13 @@ func (h *AgentHandler) RerunBatchQueue(c *gin.Context) {
 		return
 	}
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "启动失败"})
+		respondError(c, http.StatusInternalServerError, "启动失败", "failed to start")
 		return
 	}
 	if h.audit != nil {
 		h.audit.RecordOK(c, "task", "rerun_queue", "重跑批量任务队列", "batch_queue", queueID, nil)
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "批量任务已重新开始执行", "queueId": queueID})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "批量任务已重新开始执行", "batch tasks restarted"), "queueId": queueID})
 }
 
 // PauseBatchQueue 暂停批量任务队列
@@ -2123,13 +2123,13 @@ func (h *AgentHandler) PauseBatchQueue(c *gin.Context) {
 	queueID := c.Param("queueId")
 	success := h.batchTaskManager.PauseQueue(queueID)
 	if !success {
-		c.JSON(http.StatusNotFound, gin.H{"error": "队列不存在或无法暂停"})
+		respondError(c, http.StatusNotFound, "队列不存在或无法暂停", "queue not found or cannot be paused")
 		return
 	}
 	if h.audit != nil {
 		h.audit.RecordOK(c, "task", "pause_queue", "暂停批量任务队列", "batch_queue", queueID, nil)
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "批量任务已暂停"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "批量任务已暂停", "batch tasks paused")})
 }
 
 // UpdateBatchQueueMetadata 修改批量任务队列的标题、角色和代理模式
@@ -2163,12 +2163,12 @@ func (h *AgentHandler) UpdateBatchQueueSchedule(c *gin.Context) {
 	queueID := c.Param("queueId")
 	queue, exists := h.batchTaskManager.GetBatchQueue(queueID)
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "队列不存在"})
+		respondError(c, http.StatusNotFound, "队列不存在", "queue not found")
 		return
 	}
 	// 仅在非 running 状态下允许修改调度
 	if queue.Status == "running" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "队列正在运行中，无法修改调度配置"})
+		respondError(c, http.StatusBadRequest, "队列正在运行中，无法修改调度配置", "queue is running; schedule config cannot be changed")
 		return
 	}
 	var req struct {
@@ -2184,12 +2184,12 @@ func (h *AgentHandler) UpdateBatchQueueSchedule(c *gin.Context) {
 	var nextRunAt *time.Time
 	if scheduleMode == "cron" {
 		if cronExpr == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "启用 Cron 调度时，调度表达式不能为空"})
+			respondError(c, http.StatusBadRequest, "启用 Cron 调度时，调度表达式不能为空", "cron expression must not be empty when Cron scheduling is enabled")
 			return
 		}
 		schedule, err := h.batchCronParser.Parse(cronExpr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "无效的 Cron 表达式: " + err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的 Cron 表达式: %s", "invalid Cron expression: %s"), err.Error())})
 			return
 		}
 		next := schedule.Next(time.Now())
@@ -2204,7 +2204,7 @@ func (h *AgentHandler) UpdateBatchQueueSchedule(c *gin.Context) {
 func (h *AgentHandler) SetBatchQueueScheduleEnabled(c *gin.Context) {
 	queueID := c.Param("queueId")
 	if _, exists := h.batchTaskManager.GetBatchQueue(queueID); !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "队列不存在"})
+		respondError(c, http.StatusNotFound, "队列不存在", "queue not found")
 		return
 	}
 	var req struct {
@@ -2215,7 +2215,7 @@ func (h *AgentHandler) SetBatchQueueScheduleEnabled(c *gin.Context) {
 		return
 	}
 	if !h.batchTaskManager.SetScheduleEnabled(queueID, req.ScheduleEnabled) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "队列不存在"})
+		respondError(c, http.StatusNotFound, "队列不存在", "queue not found")
 		return
 	}
 	queue, _ := h.batchTaskManager.GetBatchQueue(queueID)
@@ -2228,11 +2228,11 @@ func (h *AgentHandler) DeleteBatchQueue(c *gin.Context) {
 	if err := h.batchTaskManager.DeleteQueue(queueID); err != nil {
 		switch {
 		case errors.Is(err, ErrBatchQueueNotFound):
-			c.JSON(http.StatusNotFound, gin.H{"error": "队列不存在"})
+			respondError(c, http.StatusNotFound, "队列不存在", "queue not found")
 		case errors.Is(err, ErrBatchQueueExecutorActive):
-			c.JSON(http.StatusConflict, gin.H{"error": "队列执行器仍在运行，请稍后再删除"})
+			respondError(c, http.StatusConflict, "队列执行器仍在运行，请稍后再删除", "queue executor still running; delete later")
 		case errors.Is(err, ErrBatchQueueStillRunning):
-			c.JSON(http.StatusConflict, gin.H{"error": "队列正在运行中，无法删除"})
+			respondError(c, http.StatusConflict, "队列正在运行中，无法删除", "queue is running and cannot be deleted")
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}
@@ -2248,7 +2248,7 @@ func (h *AgentHandler) DeleteBatchQueue(c *gin.Context) {
 			Message:      "删除批量任务队列",
 		})
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "批量任务队列已删除"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "批量任务队列已删除", "batch task queue deleted")})
 }
 
 // UpdateBatchTask 更新批量任务消息
@@ -2260,12 +2260,12 @@ func (h *AgentHandler) UpdateBatchTask(c *gin.Context) {
 		Message string `json:"message" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的请求参数: %s", "invalid request parameter: %s"), err.Error())})
 		return
 	}
 
 	if req.Message == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "任务消息不能为空"})
+		respondError(c, http.StatusBadRequest, "任务消息不能为空", "task message must not be empty")
 		return
 	}
 
@@ -2278,10 +2278,10 @@ func (h *AgentHandler) UpdateBatchTask(c *gin.Context) {
 	// 返回更新后的队列信息
 	queue, exists := h.batchTaskManager.GetBatchQueue(queueID)
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "队列不存在"})
+		respondError(c, http.StatusNotFound, "队列不存在", "queue not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "任务已更新", "queue": queue})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "任务已更新", "task updated"), "queue": queue})
 }
 
 // AddBatchTask 添加任务到批量任务队列
@@ -2292,12 +2292,12 @@ func (h *AgentHandler) AddBatchTask(c *gin.Context) {
 		Message string `json:"message" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的请求参数: %s", "invalid request parameter: %s"), err.Error())})
 		return
 	}
 
 	if req.Message == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "任务消息不能为空"})
+		respondError(c, http.StatusBadRequest, "任务消息不能为空", "task message must not be empty")
 		return
 	}
 
@@ -2310,10 +2310,10 @@ func (h *AgentHandler) AddBatchTask(c *gin.Context) {
 	// 返回更新后的队列信息
 	queue, exists := h.batchTaskManager.GetBatchQueue(queueID)
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "队列不存在"})
+		respondError(c, http.StatusNotFound, "队列不存在", "queue not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "任务已添加", "task": task, "queue": queue})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "任务已添加", "task added"), "task": task, "queue": queue})
 }
 
 // RunSingleBatchTask 单条执行指定子任务（可覆盖已成功项），完成后暂停队列
@@ -2333,21 +2333,21 @@ func (h *AgentHandler) RunSingleBatchTask(c *gin.Context) {
 	}
 
 	autoStarted := true
-	autoStartMsg := "已开始单条执行"
+	autoStartMsg := i18nText(requestWantsEnglish(c), "已开始单条执行", "single run started")
 	ok, startErr := h.startBatchQueueExecution(queueID, false)
 	if startErr != nil {
 		h.batchTaskManager.ClearSingleRunTask(queueID)
 		autoStarted = false
-		autoStartMsg = "任务已准备就绪，但自动启动失败: " + startErr.Error()
+		autoStartMsg = fmt.Sprintf(i18nText(requestWantsEnglish(c), "任务已准备就绪，但自动启动失败: %s", "task ready, but automatic start failed: %s"), startErr.Error())
 	} else if !ok {
 		h.batchTaskManager.ClearSingleRunTask(queueID)
 		autoStarted = false
-		autoStartMsg = "任务已准备就绪，但队列不存在"
+		autoStartMsg = i18nText(requestWantsEnglish(c), "任务已准备就绪，但队列不存在", "task ready, but the queue no longer exists")
 	}
 
 	queue, exists := h.batchTaskManager.GetBatchQueue(queueID)
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "队列不存在"})
+		respondError(c, http.StatusNotFound, "队列不存在", "queue not found")
 		return
 	}
 	if h.audit != nil {
@@ -2377,7 +2377,7 @@ func (h *AgentHandler) DeleteBatchTask(c *gin.Context) {
 	// 返回更新后的队列信息
 	queue, exists := h.batchTaskManager.GetBatchQueue(queueID)
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "队列不存在"})
+		respondError(c, http.StatusNotFound, "队列不存在", "queue not found")
 		return
 	}
 	if h.audit != nil {
@@ -2385,7 +2385,7 @@ func (h *AgentHandler) DeleteBatchTask(c *gin.Context) {
 			"batch_queue_id": queueID,
 		})
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "任务已删除", "queue": queue})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "任务已删除", "task deleted"), "queue": queue})
 }
 
 func (h *AgentHandler) nextBatchQueueRunAt(cronExpr string, from time.Time) (*time.Time, error) {

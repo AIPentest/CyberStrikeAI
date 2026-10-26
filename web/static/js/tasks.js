@@ -205,7 +205,7 @@ function updateCompletedTasksHistory(currentTasks) {
             
             tasksState.completedTasksHistory.push({
                 conversationId: task.conversationId,
-                message: task.title || task.message || '未命名任务',
+                message: task.title || task.message || _t('tasks.unnamedTask'),
                 startedAt: task.startedAt,
                 status: finalStatus,
                 completedAt: new Date().toISOString()
@@ -271,7 +271,7 @@ async function loadTasks() {
             tasksState.completedTasksHistory = [
                 ...completedTasks.map(t => ({
                     conversationId: t.conversationId,
-                    message: t.message || '未命名任务',
+                    message: t.message || _t('tasks.unnamedTask'),
                     startedAt: t.startedAt,
                     status: t.status || 'completed',
                     completedAt: t.completedAt || new Date().toISOString()

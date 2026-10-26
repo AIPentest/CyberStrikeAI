@@ -338,10 +338,10 @@ function assetImportRecord(values, rowNumber) {
     if (!status) return fail(assetT('assets.importStatusInvalid', '状态仅支持 active 或 inactive'));
     const environments = assetLocalizedEnumMap({ '': '', production: 'production', staging: 'staging', testing: 'testing', development: 'development', other: 'other', '生产': 'production', '预发布': 'staging', '测试': 'testing', '开发': 'development', '其他': 'other' }, 'environment');
     const environment = environments[String(values.environment || '').toLowerCase()];
-    if (environment == null) return fail('环境值无效');
+    if (environment == null) return fail(assetT('assets.importEnvironmentInvalid', '环境值无效'));
     const criticalities = assetLocalizedEnumMap({ '': '', critical: 'critical', high: 'high', medium: 'medium', low: 'low', '核心': 'critical', '重要': 'high', '一般': 'medium', '低': 'low' }, 'criticality');
     const criticality = criticalities[String(values.criticality || '').toLowerCase()];
-    if (criticality == null) return fail('重要性值无效');
+    if (criticality == null) return fail(assetT('assets.importCriticalityInvalid', '重要性值无效'));
     let projectId = '';
     let projectName = '';
     if (values.project) {
@@ -669,14 +669,14 @@ function renderAssetSavedViews(selectedName) {
 }
 
 function saveCurrentAssetView() {
-    const name = prompt('请输入筛选视图名称');
+    const name = prompt(assetT('assets.saveViewNamePrompt', '请输入筛选视图名称'));
     if (!name || !name.trim()) return;
     const cleanName = name.trim().slice(0, 60);
     const views = readAssetSavedViews().filter(view => view.name !== cleanName);
     views.push({ name: cleanName, values: assetFilterValues() });
-    try { localStorage.setItem(ASSET_SAVED_VIEWS_KEY, JSON.stringify(views)); } catch (error) { return alert('保存筛选视图失败'); }
+    try { localStorage.setItem(ASSET_SAVED_VIEWS_KEY, JSON.stringify(views)); } catch (error) { return alert(assetT('assets.saveViewFailed', '保存筛选视图失败')); }
     renderAssetSavedViews(cleanName);
-    if (typeof showInlineToast === 'function') showInlineToast('筛选视图已保存');
+    if (typeof showInlineToast === 'function') showInlineToast(assetT('assets.saveViewDone', '筛选视图已保存'));
 }
 
 function applyAssetSavedView(name) {
@@ -698,7 +698,7 @@ function applyAssetSavedView(name) {
 function deleteCurrentAssetView() {
     const select = document.getElementById('asset-saved-view-select');
     const name = select?.value || '';
-    if (!name || !confirm(`删除筛选视图“${name}”吗？`)) return;
+    if (!name || !confirm(assetT('assets.deleteViewConfirm', `删除筛选视图“${name}”吗？`, { name }))) return;
     const views = readAssetSavedViews().filter(view => view.name !== name);
     try { localStorage.setItem(ASSET_SAVED_VIEWS_KEY, JSON.stringify(views)); } catch (error) { return; }
     renderAssetSavedViews();
@@ -903,7 +903,7 @@ async function selectAllMatchingAssets() {
         renderAssetRows();
         updateAssetSelectionUI();
     } catch (error) {
-        alert('选择全部结果失败: ' + error.message);
+        alert(assetT('assets.selectAllFailed', '选择全部结果失败') + ': ' + error.message);
     } finally {
         if (button) button.disabled = false;
     }
@@ -968,12 +968,12 @@ async function submitAssetProjectBinding() {
 
 function openAssetBulkEdit() {
     const count = assetPageState.selected.size;
-    if (!count) return alert('请先选择资产');
+    if (!count) return alert(assetT('assets.selectAssetsFirst', '请先选择资产'));
     ['asset-bulk-status', 'asset-bulk-responsible', 'asset-bulk-department', 'asset-bulk-business', 'asset-bulk-environment', 'asset-bulk-criticality', 'asset-bulk-add-tags', 'asset-bulk-remove-tags'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
-    document.getElementById('asset-bulk-edit-subtitle').textContent = `将修改 ${count} 个资产；空白字段保持原值`;
+    document.getElementById('asset-bulk-edit-subtitle').textContent = assetT('assets.bulkEditCount', `将修改 ${count} 个资产；空白字段保持原值`, { count });
     ['asset-bulk-status', 'asset-bulk-environment', 'asset-bulk-criticality'].forEach(syncAssetSelect);
     if (typeof openAppModal === 'function') openAppModal('asset-bulk-edit-modal');
     else document.getElementById('asset-bulk-edit-modal').style.display = 'flex';
@@ -1001,7 +1001,7 @@ async function submitAssetBulkEdit() {
         const value = document.getElementById(id)?.value.trim() || '';
         if (value) body[key] = value;
     });
-    if (Object.keys(body).length === 3 && body.add_tags.length === 0 && body.remove_tags.length === 0) return alert('请至少填写一项修改');
+    if (Object.keys(body).length === 3 && body.add_tags.length === 0 && body.remove_tags.length === 0) return alert(assetT('assets.bulkEditNoChanges', '请至少填写一项修改'));
     const button = document.getElementById('asset-bulk-edit-submit');
     if (button) button.disabled = true;
     try {
@@ -1010,9 +1010,9 @@ async function submitAssetBulkEdit() {
         closeAssetBulkEdit();
         clearAssetSelection();
         await loadAssets(assetPageState.page);
-        if (typeof showInlineToast === 'function') showInlineToast(`已更新 ${ids.length} 个资产`);
+        if (typeof showInlineToast === 'function') showInlineToast(assetT('assets.bulkEditDone', `已更新 ${ids.length} 个资产`, { count: ids.length }));
     } catch (error) {
-        alert('批量编辑失败: ' + error.message);
+        alert(assetT('assets.bulkEditFailed', '批量编辑失败') + ': ' + error.message);
     } finally {
         if (button) button.disabled = false;
     }
@@ -1045,7 +1045,7 @@ function downloadAssetBlob(blob, filename) {
 
 function exportSelectedAssets(format) {
     const rows = assetExportRows(Array.from(assetPageState.selected.values()));
-    if (!rows.length) return alert('请先选择资产');
+    if (!rows.length) return alert(assetT('assets.selectAssetsFirst', '请先选择资产'));
     const stamp = new Date().toISOString().slice(0, 10);
     if (format === 'csv') {
         const headers = Object.keys(rows[0]);
@@ -1053,7 +1053,7 @@ function exportSelectedAssets(format) {
         downloadAssetBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `assets-${stamp}.csv`);
         return;
     }
-    if (!window.XLSX) return alert('表格组件加载失败，请刷新后重试');
+    if (!window.XLSX) return alert(assetT('assets.spreadsheetUnavailable', '表格组件加载失败，请刷新后重试'));
     const workbook = XLSX.utils.book_new();
     const sheet = XLSX.utils.aoa_to_sheet([Object.keys(rows[0]).map(assetExportHeader), ...rows.map(row => Object.keys(row).map(key => assetExportValue(key, row[key])))]);
     sheet['!autofilter'] = { ref: sheet['!ref'] };
@@ -1064,23 +1064,23 @@ function exportSelectedAssets(format) {
 
 async function deleteSelectedAssets() {
     const ids = Array.from(assetPageState.selected.keys());
-    if (!ids.length || !confirm(`确定永久删除选中的 ${ids.length} 个资产吗？`)) return;
+    if (!ids.length || !confirm(assetT('assets.batchDeleteConfirm', `确定永久删除选中的 ${ids.length} 个资产吗？`, { count: ids.length }))) return;
     try {
         const response = await apiFetch('/api/assets/batch-delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ asset_ids: ids }) });
         if (!response.ok) throw new Error(await assetEditorResponseError(response));
         clearAssetSelection();
         await loadAssets(1);
-        if (typeof showInlineToast === 'function') showInlineToast(`已删除 ${ids.length} 个资产`);
+        if (typeof showInlineToast === 'function') showInlineToast(assetT('assets.batchDeleteDone', `已删除 ${ids.length} 个资产`, { count: ids.length }));
     } catch (error) {
-        alert('批量删除失败: ' + error.message);
+        alert(assetT('assets.batchDeleteFailed', '批量删除失败') + ': ' + error.message);
     }
 }
 
 async function mergeSelectedAssets() {
     const assets = Array.from(assetPageState.selected.values());
-    if (assets.length < 2) return alert('请至少选择两个重复资产');
+    if (assets.length < 2) return alert(assetT('assets.mergeRequiresMultiple', '请至少选择两个重复资产'));
     const primary = assets[0];
-    if (!confirm(`将保留“${assetTargetLabel(primary)}”作为主资产，并合并其余 ${assets.length - 1} 个资产。继续吗？`)) return;
+    if (!confirm(assetT('assets.mergeConfirm', `将保留“${assetTargetLabel(primary)}”作为主资产，并合并其余 ${assets.length - 1} 个资产。继续吗？`, { target: assetTargetLabel(primary), count: assets.length - 1 }))) return;
     try {
         const response = await apiFetch('/api/assets/merge', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1089,9 +1089,9 @@ async function mergeSelectedAssets() {
         if (!response.ok) throw new Error(await assetEditorResponseError(response));
         clearAssetSelection();
         await loadAssets(1);
-        if (typeof showInlineToast === 'function') showInlineToast(`已合并 ${assets.length} 个重复资产`);
+        if (typeof showInlineToast === 'function') showInlineToast(assetT('assets.mergeDone', `已合并 ${assets.length} 个重复资产`, { count: assets.length }));
     } catch (error) {
-        alert('合并资产失败: ' + error.message);
+        alert(assetT('assets.mergeFailed', '合并资产失败') + ': ' + error.message);
     }
 }
 
