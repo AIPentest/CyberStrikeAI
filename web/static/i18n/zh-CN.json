@@ -1435,7 +1435,10 @@
     "workflowSubmitFailed": "提交失败",
     "workflowApprovedResuming": "已通过，工作流继续执行中…",
     "workflowApprovedContinue": "已通过，工作流继续执行",
-    "workflowRejected": "已拒绝"
+    "workflowRejected": "已拒绝",
+    "workflowPendingTitle": "工作流待审批",
+    "openConversation": "打开对话",
+    "submitFailed": "提交失败"
   },
   "progress": {
     "callingAI": "正在调用AI模型...",

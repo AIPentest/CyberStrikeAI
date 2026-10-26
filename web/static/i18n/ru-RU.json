@@ -69,7 +69,8 @@
     "rolesCount": "Ролей: {{count}}",
     "permissionsCount": "Прав: {{count}}",
     "version": "Текущая версия",
-    "toggleSidebar": "Свернуть или развернуть боковую панель"
+    "toggleSidebar": "Свернуть или развернуть боковую панель",
+    "builtinAdminDisplayName": "Administrator"
   },
   "theme": {
     "system": "Системная",
@@ -485,7 +486,12 @@
     "usageTrend": "Расход по дням",
     "usageScope": "Данные провайдера из сохранённых запусков Agent, включая субагентов. Чтение и запись кэша входят во ввод, рассуждение — в вывод; они не прибавляются к сумме повторно. Неполученные данные исключены. Это не счёт провайдера. Группировка по модели в конфигурации запуска; при переключении модели расход может быть смешан.",
     "usageFinal": "Завершено",
-    "usagePartial": "Частичный расход"
+    "usagePartial": "Частичный расход",
+    "severityInsightsAria": "Risk overview",
+    "urgentCriticalClick": "View open critical vulnerabilities",
+    "urgentHighClick": "View open high vulnerabilities",
+    "feedTabsAria": "Recent vulnerabilities and facts",
+    "alertReasonSeparator": "; "
   },
   "projects": {
     "title": "Проекты",
@@ -752,7 +758,43 @@
     "currentVersion": "Текущая версия",
     "linkVulnerability": "Связать уязвимость",
     "createVulnerabilityDraft": "Создать черновик уязвимости",
-    "generatedFromFact": "Создано из факта проекта {{factKey}}"
+    "generatedFromFact": "Создано из факта проекта {{factKey}}",
+    "graphNodeTypes": {
+      "target": "Target",
+      "finding": "Finding",
+      "exploit": "Exploit",
+      "vulnerability": "Vulnerability",
+      "auth": "Auth",
+      "infra": "Infrastructure",
+      "chain": "Attack Chain",
+      "poc": "POC",
+      "business": "Business",
+      "missing": "Missing",
+      "note": "Note"
+    },
+    "graphStatusBadges": {
+      "tentative": "Tentative",
+      "deprecated": "Deprecated"
+    },
+    "graphCytoscapeNotLoaded": "Cytoscape failed to load",
+    "graphEmptyFallback": "No fact relations yet",
+    "factKeyHint": "Environment: target/, auth/, infra/, business/; findings/exploits: finding/, chain/, exploit/, poc/",
+    "factKeyPlaceholder": "target/primary_domain or finding/sqli-login",
+    "factCategoryTarget": "target (target)",
+    "factCategoryAuth": "auth (authentication)",
+    "factCategoryInfra": "infra (infrastructure)",
+    "factCategoryBusiness": "business (business)",
+    "factCategoryFinding": "finding (finding)",
+    "factCategoryChain": "chain (attack chain)",
+    "factCategoryExploit": "exploit (exploitation)",
+    "factCategoryPoc": "poc (POC)",
+    "factCategoryNote": "note (note)",
+    "factSummaryLabel": "Summary (one index line)",
+    "factSummaryPlaceholder": "What + where + how to verify (don't just write \"XSS exists\")",
+    "factBodyLabel": "body (reproducible detail)",
+    "factInsertAttackTemplate": "Insert attack chain template",
+    "factInsertEnvTemplate": "Insert environment template",
+    "factBodyPlaceholder": "Attack chain steps, HTTP/command POC, response phenomena, evidence…"
   },
   "chat": {
     "toolExecBlocked": "Инструмент {{name}} заблокирован",
@@ -1032,7 +1074,139 @@
     "hitlTimeoutHint": "Запросы без ответа автоматически отклоняются по истечении времени; на карточках одобрения виден отсчёт.",
     "hitlStatusOff": "Контроль человеком: выкл.",
     "rolePanelTitle": "Выбор роли",
-    "einoUsageCacheWriteTokens": "Токены записи кэша"
+    "einoUsageCacheWriteTokens": "Токены записи кэша",
+    "turnRailAria": "Conversation turn rail",
+    "composerContextAria": "Current session context",
+    "hitlApprovalDockAria": "Pending approval actions",
+    "fileListAria": "Selected file list",
+    "mentionSuggestionsAria": "Tool mention suggestions",
+    "retry": "Load failed, tap to retry",
+    "workflowAwaitingApproval": "Workflow awaiting approval",
+    "finalizationCheckPassed": "Final-reply check passed",
+    "finalizationCheckFailed": "Final-reply check failed",
+    "finalizationCheckPassedMessage": "Final-reply check passed.",
+    "finalizationContinueVerifying": "Continuing verification",
+    "finalizationPendingToolsFinalized": "Tool executions finalized",
+    "finalizationAuditAgentReviewing": "Audit agent reviewing",
+    "finalizationReasonPendingToolExecutions": "Waiting for tool executions to finish",
+    "finalizationReasonMissingExecutionEvidence": "Missing completion evidence",
+    "finalizationReasonAwaitingHitl": "Awaiting human approval",
+    "finalizationReasonEmptyResponse": "No valid reply captured",
+    "finalizationReasonMissingContract": "Missing finalization proof",
+    "finalizationReasonInProgress": "Still verifying",
+    "finalizationReasonBlocked": "Check failed",
+    "finalizationReasonFailed": "Task failed",
+    "finalizationReasonCancelled": "Task cancelled",
+    "finalizationReasonVerified": "Verified",
+    "finalizationMissingCheckQueued": "Tool executions still running or queued",
+    "finalizationMissingCheckEvidence": "This round requires execution evidence but no completed tool record exists",
+    "finalizationMissingCheckHitl": "Workflow is awaiting human approval",
+    "finalizationMissingCheckEmpty": "No valid final text captured",
+    "finalizationMissingCheckRunStatus": "Task status is still {{status}}",
+    "finalizationMoreItems": "{{n}} more",
+    "finalizationNoticeTitle": "**Still verifying; not producing a final conclusion yet**",
+    "finalizationStatusLabel": "Status: {{reason}}",
+    "finalizationPendingToolsLabel": "Pending tools:",
+    "finalizationPendingChecksLabel": "Pending checks:",
+    "finalizationCandidateMovedNote": "Candidate output moved into process details to avoid being mistaken for the final conclusion.",
+    "finalizationCandidateMissingContract": "Candidate output missing finalization proof",
+    "einoModelRetryReasonLabel": "Reason:",
+    "einoModelRetryErrorLabel": "Error details:",
+    "einoModelFailoverChannelLabel": "Channel:",
+    "einoModelFailoverModelLabel": "Model:",
+    "modelSettingsDialogAria": "AI channel, model, and reasoning settings",
+    "backLabel": "Back",
+    "optionsListAria": "Options list",
+    "taskAlreadyRunning": "A task is already running in this conversation. Wait for it to finish or stop the task first.",
+    "pleaseLoadAttackChainFirst": "Load the attack chain first",
+    "requestFailedPrefix": "Request failed: ",
+    "errorPrefix": "Error: ",
+    "uploadMaxFilesAlert": "Upload at most {{max}} files at a time; {{selected}} are currently selected.",
+    "removeAttachmentAria": "Remove {{name}}",
+    "agentModeEinoSingleFallback": "Eino single agent",
+    "uploadAttachmentLabel": "Uploading attachments {{done}}/{{total}} · {{percent}}%",
+    "auditAgentReviewDone": "Audit Agent finished reviewing",
+    "approvalPassed": "Approval granted",
+    "approvalRejected": "Approval rejected",
+    "expandFullDetailLazyHint": " (click to load full process details)",
+    "lazyHintRounds": " ({{iterations}} rounds, {{total}} detail items)",
+    "lazyHintTotal": " ({{total}} detail items)",
+    "deleteConversationAction": "Delete conversation",
+    "loadConversationFailedPrefix": "Failed to load conversation: ",
+    "deleteFailed": "Delete failed",
+    "deleteConversationFailedPrefix": "Failed to delete conversation: ",
+    "updateFailed": "Update failed",
+    "getConversationFailed": "Failed to fetch conversation",
+    "updatePinFailed": "Failed to update pin state",
+    "pinFailedPrefix": "Failed to pin: ",
+    "pinnedIndicator": "Pinned",
+    "attackChainTaskRunning": "A task is running in this conversation; generate the attack chain later",
+    "copyFailedTextAlert": "Copy failed. Select the text manually and copy it.",
+    "toolExecutionsCountFallback": "{{n}} tool executions",
+    "collapseToolExecutionsFallback": "Collapse tool executions",
+    "callNumberFallback": "Call #{{n}}",
+    "mentionToolAvailable": "Available",
+    "mentionToolDisabledRole": "Disabled (current role)",
+    "mentionToolDisabled": "Disabled",
+    "mentionOriginFrom": "Source: {{name}}",
+    "mentionOriginExternalMcp": "Source: external MCP",
+    "mentionOriginBuiltin": "Source: builtin tool",
+    "mentionBuiltinBadge": "Builtin",
+    "attackChainGenerating": "Generating attack chain, please wait",
+    "loadAttackChainFailed": "Failed to load attack chain",
+    "regenerating": "Regenerating...",
+    "attackChainGeneratingInProgress": "⏳ Generating attack chain...",
+    "attackChainGeneratingHint": "Please wait; it will display automatically once done",
+    "refreshToViewProgress": "Refresh to view progress",
+    "regenAttackChainFailed": "Failed to regenerate attack chain",
+    "noExportData": "No data to export",
+    "attackChainReportTitle": "Attack Chain Visualization Report",
+    "nodeTypeDefault": "Node",
+    "riskCritical": "Critical",
+    "riskHigh": "High",
+    "riskMedium": "Medium",
+    "riskLow": "Low",
+    "findingsCount": "{{count}} findings",
+    "hasLeads": "Has leads",
+    "mainTarget": "Main target",
+    "failedWithLeads": "Failed with leads",
+    "actionWithFindings": "Action (with findings)",
+    "actionOther": "Action (other)",
+    "criticalVulns": "Critical vulnerabilities",
+    "highRiskVuln": "High-risk vulnerability",
+    "medRiskVuln": "Medium-risk vulnerability",
+    "lowRiskVuln": "Low-risk vulnerability",
+    "lineActionFindVuln": "Action finds vulnerability",
+    "lineEnableContribute": "Enable / contribute",
+    "lineLogicalOrder": "Logical order",
+    "lineTargetLocation": "Target location",
+    "riskScoreRange": "Score {{range}}",
+    "legendNodeTypes": "Node types",
+    "legendConnections": "Connection meaning",
+    "legendRiskLevels": "Risk levels",
+    "nodeDetailId": "Node ID",
+    "nodeDetailType": "Type",
+    "nodeDetailLabel": "Label",
+    "nodeDetailRisk": "Risk score",
+    "nodeDetailToolName": "Tool name",
+    "nodeDetailToolIntent": "Tool intent",
+    "nodeDetailExecStatus": "Execution status",
+    "nodeDetailAIAnalysis": "AI analysis",
+    "nodeDetailKeyFindings": "Key findings",
+    "nodeDetailTestTarget": "Test target",
+    "nodeDetailVulnType": "Vulnerability type",
+    "nodeDetailDescription": "Description",
+    "nodeDetailSeverity": "Severity",
+    "nodeDetailLocation": "Location",
+    "nodeDetailExecId": "Tool execution ID",
+    "svgLoadFailed": "Failed to load SVG",
+    "pngGenerateFailed": "Failed to generate PNG",
+    "exportPngFailed": "Failed to export PNG",
+    "exportPngFailedPrefix": "Failed to export PNG: ",
+    "unsupportedExportFormatPrefix": "Unsupported export format: ",
+    "exportFailedPrefix": "Export failed: ",
+    "expandDetailRoundsLazyHint": " (click to load iteration details)",
+    "elkLayoutInvalidResult": "ELK layout returned an invalid result"
   },
   "toolGuard": {
     "invalidTestResponse": "Сервер вернул некорректный результат проверки",
@@ -1274,7 +1448,21 @@
     "approve": "Одобрить",
     "loadFailed": "Не удалось загрузить",
     "invalidJson": "Некорректные аргументы JSON",
-    "submitFailedPrefix": "Не удалось отправить:"
+    "submitFailedPrefix": "Не удалось отправить:",
+    "submitFailedRetry": "Submit failed, please retry",
+    "approvalFnMissing": "Approval function not loaded",
+    "decisionApprovedWaiting": "Approved; awaiting execution…",
+    "decisionRejectedIterating": "Rejected; feedback sent to the model to continue iterating…",
+    "workflowApprovalTitle": "Workflow approval",
+    "workflowPausedNote": "The workflow is paused, waiting for you to confirm whether to continue.",
+    "workflowCommentPlaceholder": "Approval comment",
+    "workflowSubmitFailed": "Submit failed",
+    "workflowApprovedResuming": "Approved; the workflow is continuing…",
+    "workflowApprovedContinue": "Approved; the workflow continues",
+    "workflowRejected": "Rejected",
+    "workflowPendingTitle": "Workflow approval",
+    "openConversation": "Open conversation",
+    "submitFailed": "Submit failed"
   },
   "progress": {
     "callingAI": "Вызов модели ИИ...",
@@ -1304,7 +1492,32 @@
     "execFailed": "Выполнение не удалось",
     "resultMissing": "Запись результата отсутствует",
     "toolSucceeded": "Успешно",
-    "toolFailed": "Ошибка"
+    "toolFailed": "Ошибка",
+    "agentEmptyInputPreview": "No input preview",
+    "agentInputLabel": "Input",
+    "argsEditedByHitl": "Arguments edited via HITL",
+    "conditionEmptyValue": "(empty)",
+    "conditionExpressionLabel": "Expression",
+    "conditionFalse": "No (false)",
+    "conditionResultLabel": "Result",
+    "conditionTrue": "Yes (true)",
+    "pendingApprovedWaiting": "Approved; awaiting execution result",
+    "pendingWaitingApproval": "Awaiting approval; runs once approved",
+    "workflowAgentOutput": "🤖 Agent output",
+    "workflowBranchSkipped": "Branch skipped",
+    "workflowBranchTaken": "Branch taken",
+    "workflowConditionMet": "Condition check",
+    "workflowDone": "✅ Workflow completed",
+    "workflowHitlApproved": "✅ Approval granted",
+    "workflowHitlCheckpoint": "🧑‍⚖️ Human checkpoint",
+    "workflowHitlRejected": "❌ Approval rejected",
+    "workflowHitlResumed": "Human approval granted; continuing execution",
+    "workflowHitlWaiting": "🧑‍⚖️ Workflow awaiting approval",
+    "workflowNodeComplete": "Node completed",
+    "workflowNodeStart": "▶ Node started",
+    "workflowPaused": "⏸️ Workflow paused",
+    "workflowStart": "🧭 Workflow started",
+    "workflowToolNode": "🔧 Tool node"
   },
   "tasks": {
     "statusEndedWithFailures": "Завершено (ошибок: {{count}})",
@@ -1424,7 +1637,8 @@
     "updateTaskFailed": "Не удалось обновить задачу",
     "durationSeconds": "с",
     "durationMinutes": "мин",
-    "durationHours": "ч"
+    "durationHours": "ч",
+    "concurrencyInvalid": "Concurrency must be an integer from 1 to 8"
   },
   "infoCollect": {
     "enterFofaQuery": "Введите синтаксис запроса FOFA",
@@ -1478,7 +1692,11 @@
     "providerReturnedFewer": "Поставщик вернул строк {{count}}/{{expected}}",
     "parseModalCancel": "Отмена",
     "parseModalApply": "Подставить в запрос",
-    "parseModalApplyRun": "Подставить и выполнить"
+    "parseModalApplyRun": "Подставить и выполнить",
+    "providerQueryEditable": "query syntax (editable)",
+    "naturalLanguageProviderLabel": "Natural language (AI parses to {{provider}} syntax)",
+    "parseToProviderQuery": "Parse natural language to {{provider}} query syntax",
+    "scanMessageTemplate": "Run information gathering and basic scanning on the following target:\n{{target}}\n\nRequirements:\n1) Identify services/frameworks and key fingerprints\n2) Enumerate open ports and common admin entry points\n3) Quickly confirm the reachable surface via httpx/fingerprint/directory probing\n4) Output reproducible commands and conclusions\n\nKnown info (all fields of this row from {{provider}}):\n{{summary}}"
   },
   "assets": {
     "countryExample": "Китай",
@@ -1746,7 +1964,37 @@
     "mergeRequiresMultiple": "Выберите не менее двух дублирующихся активов",
     "batchDelete": "Массовое удаление…",
     "responsibilityBusiness": "Владение и бизнес-контекст",
-    "responsibilityBusinessHint": "Владение и бизнес-приоритет определяют операции и ранжирование рисков"
+    "responsibilityBusinessHint": "Владение и бизнес-приоритет определяют операции и ранжирование рисков",
+    "targetPlaceholder": "https://example.com:443, example.com, or 1.1.1.1:443",
+    "publicTagFilterPlaceholder": "Public",
+    "risk": "Risk",
+    "bulkEditTitle": "Bulk edit assets",
+    "bulkEditStatus": "Status (leave blank for no change)",
+    "noChange": "No change",
+    "leaveBlankNoChange": "Leave blank for no change",
+    "addTags": "Add tags",
+    "removeTags": "Remove tags",
+    "commaSeparated": "Comma-separated",
+    "applyChanges": "Apply changes",
+    "bulkEditEnvironment": "Environment (leave blank for no change)",
+    "bulkEditCriticality": "Criticality (leave blank for no change)",
+    "importEnvironmentInvalid": "Invalid environment value",
+    "importCriticalityInvalid": "Invalid criticality value",
+    "saveViewNamePrompt": "Enter a saved filter view name",
+    "saveViewFailed": "Failed to save filter view",
+    "saveViewDone": "Filter view saved",
+    "deleteViewConfirm": "Delete filter view \"{{name}}\"?",
+    "selectAllFailed": "Failed to select all results",
+    "bulkEditCount": "Update {{count}} assets; blank fields keep their original values",
+    "bulkEditNoChanges": "Fill in at least one change",
+    "bulkEditDone": "Updated {{count}} assets",
+    "bulkEditFailed": "Bulk edit failed",
+    "batchDeleteConfirm": "Permanently delete the {{count}} selected assets?",
+    "batchDeleteDone": "Deleted {{count}} assets",
+    "batchDeleteFailed": "Batch delete failed",
+    "mergeConfirm": "Keep \"{{target}}\" as the primary asset and merge the other {{count}} assets. Continue?",
+    "mergeDone": "Merged {{count}} duplicate assets",
+    "mergeFailed": "Failed to merge assets"
   },
   "vulnerability": {
     "title": "Управление уязвимостями",
@@ -1896,7 +2144,64 @@
     "colOwner": "Владелец",
     "colGroup": "Группа",
     "colType": "Тип",
-    "dbProfileName": "Имя подключения"
+    "dbProfileName": "Имя подключения",
+    "resizeHandleTitle": "Drag to adjust width",
+    "aiStop": "Stop",
+    "colSize": "Size",
+    "noDirectories": "No directories",
+    "newFileContentPrompt": "Initial content (optional)",
+    "batchDeleteSelectFirst": "Batch delete: select files first",
+    "batchDeleteConfirm": "Batch delete: delete {{count}} file(s)?",
+    "batchDownloadSelectFirst": "Batch download: select files first",
+    "urlRequired": "Please enter the Shell URL",
+    "saveFailed": "Save failed",
+    "xtermNotLoaded": "xterm.js failed to load. Refresh the page.",
+    "ctrlCNotSupported": "^C (interrupting remote commands is not supported in this version yet)",
+    "apiFetchMissing": "apiFetch is not available",
+    "dbTestPassed": "Connection test passed",
+    "dbTestFailed": "Connection test failed",
+    "dbTableMetaTruncated": "Showing first {{shown}} of {{total}} rows",
+    "dbTableMetaTotal": "{{rows}} rows, {{cols}} columns",
+    "aiAuthFailed": "Auth failed: API key not configured or invalid (401)",
+    "aiRequestTimeout": "Request timed out, please retry later",
+    "aiNetworkError": "Network error, please check service connectivity",
+    "aiRequestFailed": "Request failed",
+    "aiRequestException": "Request error",
+    "aiViewErrorDetail": "View error details",
+    "aiCannotSend": "Cannot send: not signed in or apiFetch unavailable",
+    "aiNoReplyContent": "No reply content",
+    "aiCandidateMissingContract": "Candidate output lacks a finalization contract",
+    "aiFinalCheckPass": "Final reply check passed",
+    "aiFinalCheckFail": "Final reply check did not pass",
+    "aiFinalCheckPassMsg": "Final reply check passed.",
+    "aiContinueVerification": "Continue verification",
+    "aiModelRetryMsg": "The model call hit a transient problem; Eino is retrying natively…",
+    "aiRetryReasonLabel": "Reason: ",
+    "aiRetryErrorLabel": "Error detail: ",
+    "aiModelFailoverMsg": "Primary model retries exhausted; switching to a fallback model.",
+    "aiFailoverChannelLabel": "Channel: ",
+    "aiFailoverModelLabel": "Model: ",
+    "aiIterationDefault": "Iteration",
+    "defaultToolName": "tool",
+    "finalizationPendingToolExecutions": "Waiting for tool executions to finish",
+    "finalizationMissingEvidence": "Missing completion evidence",
+    "finalizationAwaitingHitl": "Waiting for human approval",
+    "finalizationEmptyResponse": "No valid reply captured",
+    "finalizationMissingContract": "Missing finalization contract",
+    "finalizationInProgress": "Still verifying",
+    "finalizationBlocked": "Check did not pass",
+    "finalizationFailed": "Task failed",
+    "finalizationVerified": "Verified",
+    "finalizationToolStillRunning": "Tool executions still not finished",
+    "finalizationEvidenceRequired": "This round requires execution evidence, but no completed tool execution was recorded",
+    "finalizationAwaitingHitlApproval": "Workflow is awaiting human approval",
+    "finalizationEmptyFinalText": "No valid final text captured",
+    "finalizationStatusStill": "Task status is still {{status}}",
+    "finalizationNoticeHeader": "Still verifying; not generating a final conclusion yet",
+    "finalizationNoticeStatus": "Status: {{reason}}",
+    "finalizationPendingTools": "Tools pending completion: {{tools}}",
+    "finalizationPendingChecks": "Checks pending completion: {{checks}}",
+    "finalizationCandidateMoved": "Candidate output has been moved into the process details."
   },
   "mcp": {
     "monitorTitle": "Монитор состояния MCP",
@@ -1991,7 +2296,20 @@
     "connectionErrorLabel": "Ошибка подключения:",
     "secondsUnit": "с",
     "urlLabel": "URL",
-    "loadExternalMCPFailed": "Ошибка загрузки"
+    "loadExternalMCPFailed": "Ошибка загрузки",
+    "paramDefinition": "Parameter definition",
+    "paramColumn": "Parameter",
+    "paramTypeColumn": "Type",
+    "paramRequiredColumn": "Required",
+    "paramDescColumn": "Description",
+    "noParamDefinition": "No parameter definition",
+    "externalToolFromClickHint": "External MCP - Source: {{name}} — click to jump",
+    "externalToolBadgeHint": "External MCP tool",
+    "getExternalMcpListFailed": "Failed to get external MCP list",
+    "updateConfigFailed": "Failed to update configuration",
+    "saveFailed": "Save failed",
+    "saveNamedFailed": "Save \"{{name}}\" failed: {{error}}",
+    "deleteFailed": "Delete failed"
   },
   "settings": {
     "title": "Системные настройки",
@@ -2094,7 +2412,15 @@
         "ilinkBotId": "ID бота iLink (после привязки)",
         "boundSuccess": "Привязка выполнена. Бот WeChat включён.",
         "alreadyBound": "Этот аккаунт WeChat уже привязан.",
-        "openLink": "QR не виден? Откройте ссылку в WeChat на телефоне"
+        "openLink": "QR не виден? Откройте ссылку в WeChat на телефоне",
+        "qrFetchFail": "Failed to fetch QR code",
+        "qrReadyHint": "Scan the QR code with WeChat",
+        "verifyCodeHint": "Enter the code shown on your phone",
+        "qrScanWait": "Scanned. Please confirm on your phone…",
+        "qrExpired": "QR code expired. Click “Generate QR code and bind” again.",
+        "verifyCodeFail": "Submit failed",
+        "pollFail": "Poll failed",
+        "verifyCodeWait": "Pairing code submitted. Waiting for confirmation…"
       },
       "wecom": {
         "title": "WeCom",
@@ -2139,7 +2465,9 @@
         "botToken": "Токен бота",
         "botTokenHint": "Приём через long poll getUpdates; публичный URL callback не нужен",
         "botUsername": "Имя пользователя бота (необязательно)",
-        "allowGroup": "Групповой чат (отвечать только на @)"
+        "allowGroup": "Групповой чат (отвечать только на @)",
+        "botTokenPlaceholder": "Получите от @BotFather",
+        "botUsernamePlaceholder": "Без @; если пусто, getMe используется автоматически"
       },
       "slack": {
         "title": "Slack",
@@ -2165,14 +2493,26 @@
         "clientSecret": "Client Secret",
         "secretHint": "С открытой платформы ботов QQ. Перед публикацией используйте песочницу",
         "sandbox": "Песочница"
-      }
+      },
+      "authPolicyTitle": "Business auth policy",
+      "authModeLabel": "Auth mode",
+      "authModeUserBinding": "Per-user binding (recommended for shared bots)",
+      "authModeServiceAccount": "Dedicated service account (whitelist senders only)",
+      "authModeHint": "Platform signature verification confirms message origin; this setting decides which RBAC identity the message ultimately uses.",
+      "serviceAccountUserIdLabel": "Service account RBAC User ID",
+      "serviceAccountUserIdPlaceholder": "e.g. admin or a dedicated service account User ID",
+      "serviceAccountAdminWarning": "Currently using admin: whitelist senders will have full platform permissions. Only add accounts you fully trust.",
+      "allowedSendersLabel": "Allowed platform sender IDs",
+      "allowedSendersPlaceholder": "One per line; send “identity” or whoami in the bot to get it",
+      "allowedSendersHint": "* wildcards are not supported. In service-account mode only the real senders listed here can execute."
     },
     "apply": {
       "button": "Применить конфигурацию",
       "loadFailed": "Не удалось загрузить конфигурацию",
       "fillRequired": "Заполните все обязательные поля (отмечены *)",
       "applyFailed": "Не удалось применить конфигурацию",
-      "applySuccess": "Конфигурация применена"
+      "applySuccess": "Конфигурация применена",
+      "getConfigFailed": "Failed to get configuration"
     },
     "security": {
       "changePassword": "Сменить пароль",
@@ -2190,7 +2530,57 @@
     "usernameRequired": "Введите имя пользователя длиной не более 64 символов",
     "loginFailedCheck": "Вход не выполнен, проверьте имя пользователя или пароль",
     "loginFailedRetry": "Вход не выполнен, повторите позже",
-    "loggedOut": "Вы вышли"
+    "loggedOut": "Вы вышли",
+    "robotBinding": {
+      "menuTitle": "Bind robot account",
+      "generating": "Generating…",
+      "generateFailedNetwork": "Failed to generate binding code, please check the network",
+      "generateFailed": "Failed to generate binding code",
+      "waitingBinding": "Waiting for binding",
+      "reGenerate": "Re-generate",
+      "generateCode": "Generate binding code",
+      "expiryPrompt": "Send: bind {{code}}",
+      "codeExpired": "Expired",
+      "stateExpired": "Expired",
+      "expiryHint": "Binding code expired, please re-generate",
+      "copyLabel": "Copied",
+      "copyCommand": "Copy command",
+      "copyCopiedToast": "Binding command copied",
+      "bindCommand": "bind {{code}}",
+      "loadFailed": "Failed to load bindings",
+      "emptyTitle": "No bound accounts",
+      "emptyHint": "Generate a binding code and send it in the robot to complete first-time binding.",
+      "unknownTime": "Unknown time",
+      "confirmUnbind": "Unbind this robot account?",
+      "unbindFailed": "Failed to unbind",
+      "unbindBtn": "Unbind",
+      "connected": "Connected",
+      "updatedAt": "Updated",
+      "accountLabel": "Account ID",
+      "modalTitle": "Bind robot account",
+      "modalSubtitle": "Securely link an IM platform identity to the current RBAC user",
+      "guideStep1": "Generate a one-time binding code",
+      "guideStep2": "Send the binding command in the robot chat",
+      "guideStep3": "Immediately inherit the current user permissions",
+      "oneTimeBadge": "One-time security code",
+      "codeStateInitial": "Waiting for generation",
+      "expiryHintInitial": "Send the binding command in the robot chat",
+      "securityNote": "Only the hash of the binding code is stored; it can be used only once, and a new code immediately invalidates the old one",
+      "listTitle": "Bound platform accounts",
+      "listSubtitle": "These platform identities can use the current user's live RBAC permissions",
+      "refresh": "Refresh",
+      "listLoading": "Loading binding information…",
+      "serviceHint": "To configure a dedicated service account, go to System Settings → Robot Settings.",
+      "platform": {
+        "wechat": "WeChat",
+        "wecom": "WeCom",
+        "dingtalk": "DingTalk",
+        "lark": "Lark"
+      }
+    },
+    "durationHours": "{{hours}}h {{minutes}}m",
+    "durationMinutes": "{{minutes}}m {{seconds}}s",
+    "durationSeconds": "{{seconds}}s"
   },
   "knowledge": {
     "title": "Управление базой знаний",
@@ -2205,7 +2595,72 @@
     "deleteItemConfirm": "Удалить этот элемент базы знаний?",
     "notEnabledTitle": "База знаний не включена",
     "notEnabledHint": "Включите извлечение из базы знаний в системных настройках.",
-    "goToSettings": "К настройкам"
+    "goToSettings": "К настройкам",
+    "embeddingAuthRejected": "Embedding service rejected authentication. Please check the API key and service address in the knowledge base embedding settings, then save and retry.",
+    "embeddingForbidden": "Embedding service denied access. Please check your account permissions and the selected embedding model's access.",
+    "embeddingRateLimited": "Embedding service is rate-limiting requests. Please check request frequency and account quota, then retry later.",
+    "embeddingTimeout": "Embedding service request timed out. Please check service availability, network and proxy settings, then retry.",
+    "embeddingUnreachable": "Cannot reach the embedding service. Please check the service address, DNS, network and proxy settings.",
+    "embeddingCheckConfig": "Please check the embedding model and service configuration based on the error above, fix it, then retry.",
+    "getCategoriesFailed": "Failed to get categories",
+    "loadCategoriesFailed": "Failed to load categories",
+    "getItemsFailed": "Failed to get knowledge items",
+    "loadItemsFailed": "Failed to load knowledge items",
+    "noItems": "No knowledge items",
+    "uncategorized": "Uncategorized",
+    "itemsCountUnit": "{count} items",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
+    "paginationInfo": "Page {page} of {totalPages} ({total} categories)",
+    "updatedTimeLabel": "Updated",
+    "createdTimeLabel": "Created",
+    "newBadge": "New",
+    "totalCategoriesLabel": "Total categories",
+    "pageCategoriesLabel": "Categories on this page",
+    "pageItemsLabel": "Items on this page",
+    "categoriesCountUnit": "{count} categories",
+    "indexBuildFailed": "Index build failed",
+    "retryBtn": "Retry",
+    "fullRebuildBtn": "Full rebuild",
+    "buildingIndexProgress": "Building index: {current}/{total} ({percent}%) - failed: {failed}",
+    "processingItem": "Processing: {id}... ({chunks} chunks)",
+    "processing": "Processing...",
+    "startTimeLabel": "Started: {time}",
+    "indexBuildComplete": "Index build complete ({indexed}/{total})",
+    "buildingIndexSimple": "Building index: {current}/{total} ({percent}%)",
+    "indexDoneHint": "Once index building completes, semantic search becomes available",
+    "cannotGetIndexStatus": "Cannot get index status",
+    "cannotGetIndexStatusHint": "Cannot connect to the server to get index status. Please check your network connection or refresh the page.",
+    "searchFailed": "Search failed",
+    "searchNoMatch": "No matching knowledge items found",
+    "searchNoResultsHint": "Keyword \"{term}\" has no matches in all data",
+    "searchTryOther": "Please try other keywords, or use category filtering",
+    "scanStarting": "Scanning knowledge base...",
+    "scanFailed": "Failed to scan knowledge base",
+    "scanDoneIndexing": "Scan complete, starting to index {count} new or updated knowledge items",
+    "scanDoneNoChange": "Scan complete, no new or updated items need indexing",
+    "refreshFailed": "Failed to refresh knowledge base",
+    "fullRebuildIndexLabel": "Full index rebuild",
+    "buildIndexLabel": "Build index",
+    "indexJobStarting": "Starting {label}...",
+    "indexJobPreparing": "{label}: preparing...",
+    "indexJobInProgress": "An index job is already running, please wait for it to complete",
+    "indexJobFailed": "{label} failed",
+    "indexJobStarted": "{label} started, it will run in the background",
+    "buildIndexFailedMsg": "Failed to build index",
+    "fullRebuildIndexFailedMsg": "Failed to fully rebuild index",
+    "savingInProgress": "Saving in progress, please do not click again...",
+    "fillRequiredFields": "Please fill in all required fields",
+    "savingLabel": "Saving...",
+    "saveItemFailed": "Failed to save knowledge item",
+    "editItemFailed": "Failed to edit knowledge item",
+    "actionUpdated": "Updated",
+    "actionCreated": "Created",
+    "refreshing": "Refreshing...",
+    "saveSuccessSwitchCategory": "✅ {action} succeeded! Switched to category \"{category}\" to view the new knowledge item.",
+    "savedButRefreshFailed": "⚠️ Knowledge item saved, but refreshing the list failed. Please refresh the page manually to see it",
+    "deleteItemFailed": "Failed to delete knowledge item",
+    "deleteItemSuccess": "✅ Deleted! The knowledge item has been removed from the system."
   },
   "roles": {
     "title": "Управление ролями",
@@ -2219,7 +2674,70 @@
     "noRoles": "Нет ролей",
     "enabled": "Включено",
     "disabled": "Отключено",
-    "noDescriptionShort": "Нет описания"
+    "noDescriptionShort": "Нет описания",
+    "seedPentest": {
+      "name": "Pentest",
+      "description": "Professional penetration testing expert, thorough and in-depth vulnerability detection"
+    },
+    "seedApiSecurity": {
+      "name": "API security testing",
+      "description": "API security testing expert, focused on API interface security checks"
+    },
+    "seedWebAppScan": {
+      "name": "Web app scanning",
+      "description": "Web application vulnerability scanning expert, comprehensive web security checks"
+    },
+    "seedWebFramework": {
+      "name": "Web framework testing",
+      "description": "Web framework security testing expert, focused on web framework vulnerability detection"
+    },
+    "seedInfoCollect": {
+      "name": "Information gathering",
+      "description": "Asset discovery and information gathering expert"
+    },
+    "seedPostExploit": {
+      "name": "Post exploitation",
+      "description": "Post-exploitation expert, persistence and lateral movement"
+    },
+    "seedContainerSec": {
+      "name": "Container security",
+      "description": "Container and Kubernetes security expert, container environment security checks"
+    },
+    "seedCloudAudit": {
+      "name": "Cloud security audit",
+      "description": "Cloud security audit expert, multi-cloud environment security checks"
+    },
+    "seedBinary": {
+      "name": "Binary analysis",
+      "description": "Binary analysis and exploitation expert, reverse engineering and password cracking"
+    },
+    "seedForensics": {
+      "name": "Digital forensics",
+      "description": "Digital forensics and steganalysis expert, file and memory forensics"
+    },
+    "seedVulnScan": {
+      "name": "Comprehensive vulnerability scanning",
+      "description": "Comprehensive vulnerability scanning expert, multi-type vulnerability detection"
+    },
+    "seedCtf": {
+      "name": "CTF",
+      "description": "CTF competition expert, skilled in solving and exploiting vulnerabilities"
+    },
+    "refreshed": "Refreshed",
+    "fetchToolsFailed": "Failed to load tools list",
+    "externalBadge": "External",
+    "externalBadgeWithName": "External ({{name}})",
+    "externalToolBadgeTitle": "External MCP tool",
+    "externalToolBadgeTitleSource": "External MCP tool - source: {{name}}",
+    "saveFailed": "Failed to save role",
+    "deleteFailed": "Failed to delete role",
+    "roleUpdated": "Role updated",
+    "roleCreated": "Role created",
+    "roleUpdatedWithFilteredTools": "Role updated, but {{count}} tools not enabled in MCP management were filtered out: {{tools}}. Enable them in \"MCP Management\" first, then configure them in the role.",
+    "roleCreatedWithFilteredTools": "Role created, but {{count}} tools not enabled in MCP management were filtered out: {{tools}}. Enable them in \"MCP Management\" first, then configure them in the role.",
+    "disabledToolsConfirm": "The following {{count}} tools are not enabled in MCP management and cannot be configured in this role:\n\n{{tools}}\n\nEnable them in \"MCP Management\" first, then configure them in this role.\n\nContinue saving? (Only enabled tools will be saved)",
+    "deleteRoleConfirm": "Delete role \"{{name}}\"? This action cannot be undone.",
+    "deleted": "Role deleted"
   },
   "skills": {
     "title": "Управление навыками",
@@ -2279,7 +2797,10 @@
     "lastCallTime": "Время последнего вызова",
     "noCallRecords": "Записей вызовов навыков пока нет",
     "loadStatsErrorShort": "Не удалось загрузить статистику",
-    "loadCallStatsError": "Не удалось загрузить статистику вызовов"
+    "loadCallStatsError": "Не удалось загрузить статистику вызовов",
+    "seedDescriptions": {
+      "cyberstrike-eino-demo": "A fully-loaded sample skill package: SKILL.md plus optional scripts/, references/, and assets/ directories; verifies Eino skill and in-package HTTP paths (authorized security testing and education only)."
+    }
   },
   "apiDocs": {
     "pageTitle": "Документация API - CyberStrikeAI",
@@ -2576,7 +3097,8 @@
       "assetImportValidationFailed": "Не пройдена проверка числа активов или полей",
       "assetImportForbidden": "Нет права asset:write или доступа к указанному проекту",
       "assetImportTransactionFailed": "Транзакция импорта не выполнена"
-    }
+    },
+    "statusCode": "Status code: "
   },
   "mcpMonitor": {
     "toolRowNoCompletedAriaLabel": "{{name}}, вызовов: {{total}}, завершённых результатов нет; открыть записи выполнения",
@@ -2694,7 +3216,11 @@
     "durationMinutes": "{{minutes}} мин {{seconds}} с",
     "durationMinutesOnly": "{{minutes}} мин",
     "durationHours": "{{hours}} ч {{minutes}} мин",
-    "durationHoursOnly": "{{hours}} ч"
+    "durationHoursOnly": "{{hours}} ч",
+    "timelineActiveMoments": "Active moments",
+    "timelineMoreMoments": "+{{n}}",
+    "timelineMoreMomentsTitle": "{{n}} more active periods",
+    "loadMonitorFailed": "Failed to load monitoring data"
   },
   "knowledgePage": {
     "totalContent": "Всего содержимого",
@@ -2741,7 +3267,9 @@
     "uncategorized": "Без категории",
     "relatedInfo": "Связанные сведения",
     "itemsCount": "Элементов базы знаний: {{count}}",
-    "deleteConfirm": "Удалить эту запись извлечения?"
+    "deleteConfirm": "Удалить эту запись извлечения?",
+    "getLogsFailed": "Failed to get retrieval logs",
+    "deleteSuccess": "✅ Deleted! The retrieval record has been removed from the system."
   },
   "infoCollectPage": {
     "title": "Разведка",
@@ -2788,7 +3316,61 @@
     "exportCsvTitle": "Экспортировать результаты в CSV (UTF-8)",
     "exportJsonTitle": "Экспортировать результаты в JSON",
     "exportXlsxTitle": "Экспортировать результаты в Excel",
-    "batchScanTitle": "Создать очередь пакетных задач из выбранных строк"
+    "batchScanTitle": "Создать очередь пакетных задач из выбранных строк",
+    "providerLabel": "Data source",
+    "providerHint": "Supports FOFA, ZoomEye, Quake, Shodan; the API key can be configured in system settings or via environment variables.",
+    "queryMode": "Query mode",
+    "naturalLabel": "Natural language (optional; AI parses to query syntax)",
+    "naturalPlaceholder": "e.g. Apache sites in China",
+    "parseHintFallback": "After parsing, a popup shows the data source syntax (editable); confirm it, fill the query box, and run the query.",
+    "syntaxLabel": "Query syntax (editable; can run directly)",
+    "querySyntax": "query syntax",
+    "queryPlaceholderFallback": "e.g. app=\"Apache\" && country=\"CN\"",
+    "runQuery": "Query",
+    "queryHintFallback": "A query syntax hint appears after selecting a data source.",
+    "returnConfig": "Return config",
+    "sizeHintFallback": "Per-query return limits may differ across data sources.",
+    "fofaSizeHint": "The FOFA return limit depends on account permissions; the frontend allows at most 10000.",
+    "fofaFullLabel": "Full mode",
+    "fofaFullHint": "Passes full=true to FOFA, returning more complete/fresher data, possibly consuming more quota.",
+    "fofaSyntaxSummary": "FOFA uses exact field=\"value\" matching, supports &&, ||, ! and parentheses; strings should be wrapped in double quotes.",
+    "syntaxSectionCommonFields": "Common fields",
+    "syntaxSectionConbinations": "Combinations",
+    "syntaxSectionExamples": "Scenario examples",
+    "syntaxSectionCommonFilters": "Common filters",
+    "presetSsh": "SSH service",
+    "presetHttpChina": "HTTP + China",
+    "presetPort443": "Port 443",
+    "presetNginxChina": "Nginx + China",
+    "presetCertDomain": "By certificate domain",
+    "presetAmazon443": "Amazon 443",
+    "zoomeyeNlPlaceholder": "e.g. Find SSH services in China, excluding honeypots",
+    "zoomeyeHint": "ZoomEye supports app/title/domain/ip/port/country/city syntax.",
+    "zoomeyeParseHint": "After parsing, a popup shows the ZoomEye syntax (editable); confirm it, fill the query box, and run the query.",
+    "zoomeyeSizeHint": "ZoomEye supports pagesize up to 10000; the actual quota depends on the account.",
+    "zoomeyeSyntaxSummary": "ZoomEye supports field search, quoted phrases, AND/OR/NOT and parentheses; field names follow what the official console actually supports.",
+    "quakeQueryPlaceholder": "e.g. service.name:\"http\" AND country_cn:\"China\"",
+    "quakeNlPlaceholder": "e.g. Find HTTP services in China, title contains login",
+    "quakeHint": "Quake uses DSL syntax; common fields are service.name, domain, ip, port, country_cn.",
+    "quakeParseHint": "After parsing, a popup shows the Quake DSL (editable); confirm it, fill the query box, and run the query.",
+    "quakeSizeHint": "Quake size consumes credits; control the return count as needed.",
+    "quakeFullLabel": "Latest data",
+    "quakeFullHint": "Passes latest=true to Quake, preferring the latest data.",
+    "quakeSyntaxSummary": "Quake uses Lucene/DSL-style queries, typically field:\"value\", with AND, OR, NOT operators.",
+    "shodanQueryPlaceholder": "e.g. product:nginx country:CN",
+    "shodanNlPlaceholder": "e.g. Find nginx assets in China, port 443",
+    "shodanHint": "Shodan uses filter:value syntax; common fields are product, port, country, org.",
+    "shodanParseHint": "After parsing, a popup shows the Shodan filter syntax (editable); confirm it, fill the query box, and run the query.",
+    "shodanSizeHint": "Shodan returns 100 per page; the backend paginates automatically, up to 1000 per query to control quota use.",
+    "shodanSyntaxSummary": "Shodan searches banner data by default; exact conditions use filter:value, with double quotes for values containing spaces, and filters combined side by side narrow results.",
+    "officialDocs": "Official docs",
+    "collapseExamples": "Collapse examples",
+    "expandExamples": "Expand examples",
+    "fillFieldsTemplate": "Fill field template",
+    "maxSizeAdjusted": "A single query returns at most {{maxSize}} rows; adjusted automatically.",
+    "requestFailed": "Request failed",
+    "parseRowFailed": "Failed to parse row data",
+    "createQueueNoId": "Created successfully but no queueId returned"
   },
   "chatFilesPage": {
     "title": "Управление файлами",
@@ -2965,7 +3547,14 @@
     "detailRetestLog": "Журнал повторных проверок",
     "downloadOkTitle": "Скачано",
     "exportFailedMessage": "Экспорт не удался",
-    "downloadFailed": "Загрузка не удалась"
+    "downloadFailed": "Загрузка не удалась",
+    "statCardsAria": "Vulnerability severity stats",
+    "filterProject": "Project",
+    "relatedFactsLoading": "Loading related facts…",
+    "relatedFactsTitle": "Related facts",
+    "relatedFactsEmpty": "None yet. Link facts or draft a vulnerability in Project management.",
+    "relatedFactsCount": "Related facts ({{count}})",
+    "relatedFactsLoadFailed": "Load failed"
   },
   "tasksPage": {
     "statusFilter": "Фильтр статуса",
@@ -3031,7 +3620,74 @@
     "saveFailed": "Не удалось сохранить",
     "deleteConfirm": "Удалить {{name}}?",
     "deleteOk": "Удалено",
-    "deleteFailed": "Не удалось удалить"
+    "deleteFailed": "Не удалось удалить",
+    "noName": "Unnamed agent",
+    "seed": {
+      "attackSurfaceEnumeration": {
+        "name": "Attack-surface enumeration specialist",
+        "description": "From recon/intel input, maps services, technology stacks, dependencies, and potential entry points; outputs a structured attack-surface graph with verification priority, and the main agent must provide a complete target and scope."
+      },
+      "cleanupRollback": {
+        "name": "Cleanup and rollback specialist",
+        "description": "Designs cleanup/rollback checklists for authorized tests, ensuring minimal residue and auditability; the main agent must provide a complete target and change context."
+      },
+      "engagementPlanning": {
+        "name": "Engagement planning specialist",
+        "description": "Defines engagement scope, rules of engagement (ROE), and success criteria; produces an iterative test blueprint and evidence checklist (no intrusion is executed); the main agent must provide a complete target and constraint information."
+      },
+      "impactExfiltration": {
+        "name": "Impact and exfiltration proof specialist",
+        "description": "Designs minimal-impact proofs of business impact / data reachability; emphasizes masking, minimal data exposure, and rollback; the main agent must provide a complete target and scope."
+      },
+      "intelCollection": {
+        "name": "Intel collection specialist",
+        "description": "Public intelligence, asset fingerprinting, leak leads, directory and interface discovery, and third-party exposure mapping; suited to wide-range intel aggregation within the authorized scope; the main agent must provide a complete target and scope."
+      },
+      "lateralMovement": {
+        "name": "Lateral movement specialist",
+        "description": "Post-initial-foothold internal discovery, credential and session reuse, lateral movement, and access-maintenance reasoning (authorized exercises / pentest environments only); the main agent must provide a complete target and network-segment scope."
+      },
+      "opsecEvasion": {
+        "name": "OPSEC and disturbance-minimization specialist",
+        "description": "Designs low-disturbance verification strategies and evidence capture from the perspective of test noise, observability, blue-team alerts, and rollback risk (no bypass techniques provided); the main agent must provide a complete target and scope."
+      },
+      "cyberstrikePlanExecute": {
+        "name": "Plan-Execute planner",
+        "description": "The planning/re-planning side in plan_execute mode: decomposes the goal and revises the plan while the executor applies MCP tools directly (Deep task sub-agents are not used); each plan step must carry a complete target and scope, and the executor must not guess at completing URLs/IPs."
+      },
+      "cyberstrikeSupervisor": {
+        "name": "Supervisor coordinator",
+        "description": "The coordinator in supervisor mode: delegates specialist sub-agents via transfer and uses MCP itself when necessary; finishes with exit when the goal is met (the runtime appends the specialist list and exit explanation); every transfer must provide a complete target and scope."
+      },
+      "cyberstrikeDeep": {
+        "name": "Deep orchestrator",
+        "description": "The Deep orchestrator in multi-agent mode: coordinates with MCP tools and task sub-agents in authorized security scenarios, handling planning, delegation, aggregation, and user delivery; every dispatch must give the sub-agent a complete target and scope."
+      },
+      "penetration": {
+        "name": "Pentest specialist",
+        "description": "Vulnerability verification within the authorized scope, exploit-chain construction, privilege escalation, and impact proof; performs deep exploitation and reproduction given recon/intel input, and the main agent must provide a complete target and scope."
+      },
+      "persistenceMaintenance": {
+        "name": "Persistence maintenance specialist",
+        "description": "Evaluates persistence / access-maintenance ideas in the authorized environment, risk trade-offs, and rollback verification; proves feasibility with minimal impact; the main agent must provide a complete target and boundaries."
+      },
+      "privilegeEscalation": {
+        "name": "Privilege escalation specialist",
+        "description": "Given initial access / limited privileges, assesses escalation potential, evidence needs, and safe verification methods (authorized environments only); the main agent must provide a complete target and current privilege context."
+      },
+      "recon": {
+        "name": "Recon specialist",
+        "description": "Handles information gathering, asset mapping, and initial attack-surface analysis; the main agent must provide a complete target (URL/IP:Port/domain+path) and scope when delegating."
+      },
+      "reportingRemediation": {
+        "name": "Reporting and remediation specialist",
+        "description": "Consolidates collected evidence into a deliverable report structure and provides remediation-oriented recommendations and regression verification points; the main agent must provide a complete target and evidence context."
+      },
+      "vulnerabilityTriage": {
+        "name": "Vulnerability triage specialist",
+        "description": "Filters and ranks vulnerability candidates from attack surface and evidence leads and designs verification paths (evidence-first, no direct weaponization); the main agent must provide a complete target and input evidence."
+      }
+    }
   },
   "settingsBasic": {
     "basicTitle": "Основные настройки",
@@ -3272,7 +3928,34 @@
     "testErrorUnauthorized": "Аутентификация не удалась. Проверьте ключ API.",
     "testErrorForbidden": "Запрос отклонён. Проверьте права учётной записи или доступ к модели.",
     "testErrorModelUnavailable": "Модель недоступна или имя модели указано неверно.",
-    "testErrorBaseUrl": "Базовый URL недоступен. Проверьте правильность конечной точки."
+    "testErrorBaseUrl": "Базовый URL недоступен. Проверьте правильность конечной точки.",
+    "aiChannelFillMissing": "Please fill in: {missing}",
+    "aiChannelSaveFailed": "Failed to save channel",
+    "aiChannelApplyFailed": "Failed to apply channel",
+    "aiChannelKeepAtLeastOne": "Keep at least one AI channel",
+    "aiChannelSelectDeleteFirst": "Please select the channels to delete first",
+    "aiChannelDefaultNotBulkDeletable": "The default channel cannot be batch deleted. Switch the default channel first.",
+    "aiChannelBulkDeleteConfirm": "Delete {count} AI channels?\n{names}",
+    "aiChannelBulkDeleted": "Deleted {count} channels",
+    "zoomeyeConfig": "ZoomEye config",
+    "zoomeyeConfigHint": "Used by the Recon page to call the ZoomEye API; the ZOOMEYE_API_KEY environment variable can also be set.",
+    "zoomeyeBaseUrlPlaceholder": "https://api.zoomeye.ai/v2/search (optional)",
+    "zoomeyeBaseUrlHint": "Leave empty for default.",
+    "zoomeyeApiKeyPlaceholder": "Enter ZoomEye API Key",
+    "zoomeyeApiKeyHint": "Stored in server config (config.yaml) only.",
+    "quakeConfig": "Quake config",
+    "quakeConfigHint": "Used by the Recon page to call the 360 Quake API; the QUAKE_API_KEY environment variable can also be set.",
+    "quakeBaseUrlPlaceholder": "https://quake.360.net/api/v3/search/quake_service (optional)",
+    "quakeBaseUrlHint": "Leave empty for default.",
+    "quakeApiKeyPlaceholder": "Enter Quake API Token",
+    "quakeApiKeyHint": "Stored in server config (config.yaml) only.",
+    "shodanConfig": "Shodan config",
+    "shodanConfigHint": "Used by the Recon page to call the Shodan API; the SHODAN_API_KEY environment variable can also be set.",
+    "shodanBaseUrlPlaceholder": "https://api.shodan.io (optional)",
+    "shodanBaseUrlHint": "Leave empty for default.",
+    "shodanApiKeyPlaceholder": "Enter Shodan API Key",
+    "shodanApiKeyHint": "Stored in server config (config.yaml) only.",
+    "unknownError": "Unknown error"
   },
   "settingsTerminal": {
     "title": "Терминал",
@@ -3688,7 +4371,8 @@
     "rawResponse": "Исходный ответ",
     "errorInfo": "Сведения об ошибке",
     "copyError": "Копировать ошибку",
-    "contentTruncated": "… (показано не полностью; полный файл — read_file по пути в persisted-output)"
+    "contentTruncated": "… (показано не полностью; полный файл — read_file по пути в persisted-output)",
+    "resultTabsAria": "Response result views"
   },
   "attackChainModal": {
     "title": "Цепочка атаки",
@@ -3890,7 +4574,8 @@
     "completeLabel": "Завершение",
     "errorLabel": "Ошибка",
     "resultLabel": "Результат",
-    "technicalDetails": "Технические сведения (ID, время, расписание)"
+    "technicalDetails": "Технические сведения (ID, время, расписание)",
+    "roleNotFound": "removed"
   },
   "editBatchTaskModal": {
     "title": "Изменить задачу",
@@ -4193,7 +4878,8 @@
         "exportFailed": "Экспорт не выполнен. Повторите попытку позже.",
         "workflowNotFound": "Сценарий не найден, экспорт невозможен.",
         "generic": "Операция не выполнена. Повторите попытку позже.",
-        "serviceUnavailable": "Служба импорта не готова. Обновите страницу и повторите попытку."
+        "serviceUnavailable": "Служба импорта не готова. Обновите страницу и повторите попытку.",
+        "inspectionRequired": "Preflight 记录缺失。请重新上传并执行 preflight."
       },
       "conflict": {
         "identical": "Найден локальный сценарий с тем же ID и тем же содержимым; импорт будет пропущен.",
@@ -4464,7 +5150,8 @@
         "https_beacon": "HTTPS Beacon",
         "tcp_reverse": "TCP Reverse",
         "websocket": "WebSocket"
-      }
+      },
+      "toastBindProjectFailed": "Failed to bind project"
     },
     "sessions": {
       "title": "Управление сессиями",
@@ -4940,7 +5627,8 @@
       "vulnerability": "Уязвимость",
       "webshell": "Подключение WebShell",
       "batch_task": "Пакетная задача",
-      "c2_listener": "Слушатель C2"
+      "c2_listener": "Слушатель C2",
+      "asset": "Asset"
     },
     "scopes": {
       "all": {
@@ -5164,7 +5852,10 @@
         "write": "Отменять отслеживаемые выполнения",
         "delete": "Удалять записи монитора выполнения"
       }
-    }
+    },
+    "viewTabsAria": "Permission management views",
+    "resourceTypeFilterAria": "Filter resource types",
+    "builtinAdminDisplayName": "Administrator"
   },
   "vulnerabilityRetest": {
     "startFailed": "Проверка не отправлена. Инструкция сохранена в ветке; вернитесь туда для продолжения.",

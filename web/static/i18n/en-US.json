@@ -1447,7 +1447,10 @@
     "workflowSubmitFailed": "Submit failed",
     "workflowApprovedResuming": "Approved; the workflow is continuing…",
     "workflowApprovedContinue": "Approved; the workflow continues",
-    "workflowRejected": "Rejected"
+    "workflowRejected": "Rejected",
+    "workflowPendingTitle": "Workflow approval",
+    "openConversation": "Open conversation",
+    "submitFailed": "Submit failed"
   },
   "progress": {
     "callingAI": "Calling AI model...",
