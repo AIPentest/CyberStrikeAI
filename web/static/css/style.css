@@ -33748,6 +33748,14 @@ html[data-theme="dark"] .chat-files-toast.chat-toast--error {
     font-size: 0.75rem;
     border-radius: 6px;
 }
+
+.sidebar-list-pagination .projects-filter-select-dropdown {
+    top: auto;
+    bottom: calc(100% + 4px);
+    left: auto;
+    min-width: 88px;
+}
+
 .projects-fact-filter-field--search input {
     padding-left: 34px;
     background: #fff;
