@@ -42301,6 +42301,12 @@ html[data-theme="dark"] .workflow-toolbar #workflow-connect-btn[aria-pressed="tr
     max-height: none;
 }
 
+.rbac-panel-users > .rbac-panel-head,
+.rbac-panel-users > .rbac-search {
+    /* Keep the fixed controls intact when a long member list needs to shrink. */
+    flex: 0 0 auto;
+}
+
 .rbac-panel-users .rbac-list {
     flex: 1 1 auto;
     min-height: 0;
