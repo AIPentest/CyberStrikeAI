@@ -509,6 +509,7 @@ function renderChatFilesPagination() {
     if (groupMode === 'folder' || chatFilesTotal <= 0) {
         pager.hidden = true;
         pager.innerHTML = '';
+        if (typeof initPaginationSelects === 'function') initPaginationSelects(pager);
         return;
     }
     const totalPages = chatFilesTotalPages();
@@ -542,6 +543,7 @@ function renderChatFilesPagination() {
             <button type="button" class="btn-secondary" ${chatFilesPage >= totalPages ? 'disabled' : ''} onclick="changeChatFilesPage(${chatFilesPage + 1})">${escapeHtml(nextLabel)}</button>
         </div>`;
     pager.hidden = false;
+    if (typeof initPaginationSelects === 'function') initPaginationSelects(pager);
 }
 
 function changeChatFilesPage(page) {

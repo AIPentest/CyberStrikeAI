@@ -1032,6 +1032,7 @@ function renderRoleToolsPagination() {
     `;
     
     toolsList.appendChild(pagination);
+    if (typeof initPaginationSelects === 'function') initPaginationSelects(pagination);
 }
 
 function syncRoleToolsFilterButtons() {

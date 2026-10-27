@@ -402,6 +402,7 @@ function renderAuditLogsPagination() {
     html += '<button type="button" class="btn-secondary" onclick="goAuditLogsPage(' + totalPages + ')"' + (disabledLast ? ' disabled' : '') + '>' + esc(lastPageLabel) + '</button>';
     html += '</div></div>';
     container.innerHTML = html;
+    if (typeof initPaginationSelects === 'function') initPaginationSelects(container);
 }
 
 function goAuditLogsPage(p) {

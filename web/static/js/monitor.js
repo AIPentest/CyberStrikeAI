@@ -9322,6 +9322,7 @@ function renderMonitorPagination() {
     `;
     
     container.appendChild(pagination);
+    if (typeof initPaginationSelects === 'function') initPaginationSelects(pagination);
     
     // 初始化每页显示数量选择器
     initializeMonitorPageSize();

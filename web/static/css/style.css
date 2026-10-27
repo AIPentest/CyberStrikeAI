@@ -10604,6 +10604,43 @@ html[data-theme="dark"] .robot-binding-service-hint-icon {
     font-size: 0.875rem;
 }
 
+.pagination-custom-select {
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: 76px;
+    vertical-align: middle;
+}
+
+.pagination-custom-select .settings-custom-select-trigger {
+    min-height: 34px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 0.8125rem;
+}
+
+.pagination-custom-select .settings-custom-select-caret {
+    width: 8px;
+    height: 8px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    font-size: 0;
+    transform: translateY(-2px) rotate(45deg);
+}
+
+.settings-custom-select.pagination-custom-select.open .settings-custom-select-caret {
+    transform: translateY(2px) rotate(225deg);
+}
+
+.sidebar-list-pagination .pagination-custom-select {
+    width: 64px;
+}
+
+.sidebar-list-pagination .pagination-custom-select .settings-custom-select-trigger {
+    min-height: 28px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+}
+
 .settings-custom-select-value {
     flex: 1;
     min-width: 0;

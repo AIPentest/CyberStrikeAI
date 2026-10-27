@@ -174,6 +174,7 @@ function renderHitlPagination(containerId, state, goPageFnName, pageSizeChangeFn
     html += '<button type="button" class="btn-secondary" onclick="' + esc(goPageFnName) + '(' + totalPages + ')"' + (disabledLast ? ' disabled' : '') + '>' + esc(lastPageLabel) + '</button>';
     html += '</div></div>';
     container.innerHTML = html;
+    if (typeof initPaginationSelects === 'function') initPaginationSelects(container);
 }
 
 function hitlEffectiveEnabled(cfg) {
