@@ -14008,6 +14008,10 @@ html[data-theme="dark"] .robot-binding-service-hint-icon {
     display: grid;
     grid-template-columns: minmax(110px, 0.65fr) minmax(150px, 1fr) minmax(190px, 1.25fr);
     gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
 }
 
 .rbac-resource-filterbar :is(.form-select, .form-input),
