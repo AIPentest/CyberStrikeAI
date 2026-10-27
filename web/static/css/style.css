@@ -42704,7 +42704,7 @@ html[data-theme="dark"] .workflow-toolbar #workflow-connect-btn[aria-pressed="tr
     gap: 0;
     min-height: 0;
     max-height: none;
-    padding: 0 12px;
+    padding: 12px;
 }
 
 .rbac-assignments-list .rbac-assignment-row {
