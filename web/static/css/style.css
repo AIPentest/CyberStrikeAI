@@ -42301,6 +42301,12 @@ html[data-theme="dark"] .workflow-toolbar #workflow-connect-btn[aria-pressed="tr
     max-height: none;
 }
 
+.rbac-panel-users > .rbac-panel-head,
+.rbac-panel-users > .rbac-search {
+    /* Keep the fixed controls intact when a long member list needs to shrink. */
+    flex: 0 0 auto;
+}
+
 .rbac-panel-users .rbac-list {
     flex: 1 1 auto;
     min-height: 0;
@@ -42814,19 +42820,23 @@ html[data-theme="dark"] .workflow-toolbar #workflow-connect-btn[aria-pressed="tr
 }
 
 .rbac-role-management {
+    display: flex;
+    flex-direction: column;
     min-height: 0;
+    overflow: hidden;
     padding: 18px;
     border-radius: 10px;
 }
 
 .rbac-role-management-head {
+    flex: 0 0 auto;
     align-items: flex-end;
     flex-wrap: wrap;
     row-gap: 12px;
 }
 
 .rbac-role-management-head > div:first-child {
-    flex: 1 1 320px;
+    flex: 1 1 auto;
     min-width: 0;
 }
 
@@ -42861,7 +42871,12 @@ html[data-theme="dark"] .workflow-toolbar #workflow-connect-btn[aria-pressed="tr
 }
 
 .rbac-role-catalog {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+    align-content: start;
     align-items: stretch;
 }
 
