@@ -8457,6 +8457,15 @@ html[data-theme="dark"] .login-card .login-submit:disabled {
     padding: 0;
 }
 
+/* 桌面菜单独立滚动，避免短视口下底部入口被 settings-layout 裁切。
+   移动端保留 mobile.css 中的顶部横向导航。 */
+@media (min-width: 768px) {
+    .settings-sidebar {
+        min-height: 0;
+        overflow-y: auto;
+    }
+}
+
 .settings-nav {
     display: flex;
     flex-direction: column;
