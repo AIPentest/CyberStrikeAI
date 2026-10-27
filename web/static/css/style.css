@@ -16121,6 +16121,8 @@ tr.mcp-stats-tool-row[data-tool-name]:focus-visible {
 
 .external-mcp-actions {
     display: flex;
+    flex: 0 0 auto;
+    min-width: 0;
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
@@ -16128,9 +16130,12 @@ tr.mcp-stats-tool-row[data-tool-name]:focus-visible {
 
 .external-mcp-stats {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 20px;
-    margin-left: auto;
+    gap: 8px 20px;
+    width: 100%;
+    min-width: 0;
+    margin-left: 0;
     padding: 10px 20px;
     background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
     border: 1px solid var(--border-color);
@@ -16232,21 +16237,24 @@ tr.mcp-stats-tool-row[data-tool-name]:focus-visible {
 
 .external-mcp-item-header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
 }
 
 .external-mcp-item-info {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 12px;
-    flex: 1;
+    width: 100%;
     min-width: 0;
 }
 
 .external-mcp-item-info h4 {
+    flex: 1 1 180px;
+    min-width: 0;
+    overflow-wrap: anywhere;
     margin: 0;
     font-size: 1.125rem;
     font-weight: 600;
@@ -16273,6 +16281,7 @@ tr.mcp-stats-tool-row[data-tool-name]:focus-visible {
 }
 
 .external-mcp-status {
+    flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -16351,6 +16360,7 @@ tr.mcp-stats-tool-row[data-tool-name]:focus-visible {
 .external-mcp-item-actions {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 8px;
     flex-wrap: wrap;
 }
