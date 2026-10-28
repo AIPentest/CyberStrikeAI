@@ -9923,6 +9923,7 @@ function renderConversationsPagination(visibleCount) {
     if (!total) {
         el.innerHTML = '';
         el.hidden = true;
+        if (typeof initPaginationSelects === 'function') initPaginationSelects(el);
         return;
     }
 
@@ -9963,6 +9964,7 @@ function renderConversationsPagination(visibleCount) {
                 </select>
             </label>
         </div>`;
+        if (typeof initPaginationSelects === 'function') initPaginationSelects(el);
     } finally {
         conversationsPaginationRenderLock = false;
     }

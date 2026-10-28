@@ -172,7 +172,15 @@ function syncSettingsCustomSelect(select) {
 }
 
 function refreshSettingsCustomSelects() {
-    settingsCustomSelects.forEach((_reg, select) => syncSettingsCustomSelect(select));
+    settingsCustomSelects.forEach((reg, select) => {
+        if (!select.isConnected) {
+            closeSettingsCustomSelect(select);
+            reg.menu.remove();
+            settingsCustomSelects.delete(select);
+            return;
+        }
+        syncSettingsCustomSelect(select);
+    });
 }
 
 function enhanceSettingsSelect(select) {
@@ -277,10 +285,7 @@ function enhanceSettingsSelect(select) {
     syncSettingsCustomSelect(select);
 }
 
-function initSettingsCustomSelects(root) {
-    const scope = root || document.getElementById('page-settings');
-    if (!scope) return;
-    scope.querySelectorAll('select').forEach(enhanceSettingsSelect);
+function bindSettingsCustomSelectEvents() {
     if (!settingsCustomSelectsDocBound) {
         document.addEventListener('click', closeAllSettingsCustomSelects);
         document.addEventListener('keydown', (event) => {
@@ -288,8 +293,35 @@ function initSettingsCustomSelects(root) {
         });
         document.addEventListener('scroll', repositionOpenSettingsCustomSelects, true);
         window.addEventListener('resize', repositionOpenSettingsCustomSelects);
+        window.addEventListener('hashchange', closeAllSettingsCustomSelects);
         settingsCustomSelectsDocBound = true;
     }
+}
+
+function initSettingsCustomSelects(root) {
+    const scope = root || document.getElementById('page-settings');
+    if (!scope) return;
+    scope.querySelectorAll('select').forEach(enhanceSettingsSelect);
+    bindSettingsCustomSelectEvents();
+    refreshSettingsCustomSelects();
+}
+
+// Pagination menus use the floating select so clipped panels cannot hide options.
+function initPaginationSelects(root) {
+    if (!root) return;
+    root.querySelectorAll('.pagination-page-size select').forEach(select => {
+        if (select.dataset.projectsCustomSelect === '1') return;
+        enhanceSettingsSelect(select);
+        const reg = settingsCustomSelects.get(select);
+        if (!reg) return;
+        reg.wrapper.classList.add('pagination-custom-select');
+        const label = select.labels?.[0] || select.closest('.pagination-page-size');
+        const labelText = label && Array.from(label.childNodes)
+            .filter(node => node.nodeType === 3).map(node => node.textContent).join(' ').trim();
+        const accessibleName = select.getAttribute('aria-label') || labelText;
+        if (accessibleName) reg.trigger.setAttribute('aria-label', accessibleName);
+    });
+    bindSettingsCustomSelectEvents();
     refreshSettingsCustomSelects();
 }
 
@@ -1675,6 +1707,7 @@ function renderToolsPagination() {
     
     // 如果只有一页或没有数据，不显示分页
     if (toolsPagination.totalPages <= 1) {
+        initPaginationSelects(toolsList);
         return;
     }
     
@@ -1716,6 +1749,7 @@ function renderToolsPagination() {
     `;
     
     toolsList.appendChild(pagination);
+    initPaginationSelects(pagination);
 }
 
 // 处理工具checkbox状态变化

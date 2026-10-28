@@ -1135,6 +1135,7 @@ function renderProjectAssetsPagination() {
             <button type="button" class="btn-secondary" onclick="loadProjectAssets(${totalPages})" ${atLast ? 'disabled' : ''}>${escapeHtml(tpFmt('skillsPage.lastPage', '尾页'))}</button>
         </div>
     </div>`;
+    if (typeof initPaginationSelects === 'function') initPaginationSelects(root);
 }
 
 function changeProjectAssetsPageSize(value) {
