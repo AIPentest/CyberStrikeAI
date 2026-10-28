@@ -1,6 +1,6 @@
 ---
 name: cyberstrike-eino-demo
-description: A fully-outfitted demo skill package: SKILL.md + scripts/, references/, assets/ and other optional directories; validates Eino skill and in-package HTTP paths (authorized security testing and teaching only).
+description: 'A fully-outfitted demo skill package: SKILL.md + scripts/, references/, assets/ and other optional directories; validates Eino skill and in-package HTTP paths (authorized security testing and teaching only).'
 ---
 
 # CyberStrike × Eino fully-outfitted skill demo
