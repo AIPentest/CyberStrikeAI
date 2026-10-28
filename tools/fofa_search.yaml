@@ -9,37 +9,37 @@ args:
     import requests
     import os
 
-    # ==================== FOFA配置 ====================
-    # 请在此处配置您的 FOFA API Key
-    # 您也可以在环境变量中设置：FOFA_API_KEY
-    # enable 默认为 false，需开启才能调用该MCP
-    FOFA_API_KEY = ""  # 请填写您的FOFA API密钥
+    # ==================== FOFA configuration ====================
+    # Please configure your FOFA API Key here
+    # You can also set it in the environment variable: FOFA_API_KEY
+    # enable defaults to false; it must be enabled to call this MCP
+    FOFA_API_KEY = ""  # Please fill in your FOFA API key
     # ==================================================
 
-    # FOFA API基础URL
+    # FOFA API base URL
     base_url = "https://fofa.info/api/v1/search/all"
 
-    # 解析参数（从JSON字符串或命令行参数）
+    # Parse parameters (from JSON string or command-line arguments)
     def parse_args():
-        # 尝试从第一个参数读取JSON配置
+        # Try to read JSON configuration from the first argument
         if len(sys.argv) > 1:
             try:
-                # 确保 sys.argv[1] 是字符串
+                # Ensure sys.argv[1] is a string
                 arg1 = str(sys.argv[1])
-                # 尝试解析为JSON
+                # Try to parse as JSON
                 config = json.loads(arg1)
-                # 确保返回的是字典类型
+                # Ensure the returned value is a dictionary
                 if isinstance(config, dict):
                     return config
             except (json.JSONDecodeError, TypeError, ValueError):
-                # 如果不是JSON，使用传统的位置参数方式
+                # If it is not JSON, use the traditional positional argument method
                 pass
 
-        # 传统位置参数方式（向后兼容）
-        # 注意：api_key 不作为调用参数传入，而是从配置或环境变量读取
-        # 参数位置：query=2, size=3, page=4, fields=5, full=6
-        # 但在 sys.argv 中，由于 python3 -c "code" 的格式，实际位置需要调整
-        # sys.argv[0] 是 '-c'，sys.argv[1] 开始是实际参数
+        # Traditional positional argument method (backward compatible)
+        # Note: api_key is not passed as a call parameter, but read from configuration or environment variable
+        # Parameter positions: query=2, size=3, page=4, fields=5, full=6
+        # But in sys.argv, due to the python3 -c "code" format, actual positions need adjustment
+        # sys.argv[0] is '-c'; actual arguments start from sys.argv[1]
         config = {}
         if len(sys.argv) > 1:
             config['query'] = str(sys.argv[1])
@@ -66,26 +66,26 @@ args:
     try:
         config = parse_args()
 
-        # 确保 config 是字典类型
+        # Ensure config is a dictionary
         if not isinstance(config, dict):
             error_result = {
                 "status": "error",
-                "message": f"参数解析错误: 期望字典类型，但得到 {type(config).__name__}",
+                "message": f"Parameter parsing error: expected dict type, but got {type(config).__name__}",
                 "type": "TypeError"
             }
             print(json.dumps(error_result, ensure_ascii=False, indent=2))
             sys.exit(1)
 
-        # 从配置或环境变量获取 api_key
+        # Get api_key from configuration or environment variable
         api_key = os.getenv('FOFA_API_KEY', FOFA_API_KEY).strip()
         query = config.get('query', '').strip()
 
         if not api_key:
             error_result = {
                 "status": "error",
-                "message": "缺少FOFA配置: api_key（FOFA API密钥）",
+                "message": "Missing FOFA configuration: api_key (FOFA API key)",
                 "required_config": ["api_key"],
-                "note": "请在YAML文件的FOFA_API_KEY配置项中填写您的API密钥，或在环境变量FOFA_API_KEY中设置。API密钥可在FOFA个人中心获取: https://fofa.info/userInfo"
+                "note": "Please fill in your API key in the FOFA_API_KEY configuration item in the YAML file, or set it in the FOFA_API_KEY environment variable. The API key can be obtained from the FOFA personal center: https://fofa.info/userInfo"
             }
             print(json.dumps(error_result, ensure_ascii=False, indent=2))
             sys.exit(1)
@@ -93,11 +93,11 @@ args:
         if not query:
             error_result = {
                 "status": "error",
-                "message": "缺少必需参数: query（搜索查询语句）",
+                "message": "Missing required parameter: query (search query statement)",
                 "required_params": ["query"],
                 "examples": [
                     'app="Apache"',
-                    'title="登录"',
+                    'title="login"',
                     'domain="example.com"',
                     'ip="1.1.1.1"',
                     'port="80"',
@@ -108,13 +108,13 @@ args:
             print(json.dumps(error_result, ensure_ascii=False, indent=2))
             sys.exit(1)
 
-        # 构建请求参数
+        # Build request parameters
         params = {
             'key': api_key,
             'qbase64': base64.b64encode(query.encode('utf-8')).decode('utf-8')
         }
 
-        # 可选参数
+        # Optional parameters
         if 'size' in config and config['size'] is not None:
             try:
                 size = int(config['size'])
@@ -143,25 +143,25 @@ args:
             elif isinstance(full_val, (int, float)):
                 params['full'] = 'true' if full_val != 0 else 'false'
 
-        # 发送请求
+        # Send the request
         try:
             response = requests.get(base_url, params=params, timeout=30)
             response.raise_for_status()
 
             result_data = response.json()
 
-            # 检查FOFA API返回的错误
+            # Check errors returned by the FOFA API
             if result_data.get('error'):
                 error_result = {
                     "status": "error",
-                    "message": f"FOFA API错误: {result_data.get('errmsg', '未知错误')}",
+                    "message": f"FOFA API error: {result_data.get('errmsg', 'unknown error')}",
                     "error_code": result_data.get('error'),
-                    "suggestion": "请检查API密钥是否正确，或查询语句是否符合FOFA语法"
+                    "suggestion": "Please check whether the API key is correct, or whether the query statement conforms to FOFA syntax"
                 }
                 print(json.dumps(error_result, ensure_ascii=False, indent=2))
                 sys.exit(1)
 
-            # 格式化输出结果
+            # Format output results
             output = {
                 "status": "success",
                 "query": query,
@@ -170,7 +170,7 @@ args:
                 "total": result_data.get('total', 0),
                 "results_count": len(result_data.get('results', [])),
                 "results": result_data.get('results', []),
-                "message": f"成功获取 {len(result_data.get('results', []))} 条结果"
+                "message": f"Successfully retrieved {len(result_data.get('results', []))} results"
             }
 
             print(json.dumps(output, ensure_ascii=False, indent=2))
@@ -178,8 +178,8 @@ args:
         except requests.exceptions.RequestException as e:
             error_result = {
                 "status": "error",
-                "message": f"请求失败: {str(e)}",
-                "suggestion": "请检查网络连接或FOFA API服务状态"
+                "message": f"Request failed: {str(e)}",
+                "suggestion": "Please check the network connection or FOFA API service status"
             }
             print(json.dumps(error_result, ensure_ascii=False, indent=2))
             sys.exit(1)
@@ -187,92 +187,92 @@ args:
     except Exception as e:
         error_result = {
             "status": "error",
-            "message": f"执行出错: {str(e)}",
+            "message": f"Execution error: {str(e)}",
             "type": type(e).__name__
         }
         print(json.dumps(error_result, ensure_ascii=False, indent=2))
         sys.exit(1)
 enabled: false
-short_description: "FOFA网络空间搜索引擎，支持灵活的查询参数配置"
+short_description: "FOFA cyberspace search engine, supports flexible query parameter configuration"
 description: |
-  FOFA是一个网络空间测绘搜索引擎，可以通过多种查询条件搜索互联网资产。
+  FOFA is a cyberspace mapping search engine that can search internet assets using a variety of query conditions.
 
-  **主要功能：**
-  - 支持多种查询语法（app、title、domain、ip、port、country、city等）
-  - 灵活的字段返回配置
-  - 分页查询支持
-  - 完整数据模式（full参数）
+  **Main features:**
+  - Supports multiple query syntaxes (app, title, domain, ip, port, country, city, etc.)
+  - Flexible field-return configuration
+  - Paginated query support
+  - Full data mode (full parameter)
 
-  **使用场景：**
-  - 资产发现和枚举
-  - 漏洞影响范围评估
-  - 安全态势感知
-  - 威胁情报收集
-  - Bug bounty信息收集
+  **Use cases:**
+  - Asset discovery and enumeration
+  - Vulnerability impact scope assessment
+  - Security posture awareness
+  - Threat intelligence gathering
+  - Bug bounty reconnaissance
 
-  **查询语法说明：**
+  **Query syntax explanation:**
 
-  **基础查询：**
-  - 直接输入查询语句，将从标题、HTML内容、HTTP头信息、URL字段中搜索
-  - 如果查询表达式有多个与或关系，尽量在外面用括号包含起来，例如：`(app="Apache" || app="Nginx") && country="CN"`
+  **Basic query:**
+  - Directly enter a query statement, which will be searched in title, HTML content, HTTP header, and URL fields
+  - If the query expression has multiple AND/OR relationships, it is best to enclose them in parentheses, e.g.: `(app="Apache" || app="Nginx") && country="CN"`
 
-  **逻辑连接符：**
-  - `=` - 匹配，=""时，可查询不存在字段或者值为空的情况
-  - `==` - 完全匹配，==""时，可查询存在且值为空的情况
-  - `&&` - 与（AND）
-  - `||` - 或（OR）
-  - `!=` - 不匹配，!=""时，可查询值不为空的情况
-  - `*=` - 模糊匹配，使用*或者?进行搜索
-  - `()` - 确认查询优先级，括号内容优先级最高
+  **Logical operators:**
+  - `=` - match; when ="" it can query for nonexistent fields or values that are empty
+  - `==` - exact match; when =="" it can query for fields that exist and have empty values
+  - `&&` - AND
+  - `||` - OR
+  - `!=` - does not match; when !="" it can query for values that are not empty
+  - `*=` - fuzzy match, use * or ? for searching
+  - `()` - determines query precedence; parenthesized content has the highest priority
 
-  **常用查询语法分类：**
+  **Common query syntax categories:**
 
-  **基础类：** `ip`（支持IPv4/IPv6/C段）、`port`、`domain`、`host`、`os`、`server`、`asn`、`org`、`is_domain`、`is_ipv6`
+  **Basic class:** `ip` (supports IPv4/IPv6/C-segment), `port`, `domain`, `host`, `os`, `server`, `asn`, `org`, `is_domain`, `is_ipv6`
 
-  **标记类：** `app`（应用识别）、`fid`（站点指纹）、`product`、`product.version`、`category`、`type`（service/subdomain）、`cloud_name`、`is_cloud`、`is_fraud`、`is_honeypot`
+  **Tag class:** `app` (application identification), `fid` (site fingerprint), `product`, `product.version`, `category`, `type` (service/subdomain), `cloud_name`, `is_cloud`, `is_fraud`, `is_honeypot`
 
-  **协议类（type=service）：** `protocol`、`banner`、`banner_hash`、`banner_fid`、`base_protocol`（tcp/udp）
+  **Protocol class (type=service):** `protocol`, `banner`, `banner_hash`, `banner_fid`, `base_protocol` (tcp/udp)
 
-  **网站类（type=subdomain）：** `title`、`header`、`header_hash`、`body`、`body_hash`、`js_name`、`js_md5`、`cname`、`cname_domain`、`icon_hash`、`status_code`、`icp`、`sdk_hash`
+  **Website class (type=subdomain):** `title`, `header`, `header_hash`, `body`, `body_hash`, `js_name`, `js_md5`, `cname`, `cname_domain`, `icon_hash`, `status_code`, `icp`, `sdk_hash`
 
-  **地理位置：** `country`（支持代码/中文）、`region`（支持英文/中文，中文仅限中国）、`city`
+  **Geographic location:** `country` (supports code/Chinese name), `region` (supports English/Chinese; Chinese limited to China), `city`
 
-  **证书类：** `cert`、`cert.subject`、`cert.issuer`、`cert.subject.org`、`cert.subject.cn`、`cert.issuer.org`、`cert.issuer.cn`、`cert.domain`、`cert.is_equal`、`cert.is_valid`、`cert.is_match`、`cert.is_expired`、`jarm`、`tls.version`、`tls.ja3s`、`cert.sn`、`cert.not_after.after/before`、`cert.not_before.after/before`
+  **Certificate class:** `cert`, `cert.subject`, `cert.issuer`, `cert.subject.org`, `cert.subject.cn`, `cert.issuer.org`, `cert.issuer.cn`, `cert.domain`, `cert.is_equal`, `cert.is_valid`, `cert.is_match`, `cert.is_expired`, `jarm`, `tls.version`, `tls.ja3s`, `cert.sn`, `cert.not_after.after/before`, `cert.not_before.after/before`
 
-  **时间类：** `after`（某时间之后更新）、`before`（某时间之前更新）
+  **Time class:** `after` (updated after a certain time), `before` (updated before a certain time)
 
-  **独立IP语法（不可与其他语法共用）：** `port_size`、`port_size_gt`、`port_size_lt`、`ip_ports`、`ip_country`、`ip_region`、`ip_city`、`ip_after`、`ip_before`
+  **Standalone IP syntax (cannot be combined with other syntaxes):** `port_size`, `port_size_gt`, `port_size_lt`, `ip_ports`, `ip_country`, `ip_region`, `ip_city`, `ip_after`, `ip_before`
 
-  **常用查询示例：**
-  - `app="Apache"` - 搜索Apache应用
-  - `title="登录"` - 搜索标题包含"登录"的页面
-  - `domain="example.com"` - 搜索特定域名
-  - `ip="1.1.1.1"` 或 `ip="220.181.111.1/24"` - 搜索IP或C段
-  - `port="80"` - 搜索开放80端口的资产
-  - `country="CN"` 或 `country="中国"` - 搜索中国境内的资产
-  - `city="Beijing"` - 搜索北京的资产
-  - `app="Apache" && country="CN"` - 组合查询
-  - `(app="Apache" || app="Nginx") && country="CN"` - 使用括号的复杂查询
-  - `title*="登录"` - 模糊匹配标题
-  - `after="2023-01-01" && before="2023-12-01"` - 时间范围查询
+  **Common query examples:**
+  - `app="Apache"` - Search for Apache applications
+  - `title="login"` - Search for pages whose title contains "login"
+  - `domain="example.com"` - Search for a specific domain
+  - `ip="1.1.1.1"` or `ip="220.181.111.1/24"` - Search for an IP or C-segment
+  - `port="80"` - Search for assets with port 80 open
+  - `country="CN"` or `country="China"` - Search for assets located in China
+  - `city="Beijing"` - Search for assets in Beijing
+  - `app="Apache" && country="CN"` - combined query
+  - `(app="Apache" || app="Nginx") && country="CN"` - complex query using parentheses
+  - `title*="login"` - fuzzy title matching
+  - `after="2023-01-01" && before="2023-12-01"` - time-range query
 
-  **详细语法文档：** 更多语法说明和组件列表请参考FOFA官方文档
+  **Detailed syntax documentation:** For more syntax details and component lists, refer to the official FOFA documentation
 
 
-  **注意事项：**
-  - API调用有频率限制，请合理使用
-  - 查询结果数量受账户权限限制
-  - full参数需要高级权限
+  **Notes:**
+  - API calls are rate-limited, please use them judiciously
+  - The number of query results is limited by account permissions
+  - The full parameter requires elevated privileges
 parameters:
   - name: "query"
     type: "string"
     description: |
-      FOFA查询语句（必需）
+      FOFA query statement (required)
 
-      搜索查询语句，支持FOFA查询语法。
-      示例：
+      Search query statement, supports FOFA query syntax.
+      Examples:
       - app="Apache"
-      - title="登录"
+      - title="login"
       - domain="example.com"
       - ip="1.1.1.1"
       - port="80"
@@ -284,10 +284,10 @@ parameters:
   - name: "size"
     type: "int"
     description: |
-      返回结果数量（可选）
+      Number of results to return (optional)
 
-      每页返回的结果数量，默认100。
-      取值范围：1-10000，受账户权限限制。
+      Number of results returned per page, default 100.
+      Value range: 1-10000, limited by account permissions.
     required: false
     position: 3
     format: "positional"
@@ -295,10 +295,10 @@ parameters:
   - name: "page"
     type: "int"
     description: |
-      页码（可选）
+      Page number (optional)
 
-      要返回的页码，从1开始，默认1。
-      用于分页查询大量结果。
+      The page number to return, starting from 1, default 1.
+      Used for paginating through large result sets.
     required: false
     position: 4
     format: "positional"
@@ -306,11 +306,11 @@ parameters:
   - name: "fields"
     type: "string"
     description: |
-      返回字段列表（可选）
+      List of fields to return (optional)
 
-      需要返回的字段，多个字段用逗号分隔。
-      默认字段：ip,port,domain
-      可用字段：host,title,ip,domain,port,protocol,country,region,city,server,icp,header,banner,body,asn,org
+      Fields to return, multiple fields separated by commas.
+      Default fields: ip,port,domain
+      Available fields: host,title,ip,domain,port,protocol,country,region,city,server,icp,header,banner,body,asn,org
     required: false
     position: 5
     format: "positional"
@@ -318,10 +318,10 @@ parameters:
   - name: "full"
     type: "bool"
     description: |
-      是否返回完整数据（可选）
+      Whether to return full data (optional)
 
-      设置为true时返回完整数据，需要高级权限。
-      默认false，返回基础数据。
+      When set to true, returns full data; requires elevated privileges.
+      Default is false, returns basic data.
     required: false
     position: 6
     format: "positional"

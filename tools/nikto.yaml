@@ -1,70 +1,70 @@
 name: "nikto"
 command: "nikto"
 enabled: true
-# 允许的退出码列表：nikto在找到漏洞时会返回退出码1，这是正常的成功状态
+# Allowed exit codes list: nikto returns exit code 1 when it finds vulnerabilities, which is a normal success status
 allowed_exit_codes: [1]
-# 简短描述（用于工具列表，减少token消耗）
-short_description: "Web服务器扫描工具，用于检测Web服务器和应用程序中的已知漏洞和配置错误"
-# 工具详细描述
+# Short description (used for the tool list to reduce token consumption)
+short_description: "Web server scanning tool used to detect known vulnerabilities and misconfigurations in web servers and applications"
+# Detailed tool description
 description: |
-  Web服务器扫描工具，用于检测Web服务器和应用程序中的已知漏洞、配置错误和潜在安全问题。
+  Web server scanning tool used to detect known vulnerabilities, misconfigurations, and potential security issues in web servers and applications.
 
-  **主要功能：**
-  - 检测Web服务器版本和配置问题
-  - 识别已知的Web漏洞和CVE
-  - 检测危险文件和目录
-  - 检查服务器配置错误
-  - 识别过时的软件版本
-  - 检测默认文件和脚本
+  **Main features:**
+  - Detects web server versions and configuration issues
+  - Identifies known web vulnerabilities and CVEs
+  - Detects dangerous files and directories
+  - Checks for server misconfigurations
+  - Identifies outdated software versions
+  - Detects default files and scripts
 
-  **使用场景：**
-  - Web应用安全评估
-  - 服务器配置审计
-  - 漏洞扫描和发现
-  - 渗透测试前期信息收集
+  **Use cases:**
+  - Web application security assessment
+  - Server configuration audit
+  - Vulnerability scanning and discovery
+  - Information gathering in early-stage penetration testing
 
-  **注意事项：**
-  - 扫描可能产生大量日志，注意日志管理
-  - 某些扫描可能触发WAF或IDS告警
-  - 建议在授权范围内使用
-  - 扫描结果需要人工验证
-# 参数定义
+  **Notes:**
+  - Scanning may generate large amounts of logs; be mindful of log management
+  - Some scans may trigger WAF or IDS alerts
+  - Recommended to stay within authorized scope
+  - Scan results require manual verification
+# Parameter definitions
 parameters:
   - name: "target"
     type: "string"
     description: |
-      目标URL或IP地址。可以是完整的URL或IP地址。
+      Target URL or IP address. Can be a full URL or an IP address.
 
-      **格式要求：**
-      - 可以包含协议（http:// 或 https://）
-      - 可以只提供IP地址或域名
-      - 如果只提供IP，默认使用http协议
+      **Format requirements:**
+      - Can include a protocol (http:// or https://)
+      - Can provide just an IP address or domain name
+      - If only an IP is provided, the http protocol is used by default
 
-      **示例值：**
-      - 完整URL: "http://example.com"
+      **Example values:**
+      - Full URL: "http://example.com"
       - HTTPS: "https://example.com"
-      - IP地址: "192.168.1.1"
-      - 带端口: "http://example.com:8080"
-      - 带路径: "http://example.com/admin"
+      - IP address: "192.168.1.1"
+      - With port: "http://example.com:8080"
+      - With path: "http://example.com/admin"
 
-      **注意事项：**
-      - 如果只提供IP，工具会使用http协议
-      - 建议提供完整URL以确保正确扫描
-      - 必需参数，不能为空
+      **Notes:**
+      - If only an IP is provided, the tool will use the http protocol
+      - Providing the full URL is recommended to ensure correct scanning
+      - Required parameter; cannot be empty
     required: true
     flag: "-h"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的nikto参数。用于传递未在参数列表中定义的nikto选项。
+      Additional nikto arguments. Used to pass nikto options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

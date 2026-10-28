@@ -1,45 +1,45 @@
 name: "falco"
 command: "falco"
 enabled: true
-short_description: "运行时安全监控工具"
+short_description: "Runtime security monitoring tool"
 description: |
-  Falco是一个运行时安全监控工具，用于检测容器和主机中的异常行为。
+  Falco is a runtime security monitoring tool used to detect abnormal behavior in containers and hosts.
 
-  **主要功能：**
-  - 运行时监控
-  - 异常检测
-  - 规则引擎
-  - 实时告警
+  **Main features:**
+  - Runtime monitoring
+  - Anomaly detection
+  - Rule engine
+  - Real-time alerting
 
-  **使用场景：**
-  - 运行时安全监控
-  - 异常检测
-  - 安全事件响应
-  - 合规性监控
+  **Use cases:**
+  - Runtime security monitoring
+  - Anomaly detection
+  - Security incident response
+  - Compliance monitoring
 parameters:
   - name: "config_file"
     type: "string"
-    description: "Falco配置文件"
+    description: "Falco configuration file"
     required: false
     flag: "--config"
     format: "flag"
     default: "/etc/falco/falco.yaml"
   - name: "rules_file"
     type: "string"
-    description: "自定义规则文件"
+    description: "Custom rules file"
     required: false
     flag: "--rules"
     format: "flag"
   - name: "json_output"
     type: "bool"
-    description: "以JSON格式输出（等同于 -o json_output=true）"
+    description: "Output in JSON format (equivalent to -o json_output=true)"
     required: false
     flag: "-o json_output=true"
     format: "flag"
     default: true
   - name: "duration"
     type: "int"
-    description: "监控持续时间（秒）"
+    description: "Monitoring duration (seconds)"
     required: false
     flag: "--duration"
     format: "flag"
@@ -47,14 +47,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的falco参数。用于传递未在参数列表中定义的falco选项。
+      Additional falco arguments. Used to pass falco options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

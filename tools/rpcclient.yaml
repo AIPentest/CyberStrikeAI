@@ -8,7 +8,7 @@ args:
     import sys
 
     if len(sys.argv) < 2:
-        sys.stderr.write("缺少目标地址\n")
+        sys.stderr.write("Missing target address\n")
         sys.exit(1)
 
     target = sys.argv[1]
@@ -26,7 +26,7 @@ args:
             cred = f"{username}%{password}"
         cmd.extend(["-U", cred])
     elif password:
-        # 如果只提供了密码，仍然尝试以空用户名连接
+        # If only a password was provided, still try to connect with an empty username
         cmd.extend(["-U", f"%{password}"])
 
     if domain:
@@ -47,52 +47,52 @@ args:
         sys.stderr.write(proc.stderr)
     sys.exit(proc.returncode)
 enabled: true
-short_description: "RPC枚举工具"
+short_description: "RPC enumeration tool"
 description: |
-  Rpcclient是一个RPC客户端工具，用于枚举Windows/Samba系统信息。
+  Rpcclient is an RPC client tool used to enumerate Windows/Samba system information.
 
-  **主要功能：**
-  - RPC枚举
-  - 用户和组枚举
-  - 域信息查询
-  - 系统信息收集
+  **Main features:**
+  - RPC enumeration
+  - User and group enumeration
+  - Domain information querying
+  - System information gathering
 
-  **使用场景：**
-  - Windows系统渗透测试
-  - Samba枚举
-  - 域环境侦察
-  - 安全测试
+  **Use cases:**
+  - Windows system penetration testing
+  - Samba enumeration
+  - Domain environment reconnaissance
+  - Security testing
 parameters:
   - name: "target"
     type: "string"
-    description: "目标IP地址"
+    description: "Target IP address"
     required: true
     position: 0
     format: "positional"
   - name: "username"
     type: "string"
-    description: "用户名"
+    description: "Username"
     required: false
     default: ""
     position: 1
     format: "positional"
   - name: "password"
     type: "string"
-    description: "密码"
+    description: "Password"
     required: false
     default: ""
     position: 2
     format: "positional"
   - name: "domain"
     type: "string"
-    description: "域名"
+    description: "Domain"
     required: false
     default: ""
     position: 3
     format: "positional"
   - name: "commands"
     type: "string"
-    description: "RPC命令（分号分隔）"
+    description: "RPC commands (semicolon-separated)"
     required: false
     default: "enumdomusers;enumdomgroups;querydominfo"
     position: 4
@@ -100,15 +100,15 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的rpcclient参数。用于传递未在参数列表中定义的rpcclient选项。
+      Additional rpcclient arguments. Used to pass rpcclient options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     default: ""
     position: 5

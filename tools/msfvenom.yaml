@@ -1,63 +1,63 @@
 name: "msfvenom"
 command: "msfvenom"
 enabled: true
-short_description: "Metasploit载荷生成工具"
+short_description: "Metasploit payload generation tool"
 description: |
-  MSFVenom是Metasploit框架的载荷生成工具，用于创建各种类型的攻击载荷。
+  MSFVenom is the Metasploit framework's payload generation tool, used to create various types of attack payloads.
 
-  **主要功能：**
-  - 多种载荷类型
-  - 编码器支持
-  - 多种输出格式
-  - 平台支持
+  **Main features:**
+  - Multiple payload types
+  - Encoder support
+  - Multiple output formats
+  - Platform support
 
-  **使用场景：**
-  - 渗透测试
-  - 载荷生成
-  - 漏洞利用
-  - 安全测试
+  **Use cases:**
+  - Penetration testing
+  - Payload generation
+  - Exploitation
+  - Security testing
 parameters:
   - name: "payload"
     type: "string"
-    description: "要生成的载荷（如：windows/meterpreter/reverse_tcp）"
+    description: "Payload to generate (e.g. windows/meterpreter/reverse_tcp)"
     required: true
     flag: "-p"
     format: "flag"
   - name: "format_type"
     type: "string"
-    description: "输出格式（exe, elf, raw等）"
+    description: "Output format (exe, elf, raw, etc.)"
     required: false
     flag: "-f"
     format: "flag"
   - name: "output_file"
     type: "string"
-    description: "输出文件路径"
+    description: "Output file path"
     required: false
     flag: "-o"
     format: "flag"
   - name: "encoder"
     type: "string"
-    description: "编码器（如：x86/shikata_ga_nai）"
+    description: "Encoder (e.g. x86/shikata_ga_nai)"
     required: false
     flag: "-e"
     format: "flag"
   - name: "iterations"
     type: "string"
-    description: "编码迭代次数"
+    description: "Number of encoding iterations"
     required: false
     flag: "-i"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的msfvenom参数。用于传递未在参数列表中定义的msfvenom选项。
+      Extra msfvenom arguments. Used to pass msfvenom options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Make sure arguments are correctly formatted to avoid command injection
+      - This argument is appended directly to the end of the command
     required: false
     format: "positional"

@@ -8,7 +8,7 @@ args:
     import sys
 
     if len(sys.argv) < 2:
-        sys.stderr.write("缺少操作类型（find/dump/download）\n")
+        sys.stderr.write("Missing operation type (find/dump/download)\n")
         sys.exit(1)
 
     action = sys.argv[1]
@@ -34,38 +34,38 @@ args:
         sys.stderr.write(proc.stderr)
     sys.exit(proc.returncode)
 enabled: true
-short_description: "libc识别和偏移查找工具"
+short_description: "libc identification and offset lookup tool"
 description: |
-  Libc-database是一个用于libc识别和偏移查找的工具。
+  Libc-database is a tool for libc identification and offset lookup.
 
-  **主要功能：**
-  - libc识别
-  - 符号偏移查找
-  - libc下载
-  - 数据库查询
+  **Main features:**
+  - libc identification
+  - Symbol offset lookup
+  - libc download
+  - Database queries
 
-  **使用场景：**
-  - CTF挑战
-  - 漏洞利用开发
-  - libc识别
-  - 安全研究
+  **Use cases:**
+  - CTF challenges
+  - Exploit development
+  - libc identification
+  - Security research
 parameters:
   - name: "action"
     type: "string"
-    description: "要执行的操作（find, dump, download）"
+    description: "Operation to perform (find, dump, download)"
     required: true
     position: 0
     format: "positional"
   - name: "symbols"
     type: "string"
-    description: "符号和偏移（格式：symbol1:offset1 symbol2:offset2）"
+    description: "Symbols and offsets (format: symbol1:offset1 symbol2:offset2)"
     required: false
     default: ""
     position: 1
     format: "positional"
   - name: "libc_id"
     type: "string"
-    description: "Libc ID（用于dump/download操作）"
+    description: "Libc ID (for dump/download operations)"
     required: false
     default: ""
     position: 2
@@ -73,15 +73,15 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的libc-database参数。用于传递未在参数列表中定义的libc-database选项。
+      Additional libc-database arguments. Used to pass libc-database options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     default: ""
     position: 3

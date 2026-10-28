@@ -1,45 +1,45 @@
 name: "ffuf"
 command: "ffuf"
 enabled: true
-short_description: "快速Web模糊测试工具，用于目录、参数和内容发现"
+short_description: "Fast web fuzzing tool for directory, parameter, and content discovery"
 description: |
-  FFuf是一个快速的Web模糊测试工具，用于目录发现、参数模糊测试和内容发现。
+  FFuf is a fast web fuzzing tool used for directory discovery, parameter fuzzing, and content discovery.
 
-  **主要功能：**
-  - 快速目录和文件发现
-  - 参数模糊测试
-  - 虚拟主机发现
-  - 自定义过滤器和匹配器
-  - 多线程支持
+  **Main features:**
+  - Fast directory and file discovery
+  - Parameter fuzzing
+  - Virtual host discovery
+  - Custom filters and matchers
+  - Multi-threading support
 
-  **使用场景：**
-  - Web应用安全测试
-  - 目录枚举
-  - 参数发现
-  - 内容发现
+  **Use cases:**
+  - Web application security testing
+  - Directory enumeration
+  - Parameter discovery
+  - Content discovery
 parameters:
   - name: "url"
     type: "string"
-    description: "目标URL（使用FUZZ作为占位符）"
+    description: "Target URL (use FUZZ as the placeholder)"
     required: true
     flag: "-u"
     format: "flag"
   - name: "wordlist"
     type: "string"
-    description: "字典文件路径"
+    description: "Wordlist file path"
     required: false
     default: "/usr/share/wordlists/dirb/common.txt"
     flag: "-w"
     format: "flag"
   - name: "match_codes"
     type: "string"
-    description: "匹配的HTTP状态码（逗号分隔）"
+    description: "HTTP status codes to match (comma-separated)"
     required: false
     default: "200,204,301,302,307,401,403"
     flag: "-mc"
     format: "flag"
   - name: "additional_args"
     type: "string"
-    description: "额外的FFuf参数"
+    description: "Additional FFuf arguments"
     required: false
     format: "positional"

@@ -1,31 +1,31 @@
 name: "amass"
 command: "amass"
 enabled: true
-short_description: "子域名枚举和网络映射工具"
+short_description: "Subdomain enumeration and network mapping tool"
 description: |
-  Amass是一个深度子域名枚举和网络映射工具，通过多种技术发现目标域名的子域名。
+  Amass is an in-depth subdomain enumeration and network mapping tool that discovers subdomains of target domains using multiple techniques.
 
-  **主要功能：**
-  - 被动和主动子域名枚举
-  - 多种数据源集成
-  - 网络映射和可视化
-  - 证书透明度日志查询
+  **Main features:**
+  - Passive and active subdomain enumeration
+  - Multiple data source integrations
+  - Network mapping and visualization
+  - Certificate Transparency log queries
 
-  **使用场景：**
-  - 子域名发现
-  - 资产发现
-  - 渗透测试信息收集
-  - Bug bounty侦察
+  **Use cases:**
+  - Subdomain discovery
+  - Asset discovery
+  - Penetration testing reconnaissance
+  - Bug bounty reconnaissance
 parameters:
   - name: "mode"
     type: "string"
     description: |
-      运行模式（Amass子命令）：
-      - `enum`: 子域名枚举
-      - `intel`: 威胁情报模式
-      - `viz`: 结果可视化
+      Run mode (Amass subcommand):
+      - `enum`: subdomain enumeration
+      - `intel`: threat intelligence mode
+      - `viz`: result visualization
 
-      **注意：** Amass使用子命令形式，需作为第一个位置参数。
+      **Note:** Amass uses a subcommand format and must be the first positional argument.
     required: false
     default: "enum"
     position: 0
@@ -33,12 +33,12 @@ parameters:
     options: ["enum", "intel", "viz"]
   - name: "domain"
     type: "string"
-    description: "目标域名"
+    description: "Target domain"
     required: true
     flag: "-d"
     format: "flag"
   - name: "additional_args"
     type: "string"
-    description: "额外的Amass参数"
+    description: "Additional Amass arguments"
     required: false
     format: "positional"

@@ -1,70 +1,70 @@
 name: "enum4linux-ng"
 command: "enum4linux-ng"
 enabled: true
-short_description: "高级SMB枚举工具（Enum4linux的下一代版本）"
+short_description: "Advanced SMB enumeration tool (next-generation version of Enum4linux)"
 description: |
-  Enum4linux-ng是Enum4linux的下一代版本，提供更强大的SMB枚举功能。
+  Enum4linux-ng is the next-generation version of Enum4linux, providing more powerful SMB enumeration capabilities.
 
-  **主要功能：**
-  - SMB共享枚举
-  - 用户和组枚举
-  - 策略枚举
-  - 系统信息收集
+  **Main features:**
+  - SMB share enumeration
+  - User and group enumeration
+  - Policy enumeration
+  - System information gathering
 
-  **使用场景：**
-  - Windows系统渗透测试
-  - SMB安全评估
-  - 域环境侦察
-  - 安全测试
+  **Use cases:**
+  - Windows system penetration testing
+  - SMB security assessment
+  - Domain environment reconnaissance
+  - Security testing
 parameters:
   - name: "target"
     type: "string"
-    description: "目标IP地址"
+    description: "Target IP address"
     required: true
     position: 0
     format: "positional"
   - name: "username"
     type: "string"
-    description: "用户名"
+    description: "Username"
     required: false
     flag: "-u"
     format: "flag"
   - name: "password"
     type: "string"
-    description: "密码"
+    description: "Password"
     required: false
     flag: "-p"
     format: "flag"
   - name: "domain"
     type: "string"
-    description: "域名"
+    description: "Domain name"
     required: false
     flag: "-d"
     format: "flag"
   - name: "shares"
     type: "bool"
-    description: "枚举共享"
+    description: "Enumerate shares"
     required: false
     flag: "-S"
     format: "flag"
     default: true
   - name: "users"
     type: "bool"
-    description: "枚举用户"
+    description: "Enumerate users"
     required: false
     flag: "-U"
     format: "flag"
     default: true
   - name: "groups"
     type: "bool"
-    description: "枚举组"
+    description: "Enumerate groups"
     required: false
     flag: "-G"
     format: "flag"
     default: true
   - name: "policy"
     type: "bool"
-    description: "枚举策略"
+    description: "Enumerate policy"
     required: false
     flag: "-P"
     format: "flag"
@@ -72,14 +72,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的enum4linux-ng参数。用于传递未在参数列表中定义的enum4linux-ng选项。
+      Additional enum4linux-ng arguments. Used to pass enum4linux-ng options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

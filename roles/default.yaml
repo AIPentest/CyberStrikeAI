@@ -1,0 +1,5 @@
+name: Default
+description: Default role, carries no additional user prompt, uses default MCP
+user_prompt: ""
+icon: "\U0001F535"
+enabled: true

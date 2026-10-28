@@ -1,61 +1,61 @@
-# 角色配置文件说明
+# Role configuration file notes
 
-本目录包含所有角色配置文件，每个角色定义了AI的行为模式与可用工具。
+This directory contains all role configuration files; each role defines the AI's behavior mode and available tools.
 
-## 创建新角色
+## Creating a new role
 
-创建新角色时，请在 `roles/` 目录下创建 YAML 文件，格式如下：
+To create a new role, create a YAML file in the `roles/` directory with the following format:
 
-**方式1：显式指定工具列表（推荐）**
+**Option 1: Explicitly specify the tools list (recommended)**
 ```yaml
-name: 角色名称
-description: 角色描述
-user_prompt: 用户提示词（追加到用户消息前，用于引导AI行为）
-icon: "图标（可选）"
+name: Role name
+description: Role description
+user_prompt: User prompt (prepended to user messages, to guide the AI's behavior)
+icon: "icon (optional)"
 tools:
-    # 添加你需要的工具...
-    # ⚠️ 重要：建议包含以下核心内置 MCP 工具（漏洞与知识库）
+    # Add the tools you need...
+    # ⚠️ Important: recommended to include these core built-in MCP tools (vulnerability and knowledge base)
     - record_vulnerability
     - list_knowledge_risk_types
     - search_knowledge_base
 enabled: true
 ```
 
-**方式2：不设置tools字段（使用所有已开启的工具）**
+**Option 2: Do not set the tools field (use all enabled tools)**
 ```yaml
-name: 角色名称
-description: 角色描述
-user_prompt: 用户提示词（追加到用户消息前，用于引导AI行为）
-icon: "图标（可选）"
-# 不设置tools字段，将默认使用所有MCP管理中已开启的工具
+name: Role name
+description: Role description
+user_prompt: User prompt (prepended to user messages, to guide the AI's behavior)
+icon: "icon (optional)"
+# Without the tools field, all tools enabled in MCP management are used by default
 enabled: true
 ```
 
-## ⚠️ 重要提醒：核心内置 MCP 工具
+## ⚠️ Important reminder: core built-in MCP tools
 
-**如果设置了 `tools` 字段，请务必在列表中包含以下工具（至少这三项）：**
+**If you set the `tools` field, be sure to include the following tools in the list (at least these three):**
 
-1. **`record_vulnerability`** - 漏洞管理工具，用于记录发现的漏洞
-2. **`list_knowledge_risk_types`** - 知识库工具，列出可用的风险类型
-3. **`search_knowledge_base`** - 知识库工具，搜索知识库内容
+1. **`record_vulnerability`** - Vulnerability management tool, used for recording discovered vulnerabilities
+2. **`list_knowledge_risk_types`** - Knowledge base tool, lists available risk types
+3. **`search_knowledge_base`** - Knowledge base tool, searches knowledge base content
 
-按需还可加入 WebShell、批量任务等其它内置或外部工具（以 MCP 管理中已启用的为准）。
+Add other built-in or external tools such as WebShell, batch tasks, etc. as needed (per what is enabled in MCP management).
 
-**Skills（技能包）**：在 **多代理 / Eino** 会话中由内置 **`skill`** 工具按需加载 `skills_dir` 下的包，与角色 YAML 无绑定关系。
+**Skills (skill packs)**: in **multi-agent / Eino** sessions, the built-in `skill` tool loads packages under `skills_dir` as needed; there is no binding relationship with the role YAML.
 
-**注意**：如果不设置 `tools` 字段，系统会默认使用所有 MCP 管理中已开启的工具。为明确控制角色可用工具，建议显式设置 `tools` 字段。
+**Note**: If you do not set the `tools` field, the system uses all tools enabled in MCP management by default. To explicitly control a role's available tools, it is recommended to set the `tools` field explicitly.
 
-## 角色配置字段说明
+## Role configuration field notes
 
-- **name**: 角色名称（必填）
-- **description**: 角色描述（必填）
-- **user_prompt**: 用户提示词，会追加到用户消息前，用于引导AI采用特定的测试方法和关注点（可选）
-- **icon**: 角色图标，支持Unicode emoji（可选）
-- **tools**: 工具列表，指定该角色可用的工具（可选）
-  - **如果不设置 `tools` 字段**：默认会选中**全部MCP管理中已开启的工具**
-  - **如果设置了 `tools` 字段**：只使用列表中指定的工具（建议至少包含上述核心内置工具）
-- **enabled**: 是否启用该角色（必填，true/false）
+- **name**: Role name (required)
+- **description**: Role description (required)
+- **user_prompt**: User prompt, prepended to user messages, used to guide the AI to adopt specific testing methods and attention points (optional)
+- **icon**: Role icon, supports Unicode emoji (optional)
+- **tools**: Tool list, specifying the tools available to this role (optional)
+  - **If you do not set `tools`**: all tools enabled in **MCP management** are selected by default
+  - **If you set `tools`**: only the tools specified in the list are used (recommended to include the core built-in tools above at minimum)
+- **enabled**: Whether this role is enabled (required, true/false)
 
-## 示例
+## Examples
 
-参考本目录下的其他角色文件，如 `渗透测试.yaml`、`Web应用扫描.yaml` 等。
+See the other role files in this directory, such as `penetration-testing.yaml`, `web-application-scanning.yaml`.

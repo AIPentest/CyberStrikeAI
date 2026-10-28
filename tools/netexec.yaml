@@ -1,61 +1,61 @@
 name: "netexec"
 command: "netexec"
 enabled: true
-short_description: "网络枚举和利用框架（原CrackMapExec）"
+short_description: "Network enumeration and exploitation framework (formerly CrackMapExec)"
 description: |
-  NetExec（原CrackMapExec）是一个网络枚举和利用框架，支持多种协议。
+  NetExec (formerly CrackMapExec) is a network enumeration and exploitation framework that supports multiple protocols.
 
-  **主要功能：**
-  - 多协议支持（SMB, SSH, WinRM等）
-  - 凭证验证
-  - 横向移动
-  - 模块化架构
+  **Key features:**
+  - Multi-protocol support (SMB, SSH, WinRM, etc.)
+  - Credential validation
+  - Lateral movement
+  - Modular architecture
 
-  **使用场景：**
-  - 网络渗透测试
-  - 域环境测试
-  - 横向移动测试
-  - 凭证验证
+  **Use cases:**
+  - Network penetration testing
+  - Domain environment testing
+  - Lateral movement testing
+  - Credential validation
 parameters:
   - name: "protocol"
     type: "string"
-    description: "协议类型（smb, ssh, winrm等）"
+    description: "Protocol type (smb, ssh, winrm, etc.)"
     required: false
     default: "smb"
     position: 0
     format: "positional"
   - name: "target"
     type: "string"
-    description: "目标IP或网络"
+    description: "Target IP or network"
     required: true
     position: 1
     format: "positional"
   - name: "username"
     type: "string"
-    description: "用户名"
+    description: "Username"
     required: false
     flag: "-u"
     format: "flag"
   - name: "password"
     type: "string"
-    description: "密码"
+    description: "Password"
     required: false
     flag: "-p"
     format: "flag"
   - name: "hash_value"
     type: "string"
-    description: "NTLM哈希（用于Pass-the-Hash）"
+    description: "NTLM hash (used for Pass-the-Hash)"
     required: false
     flag: "-H"
     format: "flag"
   - name: "module"
     type: "string"
-    description: "要执行的模块"
+    description: "Module to execute"
     required: false
     flag: "-M"
     format: "flag"
   - name: "additional_args"
     type: "string"
-    description: "额外的NetExec参数"
+    description: "Additional NetExec arguments"
     required: false
     format: "positional"

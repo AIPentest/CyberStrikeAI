@@ -1,33 +1,33 @@
 name: "wpscan"
 command: "wpscan"
 enabled: true
-# 允许的退出码列表：wpscan在目标不是WordPress站点时会返回退出码4，这是正常的信息性输出
+# List of allowed exit codes: wpscan returns exit code 4 when the target is not a WordPress site; this is normal informational output
 allowed_exit_codes: [4]
-short_description: "WordPress安全扫描器，用于检测WordPress漏洞"
+short_description: "WordPress security scanner for detecting WordPress vulnerabilities"
 description: |
-  WPScan是专门用于WordPress安全扫描的工具，可以检测主题、插件和核心漏洞。
+  WPScan is a tool dedicated to WordPress security scanning; it can detect theme, plugin, and core vulnerabilities.
 
-  **主要功能：**
-  - WordPress核心漏洞检测
-  - 主题和插件漏洞扫描
-  - 用户枚举
-  - 密码暴力破解
-  - 安全配置检查
+  **Main features:**
+  - WordPress core vulnerability detection
+  - Theme and plugin vulnerability scanning
+  - User enumeration
+  - Password brute-forcing
+  - Security configuration checks
 
-  **使用场景：**
-  - WordPress安全评估
-  - 漏洞扫描
-  - 渗透测试
-  - 安全审计
+  **Use cases:**
+  - WordPress security assessment
+  - Vulnerability scanning
+  - Penetration testing
+  - Security auditing
 parameters:
   - name: "url"
     type: "string"
-    description: "WordPress站点URL"
+    description: "WordPress site URL"
     required: true
     flag: "--url"
     format: "flag"
   - name: "additional_args"
     type: "string"
-    description: "额外的WPScan参数"
+    description: "Additional WPScan arguments"
     required: false
     format: "positional"

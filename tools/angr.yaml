@@ -7,7 +7,7 @@ args:
     import sys
 
     if len(sys.argv) < 2:
-        sys.stderr.write("缺少脚本内容\n")
+        sys.stderr.write("Missing script content\n")
         sys.exit(1)
 
     script_content = sys.argv[1]
@@ -29,52 +29,52 @@ args:
     else:
         context["additional_args"] = []
 
-    # 执行用户脚本，提供上下文变量
+    # Execute the user's script, providing context variables
     exec(script_content, context)
 enabled: true
-short_description: "符号执行和二进制分析框架"
+short_description: "Symbolic execution and binary analysis framework"
 description: |
-  Angr是一个符号执行和二进制分析框架，用于自动化漏洞发现和利用。
+  Angr is a symbolic execution and binary analysis framework used for automating vulnerability discovery and exploitation.
 
-  **使用方式：**
-  - 通过 `script_content` 参数提供Python脚本，可直接导入 `angr` 并访问以下变量：
-    - `binary_path`: 目标二进制路径
-    - `find_address`: 待寻找的地址（可为空）
-    - `avoid_addresses`: 需要避开的地址列表
-    - `analysis_type`: 自定义分析类型标记（默认symbolic）
-    - `additional_args`: 额外参数列表（通过 `additional_args` 传入）
-  - 在脚本中自行控制分析流程，可调用 `print()` 输出结果。
+  **Usage:**
+  - Provide a Python script via the `script_content` parameter, which can directly import `angr` and access the following variables:
+    - `binary_path`: path to the target binary
+    - `find_address`: address to find (may be empty)
+    - `avoid_addresses`: list of addresses to avoid
+    - `analysis_type`: custom analysis type tag (default symbolic)
+    - `additional_args`: list of extra arguments (passed via `additional_args`)
+  - Control the analysis flow yourself within the script; you can call `print()` to output results.
 parameters:
   - name: "script_content"
     type: "string"
-    description: "要执行的angr Python脚本内容"
+    description: "angr Python script content to execute"
     required: true
     position: 0
     format: "positional"
   - name: "binary"
     type: "string"
-    description: "要分析的二进制文件路径，将作为 binary_path 变量传递给脚本"
+    description: "Path to the binary file to analyze, passed to the script as the binary_path variable"
     required: false
     default: ""
     position: 1
     format: "positional"
   - name: "find_address"
     type: "string"
-    description: "符号执行中要查找的地址（可选，传入脚本变量 find_address）"
+    description: "Address to find during symbolic execution (optional, passed to the script as find_address)"
     required: false
     default: ""
     position: 2
     format: "positional"
   - name: "avoid_addresses"
     type: "string"
-    description: "要避免的地址（逗号分隔，脚本变量 avoid_addresses）"
+    description: "Addresses to avoid (comma-separated, script variable avoid_addresses)"
     required: false
     default: ""
     position: 3
     format: "positional"
   - name: "analysis_type"
     type: "string"
-    description: "用于脚本内自定义分支的分析类型标签（例如 symbolic/cfg/static）"
+    description: "Analysis type label for custom branching inside the script (e.g. symbolic/cfg/static)"
     required: false
     default: "symbolic"
     position: 4
@@ -82,13 +82,13 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外参数，脚本中可通过 `additional_args` 列表访问。
+      Extra arguments, accessible in the script via the `additional_args` list.
 
-      **示例：**
+      **Example:**
       - "--max-depth 8 --timeout 60"
 
-      **注意事项：**
-      - 参数会按照shell规则拆分
+      **Notes:**
+      - Arguments are split according to shell rules
     required: false
     default: ""
     position: 5

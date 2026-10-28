@@ -1,37 +1,37 @@
 name: "arp-scan"
 command: "arp-scan"
 enabled: true
-short_description: "ARP网络发现工具"
+short_description: "ARP network discovery tool"
 description: |
-  Arp-scan是一个ARP网络发现工具，用于发现本地网络中的活动主机。
+  Arp-scan is an ARP network discovery tool used to find active hosts on the local network.
 
-  **主要功能：**
-  - ARP扫描
-  - 本地网络发现
-  - MAC地址识别
-  - 快速扫描
+  **Main features:**
+  - ARP scanning
+  - Local network discovery
+  - MAC address identification
+  - Fast scanning
 
-  **使用场景：**
-  - 本地网络发现
-  - 主机发现
-  - 网络映射
-  - 渗透测试
+  **Use cases:**
+  - Local network discovery
+  - Host discovery
+  - Network mapping
+  - Penetration testing
 parameters:
   - name: "target"
     type: "string"
-    description: "目标IP范围（如果不使用local_network）"
+    description: "Target IP range (if not using local_network)"
     required: false
     position: 0
     format: "positional"
   - name: "interface"
     type: "string"
-    description: "网络接口"
+    description: "Network interface"
     required: false
     flag: "-I"
     format: "flag"
   - name: "local_network"
     type: "bool"
-    description: "扫描本地网络"
+    description: "Scan the local network"
     required: false
     flag: "-l"
     format: "flag"
@@ -39,14 +39,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的arp-scan参数。用于传递未在参数列表中定义的arp-scan选项。
+      Additional arp-scan arguments. Used to pass arp-scan options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

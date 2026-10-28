@@ -1,8 +1,8 @@
-# 表单 / 检查项（示例）
+# Forms / checklist items (example)
 
-本文件演示 **Level 3** 资源：与主说明分离，按需通过多代理 **`skill`** 或 HTTP `resource_path=FORMS.md` 加载。
+This file demonstrates a **Level 3** resource: separate from the main description, loaded on demand via multi-agent **`skill`** or HTTP `resource_path=FORMS.md`.
 
-## 授权检查表
+## Authorization checklist
 
-- 书面授权是否在有效期内？
-- 测试范围（域名 / IP）是否与授权一致？
+- Is the written authorization still within its validity period?
+- Does the test scope (domains / IPs) match the authorization?

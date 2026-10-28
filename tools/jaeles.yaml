@@ -2,50 +2,50 @@ name: "jaeles"
 command: "jaeles"
 args: ["scan"]
 enabled: true
-short_description: "高级漏洞扫描器，支持自定义签名"
+short_description: "Advanced vulnerability scanner with custom signature support"
 description: |
-  Jaeles是一个高级漏洞扫描器，支持自定义签名进行漏洞检测。
+  Jaeles is an advanced vulnerability scanner that supports custom signatures for vulnerability detection.
 
-  **主要功能：**
-  - 自定义签名支持
-  - 多种漏洞检测
-  - 快速扫描
-  - 详细报告
+  **Main features:**
+  - Custom signature support
+  - Multiple vulnerability detection
+  - Fast scanning
+  - Detailed reports
 
-  **使用场景：**
-  - 漏洞扫描
-  - Web应用安全测试
-  - 自定义检测规则
-  - 安全测试
+  **Use cases:**
+  - Vulnerability scanning
+  - Web application security testing
+  - Custom detection rules
+  - Security testing
 parameters:
   - name: "url"
     type: "string"
-    description: "目标URL"
+    description: "Target URL"
     required: true
     flag: "-u"
     format: "flag"
   - name: "signatures"
     type: "string"
-    description: "自定义签名路径"
+    description: "Custom signatures path"
     required: false
     flag: "-s"
     format: "flag"
   - name: "config"
     type: "string"
-    description: "配置文件"
+    description: "Configuration file"
     required: false
     flag: "-c"
     format: "flag"
   - name: "threads"
     type: "int"
-    description: "线程数"
+    description: "Number of threads"
     required: false
     flag: "-t"
     format: "flag"
     default: 20
   - name: "timeout"
     type: "int"
-    description: "请求超时时间（秒）"
+    description: "Request timeout (seconds)"
     required: false
     flag: "--timeout"
     format: "flag"
@@ -53,14 +53,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的jaeles参数。用于传递未在参数列表中定义的jaeles选项。
+      Additional jaeles arguments. Used to pass jaeles options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"
