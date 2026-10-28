@@ -6,7 +6,8 @@ import java.util.List;
 final class HttpMessageFormatter {
     private HttpMessageFormatter() {}
     private static final String DEFAULT_INSTRUCTION =
-            "针对该流量做web渗透测试，并输出测试结果，要求：只针对该接口流量做测试，切勿拓展其他接口";
+            "Perform a web penetration test on this traffic and output the test results. "
+            + "Requirement: test only this endpoint's traffic — do not expand to other endpoints.";
 
     static String getRequestTitle(IExtensionHelpers helpers, IHttpRequestResponse msg) {
         IRequestInfo reqInfo = helpers.analyzeRequest(msg);

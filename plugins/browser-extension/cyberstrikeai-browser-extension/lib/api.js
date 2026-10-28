@@ -89,9 +89,9 @@ async function fetchRoles(baseUrl, token, signal) {
   for (const r of list) {
     if (r.enabled === false) continue;
     if (!r.name) continue;
-    // Server default role is named "默认"; map to empty id + English label (UI is EN).
-    // Skip it here and prepend a single Default entry below — avoids Default + 默认.
-    if (r.name === '默认') continue;
+    // Server default role is named "Default"; map to empty id + English label (UI is EN).
+    // Skip it here and prepend a single Default entry below — avoids Default + Default.
+    if (r.name === 'Default') continue;
     out.push({ id: r.name, label: r.name });
   }
   out.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));

@@ -185,7 +185,7 @@ CyberStrikeAI ships with 100+ curated tools covering the whole kill chain:
 
 </details>
 
-See [tools/README_EN.md](tools/README_EN.md) for tool definitions, customization, and usage notes.
+See [tools/README.md](tools/README.md) for tool definitions, customization, and usage notes.
 
 ## Basic Usage
 
