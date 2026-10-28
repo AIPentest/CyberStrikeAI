@@ -92,17 +92,17 @@ func plannedVersionChange(root string) (before, after string) {
 // do", a warning when the write failed (the update itself still stands).
 func versionStep(step func(string, string), before, after string, err error) {
 	if err != nil {
-		step("version", "版本号写入 config.yaml 失败（不影响本次更新）："+err.Error())
+		step("version", "writing the version into config.yaml failed (this update is unaffected): "+err.Error())
 		return
 	}
 	if after == "" {
 		return
 	}
 	if before == "" {
-		step("version", fmt.Sprintf("版本号随新代码写入 config.yaml：%s（重启后页头生效）", after))
+		step("version", fmt.Sprintf("version written to config.yaml with the new code: %s (takes effect in the page header after restart)", after))
 		return
 	}
-	step("version", fmt.Sprintf("版本号已随新代码更新：%s → %s（config.yaml，重启后页头生效）", before, after))
+	step("version", fmt.Sprintf("version updated with the new code: %s → %s (config.yaml, takes effect in the page header after restart)", before, after))
 }
 
 // restoreVersionAfterRollback puts the old number back with the old code - but only while

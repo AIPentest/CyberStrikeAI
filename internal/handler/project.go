@@ -67,7 +67,7 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 	}
 	created, err := h.db.CreateProject(p)
 	if err != nil {
-		h.logger.Error("创建项目失败", zap.Error(err))
+		h.logger.Error("failed to create project", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -90,7 +90,7 @@ func (h *ProjectHandler) GetDashboardSummary(c *gin.Context) {
 	session, _ := security.CurrentSession(c)
 	summary, err := h.db.GetProjectDashboardSummaryForAccess(limit, session.UserID, session.Scope)
 	if err != nil {
-		h.logger.Error("获取项目仪表盘摘要失败", zap.Error(err))
+		h.logger.Error("failed to get project dashboard summary", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -274,10 +274,10 @@ func factLinksFromRequest(links []factLinkRequest, linksText *string) (*project.
 			from := strings.TrimSpace(l.From)
 			edgeType := strings.TrimSpace(l.Type)
 			if from == "" {
-				return nil, fmt.Errorf("links[%d] 须含 from", i)
+				return nil, fmt.Errorf("links[%d] must include from", i)
 			}
 			if edgeType == "" {
-				return nil, fmt.Errorf("links[%d] 须含 type", i)
+				return nil, fmt.Errorf("links[%d] must include type", i)
 			}
 			parsed.Incoming = append(parsed.Incoming, database.ProjectFactEdgeFromInput{
 				From: from, Type: edgeType, Confidence: strings.TrimSpace(l.Confidence),

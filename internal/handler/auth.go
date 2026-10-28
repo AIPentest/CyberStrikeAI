@@ -69,6 +69,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 				Category: "auth",
 				Action:   "login",
 				Result:   "failure",
+				// Legacy Chinese audit message is stored byte-identically: frontend
+				// audit.js AUDIT_MSG_BY_STORED_TEXT maps this exact text.
 				Message:  "登录失败：密码错误",
 				Actor:    strings.TrimSpace(req.Username),
 			})
@@ -84,7 +86,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			Action:      "login",
 			Result:      "success",
 			SessionHint: audit.HintFromToken(token),
-			Message:     "登录成功",
+			Message:     "login succeeded",
 			Actor:       session.Username,
 			Detail: map[string]interface{}{
 				"expires_at": expiresAt.UTC().Format(time.RFC3339),
@@ -126,7 +128,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 			Category: "auth",
 			Action:   "logout",
 			Result:   "success",
-			Message:  "退出登录",
+			Message:  "logged out",
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "已退出登录", "logged out")})
@@ -169,6 +171,8 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 				Category: "auth",
 				Action:   "change_password",
 				Result:   "failure",
+				// Legacy Chinese audit message is stored byte-identically: frontend
+				// audit.js AUDIT_MSG_BY_STORED_TEXT maps this exact text.
 				Message:  "修改密码失败：当前密码不正确",
 			})
 		}
@@ -181,14 +185,14 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	}
 	if err := h.manager.UpdateUserPassword(session.UserID, newPassword); err != nil {
 		if h.logger != nil {
-			h.logger.Error("更新用户密码失败", zap.Error(err))
+			h.logger.Error("failed to update user password", zap.Error(err))
 		}
 		respondError(c, http.StatusInternalServerError, "更新用户密码失败", "failed to update user password")
 		return
 	}
 
 	if h.logger != nil {
-		h.logger.Info("登录密码已更新，所有会话已失效")
+		h.logger.Info("login password updated, all sessions revoked")
 	}
 
 	if h.audit != nil {
@@ -196,7 +200,7 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 			Category: "auth",
 			Action:   "change_password",
 			Result:   "success",
-			Message:  "登录密码已修改",
+			Message:  "login password changed",
 		})
 	}
 

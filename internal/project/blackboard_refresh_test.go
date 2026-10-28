@@ -12,7 +12,7 @@ import (
 )
 
 func sampleFactIndexWithFacts(projectLabel, summary string) string {
-	return wrapFactIndexBlock("## 项目黑板索引（project: " + projectLabel + ", id: x）\n" +
+	return wrapFactIndexBlock("## Project blackboard index (project: " + projectLabel + ", id: x)\n" +
 		"- [target/a] target — " + summary + " (tentative)\n" +
 		factIndexFooterGetDetail + "\n" +
 		factIndexFooterWriteHint)
@@ -80,7 +80,7 @@ func TestReplaceFactIndexSection(t *testing.T) {
 	})
 
 	t.Run("missing html markers does not replace", func(t *testing.T) {
-		legacy := "## 项目黑板索引（project: p1, id: x）\n- [a] note — old (tentative)\n"
+		legacy := "## Project blackboard index (project: p1, id: x)\n- [a] note — old (tentative)\n"
 		newIdx := sampleFactIndexWithFacts("p1", "new")
 		out, ok := ReplaceFactIndexSection("prefix\n\n"+legacy, newIdx)
 		if ok {
@@ -89,13 +89,13 @@ func TestReplaceFactIndexSection(t *testing.T) {
 	})
 
 	t.Run("empty facts block", func(t *testing.T) {
-		oldEmpty := wrapFactIndexBlock("## 项目黑板索引（project: p1, id: x）\n（暂无事实）\n" + factIndexFooterEmpty)
+		oldEmpty := wrapFactIndexBlock("## Project blackboard index (project: p1, id: x)\n(no facts yet)\n" + factIndexFooterEmpty)
 		newEmpty := sampleFactIndexWithFacts("p1", "first fact")
 		out, ok := ReplaceFactIndexSection(oldEmpty, newEmpty)
 		if !ok {
 			t.Fatal("expected replacement")
 		}
-		if strings.Contains(out, "（暂无事实）") {
+		if strings.Contains(out, "(no facts yet)") {
 			t.Fatalf("old empty block should be gone: %q", out)
 		}
 	})

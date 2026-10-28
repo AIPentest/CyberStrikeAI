@@ -18,7 +18,7 @@ type ProjectStats struct {
 func (db *DB) GetProjectStatsCounts(projectID string) (*ProjectStats, error) {
 	projectID = strings.TrimSpace(projectID)
 	if projectID == "" {
-		return nil, fmt.Errorf("project_id 不能为空")
+		return nil, fmt.Errorf("project_id is required")
 	}
 	if _, err := db.GetProject(projectID); err != nil {
 		return nil, err
@@ -28,19 +28,19 @@ func (db *DB) GetProjectStatsCounts(projectID string) (*ProjectStats, error) {
 		`SELECT COUNT(*) FROM project_facts WHERE project_id = ? AND confidence != 'deprecated'`,
 		projectID,
 	).Scan(&stats.FactCount); err != nil {
-		return nil, fmt.Errorf("统计事实失败: %w", err)
+		return nil, fmt.Errorf("failed to count facts: %w", err)
 	}
 	if err := db.QueryRow(
 		`SELECT COUNT(*) FROM vulnerabilities WHERE project_id = ?`,
 		projectID,
 	).Scan(&stats.VulnCount); err != nil {
-		return nil, fmt.Errorf("统计漏洞失败: %w", err)
+		return nil, fmt.Errorf("failed to count vulnerabilities: %w", err)
 	}
 	if err := db.QueryRow(
 		`SELECT COUNT(*) FROM conversations WHERE project_id = ?`,
 		projectID,
 	).Scan(&stats.ConversationCount); err != nil {
-		return nil, fmt.Errorf("统计对话失败: %w", err)
+		return nil, fmt.Errorf("failed to count conversations: %w", err)
 	}
 	return stats, nil
 }
@@ -89,7 +89,7 @@ func (db *DB) ListConversationsByProjectID(projectID string, limit, offset int) 
 		projectID, limit, offset,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("查询项目对话失败: %w", err)
+		return nil, fmt.Errorf("failed to query project conversations: %w", err)
 	}
 	defer rows.Close()
 

@@ -18,8 +18,12 @@ const (
 
 `
 	transcriptStaticSystemOmitNote = "[static system prompt omitted — unchanged in live context after compaction]"
-	transcriptToolIndexStartMarker = "以下是当前会话绑定的工具名称索引"
-	transcriptPersonaStartMarker   = "你是CyberStrikeAI"
+	// Strip-marker dual-accept: the legacy Chinese injection heading stays byte-matched
+	// for historical sessions, and the English twin matches the translated
+	// injectToolNamesOnlyInstruction prompt (see eino_tool_name_injection.go).
+	transcriptToolIndexStartMarker        = "以下是当前会话绑定的工具名称索引"
+	transcriptToolIndexStartMarkerEnglish = "The following is the tool-name index bound to this session"
+	transcriptPersonaStartMarker          = "你是CyberStrikeAI"
 	// ADK LanguageChinese injects skill middleware prompt with this header (see eino adk/middlewares/skill/prompt.go).
 	transcriptSkillsSystemMarker        = "# Skill 系统"
 	transcriptSkillsSystemMarkerEnglish = "# Skills System"
@@ -94,7 +98,9 @@ func sanitizeSystemContentForTranscript(content string) string {
 }
 
 func stripToolNamesIndexFromSystem(s string) string {
-	if !strings.Contains(s, transcriptToolIndexStartMarker) {
+	// Dual-accept: strip both the legacy Chinese tool-index heading and the
+	// translated English heading emitted since injectToolNamesOnlyInstruction.
+	if !strings.Contains(s, transcriptToolIndexStartMarker) && !strings.Contains(s, transcriptToolIndexStartMarkerEnglish) {
 		return s
 	}
 	idx := strings.Index(s, transcriptPersonaStartMarker)

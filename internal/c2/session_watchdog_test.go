@@ -33,7 +33,7 @@ func TestWatchdogClosesExpiredOfflineCommandsWithoutTouchingQueuedOrLongTasks(t 
 		t.Fatal("stale session not closed")
 	}
 	expired, _ := db.GetC2Task("expired")
-	if expired.Status != "failed" || expired.CompletedAt == nil || !strings.Contains(expired.Error, "尚未确认") {
+	if expired.Status != "failed" || expired.CompletedAt == nil || !strings.Contains(expired.Error, "not confirmed") {
 		t.Fatalf("offline command left hanging: %#v", expired)
 	}
 	for id, want := range map[string]string{"long": "sent", "queued": "queued", "done": "success", "cancelled": "cancelled", "other": "sent"} {

@@ -74,8 +74,7 @@ func (b *einoRunResultBuilder) build(partial bool) *RunResult {
 }
 
 func einoPartialRunLastOutputHint() string {
-	return "[执行未正常结束（用户停止、超时或异常）。续跑时请基于上文已产生的工具与结果继续，勿重复已完成步骤。]\n" +
-		"[Run ended abnormally; continue from the trace above without repeating completed steps.]"
+	return "[Run ended abnormally (user stop, timeout, or error); when resuming, continue from the tools and results already produced above, without repeating completed steps.]"
 }
 
 func buildEinoRunResultFromAccumulated(
@@ -120,7 +119,7 @@ func buildEinoRunResultFromAccumulated(
 	cleaned = dedupeParagraphsByLineFingerprint(cleaned, 100)
 	const maxResponseRunes = 100000
 	if rs := []rune(cleaned); len(rs) > maxResponseRunes {
-		cleaned = string(rs[:maxResponseRunes]) + "\n\n... (response truncated / 响应已截断)"
+		cleaned = string(rs[:maxResponseRunes]) + "\n\n... (response truncated)"
 	}
 	lastOut := cleaned
 	resp := cleaned

@@ -145,7 +145,7 @@ func (h *AgentHandler) runRoleWorkflowStreamIfBound(
 			cancelMsg := i18nText(requestWantsEnglish(c), "任务已被用户取消，后续操作已停止。", "task cancelled by the user, subsequent operations stopped.")
 			if assistantMessageID != "" {
 				if err := h.appendAssistantMessageNotice(assistantMessageID, cancelMsg); err != nil {
-					h.logger.Warn("更新取消后的助手消息失败", zap.Error(err))
+					h.logger.Warn("failed to update assistant message after cancel", zap.Error(err))
 				}
 				_ = h.db.AddProcessDetail(assistantMessageID, conversationID, "cancelled", cancelMsg, nil)
 			}
@@ -159,7 +159,7 @@ func (h *AgentHandler) runRoleWorkflowStreamIfBound(
 		if taskDeadlineExceeded(taskCtx) {
 			taskStatus = "timeout"
 			h.tasks.UpdateTaskStatus(conversationID, taskStatus)
-			timeoutMsg := "任务执行超时，已自动终止。"
+			timeoutMsg := "Task execution timed out; terminated automatically."
 			if assistantMessageID != "" {
 				_, _ = h.db.Exec("UPDATE messages SET content = ?, updated_at = ? WHERE id = ?", timeoutMsg, time.Now(), assistantMessageID)
 				_ = h.db.AddProcessDetail(assistantMessageID, conversationID, "timeout", timeoutMsg, nil)

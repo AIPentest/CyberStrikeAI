@@ -31,11 +31,11 @@ func runSlackLoop(ctx context.Context, cfg config.RobotSlackConfig, h MessageHan
 	for {
 		err := runSlackSocket(ctx, cfg, h, logger)
 		if ctx.Err() != nil {
-			logger.Info("Slack Socket Mode 已按配置关闭")
+			logger.Info("Slack Socket Mode closed by configuration")
 			return
 		}
 		if err != nil {
-			logger.Warn("Slack Socket Mode 异常，将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
+			logger.Warn("Slack Socket Mode error; reconnecting automatically", zap.Error(err), zap.Duration("retry_after", backoff))
 		}
 		if !waitReconnect(ctx, &backoff) {
 			return
@@ -49,7 +49,7 @@ func runSlackSocket(ctx context.Context, cfg config.RobotSlackConfig, h MessageH
 		slack.OptionAppLevelToken(strings.TrimSpace(cfg.AppToken)),
 	)
 	client := socketmode.New(api)
-	logger.Info("Slack Socket Mode 正在连接…")
+	logger.Info("Slack Socket Mode connecting…")
 
 	go func() {
 		for evt := range client.Events {
@@ -70,9 +70,9 @@ func runSlackSocket(ctx context.Context, cfg config.RobotSlackConfig, h MessageH
 					handleSlackAppMention(ctx, api, eventsAPIEvent.TeamID, ev, h, logger)
 				}
 			case socketmode.EventTypeConnecting:
-				logger.Info("Slack Socket Mode 正在连接…")
+				logger.Info("Slack Socket Mode connecting…")
 			case socketmode.EventTypeConnected:
-				logger.Info("Slack Socket Mode 已连接，等待收消息")
+				logger.Info("Slack Socket Mode connected; waiting for messages")
 			}
 		}
 	}()
@@ -92,7 +92,7 @@ func handleSlackMessage(ctx context.Context, api *slack.Client, teamID string, e
 		return
 	}
 	userID := slackSessionKey(teamID, ev.User)
-	logger.Info("Slack 收到消息", zap.String("from", userID), zap.String("content", text))
+	logger.Info("Slack received message", zap.String("from", userID), zap.String("content", text))
 	reply := h.HandleMessage(slackPlatform, userID, text)
 	slackPostReply(ctx, api, ev.Channel, reply, logger)
 }
@@ -106,7 +106,7 @@ func handleSlackAppMention(ctx context.Context, api *slack.Client, teamID string
 		return
 	}
 	userID := slackSessionKey(teamID, ev.User)
-	logger.Info("Slack 收到 @ 消息", zap.String("from", userID), zap.String("content", text))
+	logger.Info("Slack received @ mention", zap.String("from", userID), zap.String("content", text))
 	reply := h.HandleMessage(slackPlatform, userID, text)
 	slackPostReply(ctx, api, ev.Channel, reply, logger)
 }
@@ -128,7 +128,7 @@ func slackPostReply(ctx context.Context, api *slack.Client, channel, reply strin
 	for _, chunk := range splitTextChunks(reply, slackMaxMessageRunes) {
 		_, _, err := api.PostMessageContext(ctx, channel, slack.MsgOptionText(chunk, false))
 		if err != nil {
-			logger.Warn("Slack 发送回复失败", zap.String("channel", channel), zap.Error(err))
+			logger.Warn("failed to send the Slack reply", zap.String("channel", channel), zap.Error(err))
 			return
 		}
 	}

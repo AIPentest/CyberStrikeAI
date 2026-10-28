@@ -19,7 +19,7 @@ func TestDecideJevRejectsDestructive(t *testing.T) {
 	if dec != "reject" {
 		t.Fatalf("decision=%s comment=%s", dec, comment)
 	}
-	if !strings.Contains(comment, "破坏业务可用性") {
+	if !strings.Contains(comment, "destroys business availability") {
 		t.Fatalf("comment=%s", comment)
 	}
 }
@@ -130,7 +130,7 @@ func TestDecideJevRejectsOperatorPolicy(t *testing.T) {
 	if dec != "reject" {
 		t.Fatalf("decision=%s comment=%s", dec, comment)
 	}
-	if !strings.Contains(comment, "组织审批策略") {
+	if !strings.Contains(comment, "operator approval policy") {
 		t.Fatalf("comment=%s", comment)
 	}
 }
@@ -148,7 +148,7 @@ func TestDecideJevPolicyChoiceRejectsEvenIfPentest(t *testing.T) {
 	if dec != "reject" {
 		t.Fatalf("decision=%s comment=%s", dec, comment)
 	}
-	if !strings.Contains(comment, "组织策略") {
+	if !strings.Contains(comment, "operator policy") {
 		t.Fatalf("comment=%s", comment)
 	}
 }

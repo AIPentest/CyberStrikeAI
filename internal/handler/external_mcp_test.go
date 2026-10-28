@@ -210,22 +210,22 @@ func TestExternalMCPHandler_AddOrUpdateExternalMCP_InvalidConfig(t *testing.T) {
 		{
 			name:        "缺少command和url",
 			configJSON:  `{"external_mcp_enable": true}`,
-			expectedErr: "需要指定 command（stdio模式）或 url + type（http/sse模式）",
+			expectedErr: "must specify command (stdio mode) or url + type (http/sse mode)",
 		},
 		{
 			name:        "stdio模式缺少command",
 			configJSON:  `{"args": ["test"], "external_mcp_enable": true}`,
-			expectedErr: "stdio模式需要command",
+			expectedErr: "stdio mode requires command",
 		},
 		{
 			name:        "http模式缺少url",
 			configJSON:  `{"type": "http", "external_mcp_enable": true}`,
-			expectedErr: "HTTP模式需要 url",
+			expectedErr: "HTTP mode requires url",
 		},
 		{
 			name:        "无效的type",
 			configJSON:  `{"type": "invalid", "external_mcp_enable": true}`,
-			expectedErr: "不支持的传输模式",
+			expectedErr: "unsupported transport mode",
 		},
 	}
 

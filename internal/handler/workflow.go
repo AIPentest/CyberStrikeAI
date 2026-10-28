@@ -184,10 +184,10 @@ func (h *WorkflowHandler) GenerateDraft(c *gin.Context) {
 		if llmCfg, _, ok := h.cfg.ResolveAIChannel(""); ok && strings.TrimSpace(llmCfg.APIKey) != "" && strings.TrimSpace(llmCfg.Model) != "" {
 			result, llmErr = workflowrunner.GenerateDraftFromLLM(c.Request.Context(), draftReq, llmCfg, h.logger)
 		} else {
-			llmErr = errors.New("AI 通道未配置 api_key 或 model")
+			llmErr = errors.New("AI channel has no api_key or model configured")
 		}
 	} else {
-		llmErr = errors.New("工作流生成器未加载平台 AI 配置")
+		llmErr = errors.New("workflow generator did not load the platform AI config")
 	}
 	if llmErr != nil {
 		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "大模型生成失败: %s", "LLM generation failed: %s"), llmErr.Error())})
@@ -287,7 +287,7 @@ func (h *WorkflowHandler) save(c *gin.Context, pathID string) {
 			return
 		}
 		if h.logger != nil {
-			h.logger.Warn("保存工作流失败", zap.String("id", id), zap.Error(err))
+			h.logger.Warn("failed to save workflow", zap.String("id", id), zap.Error(err))
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

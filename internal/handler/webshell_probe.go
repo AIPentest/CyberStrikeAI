@@ -120,8 +120,8 @@ func (h *WebShellHandler) persistDetectedOS(connectionID, detected string) {
 	}
 	conn.OS = detected
 	if err := h.db.UpdateWebshellConnection(conn); err != nil {
-		h.logger.Warn("webshell 探活结果持久化失败", zap.String("id", connectionID), zap.String("os", detected), zap.Error(err))
+		h.logger.Warn("failed to persist webshell probe result", zap.String("id", connectionID), zap.String("os", detected), zap.Error(err))
 		return
 	}
-	h.logger.Info("webshell auto OS 探活成功并持久化", zap.String("id", connectionID), zap.String("os", detected))
+	h.logger.Info("webshell auto OS probe succeeded and persisted", zap.String("id", connectionID), zap.String("os", detected))
 }

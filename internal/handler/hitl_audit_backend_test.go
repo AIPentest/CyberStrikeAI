@@ -52,6 +52,15 @@ func TestHitlAuditBackendFromRecordInfersJevComment(t *testing.T) {
 	}
 }
 
+func TestHitlAuditBackendFromRecordInfersJevEnglishComment(t *testing.T) {
+	backend, _ := hitlAuditBackendFromRecord("audit_agent",
+		"audit agent: no destructive rule hit; default allow; top destructive score=destroys business availability 0.12; choice=approve(0.90)",
+		`{}`)
+	if backend != config.HitlAuditBackendTypeSafe {
+		t.Fatalf("backend=%q", backend)
+	}
+}
+
 func TestHitlAuditBackendFromRecordInfersOpenAIComment(t *testing.T) {
 	backend, _ := hitlAuditBackendFromRecord("audit_agent",
 		"audit agent: 实际操作：读取 /etc/passwd；命中规则：A3",

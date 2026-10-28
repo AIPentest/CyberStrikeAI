@@ -666,7 +666,7 @@ func ValidateWecomConfig(w RobotWecomConfig) error {
 		return nil
 	}
 	if strings.TrimSpace(w.Token) == "" {
-		return fmt.Errorf("robots.wecom.enabled 为 true 时必须配置 robots.wecom.token")
+		return fmt.Errorf("robots.wecom.token must be configured when robots.wecom.enabled is true")
 	}
 	return nil
 }
@@ -755,25 +755,25 @@ func ValidateRobotAuthorization(c RobotAuthorizationConfig, path string) error {
 	case RobotAuthModeServiceAccount:
 		serviceUserID := strings.TrimSpace(c.ServiceUserID)
 		if serviceUserID == "" {
-			return fmt.Errorf("%s.auth.service_user_id 不能为空", path)
+			return fmt.Errorf("%s.auth.service_user_id must not be empty", path)
 		}
 		if len(c.AllowedExternalUsers) == 0 {
-			return fmt.Errorf("%s.auth.allowed_external_users 至少配置一个真实发送者", path)
+			return fmt.Errorf("%s.auth.allowed_external_users must list at least one real sender", path)
 		}
 		seen := map[string]bool{}
 		for _, userID := range c.AllowedExternalUsers {
 			userID = strings.TrimSpace(userID)
 			if userID == "" || userID == "*" {
-				return fmt.Errorf("%s.auth.allowed_external_users 不允许空值或通配符", path)
+				return fmt.Errorf("%s.auth.allowed_external_users does not allow empty values or wildcards", path)
 			}
 			if seen[userID] {
-				return fmt.Errorf("%s.auth.allowed_external_users 包含重复用户", path)
+				return fmt.Errorf("%s.auth.allowed_external_users contains duplicate users", path)
 			}
 			seen[userID] = true
 		}
 		return nil
 	default:
-		return fmt.Errorf("%s.auth.mode 仅支持 user_binding 或 service_account", path)
+		return fmt.Errorf("%s.auth.mode only supports user_binding or service_account", path)
 	}
 }
 
@@ -1251,66 +1251,66 @@ func (h HitlConfig) AuditModelEffective(main OpenAIConfig) OpenAIConfig {
 	return out
 }
 
-const hitlAuditAgentPromptBase = `你是 CyberStrikeAI 人机协同审计 Agent。审查 Agent 即将执行的工具调用是否会对系统造成实质性损害。
+const hitlAuditAgentPromptBase = `You are the CyberStrikeAI human-in-the-loop audit agent. Review whether the tool call the Agent is about to execute would cause substantive harm to the system.
 
-你会收到 JSON，包含 hitlMode、toolName、arguments/argumentsObj、userMessage、thinking、reasoningChain、planning 等字段。
+You will receive JSON containing fields such as hitlMode, toolName, arguments/argumentsObj, userMessage, thinking, reasoningChain, planning.
 
-规则优先级：
-- 必须 reject 的规则
-- 必须 approve 的规则
-- 默认放行规则
+Rule priority order:
+- Rules that must reject
+- Rules that must approve
+- Default allow rule
 
-规则匹配要求：
-- 如果同时命中 reject 和 approve，必须 reject。
-- 每次裁决必须给出一个规则编号，不得输出“命中规则：无”。
-- 未命中明确 reject 或 approve 规则，但未发现明确破坏行为时，命中 D1：默认放行。
-- 不得仅凭“本地执行”“设置超时”“文件名包含 test”判断脚本无害；必须检查实际 command、代码或请求参数。
-- 如果脚本具体内容不可见，应表述为“当前参数未显示明确高危操作”，不能断言“无持久化影响”。
+Rule matching requirements:
+- If both a reject and an approve rule hit simultaneously, you must reject.
+- Each verdict must give a rule number; do not output "hit rule: none".
+- When no explicit reject or approve rule hits, but no clear destructive behavior is found, D1 hits: default allow.
+- Do not judge a script harmless based only on "local execution", "timeout set", "filename contains test"; you must check the actual command, code, or request parameters.
+- If the specific script content is not visible, phrase it as "the current parameters show no clearly high-risk operations", and do not assert "no persistence impact".
 
-裁决基调（默认放行）：
-- 绝大多数渗透测试操作（包括各类攻击 payload）都应放行
-- 在裁决之前需要判断出：1、此请求的是干什么（理解请求内容）？2、此请求造成什么后果？
-- 仅在「明确会直接破坏目标业务系统正常运行，或造成真实用户数据丢失/不可逆篡改」时 → reject
-- 信息不足、参数略宽泛、仅为探测意图时 → approve
-- 拿不准时 → approve（宁可放过可恢复的测试，不要误拦合法攻击）
+Verdict tone (default allow):
+- The overwhelming majority of penetration testing operations (including all kinds of attack payloads) should be allowed
+- Before the verdict you need to work out: 1. What does this request do (understand the request content)? 2. What consequence does this request cause?
+- Only in "clearly and directly breaking the normal operation of the target business system, or causing real user data loss/irreversible tampering" → reject
+- Insufficient information, overly broad parameters, merely probing intent → approve
+- When unsure → approve (prefer letting pass a recoverable test, do not mistakenly block a legitimate attack)
 
-必须 reject 的高危情形（示例，非穷举）：
-- 修改/重置任意用户或管理员密码、强制下线真实用户
-- 修改服务器或服务配置（系统配置、Web/数据库参数、防火墙、启动项、计划任务）
-- 修改/创建/删除用户、角色、权限（账户体系篡改）
-- 删除或大规模破坏数据/文件（DROP/TRUNCATE/DELETE 全表、rm 重要文件、清空数据库）
-- 停止、禁用、重启业务服务（systemctl stop、kill 关键进程、shutdown、reboot）
-- 大规模压测或高并发造成 DoS
+High-risk situations that must reject (examples, not exhaustive):
+- Modify/reset any user or administrator password, force real users offline
+- Modify server or service configuration (system configuration, Web/database parameters, firewall, startup items, scheduled tasks)
+- Modify/create/delete users, roles, permissions (account-system tampering)
+- Delete or massively destroy data/files (DROP/TRUNCATE/DELETE on full tables, rm on important files, emptying databases)
+- Stop, disable, or restart business services (systemctl stop, kill critical processes, shutdown, reboot)
+- Large-scale load testing or high concurrency causing DoS
 
-以下情形必须 approve（即使看起来“攻击性强”或包含写操作）：
-- 各类漏洞探测与利用 payload（SQL 注入含读写型、命令注入、反序列化、文件包含、路径遍历、SSRF、SSTI、XXE 等）
-- 文件上传测试，包括上传 webshell、写入 webshell 文件
-- 命令执行探测、反弹 Shell、dnslog / 数据外带探测
-- 数据库命令执行、写文件、写计划任务、内存马注入等 getshell 利用
-- 常规速率的口令爆破（非 DoS 级）
-- 信息收集、端口/目录扫描、枚举、抓取
-- 读取、查询、探测类操作（含敏感文件）
-- 攻陷后无害侦察命令（whoami/id/uname/ls/cat 等）
-- 参数宽泛但无明确破坏意图的请求
+The following situations must approve (even if they look "aggressive" or include write operations):
+- All kinds of vulnerability probing and exploitation payloads (SQL injection including read/write types, command injection, deserialization, file inclusion, path traversal, SSRF, SSTI, XXE, etc.)
+- File upload testing, including uploading webshells, writing webshell files
+- Command execution probing, reverse shells, dnslog / data exfiltration probing
+- Database command execution, writing files, writing scheduled tasks, memory-shell injection, and similar getshell exploitation
+- Password brute-forcing at normal rates (not DoS scale)
+- Information gathering, port/directory scanning, enumeration, scraping
+- Read, query, probe-type operations (including sensitive files)
+- Post-compromise harmless reconnaissance commands (whoami/id/uname/ls/cat, etc.)
+- Requests with broad parameters but no clear destructive intent
 
-判定原则：
-- “写”本身不是拦截理由——渗透测试大量依赖写操作（注入、上传、爆破、getshell）
-- 关键看是否破坏「业务可用性 / 关键数据完整性」
-- 只有明确命中上方 reject 清单才 reject`
+Judgment principles:
+- "Write" itself is not a reason to block — penetration testing relies heavily on write operations (injection, upload, brute-forcing, getshell)
+- The key thing to look at is whether it breaks "business availability / key data integrity"
+- Only clearly hit the reject list above → reject`
 
 const hitlAuditAgentPromptApprovalOutput = `
-仅输出一行 JSON，不要 markdown 代码块：
-{"decision":"approve"|"reject","comment":"实际操作：...；成功后的后果：...；命中规则：..."}`
+Output only a single line of JSON, no markdown code block:
+{"decision":"approve"|"reject","comment":"Actual operation: ...; consequence after success: ...; hit rule: ..."}`
 
 const hitlAuditAgentPromptReviewEditOutput = `
-仅输出一行 JSON，不要 markdown 代码块：
-{"decision":"approve"|"reject","comment":"实际操作：...；成功后的后果：...；命中规则：...","editedArguments":{...}}
+Output only a single line of JSON, no markdown code block:
+{"decision":"approve"|"reject","comment":"Actual operation: ...; consequence after success: ...; hit rule: ...","editedArguments":{...}}
 
-editedArguments 规则（仅 approve 且需要改参时填写，否则省略该字段）：
-- 提供完整替换后的工具参数对象，键名与 argumentsObj 一致
-- 只做最小必要修改以收窄范围、消除风险（如限制 path、去掉危险 flag）
-- 禁止扩大攻击面：不得扩大目标范围、提升权限或引入破坏性参数
-- 无法安全改参时应 reject，不要勉强 approve`
+editedArguments rules (fill in only when approve and params need changing, otherwise omit the field):
+- Provide the complete replaced tool parameter object, with key names matching argumentsObj
+- Only make the minimal necessary changes to narrow the scope, eliminate risk (such as restricting path, removing dangerous flags)
+- Expanding the attack surface is forbidden: must not expand the target scope, elevate privileges, or introduce destructive parameters
+- When it cannot be safely re-parameterized and the high-risk situations above exist, you should reject, do not force approve`
 
 // DefaultHitlAuditAgentPrompt 内置审批模式审计 Agent 提示词。
 func DefaultHitlAuditAgentPrompt() string {
@@ -1639,20 +1639,20 @@ type ParameterConfig struct {
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("读取配置文件失败: %w", err)
+		return nil, fmt.Errorf("failed to read the config file: %w", err)
 	}
 
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("解析配置文件失败: %w", err)
+		return nil, fmt.Errorf("failed to parse the config file: %w", err)
 	}
 	if cfg.ToolGuard != nil {
 		if err := validateToolGuardYAML(data); err != nil {
-			return nil, fmt.Errorf("调用拦截配置无效: %w", err)
+			return nil, fmt.Errorf("invalid call interception config: %w", err)
 		}
 	}
 	if _, err := toolguard.Compile(cfg.EffectiveToolGuard()); err != nil {
-		return nil, fmt.Errorf("调用拦截配置无效: %w", err)
+		return nil, fmt.Errorf("invalid call interception config: %w", err)
 	}
 
 	if cfg.Auth.SessionDurationHours <= 0 {
@@ -1672,7 +1672,7 @@ func Load(path string) (*Config, error) {
 		toolsDir := ResolveToolsDir(cfg.Security.ToolsDir, path)
 		merged, err := MergeToolsFromDir(toolsDir, inlineTools)
 		if err != nil {
-			return nil, fmt.Errorf("从工具目录加载工具配置失败: %w", err)
+			return nil, fmt.Errorf("failed to load tool configs from the tool directory: %w", err)
 		}
 		cfg.Security.Tools = merged
 	}
@@ -1707,7 +1707,7 @@ func Load(path string) (*Config, error) {
 
 		roles, err := LoadRolesFromDir(rolesDir)
 		if err != nil {
-			return nil, fmt.Errorf("从角色目录加载角色配置失败: %w", err)
+			return nil, fmt.Errorf("failed to load role configs from the role directory: %w", err)
 		}
 
 		cfg.Roles = roles
@@ -1730,7 +1730,7 @@ func Load(path string) (*Config, error) {
 
 func validateOpenAIOutputLimits(openAI OpenAIConfig) error {
 	if openAI.MaxCompletionTokens < 0 {
-		return fmt.Errorf("openai.max_completion_tokens 必须为正数")
+		return fmt.Errorf("openai.max_completion_tokens must be a positive number")
 	}
 	return nil
 }
@@ -1744,7 +1744,7 @@ func LoadUpdateRepo(path string) (string, error) {
 		if os.IsNotExist(err) {
 			return "", nil
 		}
-		return "", fmt.Errorf("读取配置文件失败: %w", err)
+		return "", fmt.Errorf("failed to read the config file: %w", err)
 	}
 	var thin struct {
 		Update struct {
@@ -1752,7 +1752,7 @@ func LoadUpdateRepo(path string) (string, error) {
 		} `yaml:"update"`
 	}
 	if err := yaml.Unmarshal(data, &thin); err != nil {
-		return "", fmt.Errorf("解析配置文件失败: %w", err)
+		return "", fmt.Errorf("failed to parse the config file: %w", err)
 	}
 	return strings.TrimSpace(thin.Update.Repo), nil
 }
@@ -1766,11 +1766,11 @@ func FileVersion(path string) (string, error) {
 		if os.IsNotExist(err) {
 			return "", nil
 		}
-		return "", fmt.Errorf("读取配置文件失败: %w", err)
+		return "", fmt.Errorf("failed to read the config file: %w", err)
 	}
 	version, err := parseTopVersion(data)
 	if err != nil {
-		return "", fmt.Errorf("解析配置文件失败: %w", err)
+		return "", fmt.Errorf("failed to parse the config file: %w", err)
 	}
 	return version, nil
 }
@@ -1826,7 +1826,7 @@ func WriteVersion(path, version string) (bool, error) {
 		return false, nil
 	}
 	if len(version) > 64 || !versionValuePattern.MatchString(version) {
-		return false, fmt.Errorf("版本号不合法：%q", version)
+		return false, fmt.Errorf("invalid version number: %q", version)
 	}
 	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil {
@@ -1870,7 +1870,7 @@ func WriteVersion(path, version string) (bool, error) {
 		return false, nil
 	}
 	if got, err := parseTopVersion([]byte(out)); err != nil || got != version {
-		return false, fmt.Errorf("version 的写法无法就地替换（改后配置解析失败或读回为 %q），已放弃写入，原文件未改动", got)
+		return false, fmt.Errorf("the version entry cannot be replaced in place (after the change the config fails to parse or reads back as %q); the write was abandoned and the original file is unchanged", got)
 	}
 	// Reading back version alone is insufficient: inserting before an inline
 	// document marker can create a new first document and hide every setting.
@@ -1884,7 +1884,7 @@ func WriteVersion(path, version string) (bool, error) {
 	delete(originalSettings, "version")
 	delete(nextSettings, "version")
 	if len(originalSettings) != len(nextSettings) || (len(originalSettings) > 0 && !reflect.DeepEqual(originalSettings, nextSettings)) {
-		return false, fmt.Errorf("版本号写入会改变其它配置，已放弃写入，原文件未改动")
+		return false, fmt.Errorf("writing the version number would change other config; the write was abandoned and the original file is unchanged")
 	}
 	if err := writeVersionFile(path, []byte(out), info.Mode().Perm()); err != nil {
 		return false, err
@@ -1924,7 +1924,7 @@ func RemoveVersion(path string) (bool, error) {
 		}
 		delete(before, "version")
 		if _, present := after["version"]; present || len(before) != len(after) || (len(before) > 0 && !reflect.DeepEqual(before, after)) {
-			return false, fmt.Errorf("无法安全移除版本号，原配置未改动")
+			return false, fmt.Errorf("the version number cannot be safely removed; the original config is unchanged")
 		}
 		if err := writeVersionFile(path, []byte(out), info.Mode().Perm()); err != nil {
 			return false, err
@@ -1965,7 +1965,7 @@ func EnsureLocalConfig(path string) (EnsureLocalConfigResult, error) {
 	if _, err := os.Stat(path); err == nil {
 		return EnsureLocalConfigResult{}, nil
 	} else if !os.IsNotExist(err) {
-		return EnsureLocalConfigResult{}, fmt.Errorf("检查配置文件失败: %w", err)
+		return EnsureLocalConfigResult{}, fmt.Errorf("failed to check the config file: %w", err)
 	}
 
 	examplePath := filepath.Join(filepath.Dir(path), "config.example.yaml")
@@ -1975,28 +1975,28 @@ func EnsureLocalConfig(path string) (EnsureLocalConfigResult, error) {
 				if _, altErr := os.Stat(alt); altErr == nil {
 					examplePath = alt
 				} else {
-					return EnsureLocalConfigResult{}, fmt.Errorf("配置文件 %s 不存在，且未找到模板 %s", path, examplePath)
+					return EnsureLocalConfigResult{}, fmt.Errorf("config file %s does not exist and no template was found at %s", path, examplePath)
 				}
 			} else {
-				return EnsureLocalConfigResult{}, fmt.Errorf("配置文件 %s 不存在，且未找到模板 %s", path, examplePath)
+				return EnsureLocalConfigResult{}, fmt.Errorf("config file %s does not exist and no template was found at %s", path, examplePath)
 			}
 		} else {
-			return EnsureLocalConfigResult{}, fmt.Errorf("检查配置模板失败: %w", err)
+			return EnsureLocalConfigResult{}, fmt.Errorf("failed to check the config template: %w", err)
 		}
 	}
 
 	data, err := os.ReadFile(examplePath)
 	if err != nil {
-		return EnsureLocalConfigResult{}, fmt.Errorf("读取配置模板失败: %w", err)
+		return EnsureLocalConfigResult{}, fmt.Errorf("failed to read the config template: %w", err)
 	}
 
 	if dir := filepath.Dir(path); dir != "." && dir != "" {
 		if err := os.MkdirAll(dir, 0700); err != nil {
-			return EnsureLocalConfigResult{}, fmt.Errorf("创建配置目录失败: %w", err)
+			return EnsureLocalConfigResult{}, fmt.Errorf("failed to create the config directory: %w", err)
 		}
 	}
 	if err := os.WriteFile(path, data, fs.FileMode(0600)); err != nil {
-		return EnsureLocalConfigResult{}, fmt.Errorf("创建配置文件失败: %w", err)
+		return EnsureLocalConfigResult{}, fmt.Errorf("failed to create the config file: %w", err)
 	}
 
 	return EnsureLocalConfigResult{
@@ -2083,7 +2083,7 @@ func EnsureMCPAuth(path string, cfg *Config) error {
 	}
 	token, err := generateRandomToken()
 	if err != nil {
-		return fmt.Errorf("生成 MCP 鉴权密钥失败: %w", err)
+		return fmt.Errorf("failed to generate the MCP authorization key: %w", err)
 	}
 	cfg.MCP.AuthHeaderValue = token
 	if strings.TrimSpace(cfg.MCP.AuthHeader) == "" {
@@ -2121,9 +2121,9 @@ func PrintMCPConfigJSON(mcp MCPConfig) {
 		},
 	}
 	b, _ := json.MarshalIndent(out, "", "  ")
-	fmt.Println("[CyberStrikeAI] MCP 配置（可复制到 Cursor / Claude Code 使用）：")
-	fmt.Println("  Cursor: 放入 ~/.cursor/mcp.json 的 mcpServers，或项目 .cursor/mcp.json")
-	fmt.Println("  Claude Code: 放入 .mcp.json 或 ~/.claude.json 的 mcpServers")
+	fmt.Println("[CyberStrikeAI] MCP config (can be copied into Cursor / Claude Code):")
+	fmt.Println("  Cursor: put into mcpServers of ~/.cursor/mcp.json, or the project .cursor/mcp.json")
+	fmt.Println("  Claude Code: put into .mcp.json, or mcpServers of ~/.claude.json")
 	fmt.Println("----------------------------------------------------------------")
 	fmt.Println(string(b))
 	fmt.Println("----------------------------------------------------------------")
@@ -2164,7 +2164,7 @@ func MergeToolsFromDir(toolsDir string, inlineTools []ToolConfig) ([]ToolConfig,
 func loadInlineSecurityToolsFromYAML(configPath string) ([]ToolConfig, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("读取配置文件失败: %w", err)
+		return nil, fmt.Errorf("failed to read the config file: %w", err)
 	}
 	var partial struct {
 		Security struct {
@@ -2172,7 +2172,7 @@ func loadInlineSecurityToolsFromYAML(configPath string) ([]ToolConfig, error) {
 		} `yaml:"security"`
 	}
 	if err := yaml.Unmarshal(data, &partial); err != nil {
-		return nil, fmt.Errorf("解析配置文件失败: %w", err)
+		return nil, fmt.Errorf("failed to parse the config file: %w", err)
 	}
 	if partial.Security.Tools == nil {
 		return []ToolConfig{}, nil
@@ -2192,7 +2192,7 @@ func ReloadSecurityToolsFromDir(cfg *Config, configPath string) error {
 	toolsDir := ResolveToolsDir(cfg.Security.ToolsDir, configPath)
 	merged, err := MergeToolsFromDir(toolsDir, inlineTools)
 	if err != nil {
-		return fmt.Errorf("从工具目录加载工具配置失败: %w", err)
+		return fmt.Errorf("failed to load tool configs from the tool directory: %w", err)
 	}
 	cfg.Security.Tools = merged
 	return nil
@@ -2210,7 +2210,7 @@ func LoadToolsFromDir(dir string) ([]ToolConfig, error) {
 	// 读取目录中的所有 .yaml 和 .yml 文件
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("读取工具目录失败: %w", err)
+		return nil, fmt.Errorf("failed to read the tool directory: %w", err)
 	}
 
 	for _, entry := range entries {
@@ -2227,7 +2227,7 @@ func LoadToolsFromDir(dir string) ([]ToolConfig, error) {
 		tool, err := LoadToolFromFile(filePath)
 		if err != nil {
 			// 记录错误但继续加载其他文件
-			fmt.Printf("警告: 加载工具配置文件 %s 失败: %v\n", filePath, err)
+			fmt.Printf("warning: failed to load tool config file %s: %v\n", filePath, err)
 			continue
 		}
 
@@ -2241,20 +2241,20 @@ func LoadToolsFromDir(dir string) ([]ToolConfig, error) {
 func LoadToolFromFile(path string) (*ToolConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("读取文件失败: %w", err)
+		return nil, fmt.Errorf("failed to read the file: %w", err)
 	}
 
 	var tool ToolConfig
 	if err := yaml.Unmarshal(data, &tool); err != nil {
-		return nil, fmt.Errorf("解析工具配置失败: %w", err)
+		return nil, fmt.Errorf("failed to parse the tool config: %w", err)
 	}
 
 	// 验证必需字段
 	if tool.Name == "" {
-		return nil, fmt.Errorf("工具名称不能为空")
+		return nil, fmt.Errorf("tool name must not be empty")
 	}
 	if tool.Command == "" {
-		return nil, fmt.Errorf("工具命令不能为空")
+		return nil, fmt.Errorf("tool command must not be empty")
 	}
 
 	return &tool, nil
@@ -2272,7 +2272,7 @@ func LoadRolesFromDir(dir string) (map[string]RoleConfig, error) {
 	// 读取目录中的所有 .yaml 和 .yml 文件
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("读取角色目录失败: %w", err)
+		return nil, fmt.Errorf("failed to read the role directory: %w", err)
 	}
 
 	for _, entry := range entries {
@@ -2289,7 +2289,7 @@ func LoadRolesFromDir(dir string) (map[string]RoleConfig, error) {
 		role, err := LoadRoleFromFile(filePath)
 		if err != nil {
 			// 记录错误但继续加载其他文件
-			fmt.Printf("警告: 加载角色配置文件 %s 失败: %v\n", filePath, err)
+			fmt.Printf("warning: failed to load role config file %s: %v\n", filePath, err)
 			continue
 		}
 
@@ -2311,12 +2311,12 @@ func LoadRolesFromDir(dir string) (map[string]RoleConfig, error) {
 func LoadRoleFromFile(path string) (*RoleConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("读取文件失败: %w", err)
+		return nil, fmt.Errorf("failed to read the file: %w", err)
 	}
 
 	var role RoleConfig
 	if err := yaml.Unmarshal(data, &role); err != nil {
-		return nil, fmt.Errorf("解析角色配置失败: %w", err)
+		return nil, fmt.Errorf("failed to parse the role config: %w", err)
 	}
 
 	// 处理 icon 字段：如果包含 Unicode 转义格式（\U0001F3C6），转换为实际的 Unicode 字符

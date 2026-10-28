@@ -114,7 +114,7 @@ func (l *TCPReverseListener) acceptLoop() {
 			if isClosedConnErr(err) {
 				return
 			}
-			l.logger.Warn("tcp_reverse accept 失败", zap.Error(err))
+			l.logger.Warn("tcp_reverse accept failed", zap.Error(err))
 			continue
 		}
 		go l.handleConn(conn)
@@ -139,7 +139,7 @@ func (l *TCPReverseListener) handleConn(conn net.Conn) {
 	}
 
 	if !l.cfg.AllowLegacyShell {
-		l.logger.Debug("tcp_reverse 拒绝未加密连接", zap.String("remote", remote))
+		l.logger.Debug("tcp_reverse rejected an unencrypted connection", zap.String("remote", remote))
 		_ = conn.Close()
 		return
 	}
@@ -174,7 +174,7 @@ func (l *TCPReverseListener) handleShellConn(conn net.Conn, br *bufio.Reader) {
 	}
 	session, err := l.manager.IngestCheckIn(l.rec.ID, checkin)
 	if err != nil {
-		l.logger.Warn("tcp_reverse 登记会话失败", zap.Error(err))
+		l.logger.Warn("tcp_reverse failed to register the session", zap.Error(err))
 		_ = conn.Close()
 		return
 	}
@@ -274,7 +274,7 @@ func (l *TCPReverseListener) runTaskOnConn(c *tcpReverseConn, env TaskEnvelope) 
 	startedAt := NowUnixMillis()
 	cmd, ok := buildTCPCommand(TaskType(env.TaskType), env.Payload)
 	if !ok {
-		l.reportTaskResult(env.TaskID, startedAt, false, "", "tcp_reverse listener 不支持该任务类型: "+env.TaskType, "", "")
+		l.reportTaskResult(env.TaskID, startedAt, false, "", "tcp_reverse listener does not support this task type: "+env.TaskType, "", "")
 		return
 	}
 
@@ -294,7 +294,7 @@ func (l *TCPReverseListener) runTaskOnConn(c *tcpReverseConn, env TaskEnvelope) 
 	_ = c.conn.SetWriteDeadline(time.Now().Add(15 * time.Second))
 	if _, err := c.conn.Write([]byte(wrapped)); err != nil {
 		c.writeMu.Unlock()
-		l.reportTaskResult(env.TaskID, startedAt, false, "", "写命令失败: "+err.Error(), "", "")
+		l.reportTaskResult(env.TaskID, startedAt, false, "", "Failed to write command: "+err.Error(), "", "")
 		return
 	}
 	c.writeMu.Unlock()
@@ -303,7 +303,7 @@ func (l *TCPReverseListener) runTaskOnConn(c *tcpReverseConn, env TaskEnvelope) 
 	defer cancel()
 	output, err := readUntilMarker(ctx, c.reader, endMark)
 	if err != nil {
-		l.reportTaskResult(env.TaskID, startedAt, false, output, "读取结果失败: "+err.Error(), "", "")
+		l.reportTaskResult(env.TaskID, startedAt, false, output, "Failed to read result: "+err.Error(), "", "")
 		return
 	}
 	cleaned := cleanShellOutput(output, cmd)

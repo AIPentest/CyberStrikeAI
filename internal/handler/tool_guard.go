@@ -57,7 +57,7 @@ func decodeToolGuardRequest(c *gin.Context, dst interface{}) error {
 		return err
 	}
 	if err := decoder.Decode(new(interface{})); err != io.EOF {
-		return fmt.Errorf("请求必须只包含一个 JSON 对象")
+		return fmt.Errorf("the request must contain exactly one JSON object")
 	}
 	return nil
 }

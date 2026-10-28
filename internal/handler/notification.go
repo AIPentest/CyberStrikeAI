@@ -682,7 +682,7 @@ func (h *NotificationHandler) MarkRead(c *gin.Context) {
 		return
 	}
 	if err := pruneNotificationReads(h.db, session.UserID, notificationReadMaxRows); err != nil {
-		h.logger.Warn("裁剪通知已读记录失败", zap.Error(err))
+		h.logger.Warn("failed to trim the notification read records", zap.Error(err))
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true, "marked": marked})
 }
@@ -710,7 +710,7 @@ func (h *NotificationHandler) GetSummary(c *gin.Context) {
 		var err error
 		hitlItems, err = h.loadPendingHITLItems(limit, english, access)
 		if err != nil {
-			h.logger.Warn("加载 HITL 通知失败", zap.Error(err))
+			h.logger.Warn("failed to load HITL notifications", zap.Error(err))
 			respondError(c, http.StatusInternalServerError, "汇总 HITL 通知失败", "failed to summarize hitl notifications")
 			return
 		}
@@ -728,7 +728,7 @@ func (h *NotificationHandler) GetSummary(c *gin.Context) {
 		var err error
 		vulnItems, vulnCounts, err = h.loadVulnerabilityItems(sinceMs, limit, english, access)
 		if err != nil {
-			h.logger.Warn("加载漏洞通知失败", zap.Error(err))
+			h.logger.Warn("failed to load vulnerability notifications", zap.Error(err))
 			respondError(c, http.StatusInternalServerError, "汇总漏洞失败", "failed to summarize vulnerabilities")
 			return
 		}
@@ -740,7 +740,7 @@ func (h *NotificationHandler) GetSummary(c *gin.Context) {
 		var err error
 		c2OnlineItems, c2OnlineCount, err = h.loadC2SessionOnlineEvents(sinceMs, limit, english, access)
 		if err != nil {
-			h.logger.Warn("加载 C2 会话上线通知失败", zap.Error(err))
+			h.logger.Warn("failed to load C2 session-online notifications", zap.Error(err))
 			respondError(c, http.StatusInternalServerError, "汇总 C2 会话事件失败", "failed to summarize c2 session events")
 			return
 		}
@@ -765,7 +765,7 @@ func (h *NotificationHandler) GetSummary(c *gin.Context) {
 	session, _ := security.CurrentSession(c)
 	items, err := h.applyReadStates(session.UserID, items)
 	if err != nil {
-		h.logger.Warn("加载通知已读状态失败", zap.Error(err))
+		h.logger.Warn("failed to load the notification read state", zap.Error(err))
 		respondError(c, http.StatusInternalServerError, "加载通知已读状态失败", "failed to load notification read states")
 		return
 	}

@@ -86,7 +86,7 @@ func (db *DB) ListConversationPlanTasksSince(conversationID string, since time.T
 		content, readErr := os.ReadFile(filepath.Join(dir, entry.Name()))
 		if readErr != nil {
 			if db.logger != nil {
-				db.logger.Debug("读取 Eino 任务文件失败",
+				db.logger.Debug("failed to read the Eino task file",
 					zap.String("conversationId", conversationID),
 					zap.String("file", entry.Name()),
 					zap.Error(readErr))
@@ -98,7 +98,7 @@ func (db *DB) ListConversationPlanTasksSince(conversationID string, since time.T
 			// TaskUpdate writes files concurrently with this read. A partial read
 			// is transient, so skip it and let the next poll recover.
 			if db.logger != nil {
-				db.logger.Debug("解析 Eino 任务文件失败",
+				db.logger.Debug("failed to parse the Eino task file",
 					zap.String("conversationId", conversationID),
 					zap.String("file", entry.Name()),
 					zap.Error(decodeErr))

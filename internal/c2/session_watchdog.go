@@ -68,20 +68,20 @@ func (w *SessionWatchdog) tick() {
 	for _, status := range []string{string(SessionActive), string(SessionSleeping)} {
 		sessions, err := w.manager.DB().ListC2Sessions(database.ListC2SessionsFilter{Status: status})
 		if err != nil {
-			w.logger.Warn("watchdog 列表查询失败", zap.Error(err))
+			w.logger.Warn("watchdog list query failed", zap.Error(err))
 			continue
 		}
 		for _, s := range sessions {
 			if w.isStale(s, now) {
 				if err := w.manager.MarkSessionDead(s.ID); err != nil {
-					w.logger.Warn("标记会话掉线失败", zap.String("session_id", s.ID), zap.Error(err))
+					w.logger.Warn("Failed to mark the session offline", zap.String("session_id", s.ID), zap.Error(err))
 				}
 			}
 		}
 	}
 	sessions, err := w.manager.DB().ListC2Sessions(database.ListC2SessionsFilter{Status: string(SessionDead)})
 	if err != nil {
-		w.logger.Warn("离线任务查询失败", zap.Error(err))
+		w.logger.Warn("Offline task query failed", zap.Error(err))
 		return
 	}
 	for _, session := range sessions {
@@ -92,7 +92,7 @@ func (w *SessionWatchdog) tick() {
 func (w *SessionWatchdog) expireOfflineCommands(session *database.C2Session, now time.Time) {
 	tasks, err := w.manager.DB().ListC2Tasks(database.ListC2TasksFilter{SessionID: session.ID, Status: string(TaskSent)})
 	if err != nil {
-		w.logger.Warn("离线命令查询失败", zap.Error(err))
+		w.logger.Warn("Offline command query failed", zap.Error(err))
 		return
 	}
 	for _, task := range tasks {
@@ -114,9 +114,9 @@ func (w *SessionWatchdog) expireOfflineCommands(session *database.C2Session, now
 			continue
 		}
 		status := string(TaskFailed)
-		errText := "会话已离线且任务结果超过执行期限；远端进程是否终止尚未确认"
+		errText := "Session went offline and the task result exceeded its deadline; whether the remote process terminated is not confirmed"
 		if err := w.manager.DB().UpdateC2Task(task.ID, database.C2TaskUpdate{ExpectedStatus: &task.Status, Status: &status, Error: &errText, CompletedAt: &now}); err != nil {
-			w.logger.Warn("收尾离线命令失败", zap.Error(err))
+			w.logger.Warn("Failed to finalize offline commands", zap.Error(err))
 			continue
 		}
 		w.manager.publishEvent("warn", "task", session.ID, task.ID, errText, nil)

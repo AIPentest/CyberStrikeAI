@@ -34,7 +34,7 @@ func (h *AgentHandler) auditAgentReview(ctx context.Context, hitlMode, toolName 
 	}
 	llmCfg := h.auditLLMConfig()
 	if strings.TrimSpace(llmCfg.APIKey) == "" || strings.TrimSpace(llmCfg.Model) == "" {
-		return hitlDecision{Decision: "reject", Comment: "audit agent: LLM 未配置"}
+		return hitlDecision{Decision: "reject", Comment: "audit agent: LLM not configured"}
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -65,14 +65,14 @@ func (h *AgentHandler) auditAgentReview(ctx context.Context, hitlMode, toolName 
 	}
 	client := openai.NewClient(&llmCfg, nil, h.logger)
 	if err := client.ChatCompletion(callCtx, requestBody, &apiResponse); err != nil {
-		h.logger.Warn("审计 Agent LLM 调用失败", zap.Error(err), zap.String("tool", toolName))
+		h.logger.Warn("audit agent LLM call failed", zap.Error(err), zap.String("tool", toolName))
 		return hitlDecision{
 			Decision: "reject",
-			Comment:  "audit agent: LLM 调用失败，保守拒绝",
+			Comment:  "audit agent: LLM call failed, rejecting conservatively",
 		}
 	}
 	if len(apiResponse.Choices) == 0 {
-		return hitlDecision{Decision: "reject", Comment: "audit agent: LLM 无有效响应，保守拒绝"}
+		return hitlDecision{Decision: "reject", Comment: "audit agent: LLM returned no valid response, rejecting conservatively"}
 	}
 	msg := apiResponse.Choices[0].Message
 	raw := strings.TrimSpace(msg.Content)
@@ -85,16 +85,16 @@ func (h *AgentHandler) auditAgentReview(ctx context.Context, hitlMode, toolName 
 		if len(snippet) > 240 {
 			snippet = snippet[:240] + "..."
 		}
-		h.logger.Warn("审计 Agent 响应解析失败",
+		h.logger.Warn("audit agent response parse failed",
 			zap.Error(err),
 			zap.String("tool", toolName),
 			zap.String("mode", mode),
 			zap.String("snippet", snippet),
 		)
-		return hitlDecision{Decision: "reject", Comment: "audit agent: 响应无法解析，保守拒绝"}
+		return hitlDecision{Decision: "reject", Comment: "audit agent: response could not be parsed, rejecting conservatively"}
 	}
 	if mode != "review_edit" && len(dec.EditedArguments) > 0 {
-		h.logger.Warn("审计 Agent 在审批模式下返回 editedArguments，已忽略",
+		h.logger.Warn("audit agent returned editedArguments in approval mode; ignoring",
 			zap.String("tool", toolName),
 		)
 		dec.EditedArguments = nil
@@ -116,11 +116,11 @@ func (h *AgentHandler) auditLLMConfig() config.OpenAIConfig {
 
 func (h *AgentHandler) auditAgentReviewTypeSafe(ctx context.Context, hitlMode, toolName string, payload map[string]interface{}) hitlDecision {
 	if h == nil || h.config == nil {
-		return hitlDecision{Decision: "reject", Comment: "audit agent: TypeSafe 未配置"}
+		return hitlDecision{Decision: "reject", Comment: "audit agent: TypeSafe not configured"}
 	}
 	baseURL, apiKey, model := h.config.Hitl.TypeSafeConfigEffective()
 	if apiKey == "" {
-		return hitlDecision{Decision: "reject", Comment: "audit agent: TypeSafe API Key 未配置"}
+		return hitlDecision{Decision: "reject", Comment: "audit agent: TypeSafe API Key not configured"}
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -132,8 +132,8 @@ func (h *AgentHandler) auditAgentReviewTypeSafe(ctx context.Context, hitlMode, t
 	policy := h.config.Hitl.JevOperatorPolicy(hitlMode)
 	result, err := client.SystemOne(callCtx, hitl.BuildJevState(hitlMode, toolName, payload, policy), hitl.JevAuditQuestions(policy))
 	if err != nil {
-		h.logger.Warn("审计 Agent TypeSafe 调用失败", zap.Error(err), zap.String("tool", toolName))
-		return hitlDecision{Decision: "reject", Comment: "audit agent: TypeSafe 调用失败，保守拒绝"}
+		h.logger.Warn("audit agent TypeSafe call failed", zap.Error(err), zap.String("tool", toolName))
+		return hitlDecision{Decision: "reject", Comment: "audit agent: TypeSafe call failed, rejecting conservatively"}
 	}
 	decision, comment := hitl.DecideJev(result)
 	if comment == "" {
@@ -315,6 +315,8 @@ func normalizeAuditAgentDecision(v string) string {
 		return "reject"
 	}
 	switch strings.TrimSpace(v) {
+	// Chinese decision aliases from Chinese-language audit agents; the first
+	// switch already accepts the English forms, so both are covered.
 	case "通过", "批准", "允许", "同意", "放行":
 		return "approve"
 	case "拒绝", "驳回", "禁止", "否决":
@@ -362,7 +364,7 @@ func (h *AgentHandler) UpdateHITLAuditStrategy(c *gin.Context) {
 	approvalPrompt := strings.TrimSpace(req.AuditAgentPrompt)
 	reviewEditPrompt := strings.TrimSpace(req.AuditAgentPromptReviewEdit)
 	if err := h.hitlStrategySaver.UpdateHitlAuditAgentStrategy(approvalPrompt, reviewEditPrompt); err != nil {
-		h.logger.Warn("保存审计 Agent 提示词失败", zap.Error(err))
+		h.logger.Warn("failed to save audit agent prompt", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

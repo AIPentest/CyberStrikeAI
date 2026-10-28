@@ -43,10 +43,10 @@ type graphIndex struct {
 func parseGraph(raw string) (*graphDef, error) {
 	var g graphDef
 	if err := json.Unmarshal([]byte(strings.TrimSpace(raw)), &g); err != nil {
-		return nil, fmt.Errorf("解析工作流图失败: %w", err)
+		return nil, fmt.Errorf("failed to parse workflow graph: %w", err)
 	}
 	if len(g.Nodes) == 0 {
-		return nil, fmt.Errorf("工作流没有节点")
+		return nil, fmt.Errorf("workflow has no nodes")
 	}
 	if g.Config == nil {
 		g.Config = make(map[string]any)

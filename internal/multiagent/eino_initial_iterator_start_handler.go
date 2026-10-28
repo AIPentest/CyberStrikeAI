@@ -45,7 +45,9 @@ func (h *einoInitialIteratorStartHandler) emitTurnLoopTakeover() {
 	if h == nil || h.cfg.Progress == nil {
 		return
 	}
-	h.cfg.Progress("progress", "Eino TurnLoop 常驻多轮 runtime 已接管本轮会话。", map[string]interface{}{
+	// User-visible progress copy (English); the Chinese legacy text stays matched
+	// byte-identically in handler/chat.js diagnostic filters (dual-accept).
+	h.cfg.Progress("progress", "Eino TurnLoop resident multi-turn runtime has taken over this conversation turn.", map[string]interface{}{
 		"conversationId": h.cfg.ConversationID,
 		"source":         "eino",
 		"orchestration":  h.cfg.OrchMode,

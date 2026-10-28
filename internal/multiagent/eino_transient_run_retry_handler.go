@@ -133,12 +133,12 @@ func emitEinoRunRetryProgress(
 		"maxAttempts":    maxAttempts,
 		"backoffSec":     int(backoff.Seconds()),
 	}
-	progress("eino_run_retry", fmt.Sprintf("遇到临时错误，%d 秒后第 %d/%d 次重试。原因：%s", int(backoff.Seconds()), attemptNo, maxAttempts, errorSummary), data)
+	progress("eino_run_retry", fmt.Sprintf("Transient error; retrying in %d seconds (attempt %d/%d). Reason: %s", int(backoff.Seconds()), attemptNo, maxAttempts, errorSummary), data)
 	restartedData := make(map[string]interface{}, len(data)+1)
 	for k, v := range data {
 		restartedData[k] = v
 	}
 	restartedData["contextSource"] = string(ctxSource)
-	progress("eino_run_retry", "已恢复上下文，正在重试…", restartedData)
+	progress("eino_run_retry", "Context restored, retrying…", restartedData)
 	return 2
 }

@@ -434,19 +434,19 @@ func (h *ChatUploadsHandler) collectFiles(c *gin.Context, conversationFilter, pr
 	})
 	reductionFiles, err := h.collectReductionFiles(c, conversationFilter, projectFilter)
 	if err != nil {
-		h.logger.Warn("列举 reduction 产物失败", zap.Error(err))
+		h.logger.Warn("failed to list reduction artifacts", zap.Error(err))
 	} else if len(reductionFiles) > 0 {
 		files = append(files, reductionFiles...)
 	}
 	workspaceFiles, err := h.collectWorkspaceFiles(c, conversationFilter, projectFilter)
 	if err != nil {
-		h.logger.Warn("列举 workspace 产物失败", zap.Error(err))
+		h.logger.Warn("failed to list workspace artifacts", zap.Error(err))
 	} else if len(workspaceFiles) > 0 {
 		files = append(files, workspaceFiles...)
 	}
 	artifactFiles, err := h.collectConversationArtifactFiles(c, conversationFilter, projectFilter)
 	if err != nil {
-		h.logger.Warn("列举 conversation_artifacts 产物失败", zap.Error(err))
+		h.logger.Warn("failed to list conversation_artifacts artifacts", zap.Error(err))
 	} else if len(artifactFiles) > 0 {
 		files = append(files, artifactFiles...)
 	}
@@ -846,7 +846,7 @@ func (h *ChatUploadsHandler) List(c *gin.Context) {
 	pageSize := parsePositiveIntQuery(c, "pageSize", 20, 200)
 	files, folders, err := h.collectFiles(c, conversationFilter, projectFilter)
 	if err != nil {
-		h.logger.Warn("列举对话附件失败", zap.Error(err))
+		h.logger.Warn("failed to list chat attachments", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -870,7 +870,7 @@ func (h *ChatUploadsHandler) Export(c *gin.Context) {
 	search := strings.TrimSpace(c.Query("search"))
 	files, _, err := h.collectFiles(c, conversationFilter, projectFilter)
 	if err != nil {
-		h.logger.Warn("导出对话附件失败", zap.Error(err))
+		h.logger.Warn("failed to export chat attachments", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -908,7 +908,7 @@ func (h *ChatUploadsHandler) Export(c *gin.Context) {
 	manifestBytes, _ := json.MarshalIndent(manifest, "", "  ")
 	mw, err := zw.Create("manifest.json")
 	if err != nil {
-		h.logger.Warn("写入附件导出清单失败", zap.Error(err))
+		h.logger.Warn("failed to write the attachment export manifest", zap.Error(err))
 		return
 	}
 	_, _ = mw.Write(manifestBytes)
@@ -953,7 +953,7 @@ func (h *ChatUploadsHandler) Export(c *gin.Context) {
 		used[zipName]++
 		fw, err := zw.Create(zipName)
 		if err != nil {
-			h.logger.Warn("创建附件导出项失败", zap.String("path", item.RelativePath), zap.Error(err))
+			h.logger.Warn("failed to create the attachment export entry", zap.String("path", item.RelativePath), zap.Error(err))
 			continue
 		}
 		src, err := os.Open(abs)
@@ -963,12 +963,12 @@ func (h *ChatUploadsHandler) Export(c *gin.Context) {
 		_, copyErr := io.Copy(fw, src)
 		_ = src.Close()
 		if copyErr != nil {
-			h.logger.Warn("复制附件导出项失败", zap.String("path", item.RelativePath), zap.Error(copyErr))
+			h.logger.Warn("failed to copy the attachment export entry", zap.String("path", item.RelativePath), zap.Error(copyErr))
 			return
 		}
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "file", "export", "导出对话附件", "chat_upload", filename, map[string]interface{}{
+		h.audit.RecordOK(c, "file", "export", "chat attachments exported", "chat_upload", filename, map[string]interface{}{
 			"conversation_id": conversationFilter,
 			"project_id":      projectFilter,
 			"file_count":      len(files),
@@ -1191,7 +1191,7 @@ func (h *ChatUploadsHandler) Delete(c *gin.Context) {
 	}
 	_ = h.db.DeleteChatUploadArtifactPath(filepath.ToSlash(filepath.Clean(filepath.FromSlash(body.Path))))
 	if h.audit != nil {
-		h.audit.RecordOK(c, "file", "delete", "删除对话附件", "chat_upload", body.Path, nil)
+		h.audit.RecordOK(c, "file", "delete", "chat attachment deleted", "chat_upload", body.Path, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
@@ -1503,7 +1503,7 @@ func (h *ChatUploadsHandler) Upload(c *gin.Context) {
 		_ = h.db.UpsertChatUploadArtifact(filepath.ToSlash(rel), conversationID, session.UserID)
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "file", "upload", "上传对话附件", "chat_upload", filepath.ToSlash(rel), map[string]interface{}{
+		h.audit.RecordOK(c, "file", "upload", "chat attachment uploaded", "chat_upload", filepath.ToSlash(rel), map[string]interface{}{
 			"name": unique,
 		})
 	}

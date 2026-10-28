@@ -25,22 +25,22 @@ type PromoteToProjectResult struct {
 // PromoteToProject 将对话攻击链沉淀为项目事实与边。
 func PromoteToProject(db *database.DB, projectID, conversationID string) (*PromoteToProjectResult, error) {
 	if db == nil {
-		return nil, fmt.Errorf("database 未初始化")
+		return nil, fmt.Errorf("database not initialized")
 	}
 	projectID = strings.TrimSpace(projectID)
 	conversationID = strings.TrimSpace(conversationID)
 	if projectID == "" || conversationID == "" {
-		return nil, fmt.Errorf("project_id 与 conversation_id 必填")
+		return nil, fmt.Errorf("project_id and conversation_id are required")
 	}
 	if _, err := db.GetProject(projectID); err != nil {
-		return nil, fmt.Errorf("项目不存在")
+		return nil, fmt.Errorf("project not found")
 	}
 	conv, err := db.GetConversation(conversationID)
 	if err != nil {
-		return nil, fmt.Errorf("对话不存在")
+		return nil, fmt.Errorf("conversation not found")
 	}
 	if pid := strings.TrimSpace(conv.ProjectID); pid != "" && pid != projectID {
-		return nil, fmt.Errorf("对话已绑定其他项目")
+		return nil, fmt.Errorf("conversation is bound to another project")
 	}
 
 	nodes, err := db.LoadAttackChainNodes(conversationID)
@@ -52,7 +52,7 @@ func PromoteToProject(db *database.DB, projectID, conversationID string) (*Promo
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, fmt.Errorf("该对话尚无攻击链，请先在对话中生成攻击链")
+		return nil, fmt.Errorf("this conversation has no attack chain yet; generate one in the conversation first")
 	}
 
 	res := &PromoteToProjectResult{}
@@ -192,12 +192,16 @@ func promoteSlugify(s string) string {
 	return s
 }
 
+// formatPromotedFactBody keeps the legacy Chinese section markers (## 关联 /
+// 结构化关系边（自动同步）) byte-identical: they are parsed back out from stored
+// fact bodies by internal/project/fact_body_links.go, which dual-accepts the
+// Chinese and English spellings.
 func formatPromotedFactBody(node Node, conversationID string) string {
 	var b strings.Builder
-	b.WriteString("## 来源\n")
-	b.WriteString(fmt.Sprintf("- 对话攻击链沉淀\n- source_conversation_id: %s\n- node_id: %s\n- node_type: %s\n\n", conversationID, node.ID, node.Type))
-	b.WriteString("## 摘要\n")
+	b.WriteString("## Source\n")
+	b.WriteString(fmt.Sprintf("- promoted from the conversation attack chain\n- source_conversation_id: %s\n- node_id: %s\n- node_type: %s\n\n", conversationID, node.ID, node.Type))
+	b.WriteString("## Summary\n")
 	b.WriteString(strings.TrimSpace(node.Label))
-	b.WriteString("\n\n## 关联\n- 结构化关系边（自动同步）:\n  （见项目攻击路径图）\n")
+	b.WriteString("\n\n## 关联\n- 结构化关系边（自动同步）:\n  (see the project attack path graph)\n")
 	return b.String()
 }

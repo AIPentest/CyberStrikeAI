@@ -9,7 +9,7 @@ import (
 
 // literalInstructionGenModelInput passes Instruction through as a system message without
 // FString template formatting. Eino defaultGenModelInput formats instruction whenever
-// SessionValues exist; prompts with literal curly braces (project blackboard "{关系边: ...}",
+// SessionValues exist; prompts with literal curly braces (project blackboard "{links: ...}",
 // JSON examples, link syntax) then fail with "could not find key".
 //
 // Matches eino/adk/prebuilt/deep genModelInput — the supported fix per Eino docs.

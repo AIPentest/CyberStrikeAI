@@ -1,4 +1,4 @@
-package handler
+﻿package handler
 
 import (
 	"context"
@@ -22,7 +22,7 @@ import (
 
 const batchQueueWorkerIdlePoll = 200 * time.Millisecond
 
-// executeBatchQueue 使用并发 worker 池执行批量任务队列。
+// executeBatchQueue 使用并发 worker 池executing batch task队列。
 func (h *AgentHandler) executeBatchQueue(queueID string) {
 	defer h.batchTaskManager.UnmarkQueueExecutor(queueID)
 
@@ -31,7 +31,7 @@ func (h *AgentHandler) executeBatchQueue(queueID string) {
 		return
 	}
 	concurrency := normalizeBatchQueueConcurrency(queue.Concurrency)
-	h.logger.Info("开始执行批量任务队列", zap.String("queueId", queueID), zap.Int("concurrency", concurrency))
+	h.logger.Info("starting batch task queue execution", zap.String("queueId", queueID), zap.Int("concurrency", concurrency))
 
 	var wg sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
@@ -72,14 +72,14 @@ func (h *AgentHandler) runBatchQueueWorker(queueID string) {
 
 		if h.batchTaskManager.TakeSingleRunTaskIfMatch(queueID, task.ID) {
 			h.batchTaskManager.UpdateQueueStatus(queueID, BatchQueueStatusPaused)
-			h.logger.Info("单条执行完成，队列已暂停", zap.String("queueId", queueID), zap.String("taskId", task.ID))
+			h.logger.Info("single execution completed; queue paused", zap.String("queueId", queueID), zap.String("taskId", task.ID))
 			return
 		}
 
 		queue, exists = h.batchTaskManager.GetBatchQueue(queueID)
 		if batchQueueExecutionShouldStop(queue, exists) {
 			if !exists {
-				h.logger.Warn("批量队列在执行收尾时已不存在，安全退出", zap.String("queueId", queueID))
+				h.logger.Warn("batch queue no longer exists at execution end; exiting safely", zap.String("queueId", queueID))
 			}
 			return
 		}
@@ -106,7 +106,7 @@ func (h *AgentHandler) tryFinalizeBatchQueue(queueID string) {
 	}
 	h.batchTaskManager.SetLastRunError(queueID, lastRunErr)
 	h.batchTaskManager.UpdateQueueStatus(queueID, BatchQueueStatusCompleted)
-	h.logger.Info("批量任务队列执行完成", zap.String("queueId", queueID))
+	h.logger.Info("batch task queue execution completed", zap.String("queueId", queueID))
 }
 
 // executeOneBatchSubTask 执行单条批量子任务（各自独立会话）。
@@ -114,7 +114,7 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 	ownerUserID := h.db.GetResourceOwner("batch_task", queueID)
 	access, accessErr := h.db.ResolveRBACAccess(ownerUserID)
 	if accessErr != nil || access == nil || !access.User.Enabled {
-		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "队列所有者不存在或已禁用")
+		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "queue owner not found or disabled")
 		return
 	}
 	principal := authctx.NewPrincipalWithScopes(access.User.ID, access.User.Username, access.Scope, access.Permissions, access.PermissionScopes)
@@ -122,8 +122,8 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 	batchMeta := batchSubTaskConversationMeta(h.config, queue)
 	conv, err := h.db.CreateConversation(title, batchMeta)
 	if err != nil {
-		h.logger.Error("创建对话失败", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(err))
-		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "创建对话失败: "+err.Error())
+		h.logger.Error("failed to create conversation", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(err))
+		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "failed to create conversation: "+err.Error())
 		return
 	}
 	conversationID := conv.ID
@@ -134,28 +134,28 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 
 	finalMessage := task.Message
 	var roleTools []string
-	if queue.Role != "" && queue.Role != "默认" {
+	if queue.Role != "" && queue.Role != "Default" {
 		if h.config.Roles != nil {
 			if role, exists := h.config.Roles[queue.Role]; exists && role.Enabled {
 				if role.UserPrompt != "" {
 					finalMessage = role.UserPrompt + "\n\n" + task.Message
-					h.logger.Info("应用角色用户提示词", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("role", queue.Role))
+					h.logger.Info("applying role user prompt", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("role", queue.Role))
 				}
 				if len(role.Tools) > 0 {
 					roleTools = role.Tools
-					h.logger.Info("使用角色配置的工具列表", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("role", queue.Role), zap.Int("toolCount", len(roleTools)))
+					h.logger.Info("using role-configured tool list", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("role", queue.Role), zap.Int("toolCount", len(roleTools)))
 				}
 			}
 		}
 	}
 
 	if _, err = h.db.AddMessage(conversationID, "user", task.Message, nil); err != nil {
-		h.logger.Error("保存用户消息失败", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID), zap.Error(err))
+		h.logger.Error("failed to save user message", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID), zap.Error(err))
 	}
 
-	assistantMsg, err := h.db.AddMessage(conversationID, "assistant", "处理中...", nil)
+	assistantMsg, err := h.db.AddMessage(conversationID, "assistant", "Processing...", nil)
 	if err != nil {
-		h.logger.Error("创建助手消息失败", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID), zap.Error(err))
+		h.logger.Error("failed to create assistant message", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID), zap.Error(err))
 		assistantMsg = nil
 	}
 
@@ -164,7 +164,7 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 		assistantMessageID = assistantMsg.ID
 	}
 
-	h.logger.Info("执行批量任务", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("message", task.Message), zap.String("role", queue.Role), zap.String("conversationId", conversationID))
+	h.logger.Info("executing batch task", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("message", task.Message), zap.String("role", queue.Role), zap.String("conversationId", conversationID))
 
 	principalCtx := authctx.WithPrincipal(context.Background(), principal)
 	baseCtx, cancelWithCause := context.WithCancelCause(principalCtx)
@@ -200,14 +200,14 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 	}
 
 	if startedTask, err := h.tasks.StartTask(conversationID, task.Message, cancelWithCause); err != nil {
-		h.logger.Warn("批量队列子任务注册会话运行状态失败",
+		h.logger.Warn("failed to register sub-task conversation run state",
 			zap.String("queueId", queueID),
 			zap.String("taskId", task.ID),
 			zap.String("conversationId", conversationID),
 			zap.Error(err))
 		failMsg := err.Error()
 		if errors.Is(err, ErrTaskAlreadyRunning) {
-			failMsg = "会话已有任务正在执行，无法在该会话上并行启动批量子任务"
+			failMsg = "the conversation already has a task running; a batch sub-task cannot be started in parallel on that conversation"
 		}
 		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", failMsg)
 		return
@@ -226,13 +226,13 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 	}
 	if h.hitlManager == nil {
 		finishStatus = "failed"
-		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "审批服务未初始化")
+		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "approval service not initialized")
 		return
 	}
 	hitlReq := h.batchHITLRequest(queue.HITLPolicy)
 	if err := h.hitlManager.SaveConversationConfig(conversationID, hitlReq); err != nil {
 		finishStatus = "failed"
-		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "保存审批设置失败: "+err.Error())
+		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "failed to save approval settings: "+err.Error())
 		return
 	}
 	h.activateHITLForConversation(conversationID, hitlReq)
@@ -272,7 +272,7 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 		resultMA, runErr = multiagent.RunDeepAgent(taskCtx, h.config, &h.config.MultiAgent, h.agent, h.db, h.logger, conversationID, h.conversationProjectID(conversationID), finalMessage, []agent.ChatMessage{}, roleTools, progressCallback, h.agentsMarkdownDir, batchOrch, nil, h.agentSessionContextBlock(conversationID))
 	default:
 		if h.config == nil {
-			runErr = fmt.Errorf("服务器配置未加载")
+			runErr = fmt.Errorf("server configuration not loaded")
 		} else {
 			resultMA, runErr = multiagent.RunEinoSingleChatModelAgent(taskCtx, h.config, &h.config.MultiAgent, h.agent, h.db, h.logger, conversationID, h.conversationProjectID(conversationID), finalMessage, []agent.ChatMessage{}, roleTools, progressCallback, nil, h.agentSessionContextBlock(conversationID))
 		}
@@ -284,15 +284,15 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 	}
 
 	if resultMA == nil {
-		h.logger.Error("批量任务执行成功但无结果对象",
+		h.logger.Error("batch task executed successfully but no result object",
 			zap.String("queueId", queueID),
 			zap.String("taskId", task.ID),
 			zap.String("conversationId", conversationID))
-		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "内部错误：无执行结果")
+		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "internal error: no execution result")
 		return
 	}
 
-	h.logger.Info("批量任务执行成功", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID))
+	h.logger.Info("batch task executed successfully", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID))
 
 	mcpIDs := resultMA.MCPExecutionIDs
 	lastIn := resultMA.LastAgentTraceInput
@@ -332,12 +332,12 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 		err = nil
 	}
 	if err != nil {
-		h.logger.Error("保存助手消息失败", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID), zap.Error(err))
+		h.logger.Error("failed to save assistant message", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID), zap.Error(err))
 	}
 
 	if lastIn != "" || lastOut != "" {
 		if err := h.db.SaveAgentTrace(conversationID, lastIn, lastOut); err != nil {
-			h.logger.Warn("保存代理轨迹失败", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(err))
+			h.logger.Warn("failed to save agent trace", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(err))
 		}
 	}
 
@@ -396,38 +396,38 @@ func (h *AgentHandler) handleBatchSubTaskRunError(
 	}
 
 	if isCancelled {
-		h.logger.Info("批量任务被取消", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID))
-		cancelMsg := "任务已被用户取消，后续操作已停止。"
+		h.logger.Info("batch task cancelled", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID))
+		cancelMsg := "task cancelled by the user, subsequent operations stopped."
 		if partialResp != "" && (strings.Contains(partialResp, "任务已被取消") || strings.Contains(partialResp, "任务执行中断")) {
 			cancelMsg = partialResp
 		}
 		if assistantMessageID != "" {
 			if updateErr := h.appendAssistantMessageNotice(assistantMessageID, cancelMsg); updateErr != nil {
-				h.logger.Warn("更新取消后的助手消息失败", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(updateErr))
+				h.logger.Warn("failed to update assistant message after cancel", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(updateErr))
 			}
 			if err := h.db.AddProcessDetail(assistantMessageID, conversationID, "cancelled", cancelMsg, nil); err != nil {
-				h.logger.Warn("保存取消详情失败", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(err))
+				h.logger.Warn("failed to save cancel detail", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(err))
 			}
 		} else if _, errMsg := h.db.AddMessage(conversationID, "assistant", cancelMsg, nil); errMsg != nil {
-			h.logger.Warn("保存取消消息失败", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(errMsg))
+			h.logger.Warn("failed to save cancel message", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(errMsg))
 		}
 		h.batchTaskManager.UpdateTaskStatusWithConversationID(queueID, task.ID, BatchTaskStatusCancelled, cancelMsg, "", conversationID)
 		return
 	}
 
-	h.logger.Error("批量任务执行失败", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID), zap.Error(runErr))
+	h.logger.Error("batch task execution failed", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID), zap.Error(runErr))
 	clientErr := multiagent.EinoClientRunErrorMessage(runErr)
-	errorMsg := "执行失败: " + clientErr
+	errorMsg := "execution failed: " + clientErr
 	if assistantMessageID != "" {
 		if _, updateErr := h.db.Exec(
 			"UPDATE messages SET content = ?, updated_at = ? WHERE id = ?",
 			errorMsg,
 			time.Now(), assistantMessageID,
 		); updateErr != nil {
-			h.logger.Warn("更新失败后的助手消息失败", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(updateErr))
+			h.logger.Warn("failed to update assistant message after failure", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(updateErr))
 		}
 		if err := h.db.AddProcessDetail(assistantMessageID, conversationID, "error", errorMsg, nil); err != nil {
-			h.logger.Warn("保存错误详情失败", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(err))
+			h.logger.Warn("failed to save error detail", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(err))
 		}
 	}
 	h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", clientErr)

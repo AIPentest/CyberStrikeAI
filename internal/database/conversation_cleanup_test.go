@@ -111,13 +111,13 @@ func TestDeleteConversationRemovesChatUploads(t *testing.T) {
 	}
 	siblingDir := filepath.Join(uploads, "2026-06-01", siblingSeg)
 	if _, statErr := os.Stat(filepath.Join(siblingDir, "report.pdf")); statErr != nil {
-		t.Errorf("其他会话的上传件被误删: %v", statErr)
+		t.Errorf("uploads of another conversation were mistakenly deleted: %v", statErr)
 	}
 	if _, statErr := os.Stat(uploads); statErr != nil {
-		t.Errorf("chat_uploads 根目录不应被删除: %v", statErr)
+		t.Errorf("the chat_uploads root directory must not be deleted: %v", statErr)
 	}
 	if _, statErr := os.Stat(filepath.Join(uploads, "2026-06-01")); statErr != nil {
-		t.Errorf("仍有数据的日期目录不应被删除: %v", statErr)
+		t.Errorf("a date directory that still has data must not be deleted: %v", statErr)
 	}
 }
 

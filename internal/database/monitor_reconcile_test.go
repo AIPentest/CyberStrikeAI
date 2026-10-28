@@ -31,7 +31,7 @@ func TestCancelOrphanedRunningToolExecutions(t *testing.T) {
 	}
 
 	end := time.Now()
-	n, err := db.CancelOrphanedRunningToolExecutions(end, "执行已中断（服务重启）")
+	n, err := db.CancelOrphanedRunningToolExecutions(end, "Execution was interrupted (service restarted)")
 	if err != nil {
 		t.Fatalf("CancelOrphanedRunningToolExecutions: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestFinalizeStaleRunningToolExecutions_skipsActive(t *testing.T) {
 	}
 
 	active := map[string]struct{}{"active": {}}
-	n, err := db.FinalizeStaleRunningToolExecutions(now, time.Minute, active, "执行已中断（会话已结束）")
+	n, err := db.FinalizeStaleRunningToolExecutions(now, time.Minute, active, "Execution was interrupted (the session has ended)")
 	if err != nil {
 		t.Fatalf("FinalizeStaleRunningToolExecutions: %v", err)
 	}

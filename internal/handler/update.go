@@ -171,7 +171,7 @@ func (h *UpdateHandler) Check(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	h.record(c, "update.check", resultOf(snap.CheckError), fmt.Sprintf("检查更新：%s（默认分支 %s）", snap.Repo, snap.TargetBranch), map[string]interface{}{
+	h.record(c, "update.check", resultOf(snap.CheckError), fmt.Sprintf("update check: %s (default branch %s)", snap.Repo, snap.TargetBranch), map[string]interface{}{
 		"commit": snap.Commit, "remote_commit": snap.RemoteCommit, "behind": snap.Behind, "error": snap.CheckError,
 	})
 	c.JSON(http.StatusOK, gin.H{"status": snap})
@@ -209,13 +209,13 @@ func (h *UpdateHandler) SaveSource(c *gin.Context) {
 		return
 	}
 	if err := h.saveSource(body.Repo); err != nil {
-		h.record(c, "update.source", "failure", "保存更新源失败: "+err.Error(), map[string]interface{}{"error": err.Error()})
+		h.record(c, "update.source", "failure", "failed to save the update source: "+err.Error(), map[string]interface{}{"error": err.Error()})
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "保存失败：%s", "save failed: %s"), err.Error())})
 		return
 	}
-	message := "更新源已保存：" + body.Repo
+	message := "update source saved: " + body.Repo
 	if body.Repo == "" {
-		message = "已恢复默认更新源（官方仓库）"
+		message = "back to the default update source (official repository)"
 	}
 	h.record(c, "update.source", "success", message, map[string]interface{}{"repo": body.Repo})
 	c.JSON(http.StatusOK, gin.H{"source": h.sourceView()})
@@ -242,7 +242,7 @@ func (h *UpdateHandler) Adopt(c *gin.Context) {
 	if !body.Confirm {
 		plan, err := update.Preview(c.Request.Context(), h.options())
 		if err != nil {
-			h.record(c, "update.adopt", "failure", "接入预览失败: "+err.Error(), map[string]interface{}{"error": errMessage(err)})
+			h.record(c, "update.adopt", "failure", "adopt preview failed: "+err.Error(), map[string]interface{}{"error": errMessage(err)})
 			c.JSON(statusForError(err), errorBody(err))
 			return
 		}
@@ -254,7 +254,7 @@ func (h *UpdateHandler) Adopt(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "已有一次更新在进行中", "an update is already in progress"), "job": job})
 		return
 	}
-	h.record(c, "update.adopt", "started", "开始把目录接入更新源", map[string]interface{}{"job": job.ID, "restart": body.Restart})
+	h.record(c, "update.adopt", "started", "started adopting the directory into the update source", map[string]interface{}{"job": job.ID, "restart": body.Restart})
 	c.JSON(http.StatusAccepted, gin.H{"job_id": job.ID, "state": job.State})
 }
 
@@ -281,7 +281,7 @@ func (h *UpdateHandler) Apply(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "已有一次更新在进行中", "an update is already in progress"), "job": job})
 		return
 	}
-	h.record(c, "update.apply", "started", "开始一键更新源码并重编译", map[string]interface{}{"job": job.ID, "restart": body.Restart})
+	h.record(c, "update.apply", "started", "started the one-click source update and rebuild", map[string]interface{}{"job": job.ID, "restart": body.Restart})
 
 	c.JSON(http.StatusAccepted, gin.H{"job_id": job.ID, "state": job.State})
 }
@@ -318,7 +318,7 @@ func (h *UpdateHandler) Restart(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "磁盘上的二进制不存在，无法重启", "no binary on disk, cannot restart"), "reason": "no_binary"})
 		return
 	}
-	h.record(c, "update.restart", "started", "重启安装以运行磁盘上的新二进制", nil)
+	h.record(c, "update.restart", "started", "restarting the installation to run the new binary on disk", nil)
 	c.JSON(http.StatusAccepted, gin.H{"restarting": true})
 	scheduled = true
 	time.AfterFunc(updateRestartDelay, func() { defer release(); h.restart() })
@@ -340,11 +340,11 @@ func (h *UpdateHandler) Rollback(c *gin.Context) {
 	}
 	res, err := update.Rollback(c.Request.Context(), h.options())
 	if err != nil {
-		h.record(c, "update.rollback", "failure", "回滚失败: "+err.Error(), map[string]interface{}{"error": errMessage(err)})
+		h.record(c, "update.rollback", "failure", "rollback failed: "+err.Error(), map[string]interface{}{"error": errMessage(err)})
 		c.JSON(statusForError(err), errorBody(err))
 		return
 	}
-	h.record(c, "update.rollback", "success", fmt.Sprintf("已回滚到 %s", res.ToCommit), map[string]interface{}{
+	h.record(c, "update.rollback", "success", fmt.Sprintf("rolled back to %s", res.ToCommit), map[string]interface{}{
 		"from": res.FromCommit, "to": res.ToCommit,
 	})
 	c.JSON(http.StatusOK, gin.H{"result": res})
@@ -389,7 +389,7 @@ func (h *UpdateHandler) startJob(kind string, restart bool) (*updateJob, bool) {
 			job.Steps = append(job.Steps, s)
 			h.mu.Unlock()
 			if h.logger != nil {
-				h.logger.Info("更新进度", zap.String("phase", s.Phase), zap.String("message", s.Message))
+				h.logger.Info("update progress", zap.String("phase", s.Phase), zap.String("message", s.Message))
 			}
 		}
 		var run func(context.Context, update.Options, func(update.Step)) (*update.Result, error) = update.Apply

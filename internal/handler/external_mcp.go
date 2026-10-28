@@ -189,7 +189,7 @@ func (h *ExternalMCPHandler) AddOrUpdateExternalMCP(c *gin.Context) {
 
 	// 添加或更新配置
 	if err := h.manager.AddOrUpdateConfig(name, cfg); err != nil {
-		h.logger.Error("添加或更新外部MCP配置失败", zap.Error(err))
+		h.logger.Error("failed to add or update external MCP configuration", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "添加或更新配置失败: %s", "failed to add or update config: %s"), err.Error())})
 		return
 	}
@@ -198,12 +198,12 @@ func (h *ExternalMCPHandler) AddOrUpdateExternalMCP(c *gin.Context) {
 
 	// 保存到配置文件
 	if err := h.saveConfig(); err != nil {
-		h.logger.Error("保存配置失败", zap.Error(err))
+		h.logger.Error("failed to save configuration", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "保存配置失败: %s", "failed to save config: %s"), err.Error())})
 		return
 	}
 
-	h.logger.Info("外部MCP配置已更新", zap.String("name", name))
+	h.logger.Info("external MCP configuration updated", zap.String("name", name))
 	if h.audit != nil {
 		h.audit.Record(c, audit.Entry{
 			Category:     "external_mcp",
@@ -211,7 +211,7 @@ func (h *ExternalMCPHandler) AddOrUpdateExternalMCP(c *gin.Context) {
 			Result:       "success",
 			ResourceType: "external_mcp",
 			ResourceID:   name,
-			Message:      "更新外部 MCP 配置",
+			Message:      "updated external MCP configuration",
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "配置已更新", "config updated")})
@@ -237,12 +237,12 @@ func (h *ExternalMCPHandler) DeleteExternalMCP(c *gin.Context) {
 
 	// 保存到配置文件
 	if err := h.saveConfig(); err != nil {
-		h.logger.Error("保存配置失败", zap.Error(err))
+		h.logger.Error("failed to save configuration", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "保存配置失败: %s", "failed to save config: %s"), err.Error())})
 		return
 	}
 
-	h.logger.Info("外部MCP配置已删除", zap.String("name", name))
+	h.logger.Info("external MCP configuration deleted", zap.String("name", name))
 	if h.audit != nil {
 		h.audit.Record(c, audit.Entry{
 			Category:     "external_mcp",
@@ -250,7 +250,7 @@ func (h *ExternalMCPHandler) DeleteExternalMCP(c *gin.Context) {
 			Result:       "success",
 			ResourceType: "external_mcp",
 			ResourceID:   name,
-			Message:      "删除外部 MCP 配置",
+			Message:      "deleted external MCP configuration",
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "配置已删除", "config deleted")})
@@ -274,15 +274,15 @@ func (h *ExternalMCPHandler) StartExternalMCP(c *gin.Context) {
 
 	// 保存到配置文件
 	if err := h.saveConfig(); err != nil {
-		h.logger.Error("保存配置失败", zap.Error(err))
+		h.logger.Error("failed to save configuration", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "保存配置失败: %s", "failed to save config: %s"), err.Error())})
 		return
 	}
 
 	// 启动客户端（立即创建客户端并设置状态为connecting，实际连接在后台进行）
-	h.logger.Info("开始启动外部MCP", zap.String("name", name))
+	h.logger.Info("starting external MCP", zap.String("name", name))
 	if err := h.manager.StartClient(name); err != nil {
-		h.logger.Error("启动外部MCP失败", zap.String("name", name), zap.Error(err))
+		h.logger.Error("failed to start external MCP", zap.String("name", name), zap.Error(err))
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":  err.Error(),
 			"status": "error",
@@ -329,12 +329,12 @@ func (h *ExternalMCPHandler) StopExternalMCP(c *gin.Context) {
 
 	// 保存到配置文件
 	if err := h.saveConfig(); err != nil {
-		h.logger.Error("保存配置失败", zap.Error(err))
+		h.logger.Error("failed to save configuration", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "保存配置失败: %s", "failed to save config: %s"), err.Error())})
 		return
 	}
 
-	h.logger.Info("外部MCP已停止", zap.String("name", name))
+	h.logger.Info("external MCP stopped", zap.String("name", name))
 	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "外部MCP已停止", "external MCP stopped")})
 }
 
@@ -348,24 +348,24 @@ func (h *ExternalMCPHandler) GetExternalMCPStats(c *gin.Context) {
 func (h *ExternalMCPHandler) validateConfig(cfg config.ExternalMCPServerConfig) error {
 	transport := cfg.GetTransportType()
 	if transport == "" {
-		return fmt.Errorf("需要指定 command（stdio模式）或 url + type（http/sse模式）")
+		return fmt.Errorf("must specify command (stdio mode) or url + type (http/sse mode)")
 	}
 
 	switch transport {
 	case "http":
 		if cfg.URL == "" {
-			return fmt.Errorf("HTTP模式需要 url")
+			return fmt.Errorf("HTTP mode requires url")
 		}
 	case "stdio":
 		if cfg.Command == "" {
-			return fmt.Errorf("stdio模式需要 command")
+			return fmt.Errorf("stdio mode requires command")
 		}
 	case "sse":
 		if cfg.URL == "" {
-			return fmt.Errorf("SSE模式需要 url")
+			return fmt.Errorf("SSE mode requires url")
 		}
 	default:
-		return fmt.Errorf("不支持的传输模式: %s，支持的模式: http, stdio, sse", transport)
+		return fmt.Errorf("unsupported transport mode: %s; supported modes: http, stdio, sse", transport)
 	}
 
 	return nil
@@ -382,25 +382,25 @@ func (h *ExternalMCPHandler) saveConfig() error {
 	defer configFileMu.Unlock()
 	data, err := os.ReadFile(h.configPath)
 	if err != nil {
-		return fmt.Errorf("读取配置文件失败: %w", err)
+		return fmt.Errorf("failed to read configuration file: %w", err)
 	}
 
 	if err := os.WriteFile(h.configPath+".backup", data, 0644); err != nil {
-		h.logger.Warn("创建配置备份失败", zap.Error(err))
+		h.logger.Warn("failed to create configuration backup", zap.Error(err))
 	}
 
 	root, err := loadYAMLDocument(h.configPath)
 	if err != nil {
-		return fmt.Errorf("解析配置文件失败: %w", err)
+		return fmt.Errorf("failed to parse configuration file: %w", err)
 	}
 
 	updateExternalMCPConfig(root, h.config.ExternalMCP)
 
 	if err := writeYAMLDocument(h.configPath, root); err != nil {
-		return fmt.Errorf("保存配置文件失败: %w", err)
+		return fmt.Errorf("failed to save configuration file: %w", err)
 	}
 
-	h.logger.Info("配置已保存", zap.String("path", h.configPath))
+	h.logger.Info("configuration saved", zap.String("path", h.configPath))
 	return nil
 }
 

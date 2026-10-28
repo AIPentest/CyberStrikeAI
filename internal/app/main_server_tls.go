@@ -42,7 +42,7 @@ func prepareMainServerTLS(cfg *config.ServerConfig) (mode mainTLSMode, tlsConf *
 	if cfg.TLSAutoSelfSign {
 		cert, genErr := generateMainServerSelfSignedCert()
 		if genErr != nil {
-			return mainTLSOff, nil, "", "", fmt.Errorf("生成自签 TLS 证书: %w", genErr)
+			return mainTLSOff, nil, "", "", fmt.Errorf("failed to generate a self-signed TLS certificate: %w", genErr)
 		}
 		tlsConf = &tls.Config{
 			MinVersion:   tls.VersionTLS12,
@@ -50,7 +50,7 @@ func prepareMainServerTLS(cfg *config.ServerConfig) (mode mainTLSMode, tlsConf *
 		}
 		return mainTLSInMemorySelfSigned, tlsConf, "", "", nil
 	}
-	return mainTLSOff, nil, "", "", fmt.Errorf("server: 已启用 TLS（tls_enabled / tls_auto_self_sign / 证书路径），请设置 tls_cert_path 与 tls_key_path，或将 tls_auto_self_sign 设为 true（仅测试环境）")
+	return mainTLSOff, nil, "", "", fmt.Errorf("server: TLS is enabled (tls_enabled / tls_auto_self_sign / certificate paths); set tls_cert_path and tls_key_path, or set tls_auto_self_sign to true (tests only)")
 }
 
 func generateMainServerSelfSignedCert() (tls.Certificate, error) {

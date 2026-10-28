@@ -11,11 +11,9 @@ import (
 
 // ShellNoOutputTimeoutMessage 长时间无新 stdout/stderr 时的提示（软失败，模型可见）。
 func ShellNoOutputTimeoutMessage(idleSec int) string {
-	return fmt.Sprintf(`命令已终止：超过 %d 秒没有新的输出，疑似在等待交互输入或已挂起。
+	return fmt.Sprintf(`Command terminated: no new output for %d seconds; the tool may be waiting for interactive input or may have hung.
 
-长时静默任务请使用末尾 & 后台运行，或增大 agent.shell_no_output_timeout_seconds（-1=关闭此检测）。
-
-Command terminated: no new output for %d seconds (possible interactive wait or hung process).`, idleSec, idleSec)
+For long silent tasks, run them with a trailing & for background execution, or increase agent.shell_no_output_timeout_seconds (-1 disables this check).`, idleSec)
 }
 
 // ShellInactivityWatch 在 noOutputSec 内无任何新输出时向 expired 发送信号；每次 Bump 重置计时。

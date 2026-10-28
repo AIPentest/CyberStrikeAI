@@ -15,7 +15,7 @@ import (
 func (db *DB) SaveToolExecution(exec *mcp.ToolExecution) error {
 	argsJSON, err := json.Marshal(exec.Arguments)
 	if err != nil {
-		db.logger.Warn("序列化执行参数失败", zap.Error(err))
+		db.logger.Warn("failed to serialize the execution arguments", zap.Error(err))
 		argsJSON = []byte("{}")
 	}
 
@@ -23,7 +23,7 @@ func (db *DB) SaveToolExecution(exec *mcp.ToolExecution) error {
 	if exec.Result != nil {
 		resultBytes, err := json.Marshal(exec.Result)
 		if err != nil {
-			db.logger.Warn("序列化执行结果失败", zap.Error(err))
+			db.logger.Warn("failed to serialize the execution result", zap.Error(err))
 		} else {
 			resultJSON = sql.NullString{String: string(resultBytes), Valid: true}
 		}
@@ -78,7 +78,7 @@ func (db *DB) SaveToolExecution(exec *mcp.ToolExecution) error {
 	)
 
 	if err != nil {
-		db.logger.Error("保存工具执行记录失败", zap.Error(err), zap.String("executionId", exec.ID))
+		db.logger.Error("failed to save the tool execution record", zap.Error(err), zap.String("executionId", exec.ID))
 		return err
 	}
 
@@ -106,7 +106,7 @@ func (db *DB) UpdateToolExecutionResult(id string, result *mcp.ToolResult) error
 	}
 	_, err = db.Exec(`UPDATE tool_executions SET result = ? WHERE id = ?`, string(resultBytes), id)
 	if err != nil {
-		db.logger.Warn("更新工具执行结果失败", zap.Error(err), zap.String("executionId", id))
+		db.logger.Warn("failed to update the tool execution result", zap.Error(err), zap.String("executionId", id))
 	}
 	return err
 }
@@ -222,13 +222,13 @@ func (db *DB) LoadToolExecutionsWithPagination(offset, limit int, status, toolNa
 			&exec.ConversationID,
 		)
 		if err != nil {
-			db.logger.Warn("加载执行记录失败", zap.Error(err))
+			db.logger.Warn("failed to load the execution record", zap.Error(err))
 			continue
 		}
 
 		// 解析参数
 		if err := json.Unmarshal([]byte(argsJSON), &exec.Arguments); err != nil {
-			db.logger.Warn("解析执行参数失败", zap.Error(err))
+			db.logger.Warn("failed to parse the execution arguments", zap.Error(err))
 			exec.Arguments = make(map[string]interface{})
 		}
 
@@ -236,7 +236,7 @@ func (db *DB) LoadToolExecutionsWithPagination(offset, limit int, status, toolNa
 		if resultJSON.Valid && resultJSON.String != "" {
 			var result mcp.ToolResult
 			if err := json.Unmarshal([]byte(resultJSON.String), &result); err != nil {
-				db.logger.Warn("解析执行结果失败", zap.Error(err))
+				db.logger.Warn("failed to parse the execution result", zap.Error(err))
 			} else {
 				exec.Result = &result
 			}
@@ -370,7 +370,7 @@ func (db *DB) LoadToolStatsSummary(topN int) (*ToolStatsSummaryResult, error) {
 			&stat.BlockedCalls,
 			&lastCallTime,
 		); err != nil {
-			db.logger.Warn("加载 Top 工具统计失败", zap.Error(err))
+			db.logger.Warn("failed to load top tool stats", zap.Error(err))
 			continue
 		}
 		if lastCallTime.Valid {
@@ -480,7 +480,7 @@ func (db *DB) LoadToolExecutionListPageForAccess(offset, limit int, status, tool
 			&exec.OwnerUserID,
 			&exec.ConversationID,
 		); err != nil {
-			db.logger.Warn("加载执行记录列表失败", zap.Error(err))
+			db.logger.Warn("failed to load the execution record list", zap.Error(err))
 			continue
 		}
 		if endTime.Valid {
@@ -563,14 +563,14 @@ func (db *DB) GetToolExecution(id string) (*mcp.ToolExecution, error) {
 	}
 
 	if err := json.Unmarshal([]byte(argsJSON), &exec.Arguments); err != nil {
-		db.logger.Warn("解析执行参数失败", zap.Error(err))
+		db.logger.Warn("failed to parse the execution arguments", zap.Error(err))
 		exec.Arguments = make(map[string]interface{})
 	}
 
 	if resultJSON.Valid && resultJSON.String != "" {
 		var result mcp.ToolResult
 		if err := json.Unmarshal([]byte(resultJSON.String), &result); err != nil {
-			db.logger.Warn("解析执行结果失败", zap.Error(err))
+			db.logger.Warn("failed to parse the execution result", zap.Error(err))
 		} else {
 			exec.Result = &result
 		}
@@ -622,7 +622,7 @@ func (db *DB) UserCanAccessToolExecution(userID, scope, executionID string) bool
 func (db *DB) CancelOrphanedRunningToolExecutions(endTime time.Time, errMsg string) (int64, error) {
 	errMsg = strings.TrimSpace(errMsg)
 	if errMsg == "" {
-		errMsg = "执行已中断（服务重启或会话结束）"
+		errMsg = "execution interrupted (service restart or session ended)"
 	}
 	query := `
 		UPDATE tool_executions
@@ -644,7 +644,7 @@ func (db *DB) CancelOrphanedRunningToolExecutions(endTime time.Time, errMsg stri
 func (db *DB) FinalizeStaleRunningToolExecutions(endTime time.Time, minAge time.Duration, activeIDs map[string]struct{}, errMsg string) (int64, error) {
 	errMsg = strings.TrimSpace(errMsg)
 	if errMsg == "" {
-		errMsg = "执行已中断（会话已结束）"
+		errMsg = "execution interrupted (session ended)"
 	}
 	if minAge < 0 {
 		minAge = 0
@@ -667,7 +667,7 @@ func (db *DB) FinalizeStaleRunningToolExecutions(endTime time.Time, minAge time.
 	for rows.Next() {
 		var row staleRow
 		if err := rows.Scan(&row.id, &row.startTime); err != nil {
-			db.logger.Warn("读取 stale running 执行记录失败", zap.Error(err))
+			db.logger.Warn("failed to read stale running execution records", zap.Error(err))
 			continue
 		}
 		if activeIDs != nil {
@@ -696,7 +696,7 @@ func (db *DB) FinalizeStaleRunningToolExecutions(endTime time.Time, minAge time.
 			WHERE id = ? AND status = 'running'
 		`, errMsg, endTime, durationMs, row.id)
 		if err != nil {
-			db.logger.Warn("更新 stale running 执行记录失败", zap.Error(err), zap.String("executionId", row.id))
+			db.logger.Warn("failed to update stale running execution records", zap.Error(err), zap.String("executionId", row.id))
 			continue
 		}
 		n, _ := res.RowsAffected()
@@ -710,7 +710,7 @@ func (db *DB) DeleteToolExecution(id string) error {
 	query := `DELETE FROM tool_executions WHERE id = ?`
 	_, err := db.Exec(query, id)
 	if err != nil {
-		db.logger.Error("删除工具执行记录失败", zap.Error(err), zap.String("executionId", id))
+		db.logger.Error("failed to delete the tool execution record", zap.Error(err), zap.String("executionId", id))
 		return err
 	}
 	return nil
@@ -733,7 +733,7 @@ func (db *DB) DeleteToolExecutions(ids []string) error {
 	query := `DELETE FROM tool_executions WHERE id IN (` + strings.Join(placeholders, ",") + `)`
 	_, err := db.Exec(query, args...)
 	if err != nil {
-		db.logger.Error("批量删除工具执行记录失败", zap.Error(err), zap.Int("count", len(ids)))
+		db.logger.Error("failed to bulk delete tool execution records", zap.Error(err), zap.Int("count", len(ids)))
 		return err
 	}
 	return nil
@@ -788,13 +788,13 @@ func (db *DB) GetToolExecutionsByIds(ids []string) ([]*mcp.ToolExecution, error)
 			&exec.ConversationID,
 		)
 		if err != nil {
-			db.logger.Warn("加载执行记录失败", zap.Error(err))
+			db.logger.Warn("failed to load the execution record", zap.Error(err))
 			continue
 		}
 
 		// 解析参数
 		if err := json.Unmarshal([]byte(argsJSON), &exec.Arguments); err != nil {
-			db.logger.Warn("解析执行参数失败", zap.Error(err))
+			db.logger.Warn("failed to parse the execution arguments", zap.Error(err))
 			exec.Arguments = make(map[string]interface{})
 		}
 
@@ -802,7 +802,7 @@ func (db *DB) GetToolExecutionsByIds(ids []string) ([]*mcp.ToolExecution, error)
 		if resultJSON.Valid && resultJSON.String != "" {
 			var result mcp.ToolResult
 			if err := json.Unmarshal([]byte(resultJSON.String), &result); err != nil {
-				db.logger.Warn("解析执行结果失败", zap.Error(err))
+				db.logger.Warn("failed to parse the execution result", zap.Error(err))
 			} else {
 				exec.Result = &result
 			}
@@ -854,7 +854,7 @@ func (db *DB) PurgeToolExecutionsBefore(cutoff time.Time) (int64, error) {
 		var toolName, status string
 		var count int
 		if err := rows.Scan(&toolName, &status, &count); err != nil {
-			db.logger.Warn("读取待清理执行记录统计失败", zap.Error(err))
+			db.logger.Warn("failed to read the count of execution records pending cleanup", zap.Error(err))
 			continue
 		}
 		toolName = strings.TrimSpace(toolName)
@@ -889,7 +889,7 @@ func (db *DB) PurgeToolExecutionsBefore(cutoff time.Time) (int64, error) {
 
 	for toolName, delta := range deltas {
 		if err := db.DecreaseToolStats(toolName, delta.totalCalls, delta.successCalls, delta.failedCalls); err != nil {
-			db.logger.Warn("清理过期执行记录后更新统计失败",
+			db.logger.Warn("failed to update stats after purging expired execution records",
 				zap.Error(err),
 				zap.String("toolName", toolName),
 			)
@@ -922,7 +922,7 @@ func (db *DB) SaveToolStats(toolName string, stats *mcp.ToolStats) error {
 	)
 
 	if err != nil {
-		db.logger.Error("保存工具统计信息失败", zap.Error(err), zap.String("toolName", toolName))
+		db.logger.Error("failed to save tool stats", zap.Error(err), zap.String("toolName", toolName))
 		return err
 	}
 
@@ -959,7 +959,7 @@ func (db *DB) LoadToolStats() (map[string]*mcp.ToolStats, error) {
 			&stat.BlockedCalls,
 		)
 		if err != nil {
-			db.logger.Warn("加载统计信息失败", zap.Error(err))
+			db.logger.Warn("failed to load stats", zap.Error(err))
 			continue
 		}
 
@@ -997,7 +997,7 @@ func (db *DB) UpdateToolStats(toolName string, totalCalls, successCalls, failedC
 	)
 
 	if err != nil {
-		db.logger.Error("更新工具统计信息失败", zap.Error(err), zap.String("toolName", toolName))
+		db.logger.Error("failed to update tool stats", zap.Error(err), zap.String("toolName", toolName))
 		return err
 	}
 
@@ -1060,12 +1060,12 @@ func (db *DB) LoadCallsTimeline(since time.Time, dailyBuckets bool) ([]CallsTime
 		var bucketStr string
 		var total, failed, blocked int
 		if err := rows.Scan(&bucketStr, &total, &failed, &blocked); err != nil {
-			db.logger.Warn("加载调用趋势失败", zap.Error(err))
+			db.logger.Warn("failed to load the call trend", zap.Error(err))
 			continue
 		}
 		bucketTime, err := parseCallsTimelineBucket(bucketStr, dailyBuckets)
 		if err != nil {
-			db.logger.Warn("解析调用趋势时间桶失败", zap.Error(err), zap.String("bucket", bucketStr))
+			db.logger.Warn("failed to parse a call trend time bucket", zap.Error(err), zap.String("bucket", bucketStr))
 			continue
 		}
 		buckets = append(buckets, CallsTimelineBucket{
@@ -1100,7 +1100,7 @@ func (db *DB) DecreaseToolStats(toolName string, totalCalls, successCalls, faile
 
 	_, err := db.Exec(query, totalCalls, totalCalls, successCalls, successCalls, failedCalls, failedCalls, time.Now(), toolName)
 	if err != nil {
-		db.logger.Error("减少工具统计信息失败", zap.Error(err), zap.String("toolName", toolName))
+		db.logger.Error("failed to decrement tool stats", zap.Error(err), zap.String("toolName", toolName))
 		return err
 	}
 
@@ -1118,10 +1118,10 @@ func (db *DB) DecreaseToolStats(toolName string, totalCalls, successCalls, faile
 		deleteQuery := `DELETE FROM tool_stats WHERE tool_name = ?`
 		_, err = db.Exec(deleteQuery, toolName)
 		if err != nil {
-			db.logger.Warn("删除零统计记录失败", zap.Error(err), zap.String("toolName", toolName))
+			db.logger.Warn("failed to delete zero-stats records", zap.Error(err), zap.String("toolName", toolName))
 			// 不返回错误，因为主要操作（更新统计）已成功
 		} else {
-			db.logger.Info("已删除零统计记录", zap.String("toolName", toolName))
+			db.logger.Info("deleted zero-stats records", zap.String("toolName", toolName))
 		}
 	}
 

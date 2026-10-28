@@ -159,7 +159,7 @@ func (h *TerminalHandler) RunCommand(c *gin.Context) {
 			c.JSON(http.StatusOK, resp)
 			return
 		}
-		h.logger.Debug("终端命令执行异常", zap.String("command", maskTerminalCommand(cmdStr)), zap.Error(err))
+		h.logger.Debug("terminal command execution error", zap.String("command", maskTerminalCommand(cmdStr)), zap.Error(err))
 	}
 
 	// 统一为 \n，避免前端因 \r 出现错位/对角线排版

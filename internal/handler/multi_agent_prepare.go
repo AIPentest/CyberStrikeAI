@@ -1,4 +1,4 @@
-package handler
+﻿package handler
 
 import (
 	"fmt"
@@ -33,6 +33,9 @@ func chatRequestAgentMode(req *ChatRequest, source string) string {
 	return "eino_single"
 }
 
+// prepareMultiAgentSession validation errors are matched by their Chinese text
+// in multiAgentHTTPErrorStatus (internal/handler/multi_agent.go); they are wire
+// markers — keep them byte-identical Chinese so the status mapping still resolves.
 func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context, source string) (*multiAgentPrepared, error) {
 	if len(req.Attachments) > maxAttachments {
 		return nil, fmt.Errorf("附件最多 %d 个", maxAttachments)
@@ -94,10 +97,10 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 		return nil, ErrTaskAlreadyRunning
 	}
 	if err := h.db.SetConversationRoleName(conversationID, req.Role); err != nil {
-		h.logger.Warn("更新对话角色失败", zap.String("conversationId", conversationID), zap.String("role", req.Role), zap.Error(err))
+		h.logger.Warn("failed to update conversation role", zap.String("conversationId", conversationID), zap.String("role", req.Role), zap.Error(err))
 	}
 	if err := h.db.SetConversationAgentMode(conversationID, chatRequestAgentMode(req, source)); err != nil {
-		h.logger.Warn("更新对话模式失败", zap.String("conversationId", conversationID), zap.String("source", source), zap.String("orchestration", req.Orchestration), zap.Error(err))
+		h.logger.Warn("failed to update conversation mode", zap.String("conversationId", conversationID), zap.String("source", source), zap.String("orchestration", req.Orchestration), zap.Error(err))
 	}
 
 	agentHistoryMessages, err := h.loadHistoryFromAgentTrace(conversationID)
@@ -120,15 +123,15 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 	if webshellID != "" {
 		conn, errConn := h.db.GetWebshellConnection(webshellID)
 		if errConn != nil || conn == nil {
-			h.logger.Warn("WebShell AI 助手：未找到连接", zap.String("id", req.WebShellConnectionID), zap.Error(errConn))
+			h.logger.Warn("WebShell AI assistant: connection not found", zap.String("id", req.WebShellConnectionID), zap.Error(errConn))
 			return nil, fmt.Errorf("未找到该 WebShell 连接")
 		}
 		webshellContext := BuildWebshellAssistantContext(conn, WebshellSkillHintMultiAgent, req.Message)
 		// WebShell 模式下如果同时指定了角色，追加角色 user_prompt（工具集仍仅限 webshell 专用工具）
-		if req.Role != "" && req.Role != "默认" && h.config != nil && h.config.Roles != nil {
+		if req.Role != "" && req.Role != "Default" && h.config != nil && h.config.Roles != nil {
 			if role, exists := h.config.Roles[req.Role]; exists && role.Enabled && role.UserPrompt != "" {
 				finalMessage = role.UserPrompt + "\n\n" + webshellContext
-				h.logger.Info("WebShell + 角色: 应用角色提示词（多代理）", zap.String("role", req.Role))
+				h.logger.Info("WebShell + role: applying role prompt (multi-agent)", zap.String("role", req.Role))
 			} else {
 				finalMessage = webshellContext
 			}
@@ -153,7 +156,7 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 			builtin.ToolListKnowledgeRiskTypes,
 			builtin.ToolSearchKnowledgeBase,
 		}
-	} else if req.Role != "" && req.Role != "默认" && h.config != nil && h.config.Roles != nil {
+	} else if req.Role != "" && req.Role != "Default" && h.config != nil && h.config.Roles != nil {
 		if role, exists := h.config.Roles[req.Role]; exists && role.Enabled {
 			if role.UserPrompt != "" {
 				finalMessage = role.UserPrompt + "\n\n" + req.Message
@@ -190,12 +193,12 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 	userContent := userMessageContentForStorage(req.Message, req.Attachments, savedPaths)
 	userMsgRow, uerr := h.db.AddMessage(conversationID, "user", userContent, nil)
 	if uerr != nil {
-		h.logger.Error("保存用户消息失败", zap.Error(uerr))
-		return nil, fmt.Errorf("保存用户消息失败: %w", uerr)
+		h.logger.Error("failed to save user message", zap.Error(uerr))
+		return nil, fmt.Errorf("failed to save user message: %w", uerr)
 	}
 	if retest != nil {
 		if err := h.db.SetVulnerabilityRetestPrompt(conversationID, ""); err != nil {
-			h.logger.Warn("清除已发送复测提示词失败", zap.Error(err))
+			h.logger.Warn("failed to clear already-sent retest prompt", zap.Error(err))
 		}
 	}
 	userMessageID := ""
@@ -206,7 +209,7 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 	assistantMsg, aerr := h.db.AddMessage(conversationID, "assistant", "处理中...", nil)
 	var assistantMessageID string
 	if aerr != nil {
-		h.logger.Warn("创建助手消息占位失败", zap.Error(aerr))
+		h.logger.Warn("failed to create assistant message placeholder", zap.Error(aerr))
 	} else if assistantMsg != nil {
 		assistantMessageID = assistantMsg.ID
 	}

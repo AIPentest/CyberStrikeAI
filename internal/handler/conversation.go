@@ -81,7 +81,9 @@ func (h *ConversationHandler) CreateConversation(c *gin.Context) {
 
 	title := req.Title
 	if title == "" {
-		title = "新对话"
+		// Default conversation title stored in DB rows; older rows keep the legacy
+	// Chinese "新对话" (robot.go dual-accepts both "New conversation " and "新对话 " prefixes).
+	title = "New conversation"
 	}
 
 	meta := audit.ConversationCreateMetaFromGin(c, "api")
@@ -92,7 +94,7 @@ func (h *ConversationHandler) CreateConversation(c *gin.Context) {
 	}
 	conv, err := h.db.CreateConversation(title, meta)
 	if err != nil {
-		h.logger.Error("创建对话失败", zap.Error(err))
+		h.logger.Error("failed to create conversation", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -171,7 +173,7 @@ func (h *ConversationHandler) ListConversations(c *gin.Context) {
 		total, err = h.db.CountConversationsForAccess(search, projectID, session.UserID, session.Scope)
 	}
 	if err != nil {
-		h.logger.Error("获取对话列表失败", zap.Error(err))
+		h.logger.Error("failed to list conversations", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -207,7 +209,7 @@ func (h *ConversationHandler) UpdateConversationPinned(c *gin.Context) {
 	}
 
 	if err := h.db.UpdateConversationPinned(conversationID, req.Pinned); err != nil {
-		h.logger.Error("更新对话置顶状态失败", zap.Error(err))
+		h.logger.Error("failed to update conversation pinned state", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -234,7 +236,7 @@ func (h *ConversationHandler) GetConversation(c *gin.Context) {
 		conv, err = h.db.GetConversationLite(id)
 	}
 	if err != nil {
-		h.logger.Error("获取对话失败", zap.Error(err))
+		h.logger.Error("failed to get conversation", zap.Error(err))
 		respondError(c, http.StatusNotFound, "对话不存在", "conversation not found")
 		return
 	}
@@ -274,7 +276,7 @@ func (h *ConversationHandler) GetConversationPlanTasks(c *gin.Context) {
 	}
 	tasks, err := h.db.ListConversationPlanTasksSince(id, startedAt)
 	if err != nil {
-		h.logger.Error("获取对话任务列表失败", zap.String("conversationId", id), zap.Error(err))
+		h.logger.Error("failed to list conversation tasks", zap.String("conversationId", id), zap.Error(err))
 		respondError(c, http.StatusInternalServerError, "获取任务列表失败", "failed to get task list")
 		return
 	}
@@ -333,7 +335,7 @@ func (h *ConversationHandler) GetMessageProcessDetails(c *gin.Context) {
 	if summaryStr == "1" || strings.EqualFold(summaryStr, "true") || strings.EqualFold(summaryStr, "yes") {
 		summary, err := h.db.GetProcessDetailsSummary(messageID)
 		if err != nil {
-			h.logger.Error("获取过程详情摘要失败", zap.Error(err))
+			h.logger.Error("failed to get process detail summary", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -345,7 +347,7 @@ func (h *ConversationHandler) GetMessageProcessDetails(c *gin.Context) {
 	if fullStr == "1" || strings.EqualFold(fullStr, "true") || strings.EqualFold(fullStr, "yes") {
 		details, err := h.db.GetProcessDetails(messageID)
 		if err != nil {
-			h.logger.Error("获取过程详情失败", zap.Error(err))
+			h.logger.Error("failed to get process detail", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -383,7 +385,7 @@ func (h *ConversationHandler) GetMessageProcessDetails(c *gin.Context) {
 	if anchorID != "" {
 		anchorOffset, err := h.db.GetProcessDetailOffset(messageID, anchorID)
 		if err != nil {
-			h.logger.Warn("获取过程详情锚点位置失败", zap.Error(err), zap.String("messageID", messageID), zap.String("anchorID", anchorID))
+			h.logger.Warn("failed to get process detail anchor position", zap.Error(err), zap.String("messageID", messageID), zap.String("anchorID", anchorID))
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
@@ -395,7 +397,7 @@ func (h *ConversationHandler) GetMessageProcessDetails(c *gin.Context) {
 
 	details, total, err := h.db.GetProcessDetailsPage(messageID, limit, offset)
 	if err != nil {
-		h.logger.Error("分页获取过程详情失败", zap.Error(err))
+		h.logger.Error("failed to get paginated process detail", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -406,7 +408,7 @@ func (h *ConversationHandler) GetMessageProcessDetails(c *gin.Context) {
 	// that an unloaded result is still running.
 	summary, summaryErr := h.db.GetProcessDetailsSummary(messageID)
 	if summaryErr != nil {
-		h.logger.Warn("获取分页工具执行状态失败", zap.Error(summaryErr), zap.String("messageID", messageID))
+		h.logger.Warn("failed to get paginated tool execution state", zap.Error(summaryErr), zap.String("messageID", messageID))
 	}
 	var toolExecutions []database.ProcessDetailsToolExecution
 	if summary != nil {
@@ -431,7 +433,7 @@ func (h *ConversationHandler) GetProcessDetail(c *gin.Context) {
 	}
 	detail, err := h.db.GetProcessDetailByID(id)
 	if err != nil {
-		h.logger.Error("获取过程详情失败", zap.Error(err))
+		h.logger.Error("failed to get process detail", zap.Error(err))
 		respondError(c, http.StatusNotFound, "过程详情不存在", "process detail not found")
 		return
 	}
@@ -449,7 +451,7 @@ func processDetailsToJSON(logger *zap.Logger, db *database.DB, details []databas
 		var data interface{}
 		if d.Data != "" {
 			if err := json.Unmarshal([]byte(d.Data), &data); err != nil {
-				logger.Warn("解析过程详情数据失败", zap.Error(err))
+				logger.Warn("failed to parse process detail data", zap.Error(err))
 			}
 		}
 		if m, ok := data.(map[string]interface{}); ok {
@@ -482,7 +484,7 @@ func enrichEmptyToolCallArgumentsFromExecution(logger *zap.Logger, db *database.
 	execID, args, err := db.FindNearestToolExecutionArguments(detail.ConversationID, toolName, detail.CreatedAt, 5*time.Second)
 	if err != nil {
 		if logger != nil {
-			logger.Debug("未能从工具执行记录补全过程详情参数",
+			logger.Debug("could not fill process detail parameters from the tool execution record",
 				zap.Error(err),
 				zap.String("processDetailId", detail.ID),
 				zap.String("toolName", toolName))
@@ -559,7 +561,7 @@ func (h *ConversationHandler) UpdateConversation(c *gin.Context) {
 	}
 
 	if err := h.db.UpdateConversationTitle(id, req.Title); err != nil {
-		h.logger.Error("更新对话失败", zap.Error(err))
+		h.logger.Error("failed to update conversation", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -567,7 +569,7 @@ func (h *ConversationHandler) UpdateConversation(c *gin.Context) {
 	// 返回更新后的对话
 	conv, err := h.db.GetConversation(id)
 	if err != nil {
-		h.logger.Error("获取更新后的对话失败", zap.Error(err))
+		h.logger.Error("failed to get conversation after update", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -584,7 +586,7 @@ func (h *ConversationHandler) DeleteConversation(c *gin.Context) {
 	}
 
 	if err := h.db.DeleteConversation(id); err != nil {
-		h.logger.Error("删除对话失败", zap.Error(err))
+		h.logger.Error("failed to delete conversation", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -596,7 +598,7 @@ func (h *ConversationHandler) DeleteConversation(c *gin.Context) {
 			Result:       "success",
 			ResourceType: "conversation",
 			ResourceID:   id,
-			Message:      "删除对话",
+			Message:      "deleted conversation",
 		})
 	}
 
@@ -629,7 +631,7 @@ func (h *ConversationHandler) DeleteConversationTurn(c *gin.Context) {
 
 	deletedIDs, err := h.db.DeleteConversationTurn(conversationID, req.MessageID)
 	if err != nil {
-		h.logger.Warn("删除对话轮次失败",
+		h.logger.Warn("failed to delete conversation turn",
 			zap.String("conversationId", conversationID),
 			zap.String("messageId", req.MessageID),
 			zap.Error(err),
@@ -639,7 +641,7 @@ func (h *ConversationHandler) DeleteConversationTurn(c *gin.Context) {
 	}
 
 	if h.audit != nil {
-		h.audit.RecordOK(c, "conversation", "delete_turn", "删除对话轮次", "conversation", conversationID, map[string]interface{}{
+		h.audit.RecordOK(c, "conversation", "delete_turn", "deleted conversation turn", "conversation", conversationID, map[string]interface{}{
 			"message_id": req.MessageID,
 			"deleted":    len(deletedIDs),
 		})

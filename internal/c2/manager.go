@@ -217,7 +217,7 @@ func (m *Manager) CreateListener(in CreateListenerInput) (*database.C2Listener, 
 	if err := m.db.CreateC2Listener(listener); err != nil {
 		return nil, err
 	}
-	m.publishEvent("info", "listener", "", "", fmt.Sprintf("监听器 %s 已创建", listener.Name), map[string]interface{}{
+	m.publishEvent("info", "listener", "", "", fmt.Sprintf("Listener created: %s", listener.Name), map[string]interface{}{
 		"listener_id": listener.ID,
 		"type":        listener.Type,
 	})
@@ -265,7 +265,7 @@ func (m *Manager) StartListener(id string) (*database.C2Listener, error) {
 	if err := inst.Start(); err != nil {
 		now := time.Now()
 		_ = m.db.SetC2ListenerStatus(rec.ID, "error", err.Error(), &now)
-		m.publishEvent("warn", "listener", "", "", fmt.Sprintf("监听器 %s 启动失败: %v", rec.Name, err), map[string]interface{}{
+		m.publishEvent("warn", "listener", "", "", fmt.Sprintf("Listener failed to start: %s: %v", rec.Name, err), map[string]interface{}{
 			"listener_id": rec.ID,
 		})
 		return nil, err
@@ -278,7 +278,7 @@ func (m *Manager) StartListener(id string) (*database.C2Listener, error) {
 	rec.Status = "running"
 	rec.StartedAt = &now
 	rec.LastError = ""
-	m.publishEvent("info", "listener", "", "", fmt.Sprintf("监听器 %s 已启动", rec.Name), map[string]interface{}{
+	m.publishEvent("info", "listener", "", "", fmt.Sprintf("Listener started: %s", rec.Name), map[string]interface{}{
 		"listener_id": rec.ID,
 		"bind":        fmt.Sprintf("%s:%d", rec.BindHost, rec.BindPort),
 	})
@@ -305,7 +305,7 @@ func (m *Manager) StopListener(id string) error {
 	if rec != nil {
 		name = rec.Name
 	}
-	m.publishEvent("info", "listener", "", "", fmt.Sprintf("监听器 %s 已停止", name), map[string]interface{}{
+	m.publishEvent("info", "listener", "", "", fmt.Sprintf("Listener stopped: %s", name), map[string]interface{}{
 		"listener_id": id,
 	})
 	return nil
@@ -330,7 +330,7 @@ func (m *Manager) IsListenerRunning(id string) bool {
 func (m *Manager) RestoreRunningListeners() {
 	listeners, err := m.db.ListC2Listeners()
 	if err != nil {
-		m.logger.Warn("恢复 C2 listener 失败：列表查询出错", zap.Error(err))
+		m.logger.Warn("Failed to restore the C2 listener: list query failed", zap.Error(err))
 		return
 	}
 	for _, l := range listeners {
@@ -338,7 +338,7 @@ func (m *Manager) RestoreRunningListeners() {
 			continue
 		}
 		if _, err := m.StartListener(l.ID); err != nil && !errors.Is(err, ErrListenerRunning) {
-			m.logger.Warn("恢复 C2 listener 失败", zap.String("listener_id", l.ID), zap.Error(err))
+			m.logger.Warn("Failed to restore the C2 listener", zap.String("listener_id", l.ID), zap.Error(err))
 		}
 	}
 }
@@ -404,7 +404,7 @@ func (m *Manager) IngestCheckIn(listenerID string, req ImplantCheckInRequest) (*
 	}
 	if isFirstSeen {
 		m.publishEvent("critical", "session", session.ID, "",
-			fmt.Sprintf("新会话上线: %s@%s (%s/%s)", session.Username, session.Hostname, session.OS, session.Arch),
+			fmt.Sprintf("New session online: %s@%s (%s/%s)", session.Username, session.Hostname, session.OS, session.Arch),
 			map[string]interface{}{
 				"session_id":  session.ID,
 				"listener_id": listenerID,
@@ -452,10 +452,10 @@ func (m *Manager) SetSessionSleep(sessionID string, sleepSeconds, jitterPercent 
 		Source: "manual",
 	})
 	if err != nil {
-		m.logger.Warn("sleep 任务入队失败", zap.Error(err), zap.String("session_id", sessionID))
+		m.logger.Warn("Failed to enqueue the sleep task", zap.Error(err), zap.String("session_id", sessionID))
 	}
 	m.publishEvent("info", "session", sessionID, "",
-		fmt.Sprintf("Sleep 已更新: %ds (抖动 %d%%)", sleepSeconds, jitterPercent),
+		fmt.Sprintf("Sleep updated: %ds (jitter %d%%)", sleepSeconds, jitterPercent),
 		map[string]interface{}{
 			"sleep_seconds":  sleepSeconds,
 			"jitter_percent": jitterPercent,
@@ -468,7 +468,7 @@ func (m *Manager) MarkSessionDead(sessionID string) error {
 	if err := m.db.SetC2SessionStatus(sessionID, string(SessionDead)); err != nil {
 		return err
 	}
-	m.publishEvent("warn", "session", sessionID, "", "会话已离线（心跳超时）", nil)
+	m.publishEvent("warn", "session", sessionID, "", "Session offline (heartbeat timeout)", nil)
 	return nil
 }
 
@@ -501,7 +501,7 @@ func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 		return nil, ErrSessionNotFound
 	}
 	if session.Status == string(SessionDead) || session.Status == string(SessionKilled) {
-		return nil, &CommonError{Code: "session_inactive", Message: "会话已离线，无法下发任务", HTTP: 409}
+		return nil, &CommonError{Code: "session_inactive", Message: "Session is offline; cannot dispatch task", HTTP: 409}
 	}
 
 	// OPSEC: command deny regex enforcement
@@ -519,7 +519,7 @@ func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 					if re.MatchString(cmd) {
 						return nil, &CommonError{
 							Code:    "command_denied",
-							Message: fmt.Sprintf("命令被 OPSEC 规则拒绝 (匹配: %s)", pattern),
+							Message: fmt.Sprintf("Command denied by OPSEC rule (match: %s)", pattern),
 							HTTP:    403,
 						}
 					}
@@ -543,7 +543,7 @@ func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 		if concurrent >= listenerCfg.MaxConcurrentTasks {
 			return nil, &CommonError{
 				Code:    "concurrent_limit",
-				Message: fmt.Sprintf("会话已有 %d 个排队/执行中的任务，超过并发上限 %d", concurrent, listenerCfg.MaxConcurrentTasks),
+				Message: fmt.Sprintf("Session has %d queued/running tasks, exceeding the concurrency limit of %d", concurrent, listenerCfg.MaxConcurrentTasks),
 				HTTP:    429,
 			}
 		}
@@ -574,7 +574,7 @@ func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 			if err := m.db.CreateC2Task(task); err != nil {
 				return nil, err
 			}
-			m.publishEvent("warn", "task", in.SessionID, taskID, fmt.Sprintf("危险任务待审批: %s", in.TaskType), map[string]interface{}{
+			m.publishEvent("warn", "task", in.SessionID, taskID, fmt.Sprintf("Dangerous task awaiting approval: %s", in.TaskType), map[string]interface{}{
 				"task_id":   taskID,
 				"task_type": in.TaskType,
 			})
@@ -591,12 +591,12 @@ func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 					PayloadJSON:    string(payloadBytes),
 					ConversationID: in.ConversationID,
 					Source:         task.Source,
-					Reason:         fmt.Sprintf("C2 危险任务 %s", in.TaskType),
+					Reason:         fmt.Sprintf("C2 dangerous task %s", in.TaskType),
 				})
 				if err != nil {
 					rejected := "rejected"
 					failed := string(TaskFailed)
-					errMsg := "HITL 拒绝: " + err.Error()
+					errMsg := "HITL rejected: " + err.Error()
 					_ = m.db.UpdateC2Task(taskID, database.C2TaskUpdate{
 						ApprovalStatus: &rejected,
 						Status:         &failed,
@@ -607,7 +607,7 @@ func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 				}
 				approved := "approved"
 				_ = m.db.UpdateC2Task(taskID, database.C2TaskUpdate{ApprovalStatus: &approved})
-				m.publishEvent("info", "task", in.SessionID, taskID, "危险任务已批准", nil)
+				m.publishEvent("info", "task", in.SessionID, taskID, "Dangerous task approved", nil)
 			}()
 			return task, nil
 		}
@@ -618,7 +618,7 @@ func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 	if err := m.db.CreateC2Task(task); err != nil {
 		return nil, err
 	}
-	m.publishEvent("info", "task", in.SessionID, taskID, fmt.Sprintf("任务已入队: %s", in.TaskType), map[string]interface{}{
+	m.publishEvent("info", "task", in.SessionID, taskID, fmt.Sprintf("Task enqueued: %s", in.TaskType), map[string]interface{}{
 		"task_id":   taskID,
 		"task_type": in.TaskType,
 		"source":    task.Source,
@@ -636,14 +636,14 @@ func (m *Manager) CancelTask(taskID string) error {
 		return ErrTaskNotFound
 	}
 	if t.Status != string(TaskQueued) && t.Status != string(TaskSent) {
-		return &CommonError{Code: "task_running", Message: "任务已在执行，无法取消", HTTP: 409}
+		return &CommonError{Code: "task_running", Message: "Task is already running; cannot cancel", HTTP: 409}
 	}
 	cancelled := string(TaskCancelled)
 	now := time.Now()
 	if err := m.db.UpdateC2Task(taskID, database.C2TaskUpdate{ExpectedStatus: &t.Status, Status: &cancelled, CompletedAt: &now}); err != nil {
 		return err
 	}
-	m.publishEvent("info", "task", t.SessionID, taskID, "任务已取消", nil)
+	m.publishEvent("info", "task", t.SessionID, taskID, "Task cancelled", nil)
 	return nil
 }
 
@@ -763,7 +763,7 @@ func (m *Manager) IngestTaskResult(report TaskResultReport) error {
 		if err == nil {
 			upd.ResultBlobPath = &blobPath
 		} else {
-			m.logger.Warn("结果 blob 落盘失败", zap.Error(err), zap.String("task_id", t.ID))
+			m.logger.Warn("Failed to persist the result blob to disk", zap.Error(err), zap.String("task_id", t.ID))
 		}
 	}
 
@@ -775,10 +775,10 @@ func (m *Manager) IngestTaskResult(report TaskResultReport) error {
 	t.Error = errText
 
 	level := "info"
-	msg := fmt.Sprintf("任务完成: %s", t.TaskType)
+	msg := fmt.Sprintf("Task completed: %s", t.TaskType)
 	if !report.Success {
 		level = "warn"
-		msg = fmt.Sprintf("任务失败: %s (%s)", t.TaskType, report.Error)
+		msg = fmt.Sprintf("Task failed: %s (%s)", t.TaskType, report.Error)
 	}
 	m.publishEvent(level, "task", t.SessionID, t.ID, msg, map[string]interface{}{
 		"task_id":   t.ID,
@@ -889,7 +889,7 @@ func (m *Manager) publishEvent(level, category, sessionID, taskID, message strin
 		CreatedAt: now,
 	}
 	if err := m.db.AppendC2Event(e); err != nil {
-		m.logger.Warn("写 C2 事件失败", zap.Error(err), zap.String("category", category))
+		m.logger.Warn("Failed to write the C2 event", zap.Error(err), zap.String("category", category))
 	}
 	m.bus.Publish(&Event{
 		ID:        id,

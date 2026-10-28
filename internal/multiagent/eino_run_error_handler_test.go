@@ -83,15 +83,15 @@ func TestEinoRunErrorHandlerRetryExhaustedEmptyOutputProgress(t *testing.T) {
 	if !errors.Is(got, err) {
 		t.Fatalf("err = %v", got)
 	}
-	if !strings.Contains(message, "模型调用重试已耗尽") ||
-		!strings.Contains(message, "模型未返回原始错误；输出被重试策略拒绝。") ||
+	if !strings.Contains(message, "Model call retries exhausted") ||
+		!strings.Contains(message, "The model returned no original error; its output was rejected by the retry policy.") ||
 		strings.Contains(message, "model output rejected by ShouldRetry at attempt 5") {
 		t.Fatalf("message = %q", message)
 	}
 	if data["errorKind"] != "model_output_rejected" {
 		t.Fatalf("errorKind = %#v", data["errorKind"])
 	}
-	if data["errorSummary"] != "模型未返回原始错误；输出被重试策略拒绝。" {
+	if data["errorSummary"] != "The model returned no original error; its output was rejected by the retry policy." {
 		t.Fatalf("errorSummary = %#v", data["errorSummary"])
 	}
 	if data["hasModelOriginalError"] != false {
@@ -163,7 +163,7 @@ func TestEinoClientRunErrorMessageUsesRawRetryExhaustedModelError(t *testing.T) 
 	}
 
 	got := EinoClientRunErrorMessage(err)
-	if !strings.Contains(got, "模型调用重试已耗尽（已重试 4 次）") {
+	if !strings.Contains(got, "Model call retries exhausted (4 attempts)") {
 		t.Fatalf("message missing retry prefix: %q", got)
 	}
 	if !strings.Contains(got, raw) {
@@ -185,9 +185,9 @@ func TestEinoClientRunErrorMessageMarksSummarizationModelRetryError(t *testing.T
 
 	got := EinoClientRunErrorMessage(err)
 	for _, want := range []string{
-		"摘要阶段大模型调用失败",
-		"模型调用重试已耗尽（已重试 4 次）",
-		"最后一次大模型报错原文",
+		"Summary-stage model call failed",
+		"Model call retries exhausted (4 attempts)",
+		"last raw model error",
 		raw,
 	} {
 		if !strings.Contains(got, want) {
@@ -213,8 +213,8 @@ func TestEinoClientRunErrorMessageMarksDirectSummarizationModelError(t *testing.
 
 	got := EinoClientRunErrorMessage(err)
 	for _, want := range []string{
-		"摘要阶段大模型调用失败",
-		"大模型报错原文",
+		"Summary-stage model call failed",
+		"raw model error",
 		raw,
 	} {
 		if !strings.Contains(got, want) {

@@ -87,7 +87,7 @@ func TestEinoStreamingShellWrap_CommandFailureFormat(t *testing.T) {
 	if strings.Contains(stream.String(), "command exited with non-zero") {
 		t.Fatalf("stream has legacy noise: %q", stream.String())
 	}
-	if strings.Contains(stream.String(), "执行未正常结束") {
+	if strings.Contains(stream.String(), "abnormal execution termination") {
 		t.Fatalf("stream has abnormal tail: %q", stream.String())
 	}
 	if !security.IsCommandFailureResult(stream.String()) {

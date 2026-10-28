@@ -205,11 +205,11 @@ func TestMergeEinoTurnLoopMessagesClonesInput(t *testing.T) {
 
 func TestFormatInterruptContinuePrompt(t *testing.T) {
 	got := formatInterruptContinuePrompt("focus ports")
-	if !strings.Contains(got, "focus ports") || !strings.Contains(got, "不要重复") {
+	if !strings.Contains(got, "focus ports") || !strings.Contains(got, "do not repeat") {
 		t.Fatalf("prompt = %q", got)
 	}
 	empty := formatInterruptContinuePrompt(" ")
-	if !strings.Contains(empty, "不要重复") {
+	if !strings.Contains(empty, "do not repeat") {
 		t.Fatalf("empty prompt = %q", empty)
 	}
 }

@@ -33,7 +33,7 @@ func validateToolGuardYAML(data []byte) error {
 		return err
 	}
 	if section := document.ToolGuard; section != nil && (section.Enabled == nil || section.Rules == nil) {
-		return fmt.Errorf("tool_guard 必须明确提供 enabled 和 rules；清空规则请提供空数组")
+		return fmt.Errorf("tool_guard must explicitly provide enabled and rules; provide an empty array to clear the rules")
 	}
 	return nil
 }

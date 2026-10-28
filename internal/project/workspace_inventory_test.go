@@ -42,7 +42,7 @@ func TestWorkspaceInventoryMetadataIsolationAndSymlinks(t *testing.T) {
 		}
 	}
 	// Even a symlink supplied as the workspace root is not traversed.
-	if block := BuildWorkspaceInventoryBlock(filepath.Join(root, "linked")); strings.Contains(block, "outside.py") || !strings.Contains(block, "清单不完整") {
+	if block := BuildWorkspaceInventoryBlock(filepath.Join(root, "linked")); strings.Contains(block, "outside.py") || !strings.Contains(block, "The listing is incomplete") {
 		t.Fatal(block)
 	}
 }
@@ -56,7 +56,7 @@ func TestWorkspaceInventoryCaps(t *testing.T) {
 		}
 	}
 	block := BuildWorkspaceInventoryBlock(root)
-	if !strings.Contains(block, "清单不完整") || !strings.Contains(block, `"path":"script-`) {
+	if !strings.Contains(block, "The listing is incomplete") || !strings.Contains(block, `"path":"script-`) {
 		t.Fatal(block)
 	}
 	if n := len([]rune(block)); n > workspaceInventoryMaxRunes {
@@ -82,7 +82,7 @@ func TestWorkspaceInventoryPathJSONEscaping(t *testing.T) {
 
 func TestWorkspaceInventoryMissingDirectoryDoesNotClaimEmpty(t *testing.T) {
 	block := BuildWorkspaceInventoryBlock(filepath.Join(t.TempDir(), "missing"))
-	if !strings.Contains(block, "清单不完整") || strings.Contains(block, "未发现支持") {
+	if !strings.Contains(block, "The listing is incomplete") || strings.Contains(block, "No scripts with supported extensions") {
 		t.Fatal(block)
 	}
 }

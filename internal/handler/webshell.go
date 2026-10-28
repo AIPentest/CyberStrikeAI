@@ -459,7 +459,7 @@ func (h *WebShellHandler) CreateConnection(c *gin.Context) {
 		if u, err := url.Parse(req.URL); err == nil {
 			host = u.Host
 		}
-		h.audit.RecordOK(c, "webshell", "connection_create", "创建 WebShell 连接", "webshell_connection", conn.ID, map[string]interface{}{
+		h.audit.RecordOK(c, "webshell", "connection_create", "WebShell connection created", "webshell_connection", conn.ID, map[string]interface{}{
 			"host": host, "type": shellType,
 		})
 	}
@@ -561,7 +561,7 @@ func (h *WebShellHandler) DeleteConnection(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "webshell", "connection_delete", "删除 WebShell 连接", "webshell_connection", id, nil)
+		h.audit.RecordOK(c, "webshell", "connection_delete", "WebShell connection deleted", "webshell_connection", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
@@ -658,7 +658,7 @@ func (h *WebShellHandler) GetAIHistory(c *gin.Context) {
 	}
 	conv, err := h.db.GetConversationByWebshellConnectionID(id)
 	if err != nil {
-		h.logger.Warn("获取 WebShell AI 对话失败", zap.String("connectionId", id), zap.Error(err))
+		h.logger.Warn("failed to get the WebShell AI conversation", zap.String("connectionId", id), zap.Error(err))
 		c.JSON(http.StatusOK, gin.H{"conversationId": nil, "messages": []database.Message{}})
 		return
 	}
@@ -682,7 +682,7 @@ func (h *WebShellHandler) ListAIConversations(c *gin.Context) {
 	}
 	list, err := h.db.ListConversationsByWebshellConnectionID(id)
 	if err != nil {
-		h.logger.Warn("列出 WebShell AI 对话失败", zap.String("connectionId", id), zap.Error(err))
+		h.logger.Warn("failed to list the WebShell AI conversations", zap.String("connectionId", id), zap.Error(err))
 		c.JSON(http.StatusOK, []database.WebShellConversationItem{})
 		return
 	}

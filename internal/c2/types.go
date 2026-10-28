@@ -236,16 +236,16 @@ func (e *CommonError) Error() string {
 
 // Sentinel errors，便于 errors.Is 比较
 var (
-	ErrListenerNotFound = &CommonError{Code: "listener_not_found", Message: "监听器不存在", HTTP: 404}
-	ErrSessionNotFound  = &CommonError{Code: "session_not_found", Message: "会话不存在", HTTP: 404}
-	ErrTaskNotFound     = &CommonError{Code: "task_not_found", Message: "任务不存在", HTTP: 404}
-	ErrProfileNotFound  = &CommonError{Code: "profile_not_found", Message: "Profile 不存在", HTTP: 404}
-	ErrInvalidInput     = &CommonError{Code: "invalid_input", Message: "参数非法", HTTP: 400}
-	ErrAuthFailed       = &CommonError{Code: "auth_failed", Message: "鉴权失败", HTTP: 401}
-	ErrPortInUse        = &CommonError{Code: "port_in_use", Message: "端口已被占用", HTTP: 409}
-	ErrListenerRunning  = &CommonError{Code: "listener_running", Message: "监听器已在运行", HTTP: 409}
-	ErrListenerStopped  = &CommonError{Code: "listener_stopped", Message: "监听器未运行", HTTP: 409}
-	ErrUnsupportedType  = &CommonError{Code: "unsupported_type", Message: "不支持的监听器类型", HTTP: 400}
+	ErrListenerNotFound = &CommonError{Code: "listener_not_found", Message: "Listener not found", HTTP: 404}
+	ErrSessionNotFound  = &CommonError{Code: "session_not_found", Message: "Session not found", HTTP: 404}
+	ErrTaskNotFound     = &CommonError{Code: "task_not_found", Message: "Task not found", HTTP: 404}
+	ErrProfileNotFound  = &CommonError{Code: "profile_not_found", Message: "Profile not found", HTTP: 404}
+	ErrInvalidInput     = &CommonError{Code: "invalid_input", Message: "Invalid input", HTTP: 400}
+	ErrAuthFailed       = &CommonError{Code: "auth_failed", Message: "Authentication failed", HTTP: 401}
+	ErrPortInUse        = &CommonError{Code: "port_in_use", Message: "Port already in use", HTTP: 409}
+	ErrListenerRunning  = &CommonError{Code: "listener_running", Message: "Listener is already running", HTTP: 409}
+	ErrListenerStopped  = &CommonError{Code: "listener_stopped", Message: "Listener is not running", HTTP: 409}
+	ErrUnsupportedType  = &CommonError{Code: "unsupported_type", Message: "Unsupported listener type", HTTP: 400}
 )
 
 // SafeBindPort 校验端口范围

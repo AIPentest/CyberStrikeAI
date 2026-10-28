@@ -114,7 +114,7 @@ func validateRBACPermissionKeys(keys []string) error {
 			continue
 		}
 		if _, ok := security.PermissionCatalog[key]; !ok {
-			return fmt.Errorf("未知权限: %s", key)
+			return fmt.Errorf("unknown permission: %s", key)
 		}
 	}
 	return nil

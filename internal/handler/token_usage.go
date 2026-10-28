@@ -21,7 +21,7 @@ func (h *ConversationHandler) GetTokenUsageStats(c *gin.Context) {
 	}
 	stats, err := h.db.GetModelTokenUsageStats(filter)
 	if err != nil {
-		h.logger.Error("获取Token用量统计失败", zap.Error(err))
+		h.logger.Error("failed to get token usage stats", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -37,7 +37,7 @@ func (h *ConversationHandler) GetConversationTokenUsageStats(c *gin.Context) {
 	}
 	stats, err := h.db.GetModelTokenUsageStats(filter)
 	if err != nil {
-		h.logger.Error("获取对话Token用量统计失败", zap.Error(err), zap.String("conversationId", filter.ConversationID))
+		h.logger.Error("failed to get conversation token usage stats", zap.Error(err), zap.String("conversationId", filter.ConversationID))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

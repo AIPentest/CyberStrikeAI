@@ -81,7 +81,7 @@ func TestValidateGraphJSON_rejectsInvalidGraphs(t *testing.T) {
     {"id": "e3", "source": "agent-1", "target": "out-1"}
   ]
 }`,
-			wantErr: "开始节点",
+			wantErr: "start node",
 		},
 		{
 			name: "output with outgoing edge",
@@ -96,7 +96,7 @@ func TestValidateGraphJSON_rejectsInvalidGraphs(t *testing.T) {
     {"id": "e2", "source": "out-1", "target": "end-1"}
   ]
 }`,
-			wantErr: "不能有出边",
+			wantErr: "cannot have outgoing edges",
 		},
 		{
 			name: "tool without name",
@@ -111,7 +111,7 @@ func TestValidateGraphJSON_rejectsInvalidGraphs(t *testing.T) {
     {"id": "e2", "source": "tool-1", "target": "out-1"}
   ]
 }`,
-			wantErr: "必须选择 MCP 工具",
+			wantErr: "must select an MCP tool",
 		},
 		{
 			name: "condition with too many branches",
@@ -130,7 +130,7 @@ func TestValidateGraphJSON_rejectsInvalidGraphs(t *testing.T) {
     {"id": "e4", "source": "cond-1", "target": "out-3"}
   ]
 }`,
-			wantErr: "1 到 2 条出边",
+			wantErr: "1 to 2 outgoing edges",
 		},
 		{
 			name: "orphan node",
@@ -144,7 +144,7 @@ func TestValidateGraphJSON_rejectsInvalidGraphs(t *testing.T) {
     {"id": "e1", "source": "start-1", "target": "out-1"}
   ]
 }`,
-			wantErr: "不可达",
+			wantErr: "unreachable",
 		},
 		{
 			name: "cycle",
@@ -162,7 +162,7 @@ func TestValidateGraphJSON_rejectsInvalidGraphs(t *testing.T) {
     {"id": "e4", "source": "agent-2", "target": "out-1"}
   ]
 }`,
-			wantErr: "环路",
+			wantErr: "cycle",
 		},
 		{
 			name: "output without key",
@@ -175,7 +175,7 @@ func TestValidateGraphJSON_rejectsInvalidGraphs(t *testing.T) {
     {"id": "e1", "source": "start-1", "target": "out-1"}
   ]
 }`,
-			wantErr: "输出变量名",
+			wantErr: "output variable name",
 		},
 	}
 

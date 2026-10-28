@@ -8,6 +8,9 @@ import (
 	"cyberstrike-ai/internal/mcp"
 )
 
+// legacyToolGuardPrefix matches historical rows written by the old local guard
+// before the structured marker existed. It is a byte-identical legacy protocol
+// marker, not display text: new executions are recognized structurally.
 const legacyToolGuardPrefix = "工具调用已被安全规则拦截"
 
 // Only the exact envelope emitted by the old local guard is recognized here.

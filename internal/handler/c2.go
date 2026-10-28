@@ -126,7 +126,7 @@ func (h *C2Handler) CreateListener(c *gin.Context) {
 	listener.EncryptionKey = ""
 	listener.ImplantToken = ""
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "listener_create", "创建 C2 监听器", "c2_listener", listener.ID, map[string]interface{}{
+		h.audit.RecordOK(c, "c2", "listener_create", "created C2 listener", "c2_listener", listener.ID, map[string]interface{}{
 			"name": listener.Name, "bind": listener.BindHost, "port": listener.BindPort,
 		})
 	}
@@ -247,7 +247,7 @@ func (h *C2Handler) DeleteListener(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "listener_delete", "删除 C2 监听器", "c2_listener", id, nil)
+		h.audit.RecordOK(c, "c2", "listener_delete", "deleted C2 listener", "c2_listener", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"deleted": true})
 }
@@ -267,7 +267,7 @@ func (h *C2Handler) StartListener(c *gin.Context) {
 	listener.EncryptionKey = ""
 	listener.ImplantToken = ""
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "listener_start", "启动 C2 监听器", "c2_listener", id, nil)
+		h.audit.RecordOK(c, "c2", "listener_start", "started C2 listener", "c2_listener", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"listener": listener})
 }
@@ -284,7 +284,7 @@ func (h *C2Handler) StopListener(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "listener_stop", "停止 C2 监听器", "c2_listener", id, nil)
+		h.audit.RecordOK(c, "c2", "listener_stop", "stopped C2 listener", "c2_listener", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"stopped": true})
 }
@@ -352,7 +352,7 @@ func (h *C2Handler) DeleteSession(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "session_delete", "删除 C2 会话", "c2_session", id, nil)
+		h.audit.RecordOK(c, "c2", "session_delete", "deleted C2 session", "c2_session", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"deleted": true})
 }
@@ -380,7 +380,7 @@ func (h *C2Handler) DeleteSessions(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "session_delete", "批量删除 C2 会话", "c2_session", "", map[string]interface{}{
+		h.audit.RecordOK(c, "c2", "session_delete", "batch deleted C2 sessions", "c2_session", "", map[string]interface{}{
 			"count": n, "ids": req.IDs,
 		})
 	}
@@ -458,7 +458,7 @@ func (h *C2Handler) SetSessionNote(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "session_note", "更新 C2 会话备注", "c2_session", id, map[string]interface{}{
+		h.audit.RecordOK(c, "c2", "session_note", "updated C2 session note", "c2_session", id, map[string]interface{}{
 			"note_len": len(note),
 		})
 	}
@@ -571,7 +571,7 @@ func (h *C2Handler) DeleteTasks(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "task_delete", "批量删除 C2 任务", "c2_task", "", map[string]interface{}{
+		h.audit.RecordOK(c, "c2", "task_delete", "batch deleted C2 tasks", "c2_task", "", map[string]interface{}{
 			"count": n, "ids": req.IDs,
 		})
 	}
@@ -641,7 +641,7 @@ func (h *C2Handler) CreateTask(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "task_create", "创建 C2 任务", "c2_task", task.ID, map[string]interface{}{
+		h.audit.RecordOK(c, "c2", "task_create", "created C2 task", "c2_task", task.ID, map[string]interface{}{
 			"session_id": req.SessionID, "task_type": req.TaskType,
 		})
 	}
@@ -664,7 +664,7 @@ func (h *C2Handler) CancelTask(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "task_cancel", "取消 C2 任务", "c2_task", id, nil)
+		h.audit.RecordOK(c, "c2", "task_cancel", "canceled C2 task", "c2_task", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"cancelled": true})
 }
@@ -1096,7 +1096,7 @@ func (h *C2Handler) DeleteProfile(c *gin.Context) {
 			respondError(c, http.StatusNotFound, "profile 不存在", "profile not found")
 			return
 		}
-		h.logger.Error("删除 C2 Profile 失败", zap.Error(err), zap.String("id", id))
+		h.logger.Error("failed to delete C2 Profile", zap.Error(err), zap.String("id", id))
 		respondError(c, http.StatusInternalServerError, "删除 profile 失败", "failed to delete profile")
 		return
 	}
