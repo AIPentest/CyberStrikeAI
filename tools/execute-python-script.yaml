@@ -57,26 +57,26 @@ args:
     fi
   - "_"
 enabled: true
-short_description: "在指定虚拟环境中编写并执行Python脚本"
+short_description: "Write and execute Python scripts in a specified virtual environment"
 description: |
-  在虚拟环境中执行Python脚本。
+  Execute Python scripts in a virtual environment.
 
-  **主要功能：**
-  - 执行Python脚本
-  - 虚拟环境支持
-  - 脚本内容执行
+  **Main features:**
+  - Execute Python scripts
+  - Virtual environment support
+  - Script content execution
 
-  **使用场景：**
-  - 脚本执行
-  - 自动化任务
-  - 数据处理
+  **Use cases:**
+  - Script execution
+  - Task automation
+  - Data processing
 parameters:
   - name: "script"
     type: "string"
     description: |
-      要执行的Python脚本内容，支持多行。
+      Python script content to execute, supports multiple lines.
 
-      **示例：**
+      **Example:**
       ```
       for i in range(1, 10):
           print(i)
@@ -86,7 +86,7 @@ parameters:
     format: "positional"
   - name: "env_name"
     type: "string"
-    description: "虚拟环境名称（默认default）"
+    description: "Virtual environment name (default: default)"
     required: false
     default: "default"
     position: 1
@@ -94,15 +94,15 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的execute-python-script参数。用于传递未在参数列表中定义的execute-python-script选项。
+      Additional execute-python-script arguments. Used to pass execute-python-script options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"
     default: ""

@@ -1,48 +1,48 @@
 name: "smbmap"
 command: "smbmap"
 enabled: true
-short_description: "SMB共享枚举和访问工具"
+short_description: "SMB share enumeration and access tool"
 description: |
-  SMBMap是一个用于枚举SMB共享并提供文件访问功能的工具。
+  SMBMap is a tool for enumerating SMB shares and providing file access functionality.
 
-  **主要功能：**
-  - SMB共享枚举
-  - 文件列表和下载
-  - 权限检查
-  - 支持多种认证方式
+  **Main features:**
+  - SMB share enumeration
+  - File listing and downloading
+  - Permission checking
+  - Support for multiple authentication methods
 
-  **使用场景：**
-  - SMB安全测试
-  - 文件共享审计
-  - 渗透测试
-  - 网络侦察
+  **Use cases:**
+  - SMB security testing
+  - File share auditing
+  - Penetration testing
+  - Network reconnaissance
 parameters:
   - name: "target"
     type: "string"
-    description: "目标IP地址"
+    description: "Target IP address"
     required: true
     flag: "-H"
     format: "flag"
   - name: "username"
     type: "string"
-    description: "用户名"
+    description: "Username"
     required: false
     flag: "-u"
     format: "flag"
   - name: "password"
     type: "string"
-    description: "密码"
+    description: "Password"
     required: false
     flag: "-p"
     format: "flag"
   - name: "domain"
     type: "string"
-    description: "域名"
+    description: "Domain name"
     required: false
     flag: "-d"
     format: "flag"
   - name: "additional_args"
     type: "string"
-    description: "额外的SMBMap参数"
+    description: "Additional SMBMap arguments"
     required: false
     format: "positional"

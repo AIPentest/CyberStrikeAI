@@ -185,7 +185,7 @@
                                         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                                         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                                     </svg>
-                                    <span>绑定机器人账号</span>
+                                    <span data-i18n="auth.robotBinding.menuTitle">绑定机器人账号</span>
                                 </div>
                                 <div class="user-menu-item" role="menuitem" tabindex="0" onclick="logout()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout();}">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -595,7 +595,7 @@
                                         <div class="dashboard-severity-wrap">
                                             <!-- 风险概览卡：填充 donut 左侧留白；提供「结论性」洞察（风险等级/加权分/待处理计数/最新时间），
                                                  与右侧 legend 的「明细」形成互补，避免和下方「最近漏洞」列表重复 -->
-                                            <aside class="dashboard-severity-insights" aria-label="风险概览">
+                                            <aside class="dashboard-severity-insights" aria-label="风险概览" data-i18n="dashboard.severityInsightsAria" data-i18n-attr="aria-label" data-i18n-skip-text="true">
                                                 <div class="dashboard-severity-insight-risk" data-level="safe">
                                                     <div class="dashboard-severity-insight-head">
                                                         <span class="dashboard-severity-insight-label" data-i18n="dashboard.riskLevel">风险等级</span>
@@ -612,11 +612,11 @@
                                                 <div class="dashboard-severity-insight-urgent-group">
                                                     <span class="dashboard-severity-insight-label" data-i18n="dashboard.statusOpen">待处理</span>
                                                     <div class="dashboard-severity-insight-urgent">
-                                                        <div class="dashboard-severity-insight-urgent-item u-critical" role="button" tabindex="0" onclick="switchPage('vulnerabilities')" onkeydown="if(event.key==='Enter'||event.key===' ') { event.preventDefault(); switchPage('vulnerabilities'); }" title="查看待处理严重漏洞">
+                                                        <div class="dashboard-severity-insight-urgent-item u-critical" role="button" tabindex="0" onclick="switchPage('vulnerabilities')" onkeydown="if(event.key==='Enter'||event.key===' ') { event.preventDefault(); switchPage('vulnerabilities'); }" title="查看待处理严重漏洞" data-i18n="dashboard.urgentCriticalClick" data-i18n-attr="title" data-i18n-skip-text="true">
                                                             <span class="dashboard-severity-insight-urgent-value" id="dashboard-severity-urgent-critical">0</span>
                                                             <span class="dashboard-severity-insight-urgent-label" data-i18n="dashboard.severityCritical">严重</span>
                                                         </div>
-                                                        <div class="dashboard-severity-insight-urgent-item u-high" role="button" tabindex="0" onclick="switchPage('vulnerabilities')" onkeydown="if(event.key==='Enter'||event.key===' ') { event.preventDefault(); switchPage('vulnerabilities'); }" title="查看待处理高危漏洞">
+                                                        <div class="dashboard-severity-insight-urgent-item u-high" role="button" tabindex="0" onclick="switchPage('vulnerabilities')" onkeydown="if(event.key==='Enter'||event.key===' ') { event.preventDefault(); switchPage('vulnerabilities'); }" title="查看待处理高危漏洞" data-i18n="dashboard.urgentHighClick" data-i18n-attr="title" data-i18n-skip-text="true">
                                                             <span class="dashboard-severity-insight-urgent-value" id="dashboard-severity-urgent-high">0</span>
                                                             <span class="dashboard-severity-insight-urgent-label" data-i18n="dashboard.severityHigh">高危</span>
                                                         </div>
@@ -746,7 +746,7 @@
                                     </section>
                                     <section class="dashboard-section dashboard-section-recent-feed">
                                         <div class="dashboard-section-header dashboard-section-header--tabs">
-                                            <nav class="dashboard-feed-tabs" role="tablist" aria-label="最近漏洞与近期事实">
+                                            <nav class="dashboard-feed-tabs" role="tablist" aria-label="最近漏洞与近期事实" data-i18n="dashboard.feedTabsAria" data-i18n-attr="aria-label">
                                                 <button type="button" class="dashboard-feed-tab is-active" role="tab" id="dashboard-feed-tab-vulns" aria-selected="true" aria-controls="dashboard-feed-panel-vulns" onclick="switchDashboardFeedTab('vulns')" data-i18n="dashboard.recentVulns">最近漏洞</button>
                                                 <button type="button" class="dashboard-feed-tab" role="tab" id="dashboard-feed-tab-facts" aria-selected="false" aria-controls="dashboard-feed-panel-facts" onclick="switchDashboardFeedTab('facts')" data-i18n="dashboard.recentFacts">近期事实</button>
                                             </nav>
@@ -1126,7 +1126,7 @@
                             </div>
                             <div id="active-tasks-bar" class="active-tasks-bar"></div>
                             <div id="chat-messages" class="chat-messages"></div>
-                            <nav id="chat-turn-rail" class="chat-turn-rail" aria-label="对话轮次导航" hidden>
+                            <nav id="chat-turn-rail" class="chat-turn-rail" aria-label="对话轮次导航" data-i18n="chat.turnRailAria" data-i18n-attr="aria-label" hidden>
                                 <div id="chat-turn-rail-markers" class="chat-turn-rail-markers"></div>
                             </nav>
                             <div id="chat-turn-rail-preview" class="chat-turn-rail-preview" role="tooltip" hidden>
@@ -1144,7 +1144,7 @@
                             </button>
                             <div id="agent-plan-progress" class="agent-plan-progress" hidden aria-live="polite"></div>
                             <div id="chat-input-container" class="chat-input-container">
-                                <div class="chat-composer-context" aria-label="当前会话上下文">
+                                <div class="chat-composer-context" aria-label="当前会话上下文" data-i18n="chat.composerContextAria" data-i18n-attr="aria-label">
                                 <div class="chat-input-leading">
                                 <div class="role-selector-wrapper project-selector-wrapper">
                                     <button type="button" id="chat-project-btn" class="role-selector-btn" onclick="toggleChatProjectPanel()" aria-label="选择项目" aria-haspopup="listbox" aria-expanded="false" title="绑定项目后共享事实黑板（跨对话）" data-i18n="projects.chatSelectorButton" data-i18n-attr="aria-label,title">
@@ -1161,7 +1161,7 @@
                                     <div id="chat-project-panel" class="role-selection-panel chat-project-panel" style="display: none;" role="listbox" aria-labelledby="chat-project-panel-title">
                                         <div class="role-selection-panel-header">
                                             <h3 id="chat-project-panel-title" class="role-selection-panel-title" data-i18n="projects.selectProject">选择项目</h3>
-                                            <button type="button" class="role-selection-panel-close" onclick="closeChatProjectPanel()" title="关闭" aria-label="关闭">
+                                            <button type="button" class="role-selection-panel-close" onclick="closeChatProjectPanel()" title="关闭" aria-label="关闭" data-i18n="common.close" data-i18n-attr="title,aria-label" data-i18n-skip-text="true">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                     <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                                 </svg>
@@ -1206,7 +1206,7 @@
                                     <div class="agent-mode-inner">
                                         <button type="button" id="agent-mode-btn" class="role-selector-btn agent-mode-btn" onclick="toggleAgentModePanel()" data-i18n="chat.agentModeSelectAria" data-i18n-attr="aria-label,title" data-i18n-skip-text="true" aria-label="选择对话执行模式" aria-haspopup="listbox" aria-expanded="false" title="选择对话执行模式">
                                             <span id="agent-mode-icon" class="role-selector-icon agent-mode-logo agent-mode-logo--default" aria-hidden="true"><svg class="agent-mode-logo__svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><path d="M8 16h.01"/><path d="M16 16h.01"/></svg></span>
-                                            <span id="agent-mode-text" class="role-selector-text">单代理</span>
+                                            <span id="agent-mode-text" class="role-selector-text" data-i18n="chat.agentModeSingle">单代理</span>
                                             <svg class="role-selector-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                                 <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                             </svg>
@@ -1260,17 +1260,17 @@
                                 </div>
                                 </div>
                                 </div>
-                                <section id="chat-hitl-approval-dock" class="chat-hitl-approval-dock" aria-label="待审批操作" aria-live="polite" hidden></section>
+                                <section id="chat-hitl-approval-dock" class="chat-hitl-approval-dock" aria-label="待审批操作" data-i18n="chat.hitlApprovalDockAria" data-i18n-attr="aria-label" aria-live="polite" hidden></section>
                                 <div class="chat-input-primary-row chat-composer-surface">
                                 <div class="chat-input-with-files">
-                                    <div id="chat-file-list" class="chat-file-list" aria-label="已选文件列表"></div>
+                                    <div id="chat-file-list" class="chat-file-list" aria-label="已选文件列表" data-i18n="chat.fileListAria" data-i18n-attr="aria-label"></div>
                                     <div id="chat-attachment-progress" class="chat-upload-progress-row" hidden role="status" aria-live="polite">
                                         <div class="chat-upload-progress-track" aria-hidden="true"><div class="chat-upload-progress-fill" id="chat-attachment-progress-fill"></div></div>
                                         <span class="chat-upload-progress-label" id="chat-attachment-progress-label"></span>
                                     </div>
                                     <div class="chat-input-field">
                                         <textarea id="chat-input" data-i18n="chat.inputPlaceholder" data-i18n-attr="placeholder" data-i18n-skip-text="true" placeholder="输入测试目标或命令…  @ 选择工具" rows="1"></textarea>
-                                        <div id="mention-suggestions" class="mention-suggestions" role="listbox" aria-label="工具提及候选"></div>
+                                        <div id="mention-suggestions" class="mention-suggestions" role="listbox" aria-label="工具提及候选" data-i18n="chat.mentionSuggestionsAria" data-i18n-attr="aria-label"></div>
                                     </div>
                                 </div>
                                 <div class="chat-composer-footer">
@@ -1314,25 +1314,25 @@
                                         </div>
                                         <div id="chat-model-shortcut-wrap" class="chat-model-shortcut-wrap">
                                             <button type="button" id="chat-model-shortcut" class="chat-session-shortcut chat-session-meta" onclick="openChatSystemModelPicker(event)" data-i18n="chat.modelSettingsAria" data-i18n-attr="aria-label,title" data-i18n-skip-text="true" aria-label="选择 AI 通道、模型与推理设置" title="选择 AI 通道、模型与推理设置" aria-haspopup="dialog" aria-expanded="false" aria-controls="chat-system-model-menu">
-                                                <span id="chat-model-shortcut-text">默认通道</span>
-                                                <span id="chat-model-shortcut-effort" class="chat-model-shortcut-effort">不指定</span>
+                                                <span id="chat-model-shortcut-text" data-i18n="chat.aiChannelDefaultShort">默认通道</span>
+                                                <span id="chat-model-shortcut-effort" class="chat-model-shortcut-effort" data-i18n="chat.reasoningEffortUnset">不指定</span>
                                                 <svg class="chat-system-model-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                                     <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                                                 </svg>
                                             </button>
-                                            <div id="chat-system-model-menu" class="chat-system-model-menu" role="dialog" aria-label="AI 通道、模型与推理设置" hidden>
+                                            <div id="chat-system-model-menu" class="chat-system-model-menu" role="dialog" aria-label="AI 通道、模型与推理设置" data-i18n="chat.modelSettingsDialogAria" data-i18n-attr="aria-label" hidden>
                                                 <div id="chat-system-model-main" class="chat-system-model-main">
                                                     <button type="button" class="chat-system-model-setting-row" onclick="openChatSystemModelView('channel', event)">
                                                         <span class="chat-system-model-setting-label" data-i18n="chat.aiChannelLabel">AI 通道</span>
                                                         <span class="chat-system-model-setting-value">
-                                                            <span id="chat-system-model-channel-value">默认通道</span>
+                                                            <span id="chat-system-model-channel-value" data-i18n="chat.aiChannelDefaultShort">默认通道</span>
                                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                                         </span>
                                                     </button>
                                                     <button type="button" class="chat-system-model-setting-row" onclick="openChatSystemModelView('model', event)">
                                                         <span class="chat-system-model-setting-label" data-i18n="chat.systemModelField">模型</span>
                                                         <span class="chat-system-model-setting-value">
-                                                            <span id="chat-system-model-current-value">默认通道</span>
+                                                            <span id="chat-system-model-current-value" data-i18n="chat.aiChannelDefaultShort">默认通道</span>
                                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                                         </span>
                                                     </button>
@@ -1340,14 +1340,14 @@
                                                     <button type="button" class="chat-system-model-setting-row" onclick="openChatSystemModelView('mode', event)">
                                                         <span class="chat-system-model-setting-label" data-i18n="chat.reasoningModeLabel">推理模式</span>
                                                         <span class="chat-system-model-setting-value">
-                                                            <span id="chat-system-model-mode-value">跟随系统</span>
+                                                            <span id="chat-system-model-mode-value" data-i18n="chat.reasoningModeDefault">跟随系统</span>
                                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                                         </span>
                                                     </button>
                                                     <button type="button" class="chat-system-model-setting-row" onclick="openChatSystemModelView('effort', event)">
                                                         <span class="chat-system-model-setting-label" data-i18n="chat.reasoningEffortLabel">推理强度</span>
                                                         <span class="chat-system-model-setting-value">
-                                                            <span id="chat-system-model-effort-value">不指定</span>
+                                                            <span id="chat-system-model-effort-value" data-i18n="chat.reasoningEffortUnset">不指定</span>
                                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                                         </span>
                                                     </button>
@@ -1355,13 +1355,13 @@
                                                 </div>
                                                 <div id="chat-system-model-subview" class="chat-system-model-subview" hidden>
                                                     <div class="chat-system-model-menu-header">
-                                                        <button type="button" class="chat-system-model-back" onclick="openChatSystemModelView('main', event)" aria-label="返回">
+                                                        <button type="button" class="chat-system-model-back" onclick="openChatSystemModelView('main', event)" aria-label="返回" data-i18n="chat.backLabel" data-i18n-attr="aria-label">
                                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                                         </button>
-                                                        <strong id="chat-system-model-subview-title">模型</strong>
+                                                        <strong id="chat-system-model-subview-title" data-i18n="chat.systemModelField">模型</strong>
                                                         <span id="chat-system-model-subview-status" class="chat-system-model-status"></span>
                                                     </div>
-                                                    <div id="chat-system-model-list" class="chat-system-model-list" role="listbox" aria-label="选项列表"></div>
+                                                    <div id="chat-system-model-list" class="chat-system-model-list" role="listbox" aria-label="选项列表" data-i18n="chat.optionsListAria" data-i18n-attr="aria-label"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1659,7 +1659,7 @@
                             <p id="monitor-stats-subtitle" class="monitor-page-subtitle" hidden></p>
                         </div>
                         <div class="page-header-actions">
-                            <button type="button" class="btn-secondary btn-icon-text" onclick="refreshMonitorPanel()" aria-label="刷新">
+                            <button type="button" class="btn-secondary btn-icon-text" onclick="refreshMonitorPanel()" aria-label="刷新" data-i18n="common.refresh" data-i18n-attr="aria-label" data-i18n-skip-text="true">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                                 <span data-i18n="common.refresh">刷新</span>
                             </button>
@@ -1698,7 +1698,7 @@
                                 </div>
                                 <div id="monitor-batch-actions" class="monitor-batch-actions" style="display: none;">
                                     <div class="batch-actions-info">
-                                        <span id="monitor-selected-count">已选择 0 项</span>
+                                        <span id="monitor-selected-count" data-i18n="mcp.selectedCount" data-i18n-params='{"count":0}'>已选择 0 项</span>
                                     </div>
                                     <div class="batch-actions-buttons">
                                         <button class="btn-secondary" onclick="selectAllExecutions()" data-i18n="mcp.selectAll">全选</button>
@@ -1976,9 +1976,9 @@
                                 <label><span data-i18n="assets.riskLevel">风险等级</span><select id="asset-risk-filter"><option value="" data-i18n="assets.allRisks">全部风险</option><option value="critical" data-i18n="assets.riskCritical">严重</option><option value="high" data-i18n="assets.riskHigh">高危</option><option value="medium" data-i18n="assets.riskMedium">中危</option><option value="low" data-i18n="assets.riskLow">低危</option><option value="info" data-i18n="assets.riskInfo">信息</option><option value="normal" data-i18n="assets.riskNormal">正常</option><option value="unassessed" data-i18n="assets.riskUnassessed">未评估</option></select></label>
                                 <label><span data-i18n="assets.minVulnerabilityCount">漏洞数量至少</span><input id="asset-vuln-min-filter" type="number" min="0" placeholder="0"></label>
                                 <label><span data-i18n="assets.protocol">协议</span><input id="asset-protocol-filter" type="text" placeholder="https"></label>
-                                <label><span>端口</span><input id="asset-port-filter" type="number" min="0" max="65535" placeholder="443"></label>
+                                <label><span data-i18n="assets.port">端口</span><input id="asset-port-filter" type="number" min="0" max="65535" placeholder="443"></label>
                                 <label><span data-i18n="assets.source">来源</span><input id="asset-source-filter" type="text" placeholder="fofa / manual"></label>
-                                <label><span data-i18n="assets.tagsLabel">标签</span><input id="asset-tag-filter" type="text" placeholder="公网"></label>
+                                <label><span data-i18n="assets.tagsLabel">标签</span><input id="asset-tag-filter" type="text" placeholder="公网" data-i18n="assets.publicTagFilterPlaceholder" data-i18n-attr="placeholder"></label>
                                 <label><span data-i18n="assets.scanState">扫描状态</span><select id="asset-scan-filter"><option value="" data-i18n="assets.allScanStates">全部</option><option value="never" data-i18n="assets.neverScannedFilter">从未扫描</option><option value="30" data-i18n="assets.overdue30">30 天未扫描</option><option value="60" data-i18n="assets.overdue60">60 天未扫描</option><option value="90" data-i18n="assets.overdue90">90 天未扫描</option><option value="scanned" data-i18n="assets.scannedFilter">已扫描</option></select></label>
                                 <label><span data-i18n="assets.country">国家/地区</span><input id="asset-country-filter" type="text" placeholder="CN"></label>
                                 <label><span data-i18n="assets.province">省份/州</span><input id="asset-province-filter" type="text"></label>
@@ -2005,7 +2005,7 @@
                                 <span class="asset-batch-selection-mark" aria-hidden="true"></span>
                                 <strong id="asset-selected-count"></strong>
                                 <button class="asset-batch-text-action" type="button" onclick="clearAssetSelection()" data-i18n="assets.clearSelection">清除选择</button>
-                                <button id="asset-select-all-results" class="asset-batch-text-action asset-batch-select-all" type="button" onclick="selectAllMatchingAssets()" hidden>选择全部结果</button>
+                                <button id="asset-select-all-results" class="asset-batch-text-action asset-batch-select-all" type="button" onclick="selectAllMatchingAssets()" hidden data-i18n="assets.selectAllResults">选择全部结果</button>
                                 <span id="asset-all-results-selected" class="asset-batch-all-selected" hidden></span>
                             </div>
                             <div class="asset-batch-primary-actions">
@@ -2094,18 +2094,18 @@
 
                 <div id="asset-bulk-edit-modal" class="modal asset-project-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="asset-bulk-edit-title" onclick="if(event.target===this)closeAssetBulkEdit()">
                     <form class="modal-content asset-bulk-edit-content" onsubmit="event.preventDefault();submitAssetBulkEdit()" onclick="event.stopPropagation()">
-                        <div class="modal-header"><div><h2 id="asset-bulk-edit-title">批量编辑资产</h2><p id="asset-bulk-edit-subtitle" class="asset-page-subtitle"></p></div><button type="button" class="modal-close" onclick="closeAssetBulkEdit()" aria-label="关闭"></button></div>
+                        <div class="modal-header"><div><h2 id="asset-bulk-edit-title" data-i18n="assets.bulkEditTitle">批量编辑资产</h2><p id="asset-bulk-edit-subtitle" class="asset-page-subtitle"></p></div><button type="button" class="modal-close" onclick="closeAssetBulkEdit()" aria-label="关闭" data-i18n="common.close" data-i18n-attr="aria-label" data-i18n-skip-text="true"></button></div>
                         <div class="modal-body asset-editor-grid">
-                            <label class="asset-editor-field"><span>状态（留空不修改）</span><select id="asset-bulk-status"><option value="">不修改</option><option value="active">活跃</option><option value="inactive">停用</option></select></label>
-                            <label class="asset-editor-field"><span>负责人</span><input id="asset-bulk-responsible" type="text" placeholder="留空不修改"></label>
-                            <label class="asset-editor-field"><span>部门</span><input id="asset-bulk-department" type="text" placeholder="留空不修改"></label>
-                            <label class="asset-editor-field"><span>业务系统</span><input id="asset-bulk-business" type="text" placeholder="留空不修改"></label>
-                            <label class="asset-editor-field"><span>环境（留空不修改）</span><select id="asset-bulk-environment"><option value="">不修改</option><option value="production">生产</option><option value="staging">预发布</option><option value="testing">测试</option><option value="development">开发</option><option value="other">其他</option></select></label>
-                            <label class="asset-editor-field"><span>重要性（留空不修改）</span><select id="asset-bulk-criticality"><option value="">不修改</option><option value="critical">核心</option><option value="high">重要</option><option value="medium">一般</option><option value="low">低</option></select></label>
-                            <label class="asset-editor-field"><span>增加标签</span><input id="asset-bulk-add-tags" type="text" placeholder="逗号分隔"></label>
-                            <label class="asset-editor-field"><span>移除标签</span><input id="asset-bulk-remove-tags" type="text" placeholder="逗号分隔"></label>
+                            <label class="asset-editor-field"><span data-i18n="assets.bulkEditStatus">状态（留空不修改）</span><select id="asset-bulk-status"><option value="" data-i18n="assets.noChange">不修改</option><option value="active" data-i18n="assets.statusActive">活跃</option><option value="inactive" data-i18n="assets.statusInactive">停用</option></select></label>
+                            <label class="asset-editor-field"><span data-i18n="assets.responsiblePerson">负责人</span><input id="asset-bulk-responsible" type="text" placeholder="留空不修改" data-i18n="assets.leaveBlankNoChange" data-i18n-attr="placeholder"></label>
+                            <label class="asset-editor-field"><span data-i18n="assets.department">部门</span><input id="asset-bulk-department" type="text" placeholder="留空不修改" data-i18n="assets.leaveBlankNoChange" data-i18n-attr="placeholder"></label>
+                            <label class="asset-editor-field"><span data-i18n="assets.businessSystem">业务系统</span><input id="asset-bulk-business" type="text" placeholder="留空不修改" data-i18n="assets.leaveBlankNoChange" data-i18n-attr="placeholder"></label>
+                            <label class="asset-editor-field"><span data-i18n="assets.bulkEditEnvironment">环境（留空不修改）</span><select id="asset-bulk-environment"><option value="" data-i18n="assets.noChange">不修改</option><option value="production" data-i18n="assets.environmentProduction">生产</option><option value="staging" data-i18n="assets.environmentStaging">预发布</option><option value="testing" data-i18n="assets.environmentTesting">测试</option><option value="development" data-i18n="assets.environmentDevelopment">开发</option><option value="other" data-i18n="assets.environmentOther">其他</option></select></label>
+                            <label class="asset-editor-field"><span data-i18n="assets.bulkEditCriticality">重要性（留空不修改）</span><select id="asset-bulk-criticality"><option value="" data-i18n="assets.noChange">不修改</option><option value="critical" data-i18n="assets.criticalityCritical">核心</option><option value="high" data-i18n="assets.criticalityHigh">重要</option><option value="medium" data-i18n="assets.criticalityMedium">一般</option><option value="low" data-i18n="assets.criticalityLow">低</option></select></label>
+                            <label class="asset-editor-field"><span data-i18n="assets.addTags">增加标签</span><input id="asset-bulk-add-tags" type="text" placeholder="逗号分隔" data-i18n="assets.commaSeparated" data-i18n-attr="placeholder"></label>
+                            <label class="asset-editor-field"><span data-i18n="assets.removeTags">移除标签</span><input id="asset-bulk-remove-tags" type="text" placeholder="逗号分隔" data-i18n="assets.commaSeparated" data-i18n-attr="placeholder"></label>
                         </div>
-                        <div class="modal-footer"><button type="button" class="btn-secondary" onclick="closeAssetBulkEdit()">取消</button><button id="asset-bulk-edit-submit" type="submit" class="btn-primary" data-require-permission="asset:write">应用修改</button></div>
+                        <div class="modal-footer"><button type="button" class="btn-secondary" onclick="closeAssetBulkEdit()" data-i18n="common.cancel">取消</button><button id="asset-bulk-edit-submit" type="submit" class="btn-primary" data-require-permission="asset:write" data-i18n="assets.applyChanges">应用修改</button></div>
                     </form>
                 </div>
 
@@ -2131,7 +2131,7 @@
                             <div class="asset-editor-primary">
                                 <label class="asset-editor-field asset-editor-target-field" for="asset-edit-target">
                                     <span><span data-i18n="assets.assetAddress">资产地址</span><b aria-hidden="true">*</b></span>
-                                    <input id="asset-edit-target" type="text" autocomplete="off" spellcheck="false" placeholder="https://example.com:443、example.com 或 1.1.1.1:443" aria-describedby="asset-edit-target-hint asset-edit-target-error" aria-required="true">
+                                    <input id="asset-edit-target" type="text" autocomplete="off" spellcheck="false" placeholder="https://example.com:443、example.com 或 1.1.1.1:443" data-i18n="assets.targetPlaceholder" data-i18n-attr="placeholder" aria-describedby="asset-edit-target-hint asset-edit-target-error" aria-required="true">
                                     <small id="asset-edit-target-hint" class="asset-field-hint" data-i18n="assets.assetAddressHint">仅需填写非空目标；可识别的 URL、域名、IP 和端口会自动解析</small>
                                     <small id="asset-edit-target-error" class="asset-field-error" role="alert" hidden></small>
                                 </label>
@@ -2210,7 +2210,7 @@
                                     <div class="info-collect-provider-card form-group">
                                         <div class="info-collect-step-title">
                                             <span>01</span>
-                                            <label for="fofa-provider">数据源</label>
+                                            <label for="fofa-provider" data-i18n="infoCollectPage.providerLabel">数据源</label>
                                         </div>
                                         <select id="fofa-provider" onchange="handleInfoCollectProviderChange()">
                                             <option value="fofa">FOFA</option>
@@ -2218,30 +2218,30 @@
                                             <option value="quake">Quake</option>
                                             <option value="shodan">Shodan</option>
                                         </select>
-                                        <small class="form-hint">支持 FOFA、ZoomEye、Quake、Shodan；API Key 可在系统设置或环境变量中配置。</small>
+                                        <small class="form-hint" data-i18n="infoCollectPage.providerHint">支持 FOFA、ZoomEye、Quake、Shodan；API Key 可在系统设置或环境变量中配置。</small>
                                     </div>
                                     <div class="info-collect-query-card form-group">
                                         <div class="info-collect-step-title">
                                             <span>02</span>
-                                            <div>查询方式</div>
+                                            <div data-i18n="infoCollectPage.queryMode">查询方式</div>
                                         </div>
                                         <div id="info-collect-natural-panel" class="info-collect-query-mode-panel info-collect-natural-panel">
-                                            <label for="fofa-nl" id="info-collect-nl-label" class="info-collect-inner-label">自然语言（可选，AI 解析为查询语法）</label>
+                                            <label for="fofa-nl" id="info-collect-nl-label" class="info-collect-inner-label" data-i18n="infoCollectPage.naturalLabel">自然语言（可选，AI 解析为查询语法）</label>
                                             <div class="info-collect-nl-row">
-                                                <textarea id="fofa-nl" class="info-collect-query-input" rows="1" placeholder="例如：找中国的 Apache 站点"></textarea>
+                                                <textarea id="fofa-nl" class="info-collect-query-input" rows="1" placeholder="例如：找中国的 Apache 站点" data-i18n="infoCollectPage.naturalPlaceholder" data-i18n-attr="placeholder"></textarea>
                                                 <button id="fofa-nl-parse-btn" class="btn-secondary" type="button" onclick="parseFofaNaturalLanguage()" data-i18n="infoCollectPage.parseBtn" data-i18n-attr="title" data-i18n-title="infoCollectPage.parseBtnTitle" title="将自然语言解析为 FOFA 查询语法">AI 解析</button>
                                             </div>
                                             <div id="fofa-nl-status" class="fofa-nl-status muted" style="display: none;" aria-live="polite"></div>
-                                            <small class="form-hint" id="info-collect-parse-hint">解析后会弹窗展示对应数据源语法（可编辑），确认无误后再填入查询框并执行查询。</small>
+                                            <small class="form-hint" id="info-collect-parse-hint" data-i18n="infoCollectPage.parseHintFallback">解析后会弹窗展示对应数据源语法（可编辑），确认无误后再填入查询框并执行查询。</small>
                                         </div>
                                         <div id="info-collect-syntax-panel" class="info-collect-query-mode-panel is-active">
-                                            <label for="fofa-query" id="info-collect-query-label" class="info-collect-inner-label">查询语法（可编辑，可直接查询）</label>
+                                            <label for="fofa-query" id="info-collect-query-label" class="info-collect-inner-label" data-i18n="infoCollectPage.syntaxLabel">查询语法（可编辑，可直接查询）</label>
                                             <div class="info-collect-query-row">
-                                                <textarea id="fofa-query" class="info-collect-query-input" rows="1" placeholder='例如：app="Apache" && country="CN"'></textarea>
-                                                <button id="fofa-query-submit-btn" class="btn-primary" data-require-permission="fofa:execute" type="button" onclick="submitFofaSearch()">查询</button>
+                                                <textarea id="fofa-query" class="info-collect-query-input" rows="1" placeholder='例如：app="Apache" && country="CN"' data-i18n="infoCollectPage.queryPlaceholderFallback" data-i18n-attr="placeholder"></textarea>
+                                                <button id="fofa-query-submit-btn" class="btn-primary" data-require-permission="fofa:execute" type="button" onclick="submitFofaSearch()" data-i18n="infoCollectPage.runQuery">查询</button>
                                             </div>
-                                            <small class="form-hint" id="info-collect-query-hint">选择数据源后会显示对应查询语法提示。</small>
-                                            <div class="info-collect-presets" id="info-collect-query-presets" aria-label="查询示例"></div>
+                                            <small class="form-hint" id="info-collect-query-hint" data-i18n="infoCollectPage.queryHintFallback">选择数据源后会显示对应查询语法提示。</small>
+                                            <div class="info-collect-presets" id="info-collect-query-presets" aria-label="查询示例" data-i18n="infoCollectPage.queryPresetsAria" data-i18n-attr="aria-label"></div>
                                             <div class="info-collect-syntax-guide" id="info-collect-syntax-guide" hidden></div>
                                         </div>
                                     </div>
@@ -2249,7 +2249,7 @@
                                 <div class="info-collect-options-card">
                                     <div class="info-collect-step-title">
                                         <span>03</span>
-                                        <div>返回配置</div>
+                                        <div data-i18n="infoCollectPage.returnConfig">返回配置</div>
                                     </div>
                                     <div class="info-collect-form-row">
                                         <div class="form-group">
@@ -2267,7 +2267,7 @@
                                                 <span class="checkbox-text" data-i18n="infoCollectPage.fullLabel">full</span>
                                             </label>
                                         </div>
-                                        <small class="form-hint info-collect-row-hint" id="info-collect-size-hint">不同数据源的单次返回上限可能不同。</small>
+                                        <small class="form-hint info-collect-row-hint" id="info-collect-size-hint" data-i18n="infoCollectPage.sizeHintFallback">不同数据源的单次返回上限可能不同。</small>
                                     </div>
                                 </div>
                                 <div class="info-collect-fields-card form-group">
@@ -2276,7 +2276,7 @@
                                         <label for="fofa-fields" data-i18n="infoCollectPage.returnFields">返回字段名（逗号分隔）</label>
                                     </div>
                                     <input type="text" id="fofa-fields" value="host,ip,port,domain,title,protocol,country,region,city,server" />
-                                    <div class="info-collect-presets" id="info-collect-fields-presets" aria-label="字段模板"></div>
+                                    <div class="info-collect-presets" id="info-collect-fields-presets" aria-label="字段模板" data-i18n="infoCollectPage.fieldsPresetsAria" data-i18n-attr="aria-label"></div>
                                 </div>
                             </div>
                         </div>
@@ -2365,10 +2365,10 @@
                                                 <span id="projects-detail-status" class="projects-status-pill projects-status-pill--active" data-i18n="projects.statusActive">进行中</span>
                                             </div>
                                             <div class="projects-detail-stats" id="projects-detail-stats">
-                                                <span class="projects-stat-chip projects-stat-chip--facts" id="project-stat-facts">0 条事实</span>
-                                                <span class="projects-stat-chip projects-stat-chip--vulns" id="project-stat-vulns">0 个漏洞</span>
-                                                <span class="projects-stat-chip projects-stat-chip--conversations" id="project-stat-conversations">0 个对话</span>
-                                                <span class="projects-stat-chip projects-stat-chip--warn" id="project-stat-sparse" hidden>0 待补全</span>
+                                                <span class="projects-stat-chip projects-stat-chip--facts" id="project-stat-facts" data-i18n="projects.statsFacts" data-i18n-params='{"count":0}'>0 条事实</span>
+                                                <span class="projects-stat-chip projects-stat-chip--vulns" id="project-stat-vulns" data-i18n="projects.statsVulns" data-i18n-params='{"count":0}'>0 个漏洞</span>
+                                                <span class="projects-stat-chip projects-stat-chip--conversations" id="project-stat-conversations" data-i18n="projects.statsConversations" data-i18n-params='{"count":0}'>0 个对话</span>
+                                                <span class="projects-stat-chip projects-stat-chip--warn" id="project-stat-sparse" hidden data-i18n="projects.statsSparse" data-i18n-params='{"count":0}'>0 待补全</span>
                                             </div>
                                         </div>
                                         <p id="projects-detail-desc" class="projects-detail-desc" hidden></p>
@@ -2697,7 +2697,7 @@
                     <div class="page-content">
                         <!-- 统计看板：点击卡片筛选严重度，与下方下拉/地址栏 hash 同步 -->
                         <div class="vulnerability-dashboard" id="vulnerability-dashboard">
-                            <div class="dashboard-stats" id="vulnerability-stat-cards" role="group" aria-label="漏洞严重度统计">
+                            <div class="dashboard-stats" id="vulnerability-stat-cards" role="group" aria-label="漏洞严重度统计" data-i18n="vulnerabilityPage.statCardsAria" data-i18n-attr="aria-label" data-i18n-skip-text="true">
                                 <div class="stat-card stat-card-total is-clickable is-active" data-severity="" role="button" tabindex="0"
                                      data-i18n="vulnerabilityPage.statClickAll" data-i18n-attr="title" title="查看全部（清除严重度筛选）">
                                     <div class="stat-label" data-i18n="vulnerabilityPage.statTotal">总漏洞数</div>
@@ -2876,7 +2876,7 @@
                                     <div class="webshell-empty" data-i18n="webshell.noConnections">暂无连接，请点击「添加连接」</div>
                                 </div>
                             </div>
-                            <div id="webshell-resize-handle" class="webshell-resize-handle" title="拖拽调整宽度"></div>
+                            <div id="webshell-resize-handle" class="webshell-resize-handle" title="拖拽调整宽度" data-i18n="webshell.resizeHandleTitle" data-i18n-attr="title"></div>
                             <div class="webshell-main">
                                 <div id="webshell-workspace" class="webshell-workspace">
                                     <div class="webshell-workspace-placeholder" data-i18n="webshell.selectOrAdd">请从左侧选择连接，或添加新的 WebShell 连接</div>
@@ -4139,52 +4139,52 @@
                                 </div>
 
                                 <div class="settings-subsection">
-                                    <h4>ZoomEye 配置</h4>
-                                    <p class="form-hint">用于信息收集页调用 ZoomEye API；也可设置环境变量 ZOOMEYE_API_KEY。</p>
+                                    <h4 data-i18n="settingsBasic.zoomeyeConfig">ZoomEye 配置</h4>
+                                    <p class="form-hint" data-i18n="settingsBasic.zoomeyeConfigHint">用于信息收集页调用 ZoomEye API；也可设置环境变量 ZOOMEYE_API_KEY。</p>
                                     <div class="settings-form">
                                         <div class="form-group">
                                             <label for="zoomeye-base-url">Base URL</label>
-                                            <input type="text" id="zoomeye-base-url" placeholder="https://api.zoomeye.ai/v2/search（可选）" />
-                                            <small class="form-hint">留空则使用默认地址。</small>
+                                            <input type="text" id="zoomeye-base-url" placeholder="https://api.zoomeye.ai/v2/search（可选）" data-i18n="settingsBasic.zoomeyeBaseUrlPlaceholder" data-i18n-attr="placeholder" />
+                                            <small class="form-hint" data-i18n="settingsBasic.zoomeyeBaseUrlHint">留空则使用默认地址。</small>
                                         </div>
                                         <div class="form-group">
                                             <label for="zoomeye-api-key">API Key</label>
-                                            <input type="password" id="zoomeye-api-key" placeholder="输入 ZoomEye API Key" autocomplete="off" />
-                                            <small class="form-hint">仅保存在服务器配置中（config.yaml）。</small>
+                                            <input type="password" id="zoomeye-api-key" placeholder="输入 ZoomEye API Key" data-i18n="settingsBasic.zoomeyeApiKeyPlaceholder" data-i18n-attr="placeholder" autocomplete="off" />
+                                            <small class="form-hint" data-i18n="settingsBasic.zoomeyeApiKeyHint">仅保存在服务器配置中（config.yaml）。</small>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="settings-subsection">
-                                    <h4>Quake 配置</h4>
-                                    <p class="form-hint">用于信息收集页调用 360 Quake API；也可设置环境变量 QUAKE_API_KEY。</p>
+                                    <h4 data-i18n="settingsBasic.quakeConfig">Quake 配置</h4>
+                                    <p class="form-hint" data-i18n="settingsBasic.quakeConfigHint">用于信息收集页调用 360 Quake API；也可设置环境变量 QUAKE_API_KEY。</p>
                                     <div class="settings-form">
                                         <div class="form-group">
                                             <label for="quake-base-url">Base URL</label>
-                                            <input type="text" id="quake-base-url" placeholder="https://quake.360.net/api/v3/search/quake_service（可选）" />
-                                            <small class="form-hint">留空则使用默认地址。</small>
+                                            <input type="text" id="quake-base-url" placeholder="https://quake.360.net/api/v3/search/quake_service（可选）" data-i18n="settingsBasic.quakeBaseUrlPlaceholder" data-i18n-attr="placeholder" />
+                                            <small class="form-hint" data-i18n="settingsBasic.quakeBaseUrlHint">留空则使用默认地址。</small>
                                         </div>
                                         <div class="form-group">
                                             <label for="quake-api-key">API Token</label>
-                                            <input type="password" id="quake-api-key" placeholder="输入 Quake API Token" autocomplete="off" />
-                                            <small class="form-hint">仅保存在服务器配置中（config.yaml）。</small>
+                                            <input type="password" id="quake-api-key" placeholder="输入 Quake API Token" data-i18n="settingsBasic.quakeApiKeyPlaceholder" data-i18n-attr="placeholder" autocomplete="off" />
+                                            <small class="form-hint" data-i18n="settingsBasic.quakeApiKeyHint">仅保存在服务器配置中（config.yaml）。</small>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="settings-subsection">
-                                    <h4>Shodan 配置</h4>
-                                    <p class="form-hint">用于信息收集页调用 Shodan API；也可设置环境变量 SHODAN_API_KEY。</p>
+                                    <h4 data-i18n="settingsBasic.shodanConfig">Shodan 配置</h4>
+                                    <p class="form-hint" data-i18n="settingsBasic.shodanConfigHint">用于信息收集页调用 Shodan API；也可设置环境变量 SHODAN_API_KEY。</p>
                                     <div class="settings-form">
                                         <div class="form-group">
                                             <label for="shodan-base-url">Base URL</label>
-                                            <input type="text" id="shodan-base-url" placeholder="https://api.shodan.io（可选）" />
-                                            <small class="form-hint">留空则使用默认地址。</small>
+                                            <input type="text" id="shodan-base-url" placeholder="https://api.shodan.io（可选）" data-i18n="settingsBasic.shodanBaseUrlPlaceholder" data-i18n-attr="placeholder" />
+                                            <small class="form-hint" data-i18n="settingsBasic.shodanBaseUrlHint">留空则使用默认地址。</small>
                                         </div>
                                         <div class="form-group">
                                             <label for="shodan-api-key">API Key</label>
-                                            <input type="password" id="shodan-api-key" placeholder="输入 Shodan API Key" autocomplete="off" />
-                                            <small class="form-hint">仅保存在服务器配置中（config.yaml）。</small>
+                                            <input type="password" id="shodan-api-key" placeholder="输入 Shodan API Key" data-i18n="settingsBasic.shodanApiKeyPlaceholder" data-i18n-attr="placeholder" autocomplete="off" />
+                                            <small class="form-hint" data-i18n="settingsBasic.shodanApiKeyHint">仅保存在服务器配置中（config.yaml）。</small>
                                         </div>
                                     </div>
                                 </div>
@@ -4557,26 +4557,26 @@
                                 </div>
 
                                 <div id="robot-auth-policy-panel" class="settings-subsection" hidden>
-                                    <h4>业务鉴权策略</h4>
+                                    <h4 data-i18n="settings.robots.authPolicyTitle">业务鉴权策略</h4>
                                     <div class="settings-form">
                                         <div class="form-group">
-                                            <label for="robot-auth-mode">鉴权模式</label>
+                                            <label for="robot-auth-mode" data-i18n="settings.robots.authModeLabel">鉴权模式</label>
                                             <select id="robot-auth-mode" class="form-select" onchange="onRobotAuthModeChange()">
-                                                <option value="user_binding">逐用户绑定（多人机器人推荐）</option>
-                                                <option value="service_account">专用服务账号（仅白名单发送者）</option>
+                                                <option value="user_binding" data-i18n="settings.robots.authModeUserBinding">逐用户绑定（多人机器人推荐）</option>
+                                                <option value="service_account" data-i18n="settings.robots.authModeServiceAccount">专用服务账号（仅白名单发送者）</option>
                                             </select>
-                                            <small class="form-hint">平台验签负责确认消息来源；这里决定消息最终使用哪个 RBAC 身份。</small>
+                                            <small class="form-hint" data-i18n="settings.robots.authModeHint">平台验签负责确认消息来源；这里决定消息最终使用哪个 RBAC 身份。</small>
                                         </div>
                                         <div id="robot-service-account-fields" hidden>
                                             <div class="form-group">
-                                                <label for="robot-service-user-id">服务账号 RBAC User ID</label>
-                                                <input type="text" id="robot-service-user-id" placeholder="例如 admin 或专用服务账号 User ID" autocomplete="off" oninput="updateRobotServiceAccountWarning()" />
-                                                <small id="robot-service-admin-warning" class="form-hint robot-service-admin-warning" hidden>当前使用 admin：白名单发送者将拥有完整平台权限，请仅添加你完全信任的账号。</small>
+                                                <label for="robot-service-user-id" data-i18n="settings.robots.serviceAccountUserIdLabel">服务账号 RBAC User ID</label>
+                                                <input type="text" id="robot-service-user-id" placeholder="例如 admin 或专用服务账号 User ID" data-i18n="settings.robots.serviceAccountUserIdPlaceholder" data-i18n-attr="placeholder" autocomplete="off" oninput="updateRobotServiceAccountWarning()" />
+                                                <small id="robot-service-admin-warning" class="form-hint robot-service-admin-warning" hidden data-i18n="settings.robots.serviceAccountAdminWarning">当前使用 admin：白名单发送者将拥有完整平台权限，请仅添加你完全信任的账号。</small>
                                             </div>
                                             <div class="form-group">
-                                                <label for="robot-allowed-external-users">允许的平台发送者 ID</label>
-                                                <textarea id="robot-allowed-external-users" rows="4" placeholder="每行一个；在机器人中发送“身份”或 whoami 获取"></textarea>
-                                                <small class="form-hint">不支持 * 通配符。服务账号模式只有这里列出的真实发送者可以执行。</small>
+                                                <label for="robot-allowed-external-users" data-i18n="settings.robots.allowedSendersLabel">允许的平台发送者 ID</label>
+                                                <textarea id="robot-allowed-external-users" rows="4" placeholder="每行一个；在机器人中发送“身份”或 whoami 获取" data-i18n="settings.robots.allowedSendersPlaceholder" data-i18n-attr="placeholder"></textarea>
+                                                <small class="form-hint" data-i18n="settings.robots.allowedSendersHint">不支持 * 通配符。服务账号模式只有这里列出的真实发送者可以执行。</small>
                                             </div>
                                         </div>
                                     </div>
@@ -4752,12 +4752,12 @@
                                         </div>
                                         <div class="form-group">
                                             <label for="robot-telegram-bot-token" data-i18n="settings.robots.telegram.botToken">Bot Token</label>
-                                            <input type="password" id="robot-telegram-bot-token" autocomplete="off" placeholder="从 @BotFather 获取" />
+                                            <input type="password" id="robot-telegram-bot-token" autocomplete="off" placeholder="从 @BotFather 获取" data-i18n="settings.robots.telegram.botTokenPlaceholder" data-i18n-attr="placeholder" />
                                             <small class="form-hint" data-i18n="settings.robots.telegram.botTokenHint">通过 getUpdates 长轮询收消息，无需公网回调</small>
                                         </div>
                                         <div class="form-group">
                                             <label for="robot-telegram-bot-username" data-i18n="settings.robots.telegram.botUsername">Bot Username（可选）</label>
-                                            <input type="text" id="robot-telegram-bot-username" autocomplete="off" placeholder="不含 @，留空则自动 getMe" />
+                                            <input type="text" id="robot-telegram-bot-username" autocomplete="off" placeholder="不含 @，留空则自动 getMe" data-i18n="settings.robots.telegram.botUsernamePlaceholder" data-i18n-attr="placeholder" />
                                         </div>
                                         <div class="form-group">
                                             <label class="checkbox-label">
@@ -4983,7 +4983,7 @@
                                 </div>
                                 <div class="terminal-wrapper">
                                     <div class="terminal-tabs">
-                                        <div class="terminal-tab active" data-tab-id="1"><span class="terminal-tab-label" onclick="switchTerminalTab(1)">终端 1</span><button type="button" class="terminal-tab-close" onclick="removeTerminalTab(1); event.stopPropagation();" data-i18n="settingsTerminal.close" data-i18n-attr="title" title="关闭">×</button></div>
+                                        <div class="terminal-tab active" data-tab-id="1"><span class="terminal-tab-label" onclick="switchTerminalTab(1)" data-i18n="settingsTerminal.terminalTab" data-i18n-params='{"n":1}'>终端 1</span><button type="button" class="terminal-tab-close" onclick="removeTerminalTab(1); event.stopPropagation();" data-i18n="settingsTerminal.close" data-i18n-attr="title" title="关闭">×</button></div>
                                         <button type="button" class="terminal-tab-new" onclick="addTerminalTab()" data-i18n="settingsTerminal.newTerminal" data-i18n-attr="title" title="新终端">+</button>
                                     </div>
                                     <div class="terminal-panes">
@@ -5019,7 +5019,7 @@
                                         <div class="audit-field audit-field--event">
                                             <span data-i18n="settingsAudit.filterEvent">事件类型</span>
                                             <div class="audit-filter-cascade">
-                                                <select id="audit-filter-category" onchange="onAuditCategoryFilterChange()" aria-label="类别">
+                                                <select id="audit-filter-category" onchange="onAuditCategoryFilterChange()" aria-label="类别" data-i18n="settingsAudit.filterCategory" data-i18n-attr="aria-label" data-i18n-skip-text="true">
                                                     <option value="" data-i18n="settingsAudit.filterAllCategories">全部类别</option>
                                                     <option value="auth" data-i18n="settingsAudit.cat.auth">认证</option>
                                                     <option value="config" data-i18n="settingsAudit.cat.config">配置</option>
@@ -5038,7 +5038,7 @@
                                                     <option value="agent" data-i18n="settingsAudit.cat.agent">子代理</option>
                                                 </select>
                                                 <span class="audit-filter-cascade-arrow" aria-hidden="true">→</span>
-                                                <select id="audit-filter-action" disabled aria-label="操作">
+                                                <select id="audit-filter-action" disabled aria-label="操作" data-i18n="settingsAudit.filterAction" data-i18n-attr="aria-label" data-i18n-skip-text="true">
                                                     <option value="" data-i18n="settingsAudit.filterAllActions">全部操作</option>
                                                 </select>
                                             </div>
@@ -5269,7 +5269,7 @@
                                             </div>
                                         </div>
                                         <div id="rbac-metric-context" class="rbac-metric-context" hidden></div>
-                                        <div class="rbac-workspace-nav" role="tablist" aria-label="权限管理视图">
+                                        <div class="rbac-workspace-nav" role="tablist" aria-label="权限管理视图" data-i18n="rbac.viewTabsAria" data-i18n-attr="aria-label" data-i18n-skip-text="true">
                                             <button type="button" class="rbac-workspace-tab is-active" role="tab" aria-selected="true" data-rbac-view="users" onclick="switchRbacView('users')">
                                                 <span data-i18n="rbac.memberManagement">成员管理</span>
                                                 <small data-i18n="rbac.memberManagementHint">为成员分配角色与数据范围</small>
@@ -5365,7 +5365,7 @@
                                                         <div id="rbac-resource-picker" class="rbac-resource-picker"></div>
                                                         <div id="rbac-resource-pagination" class="rbac-pagination">
                                                             <button type="button" class="btn-secondary btn-small" data-rbac-page-previous onclick="changeRbacResourcePage(-1)" data-i18n="rbac.pagination.previous">上一页</button>
-                                                            <span data-rbac-page-info>第 1 页</span>
+                                                            <span data-rbac-page-info data-i18n="rbac.pagination.pageSummary">第 1 页</span>
                                                             <button type="button" class="btn-secondary btn-small" data-rbac-page-next onclick="changeRbacResourcePage(1)" data-i18n="rbac.pagination.next">下一页</button>
                                                         </div>
                                                     </section>
@@ -5378,7 +5378,7 @@
                                                         </div>
                                                         <div class="rbac-assignment-filterbar">
                                                             <div class="rbac-assignment-filters">
-                                                                <select id="rbac-assignment-filter-type" class="form-select rbac-form-select" onchange="changeRbacAssignmentFilter(this.value)" aria-label="筛选资源类型">
+                                                                <select id="rbac-assignment-filter-type" class="form-select rbac-form-select" onchange="changeRbacAssignmentFilter(this.value)" aria-label="筛选资源类型" data-i18n="rbac.resourceTypeFilterAria" data-i18n-attr="aria-label" data-i18n-skip-text="true">
                                                                     <option value="all" data-i18n="rbac.allResourceTypes">全部类型</option>
                                                                     <option value="conversation" data-i18n="rbac.resourceTypes.conversation">对话</option>
                                                                     <option value="project" data-i18n="rbac.resourceTypes.project">项目</option>
@@ -5394,7 +5394,7 @@
                                                         <div id="rbac-assignments-list" class="rbac-assignments-list"></div>
                                                         <div id="rbac-assignment-pagination" class="rbac-pagination">
                                                             <button type="button" class="btn-secondary btn-small" data-rbac-page-previous onclick="changeRbacAssignmentPage(-1)" data-i18n="rbac.pagination.previous">上一页</button>
-                                                            <span data-rbac-page-info></span>
+                                                            <span data-rbac-page-info data-i18n="rbac.pagination.pageSummary"></span>
                                                             <button type="button" class="btn-secondary btn-small" data-rbac-page-next onclick="changeRbacAssignmentPage(1)" data-i18n="rbac.pagination.next">下一页</button>
                                                         </div>
                                                     </section>
@@ -5438,7 +5438,7 @@
                                                 </div>
                                                 <div id="rbac-audit-pagination" class="rbac-pagination rbac-audit-pagination">
                                                     <div class="rbac-audit-pagination-meta">
-                                                        <span data-rbac-page-range>显示 0-0 / 共 0 条记录</span>
+                                                        <span data-rbac-page-range data-i18n="rbac.pagination.recordRange">显示 0-0 / 共 0 条记录</span>
                                                         <label class="rbac-audit-page-size-control">
                                                             <span data-i18n="rbac.pagination.rowsPerPage">每页显示</span>
                                                             <select id="rbac-audit-page-size" class="form-select rbac-form-select" onchange="changeRbacAuditPageSize(this.value)" aria-label="每页显示条数" data-i18n="rbac.auditPageSizeLabel" data-i18n-attr="aria-label">
@@ -5451,7 +5451,7 @@
                                                     <div class="rbac-audit-pagination-nav">
                                                         <button type="button" class="btn-secondary btn-small" data-rbac-page-first onclick="setRbacAuditPage(0)" data-i18n="rbac.pagination.first" disabled>首页</button>
                                                         <button type="button" class="btn-secondary btn-small" data-rbac-page-previous onclick="changeRbacAuditPage(-1)" data-i18n="rbac.pagination.previous" disabled>上一页</button>
-                                                        <span data-rbac-page-info>第 1 / 1 页</span>
+                                                        <span data-rbac-page-info data-i18n="rbac.pagination.pageIndicator">第 1 / 1 页</span>
                                                         <button type="button" class="btn-secondary btn-small" data-rbac-page-next onclick="changeRbacAuditPage(1)" data-i18n="rbac.pagination.next" disabled>下一页</button>
                                                         <button type="button" class="btn-secondary btn-small" data-rbac-page-last onclick="setRbacAuditPage(-1)" data-i18n="rbac.pagination.last" disabled>末页</button>
                                                     </div>
@@ -5518,7 +5518,7 @@
                         <h3 data-i18n="mcpDetailModal.abortTitle">运行控制</h3>
                     </div>
                     <p class="detail-abort-hint" data-i18n="mcpDetailModal.abortHint">仅中断当前工具调用；对话与多步任务会继续。</p>
-                    <button type="button" class="btn-secondary btn-monitor-abort" id="detail-abort-btn" onclick="abortMCPToolExecutionFromDetail()">终止工具</button>
+                    <button type="button" class="btn-secondary btn-monitor-abort" id="detail-abort-btn" onclick="abortMCPToolExecutionFromDetail()" data-i18n="mcpDetailModal.abortBtn">终止工具</button>
                 </div>
                 <div class="detail-section">
                     <div class="detail-section-header">
@@ -5534,7 +5534,7 @@
                         <h3 data-i18n="mcpDetailModal.responseResult">响应结果</h3>
                         <button class="btn-ghost" type="button" onclick="copyActiveMCPResultDetail(this)" data-i18n="mcpDetailModal.copyContent">复制内容</button>
                     </div>
-                    <div class="detail-result-tabs" role="tablist" aria-label="响应结果视图">
+                    <div class="detail-result-tabs" role="tablist" aria-label="响应结果视图" data-i18n="mcpDetailModal.resultTabsAria" data-i18n-attr="aria-label" data-i18n-skip-text="true">
                         <button id="detail-result-tab-success" class="detail-result-tab active" type="button" role="tab" aria-selected="true" aria-controls="detail-result-panel-success" onclick="switchMCPResultDetailTab('success')">
                             <span data-i18n="mcpDetailModal.correctInfo">正确信息</span>
                         </button>
@@ -6129,26 +6129,26 @@
     <div id="knowledge-item-modal" class="modal">
         <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
-                <h2 id="knowledge-item-modal-title">添加知识</h2>
+                <h2 id="knowledge-item-modal-title" data-i18n="knowledgeItemModal.addKnowledge">添加知识</h2>
                 <span class="modal-close" onclick="closeKnowledgeItemModal()">&times;</span>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="knowledge-item-category">分类（风险类型）<span style="color: red;">*</span></label>
-                    <input type="text" id="knowledge-item-category" placeholder="例如：SQL注入" required />
+                    <label for="knowledge-item-category"><span data-i18n="knowledgeItemModal.category">分类（风险类型）</span><span style="color: red;">*</span></label>
+                    <input type="text" id="knowledge-item-category" placeholder="例如：SQL注入" data-i18n="knowledgeItemModal.categoryPlaceholder" data-i18n-attr="placeholder" required />
                 </div>
                 <div class="form-group">
-                    <label for="knowledge-item-title">标题<span style="color: red;">*</span></label>
-                    <input type="text" id="knowledge-item-title" placeholder="知识项标题" required />
+                    <label for="knowledge-item-title"><span data-i18n="knowledgeItemModal.title">标题</span><span style="color: red;">*</span></label>
+                    <input type="text" id="knowledge-item-title" placeholder="知识项标题" data-i18n="knowledgeItemModal.titlePlaceholder" data-i18n-attr="placeholder" required />
                 </div>
                 <div class="form-group">
-                    <label for="knowledge-item-content">内容（Markdown格式）<span style="color: red;">*</span></label>
-                    <textarea id="knowledge-item-content" rows="20" placeholder="输入知识内容，支持Markdown格式..." style="font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 0.875rem; line-height: 1.5;" required></textarea>
+                    <label for="knowledge-item-content"><span data-i18n="knowledgeItemModal.contentLabel">内容（Markdown格式）</span><span style="color: red;">*</span></label>
+                    <textarea id="knowledge-item-content" rows="20" placeholder="输入知识内容，支持Markdown格式..." data-i18n="knowledgeItemModal.contentPlaceholder" data-i18n-attr="placeholder" style="font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 0.875rem; line-height: 1.5;" required></textarea>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeKnowledgeItemModal()">取消</button>
-                <button class="btn-primary" data-require-permission="knowledge:write" onclick="saveKnowledgeItem()">保存</button>
+                <button class="btn-secondary" onclick="closeKnowledgeItemModal()" data-i18n="common.cancel">取消</button>
+                <button class="btn-primary" data-require-permission="knowledge:write" onclick="saveKnowledgeItem()" data-i18n="common.save">保存</button>
             </div>
         </div>
     </div>
@@ -6157,7 +6157,7 @@
     <div id="batch-manage-modal" class="modal">
         <div class="modal-content batch-manage-modal-content">
             <div class="modal-header">
-                <h2 id="batch-manage-title">管理对话记录·共<span id="batch-manage-count">0</span>条</h2>
+                <h2 id="batch-manage-title" data-i18n="batchManageModal.title">管理对话记录·共<span id="batch-manage-count">0</span>条</h2>
                 <div class="batch-manage-header-actions">
                     <select id="batch-project-filter" class="conversation-project-filter-native" onchange="applyBatchConversationFilters()" data-i18n="batchManageModal.filterByProject" data-i18n-attr="title" title="按项目筛选">
                         <option value="" data-i18n="chat.filterAllProjects">全部项目</option>
@@ -6416,7 +6416,7 @@
         <div class="modal-content" style="max-width: 720px;">
             <div class="modal-header">
                 <h2 data-i18n="vulnerabilityRetest.title">复测漏洞</h2>
-                <button type="button" class="modal-close" onclick="closeAppModal('vulnerability-retest-modal')" aria-label="关闭">&times;</button>
+                <button type="button" class="modal-close" onclick="closeAppModal('vulnerability-retest-modal')" aria-label="关闭" data-i18n="common.close" data-i18n-attr="aria-label" data-i18n-skip-text="true">&times;</button>
             </div>
             <div class="modal-body">
                 <p id="vulnerability-retest-title"></p>
@@ -6846,46 +6846,46 @@
             <div class="projects-modal-body">
                 <div class="projects-form-field">
                     <label for="fact-modal-key">fact_key</label>
-                    <input type="text" id="fact-modal-key" class="form-input" placeholder="target/primary_domain 或 finding/sqli-login" oninput="updateFactFormHints()">
-                    <p class="projects-field-hint">环境类：target/、auth/、infra/、business/；发现/利用：finding/、chain/、exploit/、poc/</p>
+                    <input type="text" id="fact-modal-key" class="form-input" placeholder="target/primary_domain 或 finding/sqli-login" data-i18n="projects.factKeyPlaceholder" data-i18n-attr="placeholder" oninput="updateFactFormHints()">
+                    <p class="projects-field-hint" data-i18n="projects.factKeyHint">环境类：target/、auth/、infra/、business/；发现/利用：finding/、chain/、exploit/、poc/</p>
                 </div>
                 <div class="projects-form-row">
                     <div class="projects-form-field">
                         <label for="fact-modal-category" data-i18n="projects.category">分类</label>
                         <select id="fact-modal-category" class="form-input" onchange="updateFactFormHints()">
-                            <option value="target">target（目标）</option>
-                            <option value="auth">auth（认证）</option>
-                            <option value="infra">infra（基础设施）</option>
-                            <option value="business">business（业务）</option>
-                            <option value="finding">finding（发现）</option>
-                            <option value="chain">chain（攻击链）</option>
-                            <option value="exploit">exploit（利用）</option>
-                            <option value="poc">poc（POC）</option>
-                            <option value="note" selected>note（备注）</option>
+                            <option value="target" data-i18n="projects.factCategoryTarget">target（目标）</option>
+                            <option value="auth" data-i18n="projects.factCategoryAuth">auth（认证）</option>
+                            <option value="infra" data-i18n="projects.factCategoryInfra">infra（基础设施）</option>
+                            <option value="business" data-i18n="projects.factCategoryBusiness">business（业务）</option>
+                            <option value="finding" data-i18n="projects.factCategoryFinding">finding（发现）</option>
+                            <option value="chain" data-i18n="projects.factCategoryChain">chain（攻击链）</option>
+                            <option value="exploit" data-i18n="projects.factCategoryExploit">exploit（利用）</option>
+                            <option value="poc" data-i18n="projects.factCategoryPoc">poc（POC）</option>
+                            <option value="note" selected data-i18n="projects.factCategoryNote">note（备注）</option>
                         </select>
                     </div>
                     <div class="projects-form-field">
                         <label for="fact-modal-confidence" data-i18n="projects.confidence">置信度</label>
                         <select id="fact-modal-confidence" class="form-input">
-                            <option value="tentative">待确认</option>
-                            <option value="confirmed">已确认</option>
-                            <option value="deprecated">已废弃</option>
+                            <option value="tentative" data-i18n="projects.confidenceTentative">待确认</option>
+                            <option value="confirmed" data-i18n="projects.confidenceConfirmed">已确认</option>
+                            <option value="deprecated" data-i18n="projects.confidenceDeprecated">已废弃</option>
                         </select>
                     </div>
                 </div>
                 <div class="projects-form-field">
-                    <label for="fact-modal-summary">摘要（索引一行）</label>
-                    <input type="text" id="fact-modal-summary" class="form-input" maxlength="400" placeholder="什么 + 在哪 + 如何验证（勿仅写「存在 XSS」）" oninput="updateFactFormHints()">
+                    <label for="fact-modal-summary" data-i18n="projects.factSummaryLabel">摘要（索引一行）</label>
+                    <input type="text" id="fact-modal-summary" class="form-input" maxlength="400" placeholder="什么 + 在哪 + 如何验证（勿仅写「存在 XSS」）" data-i18n="projects.factSummaryPlaceholder" data-i18n-attr="placeholder" oninput="updateFactFormHints()">
                 </div>
                 <div class="projects-form-field">
                     <div class="projects-form-label-row">
-                        <label for="fact-modal-body">body（可复现详情）</label>
+                        <label for="fact-modal-body" data-i18n="projects.factBodyLabel">body（可复现详情）</label>
                         <div class="projects-form-label-actions">
-                            <button type="button" class="btn-link btn-small" onclick="insertFactBodyTemplate('attack')">插入攻击链模板</button>
-                            <button type="button" class="btn-link btn-small" onclick="insertFactBodyTemplate('env')">插入环境模板</button>
+                            <button type="button" class="btn-link btn-small" onclick="insertFactBodyTemplate('attack')" data-i18n="projects.factInsertAttackTemplate">插入攻击链模板</button>
+                            <button type="button" class="btn-link btn-small" onclick="insertFactBodyTemplate('env')" data-i18n="projects.factInsertEnvTemplate">插入环境模板</button>
                         </div>
                     </div>
-                    <textarea id="fact-modal-body" class="form-input fact-modal-body-input" rows="14" placeholder="攻击链步骤、HTTP/命令 POC、响应现象、证据…" oninput="updateFactFormHints()"></textarea>
+                    <textarea id="fact-modal-body" class="form-input fact-modal-body-input" rows="14" placeholder="攻击链步骤、HTTP/命令 POC、响应现象、证据…" data-i18n="projects.factBodyPlaceholder" data-i18n-attr="placeholder" oninput="updateFactFormHints()"></textarea>
                     <p id="fact-modal-body-hint" class="projects-field-hint" role="status"></p>
                     <small class="form-hint" data-i18n="projects.factBodyRelationsHint">正文中的 discovered_on 等关系请填写到下方“关系边”字段，才能生成图谱连线。</small>
                 </div>
@@ -6946,58 +6946,58 @@
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                     </span>
                     <div>
-                        <h2 id="robot-account-binding-title">绑定机器人账号</h2>
-                        <p>将 IM 平台身份安全关联到当前 RBAC 用户</p>
+                        <h2 id="robot-account-binding-title" data-i18n="auth.robotBinding.modalTitle">绑定机器人账号</h2>
+                        <p data-i18n="auth.robotBinding.modalSubtitle">将 IM 平台身份安全关联到当前 RBAC 用户</p>
                     </div>
                 </div>
-                <button type="button" class="modal-close" onclick="closeRobotAccountBinding()" aria-label="关闭"></button>
+                <button type="button" class="modal-close" onclick="closeRobotAccountBinding()" aria-label="关闭" data-i18n="common.close" data-i18n-attr="aria-label" data-i18n-skip-text="true"></button>
             </div>
             <div class="modal-body robot-binding-body">
                 <div class="robot-binding-guide">
-                    <span class="robot-binding-guide-number">1</span><span>生成一次性绑定码</span>
+                    <span class="robot-binding-guide-number">1</span><span data-i18n="auth.robotBinding.guideStep1">生成一次性绑定码</span>
                     <span class="robot-binding-guide-arrow">→</span>
-                    <span class="robot-binding-guide-number">2</span><span>在机器人中发送绑定命令</span>
+                    <span class="robot-binding-guide-number">2</span><span data-i18n="auth.robotBinding.guideStep2">在机器人中发送绑定命令</span>
                     <span class="robot-binding-guide-arrow">→</span>
-                    <span class="robot-binding-guide-number">3</span><span>立即继承当前用户权限</span>
+                    <span class="robot-binding-guide-number">3</span><span data-i18n="auth.robotBinding.guideStep3">立即继承当前用户权限</span>
                 </div>
 
                 <section id="robot-binding-code-card" class="robot-binding-code-card is-empty">
                     <div class="robot-binding-code-meta">
-                        <span class="robot-binding-one-time-badge">一次性安全码</span>
-                        <span id="robot-binding-code-state" class="robot-binding-state">等待生成</span>
+                        <span class="robot-binding-one-time-badge" data-i18n="auth.robotBinding.oneTimeBadge">一次性安全码</span>
+                        <span id="robot-binding-code-state" class="robot-binding-state" data-i18n="auth.robotBinding.codeStateInitial">等待生成</span>
                     </div>
                     <div class="robot-binding-code-row">
                         <code id="robot-binding-code">••••-••••</code>
                         <div class="robot-binding-code-actions">
-                            <button type="button" class="btn-primary" id="robot-binding-generate-btn" onclick="generateRobotBindingCode()">生成绑定码</button>
+                            <button type="button" class="btn-primary" id="robot-binding-generate-btn" onclick="generateRobotBindingCode()" data-i18n="auth.robotBinding.generateCode">生成绑定码</button>
                             <button type="button" class="btn-secondary robot-binding-copy-btn" id="robot-binding-copy-btn" onclick="copyRobotBindingCode()" disabled>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/></svg>
-                                <span>复制命令</span>
+                                <span data-i18n="auth.robotBinding.copyCommand">复制命令</span>
                             </button>
                         </div>
                     </div>
                     <div id="robot-binding-timer" class="robot-binding-timer" hidden>
                         <div class="robot-binding-timer-copy">
-                            <span id="robot-binding-expiry">请在机器人中发送绑定命令</span>
+                            <span id="robot-binding-expiry" data-i18n="auth.robotBinding.expiryHintInitial">请在机器人中发送绑定命令</span>
                             <strong id="robot-binding-countdown">05:00</strong>
                         </div>
                         <div class="robot-binding-progress" aria-hidden="true"><span id="robot-binding-progress-bar"></span></div>
                     </div>
                     <p class="robot-binding-security-note">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" stroke="currentColor" stroke-width="2"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                        绑定码仅保存哈希、只能使用一次，新码会使旧码立即失效
+                        <span data-i18n="auth.robotBinding.securityNote">绑定码仅保存哈希、只能使用一次，新码会使旧码立即失效</span>
                     </p>
                 </section>
 
                 <section class="robot-binding-list-section">
                     <div class="robot-binding-section-heading">
                         <div>
-                            <h3>已绑定平台账号</h3>
-                            <p>这些平台身份可使用当前用户的实时 RBAC 权限</p>
+                            <h3 data-i18n="auth.robotBinding.listTitle">已绑定平台账号</h3>
+                            <p data-i18n="auth.robotBinding.listSubtitle">这些平台身份可使用当前用户的实时 RBAC 权限</p>
                         </div>
-                        <button type="button" class="btn-secondary btn-small" onclick="loadRobotAccountBindings()">刷新</button>
+                        <button type="button" class="btn-secondary btn-small" onclick="loadRobotAccountBindings()" data-i18n="auth.robotBinding.refresh">刷新</button>
                     </div>
-                    <div id="robot-account-binding-list" class="robot-account-binding-list"><div class="robot-binding-list-loading">正在加载绑定信息…</div></div>
+                    <div id="robot-account-binding-list" class="robot-account-binding-list"><div class="robot-binding-list-loading" data-i18n="auth.robotBinding.listLoading">正在加载绑定信息…</div></div>
                 </section>
             </div>
             <div class="modal-footer robot-binding-footer">
@@ -7005,9 +7005,9 @@
                     <span class="robot-binding-service-hint-icon" aria-hidden="true">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.09a2 2 0 0 1 1 1.74v.5a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>
                     </span>
-                    <span>如需配置专用服务账号，请前往“系统设置 → 机器人设置”。</span>
+                    <span data-i18n="auth.robotBinding.serviceHint">如需配置专用服务账号，请前往“系统设置 → 机器人设置”。</span>
                 </div>
-                <button type="button" class="btn-secondary" onclick="closeRobotAccountBinding()">关闭</button>
+                <button type="button" class="btn-secondary" onclick="closeRobotAccountBinding()" data-i18n="common.close">关闭</button>
             </div>
         </div>
     </div>

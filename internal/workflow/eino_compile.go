@@ -28,7 +28,7 @@ func invokeEinoGraph(ctx context.Context, args RunArgs, runID string, workflowID
 
 	art, err := defaultEngine.getOrCompile(ctx, workflowID, version, g)
 	if err != nil {
-		return false, fmt.Errorf("编译 Eino Workflow 失败: %w", err)
+		return false, fmt.Errorf("compile Eino Workflow failed: %w", err)
 	}
 	rt.idx = art.idx
 
@@ -74,7 +74,7 @@ func extractAwaitingHITL(err error, art *compiledArtifact, runID string, args Ru
 		_ = args.DB.SetWorkflowRunAwaitingHITL(runID, nodeID, string(pendingJSON))
 	}
 	if args.Progress != nil {
-		args.Progress("workflow_hitl_waiting", fmt.Sprintf("等待人工确认：%s", label), map[string]any{
+		args.Progress("workflow_hitl_waiting", fmt.Sprintf("waiting for human approval: %s", label), map[string]any{
 			"workflowRunId": runID,
 			"nodeId":        nodeID,
 			"label":         label,
@@ -141,14 +141,14 @@ func ResumeWorkflowRun(ctx context.Context, args RunArgs, runID string, approved
 		return nil, err
 	}
 	if run == nil {
-		return nil, fmt.Errorf("工作流运行不存在")
+		return nil, fmt.Errorf("workflow run not found")
 	}
 	if run.Status != "awaiting_hitl" {
-		return nil, fmt.Errorf("工作流运行不在等待审批状态: %s", run.Status)
+		return nil, fmt.Errorf("workflow run is not awaiting approval: %s", run.Status)
 	}
 	wf, err := args.DB.GetWorkflowDefinition(run.WorkflowID)
 	if err != nil || wf == nil {
-		return nil, fmt.Errorf("工作流定义不存在")
+		return nil, fmt.Errorf("workflow definition not found")
 	}
 	graph, err := parseGraph(wf.GraphJSON)
 	if err != nil {
@@ -168,11 +168,11 @@ func ResumeWorkflowRun(ctx context.Context, args RunArgs, runID string, approved
 	if !approved {
 		errText := strings.TrimSpace(comment)
 		if errText == "" {
-			errText = "人工审批拒绝"
+			errText = "human approval rejected"
 		}
 		_ = args.DB.FinishWorkflowRun(runID, "rejected", "", errText)
 		if args.Progress != nil {
-			args.Progress("workflow_hitl_rejected", fmt.Sprintf("工作流已在审批节点「%s」被拒绝。", run.PendingHITLNodeID), map[string]interface{}{
+			args.Progress("workflow_hitl_rejected", fmt.Sprintf("Workflow rejected at approval node %q.", run.PendingHITLNodeID), map[string]interface{}{
 				"workflowRunId": runID,
 				"nodeId":        run.PendingHITLNodeID,
 				"comment":       errText,
@@ -180,13 +180,13 @@ func ResumeWorkflowRun(ctx context.Context, args RunArgs, runID string, approved
 		}
 		return &RunResult{
 			RunID:    runID,
-			Response: fmt.Sprintf("工作流已在审批节点「%s」被拒绝。", run.PendingHITLNodeID),
+			Response: fmt.Sprintf("Workflow rejected at approval node %q.", run.PendingHITLNodeID),
 			Status:   "rejected",
 		}, nil
 	}
 
 	if args.Progress != nil {
-		args.Progress("workflow_hitl_resumed", "人工审批已通过，继续执行", map[string]interface{}{
+		args.Progress("workflow_hitl_resumed", "human approval passed, resuming execution", map[string]interface{}{
 			"workflowRunId": runID,
 			"nodeId":        run.PendingHITLNodeID,
 			"comment":       strings.TrimSpace(comment),
@@ -205,7 +205,7 @@ func ResumeWorkflowRun(ctx context.Context, args RunArgs, runID string, approved
 			return &RunResult{
 				RunID:        runID,
 				Status:       "awaiting_hitl",
-				Response:     fmt.Sprintf("工作流在节点「%s」等待下一次人工确认。", err.(*AwaitingHITLError).NodeID),
+				Response:     fmt.Sprintf("Workflow is waiting for the next human confirmation at node %q.", err.(*AwaitingHITLError).NodeID),
 				AwaitingHITL: true,
 			}, nil
 		}
@@ -230,7 +230,7 @@ func ResumeWorkflowRun(ctx context.Context, args RunArgs, runID string, approved
 	response := renderWorkflowResponse(args.Role.Name, wf.Name, wf.Version, runID, state)
 	_ = args.DB.FinishWorkflowRun(runID, "completed", string(outputJSON), "")
 	if args.Progress != nil {
-		args.Progress("workflow_done", fmt.Sprintf("流程「%s」运行完成", wf.Name), map[string]interface{}{
+		args.Progress("workflow_done", fmt.Sprintf("Workflow %q run completed", wf.Name), map[string]interface{}{
 			"workflowRunId": runID,
 			"workflowId":    wf.ID,
 			"outputs":       state.Outputs,

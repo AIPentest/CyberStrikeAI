@@ -17,7 +17,7 @@ func validateBuiltinAdminUpdate(tx *sql.Tx, userID string, enabled *bool, roleID
 		return nil
 	}
 	if enabled != nil && !*enabled {
-		return errors.New("内置管理员不能停用")
+		return errors.New("the built-in administrator cannot be disabled")
 	}
 	if roleIDs != nil {
 		for _, roleID := range *roleIDs {
@@ -25,7 +25,7 @@ func validateBuiltinAdminUpdate(tx *sql.Tx, userID string, enabled *bool, roleID
 				return nil
 			}
 		}
-		return errors.New("内置管理员必须保留管理员角色")
+		return errors.New("the built-in administrator must keep the administrator role")
 	}
 	return nil
 }

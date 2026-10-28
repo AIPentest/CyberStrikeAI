@@ -141,7 +141,7 @@ func runMCPToolInvocation(
 			return ToolErrorPrefix + fmt.Sprintf(
 				"Invalid tool arguments JSON: %s\n\nPlease ensure the arguments are a valid JSON object "+
 					"(double-quoted keys, matched braces, no trailing commas) and retry.\n\n"+
-					"（工具参数 JSON 解析失败：%s。请确保 arguments 是合法的 JSON 对象并重试。）",
+					"(Failed to parse the tool arguments JSON: %s. Please ensure arguments is a valid JSON object and retry.)",
 				err.Error(), err.Error()), nil
 		}
 	}
@@ -210,5 +210,5 @@ func unknownToolReminderText(requested string) string {
 
 Please retry using only names that appear in the tool definitions for this turn (exact match, case-sensitive). Do not invent or rename tools; adjust your plan and continue.
 
-（工具 %q 未注册：请仅使用本回合上下文中给出的工具名称，须完全一致；请勿自行改写或猜测名称，并继续后续步骤。）`, requested, requested)
+(The tool %q is not registered: use only tool names given in this turn, exactly as given; do not rewrite or guess names; continue with the following steps.)`, requested, requested)
 }

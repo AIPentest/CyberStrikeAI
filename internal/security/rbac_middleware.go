@@ -25,7 +25,7 @@ func RBACMiddlewareWithDenyHook(db *database.DB, denyHook RBACDenyHook) gin.Hand
 				denyHook(c, "unmapped_route", "")
 			}
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"error": "未配置访问权限",
+				"error": "Access rights are not configured",
 			})
 			return
 		}
@@ -35,7 +35,7 @@ func RBACMiddlewareWithDenyHook(db *database.DB, denyHook RBACDenyHook) gin.Hand
 				denyHook(c, "permission_denied", permission)
 			}
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"error":      "权限不足",
+				"error":      "Insufficient permission",
 				"permission": permission,
 			})
 			return
@@ -51,7 +51,7 @@ func RBACMiddlewareWithDenyHook(db *database.DB, denyHook RBACDenyHook) gin.Hand
 			if denyHook != nil {
 				denyHook(c, "resource_denied", permission)
 			}
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "no permission to access this resource"})
 			return
 		}
 		c.Next()

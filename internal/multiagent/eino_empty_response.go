@@ -54,6 +54,9 @@ func EmptyResponseContinueBackoff(attempt int, mw *config.MultiAgentEinoMiddlewa
 
 // FormatEmptyResponseContinueUserMessage 系统自动续跑时注入的 user 轮次（不写入 messages 表气泡）。
 func FormatEmptyResponseContinueUserMessage() string {
+	// Wire marker: the 【系统自动续跑 / Auto resume】 header stays byte-identical:
+	// isSyntheticContinuationUserText / ledger collectors / resume handlers match it
+	// to keep synthetic continuation turns out of the user-intent ledger.
 	return strings.TrimSpace(`【系统自动续跑 / Auto resume】
-上一轮 Eino 会话未产出可见助手正文（可能流式中断或仅完成工具调用）。请基于已有轨迹与工具结果继续推进，并给出阶段性总结；勿重复已完成步骤。`)
+The previous Eino session produced no visible assistant text (the stream may have been interrupted, or it only completed tool calls). Continue from the existing trace and tool results, and give an interim summary; do not repeat completed steps.`)
 }

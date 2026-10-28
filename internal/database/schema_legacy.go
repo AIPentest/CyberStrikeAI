@@ -73,7 +73,7 @@ func (db *DB) migrateVulnerabilitiesConversationFK() error {
 		key := strings.ToLower(c.name)
 		if !present[key] {
 			if _, err := tx.Exec("ALTER TABLE vulnerabilities_new ADD COLUMN " + definitions[key]); err != nil {
-				return fmt.Errorf("保留漏洞额外字段 %s 失败: %w", c.name, err)
+				return fmt.Errorf("failed to retain extra vulnerability column %s: %w", c.name, err)
 			}
 		}
 		if c.hidden != 0 {
@@ -107,7 +107,7 @@ func (db *DB) migrateVulnerabilitiesConversationFK() error {
 	}
 	copyRows := "INSERT INTO vulnerabilities_new (" + strings.Join(names, ",") + ") SELECT " + strings.Join(values, ",") + " FROM vulnerabilities"
 	if _, err := tx.Exec(copyRows); err != nil {
-		return fmt.Errorf("保留漏洞数据失败: %w", err)
+		return fmt.Errorf("failed to retain vulnerability rows: %w", err)
 	}
 	if _, err := tx.Exec("DROP TABLE vulnerabilities"); err != nil {
 		return err
@@ -131,12 +131,12 @@ func (db *DB) migrateVulnerabilitiesConversationFK() error {
 		return err
 	}
 	if violation {
-		return fmt.Errorf("漏洞外键迁移校验失败，已保留原数据")
+		return fmt.Errorf("vulnerability foreign-key migration validation failed; original data was retained")
 	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	db.logger.Info("vulnerabilities 表已迁移：删除对话时保留漏洞记录", zap.Int("preserved_columns", len(oldColumns)))
+	db.logger.Info("vulnerabilities table migrated; vulnerability rows are retained when their conversation is deleted", zap.Int("preserved_columns", len(oldColumns)))
 	return nil
 }
 

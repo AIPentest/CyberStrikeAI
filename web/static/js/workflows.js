@@ -75,14 +75,14 @@
 
     const WORKFLOW_EDIT_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
     const WORKFLOW_AI_TOOL_HINTS = [
-        { keywords: ['子域名', 'subdomain', 'subfinder', 'amass'], tools: ['subfinder', 'amass'], label: '子域名发现' },
-        { keywords: ['端口', 'port', 'nmap', 'rustscan', 'masscan'], tools: ['nmap', 'rustscan', 'masscan'], label: '端口扫描' },
-        { keywords: ['漏洞', 'vuln', '漏洞扫描', 'nuclei', 'nikto', 'zap'], tools: ['nuclei', 'nikto', 'zap'], label: '漏洞扫描' },
-        { keywords: ['目录', '路径', '暴露页面', 'dir', 'ffuf', 'gobuster', 'feroxbuster'], tools: ['ffuf', 'gobuster', 'feroxbuster', 'dirsearch'], label: '暴露面探测' },
-        { keywords: ['证书', 'certificate', 'crt'], tools: ['subfinder'], label: '证书与域名线索收集' },
-        { keywords: ['云', 'cloud', '配置审计', 'prowler', 'scout'], tools: ['prowler', 'scout-suite'], label: '云配置审计' },
-        { keywords: ['容器', '镜像', 'k8s', 'kubernetes', 'trivy', 'kube'], tools: ['trivy', 'kube-bench', 'kube-hunter'], label: '容器安全检查' },
-        { keywords: ['情报', '威胁情报', 'threat', 'ioc', 'virustotal', 'shodan', 'fofa'], tools: ['virustotal_search', 'shodan_search', 'fofa_search'], label: '威胁情报收集' }
+        { keywords: ['子域名', 'subdomain', 'subfinder', 'amass'], tools: ['subfinder', 'amass'], label: 'Subdomain discovery' },
+        { keywords: ['端口', 'port', 'nmap', 'rustscan', 'masscan'], tools: ['nmap', 'rustscan', 'masscan'], label: 'Port scanning' },
+        { keywords: ['漏洞', 'vuln', '漏洞扫描', 'vulnerability', 'nuclei', 'nikto', 'zap'], tools: ['nuclei', 'nikto', 'zap'], label: 'Vulnerability scanning' },
+        { keywords: ['目录', '路径', '暴露页面', 'directory', 'path', 'exposed', 'dir', 'ffuf', 'gobuster', 'feroxbuster'], tools: ['ffuf', 'gobuster', 'feroxbuster', 'dirsearch'], label: 'Exposed-surface probing' },
+        { keywords: ['证书', 'certificate', 'crt'], tools: ['subfinder'], label: 'Certificate and domain clue collection' },
+        { keywords: ['云', 'cloud', '配置审计', 'audit', 'prowler', 'scout'], tools: ['prowler', 'scout-suite'], label: 'Cloud configuration audit' },
+        { keywords: ['容器', '镜像', 'container', 'image', 'k8s', 'kubernetes', 'trivy', 'kube'], tools: ['trivy', 'kube-bench', 'kube-hunter'], label: 'Container security check' },
+        { keywords: ['情报', '威胁情报', 'threat', 'intelligence', 'ioc', 'virustotal', 'shodan', 'fofa'], tools: ['virustotal_search', 'shodan_search', 'fofa_search'], label: 'Threat-intelligence collection' }
     ];
     const WORKFLOW_AI_HIGH_RISK_RE = /(隔离|封禁|加固|修复|执行|命令|脚本|删除|清理|阻断|封锁|攻击|利用|getshell|shell|payload|exploit|isolate|block|execute|script|delete|exploit|payload)/i;
     const WORKFLOW_AI_PROGRESS_STEPS = ['understand', 'match', 'draft', 'audit'];
@@ -1566,7 +1566,7 @@
             } : {
                 agent_mode: 'eino_single',
                 input_binding: { from: 'previous', field: 'output' },
-                instruction: capability.label + '。根据用户需求执行安全流程步骤，并输出结构化结果：' + prompt,
+                instruction: capability.label + '. Execute the security workflow step per the user requirement and output a structured result: ' + prompt,
                 output_key: 'agent_result',
                 join_strategy: 'all_merge',
                 missing_tool_candidates: capability.tool_candidates.join(', ')
@@ -1574,18 +1574,18 @@
             connect(previous, id);
             previous = id;
             if (!hasTool && capability.tool_candidates.length) {
-                assumptions.push(capability.label + ' 未匹配到已启用工具，已生成 Agent 草稿节点。');
+                assumptions.push(capability.label + ' matched no enabled tool; an Agent draft node was generated.');
             }
         });
 
         if (wantsCondition) {
-            const condition = add('condition', highRisk ? '是否需要高风险处置' : '是否满足触发条件', {
+            const condition = add('condition', highRisk ? 'Whether high-risk remediation is needed' : 'Whether the trigger condition is satisfied', {
                 expression: highRisk ? '{{previous.output}} contains "高危"' : '{{previous.output}} != ""',
                 join_strategy: 'all_merge'
             });
             connect(previous, condition);
             openConditionId = condition;
-            const report = add('output', wantsReport ? '输出报告' : wfNodeLabel('output'), {
+            const report = add('output', wantsReport ? 'Output report' : wfNodeLabel('output'), {
                 output_key: 'result',
                 source_binding: { from: 'previous', field: 'output' },
                 static_value: '',
@@ -1598,8 +1598,8 @@
         if (highRisk) {
             let insertedApproval = false;
             if (!options.allowHighRisk || wantsApproval) {
-                const approval = add('hitl', '人工审批', {
-                    prompt: '请确认是否允许继续执行高风险处置：' + prompt,
+                const approval = add('hitl', 'Human approval', {
+                    prompt: 'Please confirm whether to continue the high-risk remediation: ' + prompt,
                     prompt_binding: { from: 'previous', field: 'output' },
                     reviewer: 'human',
                     join_strategy: 'all_merge',
@@ -1610,10 +1610,10 @@
                 previous = approval;
                 insertedApproval = true;
             }
-            const action = add('agent', '执行受控处置', {
+            const action = add('agent', 'Execute controlled remediation', {
                 agent_mode: 'eino_single',
                 input_binding: { from: 'previous', field: 'output' },
-                instruction: '仅在授权范围内生成处置步骤草稿；实际执行前必须由人工确认。用户需求：' + prompt,
+                instruction: 'Draft remediation steps within the authorized scope only; actual execution must be human-confirmed first. User requirement: ' + prompt,
                 output_key: 'remediation_plan',
                 join_strategy: 'all_merge',
                 risk_level: 'high',
@@ -1623,11 +1623,11 @@
             if (previous === openConditionId) openConditionId = '';
             previous = action;
             riskWarnings.push(insertedApproval
-                ? '检测到高风险动作，已加入人工确认与 requires_human_confirmation 标记。'
-                : '检测到高风险动作，已保留为草稿并添加 requires_human_confirmation 标记。');
+                ? 'High-risk action detected; human confirmation and the requires_human_confirmation marker were added.'
+                : 'High-risk action detected; kept as a draft with the requires_human_confirmation marker added.');
         } else if (wantsApproval && !nodes.some(node => node.type === 'hitl')) {
-            const approval = add('hitl', '人工审批', {
-                prompt: '请审核工作流阶段结果：' + prompt,
+            const approval = add('hitl', 'Human approval', {
+                prompt: 'Please review the workflow stage result: ' + prompt,
                 prompt_binding: { from: 'previous', field: 'output' },
                 reviewer: 'human',
                 join_strategy: 'all_merge'
@@ -1636,7 +1636,7 @@
             previous = approval;
         }
 
-        const output = add('output', wantsReport ? '输出报告' : wfNodeLabel('output'), {
+        const output = add('output', wantsReport ? 'Output report' : wfNodeLabel('output'), {
             output_key: 'result',
             source_binding: { from: 'previous', field: 'output' },
             static_value: '',
@@ -1656,7 +1656,7 @@
         };
         if (options.allowSchedule && /(每天|每周|定时|周期|持续|daily|weekly|schedule|monitor)/i.test(prompt)) {
             graph.config.trigger_suggestion = /(每天|daily)/i.test(prompt) ? 'daily' : 'scheduled';
-            assumptions.push('已记录定时触发建议；保存后仍需在触发器或角色绑定处配置。');
+            assumptions.push('A scheduled-trigger suggestion was recorded; it still needs configuring in the trigger or role binding after saving.');
         }
         return {
             graph,
@@ -2630,6 +2630,7 @@
             WFPKG_CHECKSUM_MISMATCH: 'checksumMismatch',
             WFPKG_MULTIPLE_WORKFLOWS: 'multipleWorkflows',
             WFPKG_WORKFLOW_INVALID: 'workflowInvalid',
+            WFPKG_INSPECTION_REQUIRED: 'inspectionRequired',
             WFPKG_INSPECTION_NOT_FOUND: 'inspectionNotFound',
             WFPKG_INSPECTION_EXPIRED: 'inspectionExpired',
             WFPKG_INSPECTION_CONSUMED: 'inspectionConsumed',

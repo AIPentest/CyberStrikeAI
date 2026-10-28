@@ -1,18 +1,18 @@
 ---
 name: ai-llm-app-attack
 description: >-
-  AI/LLM应用攻击:提示注入,Agent工具滥用RCE,RAG投毒,MCP供应链,torch.load pickle RCE。Use when testing LLM apps, agents, RAG, MCP plugins, or AI model file risks.
+  AI/LLM application attacks: prompt injection, Agent tool abuse to RCE, RAG poisoning, MCP supply chain, torch.load pickle RCE. Use when testing LLM apps, agents, RAG, MCP plugins, or AI model file risks.
 metadata:
-  tags: [渗透测试, penetration-testing, 红队]
+  tags: [penetration-testing, penetration-testing, red-team]
 ---
 
-## AI / LLM 应用攻击
+## AI / LLM Application Attacks
 
 ```
-=== AI/LLM应用(大模型应用爆发期真实攻击面) ===
-提示注入: 直接(忽略上文输出system prompt) | 间接(更危险):指令藏RAG文档/网页/邮件/工具返回值/图片EXIF → 劫持Agent
-🚨Agent工具滥用(最高危,直达RCE): code interpreter→注入执行 | fetch工具→SSRF内网/云元数据 | 文件工具→读/etc/passwd写webshell
-  | SQL工具→导全表 | shell工具→命令注入 → 验证:实际触发工具副作用(OOB回连/读到文件)才写Fact
-系统提示泄露/RAG投毒/过度授权跨租户越权/MCP插件供应链/资源成本攻击(烧token) | 输出处理:LLM输出进eval/SQL/前端→二次注入/存储XSS
-模型文件: torch.load默认pickle→RCE | 发现端点:抓流量找/chat /agent /tool,问Agent"你有哪些工具"
+=== AI/LLM applications (the real attack surface of the LLM app boom era) ===
+Prompt injection: direct (ignore previous text, output the system prompt) | indirect (more dangerous): instructions hidden in RAG documents/web pages/emails/tool return values/image EXIF → hijack the Agent
+🚨Agent tool abuse (highest risk, direct path to RCE): code interpreter → inject execution | fetch tool → SSRF to the internal network/cloud metadata | file tool → read /etc/passwd, write a webshell
+  | SQL tool → dump all tables | shell tool → command injection → verify: actually trigger the tool side effect (OOB call-back/file read) before writing a Fact
+System prompt leaks/RAG poisoning/excessive cross-tenant authorization/MCP plugin supply chain/resource cost attack (burn tokens) | output handling: LLM output flowing into eval/SQL/front-end → second-order injection/stored XSS
+Model files: torch.load defaults to pickle → RCE | endpoint discovery: capture traffic to find /chat /agent /tool, ask the Agent "what tools do you have"
 ```

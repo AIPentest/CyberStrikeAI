@@ -1,4 +1,4 @@
-// 运行空间占用统计与垃圾清理（系统设置 -> 存储清理）
+﻿// 运行空间占用统计与垃圾清理（系统设置 -> 存储清理）
 //
 // 数据来源：
 //   GET  /api/storage/meta    清理策略与类别元信息
@@ -159,7 +159,7 @@
                     reclaimParts.push(st('settingsStorage.skippedActive', '跳过活跃') + ' ' + s.skipped_active);
                 }
             }
-            var retentionTitle = st('settingsStorage.defaultRetention', '默认') + ' '
+            var retentionTitle = st('settingsStorage.defaultRetention', 'Default') + ' '
                 + (m.default_retention != null ? m.default_retention : '-') + ' '
                 + st('settingsStorage.daysUnit', '天');
             return '<tr class="' + (m.enabled ? '' : 'storage-row--disabled') + '">'

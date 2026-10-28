@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 项目管理与事实黑板
  */
 let projectsCache = [];
@@ -315,7 +315,9 @@ function isSparseFactBody(category, factKey, body) {
     if (!text) return true;
     const lower = text.toLowerCase();
     const hasSteps =
+        lower.includes('attack chain') ||
         lower.includes('攻击链') ||
+        lower.includes('## attack') ||
         lower.includes('## 攻击') ||
         lower.includes('## exploit') ||
         lower.includes('## poc');
@@ -325,7 +327,12 @@ function isSparseFactBody(category, factKey, body) {
         lower.includes('curl ') ||
         lower.includes('get ') ||
         lower.includes('post ');
-    const hasReq = lower.includes('请求') || lower.includes('响应') || lower.includes('payload');
+    const hasReq =
+        lower.includes('request') ||
+        lower.includes('response') ||
+        lower.includes('请求') ||
+        lower.includes('响应') ||
+        lower.includes('payload');
     return !(hasSteps || hasHTTP || hasReq);
 }
 
@@ -3068,7 +3075,7 @@ function getProjectConversationModeLabel(conversation) {
     };
     if (labels[mode]) return tpFmt(labels[mode][0], labels[mode][1]);
     return clampProjectPreviewText(
-        conversation?.roleName || conversation?.role_name || pickerMessage(tp, 'chat.conversationPreviewDefaultMode', '默认'),
+        conversation?.roleName || conversation?.role_name || pickerMessage(tp, 'chat.conversationPreviewDefaultMode', 'Default'),
         80
     );
 }

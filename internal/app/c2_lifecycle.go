@@ -79,7 +79,7 @@ func (a *App) ReconcileC2AfterConfigApply() error {
 	if a.c2Handler != nil {
 		a.c2Handler.SetManager(m)
 	}
-	a.logger.Info("C2 子系统已按配置启动")
+	a.logger.Info("C2 subsystem started per configuration")
 	return nil
 }
 
@@ -99,6 +99,6 @@ func (a *App) shutdownC2() {
 		a.c2Handler.SetManager(nil)
 	}
 	if had {
-		a.logger.Info("C2 子系统已关闭")
+		a.logger.Info("C2 subsystem shut down")
 	}
 }

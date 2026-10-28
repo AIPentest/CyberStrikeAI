@@ -184,7 +184,7 @@ CyberStrikeAI 将规划、执行、人工监督、证据与复盘连接在同一
 
 </details>
 
-工具定义、自定义方式与使用说明见 [tools/README.md](tools/README.md)。
+工具定义、自定义方式与使用说明见 [tools/README_CN.md](tools/README_CN.md)（English version: [tools/README.md](tools/README.md)）。
 
 ## 基础使用
 

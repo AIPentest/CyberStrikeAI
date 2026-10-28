@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"context"
 	"net/http"
 	"sync"
@@ -38,7 +39,7 @@ func (h *AttackChainHandler) UpdateConfig(cfg *config.OpenAIConfig) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.openAIConfig = cfg
-	h.logger.Info("AttackChainHandler配置已更新",
+	h.logger.Info("AttackChainHandler configuration updated",
 		zap.String("base_url", cfg.BaseURL),
 		zap.String("model", cfg.Model),
 	)
@@ -56,15 +57,15 @@ func (h *AttackChainHandler) getOpenAIConfig() *config.OpenAIConfig {
 func (h *AttackChainHandler) GetAttackChain(c *gin.Context) {
 	conversationID := c.Param("conversationId")
 	if conversationID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "conversationId is required"})
+		respondError(c, http.StatusBadRequest, "conversationId 必填", "conversationId is required")
 		return
 	}
 
 	// 检查对话是否存在
 	_, err := h.db.GetConversation(conversationID)
 	if err != nil {
-		h.logger.Warn("对话不存在", zap.String("conversationId", conversationID), zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": "对话不存在"})
+		h.logger.Warn("conversation does not exist", zap.String("conversationId", conversationID), zap.Error(err))
+		respondError(c, http.StatusNotFound, "对话不存在", "conversation not found")
 		return
 	}
 
@@ -74,7 +75,7 @@ func (h *AttackChainHandler) GetAttackChain(c *gin.Context) {
 	chain, err := builder.LoadCachedChainIfPresent(conversationID)
 	if err == nil && chain != nil {
 		// 如果已存在，直接返回
-		h.logger.Info("返回已存在的攻击链", zap.String("conversationId", conversationID))
+		h.logger.Info("returning existing attack chain", zap.String("conversationId", conversationID))
 		c.JSON(http.StatusOK, chain)
 		return
 	}
@@ -87,8 +88,8 @@ func (h *AttackChainHandler) GetAttackChain(c *gin.Context) {
 	// 尝试获取锁，如果正在生成则返回错误
 	acquired := lock.TryLock()
 	if !acquired {
-		h.logger.Info("攻击链正在生成中，请稍后再试", zap.String("conversationId", conversationID))
-		c.JSON(http.StatusConflict, gin.H{"error": "攻击链正在生成中，请稍后再试"})
+		h.logger.Info("attack chain is being generated, please wait", zap.String("conversationId", conversationID))
+		respondError(c, http.StatusConflict, "攻击链正在生成中，请稍后再试", "attack chain is being generated; try again later")
 		return
 	}
 	defer lock.Unlock()
@@ -96,20 +97,20 @@ func (h *AttackChainHandler) GetAttackChain(c *gin.Context) {
 	// 再次检查是否已生成（可能在等待锁的过程中已经生成完成）
 	chain, err = builder.LoadCachedChainIfPresent(conversationID)
 	if err == nil && chain != nil {
-		h.logger.Info("返回已存在的攻击链（在锁等待期间已生成）", zap.String("conversationId", conversationID))
+		h.logger.Info("returning existing attack chain (generated while waiting for the lock)", zap.String("conversationId", conversationID))
 		c.JSON(http.StatusOK, chain)
 		return
 	}
 
-	h.logger.Info("开始生成攻击链", zap.String("conversationId", conversationID))
+	h.logger.Info("starting attack chain generation", zap.String("conversationId", conversationID))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	chain, err = builder.BuildChainFromConversation(ctx, conversationID)
 	if err != nil {
-		h.logger.Error("生成攻击链失败", zap.String("conversationId", conversationID), zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成攻击链失败: " + err.Error()})
+		h.logger.Error("failed to generate attack chain", zap.String("conversationId", conversationID), zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "生成攻击链失败: %s", "failed to generate attack chain: %s"), err.Error())})
 		return
 	}
 
@@ -124,15 +125,15 @@ func (h *AttackChainHandler) GetAttackChain(c *gin.Context) {
 func (h *AttackChainHandler) RegenerateAttackChain(c *gin.Context) {
 	conversationID := c.Param("conversationId")
 	if conversationID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "conversationId is required"})
+		respondError(c, http.StatusBadRequest, "conversationId 必填", "conversationId is required")
 		return
 	}
 
 	// 检查对话是否存在
 	_, err := h.db.GetConversation(conversationID)
 	if err != nil {
-		h.logger.Warn("对话不存在", zap.String("conversationId", conversationID), zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": "对话不存在"})
+		h.logger.Warn("conversation does not exist", zap.String("conversationId", conversationID), zap.Error(err))
+		respondError(c, http.StatusNotFound, "对话不存在", "conversation not found")
 		return
 	}
 
@@ -142,19 +143,19 @@ func (h *AttackChainHandler) RegenerateAttackChain(c *gin.Context) {
 
 	acquired := lock.TryLock()
 	if !acquired {
-		h.logger.Info("攻击链正在生成中，请稍后再试", zap.String("conversationId", conversationID))
-		c.JSON(http.StatusConflict, gin.H{"error": "攻击链正在生成中，请稍后再试"})
+		h.logger.Info("attack chain is being generated, please wait", zap.String("conversationId", conversationID))
+		respondError(c, http.StatusConflict, "攻击链正在生成中，请稍后再试", "attack chain is being generated; try again later")
 		return
 	}
 	defer lock.Unlock()
 
 	// 只有持锁的生成请求可以删除旧图；返回 409 的请求不得修改缓存。
 	if err := h.db.DeleteAttackChain(conversationID); err != nil {
-		h.logger.Warn("删除旧攻击链失败", zap.Error(err))
+		h.logger.Warn("failed to delete old attack chain", zap.Error(err))
 	}
 
 	// 生成新的攻击链
-	h.logger.Info("重新生成攻击链", zap.String("conversationId", conversationID))
+	h.logger.Info("regenerating attack chain", zap.String("conversationId", conversationID))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -163,8 +164,8 @@ func (h *AttackChainHandler) RegenerateAttackChain(c *gin.Context) {
 	builder := attackchain.NewBuilder(h.db, openAIConfig, h.logger)
 	chain, err := builder.BuildChainFromConversation(ctx, conversationID)
 	if err != nil {
-		h.logger.Error("生成攻击链失败", zap.String("conversationId", conversationID), zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成攻击链失败: " + err.Error()})
+		h.logger.Error("failed to generate attack chain", zap.String("conversationId", conversationID), zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "生成攻击链失败: %s", "failed to generate attack chain: %s"), err.Error())})
 		return
 	}
 

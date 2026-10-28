@@ -69,7 +69,7 @@ func TestEinoCheckpointResumeHandlerResumesExistingCheckpoint(t *testing.T) {
 	if resumedID != "cp-1" {
 		t.Fatalf("resumed id = %q", resumedID)
 	}
-	if len(progressMessages) != 1 || progressMessages[0] != "检测到断点，正在从中断节点恢复执行..." {
+	if len(progressMessages) != 1 || progressMessages[0] != "Checkpoint detected; resuming execution from the interrupted node..." {
 		t.Fatalf("progress messages = %#v", progressMessages)
 	}
 	if logs.FilterMessage("eino runner: resume from checkpoint").Len() != 1 {
@@ -105,7 +105,7 @@ func TestEinoCheckpointResumeHandlerFallsBackOnResumeError(t *testing.T) {
 	if iter := handler.TryResume(); iter != nil {
 		t.Fatalf("iter = %#v, want nil fallback", iter)
 	}
-	if len(progressMessages) != 2 || progressMessages[1] != "断点恢复失败，已回退为全新执行。" {
+	if len(progressMessages) != 2 || progressMessages[1] != "Checkpoint resume failed; fell back to a fresh run." {
 		t.Fatalf("progress messages = %#v", progressMessages)
 	}
 	if logs.FilterMessage("eino runner: resume failed, fallback to fresh run").Len() != 1 {

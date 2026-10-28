@@ -1,71 +1,71 @@
 name: "bloodhound"
 command: "bloodhound-python"
 enabled: true
-short_description: "Active Directory 攻击路径分析和可视化工具"
+short_description: "Active Directory attack path analysis and visualization tool"
 description: |
-  BloodHound 是一个 Active Directory 攻击路径分析和可视化工具，通过收集域内信息并分析攻击路径。
+  BloodHound is an Active Directory attack path analysis and visualization tool that collects information within the domain and analyzes attack paths.
 
-  **主要功能：**
-  - 域信息收集
-  - 攻击路径分析
-  - 权限关系可视化
-  - 最短攻击路径计算
-  - 高风险路径识别
+  **Main features:**
+  - Domain information gathering
+  - Attack path analysis
+  - Permission relationship visualization
+  - Shortest attack path calculation
+  - High-risk path identification
 
-  **使用场景：**
-  - Active Directory 安全评估
-  - 后渗透测试
-  - 域环境审计
-  - 红队演练
+  **Use cases:**
+  - Active Directory security assessment
+  - Post-exploitation testing
+  - Domain environment auditing
+  - Red team exercises
 
-  **注意事项：**
-  - 需要域用户凭据
-  - 需要 Neo4j 数据库支持
-  - 收集过程可能需要较长时间
-  - 建议在授权环境中使用
+  **Notes:**
+  - Domain user credentials required
+  - A Neo4j database is required for support
+  - The collection process can take a long time
+  - Recommended for use in authorized environments
 parameters:
   - name: "domain"
     type: "string"
-    description: "目标域名"
+    description: "Target domain"
     required: false
     flag: "-d"
     format: "flag"
   - name: "username"
     type: "string"
-    description: "域用户名"
+    description: "Domain username"
     required: false
     flag: "-u"
     format: "flag"
   - name: "password"
     type: "string"
-    description: "域用户密码"
+    description: "Domain user password"
     required: false
     flag: "-p"
     format: "flag"
   - name: "collection_method"
     type: "string"
-    description: "收集模式 (All, ACL, DCOM, LocalAdmin, RDP 等)"
+    description: "Collection method (All, ACL, DCOM, LocalAdmin, RDP, etc.)"
     required: false
     default: "All"
     flag: "-c"
     format: "flag"
   - name: "dc"
     type: "string"
-    description: "域控制器 IP 地址"
+    description: "Domain controller IP address"
     required: false
     flag: "-dc"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的bloodhound参数。用于传递未在参数列表中定义的bloodhound选项。
+      Additional bloodhound arguments. Used to pass bloodhound options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

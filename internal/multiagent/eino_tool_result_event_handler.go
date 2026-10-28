@@ -45,7 +45,7 @@ func (h *einoToolResultEventHandler) HandleStreaming(mv *adk.MessageVariant, age
 	defaultName := strings.TrimSpace(mv.ToolName)
 	msgs, recvErr := recvSchemaToolResultMessages(h.ctx, mv.MessageStream)
 	if isEinoVoluntaryCancelErr(recvErr) && len(msgs) == 0 {
-		msgs = []*schema.Message{schema.ToolMessage("已中断并继续，当前工具调用已停止。", "", schema.WithToolName(defaultName))}
+		msgs = []*schema.Message{schema.ToolMessage("Interrupted and continued; the current tool call was stopped.", "", schema.WithToolName(defaultName))}
 	}
 	if len(msgs) == 0 {
 		msgs = []*schema.Message{schema.ToolMessage("", "", schema.WithToolName(defaultName))}
@@ -60,7 +60,7 @@ func (h *einoToolResultEventHandler) HandleStreaming(mv *adk.MessageVariant, age
 		}
 		content := msg.Content
 		if isEinoVoluntaryCancelErr(recvErr) && strings.TrimSpace(content) == "" {
-			content = "已中断并继续，当前工具调用已停止。"
+			content = "Interrupted and continued; the current tool call was stopped."
 		}
 		isErr := einoToolResultIsError(toolName, content) || isEinoVoluntaryCancelErr(recvErr)
 		content = einoToolResultBody(content)

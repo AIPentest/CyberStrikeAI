@@ -162,10 +162,10 @@ func (db *DB) BootstrapRBAC(adminPasswordHash string, permissions map[string]str
 	}
 
 	systemRoles := []RBACRole{
-		{ID: RBACSystemRoleAdmin, Name: "管理员", Description: "全局管理权限", Scope: RBACScopeAll, IsSystem: true},
-		{ID: RBACSystemRoleOperator, Name: "操作员", Description: "可执行日常安全工作流，不能管理账号与核心配置", Scope: RBACScopeAssigned, IsSystem: true},
-		{ID: RBACSystemRoleAuditor, Name: "审计员", Description: "只读查看审计、监控与资产", Scope: RBACScopeAll, IsSystem: true},
-		{ID: RBACSystemRoleViewer, Name: "只读用户", Description: "只读查看被授权资源", Scope: RBACScopeAssigned, IsSystem: true},
+		{ID: RBACSystemRoleAdmin, Name: "Administrator", Description: "Full platform administration access", Scope: RBACScopeAll, IsSystem: true},
+		{ID: RBACSystemRoleOperator, Name: "Operator", Description: "Run daily security workflows; cannot manage accounts or core configuration", Scope: RBACScopeAssigned, IsSystem: true},
+		{ID: RBACSystemRoleAuditor, Name: "Auditor", Description: "Read-only view of audits, monitoring, and assets", Scope: RBACScopeAll, IsSystem: true},
+		{ID: RBACSystemRoleViewer, Name: "Read-only User", Description: "Read-only view of explicitly granted resources", Scope: RBACScopeAssigned, IsSystem: true},
 	}
 	for _, role := range systemRoles {
 		if _, err := tx.Exec(`
@@ -187,7 +187,7 @@ func (db *DB) BootstrapRBAC(adminPasswordHash string, permissions map[string]str
 		}
 		if _, err := tx.Exec(`
 			INSERT INTO rbac_users (id, username, display_name, password_hash, enabled, is_builtin, created_at, updated_at)
-			VALUES (?, 'admin', '管理员', ?, 1, 1, ?, ?)
+			VALUES (?, 'admin', 'Administrator', ?, 1, 1, ?, ?)
 		`, "admin", adminPasswordHash, now, now); err != nil {
 			return err
 		}
@@ -582,7 +582,7 @@ func (db *DB) ListAssignableRBACResources(resourceType, search string, limit int
 func (db *DB) ListAssignableRBACResourcesPage(resourceType, search string, limit, offset int) ([]RBACResourceOption, error) {
 	resourceType = strings.TrimSpace(resourceType)
 	if _, ok := rbacAssignableResourceTables[resourceType]; !ok {
-		return nil, fmt.Errorf("不支持的资源类型: %s", resourceType)
+		return nil, fmt.Errorf("unsupported resource type: %s", resourceType)
 	}
 	if limit <= 0 || limit > 100 {
 		limit = 50
@@ -603,7 +603,9 @@ func (db *DB) ListAssignableRBACResourcesPage(resourceType, search string, limit
 			WHERE LOWER(name) LIKE ? ESCAPE '\' OR LOWER(id) LIKE ? ESCAPE '\'
 			ORDER BY updated_at DESC LIMIT ? OFFSET ?`
 	case "conversation":
-		query = `SELECT id, COALESCE(NULLIF(TRIM(title), ''), '未命名对话'), COALESCE(project_id, '') FROM conversations
+		// '未命名对话' is the legacy Chinese label for untitled conversations
+		// stored in old rows; keep byte-identical and dual-accept with 'Untitled conversation'.
+		query = `SELECT id, CASE WHEN TRIM(title) = '' THEN '未命名对话' ELSE title END, COALESCE(project_id, '') FROM conversations
 			WHERE LOWER(COALESCE(NULLIF(TRIM(title), ''), id)) LIKE ? ESCAPE '\' OR LOWER(id) LIKE ? ESCAPE '\'
 			ORDER BY updated_at DESC LIMIT ? OFFSET ?`
 	case "vulnerability":
@@ -654,7 +656,7 @@ func (db *DB) ListAssignableRBACResourcesPage(resourceType, search string, limit
 func (db *DB) CountAssignableRBACResources(resourceType, search string) (int, error) {
 	resourceType = strings.TrimSpace(resourceType)
 	if _, ok := rbacAssignableResourceTables[resourceType]; !ok {
-		return 0, fmt.Errorf("不支持的资源类型: %s", resourceType)
+		return 0, fmt.Errorf("unsupported resource type: %s", resourceType)
 	}
 	pattern := "%" + strings.ToLower(strings.NewReplacer(
 		`\`, `\\`, `%`, `\%`, `_`, `\_`,
@@ -690,7 +692,7 @@ func (db *DB) CountAssignableRBACResources(resourceType, search string) (int, er
 func normalizeRBACResourceLabel(label, id string) string {
 	label = strings.TrimSpace(label)
 	if label == "" {
-		return "资源 " + shortRBACResourceID(id)
+		return "Resource " + shortRBACResourceID(id)
 	}
 	if isWeakRBACResourceLabel(label) {
 		return label + " · " + shortRBACResourceID(id)
@@ -727,7 +729,7 @@ func shortRBACResourceID(id string) string {
 func (db *DB) lookupRBACResourceOptionsByIDs(resourceType string, ids []string) (map[string]RBACResourceOption, error) {
 	resourceType = strings.TrimSpace(resourceType)
 	if _, ok := rbacAssignableResourceTables[resourceType]; !ok {
-		return nil, fmt.Errorf("不支持的资源类型: %s", resourceType)
+		return nil, fmt.Errorf("unsupported resource type: %s", resourceType)
 	}
 	unique := make([]string, 0, len(ids))
 	seen := make(map[string]struct{}, len(ids))
@@ -758,7 +760,9 @@ func (db *DB) lookupRBACResourceOptionsByIDs(resourceType string, ids []string) 
 	case "project":
 		query = `SELECT id, name, status FROM projects WHERE id IN (` + placeholders + `)`
 	case "conversation":
-		query = `SELECT id, COALESCE(NULLIF(TRIM(title), ''), '未命名对话'), COALESCE(project_id, '') FROM conversations WHERE id IN (` + placeholders + `)`
+		// '未命名对话' is the legacy Chinese label for untitled conversations
+		// stored in old rows; keep byte-identical and dual-accept with 'Untitled conversation'.
+		query = `SELECT id, CASE WHEN TRIM(title) = '' THEN '未命名对话' ELSE title END, COALESCE(project_id, '') FROM conversations WHERE id IN (` + placeholders + `)`
 	case "vulnerability":
 		query = `SELECT id, title, severity FROM vulnerabilities WHERE id IN (` + placeholders + `)`
 	case "asset":
@@ -827,11 +831,11 @@ func (db *DB) AssignResourcesToUser(userID, resourceType string, resourceIDs []s
 		return 0, errors.New("user_id, resource_type and resource_ids are required")
 	}
 	if len(resourceIDs) > RBACMaxBatchResourceAssignments {
-		return 0, fmt.Errorf("一次最多授权 %d 个资源", RBACMaxBatchResourceAssignments)
+		return 0, fmt.Errorf("at most %d resources may be authorized at once", RBACMaxBatchResourceAssignments)
 	}
 	table, ok := rbacAssignableResourceTables[resourceType]
 	if !ok {
-		return 0, fmt.Errorf("不支持的资源类型: %s", resourceType)
+		return 0, fmt.Errorf("unsupported resource type: %s", resourceType)
 	}
 
 	uniqueIDs := make([]string, 0, len(resourceIDs))
@@ -839,7 +843,7 @@ func (db *DB) AssignResourcesToUser(userID, resourceType string, resourceIDs []s
 	for _, rawID := range resourceIDs {
 		id := strings.TrimSpace(rawID)
 		if id == "" {
-			return 0, errors.New("资源 ID 不能为空")
+			return 0, errors.New("resource id is required")
 		}
 		if _, exists := seen[id]; exists {
 			continue
@@ -848,7 +852,7 @@ func (db *DB) AssignResourcesToUser(userID, resourceType string, resourceIDs []s
 		uniqueIDs = append(uniqueIDs, id)
 	}
 	if len(uniqueIDs) == 0 {
-		return 0, errors.New("资源 ID 不能为空")
+		return 0, errors.New("resource id is required")
 	}
 
 	tx, err := db.Begin()
@@ -862,7 +866,7 @@ func (db *DB) AssignResourcesToUser(userID, resourceType string, resourceIDs []s
 		return 0, err
 	}
 	if userExists == 0 {
-		return 0, errors.New("用户不存在")
+		return 0, errors.New("user not found")
 	}
 	for _, resourceID := range uniqueIDs {
 		var exists int
@@ -870,7 +874,7 @@ func (db *DB) AssignResourcesToUser(userID, resourceType string, resourceIDs []s
 			return 0, err
 		}
 		if exists == 0 {
-			return 0, fmt.Errorf("资源不存在: %s/%s", resourceType, resourceID)
+			return 0, fmt.Errorf("resource not found: %s/%s", resourceType, resourceID)
 		}
 	}
 
@@ -901,14 +905,14 @@ func (db *DB) AssignResourcesToUserAuto(userID string, resourceIDs []string) (in
 		return 0, nil, errors.New("user_id and resource_ids are required")
 	}
 	if len(resourceIDs) > RBACMaxBatchResourceAssignments {
-		return 0, nil, fmt.Errorf("一次最多授权 %d 个资源", RBACMaxBatchResourceAssignments)
+		return 0, nil, fmt.Errorf("at most %d resources may be authorized at once", RBACMaxBatchResourceAssignments)
 	}
 	uniqueIDs := make([]string, 0, len(resourceIDs))
 	seen := make(map[string]struct{}, len(resourceIDs))
 	for _, rawID := range resourceIDs {
 		id := strings.TrimSpace(rawID)
 		if id == "" {
-			return 0, nil, errors.New("资源 ID 不能为空")
+			return 0, nil, errors.New("resource id is required")
 		}
 		if _, exists := seen[id]; exists {
 			continue
@@ -927,7 +931,7 @@ func (db *DB) AssignResourcesToUserAuto(userID string, resourceIDs []string) (in
 		return 0, nil, err
 	}
 	if userExists == 0 {
-		return 0, nil, errors.New("用户不存在")
+		return 0, nil, errors.New("user not found")
 	}
 
 	typeTablePairs := []struct{ resourceType, table string }{
@@ -945,13 +949,13 @@ func (db *DB) AssignResourcesToUserAuto(userID string, resourceIDs []string) (in
 			}
 			if exists > 0 {
 				if previous := detected[resourceID]; previous != "" {
-					return 0, nil, fmt.Errorf("资源 ID 同时匹配多个类型: %s (%s, %s)", resourceID, previous, pair.resourceType)
+					return 0, nil, fmt.Errorf("resource id matches multiple types: %s (%s, %s)", resourceID, previous, pair.resourceType)
 				}
 				detected[resourceID] = pair.resourceType
 			}
 		}
 		if detected[resourceID] == "" {
-			return 0, nil, fmt.Errorf("资源不存在: %s", resourceID)
+			return 0, nil, fmt.Errorf("resource not found: %s", resourceID)
 		}
 	}
 
@@ -1292,7 +1296,7 @@ func (db *DB) DeleteRBACResourceAssignmentWithDetails(id string) (*RBACResourceA
 		WHERE id = ?
 	`, id).Scan(&row.ID, &row.UserID, &row.ResourceType, &row.ResourceID, &createdAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, errors.New("资源授权不存在或已撤销")
+		return nil, errors.New("resource assignment not found or already revoked")
 	}
 	if err != nil {
 		return nil, err
@@ -1306,7 +1310,7 @@ func (db *DB) DeleteRBACResourceAssignmentWithDetails(id string) (*RBACResourceA
 	if affected, rowsErr := result.RowsAffected(); rowsErr != nil {
 		return nil, rowsErr
 	} else if affected != 1 {
-		return nil, errors.New("资源授权不存在或已撤销")
+		return nil, errors.New("resource assignment not found or already revoked")
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err

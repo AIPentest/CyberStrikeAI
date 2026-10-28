@@ -26,7 +26,7 @@ func AuthMiddleware(manager *AuthManager) gin.HandlerFunc {
 		session, ok := manager.ValidateToken(token)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": "未授权访问，请先登录",
+				"error": "Unauthorized access; please log in first",
 			})
 			return
 		}
@@ -54,7 +54,7 @@ func RequirePermission(permission string) gin.HandlerFunc {
 			return
 		}
 		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-			"error":      "权限不足",
+			"error":      "Insufficient permission",
 			"permission": permission,
 		})
 	}
@@ -69,7 +69,7 @@ func RequireAnyPermission(permissions ...string) gin.HandlerFunc {
 			}
 		}
 		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-			"error":       "权限不足",
+			"error":       "Insufficient permission",
 			"permissions": permissions,
 		})
 	}
@@ -79,24 +79,24 @@ func RequireResourcePermission(db *database.DB, permission, resourceType, paramN
 	return func(c *gin.Context) {
 		if !SessionHasPermission(c, permission) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"error":      "权限不足",
+				"error":      "Insufficient permission",
 				"permission": permission,
 			})
 			return
 		}
 		if db == nil {
-			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "资源鉴权服务不可用"})
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "The resource authorization service is unavailable"})
 			return
 		}
 		resourceID := strings.TrimSpace(c.Param(paramName))
 		if resourceID == "" {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "资源 ID 不能为空"})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "The resource ID must not be empty"})
 			return
 		}
 		session, ok := CurrentSession(c)
 		if !ok || !db.UserCanAccessResource(session.UserID, session.Scope, resourceType, resourceID) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"error":         "无权访问该资源",
+				"error":         "No access to this resource",
 				"resource_type": resourceType,
 				"resource_id":   resourceID,
 			})

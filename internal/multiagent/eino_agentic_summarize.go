@@ -31,7 +31,7 @@ func newEinoAgenticSummarizationMiddleware(
 	memoryScopes ...string,
 ) (adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage], error) {
 	if summaryModel == nil || appCfg == nil {
-		return nil, fmt.Errorf("multiagent: agentic summarization 需要 model 与配置")
+		return nil, fmt.Errorf("multiagent: agentic summarization requires model and config")
 	}
 	maxTotal := appCfg.OpenAI.MaxTotalTokens
 	if maxTotal <= 0 {
@@ -122,7 +122,7 @@ func newEinoAgenticSummarizationMiddleware(
 			classicOriginal := AgenticMessagesToEino(originalMsgs)
 			if transcriptPath != "" && len(classicOriginal) > 0 {
 				if werr := writeSummarizationTranscript(transcriptPath, classicOriginal); werr != nil && logger != nil {
-					logger.Warn("eino agentic summarization transcript preflight 写入失败",
+					logger.Warn("eino agentic summarization transcript preflight write failed",
 						zap.String("path", transcriptPath), zap.Error(werr))
 				}
 			}
@@ -225,7 +225,7 @@ func newEinoAgenticSummarizationMiddleware(
 			classicAfter := AgenticMessagesToEino(after.Messages)
 			if transcriptPath != "" && len(classicBefore) > 0 {
 				if werr := writeSummarizationTranscript(transcriptPath, classicBefore); werr != nil && logger != nil {
-					logger.Warn("eino agentic summarization transcript 写入失败",
+					logger.Warn("eino agentic summarization transcript write failed",
 						zap.String("path", transcriptPath),
 						zap.Error(werr),
 					)
@@ -234,7 +234,7 @@ func newEinoAgenticSummarizationMiddleware(
 			if logger != nil {
 				beforeTokens, _ := classicTokenCounter(ctx, &summarization.TokenCounterInput{Messages: classicBefore})
 				afterTokens, _ := classicTokenCounter(ctx, &summarization.TokenCounterInput{Messages: classicAfter})
-				logger.Info("eino agentic summarization 已压缩上下文",
+				logger.Info("eino agentic summarization compacted context",
 					zap.Int("messages_before", len(before.Messages)),
 					zap.Int("messages_after", len(after.Messages)),
 					zap.Int("tokens_before_estimated", beforeTokens),

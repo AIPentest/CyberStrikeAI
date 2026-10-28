@@ -186,7 +186,7 @@ func TestWaitToolExecutionTimeoutIsObservationNotFailure(t *testing.T) {
 		t.Fatalf("wait timeout should be a successful observation, got %#v", waitResult)
 	}
 	body := ToolResultPlainText(waitResult)
-	if !strings.Contains(body, `"status": "running"`) || !strings.Contains(body, "本次等待已到达") {
+	if !strings.Contains(body, `"status": "running"`) || !strings.Contains(body, "This wait reached timeout_seconds") {
 		t.Fatalf("wait timeout body missing running status/guidance: %s", body)
 	}
 	close(release)

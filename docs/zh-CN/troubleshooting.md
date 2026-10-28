@@ -94,7 +94,7 @@ proxy_http_version 1.1;
 - 是否超过 `agent.tool_timeout_minutes`。
 - Shell 长时间无输出是否触发 `shell_no_output_timeout_seconds`。
 
-工具配置可参考 `tools/README.md`。
+工具配置可参考 `tools/README_CN.md`（English: `tools/README.md`）。
 
 ## MCP 连不上
 

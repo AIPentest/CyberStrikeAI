@@ -240,6 +240,14 @@ function rbacNotify(message, type = 'info') {
 }
 
 function rbacUserDisplayName(user) {
+    // 内置 admin 账号种子 display_name（rbac.go 190）；仅与种子值精确匹配时按 UI 语言翻译。
+    if (user && user.id === 'admin') {
+        const raw = String(user.displayName || user.display_name || '').trim();
+        if (raw === '管理员') {
+            const translated = rbacT('rbac.builtinAdminDisplayName', '');
+            if (translated) return translated;
+        }
+    }
     return (user && (user.displayName || user.display_name || user.username)) || '';
 }
 

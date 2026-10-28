@@ -1,0 +1,5 @@
+{
+  "storage": { "cleanup": ["Runtime storage garbage cleaned", "清理运行空间垃圾"] },
+  "task": { "run_single_batch_task": ["Single batch subtask executed", "单条执行批量子任务"] },
+  "vulnerability": { "alert_subscription_update": ["Vulnerability alert subscription updated", "更新漏洞提醒订阅"] }
+}

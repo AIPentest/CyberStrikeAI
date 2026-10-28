@@ -4,29 +4,29 @@
 
 ### Added
 
-- 新增单代理与多代理异步对话 API：接收后返回任务回执，客户端断线不停止执行；支持按用户隔离的幂等提交、持久状态与结果查询、显式取消以及服务重启后的中断状态。同步接口保持兼容。
+- Added async conversation APIs for single-agent and multi-agent: requests return a task receipt on acceptance, and client disconnects do not stop execution; supports per-user isolated idempotent submission, persistent state and result queries, explicit cancellation, and interrupted-state recovery after service restarts. Synchronous interfaces remain compatible.
 
-- 启动时以统一最新 SQLite 定义自动检查全部项目管理表，缺表建表、缺字段补字段，无需维护逐字段迁移列表；保留已有数据和额外表/字段，结构补齐失败回滚并阻止启动。HITL 与通知表纳入统一初始化，历史漏洞外键迁移保留额外列、索引、触发器及依赖记录。
+- At startup, all project management tables are checked automatically against the unified latest SQLite schema: missing tables are created and missing columns added, with no per-column migration list to maintain; existing data and extra tables/columns are preserved; a failed structural repair rolls back and blocks startup. HITL and notification tables are included in the unified initialization, and the historical vulnerability foreign-key migration preserves extra columns, indexes, triggers, and dependent records.
 
 ### Fixed
 
-- 修复已知支持 `none` 的官方 OpenAI 模型在关闭推理后仍使用服务端默认推理的问题（#366）：按提供商、端点和模型发送并保留显式关闭参数，覆盖 Planner 和强制工具选择；保留 DeepSeek 与第三方兼容网关行为，并明确提示需要 Responses 的工具调用限制。
+- Fixed official OpenAI models known to support `none` still applying server-side default reasoning after reasoning was disabled (#366): the explicit disable parameter is now sent and preserved per provider, endpoint, and model, covering the Planner and forced tool choice; DeepSeek and third-party compatible-gateway behavior is preserved, and the tool-calling limitation that requires Responses is now clearly noted.
 
-- 防止内置管理员失权：拒绝停用内置 `admin` 或移除其系统管理员角色，失败时保留原资料、权限和会话；界面同步禁用对应操作。
+- Prevented the built-in admin from losing privileges: deactivating the built-in `admin` or removing its system administrator role is rejected, and on failure the original profile, permissions, and sessions are preserved; the UI disables the corresponding actions accordingly.
 
-- 修复资产管理信息收集向 FOFA 默认请求不支持的 `province` 返回字段导致查询失败的问题，统一使用 `region`；兼容旧表单/API 字段别名，保留导入资产的省份，并修正情报字段预设为 `asn/org`。
+- Fixed asset-management intelligence collection failing because the default FOFA request does not support the `province` return field; `region` is now used uniformly; legacy form/API field aliases remain compatible, imported assets keep their province, and the intelligence field default is corrected to `asn/org`.
 
-- 修复单代理、多代理、角色工作流和批量任务将下层调用超时误判为整任务超时的问题：仅任务上下文自身期限到期才标记任务超时，下层失败保留原始诊断；总时限与现有重试策略保持不变。
+- Fixed single-agent, multi-agent, role workflow, and bulk tasks mistaking a lower-layer call timeout for a whole-task timeout: only expiry of the task context's own deadline marks a task timed out; lower-layer failures keep their original diagnostics; overall timeout and existing retry policies are unchanged.
 
-- C2 Profile 和 WebShell 删除不存在对象统一返回 404，删除数据库故障返回通用 500 文案，不再暴露 SQL 错误；漏洞和批量任务列表无匹配记录时统一返回 `[]`，补充 HTTP 合同回归验证。
+- C2 Profile and WebShell deletes now uniformly return 404 for missing objects and a generic 500 message on database failures, without exposing SQL errors; vulnerability and bulk-task lists return `[]` when no records match, with added HTTP contract regression verification.
 
-- 修复多人编辑调用拦截规则时旧草稿覆盖他人修改的问题：同一版本仅一次保存成功，冲突保留草稿并提示刷新；API 保存必须携带读取时的 ETag/If-Match。
+- Fixed stale drafts overwriting others' edits when multiple people edit call-interception rules: only one save per version succeeds; on conflict the draft is kept and the user is prompted to refresh; API saves must carry the ETag/If-Match from the read.
 
-- 修复平台角色更新/删除使全体用户掉线的问题：仅撤销受影响角色成员的会话；名称、描述及等价权限集合更新保持会话有效。
+- Fixed platform role updates/deletes logging every user out: only the sessions of members of the affected role are revoked; sessions stay valid when the name, description, or equivalent permission set changes.
 
-- 修复俄语等长文案导致的仪表盘状态卡片、风险徽标与队列标签溢出；侧栏及风险名称完整换行，布局随卡片可用宽度适配。
+- Fixed Russian and other long strings overflowing dashboard status cards, risk badges, and queue labels; side bars and risk names now wrap properly, and the layout adapts to the card's available width.
 
-- 自更新恢复在改写文件前严格验证恢复记录、State、提交和二进制配对；拒绝缺失、重复或矛盾证据，保留可恢复现场。
-- 编辑已停止的外部 MCP 不再意外启动连接；启动/停止、配置编辑和应用重启保持一致的启停状态。
+- Self-update recovery now strictly verifies the backup record, State, commit, and binary pairing before overwriting files; missing, duplicate, or contradictory evidence is rejected, leaving a recoverable state intact.
+- Editing a stopped external MCP no longer inadvertently starts a connection; start/stop, config edits, and application restarts keep a consistent started/stopped state.
 
-- 登录密码显隐按钮改为输入框内的眼睛图标，统一输入框宽高，支持键盘焦点、44px 触控区域、中英俄文无障碍标签及浅色/深色主题。
+- The login password reveal/hide button is now an eye icon inside the input field, with unified input width and height, keyboard focus support, a 44px touch area, accessible labels in Chinese, English, and Russian, and light/dark theme support.

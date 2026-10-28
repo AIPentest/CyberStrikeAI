@@ -20,7 +20,7 @@ func RegisterAnalyzeImageTool(mcpServer *mcp.Server, cfg *config.Config, logger 
 	}
 	if !cfg.Vision.Ready() {
 		if cfg.Vision.Enabled && logger != nil {
-			logger.Warn("vision.enabled 但 vision.model 为空，跳过注册 analyze_image")
+			logger.Warn("vision.enabled is set but vision.model is empty; skipping analyze_image registration")
 		}
 		return
 	}
@@ -44,20 +44,20 @@ func RegisterAnalyzeImageTool(mcpServer *mcp.Server, cfg *config.Config, logger 
 
 	tool := mcp.Tool{
 		Name: builtin.ToolAnalyzeImage,
-		Description: "分析服务器上的本地图片并返回文字描述（验证码、UI 元素、报错、架构图要点等）。" +
-			"输入为文件路径（如用户上传的 chat_uploads 路径或工具截图路径）。" +
-			"输出仅为文本，不含图片数据。不要对二进制图片使用 read_file 指望理解内容。",
-		ShortDescription: "分析本地图片并返回文字描述（验证码/UI/报错等）",
+		Description: "Analyze a local image on the server and return a textual description (CAPTCHA, UI elements, errors, architecture diagram highlights, etc.)." +
+			"Input is a file path (e.g. a chat_uploads path from a user upload, or a tool screenshot path). " +
+			"Output is text only, containing no image data. Do not use read_file on a binary image expecting to understand its content.",
+		ShortDescription: "Analyze a local image and return a textual description (CAPTCHA/UI/errors, etc.)",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
 				"path": map[string]interface{}{
 					"type":        "string",
-					"description": "图片绝对路径或相对于进程工作目录的路径",
+					"description": "Absolute image path, or a path relative to the process working directory",
 				},
 				"question": map[string]interface{}{
 					"type":        "string",
-					"description": "可选：希望模型重点回答的问题。验证码图建议：只输出验证码字符，不要空格和解释",
+					"description": "Optional: the question you want the model to focus on answering. For CAPTCHA images we suggest: output only the CAPTCHA characters, with no spaces or explanation",
 				},
 			},
 			"required": []string{"path"},
@@ -70,17 +70,17 @@ func RegisterAnalyzeImageTool(mcpServer *mcp.Server, cfg *config.Config, logger 
 
 		abs, err := ResolveImagePath(path, cwd)
 		if err != nil {
-			return textResult(fmt.Sprintf("路径校验失败: %v", err), true), nil
+			return textResult(fmt.Sprintf("Path validation failed: %v", err), true), nil
 		}
 
 		img, meta, err := PreprocessImageFile(abs, preOpt)
 		if err != nil {
-			return textResult(fmt.Sprintf("图片预处理失败: %v", err), true), nil
+			return textResult(fmt.Sprintf("Image preprocessing failed: %v", err), true), nil
 		}
 
 		summary, err := client.Analyze(ctx, img, question)
 		if err != nil {
-			return textResult(fmt.Sprintf("视觉模型调用失败: %v", err), true), nil
+			return textResult(fmt.Sprintf("Vision model call failed: %v", err), true), nil
 		}
 
 		body := formatAnalysisResult(abs, meta, summary)
@@ -89,7 +89,7 @@ func RegisterAnalyzeImageTool(mcpServer *mcp.Server, cfg *config.Config, logger 
 
 	mcpServer.RegisterTool(tool, handler)
 	if logger != nil {
-		logger.Debug("vision: analyze_image 工具已注册", zap.String("model", cfg.Vision.Model))
+		logger.Debug("vision: analyze_image tool registered", zap.String("model", cfg.Vision.Model))
 	}
 }
 

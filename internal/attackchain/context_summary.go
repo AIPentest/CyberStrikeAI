@@ -24,7 +24,7 @@ type ContextSummary struct {
 func (b *Builder) contextSummaries(conversationID string) []ContextSummary {
 	trace, _, err := b.db.GetAgentTrace(conversationID)
 	if err != nil {
-		b.logger.Warn("加载攻击链上下文摘要失败", zap.String("conversationId", conversationID), zap.Error(err))
+		b.logger.Warn("Failed to load the attack chain context summary", zap.String("conversationId", conversationID), zap.Error(err))
 		return nil
 	}
 	return b.contextSummariesFromTrace(trace)
@@ -33,7 +33,7 @@ func (b *Builder) contextSummaries(conversationID string) []ContextSummary {
 func (b *Builder) contextSummariesFromTrace(trace string) []ContextSummary {
 	msgs, err := agent.ParseTraceMessages(trace)
 	if err != nil {
-		b.logger.Warn("解析攻击链上下文摘要失败", zap.Error(err))
+		b.logger.Warn("Failed to parse the attack chain context summary", zap.Error(err))
 		return nil
 	}
 	var summaries []ContextSummary

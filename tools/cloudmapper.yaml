@@ -1,38 +1,38 @@
 name: "cloudmapper"
 command: "cloudmapper"
 enabled: true
-short_description: "AWS网络可视化和安全分析工具"
+short_description: "AWS network visualization and security analysis tool"
 description: |
-  CloudMapper是一个AWS网络可视化和安全分析工具。
+  CloudMapper is an AWS network visualization and security analysis tool.
 
-  **主要功能：**
-  - AWS网络可视化
-  - 安全分析
-  - 网络映射
-  - 管理员查找
+  **Main features:**
+  - AWS network visualization
+  - Security analysis
+  - Network mapping
+  - Admin discovery
 
-  **使用场景：**
-  - AWS网络分析
-  - 安全评估
-  - 网络可视化
-  - 安全审计
+  **Use cases:**
+  - AWS network analysis
+  - Security assessment
+  - Network visualization
+  - Security audit
 parameters:
   - name: "action"
     type: "string"
-    description: "要执行的操作（collect, prepare, webserver, find_admins等）"
+    description: "Action to execute (collect, prepare, webserver, find_admins, etc.)"
     required: false
     default: "collect"
     position: 0
     format: "positional"
   - name: "account"
     type: "string"
-    description: "要分析的AWS账户"
+    description: "AWS account to analyze"
     required: false
     flag: "--account"
     format: "flag"
   - name: "config"
     type: "string"
-    description: "配置文件路径"
+    description: "Configuration file path"
     required: false
     flag: "--config"
     format: "flag"
@@ -40,14 +40,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的cloudmapper参数。用于传递未在参数列表中定义的cloudmapper选项。
+      Additional cloudmapper arguments. Used to pass cloudmapper options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

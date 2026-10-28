@@ -1,16 +1,25 @@
 function knowledgeIndexErrorAdvice(error) {
     const text = String(error || '');
-    if (/\b401\b|incorrect api key|invalid api key|unauthorized/i.test(text)) return '嵌入服务拒绝认证。请检查知识库嵌入配置的 API 密钥及服务地址，保存后重试。';
-    if (/\b403\b|forbidden/i.test(text)) return '嵌入服务拒绝访问。请检查账号权限及所选嵌入模型的访问权限。';
-    if (/\b429\b|rate limit|quota/i.test(text)) return '嵌入服务限制请求。请检查请求频率及账号可用额度，稍后重试。';
-    if (/timeout|deadline exceeded/i.test(text)) return '嵌入服务请求超时。请检查服务可用性、网络和代理配置后重试。';
-    if (/connection refused|no such host|network is unreachable/i.test(text)) return '无法连接嵌入服务。请检查服务地址、DNS、网络和代理配置。';
-    return '请根据上方错误检查嵌入模型和服务配置，修正后重试。';
+    if (/\b401\b|incorrect api key|invalid api key|unauthorized/i.test(text)) return knowledgeT('knowledge.embeddingAuthRejected', '嵌入服务拒绝认证。请检查知识库嵌入配置的 API 密钥及服务地址，保存后重试。');
+    if (/\b403\b|forbidden/i.test(text)) return knowledgeT('knowledge.embeddingForbidden', '嵌入服务拒绝访问。请检查账号权限及所选嵌入模型的访问权限。');
+    if (/\b429\b|rate limit|quota/i.test(text)) return knowledgeT('knowledge.embeddingRateLimited', '嵌入服务限制请求。请检查请求频率及账号可用额度，稍后重试。');
+    if (/timeout|deadline exceeded/i.test(text)) return knowledgeT('knowledge.embeddingTimeout', '嵌入服务请求超时。请检查服务可用性、网络和代理配置后重试。');
+    if (/connection refused|no such host|network is unreachable/i.test(text)) return knowledgeT('knowledge.embeddingUnreachable', '无法连接嵌入服务。请检查服务地址、DNS、网络和代理配置。');
+    return knowledgeT('knowledge.embeddingCheckConfig', '请根据上方错误检查嵌入模型和服务配置，修正后重试。');
 }
 
 // 知识库管理相关功能
 function _t(key, opts) {
     return typeof window.t === 'function' ? window.t(key, opts) : key;
+}
+
+// 与 _t 同用途，但保留中文原文作为未初始化时的后备值
+function knowledgeT(key, fallback) {
+    if (typeof window === 'object' && window && typeof window.t === 'function') {
+        const translated = window.t(key);
+        if (translated && translated !== key) return translated;
+    }
+    return fallback;
 }
 
 // 返回「知识库未启用」提示区块的 HTML（使用 data-i18n 以便语言切换时自动更新）
@@ -69,7 +78,7 @@ async function loadKnowledgeCategories() {
             }
         });
         if (!response.ok) {
-            throw new Error('获取分类失败');
+            throw new Error(knowledgeT('knowledge.getCategoriesFailed', '获取分类失败'));
         }
         const data = await response.json();
         
@@ -85,7 +94,7 @@ async function loadKnowledgeCategories() {
         // 更新分类筛选下拉框
         const filterDropdown = document.getElementById('knowledge-category-filter-dropdown');
         if (filterDropdown) {
-            filterDropdown.innerHTML = '<div class="custom-select-option" data-value="" onclick="selectKnowledgeCategory(\'\')">全部</div>';
+            filterDropdown.innerHTML = '<div class="custom-select-option" data-value="" onclick="selectKnowledgeCategory(\'\')">' + knowledgeT('knowledgePage.all', '全部') + '</div>';
             knowledgeCategories.forEach(category => {
                 const option = document.createElement('div');
                 option.className = 'custom-select-option';
@@ -102,8 +111,8 @@ async function loadKnowledgeCategories() {
     } catch (error) {
         console.error('加载分类失败:', error);
         // 只在非功能未启用的情况下显示错误
-        if (!error.message.includes('知识库功能未启用')) {
-            showNotification('加载分类失败: ' + error.message, 'error');
+        if (!/(知识库功能未启用|knowledge base feature is not enabled)/i.test(error.message)) {
+            showNotification(knowledgeT('knowledge.loadCategoriesFailed', '加载分类失败') + ': ' + error.message, 'error');
         }
         return [];
     }
@@ -135,10 +144,10 @@ async function loadKnowledgeItems(category = '', page = 1, pageSize = 10) {
         });
         
         if (!response.ok) {
-            throw new Error('获取知识项失败');
+            throw new Error(knowledgeT('knowledge.getItemsFailed', '获取知识项失败'));
         }
         const data = await response.json();
-        
+
         // 检查知识库功能是否启用
         if (data.enabled === false) {
             // 功能未启用，显示友好提示（如果还没有显示的话；使用 data-i18n，切换语言时会自动更新）
@@ -171,8 +180,8 @@ async function loadKnowledgeItems(category = '', page = 1, pageSize = 10) {
     } catch (error) {
         console.error('加载知识项失败:', error);
         // 只在非功能未启用的情况下显示错误
-        if (!error.message.includes('知识库功能未启用')) {
-            showNotification('加载知识项失败: ' + error.message, 'error');
+        if (!/(知识库功能未启用|knowledge base feature is not enabled)/i.test(error.message)) {
+            showNotification(knowledgeT('knowledge.loadItemsFailed', '加载知识项失败') + ': ' + error.message, 'error');
         }
         return [];
     }
@@ -184,7 +193,7 @@ function renderKnowledgeItemsByCategories(categoriesWithItems) {
     if (!container) return;
     
     if (categoriesWithItems.length === 0) {
-        container.innerHTML = '<div class="empty-state">暂无知识项</div>';
+        container.innerHTML = '<div class="empty-state">' + knowledgeT('knowledge.noItems', '暂无知识项') + '</div>';
         return;
     }
     
@@ -199,7 +208,7 @@ function renderKnowledgeItemsByCategories(categoriesWithItems) {
     let html = '<div class="knowledge-categories-container">';
     
     categoriesWithItems.forEach(categoryData => {
-        const category = categoryData.category || '未分类';
+        const category = categoryData.category || knowledgeT('knowledge.uncategorized', '未分类');
         const categoryItems = categoryData.items || [];
         const categoryCount = categoryData.itemCount || categoryItems.length;
         
@@ -208,7 +217,7 @@ function renderKnowledgeItemsByCategories(categoriesWithItems) {
                 <div class="knowledge-category-header">
                     <div class="knowledge-category-info">
                         <h3 class="knowledge-category-title">${escapeHtml(category)}</h3>
-                        <span class="knowledge-category-count">${categoryCount} 项</span>
+                        <span class="knowledge-category-count">${knowledgeT('knowledge.itemsCountUnit', '{count} 项').replace('{count}', String(categoryCount))}</span>
                     </div>
                 </div>
                 <div class="knowledge-items-grid">
@@ -229,14 +238,14 @@ function renderKnowledgeItems(items) {
     if (!container) return;
     
     if (items.length === 0) {
-        container.innerHTML = '<div class="empty-state">暂无知识项</div>';
+        container.innerHTML = '<div class="empty-state">' + knowledgeT('knowledge.noItems', '暂无知识项') + '</div>';
         return;
     }
     
     // 按分类分组
     const groupedByCategory = {};
     items.forEach(item => {
-        const category = item.category || '未分类';
+        const category = item.category || knowledgeT('knowledge.uncategorized', '未分类');
         if (!groupedByCategory[category]) {
             groupedByCategory[category] = [];
         }
@@ -259,7 +268,7 @@ function renderKnowledgeItems(items) {
                 <div class="knowledge-category-header">
                     <div class="knowledge-category-info">
                         <h3 class="knowledge-category-title">${escapeHtml(category)}</h3>
-                        <span class="knowledge-category-count">${categoryCount} 项</span>
+                        <span class="knowledge-category-count">${knowledgeT('knowledge.itemsCountUnit', '{count} 项').replace('{count}', String(categoryCount))}</span>
                     </div>
                 </div>
                 <div class="knowledge-items-grid">
@@ -290,13 +299,13 @@ function renderKnowledgePagination() {
     let html = '<div class="knowledge-pagination" style="display: flex; justify-content: center; align-items: center; gap: 8px; padding: 20px; flex-wrap: wrap;">';
     
     // 上一页按钮
-    html += `<button class="pagination-btn" onclick="loadKnowledgePage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>上一页</button>`;
-    
+    html += `<button class="pagination-btn" onclick="loadKnowledgePage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>${knowledgeT('knowledge.prevPage', '上一页')}</button>`;
+
     // 页码显示（显示分类数）
-    html += `<span style="padding: 0 12px;">第 ${currentPage} 页，共 ${totalPages} 页（共 ${total} 个分类）</span>`;
-    
+    html += `<span style="padding: 0 12px;">${knowledgeT('knowledge.paginationInfo', '第 {page} 页，共 {totalPages} 页（共 {total} 个分类）').replace('{page}', String(currentPage)).replace('{totalPages}', String(totalPages)).replace('{total}', String(total))}</span>`;
+
     // 下一页按钮
-    html += `<button class="pagination-btn" onclick="loadKnowledgePage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>下一页</button>`;
+    html += `<button class="pagination-btn" onclick="loadKnowledgePage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>${knowledgeT('knowledge.nextPage', '下一页')}</button>`;
     
     html += '</div>';
     container.innerHTML = html;
@@ -345,7 +354,7 @@ function renderKnowledgeItemCard(item) {
     
     // 优先显示更新时间，如果没有更新时间则显示创建时间
     const displayTime = updatedTime || createdTime;
-    const timeLabel = updatedTime ? '更新时间' : '创建时间';
+    const timeLabel = updatedTime ? knowledgeT('knowledge.updatedTimeLabel', '更新时间') : knowledgeT('knowledge.createdTimeLabel', '创建时间');
     
     // 判断是否为最近更新（7天内）
     let isRecent = false;
@@ -362,13 +371,13 @@ function renderKnowledgeItemCard(item) {
                 <div class="knowledge-item-card-title-row">
                     <h4 class="knowledge-item-card-title" title="${escapeAttr(item.title)}">${escapeHtml(item.title)}</h4>
                     <div class="knowledge-item-card-actions">
-                        <button class="knowledge-item-action-btn" data-require-permission="knowledge:write" onclick="editKnowledgeItem('${item.id}')" title="编辑">
+                        <button class="knowledge-item-action-btn" data-require-permission="knowledge:write" onclick="editKnowledgeItem('${item.id}')" title="${knowledgeT('common.edit', '编辑')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
                         </button>
-                        <button class="knowledge-item-action-btn knowledge-item-delete-btn" data-require-permission="knowledge:delete" onclick="deleteKnowledgeItem('${item.id}')" title="删除">
+                        <button class="knowledge-item-action-btn knowledge-item-delete-btn" data-require-permission="knowledge:delete" onclick="deleteKnowledgeItem('${item.id}')" title="${knowledgeT('common.delete', '删除')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
@@ -385,7 +394,7 @@ function renderKnowledgeItemCard(item) {
             <div class="knowledge-item-card-footer">
                 <div class="knowledge-item-meta">
                     ${displayTime ? `<span class="knowledge-item-time" title="${timeLabel}">🕒 ${displayTime}</span>` : ''}
-                    ${isRecent ? '<span class="knowledge-item-badge-new">新</span>' : ''}
+                    ${isRecent ? `<span class="knowledge-item-badge-new">${knowledgeT('knowledge.newBadge', '新')}</span>` : ''}
                 </div>
             </div>
         </div>
@@ -415,19 +424,19 @@ function updateKnowledgeStats(data, categoryCount) {
     
     statsContainer.innerHTML = `
         <div class="knowledge-stat-item">
-            <span class="knowledge-stat-label">总分类数</span>
+            <span class="knowledge-stat-label">${knowledgeT('knowledge.totalCategoriesLabel', '总分类数')}</span>
             <span class="knowledge-stat-value">${totalCategories}</span>
         </div>
         <div class="knowledge-stat-item">
-            <span class="knowledge-stat-label">当前页分类</span>
-            <span class="knowledge-stat-value">${categoryCount} 个</span>
+            <span class="knowledge-stat-label">${knowledgeT('knowledge.pageCategoriesLabel', '当前页分类')}</span>
+            <span class="knowledge-stat-value">${knowledgeT('knowledge.categoriesCountUnit', '{count} 个').replace('{count}', String(categoryCount))}</span>
         </div>
         <div class="knowledge-stat-item">
-            <span class="knowledge-stat-label">当前页知识项</span>
-            <span class="knowledge-stat-value">${currentPageItemCount} 项</span>
+            <span class="knowledge-stat-label">${knowledgeT('knowledge.pageItemsLabel', '当前页知识项')}</span>
+            <span class="knowledge-stat-value">${knowledgeT('knowledge.itemsCountUnit', '{count} 项').replace('{count}', String(currentPageItemCount))}</span>
         </div>
     `;
-    
+
     // 更新索引进度
     updateIndexProgress();
 }
@@ -499,7 +508,7 @@ async function updateIndexProgress() {
                 ">
                     <div style="display: flex; align-items: center; margin-bottom: 8px;">
                         <span style="font-size: 20px; margin-right: 8px;">❌</span>
-                        <span style="font-weight: bold; color: #c00;">索引构建失败</span>
+                        <span style="font-weight: bold; color: #c00;">${knowledgeT('knowledge.indexBuildFailed', '索引构建失败')}</span>
                     </div>
                     <div style="color: #666; font-size: 14px; margin-bottom: 12px; line-height: 1.5;">
                         ${escapeHtml(lastError)}
@@ -516,7 +525,7 @@ async function updateIndexProgress() {
                             border-radius: 4px;
                             cursor: pointer;
                             font-size: 13px;
-                        ">重试</button>
+                        ">${knowledgeT('knowledge.retryBtn', '重试')}</button>
                         <button onclick="rebuildKnowledgeIndexFull()" style="
                             background: #6c757d;
                             color: white;
@@ -525,7 +534,7 @@ async function updateIndexProgress() {
                             border-radius: 4px;
                             cursor: pointer;
                             font-size: 13px;
-                        ">全量重建</button>
+                        ">${knowledgeT('knowledge.fullRebuildBtn', '全量重建')}</button>
                         <button onclick="stopIndexProgressPolling()" style="
                             background: #6c757d;
                             color: white;
@@ -534,7 +543,7 @@ async function updateIndexProgress() {
                             border-radius: 4px;
                             cursor: pointer;
                             font-size: 13px;
-                        ">关闭</button>
+                        ">${knowledgeT('common.close', '关闭')}</button>
                     </div>
                 </div>
             `;
@@ -544,7 +553,7 @@ async function updateIndexProgress() {
                 indexProgressInterval = null;
             }
             // 显示错误通知
-            showNotification('索引构建失败: ' + lastError.substring(0, 100), 'error');
+            showNotification(knowledgeT('knowledge.indexBuildFailed', '索引构建失败') + ': ' + lastError.substring(0, 100), 'error');
             return;
         }
         
@@ -568,14 +577,14 @@ async function updateIndexProgress() {
                 <div class="knowledge-index-progress">
                     <div class="progress-header">
                         <span class="progress-icon">🔨</span>
-                        <span class="progress-text">正在构建索引：${rebuildCurrent}/${rebuildTotal} (${rebuildProgress.toFixed(1)}%) - 失败：${rebuildFailed}</span>
+                        <span class="progress-text">${knowledgeT('knowledge.buildingIndexProgress', '正在构建索引：{current}/{total} ({percent}%) - 失败：{failed}').replace('{current}', String(rebuildCurrent)).replace('{total}', String(rebuildTotal)).replace('{percent}', String(rebuildProgress.toFixed(1))).replace('{failed}', String(rebuildFailed))}</span>
                     </div>
                     <div class="progress-bar-container">
                         <div class="progress-bar" style="width: ${rebuildProgress}%"></div>
                     </div>
                     <div class="progress-hint">
-                        ${rebuildLastItemID ? `正在处理：${escapeHtml(rebuildLastItemID.substring(0, 36))}... (${rebuildLastChunks} chunks)` : '正在处理...'}
-                        ${rebuildStartTime ? `<br>开始时间：${new Date(rebuildStartTime).toLocaleString()}` : ''}
+                        ${rebuildLastItemID ? knowledgeT('knowledge.processingItem', '正在处理：{id}... ({chunks} chunks)').replace('{id}', escapeHtml(rebuildLastItemID.substring(0, 36))).replace('{chunks}', String(rebuildLastChunks)) : knowledgeT('knowledge.processing', '正在处理...')}
+                        ${rebuildStartTime ? `<br>${knowledgeT('knowledge.startTimeLabel', '开始时间：{time}').replace('{time}', String(new Date(rebuildStartTime).toLocaleString()))}` : ''}
                     </div>
                 </div>
             `;
@@ -591,7 +600,7 @@ async function updateIndexProgress() {
             progressContainer.innerHTML = `
                 <div class="knowledge-index-progress-complete">
                     <span class="progress-icon">✅</span>
-                    <span class="progress-text">索引构建完成 (${indexedItems}/${totalItems})</span>
+                    <span class="progress-text">${knowledgeT('knowledge.indexBuildComplete', '索引构建完成 ({indexed}/{total})').replace('{indexed}', String(indexedItems)).replace('{total}', String(totalItems))}</span>
                 </div>
             `;
             // 完成后停止轮询
@@ -605,14 +614,14 @@ async function updateIndexProgress() {
                 <div class="knowledge-index-progress">
                     <div class="progress-header">
                         <span class="progress-icon">🔨</span>
-                        <span class="progress-text">正在构建索引: ${indexedItems}/${totalItems} (${progressPercent.toFixed(1)}%)</span>
+                        <span class="progress-text">${knowledgeT('knowledge.buildingIndexSimple', '正在构建索引: {current}/{total} ({percent}%)').replace('{current}', String(indexedItems)).replace('{total}', String(totalItems)).replace('{percent}', String(progressPercent.toFixed(1)))}</span>
                     </div>
                     <div class="progress-bar-container">
                         <div class="progress-bar" style="width: ${progressPercent}%"></div>
                     </div>
                     <div class="progress-hint">
-                        索引构建完成后，语义搜索功能将可用
-                        ${showResume ? '<br><button type="button" onclick="buildKnowledgeIndex()" style="margin-top:8px;background:#007bff;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;">构建索引</button>' : ''}
+                        ${knowledgeT('knowledge.indexDoneHint', '索引构建完成后，语义搜索功能将可用')}
+                        ${showResume ? `<br><button type="button" onclick="buildKnowledgeIndex()" style="margin-top:8px;background:#007bff;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;">${knowledgeT('knowledge.buildIndex', '构建索引')}</button>` : ''}
                     </div>
                 </div>
             `;
@@ -638,10 +647,10 @@ async function updateIndexProgress() {
                 ">
                     <div style="display: flex; align-items: center; margin-bottom: 8px;">
                         <span style="font-size: 20px; margin-right: 8px;">⚠️</span>
-                        <span style="font-weight: bold; color: #c00;">无法获取索引状态</span>
+                        <span style="font-weight: bold; color: #c00;">${knowledgeT('knowledge.cannotGetIndexStatus', '无法获取索引状态')}</span>
                     </div>
                     <div style="color: #666; font-size: 14px;">
-                        无法连接到服务器获取索引状态，请检查网络连接或刷新页面。
+                        ${knowledgeT('knowledge.cannotGetIndexStatusHint', '无法连接到服务器获取索引状态，请检查网络连接或刷新页面。')}
                     </div>
                 </div>
             `;
@@ -673,7 +682,7 @@ function selectKnowledgeCategory(category) {
     const dropdown = document.getElementById('knowledge-category-filter-dropdown');
     
     if (trigger && wrapper && dropdown) {
-        const displayText = category || '全部';
+        const displayText = category || knowledgeT('knowledgePage.all', '全部');
         trigger.querySelector('span').textContent = displayText;
         wrapper.classList.remove('open');
         
@@ -771,7 +780,7 @@ async function searchKnowledgeItems() {
         });
         
         if (!response.ok) {
-            throw new Error('搜索失败');
+            throw new Error(knowledgeT('knowledge.searchFailed', '搜索失败'));
         }
         
         const data = await response.json();
@@ -793,9 +802,9 @@ async function searchKnowledgeItems() {
             container.innerHTML = `
                 <div class="empty-state" style="text-align: center; padding: 40px 20px;">
                     <div style="font-size: 48px; margin-bottom: 20px;">🔍</div>
-                    <h3 style="margin-bottom: 10px;">未找到匹配的知识项</h3>
-                    <p style="color: #999;">关键词 "<strong>${escapeHtml(searchTerm)}</strong>" 在所有数据中没有匹配结果</p>
-                    <p style="color: #999; margin-top: 10px; font-size: 0.9em;">请尝试其他关键词，或使用分类筛选功能</p>
+                    <h3 style="margin-bottom: 10px;">${knowledgeT('knowledge.searchNoMatch', '未找到匹配的知识项')}</h3>
+                    <p style="color: #999;">${knowledgeT('knowledge.searchNoResultsHint', '关键词 "{term}" 在所有数据中没有匹配结果').replace('{term}', escapeHtml(searchTerm))}</p>
+                    <p style="color: #999; margin-top: 10px; font-size: 0.9em;">${knowledgeT('knowledge.searchTryOther', '请尝试其他关键词，或使用分类筛选功能')}</p>
                 </div>
             `;
         } else {
@@ -818,26 +827,26 @@ async function searchKnowledgeItems() {
         
     } catch (error) {
         console.error('搜索知识项失败:', error);
-        showNotification('搜索失败: ' + error.message, 'error');
+        showNotification(knowledgeT('knowledge.searchFailed', '搜索失败') + ': ' + error.message, 'error');
     }
 }
 
 // 刷新知识库
 async function refreshKnowledgeBase() {
     try {
-        showNotification('正在扫描知识库...', 'info');
+        showNotification(knowledgeT('knowledge.scanStarting', '正在扫描知识库...'), 'info');
         const response = await apiFetch('/api/knowledge/scan', {
             method: 'POST'
         });
         if (!response.ok) {
-            throw new Error('扫描知识库失败');
+            throw new Error(knowledgeT('knowledge.scanFailed', '扫描知识库失败'));
         }
         const data = await response.json();
         // 根据返回的消息显示不同的提示
         if (data.items_to_index && data.items_to_index > 0) {
-            showNotification(`扫描完成，开始索引 ${data.items_to_index} 个新添加或更新的知识项`, 'success');
+            showNotification(knowledgeT('knowledge.scanDoneIndexing', '扫描完成，开始索引 {count} 个新添加或更新的知识项').replace('{count}', String(data.items_to_index)), 'success');
         } else {
-            showNotification(data.message || '扫描完成，没有需要索引的新项或更新项', 'success');
+            showNotification(data.message || knowledgeT('knowledge.scanDoneNoChange', '扫描完成，没有需要索引的新项或更新项'), 'success');
         }
         // 重新加载知识项（重置到第一页）
         await loadKnowledgeCategories();
@@ -863,7 +872,7 @@ async function refreshKnowledgeBase() {
         }
     } catch (error) {
         console.error('刷新知识库失败:', error);
-        showNotification('刷新知识库失败: ' + error.message, 'error');
+        showNotification(knowledgeT('knowledge.refreshFailed', '刷新知识库失败') + ': ' + error.message, 'error');
     }
 }
 
@@ -871,14 +880,14 @@ async function refreshKnowledgeBase() {
 async function startKnowledgeIndexJob(mode = 'missing') {
     const fullRebuild = mode === 'full';
     const confirmMessage = fullRebuild
-        ? '将重新索引全部知识项，这可能需要较长时间，是否继续？'
-        : '将为尚未生成向量的知识项构建索引，是否继续？';
+        ? knowledgeT('knowledge.rebuildIndexFullConfirm', '将重新索引全部知识项，这可能需要较长时间，是否继续？')
+        : knowledgeT('knowledge.buildIndexConfirm', '将为尚未生成向量的知识项构建索引，是否继续？');
     if (!confirm(confirmMessage)) {
         return;
     }
 
-    const actionLabel = fullRebuild ? '全量重建索引' : '构建索引';
-    showNotification(`正在启动${actionLabel}...`, 'info');
+    const actionLabel = fullRebuild ? knowledgeT('knowledge.fullRebuildIndexLabel', '全量重建索引') : knowledgeT('knowledge.buildIndexLabel', '构建索引');
+    showNotification(knowledgeT('knowledge.indexJobStarting', '正在启动{label}...').replace('{label}', actionLabel), 'info');
 
     if (indexProgressInterval) {
         clearInterval(indexProgressInterval);
@@ -892,12 +901,12 @@ async function startKnowledgeIndexJob(mode = 'missing') {
             <div class="knowledge-index-progress">
                 <div class="progress-header">
                     <span class="progress-icon">🔨</span>
-                    <span class="progress-text">正在${actionLabel}: 准备中...</span>
+                    <span class="progress-text">${knowledgeT('knowledge.indexJobPreparing', '正在{label}: 准备中...').replace('{label}', actionLabel)}</span>
                 </div>
                 <div class="progress-bar-container">
                     <div class="progress-bar" style="width: 0%"></div>
                 </div>
-                <div class="progress-hint">索引构建完成后，语义搜索功能将可用</div>
+                <div class="progress-hint">${knowledgeT('knowledge.indexDoneHint', '索引构建完成后，语义搜索功能将可用')}</div>
             </div>
         `;
     }
@@ -915,15 +924,15 @@ async function startKnowledgeIndexJob(mode = 'missing') {
     }
 
     if (response.status === 409) {
-        showNotification(payload.error || '已有索引任务正在进行，请等待完成', 'warning');
+        showNotification(payload.error || knowledgeT('knowledge.indexJobInProgress', '已有索引任务正在进行，请等待完成'), 'warning');
         updateIndexProgress();
         return;
     }
     if (!response.ok) {
-        throw new Error(payload.error || `${actionLabel}失败`);
+        throw new Error(payload.error || knowledgeT('knowledge.indexJobFailed', '{label}失败').replace('{label}', actionLabel));
     }
 
-    showNotification(payload.message || `${actionLabel}已开始，将在后台进行`, 'success');
+    showNotification(payload.message || knowledgeT('knowledge.indexJobStarted', '{label}已开始，将在后台进行').replace('{label}', actionLabel), 'success');
     await new Promise(resolve => setTimeout(resolve, 500));
     updateIndexProgress();
     if (!indexProgressInterval) {
@@ -937,7 +946,7 @@ async function buildKnowledgeIndex() {
         await startKnowledgeIndexJob('missing');
     } catch (error) {
         console.error('构建索引失败:', error);
-        showNotification('构建索引失败: ' + error.message, 'error');
+        showNotification(knowledgeT('knowledge.buildIndexFailedMsg', '构建索引失败') + ': ' + error.message, 'error');
     }
 }
 
@@ -947,7 +956,7 @@ async function rebuildKnowledgeIndexFull() {
         await startKnowledgeIndexJob('full');
     } catch (error) {
         console.error('全量重建索引失败:', error);
-        showNotification('全量重建索引失败: ' + error.message, 'error');
+        showNotification(knowledgeT('knowledge.fullRebuildIndexFailedMsg', '全量重建索引失败') + ': ' + error.message, 'error');
     }
 }
 
@@ -955,7 +964,7 @@ async function rebuildKnowledgeIndexFull() {
 function showAddKnowledgeItemModal() {
     if (typeof requirePermission === 'function' && !requirePermission('knowledge:write')) return;
     currentEditingItemId = null;
-    document.getElementById('knowledge-item-modal-title').textContent = '添加知识';
+    document.getElementById('knowledge-item-modal-title').textContent = knowledgeT('knowledgeItemModal.addKnowledge', '添加知识');
     document.getElementById('knowledge-item-category').value = '';
     document.getElementById('knowledge-item-title').value = '';
     document.getElementById('knowledge-item-content').value = '';
@@ -966,14 +975,14 @@ function showAddKnowledgeItemModal() {
 async function editKnowledgeItem(id) {
     try {
         currentEditingItemId = id;
-        document.getElementById('knowledge-item-modal-title').textContent = '编辑知识';
+        document.getElementById('knowledge-item-modal-title').textContent = knowledgeT('knowledgeItemModal.editKnowledge', '编辑知识');
         document.getElementById('knowledge-item-category').value = '';
         document.getElementById('knowledge-item-title').value = '';
         document.getElementById('knowledge-item-content').value = '';
         openAppModal('knowledge-item-modal', { focus: false });
         const response = await apiFetch(`/api/knowledge/items/${id}`);
         if (!response.ok) {
-            throw new Error('获取知识项失败');
+            throw new Error(knowledgeT('knowledge.getItemsFailed', '获取知识项失败'));
         }
         const item = await response.json();
         deferModalContent(() => {
@@ -986,7 +995,7 @@ async function editKnowledgeItem(id) {
         closeAppModal('knowledge-item-modal');
         currentEditingItemId = null;
         console.error('编辑知识项失败:', error);
-        showNotification('编辑知识项失败: ' + error.message, 'error');
+        showNotification(knowledgeT('knowledge.editItemFailed', '编辑知识项失败') + ': ' + error.message, 'error');
     }
 }
 
@@ -995,7 +1004,7 @@ async function saveKnowledgeItem() {
     if (typeof requirePermission === 'function' && !requirePermission('knowledge:write')) return;
     // 防止重复提交
     if (isSavingKnowledgeItem) {
-        showNotification('正在保存中，请勿重复点击...', 'warning');
+        showNotification(knowledgeT('knowledge.savingInProgress', '正在保存中，请勿重复点击...'), 'warning');
         return;
     }
     
@@ -1004,7 +1013,7 @@ async function saveKnowledgeItem() {
     const content = document.getElementById('knowledge-item-content').value.trim();
     
     if (!category || !title || !content) {
-        showNotification('请填写所有必填字段', 'error');
+        showNotification(knowledgeT('knowledge.fillRequiredFields', '请填写所有必填字段'), 'error');
         return;
     }
     
@@ -1016,7 +1025,7 @@ async function saveKnowledgeItem() {
     const cancelButton = document.querySelector('#knowledge-item-modal .modal-footer .btn-secondary');
     const modal = document.getElementById('knowledge-item-modal');
     
-    const originalButtonText = saveButton ? saveButton.textContent : '保存';
+    const originalButtonText = saveButton ? saveButton.textContent : knowledgeT('common.save', '保存');
     const originalButtonDisabled = saveButton ? saveButton.disabled : false;
     
     // 禁用所有输入字段和按钮
@@ -1034,7 +1043,7 @@ async function saveKnowledgeItem() {
         saveButton.disabled = true;
         saveButton.style.opacity = '0.6';
         saveButton.style.cursor = 'not-allowed';
-        saveButton.textContent = '保存中...';
+        saveButton.textContent = knowledgeT('knowledge.savingLabel', '保存中...');
     }
     
     try {
@@ -1057,11 +1066,11 @@ async function saveKnowledgeItem() {
         
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || '保存知识项失败');
+            throw new Error(errorData.error || knowledgeT('knowledge.saveItemFailed', '保存知识项失败'));
         }
         
         const item = await response.json();
-        const action = currentEditingItemId ? '更新' : '创建';
+        const action = currentEditingItemId ? knowledgeT('knowledge.actionUpdated', '更新') : knowledgeT('knowledge.actionCreated', '创建');
         const newItemCategory = item.category || category; // 保存新添加的知识项分类
         
         // 获取当前筛选状态，以便刷新后保持
@@ -1082,7 +1091,7 @@ async function saveKnowledgeItem() {
         const originalContent = itemsListContainer ? itemsListContainer.innerHTML : '';
         
         if (itemsListContainer) {
-            itemsListContainer.innerHTML = '<div class="loading-spinner">刷新中...</div>';
+            itemsListContainer.innerHTML = '<div class="loading-spinner">' + knowledgeT('knowledge.refreshing', '刷新中...') + '</div>';
         }
         
         try {
@@ -1101,7 +1110,7 @@ async function saveKnowledgeItem() {
                 const wrapper = document.getElementById('knowledge-category-filter-wrapper');
                 const dropdown = document.getElementById('knowledge-category-filter-dropdown');
                 if (trigger && wrapper && dropdown) {
-                    trigger.querySelector('span').textContent = newItemCategory || '全部';
+                    trigger.querySelector('span').textContent = newItemCategory || knowledgeT('knowledgePage.all', '全部');
                     dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
                         opt.classList.remove('selected');
                         if (opt.getAttribute('data-value') === newItemCategory) {
@@ -1109,7 +1118,7 @@ async function saveKnowledgeItem() {
                         }
                     });
                 }
-                showNotification(`✅ ${action}成功！已切换到分类"${newItemCategory}"查看新添加的知识项。`, 'success');
+                showNotification(knowledgeT('knowledge.saveSuccessSwitchCategory', '✅ {action}成功！已切换到分类"{category}"查看新添加的知识项。').replace('{action}', action).replace('{category}', newItemCategory), 'success');
             }
             
             // 刷新知识项列表（重置到第一页）
@@ -1121,16 +1130,16 @@ async function saveKnowledgeItem() {
             if (itemsListContainer && originalContent) {
                 itemsListContainer.innerHTML = originalContent;
             }
-            showNotification('⚠️ 知识项已保存，但刷新列表失败，请手动刷新页面查看', 'warning');
+            showNotification(knowledgeT('knowledge.savedButRefreshFailed', '⚠️ 知识项已保存，但刷新列表失败，请手动刷新页面查看'), 'warning');
         }
         
     } catch (error) {
         console.error('保存知识项失败:', error);
-        showNotification('❌ 保存知识项失败: ' + error.message, 'error');
-        
+        showNotification('❌ ' + knowledgeT('knowledge.saveItemFailed', '保存知识项失败') + ': ' + error.message, 'error');
+
         // 如果通知系统不可用，使用alert
         if (typeof window.showNotification !== 'function') {
-            alert('❌ 保存知识项失败: ' + error.message);
+            alert('❌ ' + knowledgeT('knowledge.saveItemFailed', '保存知识项失败') + ': ' + error.message);
         }
         
         // 恢复输入字段和按钮状态（错误时不关闭模态框，让用户修改后重试）
@@ -1152,7 +1161,7 @@ async function saveKnowledgeItem() {
 
 // 删除知识项
 async function deleteKnowledgeItem(id) {
-    if (!confirm('确定要删除这个知识项吗？')) {
+    if (!confirm(knowledgeT('knowledge.deleteItemConfirm', '确定要删除这个知识项吗？'))) {
         return;
     }
     
@@ -1207,7 +1216,7 @@ async function deleteKnowledgeItem(id) {
                         const categoryCount = categorySection.querySelector('.knowledge-category-count');
                         if (categoryCount) {
                             const newCount = remainingItems.length;
-                            categoryCount.textContent = `${newCount} 项`;
+                            categoryCount.textContent = knowledgeT('knowledge.itemsCountUnit', '{count} 项').replace('{count}', String(newCount));
                         }
                     }
                 }
@@ -1224,11 +1233,11 @@ async function deleteKnowledgeItem(id) {
         
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || '删除知识项失败');
+            throw new Error(errorData.error || knowledgeT('knowledge.deleteItemFailed', '删除知识项失败'));
         }
-        
+
         // 显示成功通知
-        showNotification('✅ 删除成功！知识项已从系统中移除。', 'success');
+        showNotification(knowledgeT('knowledge.deleteItemSuccess', '✅ 删除成功！知识项已从系统中移除。'), 'success');
         
         // 重新加载数据以确保数据同步（保持当前页码）
         await loadKnowledgeCategories();
@@ -1262,7 +1271,7 @@ async function deleteKnowledgeItem(id) {
             }
         }
         
-        showNotification('❌ 删除知识项失败: ' + error.message, 'error');
+        showNotification('❌ ' + knowledgeT('knowledge.deleteItemFailed', '删除知识项失败') + ': ' + error.message, 'error');
     }
 }
 
@@ -1323,7 +1332,7 @@ function closeKnowledgeItemModal() {
         saveButton.disabled = false;
         saveButton.style.opacity = '';
         saveButton.style.cursor = '';
-        saveButton.textContent = '保存';
+        saveButton.textContent = knowledgeT('common.save', '保存');
     }
     if (cancelButton) {
         cancelButton.disabled = false;
@@ -1343,7 +1352,7 @@ async function loadRetrievalLogs(conversationId = '', messageId = '') {
         
         const response = await apiFetch(url);
         if (!response.ok) {
-            throw new Error('获取检索日志失败');
+            throw new Error(knowledgeT('retrievalLogs.getLogsFailed', '获取检索日志失败'));
         }
         const data = await response.json();
         renderRetrievalLogs(data.logs || []);
@@ -1609,10 +1618,10 @@ function getTimeAgo(timeStr) {
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
     
-    if (days > 0) return `${days}天前`;
-    if (hours > 0) return `${hours}小时前`;
-    if (minutes > 0) return `${minutes}分钟前`;
-    return '刚刚';
+    if (days > 0) return knowledgeT('common.daysAgo', '{{n}} 天前').replace('{{n}}', String(days));
+    if (hours > 0) return knowledgeT('common.hoursAgo', '{{n}} 小时前').replace('{{n}}', String(hours));
+    if (minutes > 0) return knowledgeT('common.minutesAgo', '{{n}} 分钟前').replace('{{n}}', String(minutes));
+    return knowledgeT('common.justNow', '刚刚');
 }
 
 // 截断ID显示
@@ -1684,11 +1693,11 @@ async function deleteRetrievalLog(id, index) {
         
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || '删除检索日志失败');
+            throw new Error(errorData.error || knowledgeT('retrievalLogs.deleteError', '删除检索日志失败'));
         }
         
         // 显示成功通知
-        showNotification('✅ 删除成功！检索记录已从系统中移除。', 'success');
+        showNotification(knowledgeT('retrievalLogs.deleteSuccess', '✅ 删除成功！检索记录已从系统中移除。'), 'success');
         
         // 从内存中移除该项
         if (retrievalLogsData && index >= 0 && index < retrievalLogsData.length) {
@@ -1919,17 +1928,17 @@ function showRetrievalLogDetailsModal(log, retrievedItems) {
                         ${log.conversationId ? `
                             <div style="padding: 12px; background: var(--bg-secondary); border-radius: 6px;">
                                 <div style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 4px;">${_t('retrievalLogs.conversationId')}</div>
-                                <code style="font-size: 0.8125rem; color: var(--text-primary); word-break: break-all; cursor: pointer;" 
-                                      onclick="navigator.clipboard.writeText(${escapeJsStringAttr(log.conversationId)}); this.title='已复制!'; setTimeout(() => this.title='点击复制', 2000);" 
-                                      title="点击复制">${escapeHtml(log.conversationId)}</code>
+                                <code style="font-size: 0.8125rem; color: var(--text-primary); word-break: break-all; cursor: pointer;"
+                                      onclick="navigator.clipboard.writeText(${escapeJsStringAttr(log.conversationId)}); this.title='${knowledgeT('common.copied', '已复制!')}'; setTimeout(() => this.title='${knowledgeT('retrievalLogs.clickToCopy', '点击复制')}', 2000);"
+                                      title="${knowledgeT('retrievalLogs.clickToCopy', '点击复制')}" >${escapeHtml(log.conversationId)}</code>
                             </div>
                         ` : ''}
                         ${log.messageId ? `
                             <div style="padding: 12px; background: var(--bg-secondary); border-radius: 6px;">
                                 <div style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 4px;">${_t('retrievalLogs.messageId')}</div>
                                 <code style="font-size: 0.8125rem; color: var(--text-primary); word-break: break-all; cursor: pointer;" 
-                                      onclick="navigator.clipboard.writeText(${escapeJsStringAttr(log.messageId)}); this.title='已复制!'; setTimeout(() => this.title='点击复制', 2000);" 
-                                      title="点击复制">${escapeHtml(log.messageId)}</code>
+                                      onclick="navigator.clipboard.writeText(${escapeJsStringAttr(log.messageId)}); this.title='${knowledgeT('common.copied', '已复制!')}'; setTimeout(() => this.title='${knowledgeT('retrievalLogs.clickToCopy', '点击复制')}', 2000);"
+                                      title="${knowledgeT('retrievalLogs.clickToCopy', '点击复制')}" >${escapeHtml(log.messageId)}</code>
                             </div>
                         ` : ''}
                     </div>
@@ -1937,7 +1946,7 @@ function showRetrievalLogDetailsModal(log, retrievedItems) {
             ` : ''}
             
             <div class="retrieval-detail-section">
-                <h3 style="margin: 0 0 12px 0; font-size: 1.125rem; color: var(--text-primary);">检索到的知识项 (${retrievedItems.length})</h3>
+                <h3 style="margin: 0 0 12px 0; font-size: 1.125rem; color: var(--text-primary);">${knowledgeT('retrievalLogs.retrievedItems', '检索到的知识项')} (${retrievedItems.length})</h3>
                 ${itemsHtml}
             </div>
         </div>

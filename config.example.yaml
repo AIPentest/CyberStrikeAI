@@ -1,102 +1,102 @@
 # ============================================
-# CyberStrikeAI 配置文件
+# CyberStrikeAI configuration file
 # ============================================
-# 本配置文件支持通过 Web 界面进行可视化配置
-# 点击右上角"设置"按钮即可修改配置
-# ============================================
-
-# ============================================
-# 系统设置
+# This configuration file supports visual configuration via the Web interface
+# Click the "Settings" button in the top-right corner to modify the configuration
 # ============================================
 
-# 前端显示的版本号（可选，不填则显示默认版本）。一键更新完成后，会用新代码里这个文件的值
-# 同步更新你的 config.yaml 的 version 字段（页头版本号与静态资源缓存随代码走）。
+# ============================================
+# System settings
+# ============================================
+
+# Version number displayed in the frontend (optional; blank shows the default version). After one-click update completes,
+# this file's value in the new code will sync your config.yaml's version field (the page header version and static asset cache follow the code).
 version: "v1.7.24"
-# 服务器配置
+# Server configuration
 server:
-  host: 0.0.0.0 # 监听地址，0.0.0.0 表示监听所有网络接口
-  port: 8080 # 服务端口；未启用 TLS 时为 http://localhost:8080
-  # 其他可信 Web 集成的精确 Origin。Chromium 浏览器插件会自动识别，无需配置；不要使用通配符。
+  host: 0.0.0.0 # Listen address; 0.0.0.0 means listen on all network interfaces
+  port: 8080 # Service port; without TLS it is http://localhost:8080
+  # Exact Origins of other trusted web integrations. The Chromium browser extension recognizes itself automatically, no configuration needed; do not use wildcards.
   # cors_allowed_origins:
   #   - https://trusted-integration.example
-  # --- 可选：HTTPS + HTTP/2（缓解浏览器对同源 HTTP/1.1 的并发连接数限制，多路 Deep 流式更稳）---
-  # 启用 TLS 的条件（满足其一即可）：tls_enabled: true，或 tls_auto_self_sign: true，或同时配置了 tls_cert_path + tls_key_path。
-  # 启用后请用 https://127.0.0.1:<本端口>/ 访问；若仍用 http:// 访问同端口，将自动 308 跳转到 HTTPS（可用 tls_http_redirect: false 关闭）。
+  # --- Optional: HTTPS + HTTP/2 (mitigates browser same-origin HTTP/1.1 concurrent connection limits; multi-path Deep streaming is more stable) ---
+  # TLS is enabled when any of: tls_enabled: true, or tls_auto_self_sign: true, or both tls_cert_path + tls_key_path are set.
+  # Once enabled, access via https://127.0.0.1:<this port>/; if you still use http:// on the same port, it will automatically 308 redirect to HTTPS (can be turned off with tls_http_redirect: false).
   tls_enabled: true
-  # 启用 HTTPS 时，明文 HTTP 是否自动跳转到 HTTPS（默认 true；同端口嗅探 TLS/HTTP 后分流）
+  # When HTTPS is enabled, whether plain HTTP automatically redirects to HTTPS (default true; sniff TLS/HTTP on the same port then split)
   # tls_http_redirect: true
-  # 方式 A（推荐生产）：PEM 证书与私钥路径
+  # Option A (recommended for production): PEM certificate and private key paths
   # tls_cert_path: /path/to/fullchain.pem
   # tls_key_path: /path/to/privkey.pem
-  # 方式 B（仅本地/测试）：无证书文件时内存自签（浏览器会提示不受信任；SAN 含 localhost / 127.0.0.1）
+  # Option B (local/testing only): in-memory self-signed when no cert files (browser will warn untrusted; SAN includes localhost / 127.0.0.1)
   tls_auto_self_sign: true
-# 认证配置
+# Authentication configuration
 auth:
-  session_duration_hours: 12 # 登录有效期（小时），超时后需重新登录
-# 日志配置
+  session_duration_hours: 12 # Login validity period (hours); when exceeded, re-login is required
+# Log configuration
 log:
-  level: info # 日志级别: debug(调试), info(信息), warn(警告), error(错误)
-  output: stdout # 日志输出位置: stdout(标准输出), stderr(标准错误), 或文件路径
-  diagnostic_dir: log # 额外保存 warn 及以上诊断日志，按本地日期拆分；相对于进程工作目录
-  diagnostic_retention_days: 14 # 保留天数（含当天）；省略或 <= 0 使用 14 天
-  diagnostic_disabled: false # true 关闭额外诊断日志；修改后需重启
-# 平台操作审计（系统设置 -> 日志审计；不记录对话正文与每次工具调用）
+  level: info # Log level: debug (debug), info (info), warn (warning), error (error)
+  output: stdout # Log output location: stdout (standard output), stderr (standard error), or a file path
+  diagnostic_dir: log # Extra storage of warn-and-above diagnostic logs, split by local date; relative to the process working directory
+  diagnostic_retention_days: 14 # Retention days (including today); omitted or <= 0 uses 14 days
+  diagnostic_disabled: false # true turns off extra diagnostic logs; requires restart after change
+# Platform operation audit (System Settings -> log audit; does not record conversation content or each tool call)
 audit:
   enabled: true
-  retention_days: 15 # 0 表示不自动清理
+  retention_days: 15 # 0 means no automatic cleanup
   max_detail_bytes: 8192
-  auth_failure_cooldown_seconds: 60 # 同一 IP 登录/改密失败审计最短间隔（秒）；未配置时默认 60；-1 关闭节流
-# MCP 状态监控执行记录保留（tool_executions 表）
+  auth_failure_cooldown_seconds: 60 # Minimum interval (seconds) between audit entries for the same IP's login/change-password failures; default 60 if not configured; -1 turns off throttling
+# MCP status monitoring execution record retention (tool_executions table)
 monitor:
-  retention_days: 90 # 省略时默认 90；0 表示不自动清理
-# 运行空间垃圾清理（系统设置 -> 存储清理）
-# 覆盖 Agent 工作区、工具输出缓存、C2 产物、对话上传件等磁盘产物的保留策略。
-# auto_clean 默认关闭：升级后不会在管理员不知情的情况下删除既有数据；
-# 关闭时仍可在「存储清理」页手动预览并执行清理。
+  retention_days: 90 # Default 90 if omitted; 0 means no automatic cleanup
+# Running-space garbage cleanup (System Settings -> storage cleanup)
+# Retention policy covering the disk artifacts of the agent workspace, tool output cache, C2 artifacts, conversation uploads, and similar.
+# auto_clean is off by default: after upgrades, existing data will not be deleted without the administrator's knowledge;
+# when off, you can still preview and execute cleanup manually on the "Storage Cleanup" page.
 storage:
-  auto_clean: false # true 开启后台定时清理
-  interval_minutes: 60 # 后台清理间隔（分钟）；最小 5
-  orphan_grace_days: 1 # 会话/项目已删除但目录残留时，闲置多少天后回收
-  active_grace_hours: 24 # 最近有活动的会话一律跳过，避免误删正在跑的任务数据
-  # 各类别 retention_days：省略时使用下方默认值；0 表示不按保留期清理（孤儿目录仍会回收）
+  auto_clean: false # true turns on background scheduled cleanup
+  interval_minutes: 60 # Background cleanup interval (minutes); minimum 5
+  orphan_grace_days: 1 # When a session/project is deleted but the directory remains, reclaim after how many idle days
+  active_grace_hours: 24 # Sessions with recent activity always skip, to avoid mistakenly deleting data for tasks currently running
+  # Per-category retention_days; when omitted use the defaults below; 0 means no retention-based cleanup (orphan directories are still reclaimed)
   categories:
-    workspace: # Agent 工作区 tmp/workspace；默认 30 天
+    workspace: # Agent workspace tmp/workspace; default 30 days
       enabled: true
       retention_days: 30
-    reduction: # 超长工具输出落盘 tmp/reduction；默认 7 天（纯派生数据）
+    reduction: # Very long tool outputs persisted to disk tmp/reduction; default 7 days (pure derived data)
       enabled: true
       retention_days: 7
-    conversation_artifacts: # 摘要与超长输入台账 data/conversation_artifacts；默认 30 天
+    conversation_artifacts: # Summary and very-long input ledger data/conversation_artifacts; default 30 days
       enabled: true
       retention_days: 30
-    plantask: # 多代理计划看板 skills/.eino/plantask；默认 30 天（纯派生数据）
+    plantask: # Multi-agent plan board skills/.eino/plantask; default 30 days (pure derived data)
       enabled: true
       retention_days: 30
-    c2_artifacts: # C2 回传截图/上传件/下发文件/payload tmp/c2；默认 30 天
-      enabled: true # 注意：清理 payload 后对应下载链接会失效
+    c2_artifacts: # C2 exfiltration screenshots/uploads/pushed files/payloads tmp/c2; default 30 days
+      enabled: true # Note: after cleaning payload, the corresponding download link becomes invalid
       retention_days: 30
-    chat_uploads: # 对话上传附件 chat_uploads；默认 90 天
+    chat_uploads: # Conversation upload attachments chat_uploads; default 90 days
       enabled: true
       retention_days: 90
-    workflow_checkpoints: # 工作流断点 data/workflow-checkpoints；默认 7 天
+    workflow_checkpoints: # Workflow checkpoints data/workflow-checkpoints; default 7 days
       enabled: true
       retention_days: 7
-    diagnostic_logs: # 诊断日志 log/diagnostic-*.log；默认 14 天
-      enabled: true # 与 log.diagnostic_retention_days 各自独立生效，取先到者
+    diagnostic_logs: # Diagnostic logs log/diagnostic-*.log; default 14 days
+      enabled: true # Effective independently from log.diagnostic_retention_days, whichever comes first
       retention_days: 14
 # ============================================
-# 对话相关配置
+# Conversation-related configuration
 # ============================================
 
-# AI 通道配置（支持保存多个 OpenAI 兼容 / Claude 通道）
-# default_channel 指定新对话与未显式选择通道的任务使用哪个通道。
-# 每个 channels.<id> 必填：api_key, base_url, model。
-# 支持的 API 服务商：
+# AI channel configuration (supports saving multiple OpenAI-compatible / Claude channels)
+# default_channel specifies which channel new conversations and tasks without an explicitly chosen channel use.
+# Each channels.<id> requires: api_key, base_url, model.
+# Supported API providers:
 #   - OpenAI: https://api.openai.com/v1
 #   - DeepSeek: https://api.deepseek.com/v1
-#   - 其他兼容 OpenAI 协议的 API
-# 常用模型: gpt-4, gpt-3.5-turbo, deepseek-chat, claude-3-opus 等
-# provider: 可选值 openai_compatible(默认) | claude(Eino 原生 Anthropic Messages API)
+#   - Other APIs compatible with the OpenAI protocol
+# Common models: gpt-4, gpt-3.5-turbo, deepseek-chat, claude-3-opus, etc.
+# provider: optional values openai_compatible (default) | claude (Eino native Anthropic Messages API)
 ai:
   default_channel: qwen-max
   channels:
@@ -108,13 +108,13 @@ ai:
       model: qwen3-max
       max_total_tokens: 120000
       max_completion_tokens: 32768
-      # Eino 路径模型推理：DeepSeek/OpenAI 为 thinking / reasoning_effort；Claude 4.6+ 为 adaptive + output_config.effort（仅显式配置 effort 时下发）；3.7 为 enabled+budget_tokens:10000（文档示例），effort 不映射，自定义预算用 extra_request_fields
+      # Eino path model reasoning: DeepSeek/OpenAI is thinking / reasoning_effort; Claude 4.6+ is adaptive + output_config.effort (only sent when effort is explicitly configured); 3.7 is enabled+budget_tokens:10000 (document example), effort does not map, custom budget goes via extra_request_fields
       reasoning:
-        mode: on # auto | on | off；off：OpenAI/Claude 不附加推理字段，DeepSeek 发送 thinking.type=disabled（其默认开启思考）
-        effort: high # low | medium | high | max | xhigh（最高档：OpenAI 常用 xhigh，部分网关用 max，原样下发）；空表示不指定
-        allow_client_reasoning: true # false 时忽略对话请求体 reasoning，仅以下方为准
+        mode: on # auto | on | off; off: OpenAI/Claude attach no reasoning field, DeepSeek sends thinking.type=disabled (it defaults to thinking enabled)
+        effort: high # low | medium | high | max | xhigh (highest tier: OpenAI commonly xhigh, some gateways use max, sent as-is); blank means not specified
+        allow_client_reasoning: true # when false, ignore the conversation request body's reasoning, only the above is authoritative
         profile: openai_compat # auto | deepseek_compat | openai_compat | output_config_effort
-        # extra_request_fields: {} # 可选：管理员自定义根级 JSON 片段（高级）
+        # extra_request_fields: {} # optional: administrator custom root-level JSON fragments (advanced)
     # qwen-plus:
     #   name: Qwen Plus Fallback
     #   provider: openai_compatible
@@ -123,284 +123,284 @@ ai:
     #   model: qwen-plus
     #   max_total_tokens: 120000
     #   max_completion_tokens: 32768
-# 视觉分析（analyze_image MCP 工具；图片仅在单次 VL 调用中出现，Agent 上下文只保留文字摘要）
+# Vision analysis (analyze_image MCP tool; images appear only in a single VL call, the Agent context keeps only the text summary)
 vision:
-  enabled: false # true 且 model 非空时注册 analyze_image
-  model: qwen-vl # VL 模型名（enabled 时必填）
-  api_key: "" # 留空则复用默认 AI 通道 api_key
-  base_url: "" # 留空则复用默认 AI 通道 base_url
-  provider: # 留空则复用默认 AI 通道 provider（openai_compatible | claude）
-  max_image_bytes: 5242880 # 原始文件上限（字节），默认 5MB
-  max_dimension: 2048 # 长边缩放像素
+  enabled: false # when true and model is non-empty, register analyze_image
+  model: qwen-vl # VL model name (required when enabled)
+  api_key: "" # leave blank to reuse the default AI channel's api_key
+  base_url: "" # leave blank to reuse the default AI channel's base_url
+  provider: # leave blank to reuse the default AI channel's provider (openai_compatible | claude)
+  max_image_bytes: 5242880 # Original file size limit (bytes), default 5MB
+  max_dimension: 2048 # Long-side scaled-down pixels
   jpeg_quality: 82
-  max_payload_bytes: 524288 # 编码后送 VL API 上限，默认 512KB
-  skip_preprocess_below_bytes: 2097152 # 低于 2MB 且长边<=max_dimension 且<=max_payload 时原图直传；0=始终压缩
-  detail: auto # low | high | auto（Eino ImageURLDetail）
+  max_payload_bytes: 524288 # Encoded payload limit sent to the VL API, default 512KB
+  skip_preprocess_below_bytes: 2097152 # Below 2MB and long side<=max_dimension and<=max_payload, the original image is sent directly; 0=always compress
+  detail: auto # low | high | auto (Eino ImageURLDetail)
   timeout_seconds: 60
 # ============================================
-# 资产管理（网络空间测绘搜索）配置（可选）
+# Asset management (cyberspace mapping search) configuration (optional)
 # ============================================
-# 用于「资产管理 → 信息收集」页面调用 FOFA / ZoomEye / Quake / Shodan API
-# 后端代理请求，避免前端暴露 key；环境变量优先级更高
+# Used by the "Asset Management → Information Gathering" page to call FOFA / ZoomEye / Quake / Shodan APIs
+# Backend proxies the request, avoiding exposing the key in the frontend; environment variables take priority
 fofa:
-  base_url: https://fofa.info/api/v1/search/all # 可选，留空则使用默认
-  api_key: "" # FOFA API Key（可选，建议在系统设置中填写）
+  base_url: https://fofa.info/api/v1/search/all # optional, leave blank to use the default
+  api_key: "" # FOFA API Key (optional, recommended to fill in System Settings)
 zoomeye:
-  base_url: https://api.zoomeye.ai/v2/search # 可选，留空则使用默认
-  api_key: "" # ZoomEye API Key；也可通过 ZOOMEYE_API_KEY 环境变量配置
+  base_url: https://api.zoomeye.ai/v2/search # optional, leave blank to use the default
+  api_key: "" # ZoomEye API Key; can also be configured via the ZOOMEYE_API_KEY environment variable
 quake:
-  base_url: https://quake.360.net/api/v3/search/quake_service # 可选，留空则使用默认
-  api_key: "" # Quake API Token；也可通过 QUAKE_API_KEY 环境变量配置
+  base_url: https://quake.360.net/api/v3/search/quake_service # optional, leave blank to use the default
+  api_key: "" # Quake API Token; can also be configured via the QUAKE_API_KEY environment variable
 shodan:
-  base_url: https://api.shodan.io # 可选，留空则使用默认
-  api_key: "" # Shodan API Key；也可通过 SHODAN_API_KEY 环境变量配置
-# Agent 配置
-# 达到最大迭代次数时，AI 会自动总结测试结果
+  base_url: https://api.shodan.io # optional, leave blank to use the default
+  api_key: "" # Shodan API Key; can also be configured via the SHODAN_API_KEY environment variable
+# Agent configuration
+# When the maximum iteration count is reached, the AI will automatically summarize the test results
 agent:
-  max_iterations: 12000 # 全局最大迭代次数（单代理 / Deep / Supervisor / Plan-Execute 主执行器 / 子代理均沿用；agents/*.md 中 max_iterations>0 可单独覆盖）
-  tool_timeout_minutes: 60 # 单次工具执行最大时长（分钟），超时自动终止；0 表示不限制（不推荐，易出现长时间挂起）
-  tool_wait_timeout_seconds: 300 # 工具本轮最多等待（秒）；到时返回 execution_id，worker 继续后台执行，可用 wait_tool_execution 继续等待；0=等到完成
-  external_mcp_max_concurrent_per_server: 5 # 单个外部 MCP server 同时运行的工具数；0=默认2；负数=不限制
-  external_mcp_max_concurrent_total: 16 # 所有外部 MCP 工具全局并发上限；0=默认16；负数=不限制
-  external_mcp_circuit_failure_threshold: 15 # 单个外部 MCP server 连续失败多少次后熔断；0=默认3；负数=关闭熔断
-  external_mcp_circuit_cooldown_seconds: 60 # 熔断冷却秒数；0=默认60
-  shell_no_output_timeout_seconds: 1200 # execute/exec 连续无新输出则终止（秒）；通用防挂死；0=默认300；-1=关闭
-  workspace_root_dir: "" # 会话工作目录根路径（curl/wget 下载、read_file/glob/grep 本地分析）；空=tmp/workspace，其下按 projects/{id} 或 conversations/{id} 隔离；勿用系统 /tmp
-  # system_prompt_path: prompts/single-agent.md # 可选：单代理系统提示文件（相对本配置文件所在目录）；非空且可读时替换内置提示
+  max_iterations: 12000 # Global maximum iteration count (single agent / Deep / Supervisor / Plan-Execute main executor / sub agents all inherit; in agents/*.md, max_iterations>0 can override individually)
+  tool_timeout_minutes: 60 # Maximum duration (minutes) of a single tool execution; automatically terminated on timeout; 0 means no limit (not recommended, prone to long hangs)
+  tool_wait_timeout_seconds: 300 # Maximum wait (seconds) per tool turn; when reached returns execution_id, the worker continues in the background, can continue waiting with wait_tool_execution; 0=wait until completion
+  external_mcp_max_concurrent_per_server: 5 # Concurrent tool executions per external MCP server; 0=default 2; negative=no limit
+  external_mcp_max_concurrent_total: 16 # Global concurrency limit for all external MCP tools; 0=default 16; negative=no limit
+  external_mcp_circuit_failure_threshold: 15 # Consecutive failures per external MCP server before circuit breaking; 0=default 3; negative=circuit breaker off
+  external_mcp_circuit_cooldown_seconds: 60 # Circuit-breaker cooldown seconds; 0=default 60
+  shell_no_output_timeout_seconds: 1200 # execute/exec terminates (seconds) on continuous absence of new output; general anti-hang; 0=default 300; -1=off
+  workspace_root_dir: "" # Session workspace root directory path (curl/wget downloads, read_file/glob/grep local analysis); blank=tmp/workspace, below that, isolated per projects/{id} or conversations/{id}; do not use system /tmp
+  # system_prompt_path: prompts/single-agent.md # optional: single-agent system prompt file (relative to the directory containing this configuration file); non-empty and readable replaces the built-in prompt
 
   system_prompt_path: ""
-# 调用拦截：在「安全防护 → 调用拦截」编辑并保存后立即生效；与 HITL 审批白名单独立。
-# 旧配置省略 tool_guard 时也默认启用政府域名保护。手动修改 YAML 后需重启。
+# Call interception: takes effect immediately after editing and saving in "Security Protection → Call Interception"; independent of the HITL approval whitelist.
+# Older configs omitting tool_guard also default to enabling government-domain protection. Manual YAML edits require a restart.
 tool_guard:
   enabled: true
   rules:
     - id: government-domains
-      name: 政府网站保护
+      name: Government sites protection
       enabled: true
-      # Go/RE2 正则；命名捕获组 match 用于提醒中的 {match}。
+      # Go/RE2 regex; the named capture group match is used for {match} in the reminder.
       pattern: '(?i)(?:^|[^\p{L}\p{M}\p{N}_.-])(?P<match>(?:(?:[\p{L}\p{M}\p{N}_*-]+\.)+gov(?:\.[\p{L}\p{M}\p{N}_*-]+)*|gov(?:\.[\p{L}\p{M}\p{N}_*-]+)+|\.gov(?:\.[\p{L}\p{M}\p{N}_*-]+)*)\.?)(?:$|[^\p{L}\p{M}\p{N}_.-])'
-      # 支持 {match}、{tool}、{rule}；留空使用通用提醒。
-      message: '识别到 {match}，禁止攻击政府网站。请检查目标与授权范围，并更换为已获授权的非政府目标。'
+      # Supports {match}, {tool}, {rule}; leave blank to use the generic reminder.
+      message: 'Identified {match}, attacking government sites is forbidden. Please check the target and authorization scope, and switch to an authorized non-government target.'
 
-# 人机协同（HITL）全局白名单：此处列出的工具始终免审批，与对话页「白名单工具（免审批，逗号分隔）」合并为并集；侧栏「应用」可合并写入本列表并立即生效。
-# 非白名单工具在审批方=审计 Agent 时，按会话 HITL 模式选用提示词：
+# Human-in-the-loop (HITL) global whitelist: tools listed here are always exempt from approval; merged with the conversation page's "whitelist tools (approval-exempt, comma-separated)" as a union; the sidebar "Apply" can merge-write into this list and take effect immediately.
+# Non-whitelisted tools, when the approval side is audit agent, select the prompt by the session's HITL mode:
 #   approval → audit_agent_prompt
-#   review_edit → audit_agent_prompt_review_edit（可改参后放行）
+#   review_edit → audit_agent_prompt_review_edit (can change params then allow)
 hitl:
-  # 全局默认人机协同模式：off=关闭，approval=审批模式，review_edit=审查编辑；新建会话无独立配置时沿用
+  # Global default human-in-the-loop mode: off=off, approval=approval mode, review_edit=review-edit; new sessions without separate config inherit
   default_mode: off
-  # 全局默认审批方：human=人工审批，audit_agent=审计 Agent；新建会话无独立配置时沿用
+  # Global default approval side: human=human approval, audit_agent=audit agent; new sessions without separate config inherit
   default_reviewer: human
-  # 全局默认审批等待时限（秒）：300=5分钟，0=不限时；新建会话无独立配置时沿用
+  # Global default approval wait timeout (seconds): 300=5 minutes, 0=unlimited; new sessions without separate config inherit
   default_timeout_seconds: 300
-  # 审计 Agent 后端二选一：openai=兼容协议聊天模型（提示词 JSON）；typesafe=TypeSafe Jev 结构化放通/拦截。
+  # Audit agent backend, one of two: openai=protocol-compatible chat model (prompt is JSON); typesafe=TypeSafe Jev structured allow/block.
   audit_backend: openai
-  # 审计 Agent 专用模型。openai 后端字段留空则复用主模型；typesafe 后端 api_key 必填且不继承主模型密钥。
+  # Audit agent dedicated model. openai backend fields left blank reuse the main model; typesafe backend api_key is required and does not inherit the main model key.
   audit_model:
-    provider: "" # openai / claude；仅 openai 后端生效，留空跟随 openai.provider
-    base_url: "" # openai 后端留空跟随主模型；typesafe 后端留空使用 https://api.typesafe.ai
-    api_key: "" # openai 后端留空跟随主模型；typesafe 后端填写 TypeSafe API Key
-    model: "" # openai 后端建议填小模型；typesafe 后端留空使用 jev-latest
-  # 已决策审计日志保留天数（与 MCP 监控一致；省略默认 90；0 表示不自动清理）
+    provider: "" # openai / claude; only takes effect for the openai backend, blank follows openai.provider
+    base_url: "" # openai backend blank follows the main model; typesafe backend blank uses https://api.typesafe.ai
+    api_key: "" # openai backend blank follows the main model; typesafe backend fill the TypeSafe API Key
+    model: "" # openai backend suggests filling a small model; typesafe backend blank uses jev-latest
+  # Already-decided audit log retention days (same as MCP monitoring; omitted defaults 90; 0 means no automatic cleanup)
   retention_days: 90
-  # 按你环境里的真实工具名增删（与侧栏一致、小写不敏感）；不需要全局免审批可改为 []
+  # Add/remove per the actual tool names in your environment (same as the sidebar; case-insensitive); change to [] if no global approval exemption is needed
   tool_whitelist: [read_file, ls, list_dir, glob, grep, tool_search, upsert_project_fact, get_project_fact, list_project_facts, search_project_facts, list_vulnerabilities, get_vulnerability, get_asset, query_assets, list_knowledge_risk_types, get_tool_execution, wait_tool_execution, batch_task_list, batch_task_get, manage_webshell_list, c2_event, c2_file]
-  # audit_agent_prompt: |  # 审批模式；留空使用内置默认，可在「人机协同」页编辑。openai 后端作聊天提示词；typesafe 后端作为 Jev 组织策略
-  # audit_agent_prompt_review_edit: |  # 审查编辑模式；留空使用内置默认
+  # audit_agent_prompt: |  # approval mode; leave blank to use the built-in default, can be edited in the "Human-in-the-loop" page. For the openai backend it is a chat prompt; for the typesafe backend it is the Jev organization policy
+  # audit_agent_prompt_review_edit: |  # review-edit mode; leave blank to use the built-in default
 
   audit_agent_prompt: |-
-    你是 CyberStrikeAI 人机协同审计 Agent。审查 Agent 即将执行的工具调用是否会对系统造成实质性损害。
+    You are the CyberStrikeAI human-in-the-loop audit agent. Review whether the tool call the Agent is about to execute would cause substantive harm to the system.
 
-    你会收到 JSON，包含 hitlMode、toolName、arguments/argumentsObj、userMessage、thinking、reasoningChain、planning 等字段。
+    You will receive JSON containing fields such as hitlMode, toolName, arguments/argumentsObj, userMessage, thinking, reasoningChain, planning.
 
-    规则优先级：
-    - 必须 reject 的规则
-    - 必须 approve 的规则
-    - 默认放行规则
+    Rule priority order:
+    - Rules that must reject
+    - Rules that must approve
+    - Default allow rule
 
-    规则匹配要求：
-    - 如果同时命中 reject 和 approve，必须 reject。
-    - 每次裁决必须给出一个规则编号，不得输出“命中规则：无”。
-    - 未命中明确 reject 或 approve 规则，但未发现明确破坏行为时，命中 D1：默认放行。
-    - 不得仅凭“本地执行”“设置超时”“文件名包含 test”判断脚本无害；必须检查实际 command、代码或请求参数。
-    - 如果脚本具体内容不可见，应表述为“当前参数未显示明确高危操作”，不能断言“无持久化影响”。
+    Rule matching requirements:
+    - If both a reject and an approve rule hit simultaneously, you must reject.
+    - Each verdict must give a rule number; do not output "hit rule: none".
+    - When no explicit reject or approve rule hits, but no clear destructive behavior is found, D1 hits: default allow.
+    - Do not judge a script harmless based only on "local execution", "timeout set", "filename contains test"; you must check the actual command, code, or request parameters.
+    - If the specific script content is not visible, phrase it as "the current parameters show no clearly high-risk operations", and do not assert "no persistence impact".
 
-    裁决基调（默认放行）：
-    - 绝大多数渗透测试操作（包括各类攻击 payload）都应放行
-    - 在裁决之前需要判断出：1、此请求的是干什么（理解请求内容）？2、此请求造成什么后果？
-    - 仅在「明确会直接破坏目标业务系统正常运行，或造成真实用户数据丢失/不可逆篡改」时 → reject
-    - 信息不足、参数略宽泛、仅为探测意图时 → approve
-    - 拿不准时 → approve（宁可放过可恢复的测试，不要误拦合法攻击）
+    Verdict tone (default allow):
+    - The overwhelming majority of penetration testing operations (including all kinds of attack payloads) should be allowed
+    - Before the verdict you need to work out: 1. What does this request do (understand the request content)? 2. What consequence does this request cause?
+    - Only in "clearly and directly breaking the normal operation of the target business system, or causing real user data loss/irreversible tampering" → reject
+    - Insufficient information, overly broad parameters, merely probing intent → approve
+    - When unsure → approve (prefer letting pass a recoverable test, do not mistakenly block a legitimate attack)
 
-    必须 reject 的高危情形（示例，非穷举）：
-    - 修改/重置任意用户或管理员密码、强制下线真实用户
-    - 修改服务器或服务配置（系统配置、Web/数据库参数、防火墙、启动项、计划任务）
-    - 修改/创建/删除用户、角色、权限（账户体系篡改）
-    - 删除或大规模破坏数据/文件（DROP/TRUNCATE/DELETE 全表、rm 重要文件、清空数据库）
-    - 停止、禁用、重启业务服务（systemctl stop、kill 关键进程、shutdown、reboot）
-    - 大规模压测或高并发造成 DoS
+    High-risk situations that must reject (examples, not exhaustive):
+    - Modify/reset any user or administrator password, force real users offline
+    - Modify server or service configuration (system configuration, Web/database parameters, firewall, startup items, scheduled tasks)
+    - Modify/create/delete users, roles, permissions (account-system tampering)
+    - Delete or massively destroy data/files (DROP/TRUNCATE/DELETE on full tables, rm on important files, emptying databases)
+    - Stop, disable, or restart business services (systemctl stop, kill critical processes, shutdown, reboot)
+    - Large-scale load testing or high concurrency causing DoS
 
-    以下情形必须 approve（即使看起来“攻击性强”或包含写操作）：
-    - 各类漏洞探测与利用 payload（SQL 注入含读写型、命令注入、反序列化、文件包含、路径遍历、SSRF、SSTI、XXE 等）
-    - 文件上传测试，包括上传 webshell、写入 webshell 文件
-    - 命令执行探测、反弹 Shell、dnslog / 数据外带探测
-    - 数据库命令执行、写文件、写计划任务、内存马注入等 getshell 利用
-    - 常规速率的口令爆破（非 DoS 级）
-    - 信息收集、端口/目录扫描、枚举、抓取
-    - 读取、查询、探测类操作（含敏感文件）
-    - 攻陷后无害侦察命令（whoami/id/uname/ls/cat 等）
-    - 参数宽泛但无明确破坏意图的请求
+    The following situations must approve (even if they look "aggressive" or include write operations):
+    - All kinds of vulnerability probing and exploitation payloads (SQL injection including read/write types, command injection, deserialization, file inclusion, path traversal, SSRF, SSTI, XXE, etc.)
+    - File upload testing, including uploading webshells, writing webshell files
+    - Command execution probing, reverse shells, dnslog / data exfiltration probing
+    - Database command execution, writing files, writing scheduled tasks, memory-shell injection, and similar getshell exploitation
+    - Password brute-forcing at normal rates (not DoS scale)
+    - Information gathering, port/directory scanning, enumeration, scraping
+    - Read, query, probe-type operations (including sensitive files)
+    - Post-compromise harmless reconnaissance commands (whoami/id/uname/ls/cat, etc.)
+    - Requests with broad parameters but no clear destructive intent
 
-    判定原则：
-    - “写”本身不是拦截理由——渗透测试大量依赖写操作（注入、上传、爆破、getshell）
-    - 关键看是否破坏「业务可用性 / 关键数据完整性」
-    - 只有明确命中上方 reject 清单才 reject
+    Judgment principles:
+    - "Write" itself is not a reason to block — penetration testing relies heavily on write operations (injection, upload, brute-forcing, getshell)
+    - The key thing to look at is whether it breaks "business availability / key data integrity"
+    - Only clearly hit the reject list above → reject
 
-    仅输出一行 JSON，不要 markdown 代码块：
-    {"decision":"approve"|"reject","comment":"实际操作：...；成功后的后果：...；命中规则：..."}
+    Output only a single line of JSON, no markdown code block:
+    {"decision":"approve"|"reject","comment":"Actual operation: ...; consequence after success: ...; hit rule: ..."}
   audit_agent_prompt_review_edit: |-
-    你是 CyberStrikeAI 人机协同审计 Agent。审查 Agent 即将执行的工具调用是否会对系统造成实质性损害。
+    You are the CyberStrikeAI human-in-the-loop audit agent. Review whether the tool call the Agent is about to execute would cause substantive harm to the system.
 
-    你会收到 JSON，包含 hitlMode、toolName、arguments/argumentsObj、userMessage、thinking、reasoningChain、planning 等字段。
+    You will receive JSON containing fields such as hitlMode, toolName, arguments/argumentsObj, userMessage, thinking, reasoningChain, planning.
 
-    规则优先级：
-    - 必须 reject 的规则
-    - 必须 approve 的规则
-    - 默认放行规则
+    Rule priority order:
+    - Rules that must reject
+    - Rules that must approve
+    - Default allow rule
 
-    规则匹配要求：
-    - 如果同时命中 reject 和 approve，必须 reject。
-    - 每次裁决必须给出一个规则编号，不得输出“命中规则：无”。
-    - 未命中明确 reject 或 approve 规则，但未发现明确破坏行为时，命中 D1：默认放行。
-    - 不得仅凭“本地执行”“设置超时”“文件名包含 test”判断脚本无害；必须检查实际 command、代码或请求参数。
-    - 如果脚本具体内容不可见，应表述为“当前参数未显示明确高危操作”，不能断言“无持久化影响”。
+    Rule matching requirements:
+    - If both a reject and an approve rule hit simultaneously, you must reject.
+    - Each verdict must give a rule number; do not output "hit rule: none".
+    - When no explicit reject or approve rule hits, but no clear destructive behavior is found, D1 hits: default allow.
+    - Do not judge a script harmless based only on "local execution", "timeout set", "filename contains test"; you must check the actual command, code, or request parameters.
+    - If the specific script content is not visible, phrase it as "the current parameters show no clearly high-risk operations", and do not assert "no persistence impact".
 
-    裁决基调（默认放行）：
-    - 绝大多数渗透测试操作（包括各类攻击 payload）都应放行
-    - 在裁决之前需要判断出：1、此请求的是干什么（理解请求内容）？2、此请求造成什么后果？
-    - 仅在「明确会直接破坏目标业务系统正常运行，或造成真实用户数据丢失/不可逆篡改」时 → reject
-    - 信息不足、参数略宽泛、仅为探测意图时 → approve
-    - 拿不准时 → approve（宁可放过可恢复的测试，不要误拦合法攻击）
+    Verdict tone (default allow):
+    - The overwhelming majority of penetration testing operations (including all kinds of attack payloads) should be allowed
+    - Before the verdict you need to work out: 1. What does this request do (understand the request content)? 2. What consequence does this request cause?
+    - Only in "clearly and directly breaking the normal operation of the target business system, or causing real user data loss/irreversible tampering" → reject
+    - Insufficient information, overly broad parameters, merely probing intent → approve
+    - When unsure → approve (prefer letting pass a recoverable test, do not mistakenly block a legitimate attack)
 
-    必须 reject 的高危情形（示例，非穷举）：
-    - 修改/重置任意用户或管理员密码、强制下线真实用户
-    - 修改服务器或服务配置（系统配置、Web/数据库参数、防火墙、启动项、计划任务）
-    - 修改/创建/删除用户、角色、权限（账户体系篡改）
-    - 删除或大规模破坏数据/文件（DROP/TRUNCATE/DELETE 全表、rm 重要文件、清空数据库）
-    - 停止、禁用、重启业务服务（systemctl stop、kill 关键进程、shutdown、reboot）
-    - 大规模压测或高并发造成 DoS
+    High-risk situations that must reject (examples, not exhaustive):
+    - Modify/reset any user or administrator password, force real users offline
+    - Modify server or service configuration (system configuration, Web/database parameters, firewall, startup items, scheduled tasks)
+    - Modify/create/delete users, roles, permissions (account-system tampering)
+    - Delete or massively destroy data/files (DROP/TRUNCATE/DELETE on full tables, rm on important files, emptying databases)
+    - Stop, disable, or restart business services (systemctl stop, kill critical processes, shutdown, reboot)
+    - Large-scale load testing or high concurrency causing DoS
 
-    以下情形必须 approve（即使看起来“攻击性强”或包含写操作）：
-    - 各类漏洞探测与利用 payload（SQL 注入含读写型、命令注入、反序列化、文件包含、路径遍历、SSRF、SSTI、XXE 等）
-    - 文件上传测试，包括上传 webshell、写入 webshell 文件
-    - 命令执行探测、反弹 Shell、dnslog / 数据外带探测
-    - 数据库命令执行、写文件、写计划任务、内存马注入等 getshell 利用
-    - 常规速率的口令爆破（非 DoS 级）
-    - 信息收集、端口/目录扫描、枚举、抓取
-    - 读取、查询、探测类操作（含敏感文件）
-    - 攻陷后无害侦察命令（whoami/id/uname/ls/cat 等）
-    - 参数宽泛但无明确破坏意图的请求
+    The following situations must approve (even if they look "aggressive" or include write operations):
+    - All kinds of vulnerability probing and exploitation payloads (SQL injection including read/write types, command injection, deserialization, file inclusion, path traversal, SSRF, SSTI, XXE, etc.)
+    - File upload testing, including uploading webshells, writing webshell files
+    - Command execution probing, reverse shells, dnslog / data exfiltration probing
+    - Database command execution, writing files, writing scheduled tasks, memory-shell injection, and similar getshell exploitation
+    - Password brute-forcing at normal rates (not DoS scale)
+    - Information gathering, port/directory scanning, enumeration, scraping
+    - Read, query, probe-type operations (including sensitive files)
+    - Post-compromise harmless reconnaissance commands (whoami/id/uname/ls/cat, etc.)
+    - Requests with broad parameters but no clear destructive intent
 
-    判定原则：
-    - “写”本身不是拦截理由——渗透测试大量依赖写操作（注入、上传、爆破、getshell）
-    - 关键看是否破坏「业务可用性 / 关键数据完整性」
-    - 只有明确命中上方 reject 清单才 reject
+    Judgment principles:
+    - "Write" itself is not a reason to block — penetration testing relies heavily on write operations (injection, upload, brute-forcing, getshell)
+    - The key thing to look at is whether it breaks "business availability / key data integrity"
+    - Only clearly hit the reject list above → reject
 
-    仅输出一行 JSON，不要 markdown 代码块：
-    {"decision":"approve"|"reject","comment":"实际操作：...；成功后的后果：...；命中规则：...","editedArguments":{...}}
+    Output only a single line of JSON, no markdown code block:
+    {"decision":"approve"|"reject","comment":"Actual operation: ...; consequence after success: ...; hit rule: ...","editedArguments":{...}}
 
-    editedArguments 规则（仅 approve 且需要改参时填写，否则省略该字段）：
-    - 提供完整替换后的工具参数对象，键名与 argumentsObj 一致
-    - 只做最小必要修改以收窄范围、消除风险（如限制 path、去掉危险 flag）
-    - 禁止扩大攻击面：不得扩大目标范围、提升权限或引入破坏性参数
-    - 无法安全改参且存在上述高危情形时应 reject，不要勉强 approve
-# 多代理与 Eino 单代理（CloudWeGo Eino ADK；单代理入口 /api/eino-agent*，多代理 /api/multi-agent*）
-# 依赖在 go.mod 中拉取；若下载失败可设置: go env -w GOPROXY=https://goproxy.cn,direct
-# Deep / Plan-Execute / Supervisor 由对话页与 WebShell 所选模式在请求体 orchestration 中指定；机器人按 robot_default_agent_mode
+    editedArguments rules (fill in only when approve and params need changing, otherwise omit the field):
+    - Provide the complete replaced tool parameter object, with key names matching argumentsObj
+    - Only make the minimal necessary changes to narrow the scope, eliminate risk (such as restricting path, removing dangerous flags)
+    - Expanding the attack surface is forbidden: must not expand the target scope, elevate privileges, or introduce destructive parameters
+    - When it cannot be safely re-parameterized and the high-risk situations above exist, you should reject, do not force approve
+# Multi-agent and Eino single-agent (CloudWeGo Eino ADK; single-agent entry /api/eino-agent*, multi-agent /api/multi-agent*)
+# Dependencies are pulled in go.mod; if downloads fail you can set: go env -w GOPROXY=https://goproxy.cn,direct
+# Deep / Plan-Execute / Supervisor are specified in the request body orchestration by the conversation page and WebShell mode selection; robots follow robot_default_agent_mode
 multi_agent:
   enabled: true
-  robot_default_agent_mode: eino_single # 企微/钉钉/飞书机器人默认：eino_single | deep | plan_execute | supervisor
-  batch_use_multi_agent: false # true 时「批量任务」队列中每个子任务也走 Eino 多代理（成本更高）
-  # plan_execute 专用：execute↔replan 外层循环上限，0 表示 Eino 默认 10。主/子代理 ReAct 轮次见 agent.max_iterations。
+  robot_default_agent_mode: eino_single # Enterprise WeChat/DingTalk/Lark robot default: eino_single | deep | plan_execute | supervisor
+  batch_use_multi_agent: false # when true, each sub-task in the "Batch Tasks" queue also goes through the Eino multi-agent (higher cost)
+  # plan_execute specific: outer execute↔replan loop upper limit, 0 means Eino default 10. Main/sub agent ReAct rounds see agent.max_iterations.
   plan_execute_loop_max_iterations: 0
-  sub_agent_user_context_max_runes: 0 # 子代理 task 描述中注入用户原文；0=不截断（默认），>0=总字符上限，负数=禁用
-  without_general_sub_agent: false # false 时保留 Deep 内置 general-purpose 子代理
+  sub_agent_user_context_max_runes: 0 # Inject the user's original text in the sub agent's task description; 0=no truncation (default), >0=total character limit, negative=disable
+  without_general_sub_agent: false # when false, keep the Deep built-in general-purpose sub agent
   without_write_todos: false
-  orchestrator_instruction: "" # Deep 主代理：agents/orchestrator.md（或 kind: orchestrator 的单个 .md）正文优先；正文为空时用此处；皆空则 Eino 默认
-  orchestrator_instruction_plan_execute: "" # plan_execute 主代理：agents/orchestrator-plan-execute.md 正文优先；正文为空时用此处；皆空则用内置 plan_execute 提示（不使用 Deep 的 orchestrator_instruction）
-  orchestrator_instruction_supervisor: "" # supervisor 主代理：agents/orchestrator-supervisor.md 正文优先；正文为空时用此处；皆空则用内置 supervisor 提示（transfer/exit 说明仍由运行追加；不使用 Deep 的 orchestrator_instruction）
-  # Eino 官方 Skills：渐进式披露 + 可选本机文件/Shell（eino-ext local backend）。Skills 目录见 skills_dir。
+  orchestrator_instruction: "" # Deep main agent: body of agents/orchestrator.md (or a single .md with kind: orchestrator) takes priority; when the body is empty use this; both empty use the Eino default
+  orchestrator_instruction_plan_execute: "" # plan_execute main agent: body of agents/orchestrator-plan-execute.md takes priority; when the body is empty use this; both empty use the built-in plan_execute prompt (Deep's orchestrator_instruction is not used)
+  orchestrator_instruction_supervisor: "" # supervisor main agent: body of agents/orchestrator-supervisor.md takes priority; when the body is empty use this; both empty use the built-in supervisor prompt (transfer/exit descriptions are still appended by the runner; Deep's orchestrator_instruction is not used)
+  # Eino official Skills: progressive disclosure + optional local files/shell (eino-ext local backend). For the Skills directory see skills_dir.
   eino_skills:
-    disable: false # true：不注册 skill 渐进式披露中间件，也不挂本机 FS/Shell 工具；false：按下方开关加载
-    filesystem_tools: true # true：注册 read_file/glob/grep/write/edit/execute（授权环境慎用）；false：仅 skill，不暴露本机读写与 Shell
-    skill_tool_name: skill # 模型侧可调用的「加载技能」工具名，一般保持 skill；与技能包文档中的调用名一致即可
-  # Eino ADK 中间件与 Deep/Supervisor/plan_execute Executor 调参（结构体见 internal/config/config.go → MultiAgentEinoMiddlewareConfig）
-  # plan_execute：下列 patch/reduction/tool_search/plantask 等同样作用于 Executor（经 ExecPreMiddlewares）；Planner/Replanner 不挂 MCP 前置中间件。
+    disable: false # true: do not register the skill progressive-disclosure middleware, and mount no local FS/Shell tools; false: load per the switches below
+    filesystem_tools: true # true: register read_file/glob/grep/write/edit/execute (use with caution in authorized environments); false: skill only, exposes no local read/write or shell
+    skill_tool_name: skill # The "load skill" tool name the model side can call, generally keep it skill; just be consistent with the call name in the skill pack's docs
+  # Eino ADK middleware and Deep/Supervisor/plan_execute Executor parameters (for the struct see internal/config/config.go → MultiAgentEinoMiddlewareConfig)
+  # plan_execute: the patch/reduction/tool_search/plantask below also applies to the Executor (via ExecPreMiddlewares); Planner/Replanner mount no MCP pre-middlewares.
   eino_middleware:
-    patch_tool_calls: true # true：修补历史中无 tool_result 的悬空 tool_call（流式中断/重试后更稳）；false：关闭；字段省略时默认等同 true
-    tool_search_enable: true # true：工具数 ≥ min 时启用 tool_search，仅前 N 个工具常驻，其余按正则按需解锁，省 token、减误选；false：全量工具进上下文
-    tool_search_min_tools: 20 # 达到该数量才启用 tool_search（避免工具很少时多此一举）；与 always_visible 配合使用
-    tool_search_always_visible: 12 # 始终直接暴露给模型的工具个数（顺序与角色工具列表一致）；其余工具进入动态池，需 tool_search 解锁
-    tool_search_always_visible_tools: [read_file, glob, grep, analyze_image, write_file, edit_file, execute, task, transfer_to_agent, exit, write_todos, skill, tool_search, TaskCreate, TaskGet, TaskUpdate, TaskList, record_vulnerability, list_vulnerabilities, get_vulnerability, get_tool_execution, wait_tool_execution, cancel_tool_execution, list_knowledge_risk_types, search_knowledge_base, webshell_exec, webshell_file_list, webshell_file_read, webshell_file_write, manage_webshell_list, manage_webshell_add, manage_webshell_update, manage_webshell_delete, manage_webshell_test, batch_task_list, batch_task_get, batch_task_start, batch_task_rerun, batch_task_pause, batch_task_update_metadata, batch_task_update_schedule, batch_task_schedule_enabled, batch_task_update_task, batch_task_remove_task, batch_task_delete, batch_task_create, batch_task_add_task, http-framework-test, exec] # 后端内置常驻工具白名单（优先于 always_visible 数量策略）
-    plantask_enable: true # P0：主代理挂载 TaskCreate/Get/Update/List 结构化任务板；需 eino_skills 可用且 skills_dir 存在
-    plantask_rel_dir: .eino/plantask # 任务文件相对 skills_dir，按会话分子目录：skills/.eino/plantask/<conversationId>/
-    reduction_enable: true # true：大工具输出截断并落盘到本地文件（tmp/reduction/.../trunc/<id>），上下文只留 <persisted-output> 预览；不依赖 eino_skills
-    reduction_max_length_for_trunc: 100000 # 单条工具结果超过该字节数时：全文写入本地 trunc 文件，返回带路径的截断预览（MCP/exec 与 reduction 共用此阈值）
-    reduction_max_tokens_for_clear: 60000 # 历史工具结果清理阈值（tokens），应低于 max_total_tokens * summarization_trigger_ratio
-    reduction_root_dir: "" # 非空：截断/清理内容落盘根路径；空：项目目录下 tmp/reduction（按会话/项目隔离）
-    reduction_clear_exclude: [] # 不参与「清理阶段」的工具名额外列表（会与 task/transfer/exit 等内置排除项合并）；需要时用 YAML 列表填写
-    reduction_sub_agents: true # true：子代理也挂 reduction；false：仅编排主代理使用 reduction
-    summarization_trigger_ratio: 0.8 # summarization 触发比例（max_total_tokens * ratio），建议 0.75~0.85
-    summarization_output_reserve_tokens: 40960 # 摘要模型输出预留 token；摘要输入预算 = 触发阈值 - 该值
-    summarization_emit_internal_events: true # true：发出 summarization 内部事件（便于诊断）
-    summarization_user_intent_ledger_max_runes: 96000 # 压缩后注入模型上下文的「原始用户输入与约束账本」总字符上限；DB 原始消息不裁剪
-    summarization_user_intent_ledger_entry_max_runes: 16000 # 账本中单条用户消息的字符上限；超出仅裁剪模型可见账本，不影响 DB 原文
-    latest_user_message_max_runes: 48000 # 本轮最新 user 进入模型上下文的字符上限；超出时全文落盘，仅注入 head/tail 预览
-    latest_user_message_head_runes: 24000 # 超长本轮 user 的头部预览字符数
-    latest_user_message_tail_runes: 24000 # 超长本轮 user 的尾部预览字符数
-    plan_execute_user_input_budget_ratio: 0.35 # plan_execute 中 userInput 预算比例（planner/replanner/executor 共用）
-    plan_execute_executed_steps_budget_ratio: 0.2 # plan_execute 中 executed_steps 预算比例
-    plan_execute_max_step_result_runes: 4000 # plan_execute 每步结果最大字符数（超出截断）
-    plan_execute_keep_last_steps: 8 # plan_execute 仅保留最近 N 步正文，早期步骤折叠为标题
-    checkpoint_dir: "" # 聊天链路不再使用 ADK checkpoint；跨轮模型态统一走 conversations.last_react_*，便于排查 stale context
-    model_retry_max_retries: 0 # Eino 原生 ChatModel retry；408/409/425/429/5xx/网络抖动/空流式输出会重试；0=默认 4（永久性 4xx 不重试）
-    model_retry_max_backoff_sec: 0 # Eino 原生 ChatModel retry 单次退避上限秒数；0=默认 30
-    model_failover_channels: [] # Eino 原生 ChatModel failover；填写 ai.channels ID，例如 [qwen-plus]；retry 耗尽后按顺序切换
-    model_failover_max_retries: 0 # 备用通道最多尝试数；0=尝试全部 model_failover_channels
-    empty_response_continue_max_attempts: 0 # Run 成功但未捕获助手正文（含流式中断）时 Handler 退避续跑次数；0=默认 5
-    deep_output_key: final_answer # P0：Eino session 写入最终助手结论（框架内部；Deep/Supervisor 主/eino_single）
-    task_tool_description_prefix: "" # 非空：仅 Deep 的 task 工具使用自定义描述前缀，运行时会拼接子代理名称；空则走 Eino 默认生成逻辑
-  # Eino callbacks + OpenTelemetry：框架级 span（与 Zap 对齐）；默认不向终端用户 UI 推 eino_trace_*（见 sse_trace_to_client）
+    patch_tool_calls: true # true: patch dangling tool_call in history without tool_result (more stable after streaming interruption/retry); false: off; field omitted defaults to the equivalent of true
+    tool_search_enable: true # true: when tool count ≥ min, enable tool_search; only the first N tools stay resident, the rest are unlocked on demand by regex, saving tokens and reducing mis-selection; false: full tools into context
+    tool_search_min_tools: 20 # Only at that count is tool_search enabled (avoiding overkill when tools are few); used together with always_visible
+    tool_search_always_visible: 12 # Number of tools always directly exposed to the model (order matches the role's tool list); the rest enter the dynamic pool and need tool_search to unlock
+    tool_search_always_visible_tools: [read_file, glob, grep, analyze_image, write_file, edit_file, execute, task, transfer_to_agent, exit, write_todos, skill, tool_search, TaskCreate, TaskGet, TaskUpdate, TaskList, record_vulnerability, list_vulnerabilities, get_vulnerability, get_tool_execution, wait_tool_execution, cancel_tool_execution, list_knowledge_risk_types, search_knowledge_base, webshell_exec, webshell_file_list, webshell_file_read, webshell_file_write, manage_webshell_list, manage_webshell_add, manage_webshell_update, manage_webshell_delete, manage_webshell_test, batch_task_list, batch_task_get, batch_task_start, batch_task_rerun, batch_task_pause, batch_task_update_metadata, batch_task_update_schedule, batch_task_schedule_enabled, batch_task_update_task, batch_task_remove_task, batch_task_delete, batch_task_create, batch_task_add_task, http-framework-test, exec] # Backend built-in resident tool whitelist (takes priority over the always_visible count policy)
+    plantask_enable: true # P0: the main agent mounts the structured TaskCreate/Get/Update/List task board; requires eino_skills available and skills_dir present
+    plantask_rel_dir: .eino/plantask # Task file relative to skills_dir, sub-directory per session: skills/.eino/plantask/<conversationId>/
+    reduction_enable: true # true: large tool output is truncated and persisted to a local file (tmp/reduction/.../trunc/<id>), leaving only a <persisted-output> preview in context; does not depend on eino_skills
+    reduction_max_length_for_trunc: 100000 # When a single tool result exceeds this byte count: the full text is written to a local trunc file, returning a truncated preview with path (MCP/exec shares this threshold with reduction)
+    reduction_max_tokens_for_clear: 60000 # History tool result cleanup threshold (tokens), should be below max_total_tokens * summarization_trigger_ratio
+    reduction_root_dir: "" # Non-empty: root path for persisting truncated/cleared content; blank: the project directory's tmp/reduction (isolated per session/project)
+    reduction_clear_exclude: [] # Extra list of tool names that do not take part in the "clear stage" (merged with built-in excludes such as task/transfer/exit); fill with a YAML list when needed
+    reduction_sub_agents: true # true: sub agents also mount reduction; false: only the orchestrator main agent uses reduction
+    summarization_trigger_ratio: 0.8 # Summarization trigger ratio (max_total_tokens * ratio), recommend 0.75~0.85
+    summarization_output_reserve_tokens: 40960 # Summary model output reserved tokens; summary input budget = trigger threshold - this value
+    summarization_emit_internal_events: true # true: emit summarization internal events (for diagnosis)
+    summarization_user_intent_ledger_max_runes: 96000 # Total character limit of the "original user input and constraint ledger" injected into the model context after compression; original DB messages are not trimmed
+    summarization_user_intent_ledger_entry_max_runes: 16000 # Character limit for a single user message in the ledger; when exceeded only the model-visible ledger is trimmed, the DB original text is unaffected
+    latest_user_message_max_runes: 48000 # Character limit for this turn's latest user message entering the model context; when exceeded the full text is persisted, only a head/tail preview is injected
+    latest_user_message_head_runes: 24000 # Head preview character count for an overly long this-turn user message
+    latest_user_message_tail_runes: 24000 # Tail preview character count for an overly long this-turn user message
+    plan_execute_user_input_budget_ratio: 0.35 # userInput budget ratio in plan_execute (shared by planner/replanner/executor)
+    plan_execute_executed_steps_budget_ratio: 0.2 # executed_steps budget ratio in plan_execute
+    plan_execute_max_step_result_runes: 4000 # Maximum characters per step result in plan_execute (truncated when exceeded)
+    plan_execute_keep_last_steps: 8 # plan_execute keeps only the most recent N step bodies, earlier steps fold into titles
+    checkpoint_dir: "" # The chat pipeline no longer uses ADK checkpoints; cross-turn model state uniformly goes through conversations.last_react_*, to ease stale-context debugging
+    model_retry_max_retries: 0 # Eino native ChatModel retry; 408/409/425/429/5xx/network jitter/empty streaming output will retry; 0=default 4 (permanent 4xx not retried)
+    model_retry_max_backoff_sec: 0 # Eino native ChatModel retry single backoff upper limit in seconds; 0=default 30
+    model_failover_channels: [] # Eino native ChatModel failover; fill ai.channels IDs, e.g. [qwen-plus]; when retry is exhausted, switch in order
+    model_failover_max_retries: 0 # Maximum tries for backup channels; 0=try all model_failover_channels
+    empty_response_continue_max_attempts: 0 # Number of backoff-and-continue runs by the Handler when a Run succeeds but no assistant body is captured (including streaming interruption); 0=default 5
+    deep_output_key: final_answer # P0: Eino session writes the final assistant conclusion (framework-internal; Deep/Supervisor main/eino_single)
+    task_tool_description_prefix: "" # Non-empty: only Deep's task tool uses the custom description prefix, the runtime will append the sub agent name; empty goes through Eino's default generation logic
+  # Eino callbacks + OpenTelemetry: framework-level spans (aligned with Zap); by default do not push eino_trace_* to the terminal-user UI (see sse_trace_to_client)
   eino_callbacks:
     enabled: true
-    # log_only=仅 Zap+OTel（推荐默认）| sse/full=才启用流式回调副本关闭等（full 含 stream hooks）
+    # log_only=only Zap+OTel (recommended default) | sse/full=only then enable streaming callback copies etc. (full includes stream hooks)
     mode: log_only
-    sse_trace_to_client: false # true：且 mode 为 sse/full 时，向前端时间线推送 eino_trace_*（排障/内网演示用）
+    sse_trace_to_client: false # true: and mode is sse/full, push eino_trace_* to the frontend timeline (for troubleshooting / intranet demos)
     max_input_summary_runes: 400
     max_output_summary_runes: 400
-    zap_verbose: false # true：Debug 附带 input/output 摘要
+    zap_verbose: false # true: Debug also carries input/output summaries
     otel:
       enabled: true
       service_name: cyberstrike-ai
-      exporter: stdout # none | stdout（开发/本机）| otlphttp（生产接 Collector）
-      otlp_endpoint: localhost:4318 # otlphttp 时使用，host:port，路径固定 /v1/traces
-      sample_ratio: 1.0 # 0~1，ParentBased+TraceIDRatio
-# 数据库配置
+      exporter: stdout # none | stdout (dev/local) | otlphttp (production to a Collector)
+      otlp_endpoint: localhost:4318 # used with otlphttp, host:port, path fixed /v1/traces
+      sample_ratio: 1.0 # 0~1, ParentBased+TraceIDRatio
+# Database configuration
 database:
-  path: data/conversations.db # SQLite 数据库文件路径，用于存储对话历史和消息
-  knowledge_db_path: data/knowledge.db # 知识库数据库文件路径（可选，为空则使用会话数据库），用于存储知识库项和向量嵌入，可独立复制和复用
+  path: data/conversations.db # SQLite database file path, used for storing conversation history and messages
+  knowledge_db_path: data/knowledge.db # Knowledge base database file path (optional; if empty, uses the session database), used for storing knowledge items and vector embeddings; can be copied and reused independently
 # ============================================
-# 任务管理相关配置
+# Task-management-related configuration
 # ============================================
-# （配置项已包含在对话相关配置中）
+# (Configuration items are included in the conversation-related configuration)
 
 # ============================================
-# 漏洞管理相关配置
+# Vulnerability management-related configuration
 # ============================================
 
-# 安全工具配置
-# 系统会从该目录加载所有 .yaml 格式的工具配置文件
-# 推荐方式：在 tools/ 目录下为每个工具创建独立的配置文件
+# Security tools configuration
+# The system loads all .yaml format tool configuration files from this directory
+# Recommended approach: create a separate configuration file per tool in the tools/ directory
 security:
   # auto: native Job Object on Windows; Unix watchdog unless cgroup_root is set.
   # Linux production: configure a systemd service with Delegate=cpu memory pids; set
@@ -411,96 +411,96 @@ security:
     max_processes: 256
     memory_max_bytes: 2147483648
     cpu_quota_micros: 0 # 0=no CPU cap; 100000=one core (100 ms period)
-  tools_dir: tools # 工具配置文件目录（相对于配置文件所在目录）
-  # 工具描述模式：加载 tools 下工具时，暴露给 AI/API 使用的描述来源
-  #   short - 优先使用 short_description（简短描述，省 token），为空时用 description
-  #   full  - 使用 description（详细描述）
+  tools_dir: tools # Tool configuration file directory (relative to the directory containing this configuration file)
+  # Tool description mode: source of the description exposed to AI/API when loading tools under tools/
+  #   short - prefer short_description (short description, saves tokens), falling back to description when empty
+  #   full  - use description (detailed description)
   tool_description_mode: full
 # ============================================
-# MCP 相关配置
+# MCP-related configuration
 # ============================================
 
-# MCP 协议配置
-# MCP (Model Context Protocol) 用于工具注册和调用
+# MCP protocol configuration
+# MCP (Model Context Protocol) for tool registration and invocation
 mcp:
-  enabled: false # 是否启用 MCP 服务器（http模式）
-  host: 127.0.0.1 # MCP 服务器监听地址；需要远程访问时再显式修改并配置网络层访问控制
-  port: 8081 # MCP 服务器端口
-  auth_header: "X-MCP-Token" # 可选的全局服务凭证 Header；普通调用请使用用户 Authorization: Bearer Token
-  auth_header_value: "" # 全局服务凭证值，仅 allow_global_access=true 时生效
-  allow_global_access: false # 高风险兼容模式：静态密钥映射为全局服务身份；默认请使用用户 Bearer Token
-# 外部 MCP 配置
+  enabled: false # Whether to enable the MCP server (http mode)
+  host: 127.0.0.1 # MCP server listen address; change explicitly only when remote access is needed, and configure network-layer access control
+  port: 8081 # MCP server port
+  auth_header: "X-MCP-Token" # Optional global service credential header; for normal calls use the user's Authorization: Bearer Token
+  auth_header_value: "" # Global service credential value, only effective when allow_global_access=true
+  allow_global_access: false # High-risk compatibility mode: static key mapping as global service identity; by default use the user's Bearer Token
+# External MCP configuration
 external_mcp:
   servers: {}
-# 内置 C2：本机仅做对话/知识库时可设为 false，不启动监听器、不注册 C2 MCP 工具；省略本段时默认启用
+# Built-in C2: when the machine is only used for conversations/knowledge base, can be set to false, starting no listeners and registering no C2 MCP tools; when this section is omitted, enabled by default
 c2:
   enabled: true
 # ============================================
-# 知识库相关配置
+# Knowledge base-related configuration
 # ============================================
 knowledge:
-  enabled: false # 是否启用知识检索功能
-  base_path: knowledge_base # 知识库目录路径（相对于配置文件所在目录）
+  enabled: false # Whether to enable knowledge retrieval
+  base_path: knowledge_base # Knowledge base directory path (relative to the directory containing this configuration file)
   embedding:
-    provider: openai # 嵌入模型提供商（目前仅支持openai）
-    model: text-embedding-v4 # 嵌入模型名称
-    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1 # 留空则使用OpenAI配置的base_url
-    api_key: sk-xxxxxxx # 留空则使用OpenAI配置的api_key
+    provider: openai # Embedding model provider (only openai is currently supported)
+    model: text-embedding-v4 # Embedding model name
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1 # leave blank to use the base_url from the OpenAI configuration
+    api_key: sk-xxxxxxx # leave blank to use the api_key from the OpenAI configuration
   retrieval:
-    top_k: 5 # 检索返回的Top-K结果数量
-    similarity_threshold: 0.4 # 余弦相似度阈值（0-1），低于此值的结果将被过滤
-    # Eino MultiQuery：LLM 改写查询后多路向量检索再融合（始终启用）
+    top_k: 5 # Number of Top-K results returned by retrieval
+    similarity_threshold: 0.4 # Cosine similarity threshold (0-1); results below it are filtered out
+    # Eino MultiQuery: LLM rewrites the query then multi-way vector retrieval then fusion (always enabled)
     multi_query:
-      max_queries: 4 # 改写变体上限（含语义覆盖）；建议 3~4
-    # 精排（始终启用）：dashscope 用 gte-rerank；其他 OpenAI 兼容端点走 /v1/rerank
+      max_queries: 4 # Upper limit of rewritten variants (including semantic coverage); recommend 3~4
+    # Rerank (always enabled): dashscope uses gte-rerank; other OpenAI-compatible endpoints go to /v1/rerank
     rerank:
-      provider: "" # 空=按 base_url 推断：dashscope | cohere
-      model: "" # 空=dashscope→gte-rerank，cohere→rerank-multilingual-v3.0
-      base_url: "" # 留空则用 embedding / openai 的 base_url
-      api_key: "" # 留空则用 embedding / openai 的 api_key
+      provider: "" # blank=inferred from base_url: dashscope | cohere
+      model: "" # blank=dashscope→gte-rerank, cohere→rerank-multilingual-v3.0
+      base_url: "" # leave blank to use the embedding / openai base_url
+      api_key: "" # leave blank to use the embedding / openai api_key
     post_retrieve:
-      prefetch_top_k: 20 # 每条 MultiQuery 变体的向量候选数；0=内置 max(top_k*4,20)
-      max_context_chars: 0 # 0 不限制；否则返回的正文总 Unicode 字符上限（整段 chunk）
-      max_context_tokens: 0 # 0 不限制；tiktoken 总 token 上限
+      prefetch_top_k: 20 # Vector candidate count per MultiQuery variant; 0=built-in max(top_k*4,20)
+      max_context_chars: 0 # 0 no limit; otherwise the total Unicode character limit of the returned body (whole-section chunks)
+      max_context_tokens: 0 # 0 no limit; otherwise the total tiktoken token limit
     sub_index_filter: ""
   # ============================================
-  # 索引配置（用于解决 API 限制问题）
+  # Indexing configuration (used to solve API limitation problems)
   # ============================================
   indexing:
-    # 分块配置
-    chunk_size: 512 # 每个块的最大 token 数（默认 512），长文本会被分割成多个块
-    chunk_overlap: 50 # 块之间的重叠 token 数（默认 50），保持上下文连贯性
-    max_chunks_per_item: 0 # 单个知识项的最大块数量（0 表示不限制），防止单个文件消耗过多 API 配额
-    # 速率限制配置（解决 429 错误）
-    max_rpm: 0 # 每分钟最大请求数（默认 0 表示不限制），如 OpenAI 默认 200 RPM
-    rate_limit_delay_ms: 300 # 请求间隔毫秒数（默认 300），用于避免 API 速率限制，设为 0 不限制
-    # 建议值：200 次/分钟≈300ms, 100 次/分钟≈600ms
+    # Chunking configuration
+    chunk_size: 512 # Maximum tokens per chunk (default 512); long texts are split into multiple chunks
+    chunk_overlap: 50 # Overlapping token count between chunks (default 50), keeping context coherent
+    max_chunks_per_item: 0 # Maximum chunk count per knowledge item (0 means no limit); prevents a single file from consuming too much API quota
+    # Rate-limit configuration (solves 429 errors)
+    max_rpm: 0 # Maximum requests per minute (default 0 means no limit), e.g. OpenAI default 200 RPM
+    rate_limit_delay_ms: 300 # Interval in milliseconds between requests (default 300); used to avoid API rate limits, set 0 for no limit
+    # Suggested values: 200 req/min≈300ms, 100 req/min≈600ms
 
-    # 重试配置
-    max_retries: 3 # 最大重试次数（默认 3），遇到速率限制或服务器错误时自动重试
-    retry_delay_ms: 1000 # 重试间隔毫秒数（默认 1000），每次重试会递增延迟
-    # 分块策略（Eino）：markdown_then_recursive = 先按 Markdown 标题切再递归；recursive = 仅递归切分。留空时程序内默认 markdown_then_recursive
+    # Retry configuration
+    max_retries: 3 # Maximum retry count (default 3); automatically retries on rate limits or server errors
+    retry_delay_ms: 1000 # Retry interval in milliseconds (default 1000); each retry increments the delay
+    # Chunking strategy (Eino): markdown_then_recursive = first split by Markdown headings then recursively; recursive = only recursive splitting. Blank defaults to markdown_then_recursive in-program
     chunk_strategy: markdown_then_recursive
-    # 嵌入 HTTP 请求超时（秒）。0 表示使用内置默认（一般为 120），与向量化 API 客户端一致
+    # Embedding HTTP request timeout (seconds). 0 uses the built-in default (generally 120), consistent with the vectorization API client
     request_timeout_seconds: 120
-    # true：索引时优先用知识项 file_path 指向的磁盘文件内容（Eino FileLoader）；false：用数据库里存的正文。读盘失败会回退 DB
+    # true: when indexing, prefer the disk file content pointed to by the knowledge item's file_path (Eino FileLoader); false: use the body stored in the database. Disk read failure falls back to DB
     prefer_source_file: false
-    # 单次嵌入 API 请求的文本条数上限（索引写入按此分批）。须 ≤ 服务商限制（如部分兼容接口最多 10）；过大易 400
+    # Upper limit of text items per single embedding API request (index writes are batched by this). Must be ≤ provider limits (some compatible interfaces at most 10); too large easily 400s
     batch_size: 10
-    # Eino indexer.WithSubIndexes：逻辑分区标签列表，会写入向量表 sub_indexes，检索可用 sub_index_filter 过滤；无需求可 []
+    # Eino indexer.WithSubIndexes: logical partition label list, written to the vector table sub_indexes, retrieval can filter with sub_index_filter; no need can be []
     sub_indexes: []
 # ============================================
-# 机器人配置（企业微信、钉钉、飞书）
+# Robot configuration (Enterprise WeChat, DingTalk, Lark)
 # ============================================
-# 用于在手机端通过企业微信/钉钉/飞书与 CyberStrikeAI 对话，无需部署在服务器上也可使用
-# 在系统设置 -> 机器人设置 中可配置
+# Used for chatting with CyberStrikeAI from the mobile side via Enterprise WeChat/DingTalk/Lark; usable even without deploying on a server
+# Can be configured in System Settings -> Robot Settings
 robots:
-  wechat: # 微信 iLink（个人微信 ClawBot，扫码绑定）
+  wechat: # WeChat iLink (personal WeChat ClawBot, bind by QR scan)
     enabled: false
-    # 鉴权默认 user_binding；专用机器人可改 service_account，并必须限制真实发送者
+    # Auth defaults to user_binding; a dedicated robot can change to service_account and must restrict the real sender
     auth:
       mode: user_binding # user_binding | service_account
-      # service_user_id: "admin 或专用服务账号的 RBAC user ID"
+      # service_user_id: "RBAC user ID of admin or the dedicated service account"
       # allowed_external_users: ["t:tenant|u:sender"]
     bot_token: ""
     ilink_bot_id: ""
@@ -508,7 +508,7 @@ robots:
     base_url: https://ilinkai.weixin.qq.com
     bot_type: "3"
     bot_agent: CyberStrikeAI/1.0
-  wecom: # 企业微信
+  wecom: # Enterprise WeChat
     enabled: false
     auth:
       mode: user_binding
@@ -517,14 +517,14 @@ robots:
     corp_id: ""
     secret: ""
     agent_id: 0
-  dingtalk: # 钉钉
+  dingtalk: # DingTalk
     enabled: false
     auth:
       mode: user_binding
     client_id: ""
     client_secret: ""
     allow_conversation_id_fallback: false
-  lark: # 飞书
+  lark: # Lark
     enabled: false
     auth:
       mode: user_binding
@@ -551,7 +551,7 @@ robots:
       mode: user_binding
     bot_token: ""
     allow_guild_messages: false
-  qq: # QQ 机器人
+  qq: # QQ robot
     enabled: false
     auth:
       mode: user_binding
@@ -559,48 +559,48 @@ robots:
     client_secret: ""
     sandbox: true
 # ============================================
-# Skills 相关配置
+# Skills-related configuration
 # ============================================
 
-# 技能包目录：每个子目录仅标准 SKILL.md（Agent Skills：front matter 仅 name、description）+ 可选附属文件；无 SKILL.yaml
-# 示例：skills/cyberstrike-eino-demo/
-skills_dir: skills # Skills配置文件目录（相对于配置文件所在目录）
+# Skill pack directory: each sub-directory only a standard SKILL.md (Agent Skills: front matter only name, description) + optional auxiliary files; no SKILL.yaml
+# Example: skills/cyberstrike-eino-demo/
+skills_dir: skills # Skills configuration file directory (relative to the directory containing this configuration file)
 # ============================================
-# 多代理子 Agent（Markdown，唯一维护处）
+# Multi-agent sub-agents (Markdown, the single maintenance site)
 # ============================================
-# 每个 .md：YAML front matter（name / id / description / tools / bind_role / 可选 max_iterations>0 覆盖全局 / 可选 kind: orchestrator）+ 正文为系统提示词
-# 主代理：固定文件名 orchestrator.md，或任意文件名 + front matter kind: orchestrator（全目录仅允许一个）；主代理不参与 task 子代理列表
-# 高级用法：仍可在 multi_agent 块内写 sub_agents，会与本文目录合并且同 id 时 YAML 可被 .md 覆盖
+# Each .md: YAML front matter (name / id / description / tools / bind_role / optional max_iterations>0 overriding the global / optional kind: orchestrator) + body is the system prompt
+# Main agent: fixed file name orchestrator.md, or any file name + front matter kind: orchestrator (only one allowed per directory); the main agent does not take part in the task sub-agent list
+# Advanced usage: you can still write sub_agents inside the multi_agent block, merged with this directory, and when the same id occurs the YAML can be overridden by the .md
 agents_dir: agents
 # ============================================
-# 角色相关配置
+# Role-related configuration
 # ============================================
 
-# 系统会从该目录加载所有 .yaml 格式的角色配置文件
-# 每个角色应创建独立的配置文件，例如：roles/CTF.yaml, roles/默认.yaml 等
-roles_dir: roles # 角色配置文件目录（相对于配置文件所在目录）
+# The system loads all .yaml format role configuration files from this directory
+# Each role should create a separate configuration file, e.g. roles/CTF.yaml, roles/default.yaml
+roles_dir: roles # Role configuration file directory (relative to the directory containing this configuration file)
 # ============================================
-# 项目管理与事实黑板
+# Project management and fact blackboard
 # ============================================
 project:
   enabled: true
-  # 压缩时自动保存续接摘要为 tentative note（每会话/代理更新一条，不替代已确认事实）
+  # When compressing, automatically save the continuation summary as a tentative note (one per session/agent, does not replace confirmed facts)
   context_checkpoints: true
-  # default_project_id: "" # 可选：机器人/批量任务创建对话时的默认项目 ID
-  # 项目续接补充包含在事实索引预算内；工作文件候选清单另有最多 4000 字符预算
+  # default_project_id: "" # optional: default project ID when robots/batch tasks create conversations
+  # Project continuation supplements are included in the fact index budget; the working file candidate list has a separate budget of at most 4000 characters
   fact_index_max_runes: 65000
-  # 事实关系速览段预算（从索引总预算中预留）
+  # Budget for the fact-relationship quick-view section (reserved from the total index budget)
   fact_index_path_max_runes: 10000
   fact_summary_max_runes: 24000
   default_inject_deprecated: false
 
 # ============================================
-# 一键更新（可选）
+# One-click update (optional)
 # ============================================
-# 更新源：一个仓库地址，更新跟随该仓库自己的默认分支；不配置时就是官方仓库
-# （https://github.com/AIPentest/CyberStrikeAI.git）。GitHub 访问不畅时可在这里填镜像地址，
-# 想跟随自己的二开也只改这一处；控制台「系统设置 → 一键更新」页可以直接填写保存。
-# 非 git 目录（解压/打包安装）不需要配置，也能在控制台「一键更新」页执行「接入更新源」，
-# 把目录变成跟踪该仓库的 git 工作树，此后按正常安装一键更新。
+# Update source: a repository address; updates follow that repository's own default branch; if not configured, it is the official repository
+# (https://github.com/AIPentest/CyberStrikeAI.git). When GitHub access is poor, you can fill in a mirror address here;
+# to follow your own fork only change this one place; the console's "System Settings → One-Click Update" page can fill and save directly.
+# Non-git directories (unpacked/package installs) do not need to be configured, and can also run "Connect to update source" on the console's "One-Click Update" page,
+# turning the directory into a git working tree tracking that repository, after which one-click update as normal installs.
 # update:
-#   repo: https://github.com/AIPentest/CyberStrikeAI.git  # 一个仓库地址；留空/不写 = 官方仓库
+#   repo: https://github.com/AIPentest/CyberStrikeAI.git  # A repository address; blank/omitted = official repository

@@ -52,7 +52,7 @@ func transformSecretTree(tree, current interface{}, restoring bool) error {
 				if restoring && text == maskedSecret {
 					stored, ok := previous[key].(string)
 					if !ok || stored == "" {
-						return fmt.Errorf("字段 %s 没有已保存凭据，请填写新的值", key)
+						return fmt.Errorf("field %s has no saved credential; fill in a new value", key)
 					}
 					node[key] = stored
 				}
@@ -141,7 +141,7 @@ func (h *ConfigHandler) resolveProbeSecret(key, channelID, baseURL, scope string
 		if ch, ok := h.config.AI.Channels[channelID]; ok && ch.APIKey != "" {
 			return ch.APIKey, nil
 		}
-		return "", fmt.Errorf("通道没有已保存凭据，请填写 API Key")
+		return "", fmt.Errorf("the channel has no saved credential; fill in the API Key")
 	}
 	var scoped string
 	switch scope {
@@ -155,7 +155,7 @@ func (h *ConfigHandler) resolveProbeSecret(key, channelID, baseURL, scope string
 		scoped = h.config.OpenAI.APIKey
 	case "":
 	default:
-		return "", fmt.Errorf("未知凭据范围")
+		return "", fmt.Errorf("unknown credential scope")
 	}
 	if scope != "" {
 		if scoped == "" {
@@ -164,7 +164,7 @@ func (h *ConfigHandler) resolveProbeSecret(key, channelID, baseURL, scope string
 		if scoped != "" {
 			return scoped, nil
 		}
-		return "", fmt.Errorf("没有已保存的 API Key")
+		return "", fmt.Errorf("no saved API Key")
 	}
 	keys := map[string]bool{}
 	add := func(url, secret string) {
@@ -185,5 +185,5 @@ func (h *ConfigHandler) resolveProbeSecret(key, channelID, baseURL, scope string
 			return secret, nil
 		}
 	}
-	return "", fmt.Errorf("无法唯一确定已保存凭据，请选择通道或填写 API Key")
+	return "", fmt.Errorf("cannot uniquely resolve the saved credential; select a channel or fill in the API Key")
 }

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -70,7 +71,7 @@ func (h *StorageHandler) Meta(c *gin.Context) {
 // ?refresh=1 强制重新遍历目录，否则使用短 TTL 缓存。
 func (h *StorageHandler) Status(c *gin.Context) {
 	if h.cleaner == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "存储清理未初始化"})
+		respondError(c, http.StatusServiceUnavailable, "存储清理未初始化", "storage cleanup not initialized")
 		return
 	}
 	refresh, _ := strconv.ParseBool(c.Query("refresh"))
@@ -87,19 +88,19 @@ func (h *StorageHandler) Status(c *gin.Context) {
 // Cleanup POST /api/storage/cleanup 执行清理（或预览）。
 func (h *StorageHandler) Cleanup(c *gin.Context) {
 	if h.cleaner == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "存储清理未初始化"})
+		respondError(c, http.StatusServiceUnavailable, "存储清理未初始化", "storage cleanup not initialized")
 		return
 	}
 	var req storageCleanupRequest
 	if c.Request.ContentLength > 0 {
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "无效的请求参数: %s", "invalid request parameter: %s"), err.Error())})
 			return
 		}
 	}
 	dryRun := req.DryRun == nil || *req.DryRun
 	if !dryRun && !req.Confirm {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "删除不可逆，执行真实清理必须同时传 dry_run=false 与 confirm=true"})
+		respondError(c, http.StatusBadRequest, "删除不可逆，执行真实清理必须同时传 dry_run=false 与 confirm=true", "deletion is irreversible; real cleanup requires dry_run=false and confirm=true together")
 		return
 	}
 

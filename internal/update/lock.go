@@ -14,15 +14,15 @@ func LockInstall(opts Options) (func(), error) {
 		return nil, err
 	}
 	if info, err := os.Stat(root); err != nil || !info.IsDir() {
-		return nil, &Error{Reason: "bad_root", Message: "安装目录不存在或不是目录：" + root}
+		return nil, &Error{Reason: "bad_root", Message: "the install directory does not exist or is not a directory: " + root}
 	}
 	f, err := os.OpenFile(filepath.Join(root, ".update-lock"), os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
-		return nil, &Error{Reason: "lock_failed", Message: "无法锁定安装目录：" + err.Error()}
+		return nil, &Error{Reason: "lock_failed", Message: "cannot lock the install directory: " + err.Error()}
 	}
 	if err := lockFile(f); err != nil {
 		f.Close()
-		return nil, &Error{Reason: "update_busy", Message: "此安装目录已有更新、检查或回滚正在执行，请稍后重试"}
+		return nil, &Error{Reason: "update_busy", Message: "an update, check, or rollback is already running on this install directory; retry shortly"}
 	}
 	return func() { f.Close() }, nil
 }

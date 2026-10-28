@@ -434,19 +434,19 @@ func (h *ChatUploadsHandler) collectFiles(c *gin.Context, conversationFilter, pr
 	})
 	reductionFiles, err := h.collectReductionFiles(c, conversationFilter, projectFilter)
 	if err != nil {
-		h.logger.Warn("列举 reduction 产物失败", zap.Error(err))
+		h.logger.Warn("failed to list reduction artifacts", zap.Error(err))
 	} else if len(reductionFiles) > 0 {
 		files = append(files, reductionFiles...)
 	}
 	workspaceFiles, err := h.collectWorkspaceFiles(c, conversationFilter, projectFilter)
 	if err != nil {
-		h.logger.Warn("列举 workspace 产物失败", zap.Error(err))
+		h.logger.Warn("failed to list workspace artifacts", zap.Error(err))
 	} else if len(workspaceFiles) > 0 {
 		files = append(files, workspaceFiles...)
 	}
 	artifactFiles, err := h.collectConversationArtifactFiles(c, conversationFilter, projectFilter)
 	if err != nil {
-		h.logger.Warn("列举 conversation_artifacts 产物失败", zap.Error(err))
+		h.logger.Warn("failed to list conversation_artifacts artifacts", zap.Error(err))
 	} else if len(artifactFiles) > 0 {
 		files = append(files, artifactFiles...)
 	}
@@ -846,7 +846,7 @@ func (h *ChatUploadsHandler) List(c *gin.Context) {
 	pageSize := parsePositiveIntQuery(c, "pageSize", 20, 200)
 	files, folders, err := h.collectFiles(c, conversationFilter, projectFilter)
 	if err != nil {
-		h.logger.Warn("列举对话附件失败", zap.Error(err))
+		h.logger.Warn("failed to list chat attachments", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -870,13 +870,13 @@ func (h *ChatUploadsHandler) Export(c *gin.Context) {
 	search := strings.TrimSpace(c.Query("search"))
 	files, _, err := h.collectFiles(c, conversationFilter, projectFilter)
 	if err != nil {
-		h.logger.Warn("导出对话附件失败", zap.Error(err))
+		h.logger.Warn("failed to export chat attachments", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	files = filterChatUploadItems(files, sourceFilter, search)
 	if len(files) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "no files to export"})
+		respondError(c, http.StatusNotFound, "没有可导出的文件", "no files to export")
 		return
 	}
 	nameParts := []string{"chat-files"}
@@ -908,7 +908,7 @@ func (h *ChatUploadsHandler) Export(c *gin.Context) {
 	manifestBytes, _ := json.MarshalIndent(manifest, "", "  ")
 	mw, err := zw.Create("manifest.json")
 	if err != nil {
-		h.logger.Warn("写入附件导出清单失败", zap.Error(err))
+		h.logger.Warn("failed to write the attachment export manifest", zap.Error(err))
 		return
 	}
 	_, _ = mw.Write(manifestBytes)
@@ -953,7 +953,7 @@ func (h *ChatUploadsHandler) Export(c *gin.Context) {
 		used[zipName]++
 		fw, err := zw.Create(zipName)
 		if err != nil {
-			h.logger.Warn("创建附件导出项失败", zap.String("path", item.RelativePath), zap.Error(err))
+			h.logger.Warn("failed to create the attachment export entry", zap.String("path", item.RelativePath), zap.Error(err))
 			continue
 		}
 		src, err := os.Open(abs)
@@ -963,12 +963,12 @@ func (h *ChatUploadsHandler) Export(c *gin.Context) {
 		_, copyErr := io.Copy(fw, src)
 		_ = src.Close()
 		if copyErr != nil {
-			h.logger.Warn("复制附件导出项失败", zap.String("path", item.RelativePath), zap.Error(copyErr))
+			h.logger.Warn("failed to copy the attachment export entry", zap.String("path", item.RelativePath), zap.Error(copyErr))
 			return
 		}
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "file", "export", "导出对话附件", "chat_upload", filename, map[string]interface{}{
+		h.audit.RecordOK(c, "file", "export", "chat attachments exported", "chat_upload", filename, map[string]interface{}{
 			"conversation_id": conversationFilter,
 			"project_id":      projectFilter,
 			"file_count":      len(files),
@@ -981,7 +981,7 @@ func (h *ChatUploadsHandler) Download(c *gin.Context) {
 	p := c.Query("path")
 	if strings.HasPrefix(strings.TrimSpace(p), reductionVirtualPrefix) {
 		if !h.reductionVirtualPathAllowed(c, p) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+			respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 			return
 		}
 		abs, err := h.resolveReductionVirtualPath(p)
@@ -991,7 +991,7 @@ func (h *ChatUploadsHandler) Download(c *gin.Context) {
 		}
 		st, err := os.Stat(abs)
 		if err != nil || st.IsDir() {
-			c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
+			respondError(c, http.StatusNotFound, "文件不存在", "file not found")
 			return
 		}
 		name := filepath.Base(abs)
@@ -1003,7 +1003,7 @@ func (h *ChatUploadsHandler) Download(c *gin.Context) {
 	}
 	if strings.HasPrefix(strings.TrimSpace(p), workspaceVirtualPrefix) {
 		if !h.workspaceVirtualPathAllowed(c, p) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+			respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 			return
 		}
 		abs, err := h.resolveWorkspaceVirtualPath(p)
@@ -1013,7 +1013,7 @@ func (h *ChatUploadsHandler) Download(c *gin.Context) {
 		}
 		st, err := os.Stat(abs)
 		if err != nil || st.IsDir() {
-			c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
+			respondError(c, http.StatusNotFound, "文件不存在", "file not found")
 			return
 		}
 		c.FileAttachment(abs, filepath.Base(abs))
@@ -1021,7 +1021,7 @@ func (h *ChatUploadsHandler) Download(c *gin.Context) {
 	}
 	if strings.HasPrefix(strings.TrimSpace(p), artifactVirtualPrefix) {
 		if !h.conversationArtifactVirtualPathAllowed(c, p) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+			respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 			return
 		}
 		abs, err := h.resolveConversationArtifactVirtualPath(p)
@@ -1031,7 +1031,7 @@ func (h *ChatUploadsHandler) Download(c *gin.Context) {
 		}
 		st, err := os.Stat(abs)
 		if err != nil || st.IsDir() {
-			c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
+			respondError(c, http.StatusNotFound, "文件不存在", "file not found")
 			return
 		}
 		name := filepath.Base(abs)
@@ -1042,7 +1042,7 @@ func (h *ChatUploadsHandler) Download(c *gin.Context) {
 		return
 	}
 	if !h.pathAllowed(c, p) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	abs, err := h.resolveUnderChatUploads(p)
@@ -1052,7 +1052,7 @@ func (h *ChatUploadsHandler) Download(c *gin.Context) {
 	}
 	st, err := os.Stat(abs)
 	if err != nil || st.IsDir() {
-		c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
+		respondError(c, http.StatusNotFound, "文件不存在", "file not found")
 		return
 	}
 	c.FileAttachment(abs, filepath.Base(abs))
@@ -1071,56 +1071,56 @@ func (h *ChatUploadsHandler) ResolvePath(c *gin.Context) {
 	case strings.HasPrefix(p, reductionVirtualPrefix):
 		if strings.Trim(strings.TrimPrefix(p, reductionVirtualPrefix), "/") == "" {
 			if _, ok := security.CurrentSession(c); !ok {
-				c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+				respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 				return
 			}
 			abs, err = h.absReductionRoot()
 			break
 		}
 		if !h.reductionVirtualPathAllowed(c, p) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+			respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 			return
 		}
 		abs, err = h.resolveReductionVirtualPath(p)
 	case strings.HasPrefix(p, workspaceVirtualPrefix):
 		if strings.Trim(strings.TrimPrefix(p, workspaceVirtualPrefix), "/") == "" {
 			if _, ok := security.CurrentSession(c); !ok {
-				c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+				respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 				return
 			}
 			abs, err = h.absWorkspaceRoot()
 			break
 		}
 		if !h.workspaceVirtualPathAllowed(c, p) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+			respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 			return
 		}
 		abs, err = h.resolveWorkspaceVirtualPath(p)
 	case strings.HasPrefix(p, artifactVirtualPrefix):
 		if strings.Trim(strings.TrimPrefix(p, artifactVirtualPrefix), "/") == "" {
 			if _, ok := security.CurrentSession(c); !ok {
-				c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+				respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 				return
 			}
 			abs, err = h.absConversationArtifactsRoot()
 			break
 		}
 		if !h.conversationArtifactVirtualPathAllowed(c, p) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+			respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 			return
 		}
 		abs, err = h.resolveConversationArtifactVirtualPath(p)
 	default:
 		if p == "" || p == "." {
 			if _, ok := security.CurrentSession(c); !ok {
-				c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+				respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 				return
 			}
 			abs, err = h.absRoot()
 			break
 		}
 		if !h.pathAllowed(c, p) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+			respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 			return
 		}
 		abs, err = h.resolveUnderChatUploads(p)
@@ -1131,15 +1131,15 @@ func (h *ChatUploadsHandler) ResolvePath(c *gin.Context) {
 	}
 	st, err := os.Stat(abs)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "path not found"})
+		respondError(c, http.StatusNotFound, "路径不存在", "path not found")
 		return
 	}
 	if kind == "directory" && !st.IsDir() {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "not a directory"})
+		respondError(c, http.StatusBadRequest, "不是目录", "not a directory")
 		return
 	}
 	if kind != "directory" && st.IsDir() {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "not a file"})
+		respondError(c, http.StatusBadRequest, "不是文件", "not a file")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"absolutePath": abs, "isDir": st.IsDir()})
@@ -1153,11 +1153,11 @@ type chatUploadPathBody struct {
 func (h *ChatUploadsHandler) Delete(c *gin.Context) {
 	var body chatUploadPathBody
 	if err := c.ShouldBindJSON(&body); err != nil || strings.TrimSpace(body.Path) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+		respondError(c, http.StatusBadRequest, "无效的请求体", "invalid body")
 		return
 	}
 	if !h.pathAllowed(c, body.Path) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	abs, err := h.resolveUnderChatUploads(body.Path)
@@ -1168,7 +1168,7 @@ func (h *ChatUploadsHandler) Delete(c *gin.Context) {
 	st, err := os.Stat(abs)
 	if err != nil {
 		if os.IsNotExist(err) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
+			respondError(c, http.StatusNotFound, "文件不存在", "file not found")
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -1182,7 +1182,7 @@ func (h *ChatUploadsHandler) Delete(c *gin.Context) {
 	} else {
 		if err := os.Remove(abs); err != nil {
 			if os.IsNotExist(err) {
-				c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
+				respondError(c, http.StatusNotFound, "文件不存在", "file not found")
 				return
 			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -1191,7 +1191,7 @@ func (h *ChatUploadsHandler) Delete(c *gin.Context) {
 	}
 	_ = h.db.DeleteChatUploadArtifactPath(filepath.ToSlash(filepath.Clean(filepath.FromSlash(body.Path))))
 	if h.audit != nil {
-		h.audit.RecordOK(c, "file", "delete", "删除对话附件", "chat_upload", body.Path, nil)
+		h.audit.RecordOK(c, "file", "delete", "chat attachment deleted", "chat_upload", body.Path, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
@@ -1205,16 +1205,16 @@ type chatUploadMkdirBody struct {
 func (h *ChatUploadsHandler) Mkdir(c *gin.Context) {
 	var body chatUploadMkdirBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+		respondError(c, http.StatusBadRequest, "无效的请求体", "invalid body")
 		return
 	}
 	name := strings.TrimSpace(body.Name)
 	if name == "" || strings.ContainsAny(name, `/\`) || name == "." || name == ".." {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid name"})
+		respondError(c, http.StatusBadRequest, "名称无效", "invalid name")
 		return
 	}
 	if utf8.RuneCountInString(name) > 200 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name too long"})
+		respondError(c, http.StatusBadRequest, "名称过长", "name too long")
 		return
 	}
 
@@ -1225,7 +1225,7 @@ func (h *ChatUploadsHandler) Mkdir(c *gin.Context) {
 		parent = ""
 	}
 	if !h.pathAllowed(c, parent) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 
@@ -1243,7 +1243,7 @@ func (h *ChatUploadsHandler) Mkdir(c *gin.Context) {
 		}
 		st, err := os.Stat(absParent)
 		if err != nil || !st.IsDir() {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "parent not found"})
+			respondError(c, http.StatusBadRequest, "父目录不存在", "parent not found")
 			return
 		}
 	}
@@ -1260,7 +1260,7 @@ func (h *ChatUploadsHandler) Mkdir(c *gin.Context) {
 		return
 	}
 	if _, err := os.Stat(absNew); err == nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "already exists"})
+		respondError(c, http.StatusConflict, "已存在", "already exists")
 		return
 	}
 	if err := os.Mkdir(absNew, 0755); err != nil {
@@ -1280,16 +1280,16 @@ type chatUploadRenameBody struct {
 func (h *ChatUploadsHandler) Rename(c *gin.Context) {
 	var body chatUploadRenameBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+		respondError(c, http.StatusBadRequest, "无效的请求体", "invalid body")
 		return
 	}
 	if !h.pathAllowed(c, body.Path) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	newName := strings.TrimSpace(body.NewName)
 	if newName == "" || strings.ContainsAny(newName, `/\`) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid newName"})
+		respondError(c, http.StatusBadRequest, "newName 无效", "invalid newName")
 		return
 	}
 	abs, err := h.resolveUnderChatUploads(body.Path)
@@ -1302,12 +1302,12 @@ func (h *ChatUploadsHandler) Rename(c *gin.Context) {
 	root, _ := h.absRoot()
 	newAbs, _ = filepath.Abs(newAbs)
 	if newAbs != root && !strings.HasPrefix(newAbs, root+string(filepath.Separator)) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid target path"})
+		respondError(c, http.StatusBadRequest, "目标路径无效", "invalid target path")
 		return
 	}
 	if err := os.Rename(abs, newAbs); err != nil {
 		if os.IsNotExist(err) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
+			respondError(c, http.StatusNotFound, "文件不存在", "file not found")
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -1328,7 +1328,7 @@ type chatUploadContentBody struct {
 func (h *ChatUploadsHandler) GetContent(c *gin.Context) {
 	p := c.Query("path")
 	if !h.pathAllowed(c, p) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	abs, err := h.resolveUnderChatUploads(p)
@@ -1338,11 +1338,11 @@ func (h *ChatUploadsHandler) GetContent(c *gin.Context) {
 	}
 	st, err := os.Stat(abs)
 	if err != nil || st.IsDir() {
-		c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
+		respondError(c, http.StatusNotFound, "文件不存在", "file not found")
 		return
 	}
 	if st.Size() > maxChatUploadEditBytes {
-		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "file too large for editor"})
+		respondError(c, http.StatusRequestEntityTooLarge, "文件过大，无法在编辑器打开", "file too large for editor")
 		return
 	}
 	b, err := os.ReadFile(abs)
@@ -1351,7 +1351,7 @@ func (h *ChatUploadsHandler) GetContent(c *gin.Context) {
 		return
 	}
 	if !utf8.Valid(b) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "binary file not editable in UI"})
+		respondError(c, http.StatusBadRequest, "二进制文件无法在 UI 编辑", "binary file not editable in UI")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"content": string(b)})
@@ -1361,19 +1361,19 @@ func (h *ChatUploadsHandler) GetContent(c *gin.Context) {
 func (h *ChatUploadsHandler) PutContent(c *gin.Context) {
 	var body chatUploadContentBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+		respondError(c, http.StatusBadRequest, "无效的请求体", "invalid body")
 		return
 	}
 	if !h.pathAllowed(c, body.Path) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	if !utf8.ValidString(body.Content) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "content must be valid UTF-8"})
+		respondError(c, http.StatusBadRequest, "content 必须是合法 UTF-8", "content must be valid UTF-8")
 		return
 	}
 	if len(body.Content) > maxChatUploadEditBytes {
-		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "content too large"})
+		respondError(c, http.StatusRequestEntityTooLarge, "content 过长", "content too large")
 		return
 	}
 	abs, err := h.resolveUnderChatUploads(body.Path)
@@ -1402,7 +1402,7 @@ func chatUploadShortRand(n int) string {
 func (h *ChatUploadsHandler) Upload(c *gin.Context) {
 	fh, err := c.FormFile("file")
 	if err != nil || fh == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing file"})
+		respondError(c, http.StatusBadRequest, "缺少文件", "missing file")
 		return
 	}
 	root, err := h.absRoot()
@@ -1415,7 +1415,7 @@ func (h *ChatUploadsHandler) Upload(c *gin.Context) {
 	targetRel := strings.TrimSpace(c.PostForm("relativeDir"))
 	if targetRel != "" {
 		if !h.pathAllowed(c, targetRel) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+			respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 			return
 		}
 		absDir, err := h.resolveUnderChatUploads(targetRel)
@@ -1435,7 +1435,7 @@ func (h *ChatUploadsHandler) Upload(c *gin.Context) {
 				return
 			}
 		} else if !st.IsDir() {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "relativeDir is not a directory"})
+			respondError(c, http.StatusBadRequest, "relativeDir 不是目录", "relativeDir is not a directory")
 			return
 		}
 		targetDir = absDir
@@ -1443,7 +1443,7 @@ func (h *ChatUploadsHandler) Upload(c *gin.Context) {
 		convID := strings.TrimSpace(c.PostForm("conversationId"))
 		dateStr := time.Now().Format("2006-01-02")
 		if !h.pathAllowed(c, filepath.ToSlash(filepath.Join(dateStr, convID))) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+			respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 			return
 		}
 		convDir := convID
@@ -1503,7 +1503,7 @@ func (h *ChatUploadsHandler) Upload(c *gin.Context) {
 		_ = h.db.UpsertChatUploadArtifact(filepath.ToSlash(rel), conversationID, session.UserID)
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "file", "upload", "上传对话附件", "chat_upload", filepath.ToSlash(rel), map[string]interface{}{
+		h.audit.RecordOK(c, "file", "upload", "chat attachment uploaded", "chat_upload", filepath.ToSlash(rel), map[string]interface{}{
 			"name": unique,
 		})
 	}

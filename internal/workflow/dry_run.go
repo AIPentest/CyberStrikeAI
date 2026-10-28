@@ -138,7 +138,7 @@ func dryRunNode(node graphNode, state *WorkflowLocalState) (map[string]any, bool
 	case "tool":
 		args, err := resolveToolArguments(node.Config, state)
 		if err != nil {
-			errText := fmt.Sprintf("工具参数不是合法 JSON：%v", err)
+			errText := fmt.Sprintf("tool arguments are not valid JSON: %v", err)
 			return outputMap(envelope("tool", node.ID, node.Type, "failed", ""), map[string]any{"error": errText}), false, "failed", errText
 		}
 		return toolOutputMap(node, "[dry-run] tool call skipped", cfgString(node.Config, "tool_name"), args, "dry-run", false), true, "simulated", ""
@@ -153,7 +153,7 @@ func dryRunNode(node graphNode, state *WorkflowLocalState) (map[string]any, bool
 		prompt := resolveHITLPromptBinding(node.Config, state)
 		return hitlOutputMap(node, "simulated", prompt, prompt, firstNonEmpty(cfgString(node.Config, "reviewer"), "human"), true), true, "simulated", ""
 	default:
-		return outputMap(envelope("unknown", node.ID, node.Type, "skipped", ""), map[string]any{"reason": "未知节点类型"}), true, "skipped", "未知节点类型"
+		return outputMap(envelope("unknown", node.ID, node.Type, "skipped", ""), map[string]any{"reason": "unknown node type"}), true, "skipped", "unknown node type"
 	}
 }
 

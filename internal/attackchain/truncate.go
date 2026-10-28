@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	attackChainTruncationMarker = "\n\n...[攻击链输入已截断 / attack chain input truncated]...\n\n"
+	attackChainTruncationMarker = "\n\n...[attack chain input truncated]...\n\n"
 	attackChainSystemReserve    = 256
 	attackChainSafetyReserve    = 2048
 )
@@ -105,7 +105,7 @@ func (b *Builder) fitAttackChainPayload(reactInput, modelOutput string) (string,
 	}
 
 	if truncated {
-		b.logger.Info("攻击链输入已按 token 预算截断",
+		b.logger.Info("Attack chain input truncated to fit the token budget",
 			zap.Int("maxTotalTokens", b.maxTokens),
 			zap.Int("payloadBudget", budget),
 			zap.Int("reactBudget", reactBudget),
@@ -229,7 +229,7 @@ func truncateRunesWithNotice(s string, maxRunes int) string {
 	if len(rs) <= maxRunes {
 		return s
 	}
-	const notice = "\n...[工具输出已截断 / tool output truncated]...\n"
+	const notice = "\n...[tool output truncated]...\n"
 	noticeRunes := []rune(notice)
 	keep := maxRunes - len(noticeRunes)
 	if keep < 200 {

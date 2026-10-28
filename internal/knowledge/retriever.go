@@ -57,7 +57,7 @@ func (r *Retriever) UpdateConfig(cfg *RetrievalConfig) {
 	if cfg != nil {
 		r.config = cfg
 		if r.logger != nil {
-			r.logger.Info("检索器配置已更新",
+			r.logger.Info("retriever config updated",
 				zap.Int("top_k", cfg.TopK),
 				zap.Float64("similarity_threshold", cfg.SimilarityThreshold),
 				zap.String("sub_index_filter", cfg.SubIndexFilter),
@@ -70,7 +70,7 @@ func (r *Retriever) UpdateConfig(cfg *RetrievalConfig) {
 	}
 	if r.wireOpenAI != nil {
 		if err := WireRetrieverPipeline(context.Background(), r, r.wireOpenAI); err != nil && r.logger != nil {
-			r.logger.Warn("检索流水线重建失败", zap.Error(err))
+			r.logger.Warn("retrieval pipeline rebuild failed", zap.Error(err))
 		}
 	}
 }
@@ -116,11 +116,11 @@ func cosineSimilarity(a, b []float32) float64 {
 // Search 搜索知识库（Eino MultiQuery → 向量检索 → 重排 → 后处理）。
 func (r *Retriever) Search(ctx context.Context, req *SearchRequest) ([]*RetrievalResult, error) {
 	if req == nil {
-		return nil, fmt.Errorf("请求不能为空")
+		return nil, fmt.Errorf("request must not be empty")
 	}
 	q := strings.TrimSpace(req.Query)
 	if q == "" {
-		return nil, fmt.Errorf("查询不能为空")
+		return nil, fmt.Errorf("query must not be empty")
 	}
 	opts := r.einoRetrieverOptions(req)
 	docs, err := r.activeEinoRetriever().Retrieve(ctx, q, opts...)
@@ -189,7 +189,7 @@ WHERE 1=1`
 // vectorSearch 纯向量检索：余弦相似度排序，按相似度阈值与 TopK 截断（无 BM25、无混合分、无邻块扩展）。
 func (r *Retriever) vectorSearch(ctx context.Context, req *SearchRequest) ([]*RetrievalResult, error) {
 	if req.Query == "" {
-		return nil, fmt.Errorf("查询不能为空")
+		return nil, fmt.Errorf("query must not be empty")
 	}
 
 	topK := req.TopK
@@ -216,7 +216,7 @@ func (r *Retriever) vectorSearch(ctx context.Context, req *SearchRequest) ([]*Re
 	queryText := FormatQueryEmbeddingText(req.RiskType, req.Query)
 	queryEmbedding, err := r.embedder.EmbedText(ctx, queryText)
 	if err != nil {
-		return nil, fmt.Errorf("向量化查询失败: %w", err)
+		return nil, fmt.Errorf("failed to embed query: %w", err)
 	}
 	queryDim := len(queryEmbedding)
 	expectedModel := ""
@@ -227,7 +227,7 @@ func (r *Retriever) vectorSearch(ctx context.Context, req *SearchRequest) ([]*Re
 	sqlStr, sqlArgs := r.knowledgeEmbeddingSelectSQL(strings.TrimSpace(req.RiskType), subIdxFilter)
 	rows, err := r.db.QueryContext(ctx, sqlStr, sqlArgs...)
 	if err != nil {
-		return nil, fmt.Errorf("查询向量失败: %w", err)
+		return nil, fmt.Errorf("failed to query vectors: %w", err)
 	}
 	defer rows.Close()
 
@@ -253,26 +253,26 @@ func (r *Retriever) vectorSearch(ctx context.Context, req *SearchRequest) ([]*Re
 		var chunkIndex, rowDim int
 
 		if err := rows.Scan(&chunkID, &itemID, &chunkIndex, &chunkText, &embeddingJSON, &rowModel, &rowDim, &category, &title); err != nil {
-			r.logger.Warn("扫描向量失败", zap.Error(err))
+			r.logger.Warn("failed to scan vector row", zap.Error(err))
 			continue
 		}
 
 		var embedding []float32
 		if err := json.Unmarshal([]byte(embeddingJSON), &embedding); err != nil {
-			r.logger.Warn("解析向量失败", zap.Error(err))
+			r.logger.Warn("failed to parse vector", zap.Error(err))
 			continue
 		}
 
 		if rowDim > 0 && len(embedding) != rowDim {
-			r.logger.Debug("跳过维度不一致的向量行", zap.String("chunkId", chunkID), zap.Int("rowDim", rowDim), zap.Int("got", len(embedding)))
+			r.logger.Debug("skipping vector row with mismatched dimension", zap.String("chunkId", chunkID), zap.Int("rowDim", rowDim), zap.Int("got", len(embedding)))
 			continue
 		}
 		if queryDim > 0 && len(embedding) != queryDim {
-			r.logger.Debug("跳过与查询维度不一致的向量", zap.String("chunkId", chunkID), zap.Int("queryDim", queryDim), zap.Int("got", len(embedding)))
+			r.logger.Debug("skipping vector whose dimension mismatches the query", zap.String("chunkId", chunkID), zap.Int("queryDim", queryDim), zap.Int("got", len(embedding)))
 			continue
 		}
 		if expectedModel != "" && strings.TrimSpace(rowModel) != "" && strings.TrimSpace(rowModel) != expectedModel {
-			r.logger.Debug("跳过嵌入模型不一致的行", zap.String("chunkId", chunkID), zap.String("rowModel", rowModel), zap.String("expected", expectedModel))
+			r.logger.Debug("skipping row with mismatched embedding model", zap.String("chunkId", chunkID), zap.String("rowModel", rowModel), zap.String("expected", expectedModel))
 			continue
 		}
 

@@ -78,7 +78,7 @@ func existingOtherOrchestrator(dir, writingBasename string) (other string, err e
 // ListMarkdownAgents GET /api/multi-agent/markdown-agents
 func (h *MarkdownAgentsHandler) ListMarkdownAgents(c *gin.Context) {
 	if h.dir == "" {
-		c.JSON(http.StatusOK, gin.H{"agents": []any{}, "dir": "", "error": "未配置 agents 目录"})
+		c.JSON(http.StatusOK, gin.H{"agents": []any{}, "dir": "", "error": i18nText(requestWantsEnglish(c), "未配置 agents 目录", "agents directory not configured")})
 		return
 	}
 	files, err := agents.LoadMarkdownAgentFiles(h.dir)
@@ -112,7 +112,7 @@ func (h *MarkdownAgentsHandler) GetMarkdownAgent(c *gin.Context) {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "文件不存在"})
+			respondError(c, http.StatusNotFound, "文件不存在", "file not found")
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -157,7 +157,7 @@ func (h *MarkdownAgentsHandler) CreateMarkdownAgent(c *gin.Context) {
 	h.writeMu.Lock()
 	defer h.writeMu.Unlock()
 	if h.dir == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "未配置 agents 目录"})
+		respondError(c, http.StatusBadRequest, "未配置 agents 目录", "agents directory not configured")
 		return
 	}
 	var body markdownAgentBody
@@ -183,7 +183,7 @@ func (h *MarkdownAgentsHandler) CreateMarkdownAgent(c *gin.Context) {
 		return
 	}
 	if _, err := os.Stat(path); err == nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "文件已存在"})
+		respondError(c, http.StatusConflict, "文件已存在", "file already exists")
 		return
 	}
 	sub := config.MultiAgentSubConfig{
@@ -206,7 +206,7 @@ func (h *MarkdownAgentsHandler) CreateMarkdownAgent(c *gin.Context) {
 		sub.ID = agents.SlugID(sub.Name)
 	}
 	if sub.Name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name 必填"})
+		respondError(c, http.StatusBadRequest, "name 必填", "name is required")
 		return
 	}
 	var out []byte
@@ -230,7 +230,7 @@ func (h *MarkdownAgentsHandler) CreateMarkdownAgent(c *gin.Context) {
 			return
 		}
 		if other != "" {
-			c.JSON(http.StatusConflict, gin.H{"error": fmt.Sprintf("已存在主代理定义：%s，请先删除或取消其主代理标记", other)})
+			c.JSON(http.StatusConflict, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "已存在主代理定义：%s，请先删除或取消其主代理标记", "a primary agent definition already exists: %s; delete it or unset its primary-agent mark first"), other)})
 			return
 		}
 	}
@@ -241,7 +241,7 @@ func (h *MarkdownAgentsHandler) CreateMarkdownAgent(c *gin.Context) {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		if os.IsExist(err) {
-			c.JSON(http.StatusConflict, gin.H{"error": "文件已存在"})
+			respondError(c, http.StatusConflict, "文件已存在", "file already exists")
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -251,13 +251,13 @@ func (h *MarkdownAgentsHandler) CreateMarkdownAgent(c *gin.Context) {
 	closeErr := f.Close()
 	if writeErr != nil || closeErr != nil {
 		_ = os.Remove(path)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "写入智能体文件失败"})
+		respondError(c, http.StatusInternalServerError, "写入智能体文件失败", "failed to write agent file")
 		return
 	}
 	if h.audit != nil {
 		h.audit.RecordOK(c, "agent", "markdown_create", "创建 Markdown 子代理", "markdown_agent", filepath.Base(path), nil)
 	}
-	c.JSON(http.StatusOK, gin.H{"filename": filepath.Base(path), "message": "已创建"})
+	c.JSON(http.StatusOK, gin.H{"filename": filepath.Base(path), "message": i18nText(requestWantsEnglish(c), "已创建", "created")})
 }
 
 // UpdateMarkdownAgent PUT /api/multi-agent/markdown-agents/:filename
@@ -271,7 +271,7 @@ func (h *MarkdownAgentsHandler) UpdateMarkdownAgent(c *gin.Context) {
 		return
 	}
 	if _, err := os.Stat(path); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "文件不存在"})
+		respondError(c, http.StatusNotFound, "文件不存在", "file not found")
 		return
 	}
 	var body markdownAgentBody
@@ -295,7 +295,7 @@ func (h *MarkdownAgentsHandler) UpdateMarkdownAgent(c *gin.Context) {
 		sub.Kind = "orchestrator"
 	}
 	if sub.Name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name 必填"})
+		respondError(c, http.StatusBadRequest, "name 必填", "name is required")
 		return
 	}
 	if sub.ID == "" {
@@ -322,13 +322,13 @@ func (h *MarkdownAgentsHandler) UpdateMarkdownAgent(c *gin.Context) {
 			return
 		}
 		if other != "" {
-			c.JSON(http.StatusConflict, gin.H{"error": fmt.Sprintf("已存在主代理定义：%s，请先删除或取消其主代理标记", other)})
+			c.JSON(http.StatusConflict, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "已存在主代理定义：%s，请先删除或取消其主代理标记", "a primary agent definition already exists: %s; delete it or unset its primary-agent mark first"), other)})
 			return
 		}
 	}
 	if err := os.WriteFile(path, out, 0644); err != nil {
 		if os.IsNotExist(err) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "文件不存在"})
+			respondError(c, http.StatusNotFound, "文件不存在", "file not found")
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -337,7 +337,7 @@ func (h *MarkdownAgentsHandler) UpdateMarkdownAgent(c *gin.Context) {
 	if h.audit != nil {
 		h.audit.RecordOK(c, "agent", "markdown_update", "更新 Markdown 子代理", "markdown_agent", filename, nil)
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "已保存"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "已保存", "saved")})
 }
 
 // DeleteMarkdownAgent DELETE /api/multi-agent/markdown-agents/:filename
@@ -350,7 +350,7 @@ func (h *MarkdownAgentsHandler) DeleteMarkdownAgent(c *gin.Context) {
 	}
 	if err := os.Remove(path); err != nil {
 		if os.IsNotExist(err) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "文件不存在"})
+			respondError(c, http.StatusNotFound, "文件不存在", "file not found")
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -359,5 +359,5 @@ func (h *MarkdownAgentsHandler) DeleteMarkdownAgent(c *gin.Context) {
 	if h.audit != nil {
 		h.audit.RecordOK(c, "agent", "markdown_delete", "删除 Markdown 子代理", "markdown_agent", filename, nil)
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "已删除", "deleted")})
 }

@@ -109,7 +109,7 @@ func TestCookieRecoveryThroughReductionSnapshotAndResume(t *testing.T) {
 			}
 			recovered := historyToMessages(agent.TraceMessagesForResume(parsed), nil, nil)
 			resumedText := joinClassicMessageContent(recovered)
-			snapshotExpr := regexp.MustCompile(`(?m)完整的对话记录位于：([^\n]+)`)
+			snapshotExpr := regexp.MustCompile(`(?m)full conversation record is located at: ([^\n]+)`)
 			snapshotMatch := snapshotExpr.FindStringSubmatch(resumedText)
 			if len(snapshotMatch) != 2 {
 				t.Fatalf("snapshot hint lost after resume: %s", resumedText)

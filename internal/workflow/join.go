@@ -37,7 +37,7 @@ func prepareNodeInputState(rt *workflowRuntime, node graphNode) error {
 	}
 	strategy := joinStrategy(node)
 	if !allowedJoinStrategies[strategy] {
-		return fmt.Errorf("节点「%s」使用了未知汇聚策略: %s", firstNonEmpty(node.Label, node.ID), strategy)
+		return fmt.Errorf("node %q uses an unknown join strategy: %s", firstNonEmpty(node.Label, node.ID), strategy)
 	}
 	upstreams := make([]map[string]any, 0, len(incoming))
 	for _, edge := range incoming {
@@ -46,7 +46,7 @@ func prepareNodeInputState(rt *workflowRuntime, node graphNode) error {
 			continue
 		}
 		if isFailedNodeOutput(out) && strategy == JoinFailFast {
-			return fmt.Errorf("上游节点「%s」失败，汇聚策略 fail_fast 中止", edge.Source)
+			return fmt.Errorf("upstream node %q failed, join strategy fail_fast aborted", edge.Source)
 		}
 		upstreams = append(upstreams, out)
 	}

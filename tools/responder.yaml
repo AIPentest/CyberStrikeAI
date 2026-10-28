@@ -37,48 +37,48 @@ args:
         proc.terminate()
         proc.wait(timeout=10)
 enabled: true
-short_description: "LLMNR/NBT-NS/MDNS投毒和凭据收集工具"
+short_description: "LLMNR/NBT-NS/MDHS poisoning and credential collection tool"
 description: |
-  封装 Responder，支持自动在指定持续时间后停止进程，避免占用网络。
+  Wraps Responder with support for automatically stopping the process after a specified duration, avoiding long occupation of the network.
 parameters:
   - name: "interface"
     type: "string"
-    description: "网络接口（-I）"
+    description: "Network interface (-I)"
     required: false
     default: "eth0"
     position: 0
     format: "positional"
   - name: "analyze"
     type: "bool"
-    description: "仅分析模式（-A）"
+    description: "Analyze-only mode (-A)"
     required: false
     default: false
     position: 1
     format: "positional"
   - name: "wpad"
     type: "bool"
-    description: "启用WPAD恶意代理（-w）"
+    description: "Enable WPAD rogue proxy (-w)"
     required: false
     default: true
     position: 2
     format: "positional"
   - name: "fingerprint"
     type: "bool"
-    description: "指纹识别模式（-f）"
+    description: "Fingerprint mode (-f)"
     required: false
     default: false
     position: 3
     format: "positional"
   - name: "duration"
     type: "int"
-    description: "运行持续时间（秒，0表示直到手动停止）"
+    description: "Run duration (seconds; 0 means until manually stopped)"
     required: false
     default: 300
     position: 4
     format: "positional"
   - name: "additional_args"
     type: "string"
-    description: "额外的Responder参数（直接追加）"
+    description: "Additional Responder arguments (appended directly)"
     required: false
     default: ""
     position: 5

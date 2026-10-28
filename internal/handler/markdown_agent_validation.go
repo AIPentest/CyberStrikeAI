@@ -22,26 +22,26 @@ func (h *MarkdownAgentsHandler) validateMarkdownWrite(filename string, content [
 		return err
 	}
 	if strings.TrimSpace(fm.Name) == "" {
-		return fmt.Errorf("智能体 name 不能为空")
+		return fmt.Errorf("agent name must not be empty")
 	}
 	if fm.ID != "" && !markdownAgentIDPattern.MatchString(fm.ID) {
-		return fmt.Errorf("Agent ID 格式无效")
+		return fmt.Errorf("invalid Agent ID format")
 	}
 	sub, err := agents.ParseMarkdownSubAgent(filename, string(content))
 	if err != nil {
 		return err
 	}
 	if !markdownAgentIDPattern.MatchString(sub.ID) {
-		return fmt.Errorf("Agent ID 必须为 1–64 个字母、数字、连字符或下划线，且以字母或数字开头")
+		return fmt.Errorf("Agent ID must be 1-64 letters, digits, hyphens, or underscores, starting with a letter or digit")
 	}
 	if err := validateRoleName(sub.Name); err != nil {
-		return fmt.Errorf("智能体名称无效: %w", err)
+		return fmt.Errorf("invalid agent name: %w", err)
 	}
 	if strings.TrimSpace(sub.Instruction) == "" {
-		return fmt.Errorf("智能体指令不能为空")
+		return fmt.Errorf("agent instruction must not be empty")
 	}
 	if sub.MaxIterations < 0 {
-		return fmt.Errorf("最大迭代数不能为负数")
+		return fmt.Errorf("max iterations must not be negative")
 	}
 	files, err := agents.LoadMarkdownAgentFiles(h.dir)
 	if err != nil {
@@ -49,7 +49,7 @@ func (h *MarkdownAgentsHandler) validateMarkdownWrite(filename string, content [
 	}
 	for _, file := range files {
 		if filepath.Base(file.Filename) != filepath.Base(filename) && file.Config.ID == sub.ID {
-			return fmt.Errorf("Agent ID 已被文件 %s 使用", file.Filename)
+			return fmt.Errorf("Agent ID already used by file %s", file.Filename)
 		}
 	}
 	return nil

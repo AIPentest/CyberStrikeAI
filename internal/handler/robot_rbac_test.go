@@ -58,10 +58,10 @@ func TestRobotUsersAreResourceIsolated(t *testing.T) {
 	if got := h.cmdList("wecom", "bob"); strings.Contains(got, conversationID) {
 		t.Fatalf("bob listed alice conversation: %s", got)
 	}
-	if got := h.cmdSwitch("wecom", "bob", conversationID); !strings.Contains(got, "不存在") && !strings.Contains(got, "无权访问") {
+	if got := h.cmdSwitch("wecom", "bob", conversationID); !strings.Contains(got, "not found") && !strings.Contains(got, "no access") {
 		t.Fatalf("bob switched to alice conversation: %s", got)
 	}
-	if got := h.cmdDelete("wecom", "bob", conversationID); !strings.Contains(got, "无权访问") {
+	if got := h.cmdDelete("wecom", "bob", conversationID); !strings.Contains(got, "no access") {
 		t.Fatalf("bob deleted alice conversation: %s", got)
 	}
 	if _, err := db.GetConversation(conversationID); err != nil {
@@ -69,7 +69,7 @@ func TestRobotUsersAreResourceIsolated(t *testing.T) {
 	}
 
 	createReply := h.cmdNewProject("wecom", "alice", "alice project")
-	if !strings.Contains(createReply, "已创建项目") {
+	if !strings.Contains(createReply, "Project created") {
 		t.Fatalf("create project reply: %s", createReply)
 	}
 	if got := h.cmdProjects("wecom", "bob"); strings.Contains(got, "alice project") {
@@ -110,19 +110,19 @@ func TestRobotServiceAccountRequiresExactSenderAllowlist(t *testing.T) {
 		AllowedExternalUsers: []string{"t:tenant|u:allowed"},
 	}
 	h := NewRobotHandler(cfg, db, nil, zap.NewNop())
-	if got := h.HandleMessage("lark", "t:tenant|u:allowed", "列表"); strings.Contains(got, "白名单") || strings.Contains(got, "尚未绑定") {
+	if got := h.HandleMessage("lark", "t:tenant|u:allowed", "列表"); strings.Contains(got, "allowlist") || strings.Contains(got, "not bound") {
 		t.Fatalf("allowed service account sender was denied: %s", got)
 	}
-	if got := h.HandleMessage("lark", "t:tenant|u:denied", "列表"); !strings.Contains(got, "白名单") {
+	if got := h.HandleMessage("lark", "t:tenant|u:denied", "列表"); !strings.Contains(got, "allowlist") {
 		t.Fatalf("non-allowlisted sender was not denied: %s", got)
 	}
-	if got := h.HandleMessage("lark", "t:tenant|u:allowed", "绑定 ABCD-1234"); !strings.Contains(got, "服务账号模式") {
+	if got := h.HandleMessage("lark", "t:tenant|u:allowed", "绑定 ABCD-1234"); !strings.Contains(got, "service account mode") {
 		t.Fatalf("service-account robot accepted user binding: %s", got)
 	}
 	if got := h.HandleMessage("lark", "t:tenant|u:allowed", "whoami"); !strings.Contains(got, "Robot Service") || !strings.Contains(got, serviceUser.ID) || !strings.Contains(got, "service_account") {
 		t.Fatalf("service-account identity output is incomplete: %s", got)
 	}
-	if got := h.HandleMessage("lark", "t:tenant|u:denied", "whoami"); !strings.Contains(got, "鉴权状态：拒绝") || strings.Contains(got, serviceUser.ID) {
+	if got := h.HandleMessage("lark", "t:tenant|u:denied", "whoami"); !strings.Contains(got, "Authorization status: denied") || strings.Contains(got, serviceUser.ID) {
 		t.Fatalf("denied identity output leaked or omitted status: %s", got)
 	}
 
@@ -132,7 +132,7 @@ func TestRobotServiceAccountRequiresExactSenderAllowlist(t *testing.T) {
 		AllowedExternalUsers: []string{"t:tenant|u:owner"},
 	}
 	adminHandler := NewRobotHandler(adminCfg, db, nil, zap.NewNop())
-	if got := adminHandler.HandleMessage("lark", "t:tenant|u:owner", "身份"); !strings.Contains(got, "admin") || !strings.Contains(got, "鉴权状态：已授权") {
+	if got := adminHandler.HandleMessage("lark", "t:tenant|u:owner", "身份"); !strings.Contains(got, "admin") || !strings.Contains(got, "Authorization status: authorized") {
 		t.Fatalf("allowlisted admin service account was denied: %s", got)
 	}
 }

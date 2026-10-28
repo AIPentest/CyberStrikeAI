@@ -147,7 +147,7 @@ func (e *einoToolResultProgressEmitter) Emit(ctx context.Context, toolName, cont
 		}
 	}
 	if e.progress != nil {
-		e.progress("tool_result", fmt.Sprintf("工具结果 (%s)", toolName), data)
+		e.progress("tool_result", fmt.Sprintf("Tool result (%s)", toolName), data)
 	}
 	return true
 }

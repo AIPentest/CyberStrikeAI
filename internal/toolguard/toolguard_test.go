@@ -35,7 +35,7 @@ func TestDefaultGovernmentProtection(t *testing.T) {
 			if match == nil || match.MatchedText != test.match {
 				t.Fatalf("Check = %+v, want match %q", match, test.match)
 			}
-			if !strings.Contains(match.Message, test.match) || !strings.Contains(match.Message, "禁止攻击政府网站") {
+			if !strings.Contains(match.Message, test.match) || !strings.Contains(match.Message, "attacking government sites is forbidden") {
 				t.Fatalf("unexpected reminder: %q", match.Message)
 			}
 		})

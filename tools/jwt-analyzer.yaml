@@ -1,45 +1,45 @@
 name: "jwt-analyzer"
 command: "jwt_tool"
 enabled: true
-short_description: "JWT令牌分析和漏洞测试工具"
+short_description: "JWT token analysis and vulnerability testing tool"
 description: |
-  高级JWT令牌分析和漏洞测试工具，用于检测JWT实现中的安全问题。
+  Advanced JWT token analysis and vulnerability testing tool, used to detect security issues in JWT implementations.
 
-  **主要功能：**
-  - JWT令牌分析
-  - 漏洞测试
-  - 攻击向量检测
-  - 令牌操作
+  **Main features:**
+  - JWT token analysis
+  - Vulnerability testing
+  - Attack vector detection
+  - Token manipulation
 
-  **使用场景：**
-  - JWT安全测试
-  - 令牌分析
-  - 漏洞发现
-  - 安全测试
+  **Use cases:**
+  - JWT security testing
+  - Token analysis
+  - Vulnerability discovery
+  - Security testing
 parameters:
   - name: "jwt_token"
     type: "string"
-    description: "要分析的JWT令牌"
+    description: "JWT token to analyze"
     required: true
     flag: "-t"
     format: "flag"
   - name: "target_url"
     type: "string"
-    description: "用于测试令牌操作的可选目标URL"
+    description: "Optional target URL for testing token manipulation"
     required: false
     flag: "-u"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的jwt-analyzer参数。用于传递未在参数列表中定义的jwt-analyzer选项。
+      Additional jwt-analyzer arguments. Used to pass jwt-analyzer options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

@@ -1,45 +1,45 @@
 name: "graphql-scanner"
 command: "graphqlmap"
 enabled: true
-short_description: "GraphQL安全扫描和自省工具"
+short_description: "GraphQL security scanning and introspection tool"
 description: |
-  高级GraphQL安全扫描和自省工具，用于检测GraphQL API中的安全问题。
+  An advanced GraphQL security scanning and introspection tool for detecting security issues in GraphQL APIs.
 
-  **主要功能：**
-  - GraphQL自省
-  - 查询深度测试
-  - 突变操作测试
-  - 漏洞评估
+  **Main features:**
+  - GraphQL introspection
+  - Query depth testing
+  - Mutation testing
+  - Vulnerability assessment
 
-  **使用场景：**
-  - GraphQL安全测试
-  - API安全评估
-  - 漏洞发现
-  - 安全测试
+  **Use cases:**
+  - GraphQL security testing
+  - API security assessment
+  - Vulnerability discovery
+  - Security testing
 parameters:
   - name: "endpoint"
     type: "string"
-    description: "GraphQL端点URL"
+    description: "GraphQL endpoint URL"
     required: true
     flag: "-u"
     format: "flag"
   - name: "introspection"
     type: "bool"
-    description: "测试自省查询"
+    description: "Test introspection queries"
     required: false
     default: true
     flag: "--introspection"
     format: "flag"
   - name: "query_depth"
     type: "int"
-    description: "要测试的最大查询深度"
+    description: "Maximum query depth to test"
     required: false
     default: 10
     flag: "--depth"
     format: "flag"
   - name: "test_mutations"
     type: "bool"
-    description: "测试突变操作"
+    description: "Test mutation operations"
     required: false
     default: true
     flag: "--mutations"
@@ -47,14 +47,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的graphql-scanner参数。用于传递未在参数列表中定义的graphql-scanner选项。
+      Extra graphql-scanner arguments. Used to pass graphql-scanner options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Make sure arguments are correctly formatted to avoid command injection
+      - This argument is appended directly to the end of the command
     required: false
     format: "positional"

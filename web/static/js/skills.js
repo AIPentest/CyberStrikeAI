@@ -1,7 +1,62 @@
-// Skills管理相关功能
+// Skills management-related functions
 function _t(key, opts) {
     return typeof window.t === 'function' ? window.t(key, opts) : key;
 }
+
+// Seed descriptions of the repo's built-in skill packs (skills/*/SKILL.md frontmatter). Only when
+// it exactly matches the seed value is it translated for display by id; descriptions the user
+// edited themselves are shown at their original values.
+const SEED_SKILL_DESCRIPTIONS = {
+    'active-directory-attack': "Internal domain attack: BloodHound, Kerberoast, ADCS ESC1/ESC8, NTLM Relay, Coerce, DACL, DCSync, Zerologon/NoPac/PrintNightmare, mitm6, LLMNR, Linux internal network. Use when attacking Active Directory, ADCS, NTLM relay, or internal domain.",
+    'ai-llm-app-attack': "AI/LLM application attacks: prompt injection, Agent tool abuse to RCE, RAG poisoning, MCP supply chain, torch.load pickle RCE. Use when testing LLM apps, agents, RAG, MCP plugins, or AI model file risks.",
+    'attack-surface-recon': "Recon/attack surface mapping: passive whois/amass/crt.sh/FOFA/Shodan, active subfinder/httpx/naabu/katana/nuclei, DNS geo/CDN/Nginx catch-all/BT Panel/UniApp fingerprinting. The first action at kickoff, insights go into the project blackboard. Use when starting recon, asset mapping, fingerprinting, or CDN/DNS bypass discovery.",
+    'binary-mobile-reversing': "APK/EXE/binaries: UniApp/DCloud/Flutter reversing, certificate-pinning bypass, exported components, memory-corruption exploit chains, IoT firmware. Use when reversing APK/EXE, UniApp/Flutter, native .so, or memory-corruption exploits.",
+    'blockchain-contract-attack': "Blockchain/smart contracts: Etherscan, slither/mythril, reentrancy/access control/oracles/flash loans, cross-chain bridges, exposed RPC. Use when auditing smart contracts, DeFi, or blockchain attack surfaces.",
+    'capability-primitive-search': "Capability primitives + state-space search: make RCE equation A-F out of read/write/exec/ssrf etc. primitives, low-severity mapping, forward/backward search, cross-domain cashing-in. Use when no single RCE, chaining low-severity vulns, or deriving novel attack chains.",
+    'cloud-attack-methods': "Cloud attacks: metadata API, S3/K8s, AWS/Azure/GCP identity privilege escalation, MinIO matrix, Aliyun FC, ChengZi SDK decryption. Use when attacking cloud metadata, IAM, K8s, MinIO, Aliyun FC, or cloud post-ex.",
+    'component-vuln-intel': "Online intelligence gathering: after identifying a component, must do CVE/search engines/Chinese communities/GitHub PoC/asset engines/timely intelligence/dependency expansion + switch routes when blocked. Use when a framework/component/version is identified and must search before exploit.",
+    'cyberstrike-eino-demo': "A fully-outfitted demo skill package: SKILL.md + scripts/, references/, assets/ and other optional directories; validates Eino skill and in-package HTTP paths (authorized security testing and teaching only).",
+    'initial-access-phishing': "Initial access/phishing/social engineering: credential spraying, AiTM, device code, OAuth consent phishing, payloads, vishing. Use when needing initial access, phishing, AiTM, device code, or social engineering.",
+    'pentest-agent-os': "Penetration-testing Agent operating system. Abstracts penetration testing as a state-space search: no fixed pre-programmed paths, with the project blackboard Fact graph (upsert_project_fact) + vulnerability records accumulating cognition, paths emerging from already-verified facts. Covers the full kill-chain attack methods (online intelligence/Web/authentication/server-side/source code/social engineering/post-exploitation/binary/internal domain/cloud/blockchain/AI/wireless/hardware) + 0day + combined moves + proxy bootstrap. Core: when no hole can be found by searching the whole network, derive on-site an attack chain that belongs uniquely to the target. This file is the suite index. Use when starting a full-chain pentest engagement or needing the skill map for this suite.",
+    'pentest-blackboard': "CyberStrikeAI project blackboard: cross-session Fact graph (SQLite) + upsert_project_fact/record_vulnerability, record-while-pentesting rhythm, relational edge links, confidence, and multi-agent coordination landing in the database. Use when managing project facts, blackboard index, writing evidence, or avoiding context-loss after compression.",
+    'pentest-output-standards': "Output standards: Chinese analysis, chain of thought, vulnerability report template, negative results, blackboard state overview, change ledger, deadlock breakthrough. Use when reporting findings, maintaining change ledger, or formatting pentest output.",
+    'pentest-verification': "Verification iron rule: search ≠ vulnerability, a confirmed Fact must carry evidence, tentative marks a lead, empty generic speculation forbidden, negative results also land in the database, imagination at full stretch + zero tolerance on single-step verification. Use when writing project facts, validating findings, or avoiding hallucination.",
+    'post-exploitation': "Post-exploitation/privilege escalation + credential cracking + crypto: reverse shells, Linux/Windows privilege escalation, lateral movement, tunneling, AV evasion, C2 persistence, hashcat/Padding Oracle/hash length extension. Use when post-exploitation, privilege escalation, lateral movement, or cracking crypto.",
+    'proxy-tool-bootstrap': "Self-proxy-finding + tool bootstrap: SOCKS5/HTTP/Tor route-switch sequences, tool self-bootstrapping in Python, self-generated dictionaries, OOB infrastructure. Use when blocked by 403/429/WAF/timeout, missing tools, or needing OOB confirmation.",
+    'redteam-opsec': "OPSEC covert-operations discipline: IP blacklist bypass, rate/timing, traffic blending, minimal footprint, anti-forensics, progressive exposure. Use when maintaining stealth, bypassing IP bans, or planning covert red-team ops.",
+    'source-code-hunting': "Source-code hunting: .git leaks, dangerous-function grep, JS RC4 deobfuscation, semgrep/CodeQL, trufflehog, patch diff, supply-chain/CI. Use when hunting source leaks, secrets, JS deobfuscation, or supply-chain issues.",
+    'specialized-attack-playbooks': "Specialized hands-on exploitation: GoEdge private-key export, gray-operations CDN forensics, ARP MITM, CDN→S3 STS chain, BT Panel + UniApp, AI IDE API reverse-proxy, OCS + MinIO; includes references/scripts support-file index. Use when applying specialized playbooks for GoEdge, CDN, ARP MITM, BT Panel, OCS, MinIO.",
+    'unlimited-attack-scope': "No-limits principle: search / verify / chain / record everything, applies to every domain, when blocked change route, until reaching the target. Use when reminding scope is unlimited across Web/APK/cloud/AI/wireless/social eng.",
+    'web-attack-methods': "Full-stack Web attacks: SQLi/command injection/SSTI/XSS/SSRF/NoSQL, authentication JWT/OAuth/SAML, LFI/upload, Tomcat/WS/STOMP/XFF/PATH_INFO/CDN 502/web-host JS challenge bypass. Use when testing Web injection, auth bypass, server-side, WAF/CDN bypass.",
+    'wireless-hardware-attack': "Wireless/hardware: WiFi PMKID/WPS/Evil Twin, BLE, Zigbee, NFC, SDR, UART/JTAG/SPI, side-channel, fault injection. Use when attacking WiFi, BLE, RFID, SDR, or hardware interfaces.",
+    'zero-day-discovery': "0day autonomous discovery engine: variant analysis / patch gap / differential testing / Fuzzing / taint inference / N-day weaponization / hunter mindset. Use when public vulns not found and need to discover 0day or weaponize N-day."
+};
+
+function skillDisplayDescription(skill, fallback) {
+    if (!skill) return fallback || '';
+    const id = String(skill.id || skill.name || '').trim();
+    const raw = String(skill.description || '').trim();
+    if (!raw) return fallback || '';
+    if (SEED_SKILL_DESCRIPTIONS[id] === raw) {
+        const key = `skills.seedDescriptions.${id}`;
+        if (typeof window.t === 'function') {
+            const translated = window.t(key);
+            if (translated && translated !== key) return translated;
+        }
+    }
+    return raw;
+}
+
+// 种子技能 frontmatter tags（skills/*/SKILL.md）仅按种子值翻译；用户自改的
+// 描述/分类按原文保留。非种子技能的 tags 也按原文。
+function skillDisplayTag(skill, tag) {
+    const raw = String(tag || '').trim();
+    if (!raw) return raw;
+    const translated = typeof window.t === 'function' ? window.t(`skills.seedTags.${raw}`) : '';
+    if (translated && translated !== `skills.seedTags.${raw}`) return translated;
+    return raw;
+}
+
 let skillsList = [];
 let currentEditingSkillName = null;
 let skillModalAddMode = true;
@@ -10,9 +65,9 @@ let skillFileDirty = false;
 let skillDescriptionDirty = false;
 let skillPackageFiles = [];
 let skillModalControlsWired = false;
-let isSavingSkill = false; // 防止重复提交
+let isSavingSkill = false; // prevents duplicate submission
 let skillsSearchKeyword = '';
-let skillsSearchTimeout = null; // 搜索防抖定时器
+let skillsSearchTimeout = null; // search debounce timer
 let skillsAutoRefreshTimer = null;
 let isAutoRefreshingSkills = false;
 const SKILLS_AUTO_REFRESH_INTERVAL_MS = 5000;
@@ -169,7 +224,7 @@ function renderSkillsList() {
             ? _t('skills.cardFiles', { count: skill.file_count })
             : '';
         const metaItems = [ver, fc, sc].filter(Boolean);
-        const tags = Array.isArray(skill.tags) ? skill.tags.filter(Boolean) : [];
+        const tags = Array.isArray(skill.tags) ? skill.tags.filter(Boolean).map(t => skillDisplayTag(skill, t)) : [];
         const visibleTags = tags.slice(0, 4);
         const hiddenTagCount = Math.max(0, tags.length - visibleTags.length);
         const tagsHtml = visibleTags.length
@@ -183,7 +238,7 @@ function renderSkillsList() {
                             <h3 class="skill-card-title">${escapeHtml(skill.name || sid)}</h3>
                             ${metaItems.length ? `<div class="skill-card-meta">${metaItems.map(item => `<span>${escapeHtml(item)}</span>`).join('')}</div>` : ''}
                         </div>
-                        <div class="skill-card-description">${escapeHtml(skill.description || _t('skills.noDescription'))}</div>
+                        <div class="skill-card-description">${escapeHtml(skillDisplayDescription(skill, _t('skills.noDescription')))}</div>
                         ${tagsHtml}
                     </div>
                     <div class="skill-card-actions">

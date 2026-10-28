@@ -10,7 +10,5 @@ import (
 
 // RunCommandWS 交互式 PTY 终端依赖 Unix PTY（见 terminal_ws_unix.go）；Windows 暂不支持。
 func (h *TerminalHandler) RunCommandWS(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{
-		"error": "Interactive WebSocket terminal is not supported on Windows; use POST /terminal/run or /terminal/run/stream instead.",
-	})
+	respondError(c, http.StatusNotImplemented, "Windows 暂不支持交互式 WebSocket 终端；请使用 POST /terminal/run 或 /terminal/run/stream。", "Interactive WebSocket terminal is not supported on Windows; use POST /terminal/run or /terminal/run/stream instead.")
 }

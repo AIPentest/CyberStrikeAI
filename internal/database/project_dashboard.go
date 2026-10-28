@@ -63,7 +63,7 @@ func (db *DB) GetProjectDashboardSummaryForAccess(factLimit int, userID, scope s
 	}
 
 	if err := db.QueryRow(`SELECT COUNT(*) FROM projects p WHERE p.status = 'active'`+projectAccess, args...).Scan(&out.Totals.ActiveProjects); err != nil {
-		return nil, fmt.Errorf("统计活跃项目失败: %w", err)
+		return nil, fmt.Errorf("failed to count active projects: %w", err)
 	}
 	if err := db.QueryRow(
 		`SELECT COUNT(*) FROM project_facts f
@@ -71,7 +71,7 @@ func (db *DB) GetProjectDashboardSummaryForAccess(factLimit int, userID, scope s
 		 WHERE f.confidence != 'deprecated' AND p.status = 'active'`+projectAccess,
 		args...,
 	).Scan(&out.Totals.TotalFacts); err != nil {
-		return nil, fmt.Errorf("统计事实失败: %w", err)
+		return nil, fmt.Errorf("failed to count facts: %w", err)
 	}
 
 	queryArgs := append([]interface{}{}, args...)
@@ -86,7 +86,7 @@ func (db *DB) GetProjectDashboardSummaryForAccess(factLimit int, userID, scope s
 		queryArgs...,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("查询近期事实失败: %w", err)
+		return nil, fmt.Errorf("failed to query recent facts: %w", err)
 	}
 	defer rows.Close()
 

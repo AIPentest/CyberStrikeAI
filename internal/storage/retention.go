@@ -58,10 +58,10 @@ func (s *Service) PurgeExpired() {
 		if s.logger != nil {
 			// 并发冲突不是故障：说明已有一轮在跑，跳过即可。
 			if errors.Is(err, ErrCleanupInProgress) {
-				s.logger.Debug("已有存储清理在执行，跳过本轮")
+				s.logger.Debug("A storage cleanup is already running; skipping this round")
 				return
 			}
-			s.logger.Warn("运行空间自动清理失败", zap.Error(err))
+			s.logger.Warn("Automatic runtime-space cleanup failed", zap.Error(err))
 		}
 	}
 }

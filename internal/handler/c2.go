@@ -104,7 +104,7 @@ func (h *C2Handler) CreateListener(c *gin.Context) {
 		CallbackHost: strings.TrimSpace(req.CallbackHost),
 	}
 	if !h.canAccessProject(c, input.ProjectID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "project access denied"})
+		respondError(c, http.StatusForbidden, "无权访问该项目", "project access denied")
 		return
 	}
 
@@ -126,7 +126,7 @@ func (h *C2Handler) CreateListener(c *gin.Context) {
 	listener.EncryptionKey = ""
 	listener.ImplantToken = ""
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "listener_create", "创建 C2 监听器", "c2_listener", listener.ID, map[string]interface{}{
+		h.audit.RecordOK(c, "c2", "listener_create", "created C2 listener", "c2_listener", listener.ID, map[string]interface{}{
 			"name": listener.Name, "bind": listener.BindHost, "port": listener.BindPort,
 		})
 	}
@@ -142,7 +142,7 @@ func (h *C2Handler) GetListener(c *gin.Context) {
 		return
 	}
 	if listener == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "listener not found"})
+		respondError(c, http.StatusNotFound, "监听器不存在", "listener not found")
 		return
 	}
 	listener.EncryptionKey = ""
@@ -159,7 +159,7 @@ func (h *C2Handler) UpdateListener(c *gin.Context) {
 		return
 	}
 	if listener == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "listener not found"})
+		respondError(c, http.StatusNotFound, "监听器不存在", "listener not found")
 		return
 	}
 
@@ -179,7 +179,7 @@ func (h *C2Handler) UpdateListener(c *gin.Context) {
 	}
 
 	if strings.TrimSpace(req.Name) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "listener name is required"})
+		respondError(c, http.StatusBadRequest, "监听器名称必填", "listener name is required")
 		return
 	}
 	if err := c2.SafeBindPort(req.BindPort); err != nil {
@@ -190,7 +190,7 @@ func (h *C2Handler) UpdateListener(c *gin.Context) {
 	// 若监听器在运行，不能修改关键字段
 	if h.mgr().IsListenerRunning(id) {
 		if req.BindHost != listener.BindHost || req.BindPort != listener.BindPort {
-			c.JSON(http.StatusConflict, gin.H{"error": "cannot modify bind address while listener is running"})
+			respondError(c, http.StatusConflict, "监听器运行中无法修改绑定地址", "cannot modify bind address while listener is running")
 			return
 		}
 	}
@@ -206,7 +206,7 @@ func (h *C2Handler) UpdateListener(c *gin.Context) {
 		listener.ConfigJSON = string(cfgJSON)
 	}
 	if !h.canAccessProject(c, listener.ProjectID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "project access denied"})
+		respondError(c, http.StatusForbidden, "无权访问该项目", "project access denied")
 		return
 	}
 	if req.CallbackHost != nil {
@@ -247,7 +247,7 @@ func (h *C2Handler) DeleteListener(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "listener_delete", "删除 C2 监听器", "c2_listener", id, nil)
+		h.audit.RecordOK(c, "c2", "listener_delete", "deleted C2 listener", "c2_listener", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"deleted": true})
 }
@@ -267,7 +267,7 @@ func (h *C2Handler) StartListener(c *gin.Context) {
 	listener.EncryptionKey = ""
 	listener.ImplantToken = ""
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "listener_start", "启动 C2 监听器", "c2_listener", id, nil)
+		h.audit.RecordOK(c, "c2", "listener_start", "started C2 listener", "c2_listener", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"listener": listener})
 }
@@ -284,7 +284,7 @@ func (h *C2Handler) StopListener(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "listener_stop", "停止 C2 监听器", "c2_listener", id, nil)
+		h.audit.RecordOK(c, "c2", "listener_stop", "stopped C2 listener", "c2_listener", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"stopped": true})
 }
@@ -328,7 +328,7 @@ func (h *C2Handler) GetSession(c *gin.Context) {
 		return
 	}
 	if session == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
+		respondError(c, http.StatusNotFound, "C2 会话不存在", "session not found")
 		return
 	}
 
@@ -352,7 +352,7 @@ func (h *C2Handler) DeleteSession(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "session_delete", "删除 C2 会话", "c2_session", id, nil)
+		h.audit.RecordOK(c, "c2", "session_delete", "deleted C2 session", "c2_session", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"deleted": true})
 }
@@ -363,11 +363,11 @@ func (h *C2Handler) DeleteSessions(c *gin.Context) {
 		IDs []string `json:"ids"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json: " + err.Error()})
+		respondErrorf(c, http.StatusBadRequest, "无效的 JSON: %s", "invalid json: %s", err.Error())
 		return
 	}
 	if len(req.IDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ids is required"})
+		respondError(c, http.StatusBadRequest, "ids 必填", "ids is required")
 		return
 	}
 	n, err := h.mgr().DB().DeleteC2SessionsByIDsForAccess(req.IDs, c2AccessFromContext(c))
@@ -380,7 +380,7 @@ func (h *C2Handler) DeleteSessions(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "session_delete", "批量删除 C2 会话", "c2_session", "", map[string]interface{}{
+		h.audit.RecordOK(c, "c2", "session_delete", "batch deleted C2 sessions", "c2_session", "", map[string]interface{}{
 			"count": n, "ids": req.IDs,
 		})
 	}
@@ -399,18 +399,18 @@ func (h *C2Handler) SetSessionSleep(c *gin.Context) {
 		return
 	}
 	if req.SleepSeconds < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "sleep_seconds must be >= 1"})
+		respondError(c, http.StatusBadRequest, "sleep_seconds 必须 >= 1", "sleep_seconds must be >= 1")
 		return
 	}
 	if req.JitterPercent < 0 || req.JitterPercent > 100 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "jitter_percent must be 0-100"})
+		respondError(c, http.StatusBadRequest, "jitter_percent 必须 0-100", "jitter_percent must be 0-100")
 		return
 	}
 
 	task, err := h.mgr().SetSessionSleep(id, req.SleepSeconds, req.JitterPercent)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
+			respondError(c, http.StatusNotFound, "C2 会话不存在", "session not found")
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -439,7 +439,7 @@ func (h *C2Handler) SetSessionNote(c *gin.Context) {
 	}
 	note := strings.TrimSpace(req.Note)
 	if len(note) > 2000 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "note too long (max 2000 characters)"})
+		respondError(c, http.StatusBadRequest, "备注过长（最多 2000 个字符）", "note too long (max 2000 characters)")
 		return
 	}
 
@@ -449,7 +449,7 @@ func (h *C2Handler) SetSessionNote(c *gin.Context) {
 		return
 	}
 	if session == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
+		respondError(c, http.StatusNotFound, "C2 会话不存在", "session not found")
 		return
 	}
 
@@ -458,7 +458,7 @@ func (h *C2Handler) SetSessionNote(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "session_note", "更新 C2 会话备注", "c2_session", id, map[string]interface{}{
+		h.audit.RecordOK(c, "c2", "session_note", "updated C2 session note", "c2_session", id, map[string]interface{}{
 			"note_len": len(note),
 		})
 	}
@@ -554,11 +554,11 @@ func (h *C2Handler) DeleteTasks(c *gin.Context) {
 		IDs []string `json:"ids"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json: " + err.Error()})
+		respondErrorf(c, http.StatusBadRequest, "无效的 JSON: %s", "invalid json: %s", err.Error())
 		return
 	}
 	if len(req.IDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ids is required"})
+		respondError(c, http.StatusBadRequest, "ids 必填", "ids is required")
 		return
 	}
 	n, err := h.mgr().DB().DeleteC2TasksByIDsForAccess(req.IDs, c2AccessFromContext(c))
@@ -571,7 +571,7 @@ func (h *C2Handler) DeleteTasks(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "task_delete", "批量删除 C2 任务", "c2_task", "", map[string]interface{}{
+		h.audit.RecordOK(c, "c2", "task_delete", "batch deleted C2 tasks", "c2_task", "", map[string]interface{}{
 			"count": n, "ids": req.IDs,
 		})
 	}
@@ -587,7 +587,7 @@ func (h *C2Handler) GetTask(c *gin.Context) {
 		return
 	}
 	if task == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+		respondError(c, http.StatusNotFound, "任务不存在", "task not found")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"task": task})
@@ -610,13 +610,13 @@ func (h *C2Handler) CreateTask(c *gin.Context) {
 		req.SessionID = strings.TrimSpace(c.Param("id"))
 	}
 	if !h.c2ResourceAllowed(c, "c2_session", req.SessionID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	if conversationID := strings.TrimSpace(req.ConversationID); conversationID != "" {
 		session, ok := security.CurrentSession(c)
 		if !ok || !h.mgr().DB().UserCanAccessResource(session.UserID, session.Scope, "conversation", conversationID) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权关联目标对话"})
+			respondError(c, http.StatusForbidden, "无权关联目标对话", "no permission to link the target conversation")
 			return
 		}
 		req.ConversationID = conversationID
@@ -641,7 +641,7 @@ func (h *C2Handler) CreateTask(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "task_create", "创建 C2 任务", "c2_task", task.ID, map[string]interface{}{
+		h.audit.RecordOK(c, "c2", "task_create", "created C2 task", "c2_task", task.ID, map[string]interface{}{
 			"session_id": req.SessionID, "task_type": req.TaskType,
 		})
 	}
@@ -652,7 +652,7 @@ func (h *C2Handler) CreateTask(c *gin.Context) {
 func (h *C2Handler) CancelTask(c *gin.Context) {
 	id := c.Param("id")
 	if !h.c2ResourceAllowed(c, "c2_task", id) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	if err := h.mgr().CancelTask(id); err != nil {
@@ -664,7 +664,7 @@ func (h *C2Handler) CancelTask(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "task_cancel", "取消 C2 任务", "c2_task", id, nil)
+		h.audit.RecordOK(c, "c2", "task_cancel", "canceled C2 task", "c2_task", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"cancelled": true})
 }
@@ -673,7 +673,7 @@ func (h *C2Handler) CancelTask(c *gin.Context) {
 func (h *C2Handler) WaitTask(c *gin.Context) {
 	id := c.Param("id")
 	if !h.c2ResourceAllowed(c, "c2_task", id) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	timeout := 60 * time.Second
@@ -691,7 +691,7 @@ func (h *C2Handler) WaitTask(c *gin.Context) {
 			return
 		}
 		if task == nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+			respondError(c, http.StatusNotFound, "任务不存在", "task not found")
 			return
 		}
 		if task.Status == "success" || task.Status == "failed" || task.Status == "cancelled" {
@@ -700,7 +700,7 @@ func (h *C2Handler) WaitTask(c *gin.Context) {
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
-	c.JSON(http.StatusRequestTimeout, gin.H{"error": "timeout waiting for task completion"})
+	respondError(c, http.StatusRequestTimeout, "等待任务完成时超时", "timeout waiting for task completion")
 }
 
 // ============================================================================
@@ -725,11 +725,11 @@ func (h *C2Handler) PayloadOneliner(c *gin.Context) {
 		return
 	}
 	if listener == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "listener not found"})
+		respondError(c, http.StatusNotFound, "监听器不存在", "listener not found")
 		return
 	}
 	if !h.c2ResourceAllowed(c, "c2_listener", req.ListenerID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 
@@ -743,7 +743,7 @@ func (h *C2Handler) PayloadOneliner(c *gin.Context) {
 			names[i] = string(k)
 		}
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error":            fmt.Sprintf("监听器类型 %s 不支持 %s 类型的 oneliner，请选择兼容的类型", listener.Type, req.Kind),
+			"error":            fmt.Sprintf(i18nText(requestWantsEnglish(c), "监听器类型 %s 不支持 %s 类型的 oneliner，请选择兼容的类型", "listener type %s does not support oneliner of kind %s, choose a compatible type"), listener.Type, req.Kind),
 			"compatible_kinds": names,
 		})
 		return
@@ -796,11 +796,11 @@ func (h *C2Handler) PayloadBuild(c *gin.Context) {
 		return
 	}
 	if listener == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "listener not found"})
+		respondError(c, http.StatusNotFound, "监听器不存在", "listener not found")
 		return
 	}
 	if !h.c2ResourceAllowed(c, "c2_listener", req.ListenerID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 
@@ -833,16 +833,16 @@ func (h *C2Handler) PayloadDownload(c *gin.Context) {
 	id := c.Param("id")
 	filename := id
 	if !strings.HasPrefix(filename, "beacon_") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload id"})
+		respondError(c, http.StatusBadRequest, "无效的 payload id", "invalid payload id")
 		return
 	}
 	if strings.Contains(filename, "/") || strings.Contains(filename, "\\") || strings.Contains(filename, "..") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload id"})
+		respondError(c, http.StatusBadRequest, "无效的 payload id", "invalid payload id")
 		return
 	}
 	session, ok := security.CurrentSession(c)
 	if !ok || !h.mgr().DB().UserCanAccessC2Payload(session.UserID, session.Scope, filename) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 
@@ -852,12 +852,12 @@ func (h *C2Handler) PayloadDownload(c *gin.Context) {
 
 	absTarget, err := filepath.Abs(targetPath)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid path"})
+		respondError(c, http.StatusBadRequest, "无效的 path", "invalid path")
 		return
 	}
 	absDir, err := filepath.Abs(storageDir)
 	if err != nil || !strings.HasPrefix(absTarget, absDir+string(filepath.Separator)) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload id"})
+		respondError(c, http.StatusBadRequest, "无效的 payload id", "invalid payload id")
 		return
 	}
 
@@ -942,11 +942,11 @@ func (h *C2Handler) DeleteEvents(c *gin.Context) {
 		IDs []string `json:"ids"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json: " + err.Error()})
+		respondErrorf(c, http.StatusBadRequest, "无效的 JSON: %s", "invalid json: %s", err.Error())
 		return
 	}
 	if len(req.IDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ids is required"})
+		respondError(c, http.StatusBadRequest, "ids 必填", "ids is required")
 		return
 	}
 	n, err := h.mgr().DB().DeleteC2EventsByIDsForAccess(req.IDs, c2AccessFromContext(c))
@@ -1021,7 +1021,7 @@ func (h *C2Handler) GetProfile(c *gin.Context) {
 		return
 	}
 	if profile == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "profile not found"})
+		respondError(c, http.StatusNotFound, "profile 不存在", "profile not found")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"profile": profile})
@@ -1036,7 +1036,7 @@ func (h *C2Handler) CreateProfile(c *gin.Context) {
 	}
 
 	if req.JitterMinMS < 0 || req.JitterMaxMS < req.JitterMinMS {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Jitter 必须满足 0 <= min <= max"})
+		respondError(c, http.StatusBadRequest, "Jitter 必须满足 0 <= min <= max", "Jitter must satisfy 0 <= min <= max")
 		return
 	}
 	req.ID = "p_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:14]
@@ -1058,7 +1058,7 @@ func (h *C2Handler) UpdateProfile(c *gin.Context) {
 		return
 	}
 	if profile == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "profile not found"})
+		respondError(c, http.StatusNotFound, "profile 不存在", "profile not found")
 		return
 	}
 
@@ -1069,7 +1069,7 @@ func (h *C2Handler) UpdateProfile(c *gin.Context) {
 	}
 
 	if req.JitterMinMS < 0 || req.JitterMaxMS < req.JitterMinMS {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Jitter 必须满足 0 <= min <= max"})
+		respondError(c, http.StatusBadRequest, "Jitter 必须满足 0 <= min <= max", "Jitter must satisfy 0 <= min <= max")
 		return
 	}
 	profile.Name = req.Name
@@ -1093,11 +1093,11 @@ func (h *C2Handler) DeleteProfile(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.mgr().DB().DeleteC2Profile(id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "profile not found"})
+			respondError(c, http.StatusNotFound, "profile 不存在", "profile not found")
 			return
 		}
-		h.logger.Error("删除 C2 Profile 失败", zap.Error(err), zap.String("id", id))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete profile"})
+		h.logger.Error("failed to delete C2 Profile", zap.Error(err), zap.String("id", id))
+		respondError(c, http.StatusInternalServerError, "删除 profile 失败", "failed to delete profile")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"deleted": true})
@@ -1112,17 +1112,17 @@ func (h *C2Handler) UploadFileForImplant(c *gin.Context) {
 	sessionID := strings.TrimSpace(c.PostForm("session_id"))
 	remotePath := strings.TrimSpace(c.PostForm("remote_path"))
 	if sessionID == "" || remotePath == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "session_id and remote_path required"})
+		respondError(c, http.StatusBadRequest, "session_id 与 remote_path 必填", "session_id and remote_path required")
 		return
 	}
 	if !h.c2ResourceAllowed(c, "c2_session", sessionID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "file field required: " + err.Error()})
+		respondErrorf(c, http.StatusBadRequest, "file 字段必填: %s", "file field required: %s", err.Error())
 		return
 	}
 	defer file.Close()
@@ -1170,11 +1170,11 @@ func (h *C2Handler) UploadFileForImplant(c *gin.Context) {
 func (h *C2Handler) ListFiles(c *gin.Context) {
 	sessionID := c.Query("session_id")
 	if sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "session_id required"})
+		respondError(c, http.StatusBadRequest, "session_id 必填", "session_id required")
 		return
 	}
 	if !h.c2ResourceAllowed(c, "c2_session", sessionID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	files, err := h.mgr().DB().ListC2FilesBySession(sessionID)
@@ -1194,15 +1194,15 @@ func (h *C2Handler) DownloadResultFile(c *gin.Context) {
 		return
 	}
 	if task == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+		respondError(c, http.StatusNotFound, "任务不存在", "task not found")
 		return
 	}
 	if !h.c2ResourceAllowed(c, "c2_task", taskID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	if task.ResultBlobPath == "" {
-		c.JSON(http.StatusNotFound, gin.H{"error": "no result file for this task"})
+		respondError(c, http.StatusNotFound, "该任务没有结果文件", "no result file for this task")
 		return
 	}
 	c.FileAttachment(task.ResultBlobPath, filepath.Base(task.ResultBlobPath))

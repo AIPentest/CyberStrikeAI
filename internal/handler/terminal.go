@@ -64,17 +64,17 @@ type RunCommandResponse struct {
 func (h *TerminalHandler) RunCommand(c *gin.Context) {
 	var req RunCommandRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求体无效，需要 command 字段"})
+		respondError(c, http.StatusBadRequest, "请求体无效，需要 command 字段", "invalid request body; the command field is required")
 		return
 	}
 
 	cmdStr := strings.TrimSpace(req.Command)
 	if cmdStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "command 不能为空"})
+		respondError(c, http.StatusBadRequest, "command 不能为空", "command must not be empty")
 		return
 	}
 	if len(cmdStr) > terminalMaxCommandLen {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "命令过长"})
+		respondError(c, http.StatusBadRequest, "命令过长", "command too long")
 		return
 	}
 
@@ -102,14 +102,14 @@ func (h *TerminalHandler) RunCommand(c *gin.Context) {
 	if req.Cwd != "" {
 		absCwd, err := filepath.Abs(req.Cwd)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "工作目录无效"})
+			respondError(c, http.StatusBadRequest, "工作目录无效", "invalid working directory")
 			return
 		}
 		cur, _ := os.Getwd()
 		curAbs, _ := filepath.Abs(cur)
 		rel, err := filepath.Rel(curAbs, absCwd)
 		if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "工作目录必须在当前进程目录下"})
+			respondError(c, http.StatusBadRequest, "工作目录必须在当前进程目录下", "working directory must be inside the current process directory")
 			return
 		}
 		cmd.Dir = absCwd
@@ -159,7 +159,7 @@ func (h *TerminalHandler) RunCommand(c *gin.Context) {
 			c.JSON(http.StatusOK, resp)
 			return
 		}
-		h.logger.Debug("终端命令执行异常", zap.String("command", maskTerminalCommand(cmdStr)), zap.Error(err))
+		h.logger.Debug("terminal command execution error", zap.String("command", maskTerminalCommand(cmdStr)), zap.Error(err))
 	}
 
 	// 统一为 \n，避免前端因 \r 出现错位/对角线排版
@@ -190,16 +190,16 @@ type streamEvent struct {
 func (h *TerminalHandler) RunCommandStream(c *gin.Context) {
 	var req RunCommandRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求体无效，需要 command 字段"})
+		respondError(c, http.StatusBadRequest, "请求体无效，需要 command 字段", "invalid request body; the command field is required")
 		return
 	}
 	cmdStr := strings.TrimSpace(req.Command)
 	if cmdStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "command 不能为空"})
+		respondError(c, http.StatusBadRequest, "command 不能为空", "command must not be empty")
 		return
 	}
 	if len(cmdStr) > terminalMaxCommandLen {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "命令过长"})
+		respondError(c, http.StatusBadRequest, "命令过长", "command too long")
 		return
 	}
 	shell := req.Shell
@@ -223,14 +223,14 @@ func (h *TerminalHandler) RunCommandStream(c *gin.Context) {
 	if req.Cwd != "" {
 		absCwd, err := filepath.Abs(req.Cwd)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "工作目录无效"})
+			respondError(c, http.StatusBadRequest, "工作目录无效", "invalid working directory")
 			return
 		}
 		cur, _ := os.Getwd()
 		curAbs, _ := filepath.Abs(cur)
 		rel, err := filepath.Rel(curAbs, absCwd)
 		if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "工作目录必须在当前进程目录下"})
+			respondError(c, http.StatusBadRequest, "工作目录必须在当前进程目录下", "working directory must be inside the current process directory")
 			return
 		}
 		cmd.Dir = absCwd

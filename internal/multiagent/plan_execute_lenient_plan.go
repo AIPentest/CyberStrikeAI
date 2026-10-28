@@ -43,7 +43,7 @@ func (p *lenientPlan) UnmarshalJSON(b []byte) error {
 
 	steps := extractPlanStepsLenient(string(b))
 	if len(steps) == 0 {
-		steps = []string{"继续按当前目标执行下一步，并输出可验证证据。"}
+		steps = []string{"Continue with the next step for the current goal and output verifiable evidence."}
 	}
 	p.Steps = steps
 	return nil

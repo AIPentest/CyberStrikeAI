@@ -1,31 +1,31 @@
 name: "objdump"
 command: "objdump"
 enabled: true
-short_description: "二进制文件反汇编工具"
+short_description: "Binary file disassembly tool"
 description: |
-  Objdump是GNU binutils的一部分，用于反汇编二进制文件。
+  Objdump is part of GNU binutils, used to disassemble binary files.
 
-  **主要功能：**
-  - 反汇编
-  - 符号表显示
-  - 节信息显示
-  - 多种架构支持
+  **Main features:**
+  - Disassembly
+  - Symbol table display
+  - Section information display
+  - Support for multiple architectures
 
-  **使用场景：**
-  - 二进制分析
-  - 逆向工程
-  - 程序理解
-  - 调试辅助
+  **Use cases:**
+  - Binary analysis
+  - Reverse engineering
+  - Program understanding
+  - Debugging assistance
 parameters:
   - name: "binary"
     type: "string"
-    description: "要分析的二进制文件路径"
+    description: "Path to the binary file to analyze"
     required: true
     position: 0
     format: "positional"
   - name: "disassemble"
     type: "bool"
-    description: "反汇编二进制文件"
+    description: "Disassemble the binary file"
     required: false
     flag: "-d"
     format: "flag"
@@ -33,14 +33,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的objdump参数。用于传递未在参数列表中定义的objdump选项。
+      Extra objdump arguments. Used to pass objdump options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Make sure arguments are correctly formatted to avoid command injection
+      - This argument is appended directly to the end of the command
     required: false
     format: "positional"

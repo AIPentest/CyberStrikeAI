@@ -35,7 +35,7 @@ func TestAsyncAdmissionDisconnectIdempotencyAndAccess(t *testing.T) {
 	contexts := make(chan context.Context, 2)
 	release := make(chan struct{})
 	done := make(chan struct{}, 2)
-	executor := func(ctx, base context.Context, cancel context.CancelCauseFunc, timeout context.CancelFunc, req ChatRequest, p *multiAgentPrepared, r *database.AgentRun, multi bool) {
+	executor := func(ctx, base context.Context, cancel context.CancelCauseFunc, timeout context.CancelFunc, req ChatRequest, p *multiAgentPrepared, r *database.AgentRun, multi bool, wantEnglish bool) {
 		contexts <- ctx
 		<-release
 		status := "completed"
@@ -145,7 +145,7 @@ func TestAsyncWorkerFinalizesCancellationDeadlineAndPanic(t *testing.T) {
 				t.Fatal(err)
 			}
 			prep := &multiAgentPrepared{ConversationID: "conv"}
-			h.executeAcceptedRunBody(ctx, base, cancel, timeout, prep, r, func(status *string, respond func(int, interface{})) {
+			h.executeAcceptedRunBody(ctx, base, cancel, timeout, prep, r, false, func(status *string, respond func(int, interface{})) {
 				if mode == "panic" {
 					panic("test")
 				}

@@ -15,7 +15,7 @@ var singleTemplateVarRe = regexp.MustCompile(`^\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}$`
 func validateConditionExpression(expr string) error {
 	expr = strings.TrimSpace(expr)
 	if expr == "" {
-		return fmt.Errorf("条件表达式不能为空")
+		return fmt.Errorf("condition expression cannot be empty")
 	}
 	for _, part := range splitBoolExpr(expr, "||") {
 		for _, atom := range splitBoolExpr(part, "&&") {
@@ -30,21 +30,21 @@ func validateConditionExpression(expr string) error {
 func validateConditionAtom(expr string) error {
 	expr = strings.TrimSpace(expr)
 	if expr == "" {
-		return fmt.Errorf("条件表达式存在空片段")
+		return fmt.Errorf("condition expression has an empty fragment")
 	}
 	if strings.Count(expr, "{{") != strings.Count(expr, "}}") {
-		return fmt.Errorf("条件表达式模板括号不匹配: %s", expr)
+		return fmt.Errorf("condition expression template parentheses mismatch: %s", expr)
 	}
 	if err := validateJSONFunctions(expr); err != nil {
 		return err
 	}
 	if left, right, ok := splitExpressionAtom(expr, " matches "); ok {
 		if strings.TrimSpace(left) == "" || strings.TrimSpace(right) == "" {
-			return fmt.Errorf("matches 表达式两侧不能为空: %s", expr)
+			return fmt.Errorf("matches expression sides cannot be empty: %s", expr)
 		}
 		pattern := cleanComparable(resolveStaticTemplate(right))
 		if _, err := regexp.Compile(pattern); err != nil {
-			return fmt.Errorf("matches 正则非法: %w", err)
+			return fmt.Errorf("matches regex invalid: %w", err)
 		}
 		return nil
 	}
@@ -54,7 +54,7 @@ func validateConditionAtom(expr string) error {
 		}
 		if left, right, ok := splitExpressionAtom(expr, op); ok {
 			if strings.TrimSpace(left) == "" || strings.TrimSpace(right) == "" {
-				return fmt.Errorf("表达式 %q 两侧不能为空: %s", strings.TrimSpace(op), expr)
+				return fmt.Errorf("expression %q sides cannot be empty: %s", strings.TrimSpace(op), expr)
 			}
 			return nil
 		}
@@ -176,7 +176,7 @@ func validateJSONFunctions(expr string) error {
 		candidate = strings.TrimSpace(candidate)
 		m := jsonFuncRe.FindStringSubmatch(candidate)
 		if len(m) != 4 {
-			return fmt.Errorf("JSONPath/JQ 函数格式应为 jsonpath(value, \"$.path\") 或 jq(value, \".path\")")
+			return fmt.Errorf("JSONPath/JQ function format should be jsonpath(value, \"$.path\") or jq(value, \".path\")")
 		}
 		if err := validateJSONPathSyntax(strings.Trim(m[3], `"'`)); err != nil {
 			return err

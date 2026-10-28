@@ -48,14 +48,14 @@ func runLarkLoop(ctx context.Context, cfg config.RobotLarkConfig, strictUserIden
 			larkws.WithEventHandler(eventHandler),
 			larkws.WithLogLevel(larkcore.LogLevelInfo),
 		)
-		logger.Info("飞书长连接正在连接…", zap.String("app_id", cfg.AppID))
+		logger.Info("Lark long connection connecting…", zap.String("app_id", cfg.AppID))
 		err := wsClient.Start(ctx)
 		if ctx.Err() != nil {
-			logger.Info("飞书长连接已按配置重启关闭")
+			logger.Info("Lark long connection closed by configuration restart")
 			return
 		}
 		if err != nil {
-			logger.Warn("飞书长连接断开（如睡眠/断网），将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
+			logger.Warn("Lark long connection dropped (e.g. sleep/network outage); reconnecting automatically", zap.Error(err), zap.Duration("retry_after", backoff))
 		}
 		select {
 		case <-ctx.Done():
@@ -78,12 +78,12 @@ func handleLarkMessage(ctx context.Context, event *larkim.P2MessageReceiveV1, cf
 	msg := event.Event.Message
 	msgType := larkcore.StringValue(msg.MessageType)
 	if msgType != larkim.MsgTypeText {
-		logger.Debug("飞书暂仅处理文本消息", zap.String("msg_type", msgType))
+		logger.Debug("Lark currently handles text messages only", zap.String("msg_type", msgType))
 		return
 	}
 	var textBody larkTextContent
 	if err := json.Unmarshal([]byte(larkcore.StringValue(msg.Content)), &textBody); err != nil {
-		logger.Warn("飞书消息 Content 解析失败", zap.Error(err))
+		logger.Warn("failed to parse the Lark message Content", zap.Error(err))
 		return
 	}
 	text := strings.TrimSpace(textBody.Text)
@@ -92,7 +92,7 @@ func handleLarkMessage(ctx context.Context, event *larkim.P2MessageReceiveV1, cf
 	}
 	userID := resolveLarkUserID(event, cfg.AllowChatIDFallback && !strictUserIdentity)
 	if userID == "" {
-		logger.Warn("飞书消息缺少可用用户标识，已忽略")
+		logger.Warn("Lark message has no usable user identifier; ignored")
 		return
 	}
 	messageID := larkcore.StringValue(msg.MessageId)
@@ -106,10 +106,10 @@ func handleLarkMessage(ctx context.Context, event *larkim.P2MessageReceiveV1, cf
 			Build()).
 		Build())
 	if err != nil {
-		logger.Warn("飞书回复失败", zap.String("message_id", messageID), zap.Error(err))
+		logger.Warn("Lark reply failed", zap.String("message_id", messageID), zap.Error(err))
 		return
 	}
-	logger.Debug("飞书已回复", zap.String("message_id", messageID))
+	logger.Debug("Lark reply delivered", zap.String("message_id", messageID))
 }
 
 // resolveLarkUserID 提取飞书会话隔离键：

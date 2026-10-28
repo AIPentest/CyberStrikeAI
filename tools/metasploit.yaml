@@ -9,7 +9,7 @@ args:
     import sys
 
     if len(sys.argv) < 2:
-        sys.stderr.write("缺少模块名称\n")
+        sys.stderr.write("Missing module name\n")
         sys.exit(1)
 
     module = sys.argv[1]
@@ -19,7 +19,7 @@ args:
     try:
         options = json.loads(options_raw) if options_raw else {}
     except json.JSONDecodeError as exc:
-        sys.stderr.write(f"选项解析失败: {exc}\n")
+        sys.stderr.write(f"Failed to parse options: {exc}\n")
         sys.exit(1)
 
     commands = [f"use {module}"]
@@ -34,26 +34,26 @@ args:
 
     subprocess.run(cmd, check=False)
 enabled: true
-short_description: "Metasploit渗透测试框架"
+short_description: "Metasploit penetration testing framework"
 description: |
-  通过 `msfconsole -q -x` 非交互执行模块。可提供JSON格式的模块选项，脚本自动构建 `set` 与 `run` 指令。
+  Executes modules non-interactively via `msfconsole -q -x`. Module options can be provided in JSON format, and the script automatically builds the `set` and `run` commands.
 parameters:
   - name: "module"
     type: "string"
-    description: "要使用的Metasploit模块（例如 exploit/windows/smb/ms17_010_eternalblue）"
+    description: "Metasploit module to use (e.g. exploit/windows/smb/ms17_010_eternalblue)"
     required: true
     position: 0
     format: "positional"
   - name: "options"
     type: "string"
-    description: "模块选项（JSON对象，键值对应 set 指令）"
+    description: "Module options (JSON object, key-value pairs corresponding to set commands)"
     required: false
     default: "{}"
     position: 1
     format: "positional"
   - name: "additional_args"
     type: "string"
-    description: "额外的 msfconsole 参数（追加在命令末尾）"
+    description: "Additional msfconsole arguments (appended to the end of the command)"
     required: false
     default: ""
     position: 2

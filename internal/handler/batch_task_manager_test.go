@@ -64,11 +64,11 @@ func TestBatchQueueExecutionShouldStop(t *testing.T) {
 func TestBatchSubTaskConversationMetaKeepsQueueRole(t *testing.T) {
 	t.Parallel()
 
-	meta := batchSubTaskConversationMeta(nil, &BatchTaskQueue{Role: " 渗透测试 "})
+	meta := batchSubTaskConversationMeta(nil, &BatchTaskQueue{Role: " Penetration Testing "})
 	if meta.Source != "batch_task" {
 		t.Fatalf("expected batch_task source, got %q", meta.Source)
 	}
-	if meta.RoleName != "渗透测试" {
+	if meta.RoleName != "Penetration Testing" {
 		t.Fatalf("expected queue role to be stored on child conversation, got %q", meta.RoleName)
 	}
 }

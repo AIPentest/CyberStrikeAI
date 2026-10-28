@@ -1,60 +1,60 @@
 name: "scout-suite"
 command: "scout"
 enabled: true
-short_description: "多云安全评估工具"
+short_description: "Multi-cloud security assessment tool"
 description: |
-  Scout Suite是一个多云安全评估工具，支持AWS、Azure、GCP、Aliyun和OCI。
+  Scout Suite is a multi-cloud security assessment tool supporting AWS, Azure, GCP, Aliyun, and OCI.
 
-  **主要功能：**
-  - 多云安全评估
-  - 配置审计
-  - 安全最佳实践检查
-  - 详细报告生成
+  **Main features:**
+  - Multi-cloud security assessment
+  - Configuration audit
+  - Security best practice checks
+  - Detailed report generation
 
-  **使用场景：**
-  - 云安全审计
-  - 合规性检查
-  - 安全评估
-  - 云配置审计
+  **Use cases:**
+  - Cloud security audit
+  - Compliance checks
+  - Security assessment
+  - Cloud configuration audit
 parameters:
   - name: "provider"
     type: "string"
-    description: "云提供商（aws, azure, gcp, aliyun, oci）"
+    description: "Cloud provider (aws, azure, gcp, aliyun, oci)"
     required: false
     flag: "--provider"
     format: "flag"
     default: "aws"
   - name: "profile"
     type: "string"
-    description: "AWS配置文件"
+    description: "AWS configuration profile"
     required: false
     flag: "--profile"
     format: "flag"
     default: "default"
   - name: "report_dir"
     type: "string"
-    description: "报告保存目录"
+    description: "Directory where reports are saved"
     required: false
     flag: "--report-dir"
     format: "flag"
     default: "/tmp/scout-suite"
   - name: "services"
     type: "string"
-    description: "要评估的特定服务"
+    description: "Specific services to assess"
     required: false
     flag: "--services"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的scout-suite参数。用于传递未在参数列表中定义的scout-suite选项。
+      Additional scout-suite arguments. Used to pass scout-suite options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

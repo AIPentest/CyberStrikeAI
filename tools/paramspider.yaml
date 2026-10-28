@@ -1,58 +1,58 @@
 name: "paramspider"
 command: "paramspider"
 enabled: true
-short_description: "从Web档案中挖掘参数"
+short_description: "Mines parameters from web archives"
 description: |
-  ParamSpider从Web档案中挖掘参数，用于发现隐藏的参数。
+  ParamSpider mines parameters from web archives, used to discover hidden parameters.
 
-  **主要功能：**
-  - 参数挖掘
-  - Web档案查询
-  - 多级深度支持
-  - 扩展名过滤
+  **Main features:**
+  - Parameter mining
+  - Web archive querying
+  - Multiple depth levels supported
+  - File extension filtering
 
-  **使用场景：**
-  - 参数发现
-  - Bug bounty侦察
-  - Web应用安全测试
-  - 安全测试
+  **Use cases:**
+  - Parameter discovery
+  - Bug bounty reconnaissance
+  - Web application security testing
+  - Security testing
 parameters:
   - name: "domain"
     type: "string"
-    description: "目标域名"
+    description: "Target domain"
     required: true
     flag: "-d"
     format: "flag"
   - name: "level"
     type: "int"
-    description: "挖掘深度级别"
+    description: "Mining depth level"
     required: false
     flag: "-l"
     format: "flag"
     default: 2
   - name: "exclude"
     type: "string"
-    description: "要排除的文件扩展名"
+    description: "File extensions to exclude"
     required: false
     flag: "-e"
     format: "flag"
   - name: "output"
     type: "string"
-    description: "输出文件路径"
+    description: "Output file path"
     required: false
     flag: "-o"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的paramspider参数。用于传递未在参数列表中定义的paramspider选项。
+      Additional paramspider arguments. Used to pass paramspider options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

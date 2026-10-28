@@ -91,7 +91,7 @@ func (h *AssetHandler) Import(c *gin.Context) {
 		return
 	}
 	if len(req.Assets) == 0 || len(req.Assets) > maxAssetImportBatch {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "assets 数量必须在 1-100000 之间"})
+		respondError(c, http.StatusBadRequest, "assets 数量必须在 1-100000 之间", "assets count must be between 1 and 100000")
 		return
 	}
 	owner := ""
@@ -106,7 +106,7 @@ func (h *AssetHandler) Import(c *gin.Context) {
 		}
 		if strings.TrimSpace(asset.ProjectID) != "" {
 			if session, ok := security.CurrentSession(c); ok && !h.db.UserCanAccessResource(session.UserID, session.Scope, "project", strings.TrimSpace(asset.ProjectID)) {
-				c.JSON(http.StatusForbidden, gin.H{"error": "无权绑定该项目"})
+				respondError(c, http.StatusForbidden, "无权绑定该项目", "no permission to bind the project")
 				return
 			}
 		}
@@ -124,7 +124,7 @@ func (h *AssetHandler) Import(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		h.logger.Error("导入资产失败", zap.Error(err))
+		h.logger.Error("failed to import assets", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -147,7 +147,7 @@ func (h *AssetHandler) List(c *gin.Context) {
 	}
 	assets, total, err := h.db.ListAssets(pageSize, (page-1)*pageSize, filter, assetAccess(c))
 	if err != nil {
-		h.logger.Error("加载资产失败", zap.Error(err))
+		h.logger.Error("failed to load assets", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -233,7 +233,7 @@ func (h *AssetHandler) Selection(c *gin.Context) {
 type assetQueryError struct{ field, value string }
 
 func (e *assetQueryError) Error() string {
-	return e.field + " 参数无效: " + e.value
+	return e.field + " parameter is invalid: " + e.value
 }
 
 func parseAssetQueryTime(field, value string) (*time.Time, error) {
@@ -254,7 +254,7 @@ func (h *AssetHandler) Stats(c *gin.Context) {
 	if raw := strings.TrimSpace(c.Query("days")); raw != "" {
 		parsed, err := strconv.Atoi(raw)
 		if err != nil || (parsed != 7 && parsed != 30 && parsed != 90) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "days 仅支持 7、30 或 90"})
+			respondError(c, http.StatusBadRequest, "days 仅支持 7、30 或 90", "days only supports 7, 30, or 90")
 			return
 		}
 		days = parsed
@@ -275,7 +275,7 @@ func (h *AssetHandler) RecordScans(c *gin.Context) {
 		return
 	}
 	if len(req.Scans) == 0 || len(req.Scans) > maxAssetOperationBatch {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "scans 数量必须在 1-10000 之间"})
+		respondError(c, http.StatusBadRequest, "scans 数量必须在 1-10000 之间", "scans count must be between 1 and 10000")
 		return
 	}
 	access := assetAccess(c)
@@ -284,31 +284,31 @@ func (h *AssetHandler) RecordScans(c *gin.Context) {
 		queueID := strings.TrimSpace(scan.QueueID)
 		taskID := strings.TrimSpace(scan.TaskID)
 		if conversationID == "" && taskID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "conversation_id 或 task_id 至少需要一个"})
+			respondError(c, http.StatusBadRequest, "conversation_id 或 task_id 至少需要一个", "conversation_id or task_id is required (at least one)")
 			return
 		}
 		if taskID != "" && (queueID == "" || !h.db.BatchTaskBelongsToQueue(taskID, queueID)) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "任务不属于指定队列"})
+			respondError(c, http.StatusBadRequest, "任务不属于指定队列", "task does not belong to the specified queue")
 			return
 		}
 		if _, err := h.db.GetAsset(strings.TrimSpace(scan.AssetID), access); err != nil {
-			c.JSON(http.StatusForbidden, gin.H{"error": "资产不存在或无权扫描"})
+			respondError(c, http.StatusForbidden, "资产不存在或无权扫描", "asset not found or no permission to scan")
 			return
 		}
 		if session, ok := security.CurrentSession(c); ok {
 			if id := conversationID; id != "" && !h.db.UserCanAccessResource(session.UserID, session.Scope, "conversation", id) {
-				c.JSON(http.StatusForbidden, gin.H{"error": "无权关联该对话"})
+				respondError(c, http.StatusForbidden, "无权关联该对话", "no permission to link the conversation")
 				return
 			}
 			if id := queueID; id != "" && !h.db.UserCanAccessResource(session.UserID, session.Scope, "batch_task", id) {
-				c.JSON(http.StatusForbidden, gin.H{"error": "无权关联该任务队列"})
+				respondError(c, http.StatusForbidden, "无权关联该任务队列", "no permission to link the task queue")
 				return
 			}
 		}
 	}
 	for _, scan := range req.Scans {
 		if err := h.db.MarkAssetScanned(scan.AssetID, scan.ConversationID, scan.QueueID, scan.TaskID, access); err != nil {
-			h.logger.Error("记录资产扫描失败", zap.String("asset_id", scan.AssetID), zap.Error(err))
+			h.logger.Error("failed to record the asset scan", zap.String("asset_id", scan.AssetID), zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -324,7 +324,7 @@ func (h *AssetHandler) Update(c *gin.Context) {
 	}
 	if asset.ProjectID != "" {
 		if session, ok := security.CurrentSession(c); ok && !h.db.UserCanAccessResource(session.UserID, session.Scope, "project", asset.ProjectID) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权绑定该项目"})
+			respondError(c, http.StatusForbidden, "无权绑定该项目", "no permission to bind the project")
 			return
 		}
 	}
@@ -334,7 +334,7 @@ func (h *AssetHandler) Update(c *gin.Context) {
 	}
 	updated, err := h.db.GetAsset(c.Param("id"), assetAccess(c))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "资产不存在"})
+		respondError(c, http.StatusNotFound, "资产不存在", "asset not found")
 		return
 	}
 	c.JSON(http.StatusOK, updated)
@@ -348,17 +348,17 @@ func (h *AssetHandler) UpdateProjectBinding(c *gin.Context) {
 		return
 	}
 	if len(req.AssetIDs) == 0 || len(req.AssetIDs) > maxAssetOperationBatch {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "asset_ids 数量必须在 1-10000 之间"})
+		respondError(c, http.StatusBadRequest, "asset_ids 数量必须在 1-10000 之间", "asset_ids count must be between 1 and 10000")
 		return
 	}
 	req.ProjectID = strings.TrimSpace(req.ProjectID)
 	if req.ProjectID != "" {
 		if _, err := h.db.GetProject(req.ProjectID); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "项目不存在"})
+			respondError(c, http.StatusBadRequest, "项目不存在", "project not found")
 			return
 		}
 		if session, ok := security.CurrentSession(c); ok && !h.db.UserCanAccessResource(session.UserID, session.Scope, "project", req.ProjectID) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权绑定该项目"})
+			respondError(c, http.StatusForbidden, "无权绑定该项目", "no permission to bind the project")
 			return
 		}
 	}
@@ -377,7 +377,7 @@ func (h *AssetHandler) BulkUpdate(c *gin.Context) {
 		return
 	}
 	if len(req.AssetIDs) == 0 || len(req.AssetIDs) > maxAssetOperationBatch {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "asset_ids 数量必须在 1-10000 之间"})
+		respondError(c, http.StatusBadRequest, "asset_ids 数量必须在 1-10000 之间", "asset_ids count must be between 1 and 10000")
 		return
 	}
 	updated, err := h.db.UpdateAssetsBulk(req.AssetIDs, database.AssetBulkPatch{
@@ -399,7 +399,7 @@ func (h *AssetHandler) BatchDelete(c *gin.Context) {
 		return
 	}
 	if len(req.AssetIDs) == 0 || len(req.AssetIDs) > maxAssetOperationBatch {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "asset_ids 数量必须在 1-10000 之间"})
+		respondError(c, http.StatusBadRequest, "asset_ids 数量必须在 1-10000 之间", "asset_ids count must be between 1 and 10000")
 		return
 	}
 	deleted, err := h.db.DeleteAssets(req.AssetIDs, assetAccess(c))
@@ -441,7 +441,7 @@ func (h *AssetHandler) Merge(c *gin.Context) {
 		return
 	}
 	if len(req.AssetIDs) < 2 || len(req.AssetIDs) > 100 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "合并资产数量必须在 2-100 之间"})
+		respondError(c, http.StatusBadRequest, "合并资产数量必须在 2-100 之间", "merge asset count must be between 2 and 100")
 		return
 	}
 	writeAccess := assetAccessForPermission(c, "asset:write")
@@ -452,7 +452,7 @@ func (h *AssetHandler) Merge(c *gin.Context) {
 	}
 	primary, err := h.db.GetAsset(primaryID, writeAccess)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "主资产不存在或无权访问"})
+		respondError(c, http.StatusBadRequest, "主资产不存在或无权访问", "primary asset not found or no access")
 		return
 	}
 	others := make([]*database.Asset, 0, len(req.AssetIDs)-1)
@@ -468,17 +468,17 @@ func (h *AssetHandler) Merge(c *gin.Context) {
 		seen[id] = struct{}{}
 		item, err := h.db.GetAsset(id, writeAccess)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "部分资产不存在或无权访问"})
+			respondError(c, http.StatusBadRequest, "部分资产不存在或无权访问", "some assets not found or no access")
 			return
 		}
 		if !shareAssetIdentity(primary, item) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "所选资产没有共同域名、IP 或 Host，不能判定为重复资产"})
+			respondError(c, http.StatusBadRequest, "所选资产没有共同域名、IP 或 Host，不能判定为重复资产", "selected assets share no common domain, IP, or Host; cannot judge them duplicates")
 			return
 		}
 		others = append(others, item)
 	}
 	if len(others) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "至少需要两个不同资产"})
+		respondError(c, http.StatusBadRequest, "至少需要两个不同资产", "at least two distinct assets are required")
 		return
 	}
 	mergeText := func(dst *string, src string) {
@@ -515,7 +515,7 @@ func (h *AssetHandler) Merge(c *gin.Context) {
 		primary.Tags = append(primary.Tags, tag)
 	}
 	if len(primary.Tags) > 30 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "合并后标签超过 30 个"})
+		respondError(c, http.StatusBadRequest, "合并后标签超过 30 个", "merged tags exceed 30")
 		return
 	}
 	ids := make([]string, 0, len(others))
@@ -533,7 +533,7 @@ func (h *AssetHandler) Merge(c *gin.Context) {
 
 func (h *AssetHandler) Delete(c *gin.Context) {
 	if err := h.db.DeleteAsset(c.Param("id"), assetAccess(c)); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "资产不存在或无权删除"})
+		respondError(c, http.StatusNotFound, "资产不存在或无权删除", "asset not found or no permission to delete")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true})

@@ -148,10 +148,10 @@ func mergeEinoTurnLoopMessages(items []EinoTurnLoopItem) []*schema.Message {
 func formatInterruptContinuePrompt(note string) string {
 	note = strings.TrimSpace(note)
 	if note == "" {
-		return "用户请求中断当前推理并继续。请基于已经完成的步骤继续，不要重复已完成工具调用。"
+		return "The user requested interrupting the current reasoning and continuing. Please continue based on the already-completed steps; do not repeat already-completed tool calls."
 	}
-	return "用户请求中断当前推理并补充上下文后继续：\n" + note +
-		"\n\n请基于已经完成的步骤继续，不要重复已完成工具调用。"
+	return "The user requested interrupting the current reasoning and continuing after supplementing the context:\n" + note +
+		"\n\nPlease continue based on the already-completed steps; do not repeat already-completed tool calls."
 }
 
 func cloneSchemaMessages(in []*schema.Message) []*schema.Message {

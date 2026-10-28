@@ -1,43 +1,43 @@
 name: "john"
 command: "john"
 enabled: true
-short_description: "John the Ripper密码破解工具"
+short_description: "John the Ripper password cracking tool"
 description: |
-  John the Ripper是一个快速的密码破解工具，支持多种哈希算法。
+  John the Ripper is a fast password cracking tool that supports multiple hash algorithms.
 
-  **主要功能：**
-  - 多种哈希算法支持
-  - 字典攻击
-  - 暴力破解
-  - 规则引擎
+  **Key features:**
+  - Support for multiple hash algorithms
+  - Dictionary attacks
+  - Brute force attacks
+  - Rules engine
 
-  **使用场景：**
-  - 密码恢复
-  - 哈希破解
-  - 安全测试
-  - 取证分析
+  **Use cases:**
+  - Password recovery
+  - Hash cracking
+  - Security testing
+  - Forensic analysis
 parameters:
   - name: "hash_file"
     type: "string"
-    description: "包含哈希的文件"
+    description: "File containing hashes"
     required: true
     position: 0
     format: "positional"
   - name: "wordlist"
     type: "string"
-    description: "字典文件"
+    description: "Wordlist file"
     required: false
     default: "/usr/share/wordlists/rockyou.txt"
     flag: "--wordlist"
     format: "flag"
   - name: "format_type"
     type: "string"
-    description: "哈希格式类型"
+    description: "Hash format type"
     required: false
     flag: "--format"
     format: "flag"
   - name: "additional_args"
     type: "string"
-    description: "额外的John参数"
+    description: "Additional John arguments"
     required: false
     format: "positional"

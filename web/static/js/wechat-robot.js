@@ -297,11 +297,11 @@ async function startWechatRobotBind() {
         });
         const data = await res.json();
         if (!res.ok) {
-            throw new Error(data.error || data.message || '获取二维码失败');
+            throw new Error(data.error || data.message || wechatT('settings.robots.wechat.qrFetchFail', '获取二维码失败'));
         }
         wechatBindSessionKey = data.session_key;
         setWechatQrImage(data);
-        setWechatQrStatus(data.message || '请使用微信扫描二维码', false);
+        setWechatQrStatus(data.message || wechatT('settings.robots.wechat.qrReadyHint', '请使用微信扫描二维码'), false);
         pollWechatBindStatus();
     } catch (e) {
         setWechatQrStatus(e.message || String(e), true);
@@ -320,7 +320,7 @@ async function pollWechatBindStatus() {
         const res = await apiFetch(url, { method: 'GET' });
         const data = await res.json();
         if (!res.ok) {
-            throw new Error(data.error || '轮询失败');
+            throw new Error(data.error || wechatT('settings.robots.wechat.pollFail', '轮询失败'));
         }
 
         const verifyWrap = document.getElementById('robot-wechat-verify-wrap');
@@ -352,12 +352,12 @@ async function pollWechatBindStatus() {
             case 'need_verifycode':
                 updateWechatSteps('scan');
                 if (verifyWrap) verifyWrap.hidden = false;
-                setWechatQrStatus(data.message || '请输入手机微信显示的数字', false);
+                setWechatQrStatus(data.message || wechatT('settings.robots.wechat.verifyCodeHint', '请输入手机微信显示的数字'), false);
                 break;
             case 'scaned':
                 updateWechatSteps('confirm');
                 if (verifyWrap) verifyWrap.hidden = true;
-                setWechatQrStatus('已扫码，请在手机上确认…', false);
+                setWechatQrStatus(wechatT('settings.robots.wechat.qrScanWait', '已扫码，请在手机上确认…'), false);
                 break;
             case 'binded_redirect':
                 stopWechatBindPoll();
@@ -367,7 +367,7 @@ async function pollWechatBindStatus() {
                 showWechatBoundUI({ bound: true });
                 return;
             case 'expired':
-                setWechatQrStatus('二维码已过期，请重新点击「生成二维码并绑定」', true);
+                setWechatQrStatus(wechatT('settings.robots.wechat.qrExpired', '二维码已过期，请重新点击「生成二维码并绑定」'), true);
                 setWechatBadge('scanning');
                 stopWechatBindPoll();
                 return;
@@ -392,8 +392,8 @@ async function submitWechatVerifyCode() {
             body: JSON.stringify({ session_key: wechatBindSessionKey, verify_code: code })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || '提交失败');
-        setWechatQrStatus(data.message || '已提交配对码，等待确认…', false);
+        if (!res.ok) throw new Error(data.error || wechatT('settings.robots.wechat.verifyCodeFail', '提交失败'));
+        setWechatQrStatus(data.message || wechatT('settings.robots.wechat.verifyCodeWait', '已提交配对码，等待确认…'), false);
         pollWechatBindStatus();
     } catch (e) {
         setWechatQrStatus(e.message || String(e), true);

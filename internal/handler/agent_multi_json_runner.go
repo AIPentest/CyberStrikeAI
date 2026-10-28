@@ -5,6 +5,7 @@ import (
 	"cyberstrike-ai/internal/agentfinalizer"
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/multiagent"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"net/http"
@@ -12,7 +13,7 @@ import (
 	"time"
 )
 
-func (h *AgentHandler) runMultiJSON(taskCtx, baseCtx context.Context, cancelWithCause context.CancelCauseFunc, req *ChatRequest, prep *multiAgentPrepared, status *string, respond func(int, interface{})) {
+func (h *AgentHandler) runMultiJSON(taskCtx, baseCtx context.Context, cancelWithCause context.CancelCauseFunc, req *ChatRequest, prep *multiAgentPrepared, status *string, wantEnglish bool, respond func(int, interface{})) {
 	progressCallback := h.createProgressCallback(taskCtx, cancelWithCause, prep.ConversationID, prep.AssistantMessageID, nil)
 	taskCtx = multiagent.WithHITLToolInterceptor(taskCtx, func(ctx context.Context, toolName, arguments string) (string, error) {
 		return h.interceptHITLForEinoTool(ctx, cancelWithCause, prep.ConversationID, prep.AssistantMessageID, nil, toolName, arguments)
@@ -59,9 +60,9 @@ func (h *AgentHandler) runMultiJSON(taskCtx, baseCtx context.Context, cancelWith
 			if shouldPersistEinoAgentTraceAfterRunError(baseCtx) {
 				h.persistEinoAgentTraceForResume(prep.ConversationID, result)
 			}
-			h.logger.Error("Eino DeepAgent 执行失败", zap.Error(runErr))
+			h.logger.Error("Eino DeepAgent run failed", zap.Error(runErr))
 			clientErr := multiagent.EinoClientRunErrorMessage(runErr)
-			errMsg := "执行失败: " + clientErr
+			errMsg := fmt.Sprintf(i18nText(wantEnglish, "执行失败: %s", "execution failed: %s"), clientErr)
 			if prep.AssistantMessageID != "" {
 				_, _ = h.db.Exec("UPDATE messages SET content = ?, updated_at = ? WHERE id = ?", errMsg, time.Now(), prep.AssistantMessageID)
 			}
@@ -89,7 +90,7 @@ func (h *AgentHandler) runMultiJSON(taskCtx, baseCtx context.Context, cancelWith
 
 	if result.LastAgentTraceInput != "" || result.LastAgentTraceOutput != "" {
 		if err := h.db.SaveAgentTrace(prep.ConversationID, result.LastAgentTraceInput, result.LastAgentTraceOutput); err != nil {
-			h.logger.Warn("保存代理轨迹失败", zap.Error(err))
+			h.logger.Warn("failed to save agent trace", zap.Error(err))
 		}
 	}
 

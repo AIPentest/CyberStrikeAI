@@ -1,48 +1,48 @@
 ---
 name: binary-mobile-reversing
 description: >-
-  APK/EXE/二进制:UniApp/DCloud/Flutter逆向,证书固定绕过,导出组件,内存破坏exploit链,IoT固件。Use when reversing APK/EXE, UniApp/Flutter, native .so, or memory-corruption exploits.
+  APK/EXE/binaries: UniApp/DCloud/Flutter reversing, certificate-pinning bypass, exported components, memory-corruption exploit chains, IoT firmware. Use when reversing APK/EXE, UniApp/Flutter, native .so, or memory-corruption exploits.
 metadata:
-  tags: [渗透测试, penetration-testing, 红队]
+  tags: [penetration-testing, penetration-testing, red-team]
 ---
 
-## APK / EXE / 二进制逆向
+## APK / EXE / Binary Reversing
 
 ```
-=== APK/EXE/二进制 ===
-APK: apktool d / jadx | Manifest看exported组件/deeplink/debuggable | rg硬编码密钥+API地址 | .so strings/Ghidra | frida/objection动态
-🚨UniApp/DCloud APK逆向(H5混合应用,业务全在JS不在DEX):
-  识别: __UNI__XXXXXXX + assets/apps/ + uni-jsframework.js (NOT Flutter,无libapp.so) | manifest.json含"uni-app"字段
-  核心文件: assets/apps/__UNI__XXX/www/app-service.js (800KB+混淆JS=全部业务逻辑) | jadx只能看壳(native插件注册),真逻辑在JS
-  JS解混淆(RC4+字符串数组旋转): 提取a0G()大数组(10000+元素)+a0m(idx,key)解码函数(base64→RC4)+rotation IIFE→拼可执行JS→node批量解码→JSON字典(offset→明文)
-    🔴陷阱: rotation IIFE可能以逗号结尾(不是分号!属于更大表达式)→node报"Unexpected token"→按实际结束符提取
-  加密配置zlsioh.dat/dcloud3.dat: header(96B偏移表:off40=block1解压/44=压缩/60=block2偏移/64=block2大小/80=block3偏移)+block1(zlib→DEX)+block2(加密,含API域名列表←关键,需.so解密)+block3(zlib→AndroidX类映射)
-    zlib魔数78DA=未加密直接解压 | 无魔数=加密块(密钥在.so .rodata/汇编立即数)
-  .so字符串解混淆: 偶数位字符提取→反转(e.g."mAojcl.dubdFiHaebP.nwywfwb"→"www.baidu.com") | strings -n8 lib*.so找含点号长串
-  ⚠️陷阱: .so中x分隔IP串(如"x111.230.69.120x118.126.105.164")=DCloud HTTPDNS节点(非API后端!140.205.11.x=阿里云DNS,111.230/118.126/106.52/42.193=腾讯云) | resources.arsc报错是故意反编译保护(不影响jadx) | assets伪PNG(1-8px)=完整性校验非数据 | fcapp.run仅APK下载代理
-  关键API变量: $apiHost/$opHost(运行时动态设置,不硬编码)/urlList/checkAvailableDomainList(HEAD domain/favicon.ico测连通,200-399=可用)
-  高价值端点: /app_init /user/gustRegister(游客无验证注册) /user/getOssSts(OSS临时凭据!) /uploadFile2
-  配置: manifest.json(appId/版本/nativePlugins→wrs-httpserver=内嵌HTTP服务!) | supplierconfig.json(vivo/xiaomi/huawei/oppo appid) | dcloud_uniplugins.json(插件清单)
-  ChengZi SDK(橙子建站): init3接口返回XOR单字节(key=0x96,见chengzi_decrypt.py)加密JSON→解密得APK真实下载链接(fu字段)+渠道码
-  域名兜底: 静态拿不到$apiHost时→Android模拟器(Waydroid/AVD)+tcpdump/mitmproxy抓运行时DNS
-  参见: references/uniapp-apk-reverse-engineering.md, references/uniapp-apk-reversing.md, scripts/js_rc4_deobfuscate.js, scripts/chengzi_decrypt.py
-🚨Flutter APK快速逆向(无需脱壳): 加固(MogoSec/梆梆/360)保护DEX层,但Flutter的lib/arm64-v8a/libapp.so(Dart AOT)通常不加密
-  strings -n8 libapp.so|grep 'https\?://' → 全部硬编码URL/API域名/S3地址/CDN
-  strings -n8 libapp.so|grep -E '^/' → API路径矩阵(/Member/Login, /Web/VideoList, /BBS/GetSTSToken等)
-  strings -n8 libapp.so|grep -iE 'key|secret|token|aws|bucket' → 凭据/密钥泄露
-  assets/config_*.xml + assets/data_*.dat → 加密配置(可能含域名/API地址) | .DS_Store → macOS开发者信息泄露 | assets/xinstall* → 渠道追踪SDK
-🚨Native .so字符串反混淆(通用模式): 混淆字符串在.rodata段
-  常见模式: 偶数位字符提取+反转(如"mAojcl.dubdFiHaebP..."→取偶数位→反转=明文域名) | XOR常量 | RC4+base64
-  识别: strings -n8 lib*.so找16字节等长串(AES密钥/IV)/含点号串(域名)/x分隔IP串(HTTPDNS) | nm --dynamic找混淆导出符号(16字符随机大小写)
-  验证: 已知字符串("classes.dex"/"io.dcloud.application")对照混淆版→逆推算法→批量解码
-🚨移动通用(非UniApp/Flutter的常规APP):
-  证书固定绕过(抓HTTPS): objection android sslpinning disable | frida universal-unpinning | 改smali删pinning重打包
-  导出组件越权: Manifest exported=true的Activity/Service/Provider/Receiver → drozer/adb am start跨应用调 | ContentProvider SQLi/路径穿越
-  深链接(deeplink)劫持: scheme://未校验→WebView加载任意URL(XSS/文件读) | 参数进intent→组件劫持
-  不安全存储: /data/data/pkg/(shared_prefs明文token/db未加密/logcat泄露) | sdcard世界可读
-  WebView: addJavascriptInterface(<4.2 RCE)/file://读本地/setAllowFileAccess | 静态:MobSF一把梭 | iOS:砸壳(frida-ios-dump)+Ghidra看Mach-O+objection动态
-EXE/PE: file/strings | Ghidra/IDA反编译找硬编码/加密/网络逻辑 | x64dbg动调 | 漏洞:溢出/格式化串/UAF/DLL劫持
-🚨内存破坏exploit链(崩溃→RCE): checksec看防护 → 确定原语(栈溢出/UAF/格式化串=任意读写)
-  → 信息泄露绕ASLR → ROP链(ROPgadget/pwntools ret2libc) → 堆利用(tcache poison/__free_hook劫持)
-  → 任意写改GOT/hook/vtable/exit_funcs → 控制流劫持 | 固件IoT:binwalk -Me提取+qemu-user调试(防护弱常直接栈溢出)
+=== APK/EXE/binary ===
+APK: apktool d / jadx | Manifest for exported components/deeplink/debuggable | rg for hardcoded keys + API addresses | .so strings/Ghidra | frida/objection dynamic
+🚨UniApp/DCloud APK reversing (H5 hybrid app, business logic entirely in JS not in DEX):
+  Identification: __UNI__XXXXXXX + assets/apps/ + uni-jsframework.js (NOT Flutter, no libapp.so) | manifest.json contains a "uni-app" field
+  Key file: assets/apps/__UNI__XXX/www/app-service.js (800KB+ obfuscated JS = all the business logic) | jadx only sees the shell (native plugin registration), the real logic is in JS
+  JS deobfuscation (RC4 + string-array rotation): extract the a0G() large array (10000+ elements) + the a0m(idx,key) decoding function (base64→RC4) + the rotation IIFE → assemble executable JS → node bulk-decode → JSON dictionary (offset→plaintext)
+    🔴Trap: the rotation IIFE may end with a comma (not a semicolon! it belongs to a larger expression) → node reports "Unexpected token" → extract according to the actual terminator
+  Encrypted config zlsioh.dat/dcloud3.dat: header (96B offset table: off40 = block1 uncompressed/44 = compressed/60 = block2 offset/64 = block2 size/80 = block3 offset) + block1 (zlib→DEX) + block2 (encrypted, contains the API domain list ← key, needs .so decryption) + block3 (zlib→AndroidX class mapping)
+    zlib magic 78DA = unencrypted, decompress directly | no magic = encrypted block (key in .so .rodata/assembly immediates)
+  .so string deobfuscation: extract even-position characters → reverse (e.g. "mAojcl.dubdFiHaebP.nwywfwb" → "www.baidu.com") | strings -n8 lib*.so for long dot-containing strings
+  ⚠️Trap: IP strings separated by x in the .so (like "x111.230.69.120x118.126.105.164") = DCloud HTTPDNS nodes (NOT the API backend! 140.205.11.x = Alibaba Cloud DNS, 111.230/118.126/106.52/42.193 = Tencent Cloud) | the resources.arsc error is an intentional anti-compilation protection (does not affect jadx) | assets pseudo-PNG (1-8px) = integrity check, not data | fcapp.run is only an APK download proxy
+  Key API variables: $apiHost/$opHost (set dynamically at runtime, not hardcoded)/urlList/checkAvailableDomainList (HEAD domain/favicon.ico connectivity test, 200-399 = available)
+  High-value endpoints: /app_init /user/gustRegister (guest registration without verification) /user/getOssSts (OSS temporary credentials!) /uploadFile2
+  Configuration: manifest.json (appId/version/nativePlugins → wrs-httpserver = embedded HTTP server!) | supplierconfig.json (vivo/xiaomi/huawei/oppo appid) | dcloud_uniplugins.json (plugin manifest)
+  ChengZi SDK (ChengZi site builder): the init3 interface returns XOR single-byte encrypted JSON (key = 0x96, see chengzi_decrypt.py) → decrypt to get the real APK download link (fu field) + channel code
+  Domain fallback: when $apiHost is not available statically → Android emulator (Waydroid/AVD) + tcpdump/mitmproxy to capture runtime DNS
+  See: references/uniapp-apk-reverse-engineering.md, references/uniapp-apk-reversing.md, scripts/js_rc4_deobfuscate.js, scripts/chengzi_decrypt.py
+🚨Flutter APK quick reversing (no unpacking needed): hardening (MogoSec/Bangbang/360) protects the DEX layer, but Flutter's lib/arm64-v8a/libapp.so (Dart AOT) is usually not encrypted
+  strings -n8 libapp.so | grep 'https\?://' → all hardcoded URLs/API domains/S3 addresses/CDN
+  strings -n8 libapp.so | grep -E '^/' → API path matrix (/Member/Login, /Web/VideoList, /BBS/GetSTSToken, etc.)
+  strings -n8 libapp.so | grep -iE 'key|secret|token|aws|bucket' → credential/key leaks
+  assets/config_*.xml + assets/data_*.dat → encrypted configuration (may contain domains/API addresses) | .DS_Store → macOS developer information leak | assets/xinstall* → channel-tracking SDK
+🚨Native .so string deobfuscation (generic pattern): the obfuscated strings live in the .rodata section
+  Common patterns: extract even-position characters + reverse (like "mAojcl.dubdFiHaebP..." → take even positions → reverse = plaintext domain) | XOR constant | RC4+base64
+  Identification: strings -n8 lib*.so to find 16-byte equal-length strings (AES key/IV)/dot-containing strings (domains)/x-separated IP strings (HTTPDNS) | nm --dynamic to find obfuscated exported symbols (16 random mixed-case characters)
+  Verification: match an obfuscated version against a known string ("classes.dex"/"io.dcloud.application") → reverse-derive the algorithm → bulk decode
+🚨Mobile generic (ordinary apps other than UniApp/Flutter):
+  Certificate-pinning bypass (to capture HTTPS): objection android sslpinning disable | frida universal-unpinning | modify smali to delete pinning and repackage
+  Exported-component privilege escalation: Manifest exported=true Activity/Service/Provider/Receiver → drozer/adb am start cross-application calls | ContentProvider SQLi/path traversal
+  Deeplink hijacking: scheme:// without validation → WebView loads an arbitrary URL (XSS/file read) | parameters flow into intent → component hijacking
+  Insecure storage: /data/data/pkg/ (shared_prefs plaintext tokens/db unencrypted/logcat leaks) | sdcard world-readable
+  WebView: addJavascriptInterface (<4.2 RCE)/file:// read local/setAllowFileAccess | static: MobSF one-stop | iOS: shell-breaking (frida-ios-dump) + Ghidra on Mach-O + objection dynamic
+EXE/PE: file/strings | Ghidra/IDA decompile to find hardcoded/encryption/network logic | x64dbg live-debug | vulnerabilities: overflow/format string/UAF/DLL hijacking
+🚨Memory-corruption exploit chain (crash→RCE): checksec to see protections → determine the primitive (stack overflow/UAF/format string = arbitrary read/write)
+  → information leak to bypass ASLR → ROP chain (ROPgadget/pwntools ret2libc) → heap exploitation (tcache poison/__free_hook hijacking)
+  → arbitrary write to modify GOT/hook/vtable/exit_funcs → control-flow hijack | IoT firmware: binwalk -Me extract + qemu-user debug (protection weak, often a direct stack overflow)
 ```

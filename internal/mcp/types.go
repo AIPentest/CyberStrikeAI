@@ -324,9 +324,9 @@ func ToolResultPlainText(r *ToolResult) string {
 
 // AbortNoteBannerForModel 标出后续文本来自「用户手动终止工具时在弹窗中填写」，避免与 stdout/stderr 混淆。
 const AbortNoteBannerForModel = "---\n" +
-	"【用户终止说明｜USER INTERRUPT NOTE】\n" +
-	"（以下由操作者填写，用于指示模型如何继续；不是工具原始输出。）\n" +
-	"（Written by the operator when stopping this tool; not raw tool output.）\n" +
+	"【USER INTERRUPT NOTE｜用户终止说明】\n" +
+	"(Written by the operator when stopping this tool; not raw tool output.)\n" +
+	"(以下由操作者填写，用于指示模型如何继续；不是工具原始输出。)\n" +
 	"---"
 
 // MergePartialToolOutputAndAbortNote 格式：工具原始输出 + 醒目标题 + 用户终止说明（无说明则原样返回 partial）。

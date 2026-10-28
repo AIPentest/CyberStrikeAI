@@ -17,7 +17,7 @@ func (h *AgentHandler) ShutdownTasks() {
 		h.asyncWorkers.Wait()
 		if h.logger != nil {
 			for _, task := range h.tasks.GetActiveTasks() {
-				h.logger.Warn("服务关闭时任务仍有未完成的清理", zap.String("runId", task.RunID), zap.String("cleanupError", task.CleanupError))
+				h.logger.Warn("task still has unfinished cleanup on service shutdown", zap.String("runId", task.RunID), zap.String("cleanupError", task.CleanupError))
 			}
 		}
 	}

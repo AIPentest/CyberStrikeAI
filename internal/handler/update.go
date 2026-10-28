@@ -171,7 +171,7 @@ func (h *UpdateHandler) Check(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	h.record(c, "update.check", resultOf(snap.CheckError), fmt.Sprintf("检查更新：%s（默认分支 %s）", snap.Repo, snap.TargetBranch), map[string]interface{}{
+	h.record(c, "update.check", resultOf(snap.CheckError), fmt.Sprintf("update check: %s (default branch %s)", snap.Repo, snap.TargetBranch), map[string]interface{}{
 		"commit": snap.Commit, "remote_commit": snap.RemoteCommit, "behind": snap.Behind, "error": snap.CheckError,
 	})
 	c.JSON(http.StatusOK, gin.H{"status": snap})
@@ -186,16 +186,16 @@ func (h *UpdateHandler) SaveSource(c *gin.Context) {
 		Repo string `json:"repo"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求体不是合法 JSON"})
+		respondError(c, http.StatusBadRequest, "请求体不是合法 JSON", "request body is not valid JSON")
 		return
 	}
 	body.Repo = strings.TrimSpace(body.Repo)
 	if body.Repo != "" && !update.ValidRemoteURL(body.Repo) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "仓库地址不合法（只允许 https/http/ssh/git/file:// 或本机绝对路径）"})
+		respondError(c, http.StatusBadRequest, "仓库地址不合法（只允许 https/http/ssh/git/file:// 或本机绝对路径）", "invalid repository URL (only https/http/ssh/git/file:// or a local absolute path)")
 		return
 	}
 	if h.saveSource == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "本次启动没有接入配置保存，更新源改不了"})
+		respondError(c, http.StatusInternalServerError, "本次启动没有接入配置保存，更新源改不了", "no update-source config was saved on this launch; the update source cannot be changed")
 		return
 	}
 	release, err := update.LockInstall(h.options())
@@ -205,17 +205,17 @@ func (h *UpdateHandler) SaveSource(c *gin.Context) {
 	}
 	defer release()
 	if busy := h.activeJob(); busy != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "更新进行中，不能切换更新源", "job": busy})
+		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "更新进行中，不能切换更新源", "an update is in progress, cannot switch update source"), "job": busy})
 		return
 	}
 	if err := h.saveSource(body.Repo); err != nil {
-		h.record(c, "update.source", "failure", "保存更新源失败: "+err.Error(), map[string]interface{}{"error": err.Error()})
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败：" + err.Error()})
+		h.record(c, "update.source", "failure", "failed to save the update source: "+err.Error(), map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "保存失败：%s", "save failed: %s"), err.Error())})
 		return
 	}
-	message := "更新源已保存：" + body.Repo
+	message := "update source saved: " + body.Repo
 	if body.Repo == "" {
-		message = "已恢复默认更新源（官方仓库）"
+		message = "back to the default update source (official repository)"
 	}
 	h.record(c, "update.source", "success", message, map[string]interface{}{"repo": body.Repo})
 	c.JSON(http.StatusOK, gin.H{"source": h.sourceView()})
@@ -231,18 +231,18 @@ func (h *UpdateHandler) Adopt(c *gin.Context) {
 	}
 	if c.Request.ContentLength > 0 {
 		if err := c.ShouldBindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "请求体不是合法 JSON"})
+			respondError(c, http.StatusBadRequest, "请求体不是合法 JSON", "request body is not valid JSON")
 			return
 		}
 	}
 	if body.Confirm && body.Restart && h.restart == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "本次启动没有提供重启钩子，接入完成后请由外部进程管理器重启服务"})
+		respondError(c, http.StatusBadRequest, "本次启动没有提供重启钩子，接入完成后请由外部进程管理器重启服务", "this launch provides no restart hook; after intake completes, restart the service with an external process manager")
 		return
 	}
 	if !body.Confirm {
 		plan, err := update.Preview(c.Request.Context(), h.options())
 		if err != nil {
-			h.record(c, "update.adopt", "failure", "接入预览失败: "+err.Error(), map[string]interface{}{"error": errMessage(err)})
+			h.record(c, "update.adopt", "failure", "adopt preview failed: "+err.Error(), map[string]interface{}{"error": errMessage(err)})
 			c.JSON(statusForError(err), errorBody(err))
 			return
 		}
@@ -251,10 +251,10 @@ func (h *UpdateHandler) Adopt(c *gin.Context) {
 	}
 	job, started := h.startJob("adopt", body.Restart)
 	if !started {
-		c.JSON(http.StatusConflict, gin.H{"error": "已有一次更新在进行中", "job": job})
+		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "已有一次更新在进行中", "an update is already in progress"), "job": job})
 		return
 	}
-	h.record(c, "update.adopt", "started", "开始把目录接入更新源", map[string]interface{}{"job": job.ID, "restart": body.Restart})
+	h.record(c, "update.adopt", "started", "started adopting the directory into the update source", map[string]interface{}{"job": job.ID, "restart": body.Restart})
 	c.JSON(http.StatusAccepted, gin.H{"job_id": job.ID, "state": job.State})
 }
 
@@ -267,21 +267,21 @@ func (h *UpdateHandler) Apply(c *gin.Context) {
 	}
 	if c.Request.ContentLength > 0 {
 		if err := c.ShouldBindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "请求体不是合法 JSON"})
+			respondError(c, http.StatusBadRequest, "请求体不是合法 JSON", "request body is not valid JSON")
 			return
 		}
 	}
 	if body.Restart && h.restart == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "本次启动没有提供重启钩子，更新完成后请由外部进程管理器重启服务"})
+		respondError(c, http.StatusBadRequest, "本次启动没有提供重启钩子，更新完成后请由外部进程管理器重启服务", "this launch provides no restart hook; after the update completes, restart the service with an external process manager")
 		return
 	}
 
 	job, started := h.startJob("apply", body.Restart)
 	if !started {
-		c.JSON(http.StatusConflict, gin.H{"error": "已有一次更新在进行中", "job": job})
+		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "已有一次更新在进行中", "an update is already in progress"), "job": job})
 		return
 	}
-	h.record(c, "update.apply", "started", "开始一键更新源码并重编译", map[string]interface{}{"job": job.ID, "restart": body.Restart})
+	h.record(c, "update.apply", "started", "started the one-click source update and rebuild", map[string]interface{}{"job": job.ID, "restart": body.Restart})
 
 	c.JSON(http.StatusAccepted, gin.H{"job_id": job.ID, "state": job.State})
 }
@@ -303,22 +303,22 @@ func (h *UpdateHandler) Restart(c *gin.Context) {
 		}
 	}()
 	if busy := h.activeJob(); busy != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "更新进行中，等它结束再重启", "job": busy})
+		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "更新进行中，等它结束再重启", "an update is in progress; wait for it to finish before restarting"), "job": busy})
 		return
 	}
 	if h.restart == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "本次启动没有提供重启钩子，请由外部进程管理器重启服务"})
+		respondError(c, http.StatusBadRequest, "本次启动没有提供重启钩子，请由外部进程管理器重启服务", "this launch provides no restart hook; restart the service with an external process manager")
 		return
 	}
 	if needsRestart, _ := h.restartPending(); !needsRestart {
-		c.JSON(http.StatusConflict, gin.H{"error": "磁盘上的二进制与当前进程一致，没有待生效的版本", "reason": "nothing_pending"})
+		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "磁盘上的二进制与当前进程一致，没有待生效的版本", "the binary on disk matches the current process, no pending version to apply"), "reason": "nothing_pending"})
 		return
 	}
 	if !update.StampBinary(h.root, h.options()).Exists {
-		c.JSON(http.StatusConflict, gin.H{"error": "磁盘上的二进制不存在，无法重启", "reason": "no_binary"})
+		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "磁盘上的二进制不存在，无法重启", "no binary on disk, cannot restart"), "reason": "no_binary"})
 		return
 	}
-	h.record(c, "update.restart", "started", "重启安装以运行磁盘上的新二进制", nil)
+	h.record(c, "update.restart", "started", "restarting the installation to run the new binary on disk", nil)
 	c.JSON(http.StatusAccepted, gin.H{"restarting": true})
 	scheduled = true
 	time.AfterFunc(updateRestartDelay, func() { defer release(); h.restart() })
@@ -335,16 +335,16 @@ func (h *UpdateHandler) Job(c *gin.Context) {
 // that update, rather than resetting away work nobody asked it to touch.
 func (h *UpdateHandler) Rollback(c *gin.Context) {
 	if busy := h.activeJob(); busy != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "更新进行中，不能同时回滚", "job": busy})
+		c.JSON(http.StatusConflict, gin.H{"error": i18nText(requestWantsEnglish(c), "更新进行中，不能同时回滚", "an update is in progress, cannot roll back at the same time"), "job": busy})
 		return
 	}
 	res, err := update.Rollback(c.Request.Context(), h.options())
 	if err != nil {
-		h.record(c, "update.rollback", "failure", "回滚失败: "+err.Error(), map[string]interface{}{"error": errMessage(err)})
+		h.record(c, "update.rollback", "failure", "rollback failed: "+err.Error(), map[string]interface{}{"error": errMessage(err)})
 		c.JSON(statusForError(err), errorBody(err))
 		return
 	}
-	h.record(c, "update.rollback", "success", fmt.Sprintf("已回滚到 %s", res.ToCommit), map[string]interface{}{
+	h.record(c, "update.rollback", "success", fmt.Sprintf("rolled back to %s", res.ToCommit), map[string]interface{}{
 		"from": res.FromCommit, "to": res.ToCommit,
 	})
 	c.JSON(http.StatusOK, gin.H{"result": res})
@@ -389,7 +389,7 @@ func (h *UpdateHandler) startJob(kind string, restart bool) (*updateJob, bool) {
 			job.Steps = append(job.Steps, s)
 			h.mu.Unlock()
 			if h.logger != nil {
-				h.logger.Info("更新进度", zap.String("phase", s.Phase), zap.String("message", s.Message))
+				h.logger.Info("update progress", zap.String("phase", s.Phase), zap.String("message", s.Message))
 			}
 		}
 		var run func(context.Context, update.Options, func(update.Step)) (*update.Result, error) = update.Apply

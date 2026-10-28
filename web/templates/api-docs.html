@@ -978,15 +978,15 @@
                     <svg class="theme-toggle-icon theme-toggle-icon--dark" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
                         <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3a7 7 0 1 0 11.5 11.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                     </svg>
-                    <span id="theme-toggle-label">跟随系统</span>
+                    <span id="theme-toggle-label" data-i18n="theme.system">跟随系统</span>
                 </button>
                 <div class="lang-switcher">
-                    <button type="button" class="btn-secondary lang-switcher-btn" onclick="typeof toggleLangDropdown === 'function' && toggleLangDropdown()" title="界面语言">
+                    <button type="button" class="btn-secondary lang-switcher-btn" onclick="typeof toggleLangDropdown === 'function' && toggleLangDropdown()" data-i18n="header.language" data-i18n-attr="title" data-i18n-skip-text="true" title="界面语言">
                         <span class="lang-switcher-icon">🌐</span>
-                        <span id="current-lang-label">中文</span>
+                        <span id="current-lang-label" data-i18n="lang.zhCN">中文</span>
                     </button>
                     <div id="lang-dropdown" class="lang-dropdown" style="display: none;">
-                        <div class="lang-option" data-lang="zh-CN" onclick="typeof onLanguageSelect === 'function' && onLanguageSelect('zh-CN')">中文</div>
+                        <div class="lang-option" data-lang="zh-CN" data-i18n="lang.zhCN" onclick="typeof onLanguageSelect === 'function' && onLanguageSelect('zh-CN')">中文</div>
                         <div class="lang-option" data-lang="en-US" onclick="typeof onLanguageSelect === 'function' && onLanguageSelect('en-US')">English</div>
                         <div class="lang-option" data-lang="ru-RU" onclick="typeof onLanguageSelect === 'function' && onLanguageSelect('ru-RU')">Русский</div>
                     </div>
@@ -1033,9 +1033,7 @@ Content-Type: application/json
                         <p style="margin: 8px 0 0 0; font-size: 0.8125rem; color: var(--text-muted);" data-i18n="apiDocs.authTip">💡 提示：本页面会自动使用您已登录的 Token，无需手动填写。</p>
                     </div>
                     <div id="token-status" style="display: none; background: rgba(0, 102, 255, 0.1); padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--accent-color);">
-                        <p style="margin: 0; font-size: 0.8125rem; color: var(--accent-color);" data-i18n="apiDocs.tokenDetected">
-                            <strong>✓ 已检测到 Token</strong> - 您可以直接测试 API 接口
-                        </p>
+                        <p style="margin: 0; font-size: 0.8125rem; color: var(--accent-color);" data-i18n="apiDocs.tokenDetected">✓ 已检测到 Token - 您可以直接测试 API 接口</p>
                     </div>
                 </div>
             </div>

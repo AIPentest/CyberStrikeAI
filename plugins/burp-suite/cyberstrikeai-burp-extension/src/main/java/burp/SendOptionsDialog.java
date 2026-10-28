@@ -49,11 +49,11 @@ final class SendOptionsDialog {
         gc.weighty = 0;
 
         JComboBox<CyberStrikeAIClient.ProjectOption> projectBox = new JComboBox<>();
-        projectBox.addItem(new CyberStrikeAIClient.ProjectOption("", "加载中..."));
+        projectBox.addItem(new CyberStrikeAIClient.ProjectOption("", "Loading..."));
         projectBox.setEnabled(false);
 
         JComboBox<CyberStrikeAIClient.RoleOption> roleBox = new JComboBox<>();
-        roleBox.addItem(new CyberStrikeAIClient.RoleOption("", "加载中..."));
+        roleBox.addItem(new CyberStrikeAIClient.RoleOption("", "Loading..."));
         roleBox.setEnabled(false);
 
         JComboBox<CyberStrikeAIClient.AgentMode> agentBox = new JComboBox<>(CyberStrikeAIClient.AgentMode.values());
@@ -69,16 +69,16 @@ final class SendOptionsDialog {
             }
         });
 
-        // Row 0: labels — 项目 | 角色 | 对话
+        // Row 0: labels — Project | Role | Conversation
         gc.gridy = 0;
         gc.weightx = 1.0;
 
         gc.gridx = 0;
-        selectors.add(new JLabel("项目"), gc);
+        selectors.add(new JLabel("Project"), gc);
         gc.gridx = 1;
-        selectors.add(new JLabel("角色"), gc);
+        selectors.add(new JLabel("Role"), gc);
         gc.gridx = 2;
-        selectors.add(new JLabel("对话"), gc);
+        selectors.add(new JLabel("Conversation"), gc);
 
         // Row 1: dropdowns
         gc.gridy = 1;
@@ -102,7 +102,7 @@ final class SendOptionsDialog {
         editor.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
 
         JPanel instructionPanel = new JPanel(new BorderLayout(0, 6));
-        instructionPanel.add(new JLabel("测试指令（可针对当前流量修改）："), BorderLayout.NORTH);
+        instructionPanel.add(new JLabel("Test instruction (can be modified for this traffic):"), BorderLayout.NORTH);
         instructionPanel.add(new JScrollPane(editor), BorderLayout.CENTER);
 
         panel.add(selectors, BorderLayout.NORTH);
@@ -117,13 +117,13 @@ final class SendOptionsDialog {
             } catch (Exception ex) {
                 SwingUtilities.invokeLater(() -> {
                     projectBox.removeAllItems();
-                    projectBox.addItem(new CyberStrikeAIClient.ProjectOption("", "(加载失败)"));
+                    projectBox.addItem(new CyberStrikeAIClient.ProjectOption("", "(load failed)"));
                     projectBox.setEnabled(true);
                     roleBox.removeAllItems();
-                    roleBox.addItem(new CyberStrikeAIClient.RoleOption("", "默认"));
+                    roleBox.addItem(new CyberStrikeAIClient.RoleOption("", "default"));
                     roleBox.setEnabled(true);
                     JOptionPane.showMessageDialog(parent,
-                            "加载项目/角色失败: " + ex.getMessage(),
+                            "Failed to load projects/roles: " + ex.getMessage(),
                             "CyberStrikeAI", JOptionPane.WARNING_MESSAGE);
                 });
             }
@@ -133,7 +133,7 @@ final class SendOptionsDialog {
         int result = JOptionPane.showConfirmDialog(
                 parent,
                 panel,
-                "发送到 CyberStrikeAI",
+                "Send to CyberStrikeAI",
                 JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.PLAIN_MESSAGE
         );

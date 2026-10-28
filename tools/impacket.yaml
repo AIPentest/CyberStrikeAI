@@ -9,7 +9,7 @@ args:
     import sys
 
     if len(sys.argv) < 2:
-        sys.stderr.write("缺少Impacket脚本路径\n")
+        sys.stderr.write("Missing Impacket script path\n")
         sys.exit(1)
 
     script_path = sys.argv[1]
@@ -40,46 +40,46 @@ args:
         sys.stderr.write(proc.stderr)
     sys.exit(proc.returncode)
 enabled: true
-short_description: "Impacket 网络协议工具集，用于网络协议攻击和横向移动"
+short_description: "Impacket network protocol toolkit, used for network protocol attacks and lateral movement"
 description: |
-  Impacket 是一个 Python 工具集，用于处理网络协议，常用于渗透测试和横向移动。
+  Impacket is a Python toolkit for working with network protocols, commonly used for penetration testing and lateral movement.
 
-  **主要功能：**
-  - SMB 协议攻击
-  - Kerberos 协议攻击
-  - RPC 协议攻击
-  - 远程命令执行
-  - 凭证转储
-  - 票据传递攻击
+  **Main features:**
+  - SMB protocol attacks
+  - Kerberos protocol attacks
+  - RPC protocol attacks
+  - Remote command execution
+  - Credential dumping
+  - Ticket-passing attacks
 
-  **常用工具：**
-  - psexec: 远程命令执行
-  - smbexec: SMB 远程执行
-  - wmiexec: WMI 远程执行
-  - secretsdump: 凭证转储
-  - getTGT: Kerberos 票据获取
+  **Common tools:**
+  - psexec: remote command execution
+  - smbexec: SMB remote execution
+  - wmiexec: WMI remote execution
+  - secretsdump: credential dumping
+  - getTGT: Kerberos ticket acquisition
 
-  **使用场景：**
-  - 横向移动
-  - 凭证转储
-  - 远程命令执行
-  - 后渗透测试
+  **Use cases:**
+  - Lateral movement
+  - Credential dumping
+  - Remote command execution
+  - Post-exploitation testing
 
-  **注意事项：**
-  - 需要 Python 环境
-  - 需要相应的凭据
-  - 仅用于授权的安全测试
-  - 工具路径通常在 /usr/share/doc/python3-impacket/examples/ 或通过 pip 安装
+  **Notes:**
+  - Requires a Python environment
+  - Requires the corresponding credentials
+  - For authorized security testing only
+  - Tool paths are typically in /usr/share/doc/python3-impacket/examples/ or installed via pip
 parameters:
   - name: "script"
     type: "string"
-    description: "Impacket 脚本路径，例如 '/usr/share/doc/python3-impacket/examples/psexec.py'"
+    description: "Impacket script path, e.g. '/usr/share/doc/python3-impacket/examples/psexec.py'"
     required: true
     position: 0
     format: "positional"
   - name: "args"
     type: "string"
-    description: "脚本参数（JSON数组或空格分隔字符串）"
+    description: "Script arguments (JSON array or space-separated string)"
     required: false
     default: ""
     position: 1
@@ -87,15 +87,15 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的impacket参数。用于传递未在参数列表中定义的impacket选项。
+      Additional impacket arguments. Used to pass impacket options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     default: ""
     position: 2

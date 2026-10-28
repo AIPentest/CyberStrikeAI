@@ -1,79 +1,79 @@
 name: "zap"
 command: "zap-cli"
 enabled: false
-short_description: "OWASP ZAP Web应用安全扫描器"
+short_description: "OWASP ZAP web application security scanner"
 description: |
-  OWASP ZAP是一个Web应用安全扫描器，用于发现Web应用中的安全漏洞。
+  OWASP ZAP is a web application security scanner used to discover security vulnerabilities in web applications.
 
-  **主要功能：**
-  - Web应用安全扫描
-  - 主动和被动扫描
-  - API测试
-  - 详细报告
+  **Key features:**
+  - Web application security scanning
+  - Active and passive scanning
+  - API testing
+  - Detailed reports
 
-  **使用场景：**
-  - Web应用安全测试
-  - 漏洞扫描
-  - 安全评估
-  - 渗透测试
+  **Use cases:**
+  - Web application security testing
+  - Vulnerability scanning
+  - Security assessments
+  - Penetration testing
 parameters:
   - name: "target"
     type: "string"
-    description: "目标URL"
+    description: "Target URL"
     required: true
     flag: "-t"
     format: "flag"
   - name: "scan_type"
     type: "string"
-    description: "扫描类型（baseline, full, api）"
+    description: "Scan type (baseline, full, api)"
     required: false
     flag: "--scan-type"
     format: "flag"
     default: "baseline"
   - name: "api_key"
     type: "string"
-    description: "ZAP API密钥"
+    description: "ZAP API key"
     required: false
     flag: "--api-key"
     format: "flag"
   - name: "daemon"
     type: "bool"
-    description: "以守护进程模式运行"
+    description: "Run in daemon mode"
     required: false
     flag: "--daemon"
     format: "flag"
     default: false
   - name: "port"
     type: "string"
-    description: "ZAP守护进程端口"
+    description: "ZAP daemon port"
     required: false
     flag: "--port"
     format: "flag"
     default: "8090"
   - name: "format_type"
     type: "string"
-    description: "输出格式（xml, json, html）"
+    description: "Output format (xml, json, html)"
     required: false
     flag: "--format"
     format: "flag"
     default: "xml"
   - name: "output_file"
     type: "string"
-    description: "输出文件路径"
+    description: "Output file path"
     required: false
     flag: "--output"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的zap参数。用于传递未在参数列表中定义的zap选项。
+      Additional zap arguments. Used to pass zap options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add commonly used parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Make sure the arguments are properly formatted to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

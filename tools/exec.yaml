@@ -2,109 +2,109 @@ name: "exec"
 command: "sh"
 args: ["-c"]
 enabled: true
-# 简短描述（用于工具列表，减少token消耗）
-short_description: "系统命令执行工具，用于执行Shell命令和系统操作（谨慎使用）"
-# 工具详细描述
+# Short description (used in the tool list, to reduce token consumption)
+short_description: "System command execution tool, used to execute shell commands and system operations (use with caution)"
+# Detailed tool description
 description: |
-  系统命令执行工具，用于执行Shell命令和系统操作。
+  System command execution tool, used to execute shell commands and perform system operations.
 
-  **主要功能：**
-  - 执行任意Shell命令
-  - 支持bash、sh等shell
-  - 可以指定工作目录
-  - 返回命令执行结果
+  **Main features:**
+  - Execute arbitrary shell commands
+  - Supports shells such as bash, sh, etc.
+  - Can specify the working directory
+  - Returns the command execution result
 
-  **使用场景：**
-  - 系统管理和维护
-  - 自动化脚本执行
-  - 文件操作和处理
-  - 系统信息收集
+  **Use cases:**
+  - System administration and maintenance
+  - Automated script execution
+  - File operations and processing
+  - System information gathering
 
-  **安全警告：**
-  - ⚠️ 此工具可以执行任意系统命令，存在安全风险
-  - ⚠️ 仅应在受控环境中使用
-  - ⚠️ 所有命令执行都会被记录
-  - ⚠️ 建议限制可执行的命令范围
-  - ⚠️ 不要执行不可信的命令
-# 参数定义
+  **Security warnings:**
+  - ⚠️ This tool can execute arbitrary system commands and poses a security risk
+  - ⚠️ It should only be used in controlled environments
+  - ⚠️ All command executions are logged
+  - ⚠️ It is recommended to restrict the range of executable commands
+  - ⚠️ Do not execute untrusted commands
+# Parameter definitions
 parameters:
   - name: "command"
     type: "string"
     description: |
-      要执行的系统命令。可以是任何有效的Shell命令。
+      The system command to execute. Can be any valid shell command.
 
-      **格式要求：**
-      - 完整的Shell命令
-      - 可以包含管道、重定向等Shell特性
-      - 支持环境变量
+      **Format requirements:**
+      - A complete shell command
+      - Can include shell features such as pipes and redirection
+      - Supports environment variables
 
-      **示例值：**
-      - 简单命令: "ls -la"
-      - 带管道: "ps aux | grep nginx"
-      - 文件操作: "cat /etc/passwd"
-      - 网络命令: "curl http://example.com"
-      - 系统信息: "uname -a"
-      - 查找文件: "find /var/log -name '*.log'"
+      **Example values:**
+      - Simple command: "ls -la"
+      - With a pipe: "ps aux | grep nginx"
+      - File operation: "cat /etc/passwd"
+      - Network command: "curl http://example.com"
+      - System information: "uname -a"
+      - Find files: "find /var/log -name '*.log'"
 
-      **注意事项：**
-      - 命令会在指定的shell中执行
-      - 确保命令语法正确
-      - 注意命令的安全影响
-      - 必需参数，不能为空
+      **Notes:**
+      - The command is executed in the specified shell
+      - Ensure the command syntax is correct
+      - Be mindful of the security implications of the command
+      - Required parameter, cannot be empty
     required: true
     position: 0
     format: "positional"
   - name: "shell"
     type: "string"
     description: |
-      使用的Shell类型，默认为sh。
+      The shell type to use, defaults to sh.
 
-      **可选值：**
-      - sh: 标准Shell（默认）
-      - bash: Bash Shell
-      - zsh: Z Shell
-      - 其他系统可用的shell
+      **Allowed values:**
+      - sh: the standard shell (default)
+      - bash: the Bash shell
+      - zsh: the Z shell
+      - other shells available on the system
 
-      **示例值：**
-      - "sh" (默认)
+      **Example values:**
+      - "sh" (default)
       - "bash"
       - "zsh"
 
-      **注意事项：**
-      - 确保指定的shell在系统中可用
-      - 不同shell的命令语法可能略有差异
+      **Notes:**
+      - Ensure the specified shell is available on the system
+      - Command syntax may differ slightly between shells
     required: false
     default: "sh"
   - name: "workdir"
     type: "string"
     description: |
-      命令执行的工作目录。如果不指定，使用当前工作目录。
+      The working directory for command execution. If not specified, the current working directory is used.
 
-      **格式要求：**
-      - 绝对路径或相对路径
-      - 目录必须存在
+      **Format requirements:**
+      - Absolute or relative path
+      - The directory must exist
 
-      **示例值：**
+      **Example values:**
       - "/tmp"
       - "/var/log"
       - "./data"
       - "/home/user/project"
 
-      **注意事项：**
-      - 确保目录存在且有访问权限
-      - 相对路径相对于程序运行目录
+      **Notes:**
+      - Ensure the directory exists and is accessible
+      - Relative paths are relative to the program's run directory
     required: false
   - name: "additional_args"
     type: "string"
     description: |
-      额外的exec参数。用于传递未在参数列表中定义的exec选项。
+      Additional exec arguments. Used to pass exec options that are not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples based on tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

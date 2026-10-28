@@ -881,7 +881,8 @@ async function openSendDialog(entryOverride) {
   try {
     const { projects, roles } = await fetchCatalogCached(baseUrl, token);
     fillSelect($('dlg-project'), projects, config.lastProjectId);
-    const lastRole = config.lastRole === '默认' ? '' : config.lastRole;
+    // "默认" is the legacy Chinese default-role name kept in older extension configs; "default" is the current name.
+    const lastRole = (config.lastRole === '默认' || config.lastRole === 'default') ? '' : config.lastRole;
     fillSelect($('dlg-role'), roles, lastRole);
   } catch (err) {
     if (await handleAuthFailure(err, 'Token invalid or expired — please Validate again')) {

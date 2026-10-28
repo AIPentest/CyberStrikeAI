@@ -1,4 +1,4 @@
-// 任务管理页面功能
+﻿// 任务管理页面功能
 function _t(key, opts) {
     return typeof window.t === 'function' ? window.t(key, opts) : key;
 }
@@ -205,7 +205,7 @@ function updateCompletedTasksHistory(currentTasks) {
             
             tasksState.completedTasksHistory.push({
                 conversationId: task.conversationId,
-                message: task.title || task.message || '未命名任务',
+                message: task.title || task.message || _t('tasks.unnamedTask'),
                 startedAt: task.startedAt,
                 status: finalStatus,
                 completedAt: new Date().toISOString()
@@ -271,7 +271,7 @@ async function loadTasks() {
             tasksState.completedTasksHistory = [
                 ...completedTasks.map(t => ({
                     conversationId: t.conversationId,
-                    message: t.message || '未命名任务',
+                    message: t.message || _t('tasks.unnamedTask'),
                     startedAt: t.startedAt,
                     status: t.status || 'completed',
                     completedAt: t.completedAt || new Date().toISOString()
@@ -943,13 +943,13 @@ async function showBatchImportModal() {
                 
                 // 添加已启用的角色
                 const sortedRoles = loadedRoles.sort((a, b) => {
-                    if (a.name === '默认') return -1;
-                    if (b.name === '默认') return 1;
+                    if (a.name === 'Default') return -1;
+                    if (b.name === 'Default') return 1;
                     return (a.name || '').localeCompare(b.name || '', 'zh-CN');
                 });
                 
                 sortedRoles.forEach(role => {
-                    if (role.name !== '默认' && role.enabled !== false) {
+                    if (role.name !== 'Default' && role.enabled !== false) {
                         const option = document.createElement('option');
                         option.value = role.name;
                         option.textContent = role.name;
@@ -2583,7 +2583,7 @@ function startInlineEditRole() {
     apiFetch(`/api/batch-tasks/${queueId}`).then(r => r.json()).then(detail => {
         const queue = detail.queue;
         const currentRole = queue.role || '';
-        const roles = (Array.isArray(batchQueuesState.loadedRoles) ? batchQueuesState.loadedRoles : []).filter(r => r.name !== '默认' && r.enabled !== false).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh-CN'));
+        const roles = (Array.isArray(batchQueuesState.loadedRoles) ? batchQueuesState.loadedRoles : []).filter(r => r.name !== 'Default' && r.enabled !== false).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh-CN'));
         const currentInList = !currentRole || roles.some(r => r.name === currentRole);
         const orphanOpt = !currentInList ? `<option value="${escapeAttr(currentRole)}" selected>${escapeHtml(currentRole)} (${escapeHtml(_t('batchQueueDetailModal.roleNotFound') || '已移除')})</option>` : '';
         const opts = roles.map(r => `<option value="${escapeAttr(r.name)}" ${r.name === currentRole ? 'selected' : ''}>${escapeHtml(r.name)}</option>`).join('');

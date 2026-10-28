@@ -90,7 +90,7 @@ func (db *DB) reconcileSchema(schema string) error {
 		}
 		if count == 0 {
 			if _, err := tx.Exec(table.ddl); err != nil {
-				return fmt.Errorf("补齐表 %s 失败: %w", table.name, err)
+				return fmt.Errorf("failed to add missing table %s: %w", table.name, err)
 			}
 		}
 	}
@@ -109,7 +109,7 @@ func (db *DB) reconcileSchema(schema string) error {
 		}
 		definitions, err := columnDefinitions(table.ddl)
 		if err != nil {
-			return fmt.Errorf("解析表 %s 字段失败: %w", table.name, err)
+			return fmt.Errorf("failed to parse columns of table %s: %w", table.name, err)
 		}
 		for _, c := range expected {
 			key := strings.ToLower(c.name)
@@ -118,10 +118,10 @@ func (db *DB) reconcileSchema(schema string) error {
 			}
 			definition, ok := definitions[key]
 			if !ok {
-				return fmt.Errorf("表 %s 字段 %s 缺少定义", table.name, c.name)
+				return fmt.Errorf("table %s has no definition for column %s", table.name, c.name)
 			}
 			if _, err := tx.Exec("ALTER TABLE " + quoteSchemaName(table.name) + " ADD COLUMN " + definition); err != nil {
-				return fmt.Errorf("补齐字段 %s.%s 失败（保留原结构和数据，请检查字段约束及默认值）: %w", table.name, c.name, err)
+				return fmt.Errorf("failed to add missing column %s.%s (original structure and data are retained; check the column constraints and default): %w", table.name, c.name, err)
 			}
 		}
 	}
@@ -132,12 +132,12 @@ func (db *DB) reconcileSchema(schema string) error {
 		}
 		if count == 0 {
 			if _, err := tx.Exec(index.ddl); err != nil {
-				return fmt.Errorf("补齐索引 %s 失败: %w", index.name, err)
+				return fmt.Errorf("failed to add missing index %s: %w", index.name, err)
 			}
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("提交 SQLite 结构补齐失败: %w", err)
+		return fmt.Errorf("failed to commit the SQLite structure repair: %w", err)
 	}
 	return nil
 }
@@ -166,7 +166,7 @@ func tokenizeSchema(s string) ([]schemaToken, error) {
 		if i+1 < len(s) && s[i:i+2] == "/*" {
 			end := strings.Index(s[i+2:], "*/")
 			if end < 0 {
-				return nil, fmt.Errorf("未闭合 SQL 注释")
+				return nil, fmt.Errorf("unclosed SQL comment")
 			}
 			i += end + 4
 			continue
@@ -194,7 +194,7 @@ func tokenizeSchema(s string) ([]schemaToken, error) {
 				i++
 			}
 			if !closed {
-				return nil, fmt.Errorf("未闭合 SQL 引号")
+				return nil, fmt.Errorf("unclosed SQL quote")
 			}
 		} else if strings.ContainsRune("(),;", rune(s[i])) {
 			i++
@@ -262,7 +262,7 @@ func columnDefinitions(ddl string) (map[string]string, error) {
 			}
 		}
 	}
-	return nil, fmt.Errorf("缺少 CREATE TABLE 字段定义")
+	return nil, fmt.Errorf("missing CREATE TABLE column definitions")
 }
 
 func openSchemaReference(schema string) (*sql.DB, error) {
@@ -273,7 +273,7 @@ func openSchemaReference(schema string) (*sql.DB, error) {
 	reference.SetMaxOpenConns(1)
 	if _, err := reference.Exec(schema); err != nil {
 		reference.Close()
-		return nil, fmt.Errorf("解析最新 SQLite 结构失败: %w", err)
+		return nil, fmt.Errorf("failed to parse the latest SQLite schema: %w", err)
 	}
 	return reference, nil
 }

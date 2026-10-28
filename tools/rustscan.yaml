@@ -1,66 +1,66 @@
 name: "rustscan"
 command: "rustscan"
 enabled: true
-short_description: "超快速端口扫描（Rust）；可选 greppable、批量与脚本级别"
+short_description: "Ultra-fast port scanning (Rust); optional greppable, batch, and script levels"
 description: |
-  RustScan 2.x：快速端口发现，可选再调 Nmap 脚本。
+  RustScan 2.x: fast port discovery, optionally followed by Nmap scripts.
 
-  **与 `rustscan -h` 对应关系：**
-  - `-a` / `--addresses`：扫描目标列表（逗号分隔或文件）
-  - `-p`：逗号分隔端口；`-r`：端口范围 `start-end`（二选一或与 `-p` 配合以 CLI 为准）
-  - `-g` / `--greppable`：只输出端口，便于 grep/管道
-  - `--scripts`：**官方默认是 default**（会跑 Nmap）；设为 **none** 可只做端口发现、更快
-  - `-b` batch-size、`-t` timeout、`--scan-order` 等可微调速度与顺序
+  **Mapping to `rustscan -h`:**
+  - `-a` / `--addresses`: list of scan targets (comma-separated or a file)
+  - `-p`: comma-separated ports; `-r`: port range `start-end` (choose one or combine with `-p` at the CLI's discretion)
+  - `-g` / `--greppable`: output ports only, convenient for grep/piping
+  - `--scripts`: **the official default is default** (runs Nmap); set to **none** for port discovery only, which is faster
+  - `-b` batch-size, `-t` timeout, `--scan-order`, etc. can fine-tune speed and ordering
 
-  **使用建议：**
-  - 快速扫端口、不要 Nmap：`scripts` 用 `none`，必要时加 `-g`
-  - 需要服务识别/脚本：用 `default` 或 `custom`，并确保本机有 nmap
+  **Usage recommendations:**
+  - Fast port scanning without Nmap: use `none` for `scripts`, and add `-g` if needed
+  - When service identification/scripts are needed: use `default` or `custom`, and make sure nmap is installed on the local machine
 parameters:
   # -a, --addresses
   - name: "target"
     type: "string"
     description: |
-      对应 `-a`：逗号分隔的 CIDR、IP 或主机名；也可为含换行/列表的文件路径。
-      示例：`192.168.1.1`、`10.0.0.1,10.0.0.2`、`192.168.0.0/24`
+      Corresponds to `-a`: comma-separated CIDRs, IPs, or hostnames; can also be a file path containing lists/newlines.
+      Examples: `192.168.1.1`, `10.0.0.1,10.0.0.2`, `192.168.0.0/24`
     required: true
     flag: "-a"
     format: "flag"
-  # -p, --ports；范围请用 range (-r)，勿把 1-1000 填进 ports
+  # -p, --ports; for ranges use range (-r), do not put 1-1000 into ports
   - name: "ports"
     type: "string"
     description: |
-      要扫描的端口，**仅**逗号分隔列表，对应 `-p`。
-      示例：`22,80,443`、`80,443,8080`。
-      若要范围如 `1-1000`，请用参数 **range**（`-r`），不要写在本参数。
+      Ports to scan, **only** a comma-separated list, corresponding to `-p`.
+      Examples: `22,80,443`, `80,443,8080`.
+      For a range such as `1-1000`, use the **range** parameter (`-r`), do not put it in this parameter.
     required: false
     flag: "-p"
     format: "flag"
-  # -r, --range（与 ports 列表二选一或按官方说明组合）
+  # -r, --range (choose one of ports list or range, or combine them per the official description)
   - name: "range"
     type: "string"
     description: |
-      端口范围，格式 start-end，对应 `-r`。
-      示例：`1-1000`、`1-65535`（全端口很慢）。
-      离散端口如 `22,80,443` 请用 **ports**（`-p`），不要写在本参数。
+      Port range, in the format start-end, corresponding to `-r`.
+      Examples: `1-1000`, `1-65535` (all ports is very slow).
+      For discrete ports such as `22,80,443`, use **ports** (`-p`), do not put them in this parameter.
     required: false
     flag: "-r"
     format: "flag"
   # -u, --ulimit
   - name: "ulimit"
     type: "int"
-    description: "提升扫描用的 ulimit；依系统 fd 限制调整"
+    description: "The ulimit used to boost scanning; adjust according to the system's fd limit"
     required: false
     flag: "-u"
     format: "flag"
     default: 5000
-  # --scripts：none | default | custom（CLI 默认 default）
+  # --scripts: none | default | custom (CLI default is default)
   - name: "scripts"
     type: "string"
     description: |
-      脚本级别；**必须**传字符串，勿传 true/false。
-      - **none**：不跑 Nmap，仅端口发现（最快）
-      - **default**：与 rustscan 官方默认一致，会调 Nmap
-      - **custom**：自定义脚本，常需配合 additional_args
+      Script level; **must** be passed as a string, do not pass true/false.
+      - **none**: do not run Nmap, port discovery only (fastest)
+      - **default**: consistent with rustscan's official default, will invoke Nmap
+      - **custom**: custom scripts, usually requires additional_args
     required: false
     flag: "--scripts"
     format: "flag"
@@ -69,10 +69,10 @@ parameters:
       - "none"
       - "default"
       - "custom"
-  # -g, --greppable：仅端口列表，无 Nmap 输出
+  # -g, --greppable: ports list only, no Nmap output
   - name: "greppable"
     type: "bool"
-    description: "Greppable 模式：只输出端口，适合脚本解析或写入文件"
+    description: "Greppable mode: outputs ports only, suitable for script parsing or writing to a file"
     required: false
     flag: "-g"
     format: "flag"
@@ -80,31 +80,31 @@ parameters:
   # -b, --batch-size [default: 4500]
   - name: "batch_size"
     type: "int"
-    description: "每批并发端口数；越大越快，受 OS 打开文件数限制。官方默认 4500"
+    description: "Number of concurrent ports per batch; larger is faster, limited by the OS open-file count. Official default 4500"
     required: false
     flag: "-b"
     format: "flag"
   # -t, --timeout ms [default: 1500]
   - name: "timeout_ms"
     type: "int"
-    description: "单端口超时（毫秒）。官方默认 1500"
+    description: "Timeout per port (milliseconds). Official default 1500"
     required: false
     flag: "-t"
     format: "flag"
   # --scan-order serial | random [default: serial]
   - name: "scan_order"
     type: "string"
-    description: "扫描顺序：serial 升序；random 随机"
+    description: "Scan order: serial ascending; random randomized"
     required: false
     flag: "--scan-order"
     format: "flag"
     options:
       - "serial"
       - "random"
-  # --top：top 1000 端口
+  # --top: top 1000 ports
   - name: "top_ports"
     type: "bool"
-    description: "使用内置 top 1000 端口（等价于传 `--top`）"
+    description: "Use the built-in top 1000 ports (equivalent to passing `--top`)"
     required: false
     flag: "--top"
     format: "flag"
@@ -112,28 +112,28 @@ parameters:
   # -e, --exclude-ports
   - name: "exclude_ports"
     type: "string"
-    description: "排除端口，逗号分隔。示例：`80,443`"
+    description: "Ports to exclude, comma-separated. Example: `80,443`"
     required: false
     flag: "-e"
     format: "flag"
   # -x, --exclude-addresses
   - name: "exclude_addresses"
     type: "string"
-    description: "排除地址，逗号分隔 CIDR/IP/主机"
+    description: "Addresses to exclude, comma-separated CIDRs/IPs/hostnames"
     required: false
     flag: "-x"
     format: "flag"
   # --tries [default: 1]
   - name: "tries"
     type: "int"
-    description: "判定关闭前的重试次数；0 会被纠正为 1"
+    description: "Number of retries before judging a port as closed; 0 is corrected to 1"
     required: false
     flag: "--tries"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      未列在上面的选项可写在这里，空格分隔。
-      示例：`--no-banner`、`--udp`、`-n`（忽略配置文件）、`-c /path/config.toml`、`--resolver 8.8.8.8`
+      Options not listed above can be written here, separated by spaces.
+      Examples: `--no-banner`, `--udp`, `-n` (ignore the configuration file), `-c /path/config.toml`, `--resolver 8.8.8.8`
     required: false
     format: "positional"

@@ -37,7 +37,7 @@ func (h *einoRunCancellationHandler) Handle(runErr error) (*RunResult, error) {
 	}
 	if h.progress != nil {
 		if isInterruptContinue(h.ctx) {
-			h.progress("progress", "已暂停当前输出，正在合并用户补充并继续…", map[string]interface{}{
+			h.progress("progress", "Current output paused; merging user supplement and continuing…", map[string]interface{}{
 				"conversationId": h.conversationID,
 				"source":         "eino",
 				"kind":           "interrupt_continue",

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"database/sql"
 	"errors"
 	"math"
@@ -207,7 +208,7 @@ func (h *AgentHandler) DeleteHITLLogs(c *gin.Context) {
 		All bool     `json:"all"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数无效: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "请求参数无效: %s", "invalid request parameter: %s"), err.Error())})
 		return
 	}
 
@@ -229,7 +230,7 @@ func (h *AgentHandler) DeleteHITLLogs(c *gin.Context) {
 		}
 	} else {
 		if len(request.IDs) == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "审计日志 ID 列表不能为空"})
+			respondError(c, http.StatusBadRequest, "审计日志 ID 列表不能为空", "audit log ID list must not be empty")
 			return
 		}
 		ids, filterErr := h.filterAllowedHitlInterruptIDs(c, request.IDs)
@@ -250,13 +251,13 @@ func (h *AgentHandler) DeleteHITLLogs(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "删除成功", "deleted": deleted})
+	c.JSON(http.StatusOK, gin.H{"message": i18nText(requestWantsEnglish(c), "删除成功", "deleted successfully"), "deleted": deleted})
 }
 
 func (h *AgentHandler) GetHITLLog(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
+		respondError(c, http.StatusBadRequest, "id 必填", "id is required")
 		return
 	}
 	q := `SELECT id, conversation_id, message_id, mode, tool_name, tool_call_id, payload, status, COALESCE(reviewer,'human'), decision, decision_comment, COALESCE(decided_by,'human'), created_at, decided_at FROM hitl_interrupts WHERE id = ?`
@@ -267,7 +268,7 @@ func (h *AgentHandler) GetHITLLog(c *gin.Context) {
 	var decidedAt sql.NullTime
 	err := h.db.QueryRow(q, id).Scan(&rowID, &cid, &messageID, &mode, &toolName, &toolCallID, &payload, &rowStatus, &reviewer, &decision, &comment, &decidedBy, &createdAt, &decidedAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		respondError(c, http.StatusNotFound, "不存在", "not found")
 		return
 	}
 	if err != nil {
@@ -275,7 +276,7 @@ func (h *AgentHandler) GetHITLLog(c *gin.Context) {
 		return
 	}
 	if !h.hitlConversationAllowed(c, cid) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	c.JSON(http.StatusOK, hitlInterruptRowToMap(rowID, cid, mode, toolName, toolCallID, payload, rowStatus, reviewer, decidedBy, messageID, decision, comment, createdAt, decidedAt))

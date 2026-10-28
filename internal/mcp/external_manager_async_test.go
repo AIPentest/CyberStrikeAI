@@ -232,7 +232,7 @@ func TestExternalMCPManager_CircuitBreakerOpensAfterFailures(t *testing.T) {
 		t.Fatalf("expected first call to fail with client error, got %v", err)
 	}
 	_, _, err = manager.CallTool(context.Background(), "lab::fail_tool", nil)
-	if err == nil || !strings.Contains(err.Error(), "熔断") {
+	if err == nil || !strings.Contains(err.Error(), "circuit") {
 		t.Fatalf("expected circuit breaker rejection, got %v", err)
 	}
 }

@@ -25,28 +25,28 @@ func registerAssetTools(server *mcp.Server, db *database.DB, logger *zap.Logger)
 	properties := assetMutationProperties()
 
 	server.RegisterTool(mcp.Tool{
-		Name: builtin.ToolCreateAsset, ShortDescription: "新增或去重更新资产",
-		Description: "向资产库新增资产。按目标+端口+协议去重；若资产已存在则更新非空字段。至少提供 host、ip、domain 之一。",
+		Name: builtin.ToolCreateAsset, ShortDescription: "Create a new asset, deduplicating and updating existing ones",
+		Description: "Add an asset to the asset library. Deduplicate by target+port+protocol; if the asset already exists, update non-empty fields. Provide at least one of host, ip, domain.",
 		// Bedrock rejects tool schemas with top-level oneOf/allOf/anyOf. The
 		// host/ip/domain requirement is enforced by assetFromCreateArgs below.
 		InputSchema: map[string]interface{}{"type": "object", "properties": properties},
 	}, func(ctx context.Context, args map[string]interface{}) (*mcp.ToolResult, error) {
 		asset, err := assetFromCreateArgs(args)
 		if err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		access, owner, global := assetAccessFromToolContext(ctx, "asset:write")
 		result, err := db.UpsertAssets([]*database.Asset{asset}, owner, global)
 		if err != nil {
-			logger.Error("Agent 保存资产失败", zap.Error(err))
-			return textResult("错误: "+err.Error(), true), nil
+			logger.Error("Failed to save the asset for the agent", zap.Error(err))
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		if result.Skipped > 0 || asset.ID == "" {
-			return textResult("资产未保存：同一资产已存在但当前用户无权更新，或目标字段为空", true), nil
+			return textResult("Asset not saved: the same asset already exists but the current user has no permission to update it, or the target fields are empty", true), nil
 		}
 		saved, err := db.GetAsset(asset.ID, access)
 		if err != nil {
-			return textResult("资产已保存，但无法读取结果: "+err.Error(), true), nil
+			return textResult("Asset saved, but unable to read the result: "+err.Error(), true), nil
 		}
 		action := "created"
 		if result.Updated > 0 {
@@ -56,38 +56,38 @@ func registerAssetTools(server *mcp.Server, db *database.DB, logger *zap.Logger)
 	})
 
 	server.RegisterTool(mcp.Tool{
-		Name: builtin.ToolGetAsset, ShortDescription: "按 ID 查看资产详情", Description: "按资产 ID 返回完整资产详情。查询列表时先用 query_assets，避免一次拉取过多详情。",
-		InputSchema: map[string]interface{}{"type": "object", "properties": map[string]interface{}{"id": map[string]interface{}{"type": "string", "description": "资产 ID"}}, "required": []string{"id"}},
+		Name: builtin.ToolGetAsset, ShortDescription: "View asset details by ID", Description: "Return full asset details by asset ID. When querying lists, use query_assets first to avoid fetching too many details at once.",
+		InputSchema: map[string]interface{}{"type": "object", "properties": map[string]interface{}{"id": map[string]interface{}{"type": "string", "description": "Asset ID"}}, "required": []string{"id"}},
 	}, func(ctx context.Context, args map[string]interface{}) (*mcp.ToolResult, error) {
 		projectID, projectScoped, err := agentAssetProjectScope(db, ctx)
 		if err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		asset, err := db.GetAsset(strings.TrimSpace(strArg(args, "id")), assetAccessOnly(ctx, "asset:read"))
 		if err != nil {
 			if err == sql.ErrNoRows {
-				return textResult("错误: 资产不存在或无权查看", true), nil
+				return textResult("Error: asset does not exist or you are not authorized to view it", true), nil
 			}
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		if projectScoped && strings.TrimSpace(asset.ProjectID) != projectID {
-			return textResult("错误: 资产不存在或不属于当前对话绑定的项目", true), nil
+			return textResult("Error: asset does not exist or does not belong to the project bound to the current conversation", true), nil
 		}
 		return assetJSONResult(assetToolDetail(asset))
 	})
 
 	server.RegisterTool(mcp.Tool{
-		Name: builtin.ToolQueryAssets, ShortDescription: "灵活分页查询资产",
-		Description: "分页查询资产。支持精确字段、时间范围、扫描状态和白名单排序。查最久未扫描资产请使用 sort_by=last_scan_at、sort_order=asc；从未扫描资产会排在最前。默认每页 20 条，最大 50 条，返回精简摘要；使用 get_asset 获取单条详情。",
+		Name: builtin.ToolQueryAssets, ShortDescription: "Flexible paginated asset query",
+		Description: "Paginated asset query. Supports exact field matches, time ranges, scan state, and whitelisted sorting. To find the least recently scanned assets, use sort_by=last_scan_at and sort_order=asc; never-scanned assets sort first. Defaults to 20 items per page, max 50, returning concise summaries; use get_asset for a single item's details.",
 		InputSchema: assetQuerySchema(),
 	}, func(ctx context.Context, args map[string]interface{}) (*mcp.ToolResult, error) {
 		filter, page, pageSize, err := assetFilterFromToolArgs(args)
 		if err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		projectID, projectScoped, err := agentAssetProjectScope(db, ctx)
 		if err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		if projectScoped {
 			// 对话绑定项目后，项目范围是服务端强制边界；不能通过工具参数扩大或切换范围。
@@ -95,69 +95,69 @@ func registerAssetTools(server *mcp.Server, db *database.DB, logger *zap.Logger)
 		}
 		items, total, err := db.ListAssets(pageSize, (page-1)*pageSize, filter, assetAccessOnly(ctx, "asset:read"))
 		if err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		totalPages := (total + pageSize - 1) / pageSize
 		if totalPages < 1 {
 			totalPages = 1
 		}
 		var b strings.Builder
-		b.WriteString(fmt.Sprintf("资产查询：第 %d/%d 页，本页 %d 条，共 %d 条，page_size=%d\n", page, totalPages, len(items), total, pageSize))
+		b.WriteString(fmt.Sprintf("Asset query: page %d/%d, %d items on this page, %d total, page_size=%d\n", page, totalPages, len(items), total, pageSize))
 		for _, asset := range items {
 			b.WriteString(formatAssetListItem(asset))
 			b.WriteByte('\n')
 		}
 		if page < totalPages {
-			b.WriteString(fmt.Sprintf("下一页：保持筛选条件并设置 page=%d。", page+1))
+			b.WriteString(fmt.Sprintf("Next page: keep the same filters and set page=%d.", page+1))
 		}
 		return textResult(b.String(), false), nil
 	})
 
 	updateProperties := assetMutationProperties()
-	updateProperties["id"] = map[string]interface{}{"type": "string", "description": "资产 ID"}
+	updateProperties["id"] = map[string]interface{}{"type": "string", "description": "Asset ID"}
 	server.RegisterTool(mcp.Tool{
-		Name: builtin.ToolUpdateAsset, ShortDescription: "局部更新资产",
-		Description: "按 ID 局部更新资产，只修改显式传入的字段；可传空 project_id 清除项目绑定，可传空 tags 清空标签。",
+		Name: builtin.ToolUpdateAsset, ShortDescription: "Partially update an asset",
+		Description: "Partially update an asset by ID, modifying only explicitly passed fields; passing an empty project_id clears the project binding, and passing empty tags clears the tags.",
 		InputSchema: map[string]interface{}{"type": "object", "properties": updateProperties, "required": []string{"id"}},
 	}, func(ctx context.Context, args map[string]interface{}) (*mcp.ToolResult, error) {
 		id := strings.TrimSpace(strArg(args, "id"))
 		access := assetAccessOnly(ctx, "asset:write")
 		asset, err := db.GetAsset(id, access)
 		if err != nil {
-			return textResult("错误: 资产不存在或无权更新", true), nil
+			return textResult("Error: asset does not exist or you are not authorized to update it", true), nil
 		}
 		if err := applyAssetPatch(asset, args); err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		if err := db.UpdateAsset(id, asset, access); err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		updated, err := db.GetAsset(id, access)
 		if err != nil {
-			return textResult("资产已更新，但无法读取结果: "+err.Error(), true), nil
+			return textResult("Asset updated, but unable to read the result: "+err.Error(), true), nil
 		}
 		return assetJSONResult(map[string]interface{}{"action": "updated", "asset": assetToolDetail(updated)})
 	})
 
 	server.RegisterTool(mcp.Tool{
-		Name: builtin.ToolDeleteAsset, ShortDescription: "删除资产", Description: "按 ID 永久删除资产记录。仅在用户明确要求删除时调用。",
-		InputSchema: map[string]interface{}{"type": "object", "properties": map[string]interface{}{"id": map[string]interface{}{"type": "string", "description": "资产 ID"}}, "required": []string{"id"}},
+		Name: builtin.ToolDeleteAsset, ShortDescription: "Delete an asset", Description: "Permanently delete an asset record by ID. Only call when the user explicitly asks for deletion.",
+		InputSchema: map[string]interface{}{"type": "object", "properties": map[string]interface{}{"id": map[string]interface{}{"type": "string", "description": "Asset ID"}}, "required": []string{"id"}},
 	}, func(ctx context.Context, args map[string]interface{}) (*mcp.ToolResult, error) {
 		id := strings.TrimSpace(strArg(args, "id"))
 		if err := db.DeleteAsset(id, assetAccessOnly(ctx, "asset:delete")); err != nil {
-			return textResult("错误: 资产不存在或无权删除", true), nil
+			return textResult("Error: asset does not exist or you are not authorized to delete it", true), nil
 		}
-		return textResult("资产已删除: "+id, false), nil
+		return textResult("Asset deleted: "+id, false), nil
 	})
 
 	server.RegisterTool(mcp.Tool{
 		Name:             builtin.ToolCompleteAssetScan,
-		ShortDescription: "完成资产扫描并回写结果",
-		Description:      "目标扫描完成后调用：把资产的上次扫描时间更新为当前时间，并关联当前对话。相关漏洞数量不手填，而是自动统计当前扫描对话中通过 record_vulnerability 保存的漏洞。应在漏洞均已落库后调用；一个扫描对话建议只对应一个资产。",
+		ShortDescription: "Mark an asset scan complete and write back its results",
+		Description:      "Call after the target scan finishes: update the asset's last scan time to the current time and link the current conversation. The related vulnerability count is not entered by hand; it is automatically counted from the vulnerabilities saved via record_vulnerability in the current scan conversation. Call after all vulnerabilities have been recorded; one scan conversation should ideally map to only one asset.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"id": map[string]interface{}{"type": "string", "description": "已完成扫描的资产 ID"},
+				"id": map[string]interface{}{"type": "string", "description": "ID of the asset whose scan is complete"},
 			},
 			"required": []string{"id"},
 		},
@@ -165,22 +165,22 @@ func registerAssetTools(server *mcp.Server, db *database.DB, logger *zap.Logger)
 		id := strings.TrimSpace(strArg(args, "id"))
 		conversationID := conversationIDFromToolCtx(ctx)
 		if conversationID == "" {
-			return textResult("错误: 无法确定当前扫描对话", true), nil
+			return textResult("Error: unable to determine the current scan conversation", true), nil
 		}
 		access := assetAccessOnly(ctx, "asset:write")
 		if err := db.CompleteAssetScan(id, conversationID, access); err != nil {
 			if err == sql.ErrNoRows {
-				return textResult("错误: 资产不存在或无权回写扫描结果", true), nil
+				return textResult("Error: asset does not exist or you are not authorized to write back scan results", true), nil
 			}
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		updated, err := db.GetAsset(id, access)
 		if err != nil {
-			return textResult("扫描结果已回写，但无法读取资产: "+err.Error(), true), nil
+			return textResult("Scan results written back, but unable to read the asset: "+err.Error(), true), nil
 		}
 		return assetJSONResult(map[string]interface{}{
 			"action":  "scan_completed",
-			"message": "上次扫描时间已更新；相关漏洞数由当前扫描对话中已保存的漏洞自动计算",
+			"message": "Last scan time updated; the related vulnerability count is computed automatically from the vulnerabilities saved in the current scan conversation",
 			"asset":   assetToolDetail(updated),
 		})
 	})
@@ -205,7 +205,7 @@ func assetMutationProperties() map[string]interface{} {
 
 func assetQuerySchema() map[string]interface{} {
 	properties := map[string]interface{}{
-		"q":          map[string]interface{}{"type": "string", "description": "模糊搜索 host、IP、域名、标题、服务和标签"},
+		"q":          map[string]interface{}{"type": "string", "description": "Fuzzy search across host, IP, domain, title, server, and tags"},
 		"project_id": map[string]interface{}{"type": "string"}, "status": map[string]interface{}{"type": "string", "enum": []string{"active", "inactive"}},
 		"protocol": map[string]interface{}{"type": "string"}, "source": map[string]interface{}{"type": "string"}, "tag": map[string]interface{}{"type": "string"},
 		"host": map[string]interface{}{"type": "string"}, "ip": map[string]interface{}{"type": "string"}, "domain": map[string]interface{}{"type": "string"},
@@ -216,14 +216,14 @@ func assetQuerySchema() map[string]interface{} {
 		"country":             map[string]interface{}{"type": "string"}, "province": map[string]interface{}{"type": "string"}, "city": map[string]interface{}{"type": "string"},
 		"responsible_person": map[string]interface{}{"type": "string"}, "department": map[string]interface{}{"type": "string"},
 		"business_system": map[string]interface{}{"type": "string"}, "environment": map[string]interface{}{"type": "string"}, "criticality": map[string]interface{}{"type": "string"},
-		"scan_state":        map[string]interface{}{"type": "string", "enum": []string{"never", "scanned"}, "description": "never=从未扫描，scanned=扫描过"},
+		"scan_state":        map[string]interface{}{"type": "string", "enum": []string{"never", "scanned"}, "description": "never=never scanned, scanned=has been scanned"},
 		"scan_overdue_days": map[string]interface{}{"type": "integer", "minimum": 1},
-		"last_scan_before":  map[string]interface{}{"type": "string", "description": "RFC3339 时间或 YYYY-MM-DD"},
-		"last_scan_after":   map[string]interface{}{"type": "string", "description": "RFC3339 时间或 YYYY-MM-DD"},
-		"first_seen_before": map[string]interface{}{"type": "string", "description": "RFC3339 时间或 YYYY-MM-DD"},
-		"first_seen_after":  map[string]interface{}{"type": "string", "description": "RFC3339 时间或 YYYY-MM-DD"},
-		"last_seen_before":  map[string]interface{}{"type": "string", "description": "RFC3339 时间或 YYYY-MM-DD"},
-		"last_seen_after":   map[string]interface{}{"type": "string", "description": "RFC3339 时间或 YYYY-MM-DD"},
+		"last_scan_before":  map[string]interface{}{"type": "string", "description": "RFC3339 time or YYYY-MM-DD"},
+		"last_scan_after":   map[string]interface{}{"type": "string", "description": "RFC3339 time or YYYY-MM-DD"},
+		"first_seen_before": map[string]interface{}{"type": "string", "description": "RFC3339 time or YYYY-MM-DD"},
+		"first_seen_after":  map[string]interface{}{"type": "string", "description": "RFC3339 time or YYYY-MM-DD"},
+		"last_seen_before":  map[string]interface{}{"type": "string", "description": "RFC3339 time or YYYY-MM-DD"},
+		"last_seen_after":   map[string]interface{}{"type": "string", "description": "RFC3339 time or YYYY-MM-DD"},
 		"sort_by":           map[string]interface{}{"type": "string", "enum": []string{"last_seen_at", "last_scan_at", "first_seen_at", "created_at", "updated_at", "host", "port", "risk_level", "vulnerability_count"}},
 		"sort_order":        map[string]interface{}{"type": "string", "enum": []string{"asc", "desc"}},
 		"page":              map[string]interface{}{"type": "integer", "minimum": 1},
@@ -238,7 +238,7 @@ func assetFromCreateArgs(args map[string]interface{}) (*database.Asset, error) {
 		return nil, err
 	}
 	if strings.TrimSpace(asset.Host) == "" && strings.TrimSpace(asset.IP) == "" && strings.TrimSpace(asset.Domain) == "" {
-		return nil, fmt.Errorf("host、ip、domain 至少需要一个")
+		return nil, fmt.Errorf("at least one of host, ip, domain is required")
 	}
 	return asset, nil
 }
@@ -270,7 +270,7 @@ func applyAssetPatch(asset *database.Asset, args map[string]interface{}) error {
 	if _, ok := args["port"]; ok {
 		port := intArg(args, "port", -1)
 		if port < 0 || port > 65535 {
-			return fmt.Errorf("port 必须在 0-65535 之间")
+			return fmt.Errorf("port must be between 0 and 65535")
 		}
 		asset.Port = port
 	}
@@ -298,42 +298,42 @@ func assetFilterFromToolArgs(args map[string]interface{}) (database.AssetListFil
 		Criticality: strings.ToLower(strings.TrimSpace(strArg(args, "criticality"))),
 	}
 	if !oneOfOrEmpty(filter.Status, "active", "inactive") {
-		return filter, 0, 0, fmt.Errorf("status 仅支持 active 或 inactive")
+		return filter, 0, 0, fmt.Errorf("status only supports active or inactive")
 	}
 	if !oneOfOrEmpty(filter.ScanState, "never", "scanned") {
-		return filter, 0, 0, fmt.Errorf("scan_state 仅支持 never 或 scanned")
+		return filter, 0, 0, fmt.Errorf("scan_state only supports never or scanned")
 	}
 	if !oneOfOrEmpty(filter.SortBy, "last_seen_at", "last_scan_at", "first_seen_at", "created_at", "updated_at", "host", "port", "risk_level", "vulnerability_count") {
-		return filter, 0, 0, fmt.Errorf("sort_by 不受支持")
+		return filter, 0, 0, fmt.Errorf("sort_by is not supported")
 	}
 	if !oneOfOrEmpty(filter.SortOrder, "asc", "desc") {
-		return filter, 0, 0, fmt.Errorf("sort_order 仅支持 asc 或 desc")
+		return filter, 0, 0, fmt.Errorf("sort_order only supports asc or desc")
 	}
 	if _, ok := args["port"]; ok {
 		port := intArg(args, "port", -1)
 		if port < 0 || port > 65535 {
-			return filter, 0, 0, fmt.Errorf("port 必须在 0-65535 之间")
+			return filter, 0, 0, fmt.Errorf("port must be between 0 and 65535")
 		}
 		filter.Port = &port
 	}
 	if _, ok := args["min_vulnerabilities"]; ok {
 		value := intArg(args, "min_vulnerabilities", -1)
 		if value < 0 {
-			return filter, 0, 0, fmt.Errorf("min_vulnerabilities 不能小于 0")
+			return filter, 0, 0, fmt.Errorf("min_vulnerabilities cannot be less than 0")
 		}
 		filter.MinVulnerabilities = &value
 	}
 	if _, ok := args["max_vulnerabilities"]; ok {
 		value := intArg(args, "max_vulnerabilities", -1)
 		if value < 0 {
-			return filter, 0, 0, fmt.Errorf("max_vulnerabilities 不能小于 0")
+			return filter, 0, 0, fmt.Errorf("max_vulnerabilities cannot be less than 0")
 		}
 		filter.MaxVulnerabilities = &value
 	}
 	if _, ok := args["scan_overdue_days"]; ok {
 		value := intArg(args, "scan_overdue_days", 0)
 		if value < 1 {
-			return filter, 0, 0, fmt.Errorf("scan_overdue_days 必须大于 0")
+			return filter, 0, 0, fmt.Errorf("scan_overdue_days must be greater than 0")
 		}
 		filter.ScanOverdueDays = &value
 	}
@@ -359,10 +359,10 @@ func assetFilterFromToolArgs(args map[string]interface{}) (database.AssetListFil
 	page := intArg(args, "page", 1)
 	pageSize := intArg(args, "page_size", 20)
 	if page < 1 || page > 1_000_000 {
-		return filter, 0, 0, fmt.Errorf("page 必须在 1-1000000 之间")
+		return filter, 0, 0, fmt.Errorf("page must be between 1 and 1000000")
 	}
 	if pageSize < 1 || pageSize > agentAssetPageSizeMax {
-		return filter, 0, 0, fmt.Errorf("page_size 必须在 1-%d 之间", agentAssetPageSizeMax)
+		return filter, 0, 0, fmt.Errorf("page_size must be between 1 and %d", agentAssetPageSizeMax)
 	}
 	return filter, page, pageSize, nil
 }
@@ -389,7 +389,7 @@ func parseAssetToolTime(field, value string) (*time.Time, error) {
 			return &parsed, nil
 		}
 	}
-	return nil, fmt.Errorf("%s 必须是 RFC3339 时间或 YYYY-MM-DD", field)
+	return nil, fmt.Errorf("%s must be an RFC3339 time or YYYY-MM-DD", field)
 }
 
 func stringSliceArg(raw interface{}) ([]string, error) {
@@ -401,15 +401,15 @@ func stringSliceArg(raw interface{}) ([]string, error) {
 		for _, item := range typed {
 			value, ok := item.(string)
 			if !ok {
-				return nil, fmt.Errorf("必须是字符串数组")
+				return nil, fmt.Errorf("must be an array of strings")
 			}
 			values = append(values, value)
 		}
 	default:
-		return nil, fmt.Errorf("必须是字符串数组")
+		return nil, fmt.Errorf("must be an array of strings")
 	}
 	if len(values) > 50 {
-		return nil, fmt.Errorf("最多 50 个标签")
+		return nil, fmt.Errorf("at most 50 tags")
 	}
 	return values, nil
 }
@@ -442,7 +442,7 @@ func agentAssetProjectScope(db *database.DB, ctx context.Context) (projectID str
 	}
 	projectID, err = db.GetConversationProjectID(conversationID)
 	if err != nil {
-		return "", false, fmt.Errorf("无法确定当前对话的项目范围")
+		return "", false, fmt.Errorf("unable to determine the project scope of the current conversation")
 	}
 	projectID = strings.TrimSpace(projectID)
 	return projectID, projectID != "", nil
@@ -505,7 +505,7 @@ func assetToolDetail(asset *database.Asset) map[string]interface{} {
 func assetJSONResult(value interface{}) (*mcp.ToolResult, error) {
 	encoded, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
-		return textResult("错误: "+err.Error(), true), nil
+		return textResult("Error: "+err.Error(), true), nil
 	}
 	return textResult(string(encoded), false), nil
 }
