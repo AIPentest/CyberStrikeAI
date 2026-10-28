@@ -1,4 +1,4 @@
-// 信息收集页面（FOFA）
+﻿// 信息收集页面（FOFA）
 function _t(key, opts) {
     return typeof window.t === 'function' ? window.t(key, opts) : key;
 }
@@ -1718,7 +1718,7 @@ async function batchScanSelectedFofaRows() {
         if (typeof getCurrentRole === 'function') {
             try { role = getCurrentRole() || ''; } catch (e) { /* ignore */ }
         }
-        if (role === '默认') role = '';
+        if (role === 'Default') role = '';
 
         const resp = await apiFetch('/api/batch-tasks', {
             method: 'POST',

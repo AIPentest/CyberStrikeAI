@@ -1,4 +1,4 @@
-let currentConversationId = null;
+﻿let currentConversationId = null;
 
 /** Persist the visible chat in the URL so a reload can restore and reconnect it. */
 function syncChatConversationHash(conversationId) {
@@ -118,9 +118,12 @@ const DRAFT_SAVE_DELAY = 500; // 500ms防抖延迟
 const MAX_CHAT_FILES = 10;
 const CHAT_FILE_DEFAULT_PROMPT = '请根据上传的文件内容进行分析。';
 /** 与 handler.formatInterruptContinueUserMessage 首段一致；主对话不展示，仅迭代详情（user_interrupt_continue） */
-const CHAT_INTERRUPT_CONTINUE_USER_PREFIX = '【用户补充 / 中断后继续】';
+/* legacy Chinese marker prefix kept byte-identical for old rows; the English marker is dual-accepted for new rows */
+const CHAT_INTERRUPT_CONTINUE_USER_PREFIXES = ['【用户补充 / 中断后继续】', '[User supplement / interrupt & continue]'];
 function isInterruptContinueInjectChatMessage(content) {
-    return typeof content === 'string' && content.trimStart().startsWith(CHAT_INTERRUPT_CONTINUE_USER_PREFIX);
+    if (typeof content !== 'string') return false;
+    const t = content.trimStart();
+    return CHAT_INTERRUPT_CONTINUE_USER_PREFIXES.some(p => t.startsWith(p));
 }
 /**
  * 对话附件：选文件后异步 POST /api/chat-uploads，发送时只传 serverPath（绝对路径），请求体不再内联大文件内容。
@@ -1027,7 +1030,7 @@ function populateChatAIChannelSelect(ai) {
     select.innerHTML = '';
     const fallbackOpt = document.createElement('option');
     fallbackOpt.value = '';
-    fallbackOpt.textContent = typeof window.t === 'function' ? window.t('chat.aiChannelDefault') : '跟随默认通道';
+    fallbackOpt.textContent = typeof window.t === 'function' ? window.t('chat.aiChannelDefault') : 'Follow default channel';
     select.appendChild(fallbackOpt);
     Object.keys(chatAIChannels).sort().forEach(function (id) {
         const ch = chatAIChannels[id] || {};
@@ -1386,7 +1389,7 @@ function renderChatAIChannelOptions() {
     if (!ui.list) return;
     ui.list.innerHTML = '';
     const selected = selectedChatAIChannelId();
-    const choices = [{ id: '', label: chatTranslate('chat.aiChannelDefault', '跟随默认通道') }]
+    const choices = [{ id: '', label: chatTranslate('chat.aiChannelDefault', 'Follow default channel') }]
         .concat(Object.keys(chatAIChannels).sort().map(function (id) {
             const channel = chatAIChannels[id] || {};
             return { id: id, label: channel.name || id };
@@ -2878,7 +2881,7 @@ async function fetchMentionTools() {
         while (page <= totalPages && page <= 20) {
             // 构建API URL，如果指定了角色，添加role查询参数
             let url = `/api/config/tools?page=${page}&page_size=${pageSize}`;
-            if (roleName && roleName !== '默认') {
+            if (roleName && roleName !== 'Default') {
                 url += `&role=${encodeURIComponent(roleName)}`;
             }
 
@@ -3593,8 +3596,11 @@ function addMessage(role, content, mcpExecutionIds = null, progressId = null, cr
     // 助手消息中的已知中文错误前缀做国际化替换（后端固定返回中文）
     let displayContent = content;
     if (role === 'assistant' && typeof displayContent === 'string' && typeof window.t === 'function') {
+        // legacy Chinese prefix '执行失败: ' kept byte-identical for old rows; also accept the English 'Execution failed: ' (dual-accept)
         if (displayContent.indexOf('执行失败: ') === 0) {
             displayContent = window.t('chat.executeFailed') + ': ' + displayContent.slice('执行失败: '.length);
+        } else if (displayContent.indexOf('Execution failed: ') === 0) {
+            displayContent = window.t('chat.executeFailed') + ': ' + displayContent.slice('Execution failed: '.length);
         }
         if (displayContent.indexOf('调用OpenAI失败:') !== -1) {
             displayContent = displayContent.replace(/调用OpenAI失败:/g, window.t('chat.callOpenAIFailed') + ':');
@@ -3954,9 +3960,14 @@ function isInternalEinoDiagnosticDetail(detail) {
     if (detail.eventType === 'model_output_rejected') return true;
     if (detail.eventType !== 'progress') return false;
     const msg = String(detail.message != null ? detail.message : '').trim();
+    // Legacy Chinese TurnLoop diagnostics stay matched byte-identically
+    // (dual-accept) alongside the new English texts for persisted history.
     if (msg === 'Eino TurnLoop 常驻多轮 runtime 已接管本轮会话。' ||
+        msg === 'Eino TurnLoop resident multi-turn runtime has taken over this conversation turn.' ||
         msg === 'Eino TurnLoop 已在安全点切换到用户补充后的下一轮。' ||
-        msg === '已将用户补充推入 Eino TurnLoop，正在等待安全点切换…') {
+        msg === 'Eino TurnLoop has switched to the next turn with the user supplement at a safe point.' ||
+        msg === '已将用户补充推入 Eino TurnLoop，正在等待安全点切换…' ||
+        msg === 'User supplement pushed into Eino TurnLoop; waiting for the safe-point switch…') {
         return true;
     }
     const data = detail.data && typeof detail.data === 'object' ? detail.data : {};
@@ -6469,7 +6480,7 @@ async function loadConversation(conversationId) {
         window._loadedConversationProjectId = conversation.projectId || conversation.project_id || '';
         const conversationRoleName = conversation.roleName || conversation.role_name || '';
         if (typeof window.setCurrentRole === 'function') {
-            window.setCurrentRole(conversationRoleName || '默认');
+            window.setCurrentRole(conversationRoleName || 'Default');
         }
         applyConversationAgentMode(conversationId, conversation);
         try {

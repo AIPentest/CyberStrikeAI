@@ -2824,9 +2824,9 @@
       "zero-day-discovery": "0day autonomous discovery engine: variant analysis, patch gap, diff, fuzzing, taint reasoning, N-day weaponization, hunter mindset. Use when when public vulns are not found and you need to discover 0day or weaponize N-day."
     },
     "seedTags": {
-      "渗透测试": "penetration-testing",
-      "红队": "red-team",
-      "项目黑板": "project blackboard"
+      "penetration-testing": "penetration-testing",
+      "red-team": "red-team",
+      "project blackboard": "project blackboard"
     }
   },
   "apiDocs": {
@@ -2908,7 +2908,9 @@
       "robotIntegration": "Интеграция роботов",
       "markdownAgents": "Агенты Markdown",
       "projectManagement": "Управление проектами",
-      "assetManagement": "Управление активами"
+      "assetManagement": "Управление активами",
+      "systemUpdate": "Обновление системы",
+      "storageCleanup": "Очистка хранилища"
     },
     "summary": {
       "login": "Вход пользователя",

@@ -1,4 +1,4 @@
-// WebShell 管理（类似冰蝎/蚁剑：虚拟终端、文件管理、命令执行）
+﻿// WebShell 管理（类似冰蝎/蚁剑：虚拟终端、文件管理、命令执行）
 
 const WEBSHELL_SIDEBAR_WIDTH_KEY = 'webshell_sidebar_width';
 const WEBSHELL_DEFAULT_SIDEBAR_WIDTH = 360;
@@ -200,7 +200,7 @@ function wsUpdateRoleSelectorDisplay() {
     var cur = (typeof getCurrentRole === 'function') ? getCurrentRole() : (localStorage.getItem('currentRole') || '');
     if (!cur) {
         iconEl.textContent = '\ud83d\udd35';
-        textEl.textContent = (typeof window.t === 'function' ? window.t('chat.defaultRole') : '') || '默认';
+        textEl.textContent = (typeof window.t === 'function' ? window.t('chat.defaultRole') : '') || 'Default';
         return;
     }
     if (wsRolesCache) {
@@ -227,7 +227,7 @@ function wsRenderRoleList() {
     html += '<button type="button" class="role-selection-item-main' + defSelected + '" data-selection-detail="' + escapeHtmlAttr(defDesc) + '" onclick="wsSelectRole(\'\')">' +
         '<div class="role-selection-item-icon-main">\ud83d\udd35</div>' +
         '<div class="role-selection-item-content-main"><div class="role-selection-item-name-main">' +
-        (wsTOr('chat.defaultRole', '默认')) +
+        (wsTOr('chat.defaultRole', 'Default')) +
         '</div><div class="role-selection-item-description-main">' +
         escapeHtml(defDesc) +
         '</div></div>' +
@@ -237,7 +237,7 @@ function wsRenderRoleList() {
         for (var i = 0; i < wsRolesCache.length; i++) {
             var r = wsRolesCache[i];
             if (!r.enabled) continue;
-            if (r.name === '默认') continue; // 已在上方硬编码默认角色，跳过 API 返回的默认项
+            if (r.name === 'Default') continue; // 已在上方硬编码默认角色，跳过 API 返回的默认项
             var sel = (r.name === cur) ? ' selected' : '';
             var desc = r.description || '';
             html += '<button type="button" class="role-selection-item-main' + sel + '" data-selection-detail="' + escapeHtmlAttr(desc) + '" onclick="wsSelectRole(\'' + r.name.replace(/'/g, "\\'") + '\')">' +
@@ -2564,7 +2564,7 @@ function selectWebshell(id, stateReady) {
         '<div class="ws-role-selector-wrapper">' +
         '<button type="button" class="role-selector-btn ws-role-selector-btn" id="ws-role-selector-btn" onclick="wsToggleRolePanel()">' +
         '<span id="ws-role-selector-icon" class="role-selector-icon">\ud83d\udd35</span>' +
-        '<span id="ws-role-selector-text" class="role-selector-text">' + (wsT('chat.defaultRole') || '默认') + '</span>' +
+        '<span id="ws-role-selector-text" class="role-selector-text">' + (wsT('chat.defaultRole') || 'Default') + '</span>' +
         '<svg class="role-selector-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
         '</button>' +
         '<div id="ws-role-selection-panel" class="role-selection-panel" style="display:none;">' +

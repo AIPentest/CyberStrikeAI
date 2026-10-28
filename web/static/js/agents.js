@@ -1,74 +1,75 @@
-// 多代理子 Agent Markdown（agents/*.md）管理
+// Multi-agent sub-agent Markdown (agents/*.md) management
 function _agentsT(key, opts) {
     return typeof window.t === 'function' ? window.t(key, opts) : key;
 }
 
-// Seed agent frontmatter（agents/*.md 的内置 .md 名/描述）。仅当值与仓库种子
-// 精确匹配时按 id 翻译展示；用户自行编辑后的名/描述按原值展示。
+// Seed agent frontmatter (built-in .md names/descriptions in agents/*.md). Only when the value
+// exactly matches the repo seed is it translated for display by id; names/descriptions the user
+// edited themselves are shown at their original values.
 const SEED_AGENTS = {
     'cyberstrike-deep': {
-        name: '协调主代理',
-        description: '多代理模式下的 Deep 编排者：在已授权安全场景中与 MCP 工具、task 子代理协同，负责规划、委派、汇总与对用户交付；派单前必须向子代理提供完整目标与范围。'
+        name: 'Orchestrator / Coordinator Main Agent',
+        description: 'The Deep orchestrator in multi-agent mode: collaborates with MCP tools and `task` sub-agents in already-authorized security scenarios, responsible for planning, delegation, consolidation, and delivery to the user; before dispatching, it must provide the complete target and scope to the sub-agent.'
     },
     'cyberstrike-plan-execute': {
-        name: 'Plan-Execute 规划主代理',
-        description: 'plan_execute 模式下的规划/重规划侧主代理：拆解目标、修订计划，由执行器调用 MCP 工具落地（不使用 Deep 的 task 子代理）；计划中每步须含完整目标与范围，禁止让执行器凭猜测补全 URL/IP。'
+        name: 'Plan-Execute Planning Main Agent',
+        description: 'The planning/replanning-side main agent in plan_execute mode: decomposes the target and revises the plan, while the executor calls MCP tools to land it (does not use the Deep `task` sub-agent); each step in the plan must carry the complete target and scope, and the executor is forbidden from filling in URL/IP by guessing.'
     },
     'cyberstrike-supervisor': {
-        name: 'Supervisor 监督主代理',
-        description: 'supervisor 模式下的协调者：通过 transfer 委派专家子代理，必要时亲自使用 MCP；完成目标时用 exit 结束（运行时会追加专家列表与 exit 说明）；transfer 前必须提供完整目标与范围。'
+        name: 'Supervisor Overseer Main Agent',
+        description: 'The coordinator in supervisor mode: delegates to specialist sub-agents via transfer, calling MCP itself where necessary; ends with exit when the goal is met (the runtime appends the specialist list and exit explanation at the end); before transfer, the complete target and scope must be provided.'
     },
     'recon': {
-        name: '侦察专员',
-        description: '负责信息收集、资产测绘与初始攻击面分析；要求主 Agent 在委派时提供完整目标（URL/IP:Port/域名+路径）与范围。'
+        name: 'Reconnaissance Specialist',
+        description: 'Responsible for information gathering, asset mapping, and initial attack-surface analysis; requires the main agent to provide the complete target (URL/IP:Port/domain+path) and scope when delegating.'
     },
     'penetration': {
-        name: '渗透测试专员',
-        description: '授权范围内的漏洞验证、利用链构造、权限提升与影响证明；在得到侦察/情报输入后做深度利用与复现，并要求主 Agent 提供完整目标与范围。'
+        name: 'Penetration Testing Specialist',
+        description: 'Vulnerability verification within the authorized scope, exploit-chain construction, privilege escalation, and impact proof; performs deep exploitation and reproduction given reconnaissance/intelligence input, and requires the main agent to provide the complete target and scope.'
     },
     'attack-surface-enumeration': {
-        name: '攻击面枚举专员',
-        description: '基于侦察/情报输入，梳理服务、技术栈、依赖与潜在入口；输出结构化攻击面图谱与验证优先级，并要求主 Agent 提供完整目标与范围。'
+        name: 'Attack Surface Enumeration Specialist',
+        description: 'Based on reconnaissance/intelligence input, organizes services, technology stacks, dependencies, and potential entry points; outputs a structured attack-surface map with verification priorities, and requires the main agent to provide the complete target and scope.'
     },
     'cleanup-rollback': {
-        name: '清理与回滚专员',
-        description: '为授权测试设计清理/回滚验证清单，确保最小残留与可审计可复核，并要求主 Agent 提供完整目标与变更上下文。'
+        name: 'Cleanup and Rollback Specialist',
+        description: 'Designs cleanup/rollback verification checklists for authorized tests, ensuring minimal residue that is auditable and reviewable, and requires the main agent to provide the complete target and change context.'
     },
     'engagement-planning': {
-        name: '参与规划专员',
-        description: '定义参与范围、规则(ROE)与成功标准；产出迭代式测试蓝图与证据清单（不执行入侵），并要求主 Agent 提供完整目标与约束信息。'
+        name: 'Engagement Planning Specialist',
+        description: 'Defines the engagement scope, rules of engagement (ROE), and success criteria; produces an iterative test blueprint and an evidence checklist (does not execute intrusion), and requires the main agent to provide the complete target and constraint information.'
     },
     'impact-exfiltration': {
-        name: '影响与数据外泄证明专员',
-        description: '以最小影响方式设计“业务影响/数据可达性”的证明方案；强调脱敏、最小化数据暴露与回滚，并要求主 Agent 提供完整目标与范围。'
+        name: 'Impact and Data Exfiltration Proof Specialist',
+        description: 'Designs "business impact / data reachability" proof schemes in a minimal-impact way; emphasizes data masking, minimal data exposure, and rollback, and requires the main agent to provide the complete target and scope.'
     },
     'intel-collection': {
-        name: '信息收集专员',
-        description: '公开情报、资产指纹、泄露线索、目录与接口发现、第三方暴露面梳理；适合在授权范围内做大范围情报汇总，并要求主 Agent 提供完整目标与范围。'
+        name: 'Intelligence Collection Specialist',
+        description: 'Public intelligence, asset fingerprinting, leak leads, directory and interface discovery, and third-party exposure mapping; suited to broad-range intelligence consolidation within the authorized scope, and requires the main agent to provide the complete target and scope.'
     },
     'lateral-movement': {
-        name: '内网横向专员',
-        description: '已获得初始据点后的内网发现、凭证与会话利用、横向移动与权限维持思路（仅授权演练/渗透环境），并要求主 Agent 提供完整目标与网段范围。'
+        name: 'Internal Network Lateral Movement Specialist',
+        description: 'Internal network discovery, credential and session exploitation, lateral movement, and access-maintenance ideas after an initial foothold is obtained (authorized exercises/pentest environments only), and requires the main agent to provide the complete target and network-segment scope.'
     },
     'opsec-evasion': {
-        name: '运维安全与干扰最小化专员',
-        description: '从测试噪声、可观测性、蓝队告警与回滚风险角度，设计“低干扰验证策略”和证据采集方式（不提供绕过手段），并要求主 Agent 提供完整目标与范围。'
+        name: 'Operational Security and Interference Minimization Specialist',
+        description: 'Designs "low-interference verification strategies" and evidence-collection methods from the angles of test noise, observability, blue-team alerting, and rollback risk (does not provide bypass means), and requires the main agent to provide the complete target and scope.'
     },
     'persistence-maintenance': {
-        name: '持久化与后续通道专员',
-        description: '评估授权环境下的持久化/维持访问思路、风险权衡与回滚验证；以最小影响方式证明可行性，并要求主 Agent 提供完整目标与边界。'
+        name: 'Persistence and Access Maintenance Specialist',
+        description: 'Assesses persistence/access-maintenance ideas in the authorized environment, risk weighing, and rollback verification; proves feasibility in a minimal-impact way, and requires the main agent to provide the complete target and boundaries.'
     },
     'privilege-escalation': {
-        name: '权限提升专员',
-        description: '在已获得初始访问/受限权限的前提下，评估权限提升可能性、证据需求与安全验证方法（仅限授权环境），并要求主 Agent 提供完整目标与当前权限上下文。'
+        name: 'Privilege Escalation Specialist',
+        description: 'Given initial access/restricted privileges already obtained, assesses privilege-escalation possibilities, evidence needs, and safe verification methods (authorized environments only), and requires the main agent to provide the complete target and current-privilege context.'
     },
     'reporting-remediation': {
-        name: '报告撰写与修复建议专员',
-        description: '将已收集的证据汇总为可交付报告结构，并给出面向修复的建议与回归验证要点；要求主 Agent 提供完整目标与证据上下文。'
+        name: 'Report Writing and Remediation Specialist',
+        description: 'Consolidates the collected evidence into a deliverable report structure, and gives remediation-oriented recommendations and regression-verification essentials; requires the main agent to provide the complete target and evidence context.'
     },
     'vulnerability-triage': {
-        name: '漏洞分诊专员',
-        description: '基于攻击面与证据线索进行漏洞候选筛选、优先级排序与“验证路径”设计（以证据为中心，不直接武器化），并要求主 Agent 提供完整目标与输入证据。'
+        name: 'Vulnerability Triage Specialist',
+        description: 'Based on the attack surface and evidence leads, performs vulnerability candidate filtering, priority ranking, and "verification path" design (evidence-centered, not directly weaponizing), and requires the main Agent to provide the complete target and input evidence.'
     }
 };
 
@@ -185,7 +186,7 @@ async function loadMarkdownAgents() {
 }
 
 document.addEventListener('languagechange', () => {
-    // 语言切换后重新渲染 Agent 列表，让种子 frontmatter 名/描述按当前语言展示。
+    // After a language switch, re-render the Agent list so seed frontmatter names/descriptions display in the current language.
     const currentPage = typeof window.currentPage === 'function' ? window.currentPage() : (window.currentPage || '');
     if (currentPage === 'agents-management') {
         loadMarkdownAgents();

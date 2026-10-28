@@ -5939,7 +5939,7 @@ function isToolGuardBlockedResult(value, depth, allowLegacy) {
     if (value == null || depth > 5) return false;
     if (typeof value === 'string') {
         const text = value.trimStart();
-        if (allowLegacy && /^工具调用已被安全规则拦截(?:[：:\r\n]|$)/.test(text)) return true;
+        if (allowLegacy && /^(?:工具调用已被安全规则拦截|The tool call was blocked by a security rule)(?:[：:\r\n]|$)/.test(text)) return true;
         if (text.startsWith('{')) {
             try { return isToolGuardBlockedResult(JSON.parse(text), depth + 1, allowLegacy); } catch (e) { /* plain text */ }
         }

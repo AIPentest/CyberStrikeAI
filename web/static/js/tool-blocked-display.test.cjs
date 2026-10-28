@@ -5,6 +5,7 @@ const vm = require('node:vm');
 const monitor = fs.readFileSync('web/static/js/monitor.js', 'utf8');
 const chat = fs.readFileSync('web/static/js/chat.js', 'utf8');
 const reason = '工具调用已被安全规则拦截：识别到 example.gov，禁止访问。\n规则: 政府网站保护';
+const englishReason = 'The tool call was blocked by a security rule: Identified example.gov, access forbidden.\nRule: Government sites protection (government-domains)\nMatched content: "example.gov"';
 
 function sourceFunction(source, name) {
     const start = source.indexOf(`function ${name}(`);
@@ -78,7 +79,7 @@ test('structured block markers have priority over generic failure and running st
 
 test('legacy guard failures are recognized in raw, nested, serialized and deferred history results', () => {
     const ctx = runtime();
-    for (const result of [reason, { isError: true, content: [{ type: 'text', text: reason }] }, JSON.stringify({ isError: true, content: [{ type: 'text', text: reason }] })]) {
+    for (const result of [reason, englishReason, { isError: true, content: [{ type: 'text', text: reason }] }, JSON.stringify({ isError: true, content: [{ type: 'text', text: englishReason }] })]) {
         assert.equal(ctx.getToolResultDisplayState({ result, success: false }).kind, 'blocked');
     }
     assert.equal(ctx.getToolResultDisplayState({ resultPreview: reason, success: false, _payloadDeferred: true }).kind, 'blocked');
@@ -87,7 +88,7 @@ test('legacy guard failures are recognized in raw, nested, serialized and deferr
 
 test('quoted mentions, prefix lookalikes and explicitly successful output stay ordinary results', () => {
     const ctx = runtime();
-    for (const result of ['示例：' + reason, '"' + reason + '"', '工具调用已被安全规则拦截说明文档']) {
+    for (const result of ['示例：' + reason, '"' + reason + '"', '工具调用已被安全规则拦截说明文档', 'The tool call was blocked by a security ruleset is a doc phrase']) {
         assert.equal(ctx.getToolResultDisplayState({ result, success: false }).kind, 'error');
     }
     for (const data of [{ success: true, result: reason }, { isError: false, content: [{ text: reason }] }, { status: 'completed', result: reason }]) {

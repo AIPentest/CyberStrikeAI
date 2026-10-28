@@ -4394,6 +4394,8 @@
 
         const msg = String(event.message || '');
         const sid = event.sessionId || (event.data && event.data.session_id) || '';
+        // Chinese markers ('上线'/'新会话'/'离线'/'入queue'/'入队') stay for historical
+        // c2_events rows and old backend regexes; new backend text is English.
         const sessionOnline = event.category === 'session' && event.level === 'critical' && (
             msg.includes('上线') || msg.includes('新会话') || /new session/i.test(msg)
         );
@@ -4431,7 +4433,8 @@
         if (event.category === 'task') {
             const taskSid = sid;
             if (window.currentPageId === 'c2-tasks') {
-                const page = msg.includes('入队') ? 1 : (C2.tasksPage || 1);
+                // '入queue' legacy marker kept: matches historical c2_events rows; new backend text is English.
+                const page = (msg.includes('入queue') || msg.includes('入队') || /enqueued/i.test(msg)) ? 1 : (C2.tasksPage || 1);
                 C2.loadTasks(page);
             }
             if (window.currentPageId === 'c2-sessions' && taskSid && C2.selectedSessionId === taskSid) {

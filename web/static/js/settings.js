@@ -1,4 +1,4 @@
-// 设置相关功能
+﻿// 设置相关功能
 let currentConfig = null;
 let selectedAIChannelId = '';
 const AI_CHANNEL_PROBE_CONCURRENCY = 2;
@@ -2906,7 +2906,7 @@ function renderAIChannelList(ids) {
             item.classList.toggle('checked', checkbox.checked);
         };
         const displayName = displayAIChannelName(id, ch);
-        const defaultBadge = isDefault ? `<span class="ai-channel-badge">${escapeAIChannelHtml(settingsT('settingsBasic.aiChannelDefaultBadge', '默认'))}</span>` : '';
+        const defaultBadge = isDefault ? `<span class="ai-channel-badge">${escapeAIChannelHtml(settingsT('settingsBasic.aiChannelDefaultBadge', 'Default'))}</span>` : '';
         let statusText = isComplete
             ? settingsT('settingsBasic.aiChannelComplete', '配置完整')
             : settingsT('settingsBasic.aiChannelDraft', '待完善');

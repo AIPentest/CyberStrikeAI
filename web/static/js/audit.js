@@ -55,9 +55,14 @@ function auditActionLabel(action) {
 
 /** Stored DB messages that share category+action but need distinct i18n keys. */
 const AUDIT_MSG_BY_STORED_TEXT = {
+    // Dual-accept: rows may also store the English message.
+    "create conversation": "settingsAudit.msg.conversation.create",
     "运行空间清理完成但存在失败项": "settingsAudit.msg.storage.cleanup_partial",
     "工作流包预检失败": "settingsAudit.msg.workflow_package.inspect_failed",
     "工作流包导入失败": "settingsAudit.msg.workflow_package.import_failed",
+    // Dual-accept: backend audit rows may also store the English message.
+    "workflow package pre-inspection failed": "settingsAudit.msg.workflow_package.inspect_failed",
+    "workflow package import failed": "settingsAudit.msg.workflow_package.import_failed",
     '登录失败：密码错误': 'settingsAudit.msg.auth.login_failed',
     '修改密码失败：当前密码不正确': 'settingsAudit.msg.auth.change_password_failed',
     '应用配置失败：初始化知识库': 'settingsAudit.msg.config.apply_fail_kb_init',

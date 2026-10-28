@@ -2800,9 +2800,9 @@
       "zero-day-discovery": "0day自主发现引擎:变体分析/补丁间隙/差分/Fuzzing/污点推理/N-day武器化/猎人思维。Use when public vulns not found and need to discover 0day or weaponize N-day."
     },
     "seedTags": {
-      "渗透测试": "渗透测试",
-      "红队": "红队",
-      "项目黑板": "项目黑板"
+      "penetration-testing": "渗透测试",
+      "red-team": "红队",
+      "project blackboard": "项目黑板"
     }
   },
   "apiDocs": {
@@ -2885,7 +2885,9 @@
       "robotIntegration": "机器人集成",
       "markdownAgents": "多代理Markdown",
       "projectManagement": "项目管理",
-      "assetManagement": "资产管理"
+      "assetManagement": "资产管理",
+      "systemUpdate": "系统更新",
+      "storageCleanup": "存储清理"
     },
     "summary": {
       "login": "用户登录",

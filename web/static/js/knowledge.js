@@ -111,7 +111,7 @@ async function loadKnowledgeCategories() {
     } catch (error) {
         console.error('加载分类失败:', error);
         // 只在非功能未启用的情况下显示错误
-        if (!error.message.includes(knowledgeT('knowledge.notEnabledTitle', '知识库功能未启用'))) {
+        if (!/(知识库功能未启用|knowledge base feature is not enabled)/i.test(error.message)) {
             showNotification(knowledgeT('knowledge.loadCategoriesFailed', '加载分类失败') + ': ' + error.message, 'error');
         }
         return [];
@@ -180,7 +180,7 @@ async function loadKnowledgeItems(category = '', page = 1, pageSize = 10) {
     } catch (error) {
         console.error('加载知识项失败:', error);
         // 只在非功能未启用的情况下显示错误
-        if (!error.message.includes(knowledgeT('knowledge.notEnabledTitle', '知识库功能未启用'))) {
+        if (!/(知识库功能未启用|knowledge base feature is not enabled)/i.test(error.message)) {
             showNotification(knowledgeT('knowledge.loadItemsFailed', '加载知识项失败') + ': ' + error.message, 'error');
         }
         return [];
