@@ -1793,7 +1793,25 @@
       "next": "下一页",
       "sourceManual": "手动导入",
       "notConnectedTitle": "该类型采集尚未接入",
-      "notConnectedHint": "接入后这里会展示对应的资产数据"
+      "notConnectedHint": "接入后这里会展示对应的资产数据",
+      "colScreenshot": "截图",
+      "shotNone": "未截图",
+      "shotPending": "排队中",
+      "shotRunning": "截图中",
+      "shotFailed": "截图失败",
+      "shotRecapture": "重新截图",
+      "shotCapturing": "截图中…",
+      "shotTimeout": "截图超时，请稍后刷新",
+      "shotLoadFailed": "截图加载失败",
+      "shotDisabled": "未启用",
+      "shotErrorNotHttp": "仅支持 http/https 站点",
+      "shotErrorNotFound": "资产不存在或无权访问",
+      "shotErrorBusy": "截图队列已满，请稍后重试",
+      "shotErrorDisabled": "截图功能未启用",
+      "shotTriggerFailed": "触发截图失败",
+      "shotCapturedAt": "截图于 {{time}}",
+      "previewTitle": "截图预览",
+      "onlyNoScreenshot": "仅看无截图"
     }
   },
   "vulnerability": {

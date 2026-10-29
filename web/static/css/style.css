@@ -48161,3 +48161,324 @@ html[data-theme="dark"] .asset-tree-row:hover {
         display: none;
     }
 }
+
+/* ==========================================================================
+   站点截图（assets-table.js）：缩略图 / 状态占位 / 重新截图角标 / 大图预览 lightbox
+   追加于文件末尾，复用现有 CSS 变量。
+   ========================================================================== */
+
+.asset-type-col-shot {
+    width: 156px;
+    min-width: 132px;
+}
+
+.asset-type-shot {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+}
+
+/* 有截图：缩略图按钮（点击预览） */
+.asset-type-shot-thumb {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    max-width: 148px;
+    padding: 0;
+    border: 1px solid var(--border-color, #e9ecef);
+    border-radius: 8px;
+    background: var(--bg-secondary, #f8f9fa);
+    overflow: hidden;
+    cursor: zoom-in;
+}
+
+.asset-type-shot-thumb:hover {
+    border-color: var(--accent-color, #0066ff);
+}
+
+.asset-type-shot-thumb[hidden] {
+    display: none !important;
+}
+
+.asset-type-shot-img {
+    display: block;
+    height: 44px;
+    width: auto;
+    max-width: 148px;
+    object-fit: cover;
+    border-radius: 7px;
+}
+
+.asset-type-shot-img[hidden] {
+    display: none !important;
+}
+
+/* 无截图 / 排队中 / 截图中 / 截图失败 */
+.asset-type-shot-placeholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    min-width: 92px;
+    padding: 0 10px;
+    border: 1px dashed var(--border-color, #e9ecef);
+    border-radius: 8px;
+    background: var(--bg-secondary, #f8f9fa);
+    color: var(--text-secondary, #6c757d);
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.asset-type-shot-placeholder--pending,
+.asset-type-shot-placeholder--running {
+    border-style: solid;
+    color: var(--warning-color, #d97706);
+    border-color: color-mix(in srgb, var(--warning-color, #d97706) 40%, transparent);
+}
+
+.asset-type-shot-placeholder--failed {
+    color: var(--error-color, #dc3545);
+    border-color: color-mix(in srgb, var(--error-color, #dc3545) 40%, transparent);
+}
+
+.asset-type-shot-placeholder--disabled {
+    opacity: .7;
+}
+
+/* 缩略图拉取 / 解码失败时的灰色占位 */
+.asset-type-shot-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    min-width: 92px;
+    padding: 0 10px;
+    border: 1px dashed var(--border-color, #e9ecef);
+    border-radius: 8px;
+    background: var(--bg-secondary, #f8f9fa);
+    color: var(--text-muted, #adb5bd);
+    font-size: 11px;
+}
+
+.asset-type-shot-fallback[hidden] {
+    display: none !important;
+}
+
+/* 重新截图角标：悬停显示，触屏常显 */
+.asset-type-shot-action {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    z-index: 1;
+    height: 20px;
+    padding: 0 7px;
+    border: 1px solid var(--border-color, #e9ecef);
+    border-radius: 999px;
+    background: var(--card-bg, #fff);
+    color: var(--accent-color, #0066ff);
+    box-shadow: var(--shadow-sm);
+    font: inherit;
+    font-size: 10px;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .15s ease, border-color .15s ease;
+}
+
+.asset-type-shot:hover .asset-type-shot-action,
+.asset-type-shot-action:focus-visible {
+    opacity: 1;
+}
+
+.asset-type-shot-action:hover {
+    border-color: var(--accent-color, #0066ff);
+}
+
+.asset-type-shot-action:disabled {
+    color: var(--text-secondary, #6c757d);
+    cursor: default;
+}
+
+@media (hover: none) {
+    .asset-type-shot-action {
+        opacity: 1;
+    }
+}
+
+/* 「仅看无截图」复选框（仅站点 tab 显示） */
+.asset-type-no-shot {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary, #6c757d);
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+}
+
+.asset-type-no-shot[hidden] {
+    display: none !important;
+}
+
+.asset-type-no-shot input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-color, #0066ff);
+    cursor: pointer;
+}
+
+/* 大图预览 lightbox */
+.asset-shot-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, .72);
+}
+
+.asset-shot-lightbox[hidden] {
+    display: none !important;
+}
+
+.asset-shot-lightbox-panel {
+    display: flex;
+    flex-direction: column;
+    max-width: min(94vw, 1400px);
+    max-height: 92vh;
+    border: 1px solid var(--border-color, #e9ecef);
+    border-radius: 12px;
+    background: var(--card-bg, #fff);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+}
+
+.asset-shot-lightbox-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-color, #e9ecef);
+    color: var(--text-primary, #111827);
+    font-size: 13px;
+}
+
+.asset-shot-lightbox-meta {
+    min-width: 0;
+    color: var(--text-secondary, #6c757d);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.asset-shot-lightbox-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary, #6c757d);
+    font: inherit;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.asset-shot-lightbox-close:hover {
+    background: var(--bg-secondary, #f8f9fa);
+    color: var(--text-primary, #111827);
+}
+
+.asset-shot-lightbox-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    padding: 12px;
+    overflow: auto;
+}
+
+.asset-shot-lightbox-body img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(92vh - 110px);
+    border-radius: 8px;
+}
+
+.asset-shot-lightbox-body img[hidden] {
+    display: none !important;
+}
+
+.asset-shot-lightbox-loading {
+    padding: 60px 24px;
+    color: var(--text-secondary, #6c757d);
+    font-size: 13px;
+}
+
+.asset-shot-lightbox-loading[hidden] {
+    display: none !important;
+}
+
+/* 预览打开时锁定页面滚动 */
+body.asset-shot-lightbox-open {
+    overflow: hidden;
+}
+
+/* 主题 / 窄屏微调 */
+html[data-theme="dark"] .asset-shot-lightbox {
+    background: rgba(0, 0, 0, .8);
+}
+
+html[data-theme="dark"] .asset-type-shot-thumb {
+    border-color: var(--border-color, #263244);
+}
+
+@media (max-width: 720px) {
+    .asset-type-col-shot {
+        width: 120px;
+        min-width: 108px;
+    }
+
+    .asset-type-shot-thumb,
+    .asset-type-shot-img {
+        height: 40px;
+        max-width: 110px;
+    }
+
+    .asset-type-shot-placeholder,
+    .asset-type-shot-fallback {
+        height: 40px;
+        min-width: 78px;
+    }
+
+    .asset-shot-lightbox {
+        padding: 10px;
+    }
+
+    .asset-shot-lightbox-head {
+        padding: 8px 10px;
+    }
+
+    .asset-shot-lightbox-body {
+        padding: 8px;
+    }
+
+    .asset-type-no-shot {
+        width: 100%;
+    }
+}

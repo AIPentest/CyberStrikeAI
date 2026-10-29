@@ -898,3 +898,21 @@ CREATE TABLE asset_host_ips (
 CREATE INDEX idx_asset_host_ips_host ON asset_host_ips(host);
 
 CREATE INDEX idx_asset_host_ips_ip ON asset_host_ips(ip);
+
+-- 站点截图元信息：图片本体落在文件系统（screenshot.dir），这里只存状态与路径。
+-- status: pending / running / done / failed。
+CREATE TABLE asset_screenshots (
+    asset_id TEXT PRIMARY KEY,
+    status TEXT NOT NULL DEFAULT 'pending',
+    file_path TEXT NOT NULL DEFAULT '',
+    status_code INTEGER NOT NULL DEFAULT 0,
+    title TEXT NOT NULL DEFAULT '',
+    error TEXT NOT NULL DEFAULT '',
+    width INTEGER NOT NULL DEFAULT 0,
+    height INTEGER NOT NULL DEFAULT 0,
+    captured_at DATETIME,
+    updated_at DATETIME NOT NULL,
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_asset_screenshots_status ON asset_screenshots(status);

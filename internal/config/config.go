@@ -51,6 +51,7 @@ type Config struct {
 	MultiAgent  MultiAgentConfig      `yaml:"multi_agent,omitempty" json:"multi_agent,omitempty"`
 	Project     ProjectConfig         `yaml:"project,omitempty" json:"project,omitempty"`
 	Vision      VisionConfig          `yaml:"vision,omitempty" json:"vision,omitempty"`
+	Screenshot  ScreenshotConfig      `yaml:"screenshot,omitempty" json:"screenshot,omitempty"`
 	Update      UpdateConfig          `yaml:"update,omitempty" json:"update,omitempty"`
 }
 

@@ -2,12 +2,19 @@ package app
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"cyberstrike-ai/internal/authctx"
 	"cyberstrike-ai/internal/database"
+	"cyberstrike-ai/internal/screenshot"
 
 	"go.uber.org/zap"
 )
@@ -44,7 +51,7 @@ func listIngestedAssets(t *testing.T, db *database.DB) []*database.Asset {
 
 func TestAssetIngestorFromHttpxJSON(t *testing.T) {
 	db := newIngestTestDB(t)
-	ingestor := newAssetIngestor(db, zap.NewNop())
+	ingestor := newAssetIngestor(db, zap.NewNop(), nil)
 	ctx := ingestTestContext()
 
 	// 两行 httpx -json 输出 + 一行日志噪音。
@@ -103,7 +110,7 @@ func TestAssetIngestorFromHttpxJSON(t *testing.T) {
 
 func TestAssetIngestorIsIdempotent(t *testing.T) {
 	db := newIngestTestDB(t)
-	ingestor := newAssetIngestor(db, zap.NewNop())
+	ingestor := newAssetIngestor(db, zap.NewNop(), nil)
 	ctx := ingestTestContext()
 
 	output := `{"url":"https://c.example.com","host":"c.example.com","port":"443","scheme":"https","title":"C","webserver":"nginx","tech":["nginx:1.22.0"]}`
@@ -126,7 +133,7 @@ func TestAssetIngestorIsIdempotent(t *testing.T) {
 
 func TestAssetIngestorFromNmapXML(t *testing.T) {
 	db := newIngestTestDB(t)
-	ingestor := newAssetIngestor(db, zap.NewNop())
+	ingestor := newAssetIngestor(db, zap.NewNop(), nil)
 	ctx := ingestTestContext()
 
 	output := `<?xml version="1.0" encoding="UTF-8"?>
@@ -179,7 +186,7 @@ func TestAssetIngestorFromNmapXML(t *testing.T) {
 // 第二批工具：fscan 的端口/Web/漏洞混合输出。
 func TestAssetIngestorFromFscan(t *testing.T) {
 	db := newIngestTestDB(t)
-	ingestor := newAssetIngestor(db, zap.NewNop())
+	ingestor := newAssetIngestor(db, zap.NewNop(), nil)
 	ctx := ingestTestContext()
 
 	output := "[*] 1.2.3.4:80 open\n" +
@@ -223,7 +230,7 @@ func TestAssetIngestorFromFscan(t *testing.T) {
 // 第二批工具：katana 抓到的 URL 只保留 host/port/protocol，且同一主机多 URL 合并。
 func TestAssetIngestorFromKatanaURLs(t *testing.T) {
 	db := newIngestTestDB(t)
-	ingestor := newAssetIngestor(db, zap.NewNop())
+	ingestor := newAssetIngestor(db, zap.NewNop(), nil)
 	ctx := ingestTestContext()
 
 	output := "http://shop.example.com/\n" +
@@ -260,6 +267,79 @@ func TestAssetIngestorFromKatanaURLs(t *testing.T) {
 	}
 	if !portsByHost["api.example.com"][80] {
 		t.Errorf("api.example.com 应补默认端口 80，实际: %v", portsByHost["api.example.com"])
+	}
+}
+
+// 自动截图：入库钩子发现 http/https 站点后应把截图任务排进队列，
+// 由 screenshot.Service 调用外部渲染服务并落库。
+func TestAssetIngestorQueuesScreenshot(t *testing.T) {
+	var calls int32
+	render := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"ok":true}`))
+			return
+		}
+		atomic.AddInt32(&calls, 1)
+		var req struct {
+			URL  string `json:"url"`
+			Path string `json:"path"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		if err := os.MkdirAll(filepath.Dir(req.Path), 0o755); err == nil {
+			_ = os.WriteFile(req.Path, []byte("\x89PNG\r\n\x1a\nfake"), 0o644)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"ok": true, "path": req.Path, "status_code": 200,
+			"title": "Shot", "width": 1280, "height": 800,
+		})
+	}))
+	defer render.Close()
+
+	db := newIngestTestDB(t)
+	svc := screenshot.New(screenshot.Options{
+		ServiceURL:     render.URL,
+		Dir:            t.TempDir(),
+		Timeout:        5 * time.Second,
+		Concurrency:    1,
+		ViewportWidth:  1280,
+		ViewportHeight: 800,
+	}, db, zap.NewNop())
+	if svc == nil {
+		t.Fatal("截图服务未创建")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	svc.Start(ctx)
+	defer svc.Stop()
+
+	ingestor := newAssetIngestor(db, zap.NewNop(), svc)
+	ingestor.Ingest(ingestTestContext(), "httpx", nil,
+		`{"url":"https://shot.example.com","host":"shot.example.com","port":"443","scheme":"https","title":"Shot"}`)
+
+	items := listIngestedAssets(t, db)
+	if len(items) != 1 {
+		t.Fatalf("资产数 = %d, want 1", len(items))
+	}
+
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		meta, err := db.GetAssetScreenshot(items[0].ID)
+		if err != nil {
+			t.Fatalf("读取截图状态失败: %v", err)
+		}
+		if meta != nil && meta.Status == database.AssetScreenshotStatusDone {
+			if meta.StatusCode != 200 {
+				t.Fatalf("截图状态码 = %d, want 200", meta.StatusCode)
+			}
+			if atomic.LoadInt32(&calls) != 1 {
+				t.Fatalf("渲染调用次数 = %d, want 1", calls)
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("等待截图超时，最后状态: %+v", meta)
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 

@@ -1805,7 +1805,25 @@
       "next": "Next",
       "sourceManual": "Manual import",
       "notConnectedTitle": "This asset type is not collected yet",
-      "notConnectedHint": "Collected data will appear here once the collector is connected"
+      "notConnectedHint": "Collected data will appear here once the collector is connected",
+      "colScreenshot": "Screenshot",
+      "shotNone": "Not captured",
+      "shotPending": "Queued",
+      "shotRunning": "Capturing",
+      "shotFailed": "Screenshot failed",
+      "shotRecapture": "Recapture",
+      "shotCapturing": "Capturing…",
+      "shotTimeout": "Screenshot timed out, try refreshing later",
+      "shotLoadFailed": "Failed to load screenshot",
+      "shotDisabled": "Disabled",
+      "shotErrorNotHttp": "Only http/https sites are supported",
+      "shotErrorNotFound": "Asset not found or access denied",
+      "shotErrorBusy": "Screenshot queue is full, please retry later",
+      "shotErrorDisabled": "Screenshot feature is disabled",
+      "shotTriggerFailed": "Failed to trigger screenshot",
+      "shotCapturedAt": "Captured at {{time}}",
+      "previewTitle": "Screenshot preview",
+      "onlyNoScreenshot": "Only without screenshot"
     }
   },
   "vulnerability": {

@@ -1817,7 +1817,25 @@
       "next": "Вперёд",
       "sourceManual": "Ручной импорт",
       "notConnectedTitle": "Сбор этого типа активов ещё не подключён",
-      "notConnectedHint": "Собранные данные появятся здесь после подключения"
+      "notConnectedHint": "Собранные данные появятся здесь после подключения",
+      "colScreenshot": "Скриншот",
+      "shotNone": "Нет снимка",
+      "shotPending": "В очереди",
+      "shotRunning": "Идёт съёмка",
+      "shotFailed": "Не удалось сделать снимок",
+      "shotRecapture": "Переснять",
+      "shotCapturing": "Съёмка…",
+      "shotTimeout": "Время ожидания снимка истекло, обновите позже",
+      "shotLoadFailed": "Не удалось загрузить снимок",
+      "shotDisabled": "Отключено",
+      "shotErrorNotHttp": "Поддерживаются только http/https-сайты",
+      "shotErrorNotFound": "Актив не найден или нет доступа",
+      "shotErrorBusy": "Очередь снимков заполнена, повторите позже",
+      "shotErrorDisabled": "Функция снимков отключена",
+      "shotTriggerFailed": "Не удалось запустить снимок",
+      "shotCapturedAt": "Снимок сделан: {{time}}",
+      "previewTitle": "Просмотр снимка",
+      "onlyNoScreenshot": "Только без снимка"
     }
   },
   "vulnerability": {

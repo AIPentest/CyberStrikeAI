@@ -7,6 +7,7 @@ import (
 
 	"cyberstrike-ai/internal/assetintel"
 	"cyberstrike-ai/internal/database"
+	"cyberstrike-ai/internal/screenshot"
 
 	"go.uber.org/zap"
 )
@@ -22,13 +23,14 @@ const maxAutoIngestHosts = 5000
 type assetIngestor struct {
 	db     *database.DB
 	logger *zap.Logger
+	shots  *screenshot.Service
 }
 
-func newAssetIngestor(db *database.DB, logger *zap.Logger) *assetIngestor {
+func newAssetIngestor(db *database.DB, logger *zap.Logger, shots *screenshot.Service) *assetIngestor {
 	if db == nil || logger == nil {
 		return nil
 	}
-	return &assetIngestor{db: db, logger: logger}
+	return &assetIngestor{db: db, logger: logger, shots: shots}
 }
 
 // Ingest 是 ToolResultHook 的实现。任何失败都只记日志，绝不向上抛错。
@@ -124,6 +126,26 @@ func (i *assetIngestor) Ingest(ctx context.Context, toolName string, args map[st
 		if err := i.db.UpsertAssetHostIPs(records); err != nil {
 			i.logger.Warn("资产自动采集：写入域名解析关系失败",
 				zap.String("tool", toolName), zap.Error(err))
+		}
+	}
+
+	// 新发现的 http/https 站点排队截图（同一资产按最小间隔去重，由截图服务判断）。
+	if i.shots != nil {
+		queued := 0
+		for _, asset := range assets {
+			if asset.ID == "" {
+				continue
+			}
+			url := screenshot.BuildURL(asset.Protocol, asset.Host, asset.Port)
+			if url == "" {
+				continue
+			}
+			if i.shots.Enqueue(asset.ID, url, false) {
+				queued++
+			}
+		}
+		if queued > 0 {
+			i.logger.Info("站点截图已排队", zap.String("tool", toolName), zap.Int("queued", queued))
 		}
 	}
 

@@ -41,6 +41,10 @@ type assetTableRow struct {
 	Sources     []string             `json:"sources"`
 	AssetCount  int                  `json:"asset_count"`
 	Ports       []assetTablePortItem `json:"ports,omitempty"`
+	// AssetID 仅站点行下发，供前端触发截图 / 加载缩略图。
+	AssetID string `json:"asset_id,omitempty"`
+	// Screenshot 仅站点行下发。
+	Screenshot  *assetScreenshotInfo `json:"screenshot,omitempty"`
 	FirstSeenAt time.Time            `json:"first_seen_at"`
 	LastSeenAt  time.Time            `json:"last_seen_at"`
 }
@@ -113,6 +117,26 @@ func (h *AssetHandler) Table(c *gin.Context) {
 	}
 
 	allRows := buildAssetTableRows(tableType, assets, hostIPs, fingerprints)
+	// 站点 tab 附带截图元信息（缩略图/排队中/失败原因）。
+	if tableType == "site" {
+		assetIDs := make([]string, 0, len(allRows))
+		for _, row := range allRows {
+			if row.AssetID != "" {
+				assetIDs = append(assetIDs, row.AssetID)
+			}
+		}
+		if metas, err := h.db.ListAssetScreenshots(assetIDs); err != nil {
+			h.logger.Warn("资产表格：查询截图元信息失败", zap.Error(err))
+		} else {
+			for i := range allRows {
+				if allRows[i].AssetID == "" {
+					continue
+				}
+				info := screenshotInfoFor(allRows[i].AssetID, metas[allRows[i].AssetID], h.shots != nil)
+				allRows[i].Screenshot = &info
+			}
+		}
+	}
 	facets := assetTableFacets(assets, hostIPs)
 
 	rows := filterAssetTableRows(allRows, keyword, sourceFilter, recordTypeFilter)
@@ -255,6 +279,7 @@ func buildSiteRows(assets []*database.Asset, hostIPs map[string][]database.Asset
 		host := strings.ToLower(strings.TrimSpace(asset.Host))
 		row := assetTableRow{
 			Key:         host + "\x00" + strconv.Itoa(asset.Port) + "\x00" + protocol,
+			AssetID:     asset.ID,
 			Host:        host,
 			Domain:      assetRootDomain(asset),
 			IP:          assetIPAddress(asset),

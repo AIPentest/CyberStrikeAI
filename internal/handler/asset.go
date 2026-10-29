@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"cyberstrike-ai/internal/database"
+	"cyberstrike-ai/internal/screenshot"
 	"cyberstrike-ai/internal/security"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -16,6 +17,8 @@ import (
 type AssetHandler struct {
 	db     *database.DB
 	logger *zap.Logger
+	// shots 站点截图调度器；未启用时为 nil。
+	shots *screenshot.Service
 }
 
 const (

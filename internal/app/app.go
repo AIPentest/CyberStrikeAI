@@ -31,6 +31,7 @@ import (
 	"cyberstrike-ai/internal/monitor"
 	"cyberstrike-ai/internal/multiagent"
 	"cyberstrike-ai/internal/robot"
+	"cyberstrike-ai/internal/screenshot"
 	"cyberstrike-ai/internal/security"
 	"cyberstrike-ai/internal/skillpackage"
 	"cyberstrike-ai/internal/storage"
@@ -75,6 +76,8 @@ type App struct {
 	c2Handler          *handler.C2Handler        // C2 REST（与 Manager 生命周期同步）
 	storageHandler     *handler.StorageHandler   // 运行空间占用统计与垃圾清理
 	auditSvc           *audit.Service
+	// shots 站点截图调度器（未启用或截图服务不可用时为 nil）
+	shots *screenshot.Service
 }
 
 // New 创建新应用
@@ -207,9 +210,39 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	agent := agent.NewAgent(&cfg.OpenAI, &cfg.Agent, mcpServer, externalMCPMgr, log.Logger, maxIterations)
 	agent.UpdateToolDescriptionMode(cfg.Security.ToolDescriptionMode)
 
+	// 站点截图：浏览器渲染由独立的非 root Node 服务完成，这里只做调度。
+	// 启动时探测一次，服务不可用就降级为「不自动截图」，避免给每个资产写失败记录。
+	shotOpts := cfg.EffectiveScreenshot()
+	shotTimeout := time.Duration(shotOpts.TimeoutSeconds) * time.Second
+	var shotService *screenshot.Service
+	if cfg.ScreenshotEnabled() {
+		if err := screenshot.EnsureDir(shotOpts.Dir); err != nil {
+			log.Logger.Warn("截图目录创建失败", zap.String("dir", shotOpts.Dir), zap.Error(err))
+		}
+		candidate := screenshot.New(screenshot.Options{
+			ServiceURL:     shotOpts.ServiceURL,
+			Dir:            shotOpts.Dir,
+			Timeout:        shotTimeout,
+			Concurrency:    shotOpts.Concurrency,
+			ViewportWidth:  shotOpts.ViewportWidth,
+			ViewportHeight: shotOpts.ViewportHeight,
+			MinInterval:    time.Duration(*shotOpts.MinIntervalHours) * time.Hour,
+		}, db, log.Logger)
+		probeCtx, probeCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		healthy := candidate != nil && candidate.Healthy(probeCtx)
+		probeCancel()
+		if healthy {
+			shotService = candidate
+		} else {
+			log.Logger.Warn("站点截图服务不可用，已停用自动截图",
+				zap.String("service_url", shotOpts.ServiceURL),
+				zap.String("hint", "请确认 cyberstrike-shot.service 已启动"))
+		}
+	}
+
 	// 资产自动采集：Agent 每次工具调用成功后，把 subfinder/httpx/naabu/nmap 的
 	// 原始输出清洗成资产写入资产库，使「对话里跑扫描 → 资产页看到结果」自动闭环。
-	if assetIngestor := newAssetIngestor(db, log.Logger); assetIngestor != nil {
+	if assetIngestor := newAssetIngestor(db, log.Logger, shotService); assetIngestor != nil {
 		agent.SetToolResultHook(assetIngestor.Ingest)
 	}
 
@@ -454,6 +487,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	vulnerabilityHandler := handler.NewVulnerabilityHandler(db, log.Logger)
 	vulnerabilityHandler.SetTaskStateProvider(agentHandler)
 	assetHandler := handler.NewAssetHandler(db, log.Logger)
+	assetHandler.SetScreenshotService(shotService)
 	projectHandler := handler.NewProjectHandler(db, log.Logger)
 	rbacHandler := handler.NewRBACHandler(db, log.Logger)
 	rbacHandler.SetAudit(auditSvc)
@@ -533,6 +567,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 		c2Handler:          c2Handler,
 		storageHandler:     storageHandler,
 		auditSvc:           auditSvc,
+		shots:              shotService,
 	}
 	// 飞书/钉钉长连接（无需公网），启用时在后台启动；后续前端应用配置时会通过 RestartRobotConnections 重启
 	app.startRobotConnections()
@@ -702,6 +737,10 @@ func (a *App) Run() error {
 
 // RunWithContext 启动应用，支持通过 context 取消来优雅关闭
 func (a *App) RunWithContext(ctx context.Context) error {
+	// 站点截图 worker（队列 + 并发由 screenshot.Service 控制）
+	if a.shots != nil {
+		a.shots.Start(ctx)
+	}
 	// 启动MCP服务器（如果启用）
 	var mcpServer *http.Server
 	if a.config.MCP.Enabled {
@@ -810,6 +849,9 @@ func (a *App) RunWithContext(ctx context.Context) error {
 func (a *App) Shutdown() {
 	if a.agentHandler != nil {
 		a.agentHandler.ShutdownTasks()
+	}
+	if a.shots != nil {
+		a.shots.Stop()
 	}
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	_ = einoobserve.ShutdownOtel(shutdownCtx)
@@ -1081,6 +1123,9 @@ func setupRoutes(
 		protected.GET("/assets/stats", assetHandler.Stats)
 		protected.GET("/assets/tree", assetHandler.Tree)
 		protected.GET("/assets/table", assetHandler.Table)
+		protected.GET("/assets/screenshot", assetHandler.GetScreenshot)
+		protected.GET("/assets/screenshot/status", assetHandler.ScreenshotStatus)
+		protected.POST("/assets/screenshot", assetHandler.CaptureScreenshot)
 		protected.POST("/assets/import", assetHandler.Import)
 		protected.POST("/assets/scan-links", assetHandler.RecordScans)
 		protected.PUT("/assets/bulk", assetHandler.BulkUpdate)

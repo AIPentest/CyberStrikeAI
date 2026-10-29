@@ -39,7 +39,7 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="/static/css/style.css?v=20261027-pagination-custom-select">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261029-screenshot-1">
     <link rel="stylesheet" href="/static/css/tool-guard.css?v=20260907-7">
     <link rel="stylesheet" href="/static/css/chat-plan-progress.css?v=20260813-4">
     <link rel="stylesheet" href="/static/css/c2.css">
@@ -2058,6 +2058,11 @@
                                     <option value="A">A</option>
                                     <option value="CNAME">CNAME</option>
                                 </select>
+                                <!-- 仅站点 tab 显示：前端过滤当前页无截图资产 -->
+                                <label id="asset-type-no-shot-wrap" class="asset-type-no-shot" hidden>
+                                    <input id="asset-type-no-shot-filter" type="checkbox">
+                                    <span data-i18n="assets.type.onlyNoScreenshot">仅看无截图</span>
+                                </label>
                                 <button id="asset-type-search-btn" class="btn-primary" type="button" data-i18n="common.search">搜索</button>
                                 <button id="asset-type-reset-btn" class="btn-link" type="button" data-i18n="assets.type.reset">重置</button>
                                 <button id="asset-type-refresh-btn" class="btn-secondary" type="button" data-i18n="common.refresh">刷新</button>
@@ -7071,6 +7076,21 @@
         </div>
     </div>
 
+    <!-- 站点截图大图预览（assets-table.js 控制显隐；ESC / 点击遮罩关闭） -->
+    <div id="asset-shot-lightbox" class="asset-shot-lightbox" hidden role="dialog" aria-modal="true" data-i18n="assets.type.previewTitle" data-i18n-attr="aria-label" aria-label="截图预览">
+        <div class="asset-shot-lightbox-panel">
+            <div class="asset-shot-lightbox-head">
+                <strong data-i18n="assets.type.previewTitle">截图预览</strong>
+                <span id="asset-shot-lightbox-meta" class="asset-shot-lightbox-meta"></span>
+                <button id="asset-shot-lightbox-close" class="asset-shot-lightbox-close" type="button" data-i18n="common.close" data-i18n-attr="aria-label" data-i18n-skip-text="true" aria-label="关闭">×</button>
+            </div>
+            <div class="asset-shot-lightbox-body">
+                <img id="asset-shot-lightbox-img" alt="" hidden>
+                <span id="asset-shot-lightbox-loading" class="asset-shot-lightbox-loading" data-i18n="common.loading">加载中...</span>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/vendor/i18next.min.js"></script>
     <script src="/static/js/i18n.js"></script>
     <script src="/static/js/theme.js"></script>
@@ -7116,7 +7136,7 @@
     <!-- 资产层级树视图：依赖 i18n.js / auth.js(apiFetch)，必须在 mobile-ui.js 之前 -->
     <script src="/static/js/assets-tree.js?v=20261029-1"></script>
     <!-- 资产类型 tab + 扁平表格：依赖 apiFetch / assets-tree.js，必须在 mobile-ui.js 之前 -->
-    <script src="/static/js/assets-table.js?v=20261029-2"></script>
+    <script src="/static/js/assets-table.js?v=20261029-3"></script>
     <!-- 移动端交互层：必须最后加载，它包装 window.switchPage 并注入移动端 DOM -->
     <script src="/static/js/mobile-ui.js?v=20261006-9"></script>
 </body>

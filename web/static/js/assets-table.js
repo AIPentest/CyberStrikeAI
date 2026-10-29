@@ -7,7 +7,10 @@
  *   - 「全部资产」复用 assets.js 既有列表（本文件只控制显隐，不改其逻辑）；
  *   - 「层级」复用 assets-tree.js 的七层树；
  *   - 「SSL证书 / 文件泄露 / URL信息」为占位 tab，不发起请求；
- *   - 每个数据 tab 有独立筛选状态（关键字 / 来源 / 解析类型）与分页状态，切回时可恢复。
+ *   - 每个数据 tab 有独立筛选状态（关键字 / 来源 / 解析类型）与分页状态，切回时可恢复；
+ *   - 「站点」tab 额外渲染截图列：缩略图走 apiFetch + blob URL（带 Authorization），
+ *     支持大图预览、重新截图（POST 后 2s/次、最多 15 次轮询；pending/running 也会自动观察），
+ *     切换 tab / 翻页时释放 blob。
  *
  * 对外只暴露：assetTableInit()、assetTableLoad(type, page)、assetTableSwitch(type)
  * 请求统一走全局 apiFetch()（自动附带 Authorization，401 弹登录框）。
@@ -26,6 +29,12 @@
     ];
     const ASSET_TABLE_DEFAULT_TAB = 'subdomain';
 
+    /** 截图状态轮询参数（契约建议）：2s/次、最多 15 次；手动触发与 pending/running 自动观察共用 */
+    const ASSET_TABLE_SHOT_POLL_INTERVAL = 2000;
+    const ASSET_TABLE_SHOT_POLL_MAX = 15;
+    /** 缩略图并发加载上限，避免一次 50 张图把浏览器连接池打满 */
+    const ASSET_TABLE_SHOT_CONCURRENCY = 4;
+
     function createTypeState() {
         return {
             loaded: false,
@@ -38,6 +47,8 @@
             q: '',
             source: '',
             recordType: '',
+            onlyNoShot: false,   // 站点 tab：仅看无截图（前端过滤当前页）
+            pendingShots: [],    // 本次渲染待异步加载的缩略图描述
             requestSeq: 0
         };
     }
@@ -50,6 +61,24 @@
             site: createTypeState(),
             ip: createTypeState(),
             service: createTypeState()
+        }
+    };
+
+    /**
+     * 截图相关的运行时状态：
+     *   blobUrls    —— 当前页缩略图 uid -> objectURL，重建表体 / 切换 tab 时统一 revoke；
+     *   renderSeq   —— 表体渲染序号，异步缩略图返回时若已变化则丢弃并释放 URL；
+     *   pollers     —— assetId -> 轮询定时器，切换 tab / 翻页 / 重新渲染时统一停止；
+     *   lightbox    —— 大图预览状态（上次焦点、lightbox 自己创建的 blob URL）。
+     */
+    const assetTableShotState = {
+        blobUrls: new Map(),
+        renderSeq: 0,
+        pollers: new Map(),
+        lightbox: {
+            open: false,
+            lastFocus: null,
+            ownBlobUrl: ''
         }
     };
 
@@ -198,6 +227,508 @@
         return assetTableEmptyCell();
     }
 
+    /* ------------------------------------------------------------------ *
+     * 站点截图：缩略图（apiFetch + blob URL）、大图预览、重新截图轮询
+     * ------------------------------------------------------------------ */
+
+    const ASSET_TABLE_SHOT_STATUSES = ['done', 'pending', 'running', 'failed', 'none', 'disabled'];
+
+    /**
+     * 截图状态 / 触发截图接口（新版契约：静态路由 + query 参数，
+     * 避免 /api/assets/:id/... 与 /api/assets/tree、/api/assets/table 冲突）。
+     * 注意：缩略图地址仍然直接使用后端下发的 screenshot.url，不在这里拼。
+     */
+    const ASSET_TABLE_SHOT_STATUS_API = '/api/assets/screenshot/status';
+
+    function assetTableShotAssetQuery(assetId) {
+        return '?id=' + encodeURIComponent(assetId);
+    }
+
+    /** 把后端 screenshot 对象归一化，缺失 / 未知状态一律视为 none */
+    function assetTableNormalizeShotMeta(raw) {
+        const meta = raw && typeof raw === 'object' ? raw : null;
+        const status = meta ? String(meta.status || '').toLowerCase() : '';
+        return {
+            status: ASSET_TABLE_SHOT_STATUSES.indexOf(status) === -1 ? 'none' : status,
+            url: meta ? assetTableText(meta.url) : '',
+            capturedAt: meta ? assetTableText(meta.captured_at) : '',
+            error: meta ? assetTableText(meta.error) : '',
+            width: meta ? assetTableNumber(meta.width) : 0,
+            height: meta ? assetTableNumber(meta.height) : 0
+        };
+    }
+
+    function assetTableShotMeta(row) {
+        return assetTableNormalizeShotMeta(row && row.screenshot);
+    }
+
+    /**
+     * 取资产 ID（重新截图 POST / 状态轮询需要）。
+     * 优先用行内 asset_id / id；后端若只在 screenshot.url 里带 ID，则从 URL 解析兜底
+     * （仅用于拼接接口路径，图片地址仍然直接使用后端下发的 screenshot.url）。
+     */
+    function assetTableResolveAssetId(row) {
+        const direct = assetTableText(row && row.asset_id) || assetTableText(row && row.id);
+        if (direct) return direct;
+        const meta = row && row.screenshot && typeof row.screenshot === 'object' ? row.screenshot : null;
+        const url = meta ? assetTableText(meta.url) : '';
+        const match = url.match(/\/api\/assets\/([^/?#]+)\/screenshot/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    function assetTableShotUid(type, page, rowIndex) {
+        return String(type) + '-p' + assetTableNumber(page) + '-r' + assetTableNumber(rowIndex);
+    }
+
+    /** 重新截图后刷新缩略图需要带时间戳破缓存 */
+    function assetTableShotWithCacheBuster(url) {
+        const text = assetTableText(url);
+        if (!text) return text;
+        return text + (text.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
+    }
+
+    function assetTableShotStatusText(status) {
+        if (status === 'pending') return assetTableT('assets.type.shotPending', '排队中');
+        if (status === 'running') return assetTableT('assets.type.shotRunning', '截图中');
+        if (status === 'failed') return assetTableT('assets.type.shotFailed', '截图失败');
+        if (status === 'disabled') return assetTableT('assets.type.shotDisabled', '未启用');
+        return assetTableT('assets.type.shotNone', '未截图');
+    }
+
+    function assetTableShotReleaseBlob(uid) {
+        const objectUrl = assetTableShotState.blobUrls.get(uid);
+        if (!objectUrl) return;
+        assetTableShotState.blobUrls.delete(uid);
+        try {
+            URL.revokeObjectURL(objectUrl);
+        } catch (error) {
+            /* 忽略释放异常 */
+        }
+    }
+
+    function assetTableShotReleaseAllBlobs() {
+        assetTableShotState.blobUrls.forEach(function (objectUrl) {
+            try {
+                URL.revokeObjectURL(objectUrl);
+            } catch (error) {
+                /* 忽略释放异常 */
+            }
+        });
+        assetTableShotState.blobUrls.clear();
+    }
+
+    /**
+     * 生成站点截图单元格（“截图”列专用）。
+     * 返回 { html, shot }：shot 非空表示需要异步拉取缩略图。
+     */
+    function assetTableBuildShotCell(type, row, rowIndex, page) {
+        const meta = assetTableShotMeta(row);
+        const uid = assetTableShotUid(type, page, rowIndex);
+        const assetId = assetTableResolveAssetId(row);
+        const host = assetTableText(row.host) || assetTableText(row.domain) || assetTableText(row.ip);
+        let shot = null;
+        let html = '<span class="asset-type-shot asset-type-shot--' + meta.status + '" id="asset-shot-wrap-' + uid + '">';
+
+        if (meta.status === 'done' && meta.url) {
+            const previewTitle = assetTableT('assets.type.previewTitle', '截图预览');
+            html += '<button class="asset-type-shot-thumb" id="asset-shot-thumb-' + uid + '" type="button"'
+                + ' data-asset-shot-action="preview"'
+                + ' data-asset-shot-uid="' + assetTableEscapeAttr(uid) + '"'
+                + ' data-asset-shot-url="' + assetTableEscapeAttr(meta.url) + '"'
+                + ' data-asset-shot-label="' + assetTableEscapeAttr(host) + '"'
+                + ' data-asset-shot-time="' + assetTableEscapeAttr(meta.capturedAt) + '"'
+                + ' title="' + assetTableEscapeAttr(previewTitle) + '">'
+                + '<img class="asset-type-shot-img" id="asset-shot-img-' + uid + '"'
+                + ' alt="' + assetTableEscapeAttr(host) + '" loading="lazy" hidden>'
+                + '</button>'
+                + '<span class="asset-type-shot-fallback" id="asset-shot-fb-' + uid + '" hidden>'
+                + assetTableEscape(assetTableT('assets.type.shotLoadFailed', '截图加载失败')) + '</span>';
+            shot = {
+                uid: uid,
+                url: meta.url,
+                imgId: 'asset-shot-img-' + uid,
+                thumbId: 'asset-shot-thumb-' + uid,
+                fallbackId: 'asset-shot-fb-' + uid
+            };
+        } else {
+            const errorTitle = meta.status === 'failed' ? (meta.error || assetTableShotStatusText('failed')) : '';
+            html += '<span class="asset-type-shot-placeholder asset-type-shot-placeholder--' + meta.status + '"'
+                + (errorTitle ? ' title="' + assetTableEscapeAttr(errorTitle) + '"' : '') + '>'
+                + assetTableEscape(assetTableShotStatusText(meta.status)) + '</span>';
+        }
+
+        // 排队中 / 截图中 / 功能未启用 不再提供重复触发入口
+        if (assetId && meta.status !== 'pending' && meta.status !== 'running' && meta.status !== 'disabled') {
+            const recapture = assetTableT('assets.type.shotRecapture', '重新截图');
+            html += '<button class="asset-type-shot-action" id="asset-shot-btn-' + uid + '" type="button"'
+                + ' data-asset-shot-action="capture"'
+                + ' data-asset-shot-uid="' + assetTableEscapeAttr(uid) + '"'
+                + ' data-asset-asset-id="' + assetTableEscapeAttr(assetId) + '"'
+                + ' data-asset-row-index="' + rowIndex + '"'
+                + ' title="' + assetTableEscapeAttr(recapture) + '">'
+                + assetTableEscape(recapture) + '</button>';
+        }
+        html += '</span>';
+        return { html: html, shot: shot };
+    }
+
+    /** 缩略图加载失败：隐藏图片与缩略图按钮，显示灰色占位，不影响其它列 */
+    function assetTableShotShowFallback(shot) {
+        assetTableShotReleaseBlob(shot.uid);
+        const thumb = assetTableEl(shot.thumbId);
+        if (thumb) thumb.hidden = true;
+        const image = assetTableEl(shot.imgId);
+        if (image) image.hidden = true;
+        const fallback = assetTableEl(shot.fallbackId);
+        if (fallback) fallback.hidden = false;
+    }
+
+    /** 拉取单张缩略图并转成 blob URL（<img src> 无法带 Authorization） */
+    async function assetTableShotLoadThumbnail(shot) {
+        const seq = assetTableShotState.renderSeq;
+        try {
+            const response = typeof apiFetch === 'function' ? await apiFetch(shot.url) : await fetch(shot.url);
+            if (seq !== assetTableShotState.renderSeq) return;
+            if (!response || !response.ok) throw new Error('HTTP ' + (response ? response.status : 'error'));
+            const blob = await response.blob();
+            if (seq !== assetTableShotState.renderSeq) return;
+            const objectUrl = URL.createObjectURL(blob);
+            if (seq !== assetTableShotState.renderSeq) {
+                URL.revokeObjectURL(objectUrl);
+                return;
+            }
+            assetTableShotReleaseBlob(shot.uid);
+            assetTableShotState.blobUrls.set(shot.uid, objectUrl);
+            const image = assetTableEl(shot.imgId);
+            if (!image) {
+                assetTableShotReleaseBlob(shot.uid);
+                return;
+            }
+            image.addEventListener('error', function () {
+                assetTableShotShowFallback(shot);
+            });
+            image.src = objectUrl;
+            image.hidden = false;
+            image.classList.add('is-loaded');
+        } catch (error) {
+            if (seq !== assetTableShotState.renderSeq) return;
+            console.warn('加载站点截图失败:', error);
+            assetTableShotShowFallback(shot);
+        }
+    }
+
+    /** 并发受限地批量加载当前页缩略图 */
+    function assetTableShotHydrate(state) {
+        const shots = Array.isArray(state.pendingShots) ? state.pendingShots.slice() : [];
+        state.pendingShots = [];
+        if (!shots.length) return;
+        let nextIndex = 0;
+        let activeCount = 0;
+        const pump = function () {
+            while (activeCount < ASSET_TABLE_SHOT_CONCURRENCY && nextIndex < shots.length) {
+                const shot = shots[nextIndex++];
+                activeCount += 1;
+                assetTableShotLoadThumbnail(shot)
+                    .catch(function () { /* 单张失败不影响其它截图 */ })
+                    .then(function () {
+                        activeCount -= 1;
+                        pump();
+                    });
+            }
+        };
+        pump();
+    }
+
+    /* -------------------------- 大图预览 lightbox -------------------------- */
+
+    function assetTableShotReleaseLightboxBlob() {
+        if (!assetTableShotState.lightbox.ownBlobUrl) return;
+        try {
+            URL.revokeObjectURL(assetTableShotState.lightbox.ownBlobUrl);
+        } catch (error) {
+            /* 忽略释放异常 */
+        }
+        assetTableShotState.lightbox.ownBlobUrl = '';
+    }
+
+    async function assetTableShotLoadLightboxImage(url) {
+        if (!url) return;
+        const image = assetTableEl('asset-shot-lightbox-img');
+        const loading = assetTableEl('asset-shot-lightbox-loading');
+        try {
+            const response = typeof apiFetch === 'function' ? await apiFetch(url) : await fetch(url);
+            if (!assetTableShotState.lightbox.open) return;
+            if (!response || !response.ok) throw new Error('HTTP ' + (response ? response.status : 'error'));
+            const blob = await response.blob();
+            if (!assetTableShotState.lightbox.open) return;
+            assetTableShotReleaseLightboxBlob();
+            const objectUrl = URL.createObjectURL(blob);
+            assetTableShotState.lightbox.ownBlobUrl = objectUrl;
+            if (image) {
+                image.src = objectUrl;
+                image.hidden = false;
+            }
+            if (loading) loading.hidden = true;
+        } catch (error) {
+            console.warn('加载截图大图失败:', error);
+            if (loading) {
+                loading.hidden = false;
+                loading.textContent = assetTableT('assets.type.shotLoadFailed', '截图加载失败');
+            }
+        }
+    }
+
+    function assetTableOpenLightbox(trigger) {
+        const lightbox = assetTableEl('asset-shot-lightbox');
+        const image = assetTableEl('asset-shot-lightbox-img');
+        if (!lightbox || !image) return;
+        const uid = assetTableText(trigger.getAttribute('data-asset-shot-uid'));
+        const url = assetTableText(trigger.getAttribute('data-asset-shot-url'));
+        const label = assetTableText(trigger.getAttribute('data-asset-shot-label'));
+        const capturedAt = assetTableText(trigger.getAttribute('data-asset-shot-time'));
+        const metaEl = assetTableEl('asset-shot-lightbox-meta');
+        const loading = assetTableEl('asset-shot-lightbox-loading');
+
+        assetTableShotState.lightbox.open = true;
+        assetTableShotState.lightbox.lastFocus = document.activeElement && typeof document.activeElement.focus === 'function'
+            ? document.activeElement
+            : null;
+        image.alt = label;
+        if (metaEl) {
+            metaEl.textContent = capturedAt
+                ? label + ' · ' + assetTableT('assets.type.shotCapturedAt', '截图于 {{time}}', { time: capturedAt })
+                : label;
+        }
+
+        const cachedUrl = assetTableShotState.blobUrls.get(uid);
+        if (cachedUrl) {
+            image.src = cachedUrl;
+            image.hidden = false;
+            if (loading) loading.hidden = true;
+        } else {
+            image.hidden = true;
+            if (loading) {
+                loading.hidden = false;
+                loading.textContent = assetTableT('common.loading', '加载中...');
+            }
+            void assetTableShotLoadLightboxImage(url);
+        }
+
+        lightbox.hidden = false;
+        const closeButton = assetTableEl('asset-shot-lightbox-close');
+        if (closeButton) closeButton.focus();
+        if (document.body && document.body.classList) document.body.classList.add('asset-shot-lightbox-open');
+    }
+
+    function assetTableCloseLightbox() {
+        const lightbox = assetTableEl('asset-shot-lightbox');
+        if (!lightbox || lightbox.hidden) return;
+        lightbox.hidden = true;
+        assetTableShotState.lightbox.open = false;
+        const image = assetTableEl('asset-shot-lightbox-img');
+        if (image) {
+            image.hidden = true;
+            image.removeAttribute('src');
+        }
+        const loading = assetTableEl('asset-shot-lightbox-loading');
+        if (loading) {
+            loading.hidden = false;
+            loading.textContent = assetTableT('common.loading', '加载中...');
+        }
+        assetTableShotReleaseLightboxBlob();
+        if (document.body && document.body.classList) document.body.classList.remove('asset-shot-lightbox-open');
+        const lastFocus = assetTableShotState.lightbox.lastFocus;
+        assetTableShotState.lightbox.lastFocus = null;
+        if (lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
+    }
+
+    /* -------------------------- 重新截图 + 状态轮询 -------------------------- */
+
+    function assetTableShotStopPoller(assetId, restoreTitle) {
+        const poller = assetTableShotState.pollers.get(assetId);
+        if (!poller) return;
+        if (poller.timer) clearTimeout(poller.timer);
+        assetTableShotState.pollers.delete(assetId);
+        if (!restoreTitle) return;
+        const button = assetTableEl('asset-shot-btn-' + poller.uid);
+        if (!button) return;
+        button.disabled = false;
+        button.classList.remove('is-busy');
+        button.textContent = assetTableT('assets.type.shotRecapture', '重新截图');
+        button.title = restoreTitle;
+    }
+
+    function assetTableShotStopAllPollers() {
+        Array.from(assetTableShotState.pollers.keys()).forEach(function (assetId) {
+            assetTableShotStopPoller(assetId, '');
+        });
+    }
+
+    /** 触发失败时按 HTTP 状态码给出可读原因（契约：400/404/429/503） */
+    function assetTableShotTriggerErrorMessage(status) {
+        if (status === 400) return assetTableT('assets.type.shotErrorNotHttp', '仅支持 http/https 站点');
+        if (status === 404) return assetTableT('assets.type.shotErrorNotFound', '资产不存在或无权访问');
+        if (status === 429) return assetTableT('assets.type.shotErrorBusy', '截图队列已满，请稍后重试');
+        if (status === 503) return assetTableT('assets.type.shotErrorDisabled', '截图功能未启用');
+        return assetTableT('assets.type.shotTriggerFailed', '触发截图失败');
+    }
+
+    function assetTableShotNotify(message) {
+        if (!message) return;
+        if (typeof window.showInlineToast === 'function') {
+            try {
+                window.showInlineToast(message);
+            } catch (error) {
+                /* toast 失败不影响主流程 */
+            }
+        }
+    }
+
+    function assetTableShotScheduleNext(assetId) {
+        const poller = assetTableShotState.pollers.get(assetId);
+        if (!poller) return;
+        if (poller.timer) clearTimeout(poller.timer);
+        poller.timer = setTimeout(function () {
+            poller.timer = 0;
+            void assetTableShotPollOnce(assetId);
+        }, ASSET_TABLE_SHOT_POLL_INTERVAL);
+    }
+
+    function assetTableShotUpdateCell(state, row, rowIndex, uid) {
+        const cell = assetTableEl('asset-shot-cell-' + uid);
+        if (!cell) return;
+        assetTableShotReleaseBlob(uid);
+        const built = assetTableBuildShotCell('site', row, rowIndex, state.page);
+        cell.innerHTML = built.html;
+        if (built.shot) {
+            // 重新截图成功：强制破缓存拉新图
+            built.shot.url = assetTableShotWithCacheBuster(built.shot.url);
+            void assetTableShotLoadThumbnail(built.shot);
+        }
+    }
+
+    function assetTableShotFinishPoller(assetId, meta) {
+        const poller = assetTableShotState.pollers.get(assetId);
+        if (!poller) return;
+        if (poller.timer) clearTimeout(poller.timer);
+        assetTableShotState.pollers.delete(assetId);
+        const state = assetTableState.types.site;
+        const row = state.rows[poller.rowIndex];
+        if (!row) return;
+        // /status 不一定回 url / 时间，缺失时沿用表格数据里的旧值
+        const previous = assetTableShotMeta(row);
+        row.screenshot = {
+            status: meta.status,
+            url: meta.url || previous.url,
+            captured_at: meta.capturedAt || previous.capturedAt,
+            error: meta.error,
+            width: meta.width || previous.width,
+            height: meta.height || previous.height
+        };
+        assetTableShotUpdateCell(state, row, poller.rowIndex, poller.uid);
+    }
+
+    async function assetTableShotPollOnce(assetId) {
+        const poller = assetTableShotState.pollers.get(assetId);
+        if (!poller) return;
+        poller.attempts += 1;
+        const isFinalAttempt = poller.attempts >= ASSET_TABLE_SHOT_POLL_MAX;
+        const timeoutText = assetTableT('assets.type.shotTimeout', '截图超时，请稍后刷新');
+        try {
+            const url = ASSET_TABLE_SHOT_STATUS_API + assetTableShotAssetQuery(assetId);
+            const response = typeof apiFetch === 'function' ? await apiFetch(url) : await fetch(url);
+            if (!assetTableShotState.pollers.has(assetId)) return; // 期间已被取消
+            if (!response || !response.ok) throw new Error('HTTP ' + (response ? response.status : 'error'));
+            const payload = await response.json();
+            if (!assetTableShotState.pollers.has(assetId)) return;
+            const meta = assetTableNormalizeShotMeta(
+                payload && payload.screenshot ? payload.screenshot : payload
+            );
+            if (meta.status === 'done' || meta.status === 'failed' || meta.status === 'disabled') {
+                assetTableShotFinishPoller(assetId, meta);
+            } else if (isFinalAttempt) {
+                console.warn('站点截图轮询超时:', assetId);
+                assetTableShotStopPoller(assetId, timeoutText);
+            } else {
+                assetTableShotScheduleNext(assetId);
+            }
+        } catch (error) {
+            if (!assetTableShotState.pollers.has(assetId)) return;
+            console.warn('轮询站点截图状态失败:', error);
+            assetTableShotStopPoller(assetId, timeoutText);
+        }
+    }
+
+    /**
+     * 对当前页 pending / running 的站点行自动轮询状态（契约建议 2s/次、最多 15 次）。
+     * 与手动「重新截图」共用轮询器，切换 tab / 翻页 / 重新渲染时统一停止。
+     */
+    function assetTableShotStartStatusWatchers(state) {
+        (state.rows || []).forEach(function (row, index) {
+            const safeRow = row && typeof row === 'object' ? row : {};
+            const meta = assetTableShotMeta(safeRow);
+            if (meta.status !== 'pending' && meta.status !== 'running') return;
+            const assetId = assetTableResolveAssetId(safeRow);
+            if (!assetId || assetTableShotState.pollers.has(assetId)) return;
+            assetTableShotState.pollers.set(assetId, {
+                assetId: assetId,
+                uid: assetTableShotUid('site', state.page, index),
+                rowIndex: index,
+                attempts: 0,
+                timer: 0,
+                auto: true
+            });
+            assetTableShotScheduleNext(assetId);
+        });
+    }
+
+    async function assetTableShotPostScreenshot(assetId) {
+        const timeoutText = assetTableT('assets.type.shotTimeout', '截图超时，请稍后刷新');
+        try {
+            const url = '/api/assets/screenshot' + assetTableShotAssetQuery(assetId);
+            const response = typeof apiFetch === 'function'
+                ? await apiFetch(url, { method: 'POST' })
+                : await fetch(url, { method: 'POST' });
+            if (!assetTableShotState.pollers.has(assetId)) return;
+            if (!response || !response.ok) {
+                const httpError = new Error('HTTP ' + (response ? response.status : 'error'));
+                httpError.status = response ? response.status : 0;
+                throw httpError;
+            }
+            assetTableShotScheduleNext(assetId);
+        } catch (error) {
+            console.warn('触发站点截图失败:', error);
+            const message = assetTableShotTriggerErrorMessage(error && error.status);
+            assetTableShotStopPoller(assetId, message || timeoutText);
+            assetTableShotNotify(message);
+        }
+    }
+
+    /** 点击「重新截图」：POST 后进入轮询，按钮先进入忙碌态 */
+    function assetTableShotRequestCapture(button) {
+        const buttonUid = assetTableText(button.getAttribute('data-asset-shot-uid'));
+        const assetId = assetTableText(button.getAttribute('data-asset-asset-id'));
+        const rowIndex = Number(button.getAttribute('data-asset-row-index'));
+        const type = assetTableState.current;
+        if (type !== 'site' || !assetId || !Number.isFinite(rowIndex)) return;
+        if (assetTableShotState.pollers.has(assetId)) return;
+        const row = assetTableState.types.site.rows[rowIndex];
+        if (!row) return;
+
+        const uid = buttonUid || assetTableShotUid('site', assetTableState.types.site.page, rowIndex);
+        button.disabled = true;
+        button.classList.add('is-busy');
+        button.textContent = assetTableT('assets.type.shotCapturing', '截图中…');
+        assetTableShotState.pollers.set(assetId, {
+            assetId: assetId,
+            uid: uid,
+            rowIndex: rowIndex,
+            attempts: 0,
+            timer: 0
+        });
+        void assetTableShotPostScreenshot(assetId);
+    }
+
     function assetTableColumn(key, labelKey, label, render, className) {
         return { key: key, labelKey: labelKey, label: label, render: render, className: className || '' };
     }
@@ -228,6 +759,8 @@
         if (type === 'site') {
             return [
                 indexColumn,
+                // 截图列由 assetTableBodyHtml 特殊渲染（需要行下标 / 分页信息）
+                assetTableColumn('screenshot', 'assets.type.colScreenshot', '截图', null, 'asset-type-col-shot'),
                 assetTableColumn('domain', 'assets.type.colDomain', '域名', assetTableDomainCell),
                 assetTableColumn('protocol', 'assets.type.colProtocol', '协议', function (row) {
                     return assetTableCellText(row.protocol);
@@ -309,12 +842,34 @@
 
         const pageSize = state.pageSize > 0 ? state.pageSize : ASSET_TABLE_PAGE_SIZE;
         const offset = (Math.max(1, state.page) - 1) * pageSize;
-        const parts = [];
+        // 站点 tab 的「仅看无截图」为前端过滤：保留原始行下标，序号不重排
+        const onlyNoShot = type === 'site' && state.onlyNoShot;
+        const renderedRows = [];
         state.rows.forEach(function (row, index) {
             const safeRow = row && typeof row === 'object' ? row : {};
+            if (onlyNoShot && assetTableShotMeta(safeRow).status === 'done') return;
+            renderedRows.push({ row: safeRow, index: index });
+        });
+        if (!renderedRows.length) {
+            return '<tr><td colspan="' + colspan + '" class="asset-type-state-cell">'
+                + '<div class="asset-type-state">'
+                + assetTableEscape(assetTableT('common.noData', '暂无数据'))
+                + '</div></td></tr>';
+        }
+
+        const parts = [];
+        state.pendingShots = [];
+        renderedRows.forEach(function (entry) {
             const cells = columns.map(function (column) {
+                if (column.key === 'screenshot') {
+                    // 截图列需要行下标与页码来生成稳定的 uid，单独渲染
+                    const uid = assetTableShotUid(type, state.page, entry.index);
+                    const built = assetTableBuildShotCell(type, entry.row, entry.index, state.page);
+                    if (built.shot) state.pendingShots.push(built.shot);
+                    return '<td class="asset-type-col-shot" id="asset-shot-cell-' + uid + '">' + built.html + '</td>';
+                }
                 const className = column.className ? ' class="' + column.className + '"' : '';
-                const content = column.render ? column.render(safeRow) : String(offset + index + 1);
+                const content = column.render ? column.render(entry.row) : String(offset + entry.index + 1);
                 return '<td' + className + '>' + content + '</td>';
             }).join('');
             parts.push('<tr>' + cells + '</tr>');
@@ -350,11 +905,25 @@
         if (type !== assetTableState.current) return;
         const state = assetTableState.types[type];
 
+        // 表体重建：先停轮询、释放上一批截图 blob URL，再递增渲染序号丢弃过期异步结果
+        assetTableShotStopAllPollers();
+        assetTableShotReleaseAllBlobs();
+        assetTableShotState.renderSeq += 1;
+        state.pendingShots = [];
+        if (assetTableShotState.lightbox.open) assetTableCloseLightbox();
+
         const head = assetTableEl('asset-type-table-head');
         if (head) head.innerHTML = assetTableHeaderHtml(type);
 
         const body = assetTableEl('asset-type-table-body');
         if (body) body.innerHTML = assetTableBodyHtml(type, state);
+
+        // 表体插入后异步拉取站点截图（有 Authorization，必须转 blob URL）
+        if (type === 'site') {
+            assetTableShotHydrate(state);
+            // 对 pending / running 行自动轮询状态
+            assetTableShotStartStatusWatchers(state);
+        }
 
         const pagination = assetTableEl('asset-type-pagination');
         if (pagination) pagination.innerHTML = assetTablePaginationHtml(state);
@@ -371,9 +940,11 @@
         const searchInput = assetTableEl('asset-type-search');
         const sourceInput = assetTableEl('asset-type-source');
         const recordSelect = assetTableEl('asset-type-record-filter');
+        const noShotInput = assetTableEl('asset-type-no-shot-filter');
         if (searchInput) state.q = String(searchInput.value || '').trim();
         if (sourceInput) state.source = String(sourceInput.value || '').trim();
         if (type === 'subdomain' && recordSelect) state.recordType = String(recordSelect.value || '');
+        if (type === 'site' && noShotInput) state.onlyNoShot = !!noShotInput.checked;
     }
 
     /** 把类型状态写回输入框（切换 tab 时恢复该 tab 的筛选条件） */
@@ -382,12 +953,16 @@
         const searchInput = assetTableEl('asset-type-search');
         const sourceInput = assetTableEl('asset-type-source');
         const recordSelect = assetTableEl('asset-type-record-filter');
+        const noShotWrap = assetTableEl('asset-type-no-shot-wrap');
+        const noShotInput = assetTableEl('asset-type-no-shot-filter');
         if (searchInput) searchInput.value = state.q || '';
         if (sourceInput) sourceInput.value = state.source || '';
         if (recordSelect) {
             recordSelect.hidden = type !== 'subdomain';
             recordSelect.value = type === 'subdomain' ? (state.recordType || '') : '';
         }
+        if (noShotWrap) noShotWrap.hidden = type !== 'site';
+        if (noShotInput) noShotInput.checked = type === 'site' ? !!state.onlyNoShot : false;
     }
 
     /** 根据当前 tab 控制列表 / 表格 / 占位 / 层级树的显隐 */
@@ -520,6 +1095,7 @@
         state.q = '';
         state.source = '';
         state.recordType = '';
+        state.onlyNoShot = false;
         state.page = 1;
         assetTableSyncFilters(type);
         void assetTableLoad(type, 1);
@@ -542,6 +1118,10 @@
             assetTableInit();
         }
         if (ASSET_TABLE_TABS.indexOf(type) === -1) return;
+        // 切换 tab 时停止轮询、释放截图 blob URL，避免离开页面后仍占内存
+        assetTableShotStopAllPollers();
+        assetTableShotReleaseAllBlobs();
+        if (assetTableShotState.lightbox.open) assetTableCloseLightbox();
         assetTableState.current = type;
         assetTableRenderTabs();
         assetTableApplyLayout(type);
@@ -597,11 +1177,35 @@
         if (resetButton) resetButton.addEventListener('click', assetTableResetFilters);
         if (refreshButton) refreshButton.addEventListener('click', assetTableRefresh);
 
-        // 失败重试（表体内部按钮）
+        // 站点 tab「仅看无截图」：前端过滤当前页，不额外发请求
+        const noShotInput = assetTableEl('asset-type-no-shot-filter');
+        if (noShotInput) {
+            noShotInput.addEventListener('change', function () {
+                if (assetTableState.current !== 'site') return;
+                assetTableReadFilters('site');
+                assetTableRender('site');
+            });
+        }
+
+        // 表体交互：失败重试 / 截图预览 / 重新截图
         if (tableBody) {
             tableBody.addEventListener('click', function (event) {
                 const target = event.target;
                 if (!target || typeof target.closest !== 'function') return;
+                const shotAction = target.closest('[data-asset-shot-action]');
+                if (shotAction) {
+                    const action = shotAction.getAttribute('data-asset-shot-action');
+                    if (action === 'preview') {
+                        event.preventDefault();
+                        assetTableOpenLightbox(shotAction);
+                        return;
+                    }
+                    if (action === 'capture') {
+                        event.preventDefault();
+                        assetTableShotRequestCapture(shotAction);
+                        return;
+                    }
+                }
                 const retryButton = target.closest('[data-asset-table-action="retry"]');
                 if (!retryButton) return;
                 event.preventDefault();
@@ -628,8 +1232,37 @@
             }
         });
 
-        // 路由切回资产页时按需加载（router.js 不改动，用 hashchange 观察）
-        window.addEventListener('hashchange', assetTableHandlePageReady);
+        // 大图预览：关闭按钮 / 点击遮罩 / ESC
+        const lightbox = assetTableEl('asset-shot-lightbox');
+        const lightboxClose = assetTableEl('asset-shot-lightbox-close');
+        if (lightboxClose) {
+            lightboxClose.addEventListener('click', function (event) {
+                event.preventDefault();
+                assetTableCloseLightbox();
+            });
+        }
+        if (lightbox) {
+            lightbox.addEventListener('click', function (event) {
+                if (event.target === lightbox) assetTableCloseLightbox();
+            });
+        }
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && assetTableShotState.lightbox.open) {
+                event.preventDefault();
+                assetTableCloseLightbox();
+            }
+        });
+
+        // 路由切回资产页时按需加载（router.js 不改动，用 hashchange 观察）；
+        // 离开资产页时停止截图轮询并释放 blob URL
+        window.addEventListener('hashchange', function () {
+            if (!assetTableIsPageActive()) {
+                assetTableShotStopAllPollers();
+                assetTableShotReleaseAllBlobs();
+                return;
+            }
+            assetTableHandlePageReady();
+        });
     }
 
     /** 初始化：绑定事件、渲染默认 tab（幂等） */
