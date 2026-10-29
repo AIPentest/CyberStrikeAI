@@ -1746,7 +1746,36 @@
     "mergeRequiresMultiple": "Выберите не менее двух дублирующихся активов",
     "batchDelete": "Массовое удаление…",
     "responsibilityBusiness": "Владение и бизнес-контекст",
-    "responsibilityBusinessHint": "Владение и бизнес-приоритет определяют операции и ранжирование рисков"
+    "responsibilityBusinessHint": "Владение и бизнес-приоритет определяют операции и ранжирование рисков",
+    "view": {
+      "list": "Список",
+      "tree": "Иерархия",
+      "switchLabel": "Переключить вид активов"
+    },
+    "tree": {
+      "rootLabel": "Иерархия активов",
+      "searchPlaceholder": "Поиск проектов, доменов, IP, портов, сервисов или отпечатков",
+      "clearSearch": "Очистить поиск",
+      "expandAll": "Развернуть все",
+      "collapseAll": "Свернуть все",
+      "empty": "Активы отсутствуют",
+      "noSearchResult": "Нет совпадающих узлов",
+      "loadFailed": "Не удалось загрузить иерархию",
+      "retry": "Повторить",
+      "total": "Всего активов: {{count}}",
+      "matchCount": "Совпадающих узлов: {{count}}",
+      "viewAssets": "Показать активы",
+      "assetCount": "Активов: {{count}}",
+      "toggleNode": "Развернуть или свернуть",
+      "levelCompany": "Проект",
+      "levelDomain": "Домен",
+      "levelSubdomain": "Поддомен",
+      "levelIp": "IP",
+      "levelPort": "Порт",
+      "levelService": "Сервис",
+      "levelFingerprint": "Отпечаток",
+      "unboundCompany": "Проект не привязан"
+    }
   },
   "vulnerability": {
     "title": "Управление уязвимостями",

@@ -1734,7 +1734,36 @@
     "mergeRequiresMultiple": "Select at least two duplicate assets",
     "batchDelete": "Bulk delete…",
     "responsibilityBusiness": "Ownership and business context",
-    "responsibilityBusinessHint": "Use ownership and business priority to drive operations and risk ranking"
+    "responsibilityBusinessHint": "Use ownership and business priority to drive operations and risk ranking",
+    "view": {
+      "list": "List",
+      "tree": "Hierarchy",
+      "switchLabel": "Switch asset view"
+    },
+    "tree": {
+      "rootLabel": "Asset hierarchy",
+      "searchPlaceholder": "Search projects, domains, IPs, ports, services or fingerprints",
+      "clearSearch": "Clear search",
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all",
+      "empty": "No assets yet",
+      "noSearchResult": "No matching nodes",
+      "loadFailed": "Failed to load the hierarchy",
+      "retry": "Retry",
+      "total": "{{count}} assets in total",
+      "matchCount": "{{count}} matching nodes",
+      "viewAssets": "View assets",
+      "assetCount": "{{count}} assets",
+      "toggleNode": "Expand or collapse",
+      "levelCompany": "Project",
+      "levelDomain": "Domain",
+      "levelSubdomain": "Subdomain",
+      "levelIp": "IP",
+      "levelPort": "Port",
+      "levelService": "Service",
+      "levelFingerprint": "Fingerprint",
+      "unboundCompany": "Unassigned project"
+    }
   },
   "vulnerability": {
     "title": "Vulnerability Management",

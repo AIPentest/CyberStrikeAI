@@ -207,6 +207,12 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	agent := agent.NewAgent(&cfg.OpenAI, &cfg.Agent, mcpServer, externalMCPMgr, log.Logger, maxIterations)
 	agent.UpdateToolDescriptionMode(cfg.Security.ToolDescriptionMode)
 
+	// 资产自动采集：Agent 每次工具调用成功后，把 subfinder/httpx/naabu/nmap 的
+	// 原始输出清洗成资产写入资产库，使「对话里跑扫描 → 资产页看到结果」自动闭环。
+	if assetIngestor := newAssetIngestor(db, log.Logger); assetIngestor != nil {
+		agent.SetToolResultHook(assetIngestor.Ingest)
+	}
+
 	// 初始化知识库模块（如果启用）
 	var knowledgeManager *knowledge.Manager
 	var knowledgeRetriever *knowledge.Retriever
@@ -1073,6 +1079,7 @@ func setupRoutes(
 		protected.GET("/assets", assetHandler.List)
 		protected.GET("/assets/selection", assetHandler.Selection)
 		protected.GET("/assets/stats", assetHandler.Stats)
+		protected.GET("/assets/tree", assetHandler.Tree)
 		protected.POST("/assets/import", assetHandler.Import)
 		protected.POST("/assets/scan-links", assetHandler.RecordScans)
 		protected.PUT("/assets/bulk", assetHandler.BulkUpdate)

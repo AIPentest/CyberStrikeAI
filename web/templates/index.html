@@ -1962,6 +1962,11 @@
                         </div>
                     </div>
                     <div class="page-content asset-content">
+                        <!-- 资产视图切换：列表（默认）/ 层级树。仅作用于资产库页内部，不新增页面路由。 -->
+                        <div class="asset-view-switch" role="tablist" data-i18n="assets.view.switchLabel" data-i18n-attr="aria-label" aria-label="切换资产视图">
+                            <button id="asset-view-tab-list" class="asset-view-switch__btn is-active" type="button" role="tab" aria-selected="true" onclick="assetTreeSetView('list')" data-i18n="assets.view.list">列表</button>
+                            <button id="asset-view-tab-tree" class="asset-view-switch__btn" type="button" role="tab" aria-selected="false" onclick="assetTreeSetView('tree')" data-i18n="assets.view.tree">层级</button>
+                        </div>
                         <div class="asset-toolbar">
                             <div class="asset-toolbar-main">
                                 <input id="asset-search" type="search" data-i18n="assets.searchPlaceholder" data-i18n-attr="placeholder" placeholder="搜索主机、IP、域名、标题、服务、责任人或标签" onkeydown="if(event.key==='Enter')loadAssets(1)">
@@ -2035,6 +2040,24 @@
                                 </table>
                             </div>
                             <div id="asset-pagination" class="pagination-container pagination-fixed"></div>
+                        </div>
+                        <!-- 资产层级树视图：由 assets-tree.js 渲染，默认隐藏，切到「层级」时显示 -->
+                        <div id="asset-tree-view" class="asset-tree-view" hidden>
+                            <div class="asset-tree-toolbar">
+                                <div class="asset-tree-search-wrap">
+                                    <input id="asset-tree-search" class="asset-tree-search" type="search" autocomplete="off" spellcheck="false" data-i18n="assets.tree.searchPlaceholder" data-i18n-attr="placeholder" placeholder="搜索项目、域名、IP、端口、服务或指纹">
+                                    <button id="asset-tree-search-clear" class="asset-tree-clear" type="button" hidden onclick="assetTreeClearSearch()" data-i18n="assets.tree.clearSearch" data-i18n-attr="aria-label" data-i18n-skip-text="true" aria-label="清除搜索">×</button>
+                                </div>
+                                <div class="asset-tree-actions">
+                                    <button class="btn-secondary" type="button" onclick="assetTreeExpandAll()" data-i18n="assets.tree.expandAll">展开全部</button>
+                                    <button class="btn-secondary" type="button" onclick="assetTreeCollapseAll()" data-i18n="assets.tree.collapseAll">折叠全部</button>
+                                    <button class="btn-secondary" type="button" onclick="loadAssetTree(true)" data-i18n="common.refresh">刷新</button>
+                                </div>
+                                <span id="asset-tree-meta" class="asset-tree-meta"></span>
+                            </div>
+                            <div class="asset-tree-card">
+                                <div id="asset-tree-root" class="asset-tree-root" role="tree" aria-multiselectable="false" data-i18n="assets.tree.rootLabel" data-i18n-attr="aria-label" data-i18n-skip-text="true" aria-label="资产层级树"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -7054,6 +7077,8 @@
     <script src="/static/js/rbac.js"></script>
     <script src="/static/js/c2.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/rbac-guards.js?v=20260907-1"></script>
+    <!-- 资产层级树视图：依赖 i18n.js / auth.js(apiFetch)，必须在 mobile-ui.js 之前 -->
+    <script src="/static/js/assets-tree.js?v=20261029-1"></script>
     <!-- 移动端交互层：必须最后加载，它包装 window.switchPage 并注入移动端 DOM -->
     <script src="/static/js/mobile-ui.js?v=20261006-9"></script>
 </body>

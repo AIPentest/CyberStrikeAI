@@ -1722,7 +1722,36 @@
     "mergeRequiresMultiple": "请至少选择两个重复资产",
     "batchDelete": "批量删除…",
     "responsibilityBusiness": "责任与业务属性",
-    "responsibilityBusinessHint": "用于资产归属、运营分级与风险排序"
+    "responsibilityBusinessHint": "用于资产归属、运营分级与风险排序",
+    "view": {
+      "list": "列表",
+      "tree": "层级",
+      "switchLabel": "切换资产视图"
+    },
+    "tree": {
+      "rootLabel": "资产层级树",
+      "searchPlaceholder": "搜索项目、域名、IP、端口、服务或指纹",
+      "clearSearch": "清除搜索",
+      "expandAll": "展开全部",
+      "collapseAll": "折叠全部",
+      "empty": "暂无资产",
+      "noSearchResult": "没有匹配的节点",
+      "loadFailed": "层级视图加载失败",
+      "retry": "重试",
+      "total": "共 {{count}} 个资产",
+      "matchCount": "匹配 {{count}} 个节点",
+      "viewAssets": "查看资产",
+      "assetCount": "{{count}} 个资产",
+      "toggleNode": "展开或折叠",
+      "levelCompany": "项目",
+      "levelDomain": "域名",
+      "levelSubdomain": "子域名",
+      "levelIp": "IP",
+      "levelPort": "端口",
+      "levelService": "服务",
+      "levelFingerprint": "指纹",
+      "unboundCompany": "未绑定项目"
+    }
   },
   "vulnerability": {
     "title": "漏洞管理",

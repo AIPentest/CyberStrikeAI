@@ -47451,3 +47451,416 @@ html[data-theme="dark"] .token-usage-panel { --token-cache-color: #2dd4bf; }
     .token-usage-subtitle { max-width: 220px; line-height: 1.6; }
     .token-usage-trend-svg { min-width: 480px; }
 }
+
+/* ==========================================================================
+   资产层级树视图（assets-tree.js）
+   —— 追加于文件末尾，复用现有 CSS 变量与按钮/卡片风格，不引入新主题。
+   列表 / 层级 视图切换 + 七层树 + 搜索高亮 + 状态占位。
+   ========================================================================== */
+
+/* 列表 / 层级 视图切换 */
+.asset-view-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    align-self: flex-start;
+    padding: 3px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 10px;
+    background: var(--card-bg, #fff);
+    box-shadow: var(--shadow-sm);
+}
+
+.asset-view-switch__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 68px;
+    height: 32px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-secondary, #64748b);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color .18s ease, color .18s ease;
+}
+
+.asset-view-switch__btn:hover {
+    color: var(--text-primary, #111827);
+    background: var(--bg-secondary, #f8fafc);
+}
+
+.asset-view-switch__btn.is-active {
+    background: color-mix(in srgb, var(--accent-color, #0066ff) 12%, transparent);
+    color: var(--accent-color, #0066ff);
+    font-weight: 650;
+}
+
+.asset-view-switch__btn:focus-visible {
+    outline: 2px solid var(--accent-color, #0066ff);
+    outline-offset: 1px;
+}
+
+/* 层级视图激活时隐藏列表专属区域（工具栏 / 批量操作 / 表格卡片），不删除既有 DOM */
+#page-asset-library.asset-library--tree-view .asset-toolbar,
+#page-asset-library.asset-library--tree-view #asset-batch-actions,
+#page-asset-library.asset-library--tree-view .asset-list-card {
+    display: none !important;
+}
+
+.asset-tree-view {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.asset-tree-view[hidden] {
+    display: none !important;
+}
+
+/* 树工具栏：搜索 + 展开/折叠快捷操作 + 统计 */
+.asset-tree-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    background: var(--card-bg, #fff);
+}
+
+.asset-tree-search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 260px;
+    min-width: 200px;
+}
+
+.asset-tree-search {
+    width: 100%;
+    height: 38px;
+    padding: 0 36px 0 12px;
+    border: 1px solid var(--border-color, #d8dee8);
+    border-radius: 8px;
+    background: var(--input-bg, #fff);
+    color: var(--text-primary, #111827);
+    font: inherit;
+    font-size: 13px;
+}
+
+.asset-tree-search:focus {
+    outline: none;
+    border-color: var(--accent-color, #0066ff);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color, #0066ff) 14%, transparent);
+}
+
+/* 隐藏浏览器原生清除按钮，避免与自定义清除按钮重叠 */
+.asset-tree-search::-webkit-search-cancel-button,
+.asset-tree-search::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+}
+
+.asset-tree-clear {
+    position: absolute;
+    right: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--bg-tertiary, #f1f3f5);
+    color: var(--text-secondary, #64748b);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.asset-tree-clear:hover {
+    color: var(--text-primary, #111827);
+    background: var(--border-color, #e9ecef);
+}
+
+.asset-tree-clear[hidden] {
+    display: none;
+}
+
+.asset-tree-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.asset-tree-actions .btn-secondary {
+    height: 34px;
+    padding: 0 12px;
+    font-size: 12px;
+}
+
+.asset-tree-meta {
+    margin-left: auto;
+    color: var(--text-secondary, #64748b);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+/* 树容器 */
+.asset-tree-card {
+    overflow: hidden;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    background: var(--card-bg, #fff);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .03);
+}
+
+.asset-tree-root {
+    --asset-tree-indent: 18px;
+    max-height: min(70vh, 900px);
+    overflow: auto;
+    padding: 8px 0;
+}
+
+/* 行：扁平 DOM + 左缩进，深层级只增加 padding，便于长列表批量渲染 */
+.asset-tree-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding-right: 14px;
+    padding-left: calc(10px + var(--asset-tree-depth, 0) * var(--asset-tree-indent, 18px));
+    border-left: 2px solid transparent;
+    color: var(--text-primary, #111827);
+    font-size: 13px;
+}
+
+.asset-tree-row:hover {
+    background: var(--bg-secondary, #f8fafc);
+}
+
+.asset-tree-row[data-asset-tree-toggle="1"] {
+    cursor: pointer;
+}
+
+.asset-tree-row--port {
+    border-left-color: color-mix(in srgb, var(--warning-color, #d97706) 45%, transparent);
+}
+
+/* 展开箭头 */
+.asset-tree-toggle {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-secondary, #64748b);
+    cursor: pointer;
+}
+
+.asset-tree-toggle:hover {
+    background: var(--bg-tertiary, #f1f3f5);
+    color: var(--accent-color, #0066ff);
+}
+
+.asset-tree-toggle svg {
+    width: 12px;
+    height: 12px;
+    transition: transform .16s ease;
+}
+
+.asset-tree-row.is-expanded > .asset-tree-toggle svg {
+    transform: rotate(90deg);
+}
+
+.asset-tree-toggle--leaf {
+    cursor: default;
+}
+
+.asset-tree-toggle--leaf:hover {
+    background: transparent;
+}
+
+/* 层级色点 */
+.asset-tree-dot {
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted, #adb5bd);
+}
+
+.asset-tree-row--company .asset-tree-dot { background: #2563eb; }
+.asset-tree-row--domain .asset-tree-dot { background: #7c3aed; }
+.asset-tree-row--subdomain .asset-tree-dot { background: #0891b2; }
+.asset-tree-row--ip .asset-tree-dot { background: #059669; }
+.asset-tree-row--port .asset-tree-dot { background: #d97706; }
+.asset-tree-row--service .asset-tree-dot { background: #0d9488; }
+.asset-tree-row--fingerprint .asset-tree-dot { background: #64748b; }
+
+/* 层级标签（项目 / 域名 / 端口 …） */
+.asset-tree-kind {
+    flex: 0 0 auto;
+    padding: 1px 6px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 5px;
+    background: var(--bg-tertiary, #f1f3f5);
+    color: var(--text-secondary, #64748b);
+    font-size: 10px;
+    line-height: 1.7;
+    white-space: nowrap;
+}
+
+.asset-tree-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.asset-tree-row--company .asset-tree-label {
+    font-weight: 650;
+}
+
+.asset-tree-row--port .asset-tree-label {
+    font-variant-numeric: tabular-nums;
+}
+
+.asset-tree-mark {
+    padding: 1px 2px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--warning-color, #ffc107) 38%, transparent);
+    color: inherit;
+}
+
+/* 资产数徽标 */
+.asset-tree-count {
+    flex: 0 0 auto;
+    min-width: 26px;
+    padding: 1px 7px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 999px;
+    background: var(--bg-secondary, #f8f9fa);
+    color: var(--text-secondary, #6c757d);
+    font-size: 11px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 服务 / 指纹层继承端口计数，弱化显示避免重复数字过于抢眼 */
+.asset-tree-row[data-asset-tree-level="6"] .asset-tree-count,
+.asset-tree-row[data-asset-tree-level="7"] .asset-tree-count {
+    opacity: .72;
+}
+
+/* 端口行操作按钮：悬停显示，触屏常显 */
+.asset-tree-row-action {
+    flex: 0 0 auto;
+    height: 24px;
+    padding: 0 9px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    background: var(--card-bg, #fff);
+    color: var(--accent-color, #0066ff);
+    font: inherit;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .15s ease, border-color .15s ease;
+}
+
+.asset-tree-row:hover .asset-tree-row-action,
+.asset-tree-row-action:focus-visible {
+    opacity: 1;
+}
+
+.asset-tree-row-action:hover {
+    border-color: var(--accent-color, #0066ff);
+}
+
+@media (hover: none) {
+    .asset-tree-row-action {
+        opacity: 1;
+    }
+}
+
+/* 加载 / 空数据 / 加载失败占位 */
+.asset-tree-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 56px 16px;
+    color: var(--text-secondary, #6c757d);
+    font-size: 13px;
+}
+
+.asset-tree-placeholder-text {
+    line-height: 1.6;
+}
+
+.asset-tree-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border-color, #e9ecef);
+    border-top-color: var(--accent-color, #0066ff);
+    border-radius: 50%;
+    animation: assetTreeSpin .8s linear infinite;
+}
+
+@keyframes assetTreeSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* 深色主题微调 */
+html[data-theme="dark"] .asset-tree-mark {
+    background: color-mix(in srgb, var(--warning-color, #fbbf24) 30%, transparent);
+    color: #fff;
+}
+
+html[data-theme="dark"] .asset-tree-row:hover {
+    background: rgba(96, 165, 250, .08);
+}
+
+/* 窄屏：缩进收紧、隐藏层级标签，保证长域名/指纹可见 */
+@media (max-width: 720px) {
+    .asset-tree-toolbar {
+        padding: 10px;
+    }
+
+    .asset-tree-actions {
+        width: 100%;
+    }
+
+    .asset-tree-meta {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .asset-tree-root {
+        --asset-tree-indent: 14px;
+        max-height: 65vh;
+    }
+
+    .asset-tree-kind {
+        display: none;
+    }
+}

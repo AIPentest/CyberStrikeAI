@@ -861,3 +861,22 @@ CREATE INDEX idx_workflow_runs_workflow ON workflow_runs(workflow_id);
 CREATE UNIQUE INDEX uq_workflow_package_imports_actor_key ON workflow_package_imports(actor_user_id, idempotency_key);
 
 CREATE UNIQUE INDEX uq_workflow_package_imports_inspection_success ON workflow_package_imports(inspection_id) WHERE result IN ('created','overwritten','renamed','kept_existing','skipped_identical');
+
+-- 资产服务/技术指纹：一个资产（host+port+protocol）上可能探到多个指纹，
+-- 由工具输出解析（internal/assetintel）后自动写入，供资产「层级视图」展示
+-- 端口 -> 服务 -> 指纹 -> 版本。UNIQUE 约束保证重复扫描幂等。
+CREATE TABLE asset_fingerprints (
+    id TEXT PRIMARY KEY,
+    asset_id TEXT NOT NULL,
+    service TEXT NOT NULL DEFAULT '',
+    technology TEXT NOT NULL DEFAULT '',
+    version TEXT NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    UNIQUE (asset_id, service, technology, version),
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_asset_fingerprints_asset ON asset_fingerprints(asset_id);
+
+CREATE INDEX idx_asset_fingerprints_technology ON asset_fingerprints(technology);
