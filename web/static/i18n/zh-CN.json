@@ -1756,9 +1756,13 @@
     "type": {
       "tabsLabel": "资产类型",
       "tab": {
+        "company": "公司",
+        "domain": "主域名",
         "subdomain": "子域名",
         "site": "站点",
         "ip": "IP",
+        "port": "端口",
+        "fingerprint": "指纹",
         "service": "服务",
         "ssl": "SSL证书",
         "fileleak": "文件泄露",
@@ -1811,7 +1815,15 @@
       "shotTriggerFailed": "触发截图失败",
       "shotCapturedAt": "截图于 {{time}}",
       "previewTitle": "截图预览",
-      "onlyNoScreenshot": "仅看无截图"
+      "onlyNoScreenshot": "仅看无截图",
+      "colCompany": "归属公司",
+      "colStatus": "状态",
+      "colNote": "备注",
+      "colTechnology": "技术",
+      "colWeb": "Web",
+      "colAssetCount": "资产数",
+      "domainStatusConfirmed": "已确认",
+      "domainStatusPending": "待归属"
     },
     "company": {
       "tabName": "公司",
@@ -1857,6 +1869,52 @@
       "editSuccess": "已更新公司信息",
       "loadFailed": "加载公司数据失败",
       "retry": "重试"
+    },
+    "add": {
+      "button": "添加",
+      "title": "添加{{type}}",
+      "subdomainHost": "子域名",
+      "rootDomain": "主域名",
+      "ip": "IP",
+      "host": "主机/IP",
+      "port": "端口",
+      "protocol": "协议",
+      "company": "公司",
+      "domain": "域名",
+      "submit": "添加",
+      "required": "请填写必填项",
+      "invalidPort": "请填写主机与 1-65535 的端口",
+      "fingerprintDisabled": "指纹为派生数据，不支持手工添加",
+      "noCompany": "暂无可选公司，请先在「公司」tab 新增",
+      "success": "已添加",
+      "failed": "添加失败"
+    },
+    "probe": {
+      "action": "探测",
+      "confirm": "将对「{{target}}」发起扫描探测（会真实执行），确认继续？",
+      "conversationTitle": "资产探测：{{target}}",
+      "promptCompany": "对「{{company}}」开展授权信息收集：先查该公司已归属主域名，再做子域名枚举（subfinder/amass），结果会自动入库。仅在客户授权范围内进行。",
+      "promptDomain": "对主域名 {{target}} 做子域名枚举（subfinder/amass），仅在客户授权范围内进行。",
+      "promptSubdomain": "解析 {{target}} 的 IP（httpx/nmap），并尝试关联其解析记录，仅在客户授权范围内进行。",
+      "promptIp": "对 {{target}} 做端口扫描（naabu/nmap），仅在客户授权范围内进行。",
+      "promptPort": "对 {{target}} 做服务与指纹识别（nmap -sV / httpx -td），仅在客户授权范围内进行。",
+      "promptSite": "对 {{target}} 做指纹识别，若是 web 再做目录探测（dirsearch/gobuster），仅在客户授权范围内进行。",
+      "promptFingerprint": "对资产库中指纹为 {{target}} 的 web 资产做目录探测（dirsearch/gobuster/ffuf），仅在客户授权范围内进行。",
+      "failed": "发起探测失败",
+      "unsupported": "当前环境不支持发起对话探测",
+      "notWeb": "非 Web 指纹，无法目录探测"
+    },
+    "exclude": {
+      "action": "排除",
+      "restore": "恢复",
+      "badge": "已排除",
+      "confirm": "确定排除「{{target}}」？排除后资产会标记为停用，可在本行恢复。",
+      "domainConfirm": "确定忽略主域名「{{target}}」？",
+      "fingerprintConfirm": "确定排除指纹「{{target}}」？",
+      "success": "已排除",
+      "restored": "已恢复",
+      "failed": "操作失败",
+      "noAssetId": "该行缺少资产 ID，无法排除"
     }
   },
   "vulnerability": {

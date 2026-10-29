@@ -96,6 +96,41 @@ The Company level in the hierarchy view resolves in this order:
 > `POST /api/companies/:id/lookup`, `GET /api/company-domains?status=pending`, and
 > `POST /api/company-domains/:id/confirm|ignore`. Reads and writes reuse `asset:read` / `asset:write`.
 
+## Hierarchical views and level-by-level probing
+
+The asset tabs follow the asset hierarchy, drilling down from organization to fingerprint:
+
+```
+Company -> Root domain -> Subdomain -> IP -> Port -> Site -> Fingerprint -> (web fingerprint) directory discovery
+```
+
+Every data tab supports three kinds of actions:
+
+- **Add**: manually record an object at that level. Subdomains / IPs / ports go into the asset
+  inventory; root domains go into company ownership; fingerprints are derived and cannot be added
+  manually.
+- **Exclude / Restore**: sets the asset status to `inactive` (root domains become `ignored`,
+  fingerprint records are deleted). Excluded rows show a badge and can be restored; exclusion is a
+  reversible soft state.
+- **Probe**: starts an Agent task against that row. After a confirmation dialog the system creates
+  a conversation, links the related assets, fills in the level-specific prompt, and sends it.
+
+The probing chain:
+
+| From | Next step | Typical tools |
+| --- | --- | --- |
+| Company | root domains + subdomain enumeration | subfinder, amass |
+| Root domain | subdomain enumeration | subfinder, amass |
+| Subdomain | resolve IP | httpx, nmap |
+| IP | port scan | naabu, nmap |
+| Port | service and fingerprint detection | nmap -sV, httpx -td |
+| Site | fingerprint + directory discovery | httpx, dirsearch/gobuster |
+| Fingerprint (web) | directory discovery | dirsearch, gobuster, ffuf |
+
+> Probing really visits the target and runs security tools—**use it only within authorized scope**.
+> Newly discovered assets flow back into the inventory through automatic collection, closing the
+> loop. The Probe button is disabled for non-web fingerprints.
+
 ## Build an asset baseline
 
 ### Add an asset manually

@@ -1768,9 +1768,13 @@
     "type": {
       "tabsLabel": "Asset types",
       "tab": {
+        "company": "Companies",
+        "domain": "Primary domains",
         "subdomain": "Subdomains",
         "site": "Sites",
         "ip": "IPs",
+        "port": "Ports",
+        "fingerprint": "Fingerprints",
         "service": "Services",
         "ssl": "SSL certificates",
         "fileleak": "File leaks",
@@ -1823,7 +1827,15 @@
       "shotTriggerFailed": "Failed to trigger screenshot",
       "shotCapturedAt": "Captured at {{time}}",
       "previewTitle": "Screenshot preview",
-      "onlyNoScreenshot": "Only without screenshot"
+      "onlyNoScreenshot": "Only without screenshot",
+      "colCompany": "Company",
+      "colStatus": "Status",
+      "colNote": "Note",
+      "colTechnology": "Technology",
+      "colWeb": "Web",
+      "colAssetCount": "Assets",
+      "domainStatusConfirmed": "Confirmed",
+      "domainStatusPending": "Pending"
     },
     "company": {
       "tabName": "Companies",
@@ -1869,6 +1881,52 @@
       "editSuccess": "Company updated",
       "loadFailed": "Failed to load company data",
       "retry": "Retry"
+    },
+    "add": {
+      "button": "Add",
+      "title": "Add {{type}}",
+      "subdomainHost": "Subdomain",
+      "rootDomain": "Primary domain",
+      "ip": "IP",
+      "host": "Host / IP",
+      "port": "Port",
+      "protocol": "Protocol",
+      "company": "Company",
+      "domain": "Domain",
+      "submit": "Add",
+      "required": "Please fill in the required fields",
+      "invalidPort": "Enter a host and a port between 1 and 65535",
+      "fingerprintDisabled": "Fingerprints are derived data and cannot be added manually",
+      "noCompany": "No company available. Create one in the “Companies” tab first",
+      "success": "Added",
+      "failed": "Failed to add"
+    },
+    "probe": {
+      "action": "Probe",
+      "confirm": "Start a scan probe against “{{target}}” (this will really run), continue?",
+      "conversationTitle": "Asset probe: {{target}}",
+      "promptCompany": "Perform authorized information gathering for “{{company}}”: first check its confirmed primary domains, then enumerate subdomains (subfinder/amass). Results are ingested automatically. Only operate within the authorized scope.",
+      "promptDomain": "Enumerate subdomains of primary domain {{target}} (subfinder/amass), only within the authorized scope.",
+      "promptSubdomain": "Resolve the IP of {{target}} (httpx/nmap) and try to link its DNS records, only within the authorized scope.",
+      "promptIp": "Scan ports on {{target}} (naabu/nmap), only within the authorized scope.",
+      "promptPort": "Fingerprint services on {{target}} (nmap -sV / httpx -td), only within the authorized scope.",
+      "promptSite": "Fingerprint {{target}} and if it is a web service also run directory discovery (dirsearch/gobuster), only within the authorized scope.",
+      "promptFingerprint": "Run directory discovery (dirsearch/gobuster/ffuf) on web assets whose fingerprint is {{target}}, only within the authorized scope.",
+      "failed": "Failed to start probe",
+      "unsupported": "Conversation probes are not available in this environment",
+      "notWeb": "Non-web fingerprint, directory probing is unavailable"
+    },
+    "exclude": {
+      "action": "Exclude",
+      "restore": "Restore",
+      "badge": "Excluded",
+      "confirm": "Exclude “{{target}}”? The asset will be marked inactive and can be restored from this row.",
+      "domainConfirm": "Ignore primary domain “{{target}}”?",
+      "fingerprintConfirm": "Exclude fingerprint “{{target}}”?",
+      "success": "Excluded",
+      "restored": "Restored",
+      "failed": "Operation failed",
+      "noAssetId": "This row has no asset ID and cannot be excluded"
     }
   },
   "vulnerability": {

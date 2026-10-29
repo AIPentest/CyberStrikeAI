@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -44,9 +45,20 @@ type assetTableRow struct {
 	// AssetID 仅站点行下发，供前端触发截图 / 加载缩略图。
 	AssetID string `json:"asset_id,omitempty"`
 	// Screenshot 仅站点行下发。
-	Screenshot  *assetScreenshotInfo `json:"screenshot,omitempty"`
-	FirstSeenAt time.Time            `json:"first_seen_at"`
-	LastSeenAt  time.Time            `json:"last_seen_at"`
+	Screenshot *assetScreenshotInfo `json:"screenshot,omitempty"`
+	// AssetIDs 该行聚合到的资产 ID 列表（子域名/IP 行可能对应多条资产），
+	// 供前端批量排除与发起探测任务使用。
+	AssetIDs []string `json:"asset_ids,omitempty"`
+	// Technology/IsWeb 仅「指纹」行下发：技术名与其对应资产是否为 web 站点。
+	Technology string `json:"technology,omitempty"`
+	IsWeb      bool   `json:"is_web,omitempty"`
+	// Status/Note 供主域名等行展示归属状态与备注。
+	Status string `json:"status,omitempty"`
+	Note   string `json:"note,omitempty"`
+	// CompanyName 仅「主域名」行下发。
+	CompanyName string    `json:"company_name,omitempty"`
+	FirstSeenAt time.Time `json:"first_seen_at"`
+	LastSeenAt  time.Time `json:"last_seen_at"`
 }
 
 type assetTableResponse struct {
@@ -67,7 +79,7 @@ const (
 func (h *AssetHandler) Table(c *gin.Context) {
 	tableType := strings.ToLower(strings.TrimSpace(c.DefaultQuery("type", "subdomain")))
 	switch tableType {
-	case "subdomain", "site", "ip", "service":
+	case "subdomain", "site", "ip", "service", "domain", "fingerprint":
 	default:
 		c.JSON(400, gin.H{"error": "type 仅支持 subdomain/site/ip/service"})
 		return
@@ -116,7 +128,16 @@ func (h *AssetHandler) Table(c *gin.Context) {
 		fingerprints = nil
 	}
 
+	domainRows, domainErr := h.buildDomainTableRows()
 	allRows := buildAssetTableRows(tableType, assets, hostIPs, fingerprints)
+	if tableType == "domain" {
+		if domainErr != nil {
+			h.logger.Error("资产表格：查询主域名失败", zap.Error(domainErr))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询主域名失败"})
+			return
+		}
+		allRows = domainRows
+	}
 	// 站点 tab 附带截图元信息（缩略图/排队中/失败原因）。
 	if tableType == "site" {
 		assetIDs := make([]string, 0, len(allRows))
@@ -138,6 +159,10 @@ func (h *AssetHandler) Table(c *gin.Context) {
 		}
 	}
 	facets := assetTableFacets(assets, hostIPs)
+	if domainErr == nil {
+		facets["domain"] = len(domainRows)
+	}
+	facets["fingerprint"] = len(buildFingerprintRows(assets, fingerprints))
 
 	rows := filterAssetTableRows(allRows, keyword, sourceFilter, recordTypeFilter)
 	total := len(rows)
@@ -189,6 +214,8 @@ func buildAssetTableRows(tableType string, assets []*database.Asset, hostIPs map
 		return buildIPRows(assets, fingerprints)
 	case "service":
 		return buildServiceRows(assets, fingerprints)
+	case "fingerprint":
+		return buildFingerprintRows(assets, fingerprints)
 	}
 	return nil
 }
@@ -212,6 +239,7 @@ func buildSubdomainRows(assets []*database.Asset, hostIPs map[string][]database.
 	type aggregate struct {
 		row   assetTableRow
 		count int
+		ids   []string
 	}
 	byHost := make(map[string]*aggregate)
 	for _, asset := range assets {
@@ -233,6 +261,7 @@ func buildSubdomainRows(assets []*database.Asset, hostIPs map[string][]database.
 			byHost[host] = agg
 		}
 		agg.count++
+		agg.ids = appendUniqueString(agg.ids, asset.ID)
 		if agg.row.Source == "" && asset.Source != "" {
 			agg.row.Source = asset.Source
 		}
@@ -248,6 +277,7 @@ func buildSubdomainRows(assets []*database.Asset, hostIPs map[string][]database.
 	for _, agg := range byHost {
 		row := agg.row
 		row.AssetCount = agg.count
+		row.AssetIDs = agg.ids
 		if len(row.IPs) > 0 {
 			// 目前只采集到 A 记录；CNAME 采集接入后此处可扩展。
 			row.RecordType = "A"
@@ -296,6 +326,7 @@ func buildSiteRows(assets []*database.Asset, hostIPs map[string][]database.Asset
 		if row.Source != "" {
 			row.Sources = []string{row.Source}
 		}
+		row.AssetIDs = []string{asset.ID}
 		rows = append(rows, row)
 	}
 	sort.Slice(rows, func(i, j int) bool {
@@ -312,6 +343,7 @@ func buildIPRows(assets []*database.Asset, fingerprints map[string][]database.As
 		row   assetTableRow
 		hosts map[string]bool
 		ports map[string]assetTablePortItem
+		ids   []string
 	}
 	byIP := make(map[string]*aggregate)
 	for _, asset := range assets {
@@ -335,6 +367,7 @@ func buildIPRows(assets []*database.Asset, fingerprints map[string][]database.As
 		if host != "" && net.ParseIP(host) == nil {
 			agg.hosts[host] = true
 		}
+		agg.ids = appendUniqueString(agg.ids, asset.ID)
 		agg.row.Sources = appendUniqueString(agg.row.Sources, asset.Source)
 		if agg.row.FirstSeenAt.IsZero() || asset.FirstSeenAt.Before(agg.row.FirstSeenAt) {
 			agg.row.FirstSeenAt = asset.FirstSeenAt
@@ -355,6 +388,7 @@ func buildIPRows(assets []*database.Asset, fingerprints map[string][]database.As
 	rows := make([]assetTableRow, 0, len(byIP))
 	for _, agg := range byIP {
 		row := agg.row
+		row.AssetIDs = agg.ids
 		// asset_count 表示该 IP 关联的域名数；纯 IP 资产按 1 计。
 		row.AssetCount = len(agg.hosts)
 		if row.AssetCount == 0 {
@@ -374,6 +408,116 @@ func buildIPRows(assets []*database.Asset, fingerprints map[string][]database.As
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].IP < rows[j].IP })
 	return rows
+}
+
+// buildFingerprintRows 把逐资产指纹聚合成「技术/版本」维度的行，
+// 并标出该技术是否对应 web 站点（用于「指纹 -> 目录探测」）。
+func buildFingerprintRows(assets []*database.Asset, fingerprints map[string][]database.AssetFingerprint) []assetTableRow {
+	type agg struct {
+		row    assetTableRow
+		assets map[string]bool
+		web    bool
+	}
+	webAssets := make(map[string]bool, len(assets))
+	for _, asset := range assets {
+		if asset == nil {
+			continue
+		}
+		protocol := strings.ToLower(strings.TrimSpace(asset.Protocol))
+		if protocol == "http" || protocol == "https" {
+			webAssets[asset.ID] = true
+		}
+	}
+	byKey := make(map[string]*agg)
+	for _, asset := range assets {
+		if asset == nil {
+			continue
+		}
+		for _, fp := range fingerprints[asset.ID] {
+			technology := strings.TrimSpace(fp.Technology)
+			service := strings.TrimSpace(fp.Service)
+			if technology == "" && service == "" {
+				continue
+			}
+			key := service + "|" + technology + "|" + fp.Version
+			item, ok := byKey[key]
+			if !ok {
+				item = &agg{
+					row: assetTableRow{
+						Key:        key,
+						Technology: technology,
+						Service:    service,
+						Version:    fp.Version,
+					},
+					assets: make(map[string]bool),
+				}
+				byKey[key] = item
+			}
+			item.assets[asset.ID] = true
+			if webAssets[asset.ID] {
+				item.web = true
+			}
+			if item.row.Source == "" {
+				item.row.Source = asset.Source
+			}
+			if item.row.FirstSeenAt.IsZero() || asset.FirstSeenAt.Before(item.row.FirstSeenAt) {
+				item.row.FirstSeenAt = asset.FirstSeenAt
+			}
+			if asset.LastSeenAt.After(item.row.LastSeenAt) {
+				item.row.LastSeenAt = asset.LastSeenAt
+			}
+		}
+	}
+	rows := make([]assetTableRow, 0, len(byKey))
+	for _, item := range byKey {
+		row := item.row
+		row.AssetCount = len(item.assets)
+		row.IsWeb = item.web
+		rows = append(rows, row)
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].AssetCount != rows[j].AssetCount {
+			return rows[i].AssetCount > rows[j].AssetCount
+		}
+		if rows[i].Technology != rows[j].Technology {
+			return rows[i].Technology < rows[j].Technology
+		}
+		return rows[i].Version < rows[j].Version
+	})
+	return rows
+}
+
+// buildDomainTableRows 把「公司 -> 主域名」归属转成表格行（忽略已排除的域名）。
+func (h *AssetHandler) buildDomainTableRows() ([]assetTableRow, error) {
+	domains, err := h.db.ListCompanyDomains("")
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]assetTableRow, 0, len(domains))
+	for _, item := range domains {
+		if item.Status == database.CompanyDomainStatusIgnored {
+			continue
+		}
+		rows = append(rows, assetTableRow{
+			Key:         item.ID,
+			Domain:      item.Domain,
+			Host:        item.Domain,
+			Source:      item.Source,
+			Status:      item.Status,
+			Note:        item.Note,
+			CompanyName: item.CompanyName,
+			AssetCount:  item.AssetCount,
+			FirstSeenAt: item.CreatedAt,
+			LastSeenAt:  item.UpdatedAt,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].AssetCount != rows[j].AssetCount {
+			return rows[i].AssetCount > rows[j].AssetCount
+		}
+		return rows[i].Domain < rows[j].Domain
+	})
+	return rows, nil
 }
 
 func buildServiceRows(assets []*database.Asset, fingerprints map[string][]database.AssetFingerprint) []assetTableRow {
@@ -400,6 +544,7 @@ func buildServiceRows(assets []*database.Asset, fingerprints map[string][]databa
 		if row.Source != "" {
 			row.Sources = []string{row.Source}
 		}
+		row.AssetIDs = []string{asset.ID}
 		rows = append(rows, row)
 	}
 	sort.Slice(rows, func(i, j int) bool {
@@ -512,4 +657,22 @@ func containsStringFold(items []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// DeleteFingerprints 按技术/服务/版本删除指纹记录（资产视图「指纹」页的排除操作）。
+func (h *AssetHandler) DeleteFingerprints(c *gin.Context) {
+	technology := strings.TrimSpace(c.Query("technology"))
+	service := strings.TrimSpace(c.Query("service"))
+	version := strings.TrimSpace(c.Query("version"))
+	if technology == "" && service == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "至少需要 technology 或 service 参数"})
+		return
+	}
+	deleted, err := h.db.DeleteAssetFingerprints(service, technology, version)
+	if err != nil {
+		h.logger.Error("删除指纹失败", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除指纹失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"deleted": deleted})
 }

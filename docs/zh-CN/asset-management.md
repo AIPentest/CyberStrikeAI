@@ -90,6 +90,38 @@
 > `POST /api/companies/:id/lookup`、`GET /api/company-domains?status=pending`、
 > `POST /api/company-domains/:id/confirm|ignore`。读写分别复用 `asset:read` / `asset:write` 权限。
 
+## 层级化视图与逐层探测
+
+资产库的 tab 顺序与资产层级一致，从组织到指纹逐层下钻：
+
+```
+公司 -> 主域名 -> 子域名 -> IP -> 端口 -> 站点 -> 指纹 -> （web 指纹）目录探测
+```
+
+每个数据 tab 都支持三类操作：
+
+- **添加**：手工补录该层对象。子域名 / IP / 端口写入资产库；主域名写入公司归属；
+  指纹为派生数据，不支持手工添加。
+- **排除 / 恢复**：把资产状态置为 `inactive`（主域名变为 `ignored`、指纹记录直接删除），
+  行上显示「已排除」标记并可一键恢复。排除是可逆的软状态，不会丢数据。
+- **探测**：以该行对象为目标发起一次 Agent 任务。点击后先二次确认，然后自动创建对话、
+  关联相关资产、填入该层提示词并直接发送。
+
+逐层探测链路：
+
+| 起点 | 下一层探测 | 常用工具 |
+| --- | --- | --- |
+| 公司 | 主域名 + 子域名枚举 | subfinder、amass |
+| 主域名 | 子域名枚举 | subfinder、amass |
+| 子域名 | 解析 IP | httpx、nmap |
+| IP | 端口扫描 | naabu、nmap |
+| 端口 | 服务与指纹识别 | nmap -sV、httpx -td |
+| 站点 | 指纹识别 + 目录探测 | httpx、dirsearch/gobuster |
+| 指纹（Web） | 目录探测 | dirsearch、gobuster、ffuf |
+
+> 探测会真实访问目标并调用安全工具，**只能在已授权范围内使用**。探测产生的新资产会通过
+> 自动采集回到资产库，形成闭环。非 Web 指纹的「探测」按钮不可用。
+
 ## 建立资产基线
 
 ### 手工新增

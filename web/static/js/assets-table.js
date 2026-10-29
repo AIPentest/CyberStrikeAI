@@ -2,12 +2,13 @@
  * 资产页「按类型分 tab + 扁平表格」视图（单文件、自包含、无第三方依赖）
  *
  * 设计：
- *   - 资产页顶部 tab 由 index.html 静态渲染，本文件负责切换与数据加载；
- *   - 数据 tab（子域名 / 站点 / IP / 服务）走 GET /api/assets/table；
+ *   - 资产页顶部 tab 按资产层级排列：公司 → 主域名 → 子域名 → IP → 端口(service) → 站点 → 指纹 → 占位类型 → 全部资产 → 层级；
+ *   - 数据 tab（主域名 / 子域名 / IP / 端口 / 站点 / 指纹）走 GET /api/assets/table；
  *   - 「全部资产」复用 assets.js 既有列表（本文件只控制显隐，不改其逻辑）；
  *   - 「层级」复用 assets-tree.js 的七层树；
  *   - 「SSL证书 / 文件泄露 / URL信息」为占位 tab，不发起请求；
  *   - 每个数据 tab 有独立筛选状态（关键字 / 来源 / 解析类型）与分页状态，切回时可恢复；
+ *   - 每个层级支持「添加 / 排除(恢复) / 发起下一级探测」：探测复用对话流程（建会话 → 关联资产 → 发送内置提示词）；
  *   - 「站点」tab 额外渲染截图列：缩略图走 apiFetch + blob URL（带 Authorization），
  *     支持大图预览、重新截图（POST 后 2s/次、最多 15 次轮询；pending/running 也会自动观察），
  *     切换 tab / 翻页时释放 blob。
@@ -20,12 +21,17 @@
 
     const ASSET_TABLE_API = '/api/assets/table';
     const ASSET_TABLE_PAGE_SIZE = 50;
-    const ASSET_TABLE_DATA_TYPES = ['subdomain', 'site', 'ip', 'service'];
+    /** 表格类型按资产层级顺序：主域名 → 子域名 → IP → 端口(service) → 站点 → 指纹 */
+    const ASSET_TABLE_DATA_TYPES = ['domain', 'subdomain', 'ip', 'service', 'site', 'fingerprint'];
+    /** 可用 PUT /api/assets/bulk 排除/恢复的资产类型 */
+    const ASSET_TABLE_ASSET_TYPES = ['subdomain', 'ip', 'service', 'site'];
+    /** 支持「添加」的表格类型 */
+    const ASSET_TABLE_ADD_TYPES = ['subdomain', 'ip', 'service', 'domain'];
     const ASSET_TABLE_PLACEHOLDER_TYPES = ['ssl', 'fileleak', 'urlinfo'];
+    /** tab 顺序 = 资产层级顺序 */
     const ASSET_TABLE_TABS = [
-        'subdomain', 'site', 'ip', 'service',
-        'ssl', 'fileleak', 'urlinfo',
-        'all', 'company', 'tree'
+        'company', 'domain', 'subdomain', 'ip', 'service', 'site', 'fingerprint',
+        'ssl', 'fileleak', 'urlinfo', 'all', 'tree'
     ];
     const ASSET_TABLE_DEFAULT_TAB = 'subdomain';
 
@@ -61,11 +67,22 @@
         initialized: false,
         current: ASSET_TABLE_DEFAULT_TAB,
         types: {
+            domain: createTypeState(),
             subdomain: createTypeState(),
             site: createTypeState(),
             ip: createTypeState(),
-            service: createTypeState()
+            service: createTypeState(),
+            fingerprint: createTypeState()
         }
+    };
+
+    /** 各层级「添加」内联表单状态 */
+    const assetTableAddState = {
+        open: false,
+        type: '',
+        loading: false,
+        error: '',
+        companies: []
     };
 
     /**
@@ -148,6 +165,66 @@
         const parsed = Number(value);
         if (!Number.isFinite(parsed) || parsed < 0) return 0;
         return Math.floor(parsed);
+    }
+
+    /** 轻量提示：优先用全局 showInlineToast（info-collect.js），否则落 console */
+    function assetTableToast(message) {
+        if (!message) return;
+        if (typeof window.showInlineToast === 'function') {
+            try {
+                window.showInlineToast(message);
+                return;
+            } catch (error) {
+                /* 提示失败不影响主流程 */
+            }
+        }
+        console.warn(message);
+    }
+
+    function assetTableConfirm(message) {
+        if (typeof window.confirm !== 'function') return true;
+        try {
+            return !!window.confirm(message);
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /** 通用 JSON 接口（公司接口另有 assetCompanyRequest，语义一致） */
+    async function assetTableApiRequest(url, options) {
+        let response;
+        try {
+            response = typeof apiFetch === 'function' ? await apiFetch(url, options) : await fetch(url, options);
+        } catch (error) {
+            return { ok: false, status: 0, data: null, error: error && error.message ? error.message : 'request failed' };
+        }
+        let raw = '';
+        try {
+            raw = await response.text();
+        } catch (error) {
+            raw = '';
+        }
+        let data = null;
+        if (raw) {
+            try {
+                data = JSON.parse(raw);
+            } catch (error) {
+                data = null;
+            }
+        }
+        if (!response || !response.ok) {
+            const message = (data && (data.error || data.message)) || ('HTTP ' + (response ? response.status : 'error'));
+            return { ok: false, status: response ? response.status : 0, data: data, error: message };
+        }
+        return { ok: true, status: response ? response.status : 0, data: data || {}, error: '' };
+    }
+
+    function assetTableJsonOptions(method, payload) {
+        return {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload || {})
+        };
     }
 
     function assetTableEl(id) {
@@ -252,6 +329,522 @@
     }
 
     /* ------------------------------------------------------------------ *
+     * 层级操作：探测 / 添加 / 排除
+     * ------------------------------------------------------------------ */
+
+    function assetTableTypeLabel(type) {
+        if (type === 'service') return assetTableT('assets.type.tab.port', '端口');
+        const labels = {
+            domain: ['assets.type.tab.domain', '主域名'],
+            subdomain: ['assets.type.tab.subdomain', '子域名'],
+            ip: ['assets.type.tab.ip', 'IP'],
+            site: ['assets.type.tab.site', '站点'],
+            fingerprint: ['assets.type.tab.fingerprint', '指纹']
+        };
+        const entry = labels[type];
+        return entry ? assetTableT(entry[0], entry[1]) : type;
+    }
+
+    function assetTableIsExcludedRow(row) {
+        return String((row && row.status) || '').toLowerCase() === 'inactive';
+    }
+
+    function assetTableDomainStatusCell(row) {
+        const status = String((row && row.status) || '').toLowerCase();
+        if (status === 'confirmed') {
+            return '<span class="asset-type-domain-status asset-type-domain-status--confirmed">'
+                + assetTableEscape(assetTableT('assets.type.domainStatusConfirmed', '已确认')) + '</span>';
+        }
+        if (status === 'pending') {
+            return '<span class="asset-type-domain-status asset-type-domain-status--pending">'
+                + assetTableEscape(assetTableT('assets.type.domainStatusPending', '待归属')) + '</span>';
+        }
+        return assetTableEmptyCell();
+    }
+
+    /** 每层探测目标：给提示词 {{target}} 用 */
+    function assetTableProbeTarget(type, row) {
+        if (!row || typeof row !== 'object') return '';
+        const host = assetTableText(row.host);
+        const ip = assetTableText(row.ip);
+        const domain = assetTableText(row.domain);
+        const portNumber = assetTableNumber(row.port);
+        const protocol = assetTableText(row.protocol);
+        if (type === 'domain') return domain || host;
+        if (type === 'subdomain') return host || domain;
+        if (type === 'ip') return ip || host;
+        if (type === 'site') {
+            const base = host || ip;
+            if (!base) return '';
+            return portNumber > 0 ? base + ':' + portNumber : base;
+        }
+        if (type === 'service') {
+            const base = host || ip;
+            if (!base) return '';
+            return base + (portNumber > 0 ? ':' + portNumber : '') + (protocol ? ' (' + protocol + ')' : '');
+        }
+        if (type === 'fingerprint') {
+            const technology = assetTableText(row.technology);
+            const version = assetTableText(row.version);
+            return version ? technology + ' ' + version : technology;
+        }
+        return host || ip;
+    }
+
+    /** 各层内置提示词（带授权范围约束） */
+    function assetTableProbePrompt(type, target) {
+        if (type === 'company') {
+            return assetTableT(
+                'assets.probe.promptCompany',
+                '对「{{company}}」开展授权信息收集：先查该公司已归属主域名，再做子域名枚举（subfinder/amass），结果会自动入库。仅在客户授权范围内进行。',
+                { company: target }
+            );
+        }
+        const prompts = {
+            domain: ['assets.probe.promptDomain', '对主域名 {{target}} 做子域名枚举（subfinder/amass），仅在客户授权范围内进行。'],
+            subdomain: ['assets.probe.promptSubdomain', '解析 {{target}} 的 IP（httpx/nmap），并尝试关联其解析记录，仅在客户授权范围内进行。'],
+            ip: ['assets.probe.promptIp', '对 {{target}} 做端口扫描（naabu/nmap），仅在客户授权范围内进行。'],
+            service: ['assets.probe.promptPort', '对 {{target}} 做服务与指纹识别（nmap -sV / httpx -td），仅在客户授权范围内进行。'],
+            site: ['assets.probe.promptSite', '对 {{target}} 做指纹识别，若是 web 再做目录探测（dirsearch/gobuster），仅在客户授权范围内进行。'],
+            fingerprint: ['assets.probe.promptFingerprint', '对资产库中指纹为 {{target}} 的 web 资产做目录探测（dirsearch/gobuster/ffuf），仅在客户授权范围内进行。']
+        };
+        const entry = prompts[type];
+        if (!entry) return '';
+        return assetTableT(entry[0], entry[1], { target: target });
+    }
+
+    /** 行操作列：探测 +（排除/恢复） */
+    function assetTableRowActionsHtml(type, row, rowIndex) {
+        const excluded = assetTableIsExcludedRow(row);
+        const isFingerprint = type === 'fingerprint';
+        const isAssetType = ASSET_TABLE_ASSET_TYPES.indexOf(type) !== -1;
+        const probeDisabled = isFingerprint && !(row && row.is_web);
+        let html = '<div class="asset-type-row-actions">';
+        if (excluded) {
+            html += '<span class="asset-type-excluded-badge">' + assetTableEscape(assetTableT('assets.exclude.badge', '已排除')) + '</span>';
+        }
+        html += '<button class="btn-primary asset-type-row-btn" type="button" data-asset-action="probe" data-row-index="' + rowIndex + '"'
+            + (probeDisabled ? ' disabled title="' + assetTableEscapeAttr(assetTableT('assets.probe.notWeb', '非 Web 指纹，无法目录探测')) + '"' : '')
+            + '>' + assetTableEscape(assetTableT('assets.probe.action', '探测')) + '</button>';
+
+        if (type === 'domain' || isFingerprint) {
+            html += '<button class="btn-link asset-type-row-btn asset-type-row-btn--danger" type="button" data-asset-action="exclude" data-row-index="' + rowIndex + '">'
+                + assetTableEscape(assetTableT('assets.exclude.action', '排除')) + '</button>';
+        } else if (isAssetType) {
+            html += excluded
+                ? '<button class="btn-secondary asset-type-row-btn" type="button" data-asset-action="restore" data-row-index="' + rowIndex + '">'
+                    + assetTableEscape(assetTableT('assets.exclude.restore', '恢复')) + '</button>'
+                : '<button class="btn-link asset-type-row-btn asset-type-row-btn--danger" type="button" data-asset-action="exclude" data-row-index="' + rowIndex + '">'
+                    + assetTableEscape(assetTableT('assets.exclude.action', '排除')) + '</button>';
+        }
+        html += '</div>';
+        return html;
+    }
+
+    /**
+     * 发起下一级探测：照抄 assets.js createAssetScanChat 的流程
+     * （建会话 → 关联资产 → 切到对话 → 预填提示词 → 发送）。
+     */
+    async function assetTableRunProbe(type, row, company) {
+        const isCompanyProbe = type === 'company';
+        const target = isCompanyProbe
+            ? assetTableText(company && company.name)
+            : assetTableProbeTarget(type, row);
+        if (!target) {
+            assetTableToast(assetTableT('assets.probe.failed', '发起探测失败'));
+            return;
+        }
+        const prompt = assetTableProbePrompt(type, target);
+        const confirmed = assetTableConfirm(assetTableT(
+            'assets.probe.confirm',
+            '将对「{{target}}」发起扫描探测（会真实执行），确认继续？',
+            { target: target }
+        ));
+        if (!confirmed) return;
+
+        const switchFn = window.switchPage;
+        const loadConversationFn = window.loadConversation;
+        const sendMessageFn = window.sendMessage;
+        if (typeof switchFn !== 'function' || typeof loadConversationFn !== 'function' || typeof sendMessageFn !== 'function') {
+            assetTableToast(assetTableT('assets.probe.unsupported', '当前环境不支持发起对话探测'));
+            return;
+        }
+
+        try {
+            const title = assetTableT('assets.probe.conversationTitle', '资产探测：{{target}}', { target: target });
+            const conversationResult = await assetTableApiRequest(
+                '/api/conversations',
+                assetTableJsonOptions('POST', { title: title })
+            );
+            if (!conversationResult.ok) throw new Error(conversationResult.error);
+            const conversation = conversationResult.data || {};
+            if (!conversation.id) throw new Error('missing conversation id');
+
+            // 关联资产：子域名/IP 等聚合行可能对应多条资产（asset_ids）
+            const assetIds = isCompanyProbe ? [] : assetTableResolveAssetIds(row);
+            if (assetIds.length) {
+                const linkResult = await assetTableApiRequest(
+                    '/api/assets/scan-links',
+                    assetTableJsonOptions('POST', {
+                        scans: assetIds.map(function (id) {
+                            return { asset_id: id, conversation_id: conversation.id };
+                        })
+                    })
+                );
+                if (!linkResult.ok) throw new Error(linkResult.error);
+            }
+
+            switchFn('chat');
+            await loadConversationFn(conversation.id);
+            const input = document.getElementById('chat-input');
+            if (input) {
+                input.value = prompt;
+                if (typeof window.adjustTextareaHeight === 'function') window.adjustTextareaHeight(input);
+            }
+            window.__csNextChatFinalizationPolicy = { requireExecutionEvidence: true };
+            void sendMessageFn();
+        } catch (error) {
+            console.warn('发起资产探测失败:', error);
+            assetTableToast((error && error.message) || assetTableT('assets.probe.failed', '发起探测失败'));
+        }
+    }
+
+    function assetTableReloadCurrent() {
+        const type = assetTableState.current;
+        if (ASSET_TABLE_DATA_TYPES.indexOf(type) === -1) return;
+        const state = assetTableState.types[type];
+        void assetTableLoad(type, state.page || 1);
+    }
+
+    async function assetTableSetAssetsStatus(row, status) {
+        const assetIds = assetTableResolveAssetIds(row);
+        if (!assetIds.length) {
+            assetTableToast(assetTableT('assets.exclude.noAssetId', '该行缺少资产 ID，无法排除'));
+            return false;
+        }
+        const result = await assetTableApiRequest(
+            '/api/assets/bulk',
+            assetTableJsonOptions('PUT', { asset_ids: assetIds, status: status })
+        );
+        if (!result.ok) {
+            assetTableToast(result.error);
+            return false;
+        }
+        // 资产状态变化会影响公司卡片里的资产总数，下次进入公司 tab 重新加载
+        assetCompanyState.loaded = false;
+        return true;
+    }
+
+    async function assetTableExcludeRow(type, row) {
+        const target = assetTableProbeTarget(type, row) || assetTableText(row && row.key);
+
+        if (type === 'domain') {
+            const key = assetTableText(row && row.key);
+            if (!key) {
+                assetTableToast(assetTableT('assets.exclude.failed', '操作失败'));
+                return;
+            }
+            if (!assetTableConfirm(assetTableT('assets.exclude.domainConfirm', '确定忽略主域名「{{target}}」？', { target: target }))) return;
+            const result = await assetTableApiRequest(
+                ASSET_COMPANY_DOMAINS_API + '/' + encodeURIComponent(key) + '/ignore',
+                { method: 'POST' }
+            );
+            if (!result.ok) {
+                assetTableToast(result.error);
+                return;
+            }
+            assetTableToast(assetTableT('assets.exclude.success', '已排除'));
+            assetTableReloadCurrent();
+            return;
+        }
+
+        if (type === 'fingerprint') {
+            if (!assetTableConfirm(assetTableT('assets.exclude.fingerprintConfirm', '确定排除指纹「{{target}}」？', { target: target }))) return;
+            const query = [];
+            const pushParam = function (name, value) {
+                query.push(encodeURIComponent(name) + '=' + encodeURIComponent(String(value == null ? '' : value)));
+            };
+            pushParam('technology', row && row.technology);
+            pushParam('service', row && row.service);
+            pushParam('version', row && row.version);
+            const result = await assetTableApiRequest('/api/assets/fingerprints?' + query.join('&'), { method: 'DELETE' });
+            if (!result.ok) {
+                assetTableToast(result.error);
+                return;
+            }
+            assetCompanyState.loaded = false;
+            assetTableToast(assetTableT('assets.exclude.success', '已排除'));
+            assetTableReloadCurrent();
+            return;
+        }
+
+        if (!assetTableConfirm(assetTableT(
+            'assets.exclude.confirm',
+            '确定排除「{{target}}」？排除后资产会标记为停用，可在本行恢复。',
+            { target: target }
+        ))) return;
+        if (!await assetTableSetAssetsStatus(row, 'inactive')) return;
+        assetTableToast(assetTableT('assets.exclude.success', '已排除'));
+        assetTableReloadCurrent();
+    }
+
+    async function assetTableRestoreRow(type, row) {
+        if (ASSET_TABLE_ASSET_TYPES.indexOf(type) === -1) return;
+        if (!await assetTableSetAssetsStatus(row, 'active')) return;
+        assetTableToast(assetTableT('assets.exclude.restored', '已恢复'));
+        assetTableReloadCurrent();
+    }
+
+    function assetTableHandleRowAction(event) {
+        const target = event.target;
+        if (!target || typeof target.closest !== 'function') return;
+        const actionEl = target.closest('[data-asset-action]');
+        if (!actionEl || actionEl.disabled) return;
+        const action = actionEl.getAttribute('data-asset-action');
+        const rowIndex = Number(actionEl.getAttribute('data-row-index'));
+        const type = assetTableState.current;
+        if (ASSET_TABLE_DATA_TYPES.indexOf(type) === -1 || !Number.isFinite(rowIndex)) return;
+        const row = assetTableState.types[type].rows[rowIndex];
+        if (!row) return;
+        event.preventDefault();
+        if (action === 'probe') {
+            void assetTableRunProbe(type, row);
+            return;
+        }
+        if (action === 'exclude') {
+            void assetTableExcludeRow(type, row);
+            return;
+        }
+        if (action === 'restore') {
+            void assetTableRestoreRow(type, row);
+        }
+    }
+
+    /* -------------------------- 各层级「添加」 -------------------------- */
+
+    function assetTableAddSupported(type) {
+        return ASSET_TABLE_ADD_TYPES.indexOf(type) !== -1;
+    }
+
+    function assetTableAddCompanies() {
+        if (Array.isArray(assetCompanyState.companies) && assetCompanyState.companies.length) return assetCompanyState.companies;
+        return Array.isArray(assetTableAddState.companies) ? assetTableAddState.companies : [];
+    }
+
+    function assetTableAddFieldHtml(labelKey, fallback, controlHtml) {
+        return '<label class="asset-type-add-field"><span>' + assetTableEscape(assetTableT(labelKey, fallback)) + '</span>'
+            + controlHtml + '</label>';
+    }
+
+    /** 同步工具栏「添加」按钮：指纹禁用，其它不支持类型隐藏 */
+    function assetTableSyncAddButton(type) {
+        const button = assetTableEl('asset-type-add-btn');
+        if (!button) return;
+        const supported = assetTableAddSupported(type);
+        const fingerprint = type === 'fingerprint';
+        button.hidden = !(supported || fingerprint);
+        button.disabled = fingerprint;
+        button.title = fingerprint ? assetTableT('assets.add.fingerprintDisabled', '指纹为派生数据，不支持手工添加') : '';
+        if (!supported && assetTableAddState.open) assetTableCloseAddPanel();
+    }
+
+    function assetTableCloseAddPanel() {
+        assetTableAddState.open = false;
+        assetTableAddState.type = '';
+        assetTableAddState.loading = false;
+        assetTableAddState.error = '';
+        const panel = assetTableEl('asset-type-add-panel');
+        if (panel) {
+            panel.hidden = true;
+            panel.innerHTML = '';
+        }
+    }
+
+    function assetTableRenderAddPanel() {
+        const panel = assetTableEl('asset-type-add-panel');
+        if (!panel) return;
+        if (!assetTableAddState.open) {
+            panel.hidden = true;
+            panel.innerHTML = '';
+            return;
+        }
+        const type = assetTableAddState.type;
+        let html = '<div class="asset-type-add-head"><strong>'
+            + assetTableEscape(assetTableT('assets.add.title', '添加{{type}}', { type: assetTableTypeLabel(type) }))
+            + '</strong><button class="btn-link" type="button" data-asset-add="cancel">'
+            + assetTableEscape(assetTableT('common.cancel', '取消')) + '</button></div>';
+
+        if (assetTableAddState.loading) {
+            html += '<div class="asset-type-state"><span class="asset-type-spinner" aria-hidden="true"></span><span>'
+                + assetTableEscape(assetTableT('common.loading', '加载中...')) + '</span></div>';
+            panel.hidden = false;
+            panel.innerHTML = html;
+            return;
+        }
+
+        html += '<div class="asset-type-add-fields">';
+        if (type === 'subdomain') {
+            html += assetTableAddFieldHtml('assets.add.subdomainHost', '子域名', '<input id="asset-add-host" type="text" autocomplete="off" placeholder="www.example.com">');
+            html += assetTableAddFieldHtml('assets.add.rootDomain', '主域名', '<input id="asset-add-domain" type="text" autocomplete="off" placeholder="example.com">');
+        } else if (type === 'ip') {
+            html += assetTableAddFieldHtml('assets.add.ip', 'IP', '<input id="asset-add-ip" type="text" autocomplete="off" placeholder="1.2.3.4">');
+        } else if (type === 'service') {
+            html += assetTableAddFieldHtml('assets.add.host', '主机/IP', '<input id="asset-add-host" type="text" autocomplete="off" placeholder="example.com 或 1.2.3.4">');
+            html += assetTableAddFieldHtml('assets.add.port', '端口', '<input id="asset-add-port" type="number" min="1" max="65535" placeholder="443">');
+            html += assetTableAddFieldHtml('assets.add.protocol', '协议', '<input id="asset-add-protocol" type="text" autocomplete="off" placeholder="https">');
+        } else if (type === 'domain') {
+            const companies = assetTableAddCompanies();
+            let control;
+            if (!companies.length) {
+                control = '<span class="asset-type-add-hint">'
+                    + assetTableEscape(assetTableT('assets.add.noCompany', '暂无可选公司，请先在「公司」tab 新增')) + '</span>';
+            } else {
+                control = '<select id="asset-add-company"><option value="">'
+                    + assetTableEscape(assetTableT('assets.company.selectCompany', '选择公司')) + '</option>'
+                    + companies.map(function (company) {
+                        return '<option value="' + assetTableEscapeAttr(company.id) + '">' + assetTableEscape(company.name) + '</option>';
+                    }).join('') + '</select>';
+            }
+            html += assetTableAddFieldHtml('assets.add.company', '公司', control);
+            html += assetTableAddFieldHtml('assets.add.domain', '域名', '<input id="asset-add-domain" type="text" autocomplete="off" placeholder="example.com">');
+        }
+        html += '</div>';
+
+        if (assetTableAddState.error) {
+            html += '<div class="asset-type-add-error" role="alert">' + assetTableEscape(assetTableAddState.error) + '</div>';
+        }
+        const submitDisabled = type === 'domain' && !assetTableAddCompanies().length ? ' disabled' : '';
+        html += '<div class="asset-type-add-actions">'
+            + '<button class="btn-primary" type="button" data-asset-add="submit"' + submitDisabled + '>'
+            + assetTableEscape(assetTableT('assets.add.submit', '添加')) + '</button>'
+            + '<button class="btn-secondary" type="button" data-asset-add="cancel">'
+            + assetTableEscape(assetTableT('common.cancel', '取消')) + '</button></div>';
+        panel.hidden = false;
+        panel.innerHTML = html;
+    }
+
+    function assetTableOpenAddPanel() {
+        const type = assetTableState.current;
+        if (!assetTableAddSupported(type)) return;
+        if (assetTableAddState.open && assetTableAddState.type === type) {
+            assetTableCloseAddPanel();
+            return;
+        }
+        assetTableAddState.open = true;
+        assetTableAddState.type = type;
+        assetTableAddState.error = '';
+        assetTableAddState.loading = false;
+        assetTableRenderAddPanel();
+        // 主域名添加需要公司下拉：公司列表未加载时按需拉取
+        if (type === 'domain' && !assetTableAddCompanies().length) {
+            assetTableAddState.loading = true;
+            assetTableRenderAddPanel();
+            void assetTableApiRequest(ASSET_COMPANY_API).then(function (result) {
+                if (!assetTableAddState.open || assetTableAddState.type !== 'domain') return;
+                assetTableAddState.loading = false;
+                if (!result.ok) {
+                    assetTableAddState.error = result.error;
+                } else {
+                    const companies = result.data && result.data.companies;
+                    assetTableAddState.companies = Array.isArray(companies) ? companies : [];
+                }
+                assetTableRenderAddPanel();
+            });
+        }
+    }
+
+    function assetTableAddReadValue(id) {
+        const input = assetTableEl(id);
+        return input ? String(input.value || '').trim() : '';
+    }
+
+    async function assetTableSubmitAdd() {
+        const type = assetTableAddState.type;
+        if (!assetTableAddSupported(type)) return;
+        const fail = function (message) {
+            assetTableAddState.error = message;
+            assetTableRenderAddPanel();
+        };
+        assetTableAddState.error = '';
+        let result = null;
+
+        if (type === 'subdomain') {
+            const host = assetTableAddReadValue('asset-add-host');
+            const domain = assetTableAddReadValue('asset-add-domain');
+            if (!host) {
+                fail(assetTableT('assets.add.required', '请填写必填项'));
+                return;
+            }
+            result = await assetTableApiRequest('/api/assets/import', assetTableJsonOptions('POST', {
+                assets: [{ host: host, domain: domain, source: 'manual' }]
+            }));
+        } else if (type === 'ip') {
+            const ip = assetTableAddReadValue('asset-add-ip');
+            if (!ip) {
+                fail(assetTableT('assets.add.required', '请填写必填项'));
+                return;
+            }
+            result = await assetTableApiRequest('/api/assets/import', assetTableJsonOptions('POST', {
+                assets: [{ host: ip, ip: ip }]
+            }));
+        } else if (type === 'service') {
+            const host = assetTableAddReadValue('asset-add-host');
+            const port = Number(assetTableAddReadValue('asset-add-port'));
+            const protocol = assetTableAddReadValue('asset-add-protocol');
+            if (!host || !Number.isFinite(port) || port < 1 || port > 65535) {
+                fail(assetTableT('assets.add.invalidPort', '请填写主机与 1-65535 的端口'));
+                return;
+            }
+            result = await assetTableApiRequest('/api/assets/import', assetTableJsonOptions('POST', {
+                assets: [{ host: host, port: port, protocol: protocol }]
+            }));
+        } else if (type === 'domain') {
+            const companyId = assetTableAddReadValue('asset-add-company');
+            const domain = assetTableAddReadValue('asset-add-domain');
+            if (!companyId || !domain) {
+                fail(assetTableT('assets.add.required', '请填写必填项'));
+                return;
+            }
+            result = await assetTableApiRequest(
+                ASSET_COMPANY_API + '/' + encodeURIComponent(companyId) + '/domains',
+                assetTableJsonOptions('POST', { domain: domain })
+            );
+        }
+
+        if (!result) return;
+        if (!result.ok) {
+            fail(result.error || assetTableT('assets.add.failed', '添加失败'));
+            return;
+        }
+        assetTableToast(assetTableT('assets.add.success', '已添加'));
+        assetTableCloseAddPanel();
+        assetCompanyState.loaded = false;
+        if (type === 'domain') {
+            // 主域名变化也会影响待归属列表
+            assetCompanyState.pendingLoaded = false;
+        }
+        assetTableReloadCurrent();
+    }
+
+    function assetTableHandleAddPanelClick(event) {
+        const target = event.target;
+        if (!target || typeof target.closest !== 'function') return;
+        const actionEl = target.closest('[data-asset-add]');
+        if (!actionEl) return;
+        const action = actionEl.getAttribute('data-asset-add');
+        if (action === 'cancel') {
+            event.preventDefault();
+            assetTableCloseAddPanel();
+            return;
+        }
+        if (action === 'submit') {
+            event.preventDefault();
+            if (actionEl.disabled) return;
+            void assetTableSubmitAdd();
+        }
+    }
+
+    /* ------------------------------------------------------------------ *
      * 站点截图：缩略图（apiFetch + blob URL）、大图预览、重新截图轮询
      * ------------------------------------------------------------------ */
 
@@ -298,6 +891,23 @@
         const url = meta ? assetTableText(meta.url) : '';
         const match = url.match(/\/api\/assets\/([^/?#]+)\/screenshot/);
         return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    /**
+     * 取该行关联的全部资产 ID。
+     * 子域名 / IP 行是聚合行，后端会下发 asset_ids（可能多条）；
+     * 站点 / 端口行只有单条；公司 / 主域名 / 指纹为派生行，通常为空。
+     */
+    function assetTableResolveAssetIds(row) {
+        const list = row && Array.isArray(row.asset_ids) ? row.asset_ids : [];
+        const ids = [];
+        list.forEach(function (item) {
+            const id = assetTableText(item);
+            if (id && ids.indexOf(id) === -1) ids.push(id);
+        });
+        if (ids.length) return ids;
+        const single = assetTableResolveAssetId(row);
+        return single ? [single] : [];
     }
 
     function assetTableShotUid(type, page, rowIndex) {
@@ -760,12 +1370,31 @@
     /** 每个数据类型的列定义（列名、渲染器与顺序都集中在这里） */
     function assetTableColumns(type) {
         const indexColumn = assetTableColumn('index', 'assets.type.colIndex', '序号', null, 'asset-type-col-index');
+        const actionColumn = assetTableColumn('actions', 'common.actions', '操作', null, 'asset-type-col-actions');
         const sourceColumn = assetTableColumn('source', 'assets.type.colSource', '来源', function (row) {
             const source = assetTableText(row.source)
                 || (Array.isArray(row.sources) ? assetTableText(row.sources[0]) : '');
             return assetTableSourceCell(source);
         });
 
+        if (type === 'domain') {
+            return [
+                indexColumn,
+                assetTableColumn('domain', 'assets.type.colDomain', '域名', assetTableDomainCell),
+                assetTableColumn('company', 'assets.type.colCompany', '归属公司', function (row) {
+                    return assetTableCellText(row.company_name);
+                }),
+                assetTableColumn('status', 'assets.type.colStatus', '状态', assetTableDomainStatusCell),
+                assetTableColumn('asset_count', 'assets.type.colAssetCount', '资产数', function (row) {
+                    return assetTableCellNumber(row.asset_count);
+                }),
+                sourceColumn,
+                assetTableColumn('note', 'assets.type.colNote', '备注', function (row) {
+                    return assetTableCellTruncated(row.note);
+                }),
+                actionColumn
+            ];
+        }
         if (type === 'subdomain') {
             return [
                 indexColumn,
@@ -777,7 +1406,8 @@
                     return assetTableCellTruncated(row.record_value);
                 }),
                 assetTableColumn('ips', 'assets.type.colIps', '关联IP', assetTableIpsCell),
-                sourceColumn
+                sourceColumn,
+                actionColumn
             ];
         }
         if (type === 'site') {
@@ -796,7 +1426,8 @@
                     return assetTableCellTruncated(row.title);
                 }),
                 assetTableColumn('ips', 'assets.type.colIps', '关联IP', assetTableIpsCell),
-                sourceColumn
+                sourceColumn,
+                actionColumn
             ];
         }
         if (type === 'ip') {
@@ -811,10 +1442,38 @@
                 assetTableColumn('port_count', 'assets.type.colPortCount', '关联端口数', function (row) {
                     return assetTableCellNumber(Array.isArray(row.ports) ? row.ports.length : 0);
                 }),
-                sourceColumn
+                sourceColumn,
+                actionColumn
             ];
         }
-        // service
+        if (type === 'fingerprint') {
+            return [
+                indexColumn,
+                assetTableColumn('technology', 'assets.type.colTechnology', '技术', function (row) {
+                    const technology = assetTableText(row.technology);
+                    return technology
+                        ? '<span class="asset-type-cell-primary">' + assetTableEscape(technology) + '</span>'
+                        : assetTableEmptyCell();
+                }),
+                assetTableColumn('service', 'assets.type.colService', '服务', function (row) {
+                    return assetTableCellText(row.service);
+                }),
+                assetTableColumn('version', 'assets.type.colVersion', '版本', function (row) {
+                    return assetTableCellText(row.version);
+                }),
+                assetTableColumn('is_web', 'assets.type.colWeb', 'Web', function (row) {
+                    return row && row.is_web
+                        ? '<span class="asset-type-web-badge">Web</span>'
+                        : assetTableEmptyCell();
+                }),
+                assetTableColumn('asset_count', 'assets.type.colAssetCount', '资产数', function (row) {
+                    return assetTableCellNumber(row.asset_count);
+                }),
+                sourceColumn,
+                actionColumn
+            ];
+        }
+        // service（端口）
         return [
             indexColumn,
             assetTableColumn('host', 'assets.type.colHost', '主机', assetTableServiceHostCell),
@@ -825,7 +1484,8 @@
             assetTableColumn('version', 'assets.type.colVersion', '版本', function (row) {
                 return assetTableCellText(row.version);
             }),
-            sourceColumn
+            sourceColumn,
+            actionColumn
         ];
     }
 
@@ -892,6 +1552,9 @@
                     if (built.shot) state.pendingShots.push(built.shot);
                     return '<td class="asset-type-col-shot" id="asset-shot-cell-' + uid + '">' + built.html + '</td>';
                 }
+                if (column.key === 'actions') {
+                    return '<td class="asset-type-col-actions">' + assetTableRowActionsHtml(type, entry.row, entry.index) + '</td>';
+                }
                 const className = column.className ? ' class="' + column.className + '"' : '';
                 const content = column.render ? column.render(entry.row) : String(offset + entry.index + 1);
                 return '<td' + className + '>' + content + '</td>';
@@ -935,6 +1598,10 @@
         assetTableShotState.renderSeq += 1;
         state.pendingShots = [];
         if (assetTableShotState.lightbox.open) assetTableCloseLightbox();
+
+        // 工具栏「添加」按钮按当前层级切换；跨层级时收起添加面板
+        if (assetTableAddState.open && assetTableAddState.type !== type) assetTableCloseAddPanel();
+        assetTableSyncAddButton(type);
 
         const head = assetTableEl('asset-type-table-head');
         if (head) head.innerHTML = assetTableHeaderHtml(type);
@@ -1402,6 +2069,8 @@
             + '<h3>' + assetTableEscape(name) + '</h3>'
             + '<span class="asset-company-asset-count">' + assetTableEscape(assetCompanyT('assets.company.assetCount', '资产 {{count}}', { count: assetCount })) + '</span>'
             + '</div><div class="asset-company-card-actions">'
+            + '<button class="btn-primary" type="button" data-company-action="probe" data-company-id="' + assetTableEscapeAttr(companyId) + '">'
+            + assetTableEscape(assetCompanyT('assets.probe.action', '探测')) + '</button>'
             + '<button class="btn-secondary" type="button" data-company-action="lookup" data-company-id="' + assetTableEscapeAttr(companyId) + '">'
             + assetTableEscape(assetCompanyT('assets.company.lookup', '自动查找主域名')) + '</button>'
             + '<button class="btn-secondary" type="button" data-company-action="edit" data-company-id="' + assetTableEscapeAttr(companyId) + '">'
@@ -1743,6 +2412,12 @@
             void assetCompanyLookup(companyId);
             return;
         }
+        if (action === 'probe') {
+            event.preventDefault();
+            const company = assetCompanyFindCompany(companyId);
+            if (company) void assetTableRunProbe('company', null, company);
+            return;
+        }
         if (action === 'cancel-lookup') {
             event.preventDefault();
             assetCompanyState.lookup = assetCompanyClearLookup();
@@ -1812,6 +2487,8 @@
         assetTableApplyLayout(type);
 
         if (ASSET_TABLE_DATA_TYPES.indexOf(type) === -1) {
+            assetTableCloseAddPanel();
+            assetTableSyncAddButton(type);
             if (type === 'company') assetCompanyEnsureLoaded();
             return;
         }
@@ -1887,6 +2564,8 @@
             tableBody.addEventListener('click', function (event) {
                 const target = event.target;
                 if (!target || typeof target.closest !== 'function') return;
+                // 层级行操作：探测 / 排除 / 恢复
+                assetTableHandleRowAction(event);
                 const shotAction = target.closest('[data-asset-shot-action]');
                 if (shotAction) {
                     const action = shotAction.getAttribute('data-asset-shot-action');
@@ -1936,6 +2615,12 @@
                 void assetCompanyLoad(true);
             });
         }
+
+        // 各层级「添加」：工具栏按钮 + 内联面板事件委托
+        const addButton = assetTableEl('asset-type-add-btn');
+        if (addButton) addButton.addEventListener('click', assetTableOpenAddPanel);
+        const addPanel = assetTableEl('asset-type-add-panel');
+        if (addPanel) addPanel.addEventListener('click', assetTableHandleAddPanelClick);
 
         // 语言切换后重绘动态表头 / 表体 / 公司面板（静态 data-i18n 由 i18n.js 统一刷新）
         document.addEventListener('languagechange', function () {

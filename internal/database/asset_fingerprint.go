@@ -136,6 +136,37 @@ func (db *DB) ListAssetFingerprints(assetIDs []string) (map[string][]AssetFinger
 	return result, nil
 }
 
+// DeleteAssetFingerprints 按 (service, technology, version) 删除指纹记录，
+// 用于资产视图「指纹」页的排除操作。空字符串表示不限制该字段。
+func (db *DB) DeleteAssetFingerprints(service, technology, version string) (int, error) {
+	service = strings.ToLower(strings.TrimSpace(service))
+	technology = strings.ToLower(strings.TrimSpace(technology))
+	version = strings.TrimSpace(version)
+	conds := make([]string, 0, 3)
+	args := make([]interface{}, 0, 3)
+	if service != "" {
+		conds = append(conds, "service=?")
+		args = append(args, service)
+	}
+	if technology != "" {
+		conds = append(conds, "technology=?")
+		args = append(args, technology)
+	}
+	if version != "" {
+		conds = append(conds, "version=?")
+		args = append(args, version)
+	}
+	if len(conds) == 0 {
+		return 0, fmt.Errorf("至少需要指定 service 或 technology")
+	}
+	res, err := db.Exec(`DELETE FROM asset_fingerprints WHERE `+strings.Join(conds, " AND "), args...)
+	if err != nil {
+		return 0, fmt.Errorf("删除指纹失败: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return int(n), nil
+}
+
 // CountAssetFingerprints 返回某资产的指纹数量，供测试与统计使用。
 func (db *DB) CountAssetFingerprints(assetID string) (int, error) {
 	var count int

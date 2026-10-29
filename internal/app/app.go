@@ -1132,6 +1132,7 @@ func setupRoutes(
 		protected.GET("/assets/screenshot", assetHandler.GetScreenshot)
 		protected.GET("/assets/screenshot/status", assetHandler.ScreenshotStatus)
 		protected.POST("/assets/screenshot", assetHandler.CaptureScreenshot)
+		protected.DELETE("/assets/fingerprints", assetHandler.DeleteFingerprints)
 
 		// 公司 / 主域名面板（公司 = 组织实体，主域名归属映射供层级视图使用）
 		protected.GET("/companies", companyHandler.List)

@@ -39,7 +39,7 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="/static/css/style.css?v=20261029-company-1">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261029-hierarchy-1">
     <link rel="stylesheet" href="/static/css/tool-guard.css?v=20260907-7">
     <link rel="stylesheet" href="/static/css/chat-plan-progress.css?v=20260813-4">
     <link rel="stylesheet" href="/static/css/c2.css">
@@ -1962,17 +1962,19 @@
                         </div>
                     </div>
                     <div class="page-content asset-content">
-                        <!-- 资产类型 tab：默认「子域名」；「全部资产」复用既有列表，「层级」复用七层树，「公司」为公司/主域名面板。 -->
+                        <!-- 资产层级顺序 tab：公司 → 主域名 → 子域名 → IP → 端口 → 站点 → 指纹 → 占位类型 → 全部资产 → 层级 -->
                         <div class="asset-type-tabs" role="tablist" data-i18n="assets.type.tabsLabel" data-i18n-attr="aria-label" aria-label="资产类型">
+                            <button id="asset-tab-company" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="company" onclick="assetTableSwitch('company')"><span data-i18n="assets.company.tabName">公司</span><span id="company-tab-badge" class="asset-type-tab-badge" hidden></span></button>
+                            <button id="asset-tab-domain" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="domain" onclick="assetTableSwitch('domain')" data-i18n="assets.type.tab.domain">主域名</button>
                             <button id="asset-tab-subdomain" class="asset-type-tab is-active" type="button" role="tab" aria-selected="true" data-asset-type-tab="subdomain" onclick="assetTableSwitch('subdomain')" data-i18n="assets.type.tab.subdomain">子域名</button>
-                            <button id="asset-tab-site" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="site" onclick="assetTableSwitch('site')" data-i18n="assets.type.tab.site">站点</button>
                             <button id="asset-tab-ip" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="ip" onclick="assetTableSwitch('ip')" data-i18n="assets.type.tab.ip">IP</button>
-                            <button id="asset-tab-service" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="service" onclick="assetTableSwitch('service')" data-i18n="assets.type.tab.service">服务</button>
+                            <button id="asset-tab-service" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="service" onclick="assetTableSwitch('service')" data-i18n="assets.type.tab.port">端口</button>
+                            <button id="asset-tab-site" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="site" onclick="assetTableSwitch('site')" data-i18n="assets.type.tab.site">站点</button>
+                            <button id="asset-tab-fingerprint" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="fingerprint" onclick="assetTableSwitch('fingerprint')" data-i18n="assets.type.tab.fingerprint">指纹</button>
                             <button id="asset-tab-ssl" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="ssl" onclick="assetTableSwitch('ssl')" data-i18n="assets.type.tab.ssl">SSL证书</button>
                             <button id="asset-tab-fileleak" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="fileleak" onclick="assetTableSwitch('fileleak')" data-i18n="assets.type.tab.fileleak">文件泄露</button>
                             <button id="asset-tab-urlinfo" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="urlinfo" onclick="assetTableSwitch('urlinfo')" data-i18n="assets.type.tab.urlinfo">URL信息</button>
                             <button id="asset-tab-all" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="all" onclick="assetTableSwitch('all')" data-i18n="assets.type.tab.all">全部资产</button>
-                            <button id="asset-tab-company" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="company" onclick="assetTableSwitch('company')"><span data-i18n="assets.company.tabName">公司</span><span id="company-tab-badge" class="asset-type-tab-badge" hidden></span></button>
                             <button id="asset-tab-tree" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="tree" onclick="assetTableSwitch('tree')" data-i18n="assets.type.tab.tree">层级</button>
                         </div>
                         <div class="asset-toolbar">
@@ -2064,10 +2066,13 @@
                                     <input id="asset-type-no-shot-filter" type="checkbox">
                                     <span data-i18n="assets.type.onlyNoScreenshot">仅看无截图</span>
                                 </label>
+                                <button id="asset-type-add-btn" class="btn-secondary" type="button" hidden data-i18n="assets.add.button">添加</button>
                                 <button id="asset-type-search-btn" class="btn-primary" type="button" data-i18n="common.search">搜索</button>
                                 <button id="asset-type-reset-btn" class="btn-link" type="button" data-i18n="assets.type.reset">重置</button>
                                 <button id="asset-type-refresh-btn" class="btn-secondary" type="button" data-i18n="common.refresh">刷新</button>
                             </div>
+                            <!-- 各层级「添加」内联表单（由 assets-table.js 按当前 tab 渲染） -->
+                            <div id="asset-type-add-panel" class="asset-type-add-panel" hidden></div>
                             <div class="asset-type-card">
                                 <div class="asset-type-table-wrap">
                                     <table class="asset-type-table">
@@ -7188,7 +7193,7 @@
     <!-- 资产层级树视图：依赖 i18n.js / auth.js(apiFetch)，必须在 mobile-ui.js 之前 -->
     <script src="/static/js/assets-tree.js?v=20261029-1"></script>
     <!-- 资产类型 tab + 扁平表格：依赖 apiFetch / assets-tree.js，必须在 mobile-ui.js 之前 -->
-    <script src="/static/js/assets-table.js?v=20261029-4"></script>
+    <script src="/static/js/assets-table.js?v=20261029-5"></script>
     <!-- 移动端交互层：必须最后加载，它包装 window.switchPage 并注入移动端 DOM -->
     <script src="/static/js/mobile-ui.js?v=20261006-9"></script>
 </body>

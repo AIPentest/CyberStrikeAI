@@ -48927,3 +48927,182 @@ html[data-theme="dark"] .asset-company-suggestion {
         max-width: 100%;
     }
 }
+
+/* ==========================================================================
+   资产层级化：行操作（探测 / 排除 / 恢复）、各层级添加面板
+   追加于文件末尾，复用现有 CSS 变量与按钮/表格风格。
+   ========================================================================== */
+
+.asset-type-col-actions {
+    width: 150px;
+    min-width: 132px;
+}
+
+.asset-type-row-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.asset-type-row-btn {
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 7px;
+    font: inherit;
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.asset-type-row-btn.btn-primary {
+    border: 1px solid var(--accent-color, #0066ff);
+}
+
+.asset-type-row-btn.btn-link {
+    border: 0;
+    background: transparent;
+    color: var(--accent-color, #0066ff);
+}
+
+.asset-type-row-btn--danger {
+    color: var(--error-color, #dc3545) !important;
+}
+
+.asset-type-row-btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.asset-type-excluded-badge {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 8px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 999px;
+    background: var(--bg-secondary, #f8f9fa);
+    color: var(--text-secondary, #6c757d);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.asset-type-domain-status {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.asset-type-domain-status--confirmed {
+    background: color-mix(in srgb, var(--success-color, #28a745) 12%, transparent);
+    color: var(--success-color, #28a745);
+}
+
+.asset-type-domain-status--pending {
+    background: color-mix(in srgb, var(--warning-color, #ffc107) 16%, transparent);
+    color: var(--text-secondary, #6c757d);
+}
+
+.asset-type-web-badge {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 7px;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--accent-color, #0066ff) 12%, transparent);
+    color: var(--accent-color, #0066ff);
+    font-size: 11px;
+}
+
+/* 各层级「添加」面板 */
+.asset-type-add-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px dashed var(--accent-color, #0066ff);
+    border-radius: 10px;
+    background: var(--card-bg, #fff);
+}
+
+.asset-type-add-panel[hidden] {
+    display: none !important;
+}
+
+.asset-type-add-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--text-primary, #111827);
+    font-size: 13px;
+}
+
+.asset-type-add-fields {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.asset-type-add-field {
+    display: flex;
+    flex: 1 1 180px;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    color: var(--text-secondary, #6c757d);
+    font-size: 12px;
+}
+
+.asset-type-add-field input,
+.asset-type-add-field select {
+    width: 100%;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color, #d8dee8);
+    border-radius: 8px;
+    background: var(--input-bg, #fff);
+    color: var(--text-primary, #111827);
+    font: inherit;
+    font-size: 13px;
+}
+
+.asset-type-add-field input:focus,
+.asset-type-add-field select:focus {
+    outline: none;
+    border-color: var(--accent-color, #0066ff);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color, #0066ff) 14%, transparent);
+}
+
+.asset-type-add-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.asset-type-add-error {
+    color: var(--error-color, #dc3545);
+    font-size: 12px;
+}
+
+.asset-type-add-hint {
+    color: var(--text-secondary, #6c757d);
+    font-size: 12px;
+    line-height: 36px;
+}
+
+@media (max-width: 720px) {
+    .asset-type-col-actions {
+        width: 120px;
+        min-width: 108px;
+    }
+
+    .asset-type-add-field {
+        flex: 1 1 100%;
+    }
+}
