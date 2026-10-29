@@ -104,11 +104,39 @@ func (h *AssetHandler) Tree(c *gin.Context) {
 		fingerprints = nil
 	}
 
-	c.JSON(200, buildAssetTree(items, fingerprints))
+	// 公司层优先用「主域名 -> 公司」归属映射；未映射的域名回退到项目名。
+	// 同时按公司名建索引：当项目名与公司同名时（常见做法），把它们并到同一个公司节点，
+	// 避免同一个名字在层级里出现两次。
+	index := &assetTreeCompanyIndex{ByDomain: map[string]database.Company{}, ByName: map[string]database.Company{}}
+	if byDomain, err := h.db.DomainCompanyMap(); err != nil {
+		h.logger.Warn("资产层级视图：查询公司归属失败，降级为按项目分组", zap.Error(err))
+	} else {
+		index.ByDomain = byDomain
+	}
+	if companies, err := h.db.ListCompanies(); err != nil {
+		h.logger.Warn("资产层级视图：查询公司列表失败", zap.Error(err))
+	} else {
+		for _, entity := range companies {
+			if name := strings.ToLower(strings.TrimSpace(entity.Name)); name != "" {
+				index.ByName[name] = entity
+			}
+		}
+	}
+
+	c.JSON(200, buildAssetTree(items, fingerprints, index))
+}
+
+// assetTreeCompanyIndex 是层级视图判定「公司」的索引：
+// 先按资产根域名命中归属，再按项目名兜底匹配同名公司。
+type assetTreeCompanyIndex struct {
+	ByDomain map[string]database.Company
+	ByName   map[string]database.Company
 }
 
 // buildAssetTree 把扁平资产列表聚合成层级结构。
-func buildAssetTree(assets []*database.Asset, fingerprints map[string][]database.AssetFingerprint) assetTreeResponse {
+//
+// index 命中时公司层使用公司实体，否则沿用项目名（未绑定项目归入「未绑定项目」）。
+func buildAssetTree(assets []*database.Asset, fingerprints map[string][]database.AssetFingerprint, index *assetTreeCompanyIndex) assetTreeResponse {
 	resp := assetTreeResponse{TotalAssets: len(assets), Companies: []assetTreeCompany{}}
 
 	companies := make(map[string]*assetTreeCompany)
@@ -122,11 +150,28 @@ func buildAssetTree(assets []*database.Asset, fingerprints map[string][]database
 			continue
 		}
 		companyKey := strings.TrimSpace(asset.ProjectID)
+		companyName := companyDisplayName(asset.ProjectName)
+		companyID := companyKey
+		mapped, ok := database.Company{}, false
+		if index != nil {
+			mapped, ok = index.ByDomain[assetRootDomain(asset)]
+			if (!ok || mapped.ID == "") && asset.ProjectName != "" {
+				// 项目名与公司同名时并到公司节点，避免层级里出现两个同名公司。
+				if entity, hit := index.ByName[strings.ToLower(strings.TrimSpace(asset.ProjectName))]; hit {
+					mapped, ok = entity, true
+				}
+			}
+		}
+		if ok && mapped.ID != "" {
+			companyKey = "company:" + mapped.ID
+			companyName = mapped.Name
+			companyID = mapped.ID
+		}
 		company, ok := companies[companyKey]
 		if !ok {
 			company = &assetTreeCompany{
-				CompanyID:   companyKey,
-				CompanyName: companyDisplayName(asset.ProjectName),
+				CompanyID:   companyID,
+				CompanyName: companyName,
 				Domains:     []assetTreeDomain{},
 			}
 			companies[companyKey] = company

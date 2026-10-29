@@ -44,6 +44,58 @@ An asset can include:
 
 At least one of `host`, `ip`, or `domain` is required.
 
+## Companies and root domains
+
+The asset inventory has a dedicated **Companies** panel that maintains "company → root domain"
+ownership. It is decoupled from *projects*: a project is the container for one engagement, while a
+company is a long-lived organization that may span several projects.
+
+### Where root domains come from
+
+| Source | Meaning |
+| --- | --- |
+| `manual` | Typed by the user in the panel (when creating a company or added later); stored as **confirmed** |
+| `auto:<tool>` | Registered automatically when the Agent collects a previously unseen root domain; stored as **pending** |
+| `fofa` / `local` | Suggestions from "Find root domains"; only owned after the user selects them |
+
+Domains are normalized to the eTLD+1 form (`a.b.example.com` → `example.com`) and are globally
+unique: a root domain can belong to only one company.
+
+### Pending confirmation
+
+Automatically discovered root domains are not attributed to a company directly; they land in the
+**unassigned** list (status `pending`) and wait for a human decision:
+
+- **Confirm ownership**: pick a company and the status becomes `confirmed`;
+- **Ignore**: the status becomes `ignored`, and later collection runs will not prompt again.
+
+Decisions made by the user are never overwritten by subsequent automatic collection.
+
+### Finding root domains
+
+The "Find root domains" action combines two sources:
+
+1. **Local first**: root domains already present in assets whose project, business system, or
+   department matches the company name;
+2. **Recon API**: when `fofa.api_key` is configured, an `org="company"` query is ranked by root
+   domain frequency.
+
+Without a recon API key only local results are returned, together with a warning (not a failure).
+Each suggestion notes whether the domain is already owned.
+
+### Relationship to the hierarchy view
+
+The Company level in the hierarchy view resolves in this order:
+
+1. the asset's root domain has a **confirmed** ownership → use that company's name;
+2. otherwise, if the asset's **project name equals a company name** → merge into that company node
+   (so the same name never appears twice);
+3. otherwise fall back to the project name, and unbound assets go to "Unassigned project".
+
+> Endpoints: `GET/POST /api/companies`, `PUT/DELETE /api/companies/:id`, `POST /api/companies/:id/domains`,
+> `POST /api/companies/:id/lookup`, `GET /api/company-domains?status=pending`, and
+> `POST /api/company-domains/:id/confirm|ignore`. Reads and writes reuse `asset:read` / `asset:write`.
+
 ## Build an asset baseline
 
 ### Add an asset manually

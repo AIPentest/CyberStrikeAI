@@ -19,6 +19,7 @@ import (
 	"cyberstrike-ai/internal/audit"
 	"cyberstrike-ai/internal/authctx"
 	"cyberstrike-ai/internal/c2"
+	companysvc "cyberstrike-ai/internal/company"
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/database"
 	"cyberstrike-ai/internal/einoobserve"
@@ -488,6 +489,9 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	vulnerabilityHandler.SetTaskStateProvider(agentHandler)
 	assetHandler := handler.NewAssetHandler(db, log.Logger)
 	assetHandler.SetScreenshotService(shotService)
+	// 公司 / 主域名面板：本地资产优先 + FOFA 补充反查
+	companyLookuper := companysvc.NewLookuper(db, cfg, log.Logger)
+	companyHandler := handler.NewCompanyHandler(db, companyLookuper, log.Logger)
 	projectHandler := handler.NewProjectHandler(db, log.Logger)
 	rbacHandler := handler.NewRBACHandler(db, log.Logger)
 	rbacHandler.SetAudit(auditSvc)
@@ -677,6 +681,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 		app, // 传递 App 实例以便动态获取 knowledgeHandler
 		vulnerabilityHandler,
 		assetHandler,
+		companyHandler,
 		projectHandler,
 		workflowHandler,
 		webshellHandler,
@@ -990,6 +995,7 @@ func setupRoutes(
 	app *App, // 传递 App 实例以便动态获取 knowledgeHandler
 	vulnerabilityHandler *handler.VulnerabilityHandler,
 	assetHandler *handler.AssetHandler,
+	companyHandler *handler.CompanyHandler,
 	projectHandler *handler.ProjectHandler,
 	workflowHandler *handler.WorkflowHandler,
 	webshellHandler *handler.WebShellHandler,
@@ -1126,6 +1132,19 @@ func setupRoutes(
 		protected.GET("/assets/screenshot", assetHandler.GetScreenshot)
 		protected.GET("/assets/screenshot/status", assetHandler.ScreenshotStatus)
 		protected.POST("/assets/screenshot", assetHandler.CaptureScreenshot)
+
+		// 公司 / 主域名面板（公司 = 组织实体，主域名归属映射供层级视图使用）
+		protected.GET("/companies", companyHandler.List)
+		protected.POST("/companies", companyHandler.Create)
+		protected.PUT("/companies/:id", companyHandler.Update)
+		protected.DELETE("/companies/:id", companyHandler.Delete)
+		protected.POST("/companies/:id/domains", companyHandler.AddDomain)
+		protected.DELETE("/companies/:id/domains/:domainId", companyHandler.RemoveDomain)
+		protected.POST("/companies/:id/lookup", companyHandler.Lookup)
+		protected.GET("/company-domains", companyHandler.ListDomains)
+		protected.POST("/company-domains/:id/confirm", companyHandler.ConfirmDomain)
+		protected.POST("/company-domains/:id/ignore", companyHandler.IgnoreDomain)
+
 		protected.POST("/assets/import", assetHandler.Import)
 		protected.POST("/assets/scan-links", assetHandler.RecordScans)
 		protected.PUT("/assets/bulk", assetHandler.BulkUpdate)

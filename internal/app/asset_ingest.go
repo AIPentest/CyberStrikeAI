@@ -129,6 +129,18 @@ func (i *assetIngestor) Ingest(ctx context.Context, toolName string, args map[st
 		}
 	}
 
+	// 自动发现的主域名登记为「待确认」，由用户在资产管理页确认归属公司。
+	// 已存在（含已确认/已忽略）的域名不会被覆盖，避免打扰用户的判断。
+	if roots := rootDomainsFor(hosts); len(roots) > 0 {
+		if inserted, err := i.db.UpsertPendingDomains(roots, "auto:"+toolName); err != nil {
+			i.logger.Warn("资产自动采集：登记待确认主域名失败",
+				zap.String("tool", toolName), zap.Error(err))
+		} else if inserted > 0 {
+			i.logger.Info("发现新的待确认主域名",
+				zap.String("tool", toolName), zap.Int("count", inserted))
+		}
+	}
+
 	// 新发现的 http/https 站点排队截图（同一资产按最小间隔去重，由截图服务判断）。
 	if i.shots != nil {
 		queued := 0
@@ -157,6 +169,21 @@ func (i *assetIngestor) Ingest(ctx context.Context, toolName string, args map[st
 		zap.Int("skipped", result.Skipped),
 		zap.Int("fingerprints", fingerprintCount),
 		zap.String("project_id", projectID))
+}
+
+// rootDomainsFor 提取本批结果里出现的根域名（eTLD+1），用于登记「待确认主域名」。
+func rootDomainsFor(hosts []assetintel.Host) []string {
+	seen := make(map[string]bool, len(hosts))
+	out := make([]string, 0, len(hosts))
+	for _, h := range hosts {
+		domain := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(h.Domain)), ".")
+		if domain == "" || seen[domain] {
+			continue
+		}
+		seen[domain] = true
+		out = append(out, domain)
+	}
+	return out
 }
 
 // hostIPRecordsFor 从解析结果中提取「域名 -> IP」解析关系。

@@ -25,9 +25,13 @@
     const ASSET_TABLE_TABS = [
         'subdomain', 'site', 'ip', 'service',
         'ssl', 'fileleak', 'urlinfo',
-        'all', 'tree'
+        'all', 'company', 'tree'
     ];
     const ASSET_TABLE_DEFAULT_TAB = 'subdomain';
+
+    /** 公司 / 主域名接口（公司 tab 不请求 /api/assets/table） */
+    const ASSET_COMPANY_API = '/api/companies';
+    const ASSET_COMPANY_DOMAINS_API = '/api/company-domains';
 
     /** 截图状态轮询参数（契约建议）：2s/次、最多 15 次；手动触发与 pending/running 自动观察共用 */
     const ASSET_TABLE_SHOT_POLL_INTERVAL = 2000;
@@ -80,6 +84,26 @@
             lastFocus: null,
             ownBlobUrl: ''
         }
+    };
+
+    /** 公司 tab 状态：列表 / 待归属主域名 / 内联编辑 / 自动查找建议 / 操作提示 */
+    const assetCompanyState = {
+        loaded: false,
+        loading: false,
+        error: '',
+        companies: [],
+        pending: [],
+        pendingLoaded: false,
+        editingId: '',
+        lookup: {
+            companyId: '',
+            loading: false,
+            error: '',
+            warnings: [],
+            suggestions: []
+        },
+        notice: { type: '', text: '' },
+        requestSeq: 0
     };
 
     /* ------------------------------------------------------------------ *
@@ -977,6 +1001,9 @@
         const placeholderView = assetTableEl('asset-placeholder-view');
         if (placeholderView) placeholderView.hidden = ASSET_TABLE_PLACEHOLDER_TYPES.indexOf(type) === -1;
 
+        const companyView = assetTableEl('asset-company-view');
+        if (companyView) companyView.hidden = type !== 'company';
+
         // 层级树容器由 assets-tree.js 自己管理显隐；非 tree tab 时收起
         if (typeof window.assetTreeSetView === 'function') {
             window.assetTreeSetView(type === 'tree' ? 'tree' : 'list');
@@ -1109,6 +1136,664 @@
     }
 
     /* ------------------------------------------------------------------ *
+     * 公司 tab：公司列表 + 待归属主域名
+     * ------------------------------------------------------------------ */
+
+    function assetCompanyClearLookup() {
+        return { companyId: '', loading: false, error: '', warnings: [], suggestions: [] };
+    }
+
+    function assetCompanyJsonOptions(method, payload) {
+        return {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload || {})
+        };
+    }
+
+    /** 公司相关请求统一出口：优先展示后端 error 字段，网络/401 异常也转成可展示错误 */
+    async function assetCompanyRequest(url, options) {
+        let response;
+        try {
+            response = typeof apiFetch === 'function' ? await apiFetch(url, options) : await fetch(url, options);
+        } catch (error) {
+            return {
+                ok: false,
+                status: 0,
+                data: null,
+                error: error && error.message ? error.message : assetCompanyT('assets.company.loadFailed', '加载公司数据失败')
+            };
+        }
+        let raw = '';
+        try {
+            raw = await response.text();
+        } catch (error) {
+            raw = '';
+        }
+        let data = null;
+        if (raw) {
+            try {
+                data = JSON.parse(raw);
+            } catch (error) {
+                data = null;
+            }
+        }
+        if (!response || !response.ok) {
+            const message = (data && (data.error || data.message)) || ('HTTP ' + (response ? response.status : 'error'));
+            return { ok: false, status: response ? response.status : 0, data: data, error: message };
+        }
+        return { ok: true, status: response ? response.status : 0, data: data || {}, error: '' };
+    }
+
+    function assetCompanyT(key, fallback, options) {
+        return assetTableT(key, fallback, options);
+    }
+
+    function assetCompanySourceBadge(source) {
+        const text = assetTableText(source);
+        if (!text) return '';
+        return '<span class="asset-type-source-badge">' + assetTableEscape(text) + '</span>';
+    }
+
+    function assetCompanyFormatTime(value) {
+        const text = assetTableText(value);
+        if (!text) return '';
+        const date = new Date(text);
+        if (!date || Number.isNaN(date.getTime())) return text;
+        return date.toLocaleString();
+    }
+
+    function assetCompanyEmptyHtml(key, fallback) {
+        return '<div class="asset-company-empty">' + assetTableEscape(assetCompanyT(key, fallback)) + '</div>';
+    }
+
+    function assetCompanyConfirm(message) {
+        if (typeof window.confirm !== 'function') return true;
+        try {
+            return !!window.confirm(message);
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function assetCompanySetNotice(type, text) {
+        assetCompanyState.notice = type && text ? { type: type, text: text } : { type: '', text: '' };
+        assetCompanyRenderNotice();
+    }
+
+    function assetCompanyRenderNotice() {
+        const notice = assetTableEl('company-notice');
+        if (!notice) return;
+        const current = assetCompanyState.notice || { type: '', text: '' };
+        notice.hidden = !current.text;
+        notice.className = 'asset-company-notice'
+            + (current.type === 'error' ? ' asset-company-notice--error' : '')
+            + (current.type === 'success' ? ' asset-company-notice--success' : '');
+        notice.textContent = current.text || '';
+    }
+
+    function assetCompanySetFormError(text) {
+        const errorEl = assetTableEl('company-create-error');
+        if (!errorEl) return;
+        errorEl.textContent = text || '';
+        errorEl.hidden = !text;
+    }
+
+    /** 更新 tab 角标与待归属数量 */
+    function assetCompanyUpdateBadge() {
+        const count = Array.isArray(assetCompanyState.pending) ? assetCompanyState.pending.length : 0;
+        const badge = assetTableEl('company-tab-badge');
+        if (badge) {
+            badge.textContent = count > 0 ? String(count) : '';
+            badge.hidden = count <= 0;
+        }
+        const countEl = assetTableEl('company-pending-count');
+        if (countEl) countEl.textContent = String(count);
+    }
+
+    function assetCompanyRender() {
+        const view = assetTableEl('asset-company-view');
+        if (!view) return;
+        assetCompanyUpdateBadge();
+        assetCompanyRenderNotice();
+
+        const status = assetTableEl('company-status');
+        const pendingSection = assetTableEl('company-pending-section');
+        const listSection = assetTableEl('company-list-section');
+        const ready = assetCompanyState.loaded && !assetCompanyState.loading && !assetCompanyState.error;
+
+        if (status) {
+            if (assetCompanyState.loading) {
+                status.hidden = false;
+                status.innerHTML = '<div class="asset-type-state"><span class="asset-type-spinner" aria-hidden="true"></span><span>'
+                    + assetTableEscape(assetCompanyT('common.loading', '加载中...')) + '</span></div>';
+            } else if (assetCompanyState.error) {
+                status.hidden = false;
+                status.innerHTML = '<div class="asset-type-state asset-type-state--error"><span>'
+                    + assetTableEscape(assetCompanyState.error) + '</span>'
+                    + '<button class="btn-secondary" type="button" data-company-action="retry">'
+                    + assetTableEscape(assetCompanyT('assets.company.retry', '重试')) + '</button></div>';
+            } else {
+                status.hidden = true;
+                status.innerHTML = '';
+            }
+        }
+        if (pendingSection) pendingSection.hidden = !ready;
+        if (listSection) listSection.hidden = !ready;
+
+        const pendingList = assetTableEl('company-pending-list');
+        const companyList = assetTableEl('company-list');
+        if (!ready) {
+            if (pendingList) pendingList.innerHTML = '';
+            if (companyList) companyList.innerHTML = '';
+            return;
+        }
+        if (pendingList) pendingList.innerHTML = assetCompanyPendingHtml();
+        if (companyList) companyList.innerHTML = assetCompanyCompaniesHtml();
+    }
+
+    function assetCompanyPendingHtml() {
+        const pending = Array.isArray(assetCompanyState.pending) ? assetCompanyState.pending : [];
+        if (!pending.length) return assetCompanyEmptyHtml('assets.company.emptyPending', '暂无待归属主域名');
+        const companies = Array.isArray(assetCompanyState.companies) ? assetCompanyState.companies : [];
+        const options = companies.map(function (company) {
+            return '<option value="' + assetTableEscapeAttr(company.id) + '">' + assetTableEscape(company.name) + '</option>';
+        }).join('');
+        return pending.map(function (item) {
+            const id = assetTableText(item && item.id);
+            const firstSeen = assetCompanyFormatTime(item && item.created_at);
+            const assetCount = assetTableNumber(item && item.asset_count);
+            let actions = '<div class="asset-company-pending-actions">';
+            if (companies.length) {
+                actions += '<select class="asset-company-select" id="company-pending-select-' + assetTableEscapeAttr(id) + '" aria-label="'
+                    + assetTableEscapeAttr(assetCompanyT('assets.company.selectCompany', '选择公司')) + '">'
+                    + '<option value="">' + assetTableEscape(assetCompanyT('assets.company.selectCompany', '选择公司')) + '</option>'
+                    + options + '</select>'
+                    + '<button class="btn-primary" type="button" data-company-action="confirm-pending" data-pending-id="'
+                    + assetTableEscapeAttr(id) + '">' + assetTableEscape(assetCompanyT('assets.company.confirmOwnership', '确认归属')) + '</button>';
+            } else {
+                actions += '<span class="asset-company-meta">' + assetTableEscape(assetCompanyT('assets.company.needCompany', '请先新增公司')) + '</span>';
+            }
+            actions += '<button class="btn-link" type="button" data-company-action="ignore-pending" data-pending-id="'
+                + assetTableEscapeAttr(id) + '">' + assetTableEscape(assetCompanyT('assets.company.ignore', '忽略')) + '</button></div>';
+
+            return '<div class="asset-company-pending-item">'
+                + '<div class="asset-company-pending-main">'
+                + '<strong class="asset-company-domain">' + assetTableEscape(item && item.domain) + '</strong>'
+                + assetCompanySourceBadge(item && item.source)
+                + (firstSeen ? '<span class="asset-company-meta">' + assetTableEscape(assetCompanyT('assets.company.pendingFirstSeen', '首次发现：{{time}}', { time: firstSeen })) + '</span>' : '')
+                + '<span class="asset-company-meta">' + assetTableEscape(assetCompanyT('assets.company.pendingAssets', '关联资产 {{count}}', { count: assetCount })) + '</span>'
+                + (assetTableText(item && item.note) ? '<span class="asset-company-meta">' + assetTableEscape(item.note) + '</span>' : '')
+                + '</div>' + actions + '</div>';
+        }).join('');
+    }
+
+    function assetCompanyDomainHtml(company, domain) {
+        const domainId = assetTableText(domain && domain.id);
+        const count = assetTableNumber(domain && domain.asset_count);
+        return '<li class="asset-company-domain-item">'
+            + '<div class="asset-company-domain-main">'
+            + '<strong class="asset-company-domain">' + assetTableEscape(domain && domain.domain) + '</strong>'
+            + assetCompanySourceBadge(domain && domain.source)
+            + '<span class="asset-company-meta">' + assetTableEscape(assetCompanyT('assets.company.assetCount', '资产 {{count}}', { count: count })) + '</span>'
+            + '</div>'
+            + '<button class="btn-link asset-company-domain-remove" type="button" data-company-action="remove-domain"'
+            + ' data-company-id="' + assetTableEscapeAttr(company && company.id) + '"'
+            + ' data-domain-id="' + assetTableEscapeAttr(domainId) + '">'
+            + assetTableEscape(assetCompanyT('common.remove', '移除')) + '</button>'
+            + '</li>';
+    }
+
+    function assetCompanyLookupHtml(company) {
+        const companyId = assetTableText(company && company.id);
+        const lookup = assetCompanyState.lookup || assetCompanyClearLookup();
+        let html = '<div class="asset-company-lookup">'
+            + '<div class="asset-company-lookup-head"><h4>' + assetTableEscape(assetCompanyT('assets.company.lookupTitle', '自动查找建议')) + '</h4>'
+            + '<button class="btn-link" type="button" data-company-action="cancel-lookup" data-company-id="' + assetTableEscapeAttr(companyId) + '">'
+            + assetTableEscape(assetCompanyT('common.close', '关闭')) + '</button></div>';
+
+        if (lookup.loading) {
+            html += '<div class="asset-type-state"><span class="asset-type-spinner" aria-hidden="true"></span><span>'
+                + assetTableEscape(assetCompanyT('common.loading', '加载中...')) + '</span></div>';
+        } else {
+            if (lookup.error) {
+                html += '<div class="asset-company-error">' + assetTableEscape(lookup.error) + '</div>';
+            }
+            if (lookup.warnings && lookup.warnings.length) {
+                html += '<div class="asset-company-warnings"><strong>' + assetTableEscape(assetCompanyT('assets.company.lookupWarnings', '提示')) + '</strong>'
+                    + lookup.warnings.map(function (warning) {
+                        return '<div class="asset-company-warning">' + assetTableEscape(warning) + '</div>';
+                    }).join('') + '</div>';
+            }
+            const suggestions = Array.isArray(lookup.suggestions) ? lookup.suggestions : [];
+            if (!suggestions.length) {
+                html += assetCompanyEmptyHtml('assets.company.lookupEmpty', '没有发现新的主域名建议');
+            } else {
+                html += '<ul class="asset-company-suggestions">' + suggestions.map(function (suggestion, index) {
+                    const domain = assetTableText(suggestion && suggestion.domain);
+                    return '<li class="asset-company-suggestion">'
+                        + '<label class="asset-company-suggestion-label">'
+                        + '<input type="checkbox" id="company-suggestion-' + assetTableEscapeAttr(companyId) + '-' + index + '" value="' + assetTableEscapeAttr(domain) + '">'
+                        + '<span class="asset-company-domain">' + assetTableEscape(domain) + '</span>'
+                        + assetCompanySourceBadge(suggestion && suggestion.source)
+                        + '<span class="asset-company-meta">' + assetTableEscape(assetCompanyT('assets.company.lookupHits', '证据 {{count}} 条', { count: assetTableNumber(suggestion && suggestion.hits) })) + '</span>'
+                        + (assetTableText(suggestion && suggestion.note) ? '<span class="asset-company-meta">' + assetTableEscape(suggestion.note) + '</span>' : '')
+                        + '</label></li>';
+                }).join('') + '</ul>';
+                html += '<div class="asset-company-form-actions"><button class="btn-primary" type="button" data-company-action="add-domains" data-company-id="'
+                    + assetTableEscapeAttr(companyId) + '">' + assetTableEscape(assetCompanyT('assets.company.lookupAddSelected', '加入公司')) + '</button></div>';
+            }
+        }
+        html += '</div>';
+        return html;
+    }
+
+    function assetCompanyCardHtml(company) {
+        const companyId = assetTableText(company && company.id);
+        const name = assetTableText(company && company.name);
+        const note = assetTableText(company && company.note);
+        const assetCount = assetTableNumber(company && company.asset_count);
+        const domains = Array.isArray(company && company.domains) ? company.domains : [];
+        const editing = assetCompanyState.editingId === companyId;
+        const lookup = assetCompanyState.lookup && assetCompanyState.lookup.companyId === companyId;
+
+        let html = '<article class="asset-company-card" data-company-id="' + assetTableEscapeAttr(companyId) + '">';
+        html += '<div class="asset-company-card-head"><div class="asset-company-card-title">'
+            + '<h3>' + assetTableEscape(name) + '</h3>'
+            + '<span class="asset-company-asset-count">' + assetTableEscape(assetCompanyT('assets.company.assetCount', '资产 {{count}}', { count: assetCount })) + '</span>'
+            + '</div><div class="asset-company-card-actions">'
+            + '<button class="btn-secondary" type="button" data-company-action="lookup" data-company-id="' + assetTableEscapeAttr(companyId) + '">'
+            + assetTableEscape(assetCompanyT('assets.company.lookup', '自动查找主域名')) + '</button>'
+            + '<button class="btn-secondary" type="button" data-company-action="edit" data-company-id="' + assetTableEscapeAttr(companyId) + '">'
+            + assetTableEscape(assetCompanyT('common.edit', '编辑')) + '</button>'
+            + '<button class="btn-link" type="button" data-company-action="delete" data-company-id="' + assetTableEscapeAttr(companyId) + '">'
+            + assetTableEscape(assetCompanyT('common.delete', '删除')) + '</button>'
+            + '</div></div>';
+
+        if (note) html += '<p class="asset-company-note">' + assetTableEscape(note) + '</p>';
+
+        if (editing) {
+            html += '<div class="asset-company-edit">'
+                + '<label class="asset-company-field"><span>' + assetTableEscape(assetCompanyT('assets.company.name', '公司名')) + '</span>'
+                + '<input id="company-edit-name-' + assetTableEscapeAttr(companyId) + '" type="text" maxlength="200" value="' + assetTableEscapeAttr(name) + '"></label>'
+                + '<label class="asset-company-field"><span>' + assetTableEscape(assetCompanyT('assets.company.note', '备注')) + '</span>'
+                + '<input id="company-edit-note-' + assetTableEscapeAttr(companyId) + '" type="text" maxlength="500" value="' + assetTableEscapeAttr(note) + '"></label>'
+                + '<div class="asset-company-form-actions">'
+                + '<button class="btn-primary" type="button" data-company-action="save-edit" data-company-id="' + assetTableEscapeAttr(companyId) + '">'
+                + assetTableEscape(assetCompanyT('common.save', '保存')) + '</button>'
+                + '<button class="btn-secondary" type="button" data-company-action="cancel-edit" data-company-id="' + assetTableEscapeAttr(companyId) + '">'
+                + assetTableEscape(assetCompanyT('common.cancel', '取消')) + '</button></div></div>';
+        }
+
+        html += '<div class="asset-company-domains"><h4>'
+            + assetTableEscape(assetCompanyT('assets.company.domainsTitle', '主域名（{{count}}）', { count: domains.length }))
+            + '</h4>';
+        if (!domains.length) {
+            html += assetCompanyEmptyHtml('assets.company.noDomains', '暂无主域名');
+        } else {
+            html += '<ul class="asset-company-domain-list">' + domains.map(function (domain) {
+                return assetCompanyDomainHtml(company, domain);
+            }).join('') + '</ul>';
+        }
+        html += '</div>';
+
+        if (lookup) html += assetCompanyLookupHtml(company);
+        html += '</article>';
+        return html;
+    }
+
+    function assetCompanyCompaniesHtml() {
+        const companies = Array.isArray(assetCompanyState.companies) ? assetCompanyState.companies : [];
+        if (!companies.length) return assetCompanyEmptyHtml('assets.company.emptyCompanies', '暂无公司');
+        return companies.map(assetCompanyCardHtml).join('');
+    }
+
+    function assetCompanyFindCompany(companyId) {
+        return (assetCompanyState.companies || []).find(function (company) {
+            return String(company && company.id) === String(companyId);
+        }) || null;
+    }
+
+    function assetCompanyParseDomains(value) {
+        const seen = Object.create(null);
+        const list = [];
+        String(value || '').split(/[\s,，;；]+/).forEach(function (part) {
+            const domain = part.trim();
+            if (!domain) return;
+            const key = domain.toLowerCase();
+            if (seen[key]) return;
+            seen[key] = true;
+            list.push(domain);
+        });
+        return list;
+    }
+
+    async function assetCompanyLoad(force) {
+        if (assetCompanyState.loading) return;
+        if (assetCompanyState.loaded && !force) {
+            assetCompanyRender();
+            return;
+        }
+        const seq = ++assetCompanyState.requestSeq;
+        assetCompanyState.loading = true;
+        assetCompanyState.error = '';
+        assetCompanyRender();
+
+        try {
+            const results = await Promise.all([
+                assetCompanyRequest(ASSET_COMPANY_API),
+                assetCompanyRequest(ASSET_COMPANY_DOMAINS_API + '?status=pending')
+            ]);
+            if (seq !== assetCompanyState.requestSeq) return;
+            const companiesResult = results[0];
+            const pendingResult = results[1];
+            if (!companiesResult.ok) throw new Error(companiesResult.error);
+            if (!pendingResult.ok) throw new Error(pendingResult.error);
+            const companies = companiesResult.data ? companiesResult.data.companies : null;
+            const pending = pendingResult.data ? pendingResult.data.domains : null;
+            assetCompanyState.companies = Array.isArray(companies) ? companies : [];
+            assetCompanyState.pending = Array.isArray(pending) ? pending : [];
+            assetCompanyState.pendingLoaded = true;
+            assetCompanyState.loaded = true;
+            assetCompanyState.loading = false;
+            assetCompanyState.error = '';
+            assetCompanyState.editingId = '';
+            assetCompanyState.lookup = assetCompanyClearLookup();
+        } catch (error) {
+            if (seq !== assetCompanyState.requestSeq) return;
+            console.error('加载公司数据失败:', error);
+            assetCompanyState.loading = false;
+            assetCompanyState.loaded = false;
+            assetCompanyState.error = error && error.message
+                ? error.message
+                : assetCompanyT('assets.company.loadFailed', '加载公司数据失败');
+        }
+        assetCompanyRender();
+    }
+
+    /** 只刷新待归属列表（用于 tab 角标 / 进入资产页时静默更新） */
+    async function assetCompanyRefreshPending() {
+        if (assetCompanyState.loading) return;
+        const result = await assetCompanyRequest(ASSET_COMPANY_DOMAINS_API + '?status=pending');
+        if (!result.ok) return;
+        const pending = result.data ? result.data.domains : null;
+        assetCompanyState.pending = Array.isArray(pending) ? pending : [];
+        assetCompanyState.pendingLoaded = true;
+        assetCompanyUpdateBadge();
+        if (assetCompanyState.loaded && assetTableState.current === 'company') {
+            const pendingList = assetTableEl('company-pending-list');
+            if (pendingList) pendingList.innerHTML = assetCompanyPendingHtml();
+        }
+    }
+
+    function assetCompanyEnsureLoaded() {
+        if (!assetCompanyState.loaded && !assetCompanyState.loading) {
+            void assetCompanyLoad(true);
+        } else {
+            assetCompanyRender();
+        }
+    }
+
+    async function assetCompanyCreate() {
+        const nameInput = assetTableEl('company-create-name');
+        const noteInput = assetTableEl('company-create-note');
+        const domainsInput = assetTableEl('company-create-domains');
+        const name = nameInput ? String(nameInput.value || '').trim() : '';
+        const note = noteInput ? String(noteInput.value || '').trim() : '';
+        const domains = assetCompanyParseDomains(domainsInput ? domainsInput.value : '');
+
+        if (!name) {
+            assetCompanySetFormError(assetCompanyT('assets.company.nameRequired', '公司名不能为空'));
+            return;
+        }
+        assetCompanySetFormError('');
+
+        const result = await assetCompanyRequest(
+            ASSET_COMPANY_API,
+            assetCompanyJsonOptions('POST', { name: name, note: note, domains: domains })
+        );
+        if (!result.ok) {
+            assetCompanySetFormError(result.error);
+            return;
+        }
+        if (nameInput) nameInput.value = '';
+        if (noteInput) noteInput.value = '';
+        if (domainsInput) domainsInput.value = '';
+        assetCompanySetNotice('success', assetCompanyT('assets.company.createSuccess', '已新增公司「{{name}}」', { name: name }));
+        await assetCompanyLoad(true);
+    }
+
+    async function assetCompanySaveEdit(companyId) {
+        const nameInput = assetTableEl('company-edit-name-' + companyId);
+        const noteInput = assetTableEl('company-edit-note-' + companyId);
+        const name = nameInput ? String(nameInput.value || '').trim() : '';
+        const note = noteInput ? String(noteInput.value || '').trim() : '';
+        if (!name) {
+            assetCompanySetNotice('error', assetCompanyT('assets.company.nameRequired', '公司名不能为空'));
+            return;
+        }
+        const result = await assetCompanyRequest(
+            ASSET_COMPANY_API + '/' + encodeURIComponent(companyId),
+            assetCompanyJsonOptions('PUT', { name: name, note: note })
+        );
+        if (!result.ok) {
+            assetCompanySetNotice('error', result.error);
+            return;
+        }
+        assetCompanySetNotice('success', assetCompanyT('assets.company.editSuccess', '已更新公司信息'));
+        await assetCompanyLoad(true);
+    }
+
+    async function assetCompanyDelete(companyId) {
+        const company = assetCompanyFindCompany(companyId);
+        const name = assetTableText(company && company.name) || companyId;
+        const message = assetCompanyT('assets.company.deleteConfirm', '确定删除公司「{{name}}」？公司名下主域名会转为待归属。', { name: name });
+        if (!assetCompanyConfirm(message)) return;
+        const result = await assetCompanyRequest(
+            ASSET_COMPANY_API + '/' + encodeURIComponent(companyId),
+            { method: 'DELETE' }
+        );
+        if (!result.ok) {
+            assetCompanySetNotice('error', result.error);
+            return;
+        }
+        assetCompanySetNotice('success', assetCompanyT('assets.company.deleteSuccess', '已删除公司「{{name}}」', { name: name }));
+        await assetCompanyLoad(true);
+    }
+
+    async function assetCompanyRemoveDomain(companyId, domainId) {
+        const company = assetCompanyFindCompany(companyId);
+        const domains = company && Array.isArray(company.domains) ? company.domains : [];
+        const domain = domains.find(function (item) {
+            return String(item && item.id) === String(domainId);
+        }) || null;
+        const domainName = assetTableText(domain && domain.domain) || domainId;
+        const message = assetCompanyT(
+            'assets.company.removeDomainConfirm',
+            '确定从公司「{{company}}」移除主域名「{{domain}}」？移除后该域名会转为待归属。',
+            { company: assetTableText(company && company.name), domain: domainName }
+        );
+        if (!assetCompanyConfirm(message)) return;
+        const result = await assetCompanyRequest(
+            ASSET_COMPANY_API + '/' + encodeURIComponent(companyId) + '/domains/' + encodeURIComponent(domainId),
+            { method: 'DELETE' }
+        );
+        if (!result.ok) {
+            assetCompanySetNotice('error', result.error);
+            return;
+        }
+        assetCompanySetNotice('success', assetCompanyT('assets.company.removeDomainSuccess', '已移除主域名「{{domain}}」', { domain: domainName }));
+        await assetCompanyLoad(true);
+    }
+
+    async function assetCompanyLookup(companyId) {
+        if (!companyId) return;
+        assetCompanyState.editingId = '';
+        assetCompanyState.lookup = { companyId: companyId, loading: true, error: '', warnings: [], suggestions: [] };
+        assetCompanyRender();
+
+        const result = await assetCompanyRequest(
+            ASSET_COMPANY_API + '/' + encodeURIComponent(companyId) + '/lookup',
+            assetCompanyJsonOptions('POST', {})
+        );
+        const current = assetCompanyState.lookup;
+        // 期间已关闭面板 / 切换了其它公司：丢弃本次结果
+        if (!current || current !== assetCompanyState.lookup || current.companyId !== companyId) return;
+        if (!result.ok) {
+            current.loading = false;
+            current.error = result.error;
+            assetCompanyRender();
+            return;
+        }
+        const data = result.data || {};
+        if (data.company) {
+            assetCompanyState.companies = assetCompanyState.companies.map(function (company) {
+                return String(company && company.id) === String(companyId) ? data.company : company;
+            });
+        }
+        current.loading = false;
+        current.error = '';
+        current.warnings = Array.isArray(data.warnings) ? data.warnings.map(function (warning) { return assetTableText(warning); }) : [];
+        current.suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+        assetCompanyRender();
+    }
+
+    async function assetCompanyAddSelectedDomains(companyId) {
+        const lookup = assetCompanyState.lookup;
+        if (!lookup || lookup.companyId !== companyId) return;
+        const selected = [];
+        (Array.isArray(lookup.suggestions) ? lookup.suggestions : []).forEach(function (suggestion, index) {
+            const checkbox = assetTableEl('company-suggestion-' + companyId + '-' + index);
+            if (!checkbox || !checkbox.checked) return;
+            const domain = assetTableText(suggestion && suggestion.domain);
+            if (domain) selected.push({ domain: domain, note: assetTableText(suggestion.note) });
+        });
+        if (!selected.length) {
+            assetCompanySetNotice('error', assetCompanyT('assets.company.lookupNoSelection', '请至少勾选一个主域名'));
+            return;
+        }
+
+        let successCount = 0;
+        let firstError = '';
+        for (let i = 0; i < selected.length; i += 1) {
+            const item = selected[i];
+            const result = await assetCompanyRequest(
+                ASSET_COMPANY_API + '/' + encodeURIComponent(companyId) + '/domains',
+                assetCompanyJsonOptions('POST', { domain: item.domain, note: item.note })
+            );
+            if (result.ok) successCount += 1;
+            else if (!firstError) firstError = result.error;
+        }
+
+        assetCompanyState.lookup = assetCompanyClearLookup();
+        if (firstError) assetCompanySetNotice('error', firstError);
+        else assetCompanySetNotice('success', assetCompanyT('assets.company.lookupSuccess', '已加入 {{count}} 个主域名', { count: successCount }));
+        await assetCompanyLoad(true);
+    }
+
+    async function assetCompanyConfirmPending(pendingId) {
+        const select = assetTableEl('company-pending-select-' + pendingId);
+        const companyId = select ? assetTableText(select.value) : '';
+        if (!companyId) {
+            assetCompanySetNotice('error', assetCompanyT('assets.company.selectCompany', '选择公司'));
+            return;
+        }
+        const result = await assetCompanyRequest(
+            ASSET_COMPANY_DOMAINS_API + '/' + encodeURIComponent(pendingId) + '/confirm',
+            assetCompanyJsonOptions('POST', { company_id: companyId })
+        );
+        if (!result.ok) {
+            assetCompanySetNotice('error', result.error);
+            return;
+        }
+        assetCompanySetNotice('success', assetCompanyT('assets.company.confirmSuccess', '已确认主域名归属'));
+        await assetCompanyLoad(true);
+    }
+
+    async function assetCompanyIgnorePending(pendingId) {
+        const result = await assetCompanyRequest(
+            ASSET_COMPANY_DOMAINS_API + '/' + encodeURIComponent(pendingId) + '/ignore',
+            assetCompanyJsonOptions('POST', {})
+        );
+        if (!result.ok) {
+            assetCompanySetNotice('error', result.error);
+            return;
+        }
+        assetCompanySetNotice('success', assetCompanyT('assets.company.ignoreSuccess', '已忽略主域名'));
+        await assetCompanyLoad(true);
+    }
+
+    function assetCompanyHandleClick(event) {
+        const target = event.target;
+        if (!target || typeof target.closest !== 'function') return;
+        const actionEl = target.closest('[data-company-action]');
+        if (!actionEl) return;
+        const action = actionEl.getAttribute('data-company-action');
+        const companyId = assetTableText(actionEl.getAttribute('data-company-id'));
+        const pendingId = assetTableText(actionEl.getAttribute('data-pending-id'));
+        const domainId = assetTableText(actionEl.getAttribute('data-domain-id'));
+
+        if (action === 'retry') {
+            event.preventDefault();
+            void assetCompanyLoad(true);
+            return;
+        }
+        if (action === 'lookup') {
+            event.preventDefault();
+            void assetCompanyLookup(companyId);
+            return;
+        }
+        if (action === 'cancel-lookup') {
+            event.preventDefault();
+            assetCompanyState.lookup = assetCompanyClearLookup();
+            assetCompanyRender();
+            return;
+        }
+        if (action === 'edit') {
+            event.preventDefault();
+            assetCompanyState.editingId = companyId;
+            assetCompanyState.lookup = assetCompanyClearLookup();
+            assetCompanyRender();
+            return;
+        }
+        if (action === 'cancel-edit') {
+            event.preventDefault();
+            assetCompanyState.editingId = '';
+            assetCompanyRender();
+            return;
+        }
+        if (action === 'save-edit') {
+            event.preventDefault();
+            void assetCompanySaveEdit(companyId);
+            return;
+        }
+        if (action === 'delete') {
+            event.preventDefault();
+            void assetCompanyDelete(companyId);
+            return;
+        }
+        if (action === 'remove-domain') {
+            event.preventDefault();
+            void assetCompanyRemoveDomain(companyId, domainId);
+            return;
+        }
+        if (action === 'add-domains') {
+            event.preventDefault();
+            void assetCompanyAddSelectedDomains(companyId);
+            return;
+        }
+        if (action === 'confirm-pending') {
+            event.preventDefault();
+            void assetCompanyConfirmPending(pendingId);
+            return;
+        }
+        if (action === 'ignore-pending') {
+            event.preventDefault();
+            void assetCompanyIgnorePending(pendingId);
+        }
+    }
+
+    /* ------------------------------------------------------------------ *
      * tab 切换 / 事件绑定 / 初始化
      * ------------------------------------------------------------------ */
 
@@ -1126,7 +1811,10 @@
         assetTableRenderTabs();
         assetTableApplyLayout(type);
 
-        if (ASSET_TABLE_DATA_TYPES.indexOf(type) === -1) return;
+        if (ASSET_TABLE_DATA_TYPES.indexOf(type) === -1) {
+            if (type === 'company') assetCompanyEnsureLoaded();
+            return;
+        }
         const state = assetTableState.types[type];
         assetTableSyncFilters(type);
         assetTableRender(type);
@@ -1136,11 +1824,18 @@
         }
     }
 
-    /** 资产页重新激活时（hashchange）按需加载当前数据 tab */
+    /** 资产页重新激活时（hashchange）按需加载当前 tab */
     function assetTableHandlePageReady() {
         if (!assetTableIsPageActive()) return;
+        // 进入资产页时静默刷新「待归属主域名」角标（只做一次，之后由公司 tab 自己维护）
+        if (!assetCompanyState.pendingLoaded && !assetCompanyState.loading) {
+            void assetCompanyRefreshPending();
+        }
         const type = assetTableState.current;
-        if (ASSET_TABLE_DATA_TYPES.indexOf(type) === -1) return;
+        if (ASSET_TABLE_DATA_TYPES.indexOf(type) === -1) {
+            if (type === 'company') assetCompanyEnsureLoaded();
+            return;
+        }
         const state = assetTableState.types[type];
         if (!state.loaded && !state.loading) {
             void assetTableLoad(type, state.page || 1);
@@ -1225,9 +1920,31 @@
             });
         }
 
-        // 语言切换后重绘动态表头 / 表体（静态 data-i18n 由 i18n.js 统一刷新）
+        // 公司 tab：卡片/待归属操作走事件委托，另绑定新增表单与刷新
+        const companyView = assetTableEl('asset-company-view');
+        if (companyView) companyView.addEventListener('click', assetCompanyHandleClick);
+        const companyCreateForm = assetTableEl('company-create-form');
+        if (companyCreateForm) {
+            companyCreateForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                void assetCompanyCreate();
+            });
+        }
+        const companyRefresh = assetTableEl('company-refresh');
+        if (companyRefresh) {
+            companyRefresh.addEventListener('click', function () {
+                void assetCompanyLoad(true);
+            });
+        }
+
+        // 语言切换后重绘动态表头 / 表体 / 公司面板（静态 data-i18n 由 i18n.js 统一刷新）
         document.addEventListener('languagechange', function () {
-            if (assetTableState.initialized && ASSET_TABLE_DATA_TYPES.indexOf(assetTableState.current) !== -1) {
+            if (!assetTableState.initialized) return;
+            if (assetTableState.current === 'company') {
+                assetCompanyRender();
+                return;
+            }
+            if (ASSET_TABLE_DATA_TYPES.indexOf(assetTableState.current) !== -1) {
                 assetTableRender(assetTableState.current);
             }
         });
@@ -1274,9 +1991,18 @@
 
         assetTableBindEvents();
 
+        // 页面已激活（深链）时先取一次待归属数量，用于 tab 角标
+        if (assetTableIsPageActive() && !assetCompanyState.pendingLoaded) {
+            void assetCompanyRefreshPending();
+        }
+
         // 若树先于语言包渲染，等 i18n 就绪后补一次重绘（与 assets-tree.js 一致）
         if (window.i18nReady && typeof window.i18nReady.then === 'function') {
             window.i18nReady.then(function () {
+                if (assetTableState.current === 'company') {
+                    assetCompanyRender();
+                    return;
+                }
                 if (ASSET_TABLE_DATA_TYPES.indexOf(assetTableState.current) !== -1) {
                     assetTableRender(assetTableState.current);
                 }

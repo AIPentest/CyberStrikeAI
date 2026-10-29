@@ -916,3 +916,38 @@ CREATE TABLE asset_screenshots (
 );
 
 CREATE INDEX idx_asset_screenshots_status ON asset_screenshots(status);
+
+-- 公司（组织）实体：与「项目」解耦，一个公司可跨多个项目。
+-- 资产层级视图的「公司」层通过 company_domains 的域名归属映射得出。
+CREATE TABLE companies (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    owner_user_id TEXT,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
+);
+
+CREATE UNIQUE INDEX uq_companies_name ON companies(name COLLATE NOCASE);
+
+-- 公司 -> 主域名（eTLD+1）归属。
+-- status: confirmed（已确认）/ pending（自动发现待确认）/ ignored（已忽略）。
+-- domain 全局唯一，保证一个主域名只会归属一家公司。
+-- company_id 为空表示「待归属」：由自动采集发现、尚未分配给任何公司。
+CREATE TABLE company_domains (
+    id TEXT PRIMARY KEY,
+    company_id TEXT,
+    domain TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'manual',
+    status TEXT NOT NULL DEFAULT 'confirmed',
+    note TEXT NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL
+);
+
+CREATE UNIQUE INDEX uq_company_domains_domain ON company_domains(domain);
+
+CREATE INDEX idx_company_domains_company ON company_domains(company_id);
+
+CREATE INDEX idx_company_domains_status ON company_domains(status);

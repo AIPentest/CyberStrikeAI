@@ -48482,3 +48482,448 @@ html[data-theme="dark"] .asset-type-shot-thumb {
         width: 100%;
     }
 }
+
+/* ==========================================================================
+   公司 tab（assets-table.js）：新增公司表单 / 待归属主域名 / 公司卡片 / 自动查找建议
+   追加于文件末尾，复用现有 CSS 变量与卡片风格。
+   ========================================================================== */
+
+/* tab 数量角标 */
+.asset-type-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    margin-left: 6px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--accent-color, #0066ff);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.asset-type-tab-badge[hidden] {
+    display: none !important;
+}
+
+.asset-company-view {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.asset-company-view[hidden] {
+    display: none !important;
+}
+
+.asset-company-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    background: var(--card-bg, #fff);
+}
+
+.asset-company-panel[hidden] {
+    display: none !important;
+}
+
+.asset-company-panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.asset-company-panel-head h3 {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    color: var(--text-primary, #111827);
+    font-size: 14px;
+    font-weight: 650;
+}
+
+.asset-company-panel-hint {
+    margin: 4px 0 0;
+    color: var(--text-secondary, #6c757d);
+    font-size: 12px;
+}
+
+.asset-company-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 999px;
+    background: var(--bg-secondary, #f8f9fa);
+    color: var(--text-secondary, #6c757d);
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* 表单（新增 / 内联编辑） */
+.asset-company-form,
+.asset-company-edit {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.asset-company-field {
+    display: flex;
+    flex: 1 1 200px;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    color: var(--text-secondary, #6c757d);
+    font-size: 12px;
+}
+
+.asset-company-field--wide {
+    flex: 1 1 100%;
+}
+
+.asset-company-field input,
+.asset-company-field textarea,
+.asset-company-select {
+    width: 100%;
+    padding: 0 12px;
+    border: 1px solid var(--border-color, #d8dee8);
+    border-radius: 8px;
+    background: var(--input-bg, #fff);
+    color: var(--text-primary, #111827);
+    font: inherit;
+    font-size: 13px;
+}
+
+.asset-company-field input,
+.asset-company-select {
+    height: 36px;
+}
+
+.asset-company-field textarea {
+    min-height: 62px;
+    padding: 8px 12px;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+.asset-company-field input:focus,
+.asset-company-field textarea:focus,
+.asset-company-select:focus {
+    outline: none;
+    border-color: var(--accent-color, #0066ff);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color, #0066ff) 14%, transparent);
+}
+
+.asset-company-form-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.asset-company-error {
+    color: var(--error-color, #dc3545);
+    font-size: 12px;
+}
+
+.asset-company-error[hidden] {
+    display: none !important;
+}
+
+/* 操作提示条 */
+.asset-company-notice {
+    padding: 10px 12px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    background: var(--bg-secondary, #f8f9fa);
+    color: var(--text-primary, #111827);
+    font-size: 13px;
+}
+
+.asset-company-notice[hidden] {
+    display: none !important;
+}
+
+.asset-company-notice--success {
+    border-color: color-mix(in srgb, var(--success-color, #28a745) 40%, transparent);
+    background: color-mix(in srgb, var(--success-color, #28a745) 8%, var(--card-bg, #fff));
+    color: var(--success-color, #28a745);
+}
+
+.asset-company-notice--error {
+    border-color: color-mix(in srgb, var(--error-color, #dc3545) 40%, transparent);
+    background: color-mix(in srgb, var(--error-color, #dc3545) 8%, var(--card-bg, #fff));
+    color: var(--error-color, #dc3545);
+}
+
+/* 加载 / 失败状态 */
+.asset-company-status {
+    padding: 4px 0;
+}
+
+.asset-company-status[hidden] {
+    display: none !important;
+}
+
+/* 待归属主域名 */
+.asset-company-pending-list,
+.asset-company-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.asset-company-pending-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 10px;
+    background: var(--bg-secondary, #f8f9fa);
+}
+
+.asset-company-pending-main,
+.asset-company-pending-actions,
+.asset-company-domain-main,
+.asset-company-card-actions,
+.asset-company-lookup-head,
+.asset-company-suggestion-label {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.asset-company-pending-actions {
+    justify-content: flex-end;
+}
+
+.asset-company-domain {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.asset-company-meta {
+    color: var(--text-secondary, #6c757d);
+    font-size: 12px;
+}
+
+.asset-company-select {
+    width: auto;
+    min-width: 140px;
+    max-width: 220px;
+}
+
+.asset-company-empty {
+    padding: 28px 12px;
+    color: var(--text-secondary, #6c757d);
+    font-size: 13px;
+    text-align: center;
+}
+
+/* 公司卡片 */
+.asset-company-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    background: var(--bg-secondary, #f8f9fa);
+}
+
+.asset-company-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.asset-company-card-title {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+}
+
+.asset-company-card-title h3 {
+    margin: 0;
+    color: var(--text-primary, #111827);
+    font-size: 15px;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+
+.asset-company-asset-count {
+    padding: 1px 8px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 999px;
+    background: var(--card-bg, #fff);
+    color: var(--text-secondary, #6c757d);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.asset-company-card-actions {
+    justify-content: flex-end;
+}
+
+.asset-company-card-actions .btn-secondary,
+.asset-company-card-actions .btn-link {
+    height: 30px;
+    padding: 0 10px;
+    font-size: 12px;
+}
+
+.asset-company-note {
+    margin: 0;
+    color: var(--text-secondary, #6c757d);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.asset-company-domains h4 {
+    margin: 0 0 6px;
+    color: var(--text-secondary, #6c757d);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.asset-company-domain-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.asset-company-domain-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    background: var(--card-bg, #fff);
+}
+
+.asset-company-domain-remove {
+    color: var(--error-color, #dc3545);
+}
+
+/* 自动查找建议面板 */
+.asset-company-lookup {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border: 1px dashed var(--accent-color, #0066ff);
+    border-radius: 10px;
+    background: var(--card-bg, #fff);
+}
+
+.asset-company-lookup-head {
+    justify-content: space-between;
+}
+
+.asset-company-lookup-head h4 {
+    margin: 0;
+    color: var(--text-primary, #111827);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.asset-company-warnings {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px;
+    border: 1px solid color-mix(in srgb, var(--warning-color, #ffc107) 45%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--warning-color, #ffc107) 10%, var(--card-bg, #fff));
+    color: var(--text-secondary, #6c757d);
+    font-size: 12px;
+}
+
+.asset-company-warnings strong {
+    color: var(--text-primary, #111827);
+}
+
+.asset-company-suggestions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.asset-company-suggestion {
+    padding: 8px 10px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    background: var(--bg-secondary, #f8f9fa);
+}
+
+.asset-company-suggestion-label {
+    width: 100%;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.asset-company-suggestion-label input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-color, #0066ff);
+    cursor: pointer;
+}
+
+/* 深色主题 / 窄屏 */
+html[data-theme="dark"] .asset-company-card,
+html[data-theme="dark"] .asset-company-pending-item,
+html[data-theme="dark"] .asset-company-suggestion {
+    background: var(--bg-tertiary, #1f2937);
+}
+
+@media (max-width: 720px) {
+    .asset-company-panel {
+        padding: 10px;
+    }
+
+    .asset-company-field {
+        flex: 1 1 100%;
+    }
+
+    .asset-company-card-actions,
+    .asset-company-pending-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .asset-company-select {
+        flex: 1 1 140px;
+        max-width: 100%;
+    }
+}

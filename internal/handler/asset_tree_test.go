@@ -23,7 +23,7 @@ func TestBuildAssetTreeHierarchy(t *testing.T) {
 		},
 	}
 
-	resp := buildAssetTree(assets, fingerprints)
+	resp := buildAssetTree(assets, fingerprints, nil)
 
 	if resp.TotalAssets != 3 {
 		t.Fatalf("total_assets = %d, want 3", resp.TotalAssets)
@@ -81,7 +81,7 @@ func TestBuildAssetTreeIPOnlyAndUnboundProject(t *testing.T) {
 		// 纯 IP 资产、未绑定项目：company 空、domain 空、subdomain 空，应逐层落到 IP。
 		{ID: "i1", Host: "9.9.9.9", IP: "9.9.9.9", Port: 3389, Protocol: "rdp"},
 	}
-	resp := buildAssetTree(assets, nil)
+	resp := buildAssetTree(assets, nil, nil)
 
 	if len(resp.Companies) != 1 {
 		t.Fatalf("companies = %d, want 1", len(resp.Companies))
@@ -117,7 +117,7 @@ func TestBuildAssetTreeMergesSamePort(t *testing.T) {
 		{ID: "d1", Host: "x.example.com", IP: "3.3.3.3", Port: 8080, Domain: "example.com", Protocol: "http", Server: "tomcat"},
 		{ID: "d2", Host: "x.example.com", IP: "3.3.3.3", Port: 8080, Domain: "example.com", Protocol: "http"},
 	}
-	resp := buildAssetTree(assets, nil)
+	resp := buildAssetTree(assets, nil, nil)
 	ports := resp.Companies[0].Domains[0].Subdomains[0].IPs[0].Ports
 	if len(ports) != 1 {
 		t.Fatalf("ports = %+v, want 1 merged node", ports)
@@ -132,7 +132,7 @@ func TestBuildAssetTreeMergesSamePort(t *testing.T) {
 }
 
 func TestBuildAssetTreeEmpty(t *testing.T) {
-	resp := buildAssetTree(nil, nil)
+	resp := buildAssetTree(nil, nil, nil)
 	if resp.TotalAssets != 0 || len(resp.Companies) != 0 {
 		t.Fatalf("resp = %+v", resp)
 	}
