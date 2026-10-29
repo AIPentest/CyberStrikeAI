@@ -200,7 +200,7 @@ See [tools/README_EN.md](tools/README_EN.md) for tool definitions, customization
 
 **One-Command Deployment:**
 ```bash
-git clone https://github.com/Ed1s0nZ/CyberStrikeAI.git
+git clone https://github.com/AIPentest/CyberStrikeAI.git
 cd CyberStrikeAI
 chmod +x run.sh && ./run.sh
 ```
@@ -212,6 +212,20 @@ The `run.sh` script will automatically:
 - ✅ Download Go dependencies
 - ✅ Build the project
 - ✅ Start the server
+
+**Server / systemd deployment (with optional site screenshots):**
+
+```bash
+./scripts/bootstrap.sh --dry-run                        # preview first
+sudo ./scripts/bootstrap.sh --with-screenshot --shot-user <normal-user>
+```
+
+`bootstrap.sh` targets long-running servers: it checks dependencies, builds, generates
+`config.yaml` on first run (never overwriting an existing one), creates `data/`, `log/`,
+`tmp/`, `data/screenshots/` with the right ownership, installs and enables
+`cyberstrikeai.service` and `cyberstrike-shot.service` from the templates, and installs
+Playwright as a non-root user. Fill in the keys in `config.yaml` afterwards. See the
+[deployment guide](docs/en-US/deployment.md).
 
 **Verify the startup:**
 
@@ -331,9 +345,22 @@ ai:
 
 `openai` is a backward-compatible runtime field; maintain new model settings in `ai.channels`. Do not commit real credentials. Review the [configuration reference](docs/en-US/configuration.md), [recommended profiles](docs/en-US/configuration-profiles.md), and [security hardening guide](docs/en-US/security-hardening.md) before exposing the service beyond localhost.
 
+Site screenshots (optional) are served by a separate local renderer and configured under `screenshot.*`:
+
+```yaml
+screenshot:
+  enabled: true
+  service_url: http://127.0.0.1:8099
+  dir: data/screenshots        # must be writable by the renderer's user
+  min_interval_hours: 24
+```
+
+The renderer runs as a non-root user; see the [deployment guide](docs/en-US/deployment.md) for installation and the [configuration reference](docs/en-US/configuration.md) for every option.
+
 ## Related documentation
 
 - **New users:** [Deployment](docs/en-US/deployment.md) → [Configuration](docs/en-US/configuration.md) → [Troubleshooting](docs/en-US/troubleshooting.md)
+- **Assets:** [Asset Management guide](docs/en-US/asset-management.md) (automatic collection, type views, site screenshots)
 - **Operators:** [Configuration profiles](docs/en-US/configuration-profiles.md) → [Security hardening](docs/en-US/security-hardening.md) → [Runbooks](docs/en-US/runbooks.md)
 - **Integrators:** [API reference](docs/en-US/api-reference.md) → [API recipes](docs/en-US/api-recipes.md) → [MCP federation](docs/en-US/mcp-federation.md)
 - **Contributors:** [Developer guide](docs/en-US/developer-guide.md) → [Testing](docs/en-US/testing.md) → [Contributing](docs/en-US/contributing-guide.md)
@@ -351,6 +378,7 @@ CyberStrikeAI/
 ├── skills/              # Agent Skills dirs (SKILL.md + optional files; demo: cyberstrike-eino-demo)
 ├── agents/              # Multi-agent Markdown (orchestrator.md + sub-agent *.md)
 ├── docs/                # Topic docs (deployment, config, security, API, knowledge base, C2, WebShell, etc.)
+├── scripts/             # Build/deploy helpers and systemd unit templates (incl. shot-service site renderer)
 ├── images/              # Docs screenshots & diagrams
 ├── config.yaml          # Runtime configuration
 ├── run.sh               # Convenience launcher

@@ -199,7 +199,7 @@ CyberStrikeAI 将规划、执行、人工监督、证据与复盘连接在同一
 
 **一条命令部署：**
 ```bash
-git clone https://github.com/Ed1s0nZ/CyberStrikeAI.git
+git clone https://github.com/AIPentest/CyberStrikeAI.git
 cd CyberStrikeAI
 chmod +x run.sh && ./run.sh
 ```
@@ -211,6 +211,18 @@ chmod +x run.sh && ./run.sh
 - ✅ 下载 Go 依赖模块
 - ✅ 编译构建项目
 - ✅ 启动服务器
+
+**服务器 / systemd 部署（可选站点截图服务）：**
+
+```bash
+./scripts/bootstrap.sh --dry-run                       # 先预览将要执行的动作
+sudo ./scripts/bootstrap.sh --with-screenshot --shot-user <普通用户>
+```
+
+`bootstrap.sh` 适用于长期运行的服务器环境：检查依赖 → 编译 → 首次生成 `config.yaml`
+（不覆盖已有配置）→ 创建 `data/`、`log/`、`tmp/`、`data/screenshots/` 并处理权限 →
+从模板安装并启用 `cyberstrikeai.service` 与 `cyberstrike-shot.service` → 以非 root
+用户安装 Playwright。完成后手工填写 `config.yaml` 的密钥即可。详见[部署指南](docs/zh-CN/deployment.md)。
 
 **验证是否启动成功：**
 
@@ -324,9 +336,22 @@ ai:
 
 `openai` 是兼容旧版本的运行时字段，新配置优先维护 `ai.channels`。不要提交真实凭证。将服务暴露到 localhost 之外前，请阅读[配置参考](docs/zh-CN/configuration.md)、[推荐配置画像](docs/zh-CN/configuration-profiles.md)和[安全加固指南](docs/zh-CN/security-hardening.md)。
 
+站点截图（可选）由独立的本地渲染服务提供，主配置里对应 `screenshot.*`：
+
+```yaml
+screenshot:
+  enabled: true
+  service_url: http://127.0.0.1:8099
+  dir: data/screenshots        # 需对渲染服务运行用户可写
+  min_interval_hours: 24
+```
+
+渲染服务以非 root 用户运行，安装步骤见[部署指南](docs/zh-CN/deployment.md)，参数说明见[配置参考](docs/zh-CN/configuration.md)。
+
 ## 相关文档
 
 - **新用户：** [部署指南](docs/zh-CN/deployment.md) → [配置参考](docs/zh-CN/configuration.md) → [排错指南](docs/zh-CN/troubleshooting.md)
+- **资产管理：** [资产管理指南](docs/zh-CN/asset-management.md)（自动采集、类型视图、站点截图）
 - **运维人员：** [配置画像](docs/zh-CN/configuration-profiles.md) → [安全加固](docs/zh-CN/security-hardening.md) → [运维 Runbooks](docs/zh-CN/runbooks.md)
 - **集成开发：** [API 参考](docs/zh-CN/api-reference.md) → [API Recipes](docs/zh-CN/api-recipes.md) → [MCP 联邦](docs/zh-CN/mcp-federation.md)
 - **项目贡献：** [开发者指南](docs/zh-CN/developer-guide.md) → [测试指南](docs/zh-CN/testing.md) → [贡献规范](docs/zh-CN/contributing-guide.md)
@@ -344,9 +369,10 @@ CyberStrikeAI/
 ├── skills/              # Agent Skills 目录（SKILL.md + 可选文件；示例 cyberstrike-eino-demo）
 ├── agents/              # 多代理 Markdown（orchestrator.md + 子代理 *.md）
 ├── docs/                # 专题文档（部署、配置、安全、API、知识库、C2、WebShell 等）
+├── scripts/             # 构建/部署辅助与 systemd 单元模板（含 shot-service 站点截图服务）
 ├── images/              # 文档配图
 ├── config.yaml          # 运行配置
-├── run.sh               # 启动脚本
+├── run.sh               # 本地启动脚本
 └── README*.md
 ```
 
