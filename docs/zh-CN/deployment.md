@@ -164,6 +164,42 @@ sudo systemctl enable --now cyberstrikeai
 sudo journalctl -u cyberstrikeai -f
 ```
 
+## 站点渲染服务（可选）
+
+站点截图功能需要一个独立的浏览器渲染服务。它**不是主服务的一部分**：主服务通常以 root
+运行，直接渲染不可信目标站点风险过高，因此浏览器放在独立的非 root 进程里，主服务通过
+`127.0.0.1:8099` 的 HTTP 接口调用它。
+
+源码与 systemd 单元在仓库内 `scripts/shot-service/`。
+
+```bash
+# 1) 以运行服务的普通用户（不要用 root）安装依赖
+mkdir -p ~/shot-service && cd ~/shot-service
+npm init -y
+npm i playwright --no-audit --no-fund
+npx playwright install chromium      # 约 120MB
+
+# 2) 部署服务代码
+cp <repo>/scripts/shot-service/server.js ~/shot-service/
+
+# 3) 截图目录：主服务建目录，chown 给浏览器运行用户
+sudo mkdir -p <repo>/data/screenshots
+sudo chown <运行用户>:<运行用户> <repo>/data/screenshots
+
+# 4) 安装并启动单元（按需修改 User 与路径）
+sudo cp <repo>/scripts/shot-service/cyberstrike-shot.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now cyberstrike-shot
+systemctl is-active cyberstrike-shot
+curl -s http://127.0.0.1:8099/health     # 期望 {"ok":true,...}
+```
+
+配置见 [配置参考 → 站点截图](configuration.md)。主服务启动时会探测 `/health`；
+渲染服务不可用时会自动降级为「不自动截图」，不影响其它功能。
+
+> 该服务会真实访问目标站点，请只在授权范围内使用，并对生产站点降低采集频率。
+> 浏览器以非 root 运行，systemd 单元带 `NoNewPrivileges`、`PrivateTmp`、`ProtectSystem=full`。
+
 ## 数据与备份
 
 重点备份：

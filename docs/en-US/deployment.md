@@ -75,6 +75,45 @@ proxy_set_header Upgrade $http_upgrade;
 proxy_set_header Connection "upgrade";
 ```
 
+## Site rendering service (optional)
+
+Site screenshots need a separate browser rendering service. It is **not part of the main
+service**: the main service usually runs as root, and rendering untrusted target sites from it
+would be too risky. The browser therefore lives in its own non-root process, and the main service
+calls it over `127.0.0.1:8099`.
+
+The source and systemd unit ship in `scripts/shot-service/` inside the repository.
+
+```bash
+# 1) Install dependencies as the service's normal user (never root)
+mkdir -p ~/shot-service && cd ~/shot-service
+npm init -y
+npm i playwright --no-audit --no-fund
+npx playwright install chromium      # about 120MB
+
+# 2) Deploy the service code
+cp <repo>/scripts/shot-service/server.js ~/shot-service/
+
+# 3) Screenshot directory: create as root, chown to the browser user
+sudo mkdir -p <repo>/data/screenshots
+sudo chown <service-user>:<service-user> <repo>/data/screenshots
+
+# 4) Install and start the unit (adjust User and paths)
+sudo cp <repo>/scripts/shot-service/cyberstrike-shot.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now cyberstrike-shot
+systemctl is-active cyberstrike-shot
+curl -s http://127.0.0.1:8099/health     # expect {"ok":true,...}
+```
+
+Configuration: [configuration reference → Site screenshots](configuration.md). The main service
+probes `/health` at startup; when the renderer is unreachable it disables automatic captures
+instead of failing, and other features are unaffected.
+
+> The renderer really visits target sites—use it only within authorized scope and lower the
+> capture rate against production targets. The browser runs as a non-root user and the systemd
+> unit sets `NoNewPrivileges`, `PrivateTmp`, and `ProtectSystem=full`.
+
 ## Upgrading
 
 **Prefer the platform's own one-click update** (console System settings -> One-click update,

@@ -136,6 +136,9 @@ CyberStrikeAI connects planning, execution, human oversight, evidence, and repla
 - 📁 **Conversation management** provides pinning, renaming, and batch organization.
 - 📂 **Projects and attack chains** connect cross-session facts, risk scoring, graph views, and step-by-step replay.
 - 🗂️ **Asset management** normalizes and deduplicates domains, IP addresses, ports, and services; supports XLSX/CSV import and export, advanced filters and saved views, ownership and business metadata, cross-page bulk maintenance, and duplicate merging; and tracks scan coverage, linked vulnerabilities, and risk state. See the [Asset Management guide](docs/en-US/asset-management.md).
+- 🧲 **Automatic asset collection**: after the Agent runs subfinder, httpx, naabu, nmap, fscan, amass, masscan, rustscan, wafw00f, katana, gau, or waybackurls, raw tool output is parsed and stored automatically instead of relying on the model to call `create_asset` row by row; one domain may map to several IPs.
+- 🧭 **Asset views**: type tabs with flat tables (Subdomains / Sites / IPs / Services) plus a seven-level hierarchy (Company → Domain → Subdomain → IP → Port → Service → Fingerprint/Version).
+- 🖼️ **Site screenshots**: http/https sites are rendered to PNG thumbnails automatically and previewed in the Sites tab; rendering runs in a separate non-root Node service while the main service only queues work and serves images behind auth.
 - 🛡️ **Vulnerability management** provides severity classification, lifecycle tracking, filtering, and statistics.
 - 📋 **Batch tasks** provide queued execution, editing, status tracking, and retained results.
 - 📱 **Chatbots** connect Personal WeChat, WeCom, DingTalk, Lark, Telegram, Slack, Discord, and QQ Bot.
