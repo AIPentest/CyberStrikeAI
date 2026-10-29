@@ -27,6 +27,41 @@ CyberStrikeAI-main/
 
 `data/`、`config.yaml`、自定义 `tools/roles/skills/agents/knowledge_base` 是最重要的持久化内容，升级前应备份。
 
+## 从 GitHub 拉取后复现环境
+
+代码可以完整复现，但**环境本身并不在仓库里**。克隆后还需要处理下面这些项：
+
+| 项 | 为什么不在仓库 | 怎么补齐 |
+| --- | --- | --- |
+| 分支 | 功能开发在特性分支，`main` 只跟随上游 | `git checkout <特性分支>` |
+| `config.yaml` | 含 API Key 与登录密码，已被 `.gitignore` 忽略 | 由 `config.example.yaml` 生成后**手工填写密钥** |
+| `data/`（SQLite 库） | 运行时数据，不含历史 | 首次启动自动创建（空库 + 新管理员密码） |
+| `data/screenshots/` | 截图产物 | 运行时生成，需对渲染服务用户可写 |
+| `cyberstrike-ai` 二进制 | 构建产物 | `go build -o cyberstrike-ai ./cmd/server` |
+| Playwright + Chromium（约 200MB） | 体积过大，且属于宿主机依赖 | `npm i playwright && npx playwright install chromium` |
+| systemd 单元 | 只提供模板 | 安装到 `/etc/systemd/system/`（bootstrap 会做） |
+| Go 工具链 / gcc | 宿主机依赖（`go-sqlite3` 需要 cgo） | `apt install -y build-essential` + 安装 Go 1.25+ |
+
+一键完成除「填密钥」以外的全部准备：
+
+```bash
+# 先预览将执行的动作
+./scripts/bootstrap.sh --dry-run --with-screenshot --shot-user <普通用户>
+
+# 实际执行（需要 root 安装 systemd 单元）
+sudo ./scripts/bootstrap.sh --with-screenshot --shot-user <普通用户>
+```
+
+脚本会：检查依赖 → 编译二进制 → 首次生成 `config.yaml`（已存在则不动）→ 创建
+`data/`、`log/`、`tmp/`、`data/screenshots/` 并处理权限 → 从模板安装并启用
+`cyberstrikeai.service` 与 `cyberstrike-shot.service` → 以非 root 用户安装 Playwright。
+
+完成后仍需**手工填写 `config.yaml` 的密钥**（`openai.api_key`，测绘 API Key 按需），
+然后 `sudo systemctl start cyberstrikeai`。首次启动的管理员密码会打印在
+`journalctl -u cyberstrikeai` 中（匹配 `ADMIN SETUP`）。
+
+> `config.yaml` 与 `data/` 含密钥和数据，不要提交到任何仓库。
+
 ## 快速启动
 
 仓库提供 `run.sh`，适合本地体验和小规模部署：

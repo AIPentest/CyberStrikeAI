@@ -27,6 +27,43 @@ chat_uploads/
 
 Back these up before upgrades.
 
+## Reproducing an environment from GitHub
+
+The code reproduces fully, but **the environment itself is not in the repository**. After cloning
+you still have to handle the following:
+
+| Item | Why it is not in the repo | How to provide it |
+| --- | --- | --- |
+| Branch | feature work lives on a feature branch; `main` follows upstream | `git checkout <feature-branch>` |
+| `config.yaml` | contains API keys and the login password; git-ignored | generate from `config.example.yaml`, then **fill in the keys by hand** |
+| `data/` (SQLite DB) | runtime data, no history | created on first start (empty DB + new admin password) |
+| `data/screenshots/` | capture output | created at runtime; must be writable by the renderer user |
+| `cyberstrike-ai` binary | build artifact | `go build -o cyberstrike-ai ./cmd/server` |
+| Playwright + Chromium (~200MB) | too large; a host dependency | `npm i playwright && npx playwright install chromium` |
+| systemd units | only templates ship | install into `/etc/systemd/system/` (bootstrap does it) |
+| Go toolchain / gcc | host dependencies (`go-sqlite3` needs cgo) | `apt install -y build-essential` plus Go 1.25+ |
+
+One command covers everything except filling in the keys:
+
+```bash
+# preview what will happen
+./scripts/bootstrap.sh --dry-run --with-screenshot --shot-user <normal-user>
+
+# actually run it (root is required to install systemd units)
+sudo ./scripts/bootstrap.sh --with-screenshot --shot-user <normal-user>
+```
+
+The script checks dependencies, builds the binary, generates `config.yaml` on first run (never
+overwrites an existing one), creates `data/`, `log/`, `tmp/`, `data/screenshots/` with the right
+ownership, installs and enables `cyberstrikeai.service` and `cyberstrike-shot.service` from the
+templates, and installs Playwright as a non-root user.
+
+Afterwards you still have to **fill in the keys** in `config.yaml` (`openai.api_key`, plus recon
+API keys if needed) and run `sudo systemctl start cyberstrikeai`. The first-start admin password is
+printed in `journalctl -u cyberstrikeai` (search for `ADMIN SETUP`).
+
+> `config.yaml` and `data/` contain secrets and data—never commit them.
+
 ## Startup Modes
 
 Local quick start:
