@@ -1748,6 +1748,7 @@
       "levelSubdomain": "子域名",
       "levelIp": "IP",
       "levelPort": "端口",
+      "unknownPort": "未指定端口",
       "levelService": "服务",
       "levelFingerprint": "指纹",
       "unboundCompany": "未绑定项目"

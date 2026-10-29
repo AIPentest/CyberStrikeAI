@@ -1,5 +1,5 @@
-// Package assetintel 将第三方信息收集工具（subfinder/httpx/naabu/nmap）的
-// 原始输出清洗成结构化的主机记录。
+// Package assetintel 将第三方信息收集工具（子域名、端口扫描、HTTP 探测、
+// URL 收集、WAF 识别等）的原始输出清洗成结构化的主机记录。
 //
 // 本包刻意保持“纯函数”：只依赖标准库与 golang.org/x/net/publicsuffix，
 // 不访问数据库、网络或进程全局状态，可独立编译、独立单测。
@@ -37,10 +37,18 @@ type Host struct {
 
 // 规范化的工具名（Source 统一使用这一份）。
 const (
-	toolSubfinder = "subfinder"
-	toolHttpx     = "httpx"
-	toolNaabu     = "naabu"
-	toolNmap      = "nmap"
+	toolSubfinder   = "subfinder"
+	toolHttpx       = "httpx"
+	toolNaabu       = "naabu"
+	toolNmap        = "nmap"
+	toolFscan       = "fscan"
+	toolMasscan     = "masscan"
+	toolRustscan    = "rustscan"
+	toolAmass       = "amass"
+	toolWafw00f     = "wafw00f"
+	toolKatana      = "katana"
+	toolGau         = "gau"
+	toolWaybackurls = "waybackurls"
 )
 
 // Supports 判断该工具的输出是否由本包处理。
@@ -54,7 +62,8 @@ func Supports(tool string) bool {
 // 单个工具的输出即使夹杂日志、提示或畸形行，也只跳过该行，不会整体失败。
 func Parse(tool string, args map[string]interface{}, output string) ([]Host, error) {
 	_ = args // 目前各工具输出格式可由内容自识别，无需额外参数
-	switch normalizeTool(tool) {
+	name := normalizeTool(tool)
+	switch name {
 	case toolSubfinder:
 		return parseSubfinder(output), nil
 	case toolHttpx:
@@ -63,6 +72,18 @@ func Parse(tool string, args map[string]interface{}, output string) ([]Host, err
 		return parseNaabu(output), nil
 	case toolNmap:
 		return parseNmap(output), nil
+	case toolFscan:
+		return parseFscan(output), nil
+	case toolMasscan:
+		return parseMasscan(output), nil
+	case toolRustscan:
+		return parseRustscan(output), nil
+	case toolAmass:
+		return parseAmass(output), nil
+	case toolWafw00f:
+		return parseWafw00f(output), nil
+	case toolKatana, toolGau, toolWaybackurls:
+		return parseURLList(name, output), nil
 	default:
 		return nil, nil
 	}
@@ -81,7 +102,9 @@ func normalizeTool(tool string) string {
 	t = strings.TrimSpace(strings.TrimSuffix(t, ".exe"))
 	t = strings.TrimSuffix(t, ".bat")
 	switch t {
-	case toolSubfinder, toolHttpx, toolNaabu, toolNmap:
+	case toolSubfinder, toolHttpx, toolNaabu, toolNmap,
+		toolFscan, toolMasscan, toolRustscan, toolAmass,
+		toolWafw00f, toolKatana, toolGau, toolWaybackurls:
 		return t
 	default:
 		return ""
@@ -106,6 +129,10 @@ func finalize(tool string, hosts []Host) []Host {
 		}
 		index[key] = len(out)
 		out = append(out, h)
+	}
+	// 没有解析到任何主机时返回 nil，方便调用方区分“没结果”和“空切片”。
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }
@@ -133,6 +160,10 @@ func cleanHost(h Host) Host {
 	h.Protocol = normalizeProtocol(h.Protocol)
 	if h.Protocol == "" {
 		h.Protocol = guessProtocol(h.Port)
+	}
+	// URL 未写端口时按 scheme 补默认端口，避免资产层级出现“端口 0”节点。
+	if h.Port == 0 {
+		h.Port = defaultPortForScheme(h.Protocol)
 	}
 	if h.Domain == "" {
 		h.Domain = domainOf(host)
@@ -342,6 +373,42 @@ func guessProtocol(port int) string {
 	default:
 		return ""
 	}
+}
+
+// defaultPortForScheme 返回 scheme 的默认端口；未知 scheme 返回 0（保持“端口未知”）。
+func defaultPortForScheme(protocol string) int {
+	switch strings.ToLower(strings.TrimSpace(protocol)) {
+	case "https":
+		return 443
+	case "http":
+		return 80
+	case "ftp":
+		return 21
+	default:
+		return 0
+	}
+}
+
+// parsePlainHostLine 从“每行一个主机名/URL/IP”的输出中提取主机；
+// 跳过空行、日志、注释与不像主机的行（子域名至少含一个点）。
+func parsePlainHostLine(line string) string {
+	line = strings.TrimSpace(stripANSI(line))
+	if line == "" || isLogLine(line) {
+		return ""
+	}
+	if strings.HasPrefix(line, "#") || strings.HasPrefix(line, "//") || strings.HasPrefix(line, ";") {
+		return ""
+	}
+	// 通配符结果只保留主机部分。
+	line = strings.TrimPrefix(line, "*.")
+	host := normalizeHostname(line)
+	if host == "" {
+		return ""
+	}
+	if net.ParseIP(host) == nil && !strings.Contains(host, ".") {
+		return ""
+	}
+	return host
 }
 
 // domainOf 计算 eTLD+1；IP、内网名或计算失败返回空串。

@@ -1760,6 +1760,7 @@
       "levelSubdomain": "Subdomain",
       "levelIp": "IP",
       "levelPort": "Port",
+      "unknownPort": "No port",
       "levelService": "Service",
       "levelFingerprint": "Fingerprint",
       "unboundCompany": "Unassigned project"

@@ -274,13 +274,41 @@ func validAssetDomain(domain string) bool {
 	return true
 }
 
+// dedupHostKey 把 Host 归一化成「可比较的主机名」，用于资产去重键。
+//
+// Host 允许是 URL（如 https://example.com/path）、host:port 或裸主机名，
+// 三者在语义上是同一个目标，必须归一化成同一个键，否则会重复建资产。
+func dedupHostKey(host string) string {
+	raw := strings.ToLower(strings.TrimSpace(host))
+	if raw == "" {
+		return ""
+	}
+	if strings.Contains(raw, "://") {
+		if parsed, err := url.Parse(raw); err == nil && parsed.Hostname() != "" && parsed.User == nil {
+			return strings.TrimSuffix(strings.Trim(parsed.Hostname(), "[]"), ".")
+		}
+	}
+	if hostname, _, err := net.SplitHostPort(raw); err == nil {
+		raw = hostname
+	}
+	return strings.TrimSuffix(strings.Trim(raw, "[]"), ".")
+}
+
 func assetDedupKey(a *Asset) string {
-	target := a.Domain
+	// 资产身份优先用 Host（子域名级），其次 IP，最后才退回 Domain。
+	//
+	// 早先这里优先用 Domain：当解析器（httpx/naabu/nmap 等）同时填充 domain（eTLD+1）时，
+	// 同一根域下的不同子域名会算出相同的 dedup_key，被合并成一条资产——表现为
+	// 「子域名只剩最后一个」「资产层级视图没有子域名维度」。
+	// 而既有并发测试（Domain 为空、仅 Host 不同时应创建 workers 条）本来就期望 host 级去重，
+	// 因此这里改成 Host 优先，与既有语义一致。
+	// Host 需要先归一化：Host 可能是 URL 或 host:port，与「只有 Domain」的同目标必须同键。
+	target := dedupHostKey(a.Host)
 	if target == "" {
-		target = a.IP
+		target = strings.ToLower(strings.TrimSpace(a.IP))
 	}
 	if target == "" {
-		target = strings.ToLower(a.Host)
+		target = strings.ToLower(strings.TrimSpace(a.Domain))
 	}
 	return strings.Join([]string{target, strconv.Itoa(a.Port), a.Protocol}, "|")
 }

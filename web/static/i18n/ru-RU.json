@@ -1772,6 +1772,7 @@
       "levelSubdomain": "Поддомен",
       "levelIp": "IP",
       "levelPort": "Порт",
+      "unknownPort": "Порт не указан",
       "levelService": "Сервис",
       "levelFingerprint": "Отпечаток",
       "unboundCompany": "Проект не привязан"

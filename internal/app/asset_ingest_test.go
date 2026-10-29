@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"cyberstrike-ai/internal/authctx"
@@ -172,6 +173,93 @@ func TestAssetIngestorFromNmapXML(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("未找到 mysql/8.0.32 指纹: %+v", fps[mysql.ID])
+	}
+}
+
+// 第二批工具：fscan 的端口/Web/漏洞混合输出。
+func TestAssetIngestorFromFscan(t *testing.T) {
+	db := newIngestTestDB(t)
+	ingestor := newAssetIngestor(db, zap.NewNop())
+	ctx := ingestTestContext()
+
+	output := "[*] 1.2.3.4:80 open\n" +
+		"[+] 1.2.3.4:445 open ms17-010\n" +
+		"[+] http://1.2.3.4 200\n" +
+		"[+] 1.2.3.5 MS17-010\n"
+
+	ingestor.Ingest(ctx, "fscan", nil, output)
+
+	items := listIngestedAssets(t, db)
+	// 1.2.3.4:80 与 1.2.3.4:445 协议不同，属于两条资产；1.2.3.5 只有主机（端口 0）。
+	if len(items) != 3 {
+		t.Fatalf("fscan 入库资产数 = %d, want 3: %+v", len(items), items)
+	}
+	byPort := make(map[int]*database.Asset, len(items))
+	for _, item := range items {
+		byPort[item.Port] = item
+		if item.Source != "tool:fscan" {
+			t.Errorf("source = %q, want tool:fscan", item.Source)
+		}
+	}
+	if byPort[80] == nil || byPort[445] == nil {
+		t.Fatalf("缺少 80/445 端口资产: %v", keysOfPort(byPort))
+	}
+	// 445 端口应被 fscan 解析器识别为 smb 服务并落成指纹。
+	fps, err := db.ListAssetFingerprints([]string{byPort[445].ID})
+	if err != nil {
+		t.Fatalf("查询指纹失败: %v", err)
+	}
+	found := false
+	for _, fp := range fps[byPort[445].ID] {
+		if fp.Service == "smb" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("445 端口未记录 smb 服务指纹: %+v", fps[byPort[445].ID])
+	}
+}
+
+// 第二批工具：katana 抓到的 URL 只保留 host/port/protocol，且同一主机多 URL 合并。
+func TestAssetIngestorFromKatanaURLs(t *testing.T) {
+	db := newIngestTestDB(t)
+	ingestor := newAssetIngestor(db, zap.NewNop())
+	ctx := ingestTestContext()
+
+	output := "http://shop.example.com/\n" +
+		"https://shop.example.com:8443/login?next=/admin\n" +
+		"https://shop.example.com/login\n" +
+		"https://shop.example.com/login?user=1\n" +
+		"http://api.example.com/v1/users?id=1\n" +
+		"[INF] crawled 5 URLs\n"
+
+	ingestor.Ingest(ctx, "katana", nil, output)
+
+	items := listIngestedAssets(t, db)
+	// shop.example.com 的 https:8443 与 https:443 是不同端口，各算一条；http 无端口按 80 补。
+	if len(items) != 4 {
+		t.Fatalf("katana 入库资产数 = %d, want 4: %+v", len(items), items)
+	}
+	portsByHost := make(map[string]map[int]bool)
+	for _, item := range items {
+		if strings.ContainsAny(item.Host, "/?") || strings.Contains(item.Host, "://") {
+			t.Errorf("host 里混入了路径/协议: %q", item.Host)
+		}
+		if item.Domain != "example.com" {
+			t.Errorf("domain = %q, want example.com", item.Domain)
+		}
+		if portsByHost[item.Host] == nil {
+			portsByHost[item.Host] = make(map[int]bool)
+		}
+		portsByHost[item.Host][item.Port] = true
+	}
+	for _, want := range []int{80, 443, 8443} {
+		if !portsByHost["shop.example.com"][want] {
+			t.Errorf("shop.example.com 缺少端口 %d，实际: %v", want, portsByHost["shop.example.com"])
+		}
+	}
+	if !portsByHost["api.example.com"][80] {
+		t.Errorf("api.example.com 应补默认端口 80，实际: %v", portsByHost["api.example.com"])
 	}
 }
 

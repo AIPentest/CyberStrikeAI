@@ -182,15 +182,20 @@
     function assetTreeBuildPortNode(port, key, queryTarget) {
         const safePort = port || {};
         const portNumber = safePort.port;
-        const hasPortNumber = portNumber !== null && portNumber !== undefined && String(portNumber).trim() !== '';
+        // port=0 表示「只探到域名/URL，未确定端口」（例如 subfinder/amass 的子域结果），
+        // 不能当成真实端口展示，否则层级里会出现「0/https」这种读数。
+        const numericPort = Number(portNumber);
+        const hasPortNumber = Number.isFinite(numericPort) && numericPort > 0;
         const protocol = assetTreeText(safePort.protocol);
         const service = assetTreeText(safePort.service);
-        if (!hasPortNumber && !protocol) return null;
+        // 不要在这里丢弃节点：只有域名、没有端口也没有协议的结果（如 subfinder/amass 的子域）
+        // 也应该出现在层级里，否则上层节点会出现「有计数、无子节点」的断层。
+        // 具体展示交给下面的 label 兜底为「未指定端口」。
 
-        // 端口节点显示「端口/协议」，例如 443/https；协议为空时只显示端口
+        // 端口节点显示「端口/协议」，例如 443/https；无端口时退化为协议名
         const label = hasPortNumber
-            ? (protocol ? String(portNumber) + '/' + protocol : String(portNumber))
-            : protocol;
+            ? (protocol ? String(numericPort) + '/' + protocol : String(numericPort))
+            : (protocol || assetTreeT('assets.tree.unknownPort', '未指定端口'));
         const node = assetTreeCreateNode('port', label, safePort.asset_count, key);
         node.query = assetTreeText(queryTarget);
         node.assetIds = Array.isArray(safePort.asset_ids) ? safePort.asset_ids.slice() : [];
