@@ -1962,10 +1962,17 @@
                         </div>
                     </div>
                     <div class="page-content asset-content">
-                        <!-- 资产视图切换：列表（默认）/ 层级树。仅作用于资产库页内部，不新增页面路由。 -->
-                        <div class="asset-view-switch" role="tablist" data-i18n="assets.view.switchLabel" data-i18n-attr="aria-label" aria-label="切换资产视图">
-                            <button id="asset-view-tab-list" class="asset-view-switch__btn is-active" type="button" role="tab" aria-selected="true" onclick="assetTreeSetView('list')" data-i18n="assets.view.list">列表</button>
-                            <button id="asset-view-tab-tree" class="asset-view-switch__btn" type="button" role="tab" aria-selected="false" onclick="assetTreeSetView('tree')" data-i18n="assets.view.tree">层级</button>
+                        <!-- 资产类型 tab：默认「子域名」；「全部资产」复用既有列表，「层级」复用七层树。 -->
+                        <div class="asset-type-tabs" role="tablist" data-i18n="assets.type.tabsLabel" data-i18n-attr="aria-label" aria-label="资产类型">
+                            <button id="asset-tab-subdomain" class="asset-type-tab is-active" type="button" role="tab" aria-selected="true" data-asset-type-tab="subdomain" onclick="assetTableSwitch('subdomain')" data-i18n="assets.type.tab.subdomain">子域名</button>
+                            <button id="asset-tab-site" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="site" onclick="assetTableSwitch('site')" data-i18n="assets.type.tab.site">站点</button>
+                            <button id="asset-tab-ip" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="ip" onclick="assetTableSwitch('ip')" data-i18n="assets.type.tab.ip">IP</button>
+                            <button id="asset-tab-service" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="service" onclick="assetTableSwitch('service')" data-i18n="assets.type.tab.service">服务</button>
+                            <button id="asset-tab-ssl" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="ssl" onclick="assetTableSwitch('ssl')" data-i18n="assets.type.tab.ssl">SSL证书</button>
+                            <button id="asset-tab-fileleak" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="fileleak" onclick="assetTableSwitch('fileleak')" data-i18n="assets.type.tab.fileleak">文件泄露</button>
+                            <button id="asset-tab-urlinfo" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="urlinfo" onclick="assetTableSwitch('urlinfo')" data-i18n="assets.type.tab.urlinfo">URL信息</button>
+                            <button id="asset-tab-all" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="all" onclick="assetTableSwitch('all')" data-i18n="assets.type.tab.all">全部资产</button>
+                            <button id="asset-tab-tree" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="tree" onclick="assetTableSwitch('tree')" data-i18n="assets.type.tab.tree">层级</button>
                         </div>
                         <div class="asset-toolbar">
                             <div class="asset-toolbar-main">
@@ -2040,6 +2047,35 @@
                                 </table>
                             </div>
                             <div id="asset-pagination" class="pagination-container pagination-fixed"></div>
+                        </div>
+                        <!-- 按资产类型的扁平表格：由 assets-table.js 渲染筛选行、表头、表体与分页 -->
+                        <div id="asset-table-view" class="asset-table-view" hidden>
+                            <div class="asset-type-filters">
+                                <input id="asset-type-search" type="search" autocomplete="off" spellcheck="false" data-i18n="assets.type.searchPlaceholder" data-i18n-attr="placeholder" placeholder="关键字：域名 / IP / 标题">
+                                <input id="asset-type-source" class="asset-type-source-input" type="text" autocomplete="off" spellcheck="false" data-i18n="assets.type.sourcePlaceholder" data-i18n-attr="placeholder" placeholder="来源，如 tool:httpx">
+                                <select id="asset-type-record-filter" data-i18n="assets.type.recordType" data-i18n-attr="aria-label" aria-label="解析类型">
+                                    <option value="" data-i18n="assets.type.recordTypeAll">全部</option>
+                                    <option value="A">A</option>
+                                    <option value="CNAME">CNAME</option>
+                                </select>
+                                <button id="asset-type-search-btn" class="btn-primary" type="button" data-i18n="common.search">搜索</button>
+                                <button id="asset-type-reset-btn" class="btn-link" type="button" data-i18n="assets.type.reset">重置</button>
+                                <button id="asset-type-refresh-btn" class="btn-secondary" type="button" data-i18n="common.refresh">刷新</button>
+                            </div>
+                            <div class="asset-type-card">
+                                <div class="asset-type-table-wrap">
+                                    <table class="asset-type-table">
+                                        <thead id="asset-type-table-head"></thead>
+                                        <tbody id="asset-type-table-body"></tbody>
+                                    </table>
+                                </div>
+                                <div id="asset-type-pagination" class="asset-type-pagination"></div>
+                            </div>
+                        </div>
+                        <!-- 尚未接入采集的资产类型（SSL证书 / 文件泄露 / URL信息）占位 -->
+                        <div id="asset-placeholder-view" class="asset-placeholder" hidden>
+                            <strong data-i18n="assets.type.notConnectedTitle">该类型采集尚未接入</strong>
+                            <span data-i18n="assets.type.notConnectedHint">接入后这里会展示对应的资产数据</span>
                         </div>
                         <!-- 资产层级树视图：由 assets-tree.js 渲染，默认隐藏，切到「层级」时显示 -->
                         <div id="asset-tree-view" class="asset-tree-view" hidden>
@@ -7079,6 +7115,8 @@
     <script src="/static/js/rbac-guards.js?v=20260907-1"></script>
     <!-- 资产层级树视图：依赖 i18n.js / auth.js(apiFetch)，必须在 mobile-ui.js 之前 -->
     <script src="/static/js/assets-tree.js?v=20261029-1"></script>
+    <!-- 资产类型 tab + 扁平表格：依赖 apiFetch / assets-tree.js，必须在 mobile-ui.js 之前 -->
+    <script src="/static/js/assets-table.js?v=20261029-2"></script>
     <!-- 移动端交互层：必须最后加载，它包装 window.switchPage 并注入移动端 DOM -->
     <script src="/static/js/mobile-ui.js?v=20261006-9"></script>
 </body>

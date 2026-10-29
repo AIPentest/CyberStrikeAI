@@ -880,3 +880,21 @@ CREATE TABLE asset_fingerprints (
 CREATE INDEX idx_asset_fingerprints_asset ON asset_fingerprints(asset_id);
 
 CREATE INDEX idx_asset_fingerprints_technology ON asset_fingerprints(technology);
+
+-- 域名 -> IP 解析关系：支持「一个子域名关联多个 IP」（多 A 记录）。
+-- assets 表一条记录只存一个 IP，且去重键是 host+port+protocol，
+-- 同域名多 IP 会被合并覆盖，因此单独建表按 (host,ip,record_type) 累积。
+CREATE TABLE asset_host_ips (
+    id TEXT PRIMARY KEY,
+    host TEXT NOT NULL,
+    ip TEXT NOT NULL,
+    record_type TEXT NOT NULL DEFAULT 'A',
+    source TEXT NOT NULL DEFAULT '',
+    first_seen_at DATETIME NOT NULL,
+    last_seen_at DATETIME NOT NULL,
+    UNIQUE (host, ip, record_type)
+);
+
+CREATE INDEX idx_asset_host_ips_host ON asset_host_ips(host);
+
+CREATE INDEX idx_asset_host_ips_ip ON asset_host_ips(ip);

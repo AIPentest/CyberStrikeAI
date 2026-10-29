@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"net"
 	"strings"
 
 	"cyberstrike-ai/internal/assetintel"
@@ -118,6 +119,14 @@ func (i *assetIngestor) Ingest(ctx context.Context, toolName string, args map[st
 		fingerprintCount += len(inputs)
 	}
 
+	// 记录「域名 -> IP」解析关系，供资产视图展示「关联IP」多值。
+	if records := hostIPRecordsFor(hosts, source); len(records) > 0 {
+		if err := i.db.UpsertAssetHostIPs(records); err != nil {
+			i.logger.Warn("资产自动采集：写入域名解析关系失败",
+				zap.String("tool", toolName), zap.Error(err))
+		}
+	}
+
 	i.logger.Info("资产自动采集完成",
 		zap.String("tool", toolName),
 		zap.Int("parsed", len(hosts)),
@@ -126,6 +135,29 @@ func (i *assetIngestor) Ingest(ctx context.Context, toolName string, args map[st
 		zap.Int("skipped", result.Skipped),
 		zap.Int("fingerprints", fingerprintCount),
 		zap.String("project_id", projectID))
+}
+
+// hostIPRecordsFor 从解析结果中提取「域名 -> IP」解析关系。
+// 纯 IP 资产（Host 本身就是 IP）不需要记录，避免把 IP 当成域名。
+func hostIPRecordsFor(hosts []assetintel.Host, source string) []database.AssetHostIP {
+	records := make([]database.AssetHostIP, 0, len(hosts))
+	for _, h := range hosts {
+		host := strings.TrimSpace(h.Host)
+		ip := strings.TrimSpace(h.IP)
+		if host == "" || ip == "" || host == ip {
+			continue
+		}
+		if net.ParseIP(host) != nil {
+			continue
+		}
+		records = append(records, database.AssetHostIP{
+			Host:       host,
+			IP:         ip,
+			RecordType: "A",
+			Source:     source,
+		})
+	}
+	return records
 }
 
 // fingerprintInputsFor 把一条解析结果转换成指纹行。

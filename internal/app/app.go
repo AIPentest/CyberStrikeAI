@@ -1080,6 +1080,7 @@ func setupRoutes(
 		protected.GET("/assets/selection", assetHandler.Selection)
 		protected.GET("/assets/stats", assetHandler.Stats)
 		protected.GET("/assets/tree", assetHandler.Tree)
+		protected.GET("/assets/table", assetHandler.Table)
 		protected.POST("/assets/import", assetHandler.Import)
 		protected.POST("/assets/scan-links", assetHandler.RecordScans)
 		protected.PUT("/assets/bulk", assetHandler.BulkUpdate)

@@ -47453,63 +47453,360 @@ html[data-theme="dark"] .token-usage-panel { --token-cache-color: #2dd4bf; }
 }
 
 /* ==========================================================================
-   资产层级树视图（assets-tree.js）
+   资产页：按资产类型分 tab + 扁平表格（assets-table.js）+ 七层层级树（assets-tree.js）
    —— 追加于文件末尾，复用现有 CSS 变量与按钮/卡片风格，不引入新主题。
-   列表 / 层级 视图切换 + 七层树 + 搜索高亮 + 状态占位。
    ========================================================================== */
 
-/* 列表 / 层级 视图切换 */
-.asset-view-switch {
-    display: inline-flex;
+/* 资产类型 tab 栏 */
+.asset-type-tabs {
+    display: flex;
     align-items: center;
-    gap: 3px;
+    flex-wrap: wrap;
+    gap: 4px;
     align-self: flex-start;
-    padding: 3px;
+    padding: 4px;
     border: 1px solid var(--border-color, #e5e7eb);
-    border-radius: 10px;
+    border-radius: 12px;
     background: var(--card-bg, #fff);
     box-shadow: var(--shadow-sm);
 }
 
-.asset-view-switch__btn {
+.asset-type-tab {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 68px;
-    height: 32px;
+    height: 34px;
     padding: 0 14px;
     border: 0;
-    border-radius: 7px;
+    border-radius: 8px;
     background: transparent;
     color: var(--text-secondary, #64748b);
     font: inherit;
     font-size: 13px;
     line-height: 1;
+    white-space: nowrap;
     cursor: pointer;
     transition: background-color .18s ease, color .18s ease;
 }
 
-.asset-view-switch__btn:hover {
+.asset-type-tab:hover {
     color: var(--text-primary, #111827);
     background: var(--bg-secondary, #f8fafc);
 }
 
-.asset-view-switch__btn.is-active {
+.asset-type-tab.is-active {
     background: color-mix(in srgb, var(--accent-color, #0066ff) 12%, transparent);
     color: var(--accent-color, #0066ff);
     font-weight: 650;
 }
 
-.asset-view-switch__btn:focus-visible {
+.asset-type-tab:focus-visible {
     outline: 2px solid var(--accent-color, #0066ff);
     outline-offset: 1px;
 }
 
-/* 层级视图激活时隐藏列表专属区域（工具栏 / 批量操作 / 表格卡片），不删除既有 DOM */
-#page-asset-library.asset-library--tree-view .asset-toolbar,
-#page-asset-library.asset-library--tree-view #asset-batch-actions,
-#page-asset-library.asset-library--tree-view .asset-list-card {
+/* 非「全部资产」tab 时隐藏 assets.js 的工具栏 / 批量条 / 列表卡片（纯 CSS，不改其 DOM 与逻辑） */
+#page-asset-library.asset-library--non-list .asset-toolbar,
+#page-asset-library.asset-library--non-list #asset-batch-actions,
+#page-asset-library.asset-library--non-list .asset-list-card {
     display: none !important;
+}
+
+/* 按类型的扁平表格 */
+.asset-table-view {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.asset-table-view[hidden] {
+    display: none !important;
+}
+
+.asset-type-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    background: var(--card-bg, #fff);
+}
+
+.asset-type-filters input,
+.asset-type-filters select {
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color, #d8dee8);
+    border-radius: 8px;
+    background: var(--input-bg, #fff);
+    color: var(--text-primary, #111827);
+    font: inherit;
+    font-size: 13px;
+}
+
+.asset-type-filters input[type="search"] {
+    flex: 1 1 260px;
+    min-width: 220px;
+}
+
+.asset-type-source-input {
+    flex: 0 1 220px;
+    min-width: 160px;
+}
+
+.asset-type-filters select {
+    min-width: 120px;
+}
+
+.asset-type-filters input:focus,
+.asset-type-filters select:focus {
+    outline: none;
+    border-color: var(--accent-color, #0066ff);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color, #0066ff) 14%, transparent);
+}
+
+.asset-type-filters [hidden] {
+    display: none !important;
+}
+
+.asset-type-card {
+    overflow: hidden;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    background: var(--card-bg, #fff);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .03);
+}
+
+.asset-type-table-wrap {
+    overflow: auto;
+}
+
+.asset-type-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.asset-type-table thead th {
+    padding: 11px 14px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary, #6c757d);
+    background: var(--bg-secondary, #f8f9fa);
+    border-bottom: 1px solid var(--border-color, #e9ecef);
+    white-space: nowrap;
+}
+
+.asset-type-table tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-color, #e9ecef);
+    color: var(--text-primary, #111827);
+    vertical-align: top;
+}
+
+.asset-type-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.asset-type-table tbody tr:hover {
+    background: var(--bg-secondary, #f8f9fa);
+}
+
+.asset-type-col-index {
+    width: 70px;
+    color: var(--text-secondary, #6c757d);
+    font-variant-numeric: tabular-nums;
+}
+
+.asset-type-cell-primary {
+    font-weight: 500;
+}
+
+.asset-type-cell-sub {
+    display: block;
+    margin-top: 2px;
+    color: var(--text-secondary, #6c757d);
+    font-size: 12px;
+}
+
+.asset-type-cell-empty {
+    color: var(--text-muted, #adb5bd);
+}
+
+.asset-type-truncate {
+    display: block;
+    max-width: 420px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.asset-type-ip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.asset-type-ip {
+    display: inline-block;
+    padding: 1px 6px;
+    border: 1px solid var(--border-color, #e9ecef);
+    border-radius: 5px;
+    background: var(--bg-secondary, #f8f9fa);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.asset-type-source-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--accent-color, #0066ff) 8%, transparent);
+    color: var(--text-secondary, #6c757d);
+    font-size: 12px;
+}
+
+/* 加载 / 空数据 / 失败三态 */
+.asset-type-state-cell {
+    padding: 0 !important;
+}
+
+.asset-type-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 48px 16px;
+    color: var(--text-secondary, #6c757d);
+    font-size: 13px;
+    text-align: center;
+}
+
+.asset-type-state--error {
+    color: var(--error-color, #dc3545);
+}
+
+.asset-type-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border-color, #e9ecef);
+    border-top-color: var(--accent-color, #0066ff);
+    border-radius: 50%;
+    animation: assetTreeSpin .8s linear infinite;
+}
+
+/* 分页 */
+.asset-type-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 14px;
+    border-top: 1px solid var(--border-color, #e9ecef);
+}
+
+.asset-type-total {
+    color: var(--text-secondary, #6c757d);
+    font-size: 12px;
+}
+
+.asset-type-pager {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.asset-type-page-btn {
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color, #e9ecef);
+    border-radius: 7px;
+    background: var(--card-bg, #fff);
+    color: var(--text-primary, #111827);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.asset-type-page-btn:hover:not(:disabled) {
+    border-color: var(--accent-color, #0066ff);
+    color: var(--accent-color, #0066ff);
+}
+
+.asset-type-page-btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.asset-type-page-indicator {
+    color: var(--text-secondary, #6c757d);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+/* 未接入类型的占位空态 */
+.asset-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 72px 16px;
+    border: 1px dashed var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    background: var(--card-bg, #fff);
+    color: var(--text-secondary, #6c757d);
+    text-align: center;
+}
+
+.asset-placeholder[hidden] {
+    display: none !important;
+}
+
+.asset-placeholder strong {
+    color: var(--text-primary, #111827);
+    font-size: 14px;
+}
+
+.asset-placeholder span {
+    font-size: 13px;
+}
+
+html[data-theme="dark"] .asset-type-table tbody tr:hover {
+    background: rgba(96, 165, 250, .08);
+}
+
+@media (max-width: 720px) {
+    .asset-type-tabs {
+        width: 100%;
+    }
+
+    .asset-type-tab {
+        padding: 0 10px;
+    }
+
+    .asset-type-filters {
+        padding: 10px;
+    }
+
+    .asset-type-filters input[type="search"],
+    .asset-type-source-input {
+        flex: 1 1 100%;
+    }
+
+    .asset-type-pagination {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .asset-type-truncate {
+        max-width: 220px;
+    }
 }
 
 .asset-tree-view {

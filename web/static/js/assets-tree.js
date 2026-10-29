@@ -665,26 +665,16 @@
      * 视图切换 / 搜索 / 事件
      * ------------------------------------------------------------------ */
 
-    /** 切换「列表 / 层级」视图，默认列表且不回写任何既有列表状态 */
+    /**
+     * 显隐层级树容器（由资产页 tab 体系 assets-table.js 调用）。
+     * 说明：页面顶层面包屑/显隐现在统一由 assets-table.js 处理，这里不再改页面 class。
+     */
     function assetTreeSetView(view) {
         const nextView = view === 'tree' ? 'tree' : 'list';
         assetTreeState.view = nextView;
 
-        const page = document.getElementById('page-asset-library');
         const container = document.getElementById('asset-tree-view');
-        const listBtn = document.getElementById('asset-view-tab-list');
-        const treeBtn = document.getElementById('asset-view-tab-tree');
-
-        if (page) page.classList.toggle('asset-library--tree-view', nextView === 'tree');
         if (container) container.hidden = nextView !== 'tree';
-        if (listBtn) {
-            listBtn.classList.toggle('is-active', nextView === 'list');
-            listBtn.setAttribute('aria-selected', nextView === 'list' ? 'true' : 'false');
-        }
-        if (treeBtn) {
-            treeBtn.classList.toggle('is-active', nextView === 'tree');
-            treeBtn.setAttribute('aria-selected', nextView === 'tree' ? 'true' : 'false');
-        }
 
         if (nextView !== 'tree') return;
 
@@ -718,7 +708,7 @@
     }
 
     /**
-     * 端口行「查看资产」：切回列表视图，用该端口所在 IP（缺失时退回主机/域名）作为搜索词。
+     * 端口行「查看资产」：切回「全部资产」tab，用该端口所在 IP（缺失时退回主机/域名）作为搜索词。
      * 说明：现有列表详情接口按“列表内序号”打开详情，无法按 asset_id 直接打开，
      * 因此这里不硬编码不存在的函数，退化为一次针对该目标的列表搜索。
      */
@@ -726,7 +716,11 @@
         const node = key ? assetTreeState.nodeIndex.get(key) : null;
         if (!node) return;
         const target = assetTreeText(node.query);
-        assetTreeSetView('list');
+        if (typeof window.assetTableSwitch === 'function') {
+            window.assetTableSwitch('all');
+        } else {
+            assetTreeSetView('list');
+        }
         const searchInput = document.getElementById('asset-search');
         if (!searchInput || !target) return;
         searchInput.value = target;
