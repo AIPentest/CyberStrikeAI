@@ -201,6 +201,8 @@ hitl:
     base_url: "" # openai 后端留空跟随主模型；typesafe 后端留空使用 https://api.typesafe.ai
     api_key: "" # openai 后端留空跟随主模型；typesafe 后端填写 TypeSafe API Key
     model: "" # openai 后端建议填小模型；typesafe 后端留空使用 jev-latest
+    reasoning:
+      profile: "" # auto / deepseek_compat / openai_compat；仅控制审计请求的 thinking 字段
   # 已决策审计日志保留天数（与 MCP 监控一致；省略默认 90；0 表示不自动清理）
   retention_days: 90
   # 按你环境里的真实工具名增删（与侧栏一致、小写不敏感）；不需要全局免审批可改为 []

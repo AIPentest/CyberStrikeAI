@@ -1230,6 +1230,12 @@ func (h HitlConfig) TypeSafeConfigEffective() (baseURL, apiKey, model string) {
 func (h HitlConfig) AuditModelEffective(main OpenAIConfig) OpenAIConfig {
 	out := main
 	am := h.AuditModel
+	if strings.TrimSpace(am.Provider) != "" || strings.TrimSpace(am.BaseURL) != "" || strings.TrimSpace(am.Model) != "" {
+		out.Reasoning.Profile = ""
+	}
+	if strings.TrimSpace(am.Reasoning.Profile) != "" {
+		out.Reasoning.Profile = am.Reasoning.Profile
+	}
 	if strings.TrimSpace(am.Provider) != "" {
 		out.Provider = strings.TrimSpace(am.Provider)
 	}
