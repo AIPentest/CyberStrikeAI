@@ -5121,5 +5121,14 @@
     "promptRequired": "请输入复测提示词。",
     "navigationChanged": "已切换到其他对话，请返回复测分支继续发送。",
     "branchCreated": "复测分支已创建，请在该分支继续验证。"
+  },
+  "vulnerabilityDownload": {
+    "title": "下载漏洞报告",
+    "hint": "请选择下载格式",
+    "markdown": "Markdown（.md）",
+    "word": "Word（.docx）",
+    "cancel": "取消",
+    "download": "下载漏洞报告",
+    "busy": "正在准备下载…"
   }
 }
