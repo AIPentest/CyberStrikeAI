@@ -73,7 +73,7 @@ const (
 	DefaultLatestUserMessageMaxRunes                  = 48000
 	DefaultLatestUserMessageHeadRunes                 = 24000
 	DefaultLatestUserMessageTailRunes                 = 24000
-	DefaultSummarizationOutputReserveTokens           = 40960
+	DefaultSummarizationOutputReserveTokens           = 8192
 )
 
 // ProjectConfig 项目黑板（跨对话共享事实）配置。
@@ -452,14 +452,14 @@ func (c MultiAgentEinoMiddlewareConfig) ReductionMaxLengthForTruncEffective() in
 	if c.ReductionMaxLengthForTrunc > 0 {
 		return c.ReductionMaxLengthForTrunc
 	}
-	return 12000
+	return 64000
 }
 
 func (c MultiAgentEinoMiddlewareConfig) ReductionMaxTokensForClearEffective() int {
 	if c.ReductionMaxTokensForClear > 0 {
 		return c.ReductionMaxTokensForClear
 	}
-	return 50000
+	return 96000
 }
 
 // MultiAgentEinoSkillsConfig toggles Eino official skill progressive disclosure and host filesystem tools.
