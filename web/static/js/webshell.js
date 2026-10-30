@@ -1232,21 +1232,23 @@ function probeWebshellConnection(conn) {
         return Promise.resolve({ ok: false, message: wsT('webshell.testFailed') || '连通性测试失败' });
     }
     var probeToken = buildWebshellProbeToken();
-    return apiFetch('/api/webshell/exec', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            url: conn.url,
-            password: conn.password || '',
-            type: conn.type || 'php',
-            method: ((conn.method || 'post').toLowerCase() === 'get') ? 'get' : 'post',
-            cmd_param: conn.cmdParam || '',
-            encoding: webshellConnEncoding(conn),
-            os: webshellConnOS(conn),
-            connection_id: conn.id || '',
-            command: buildWebshellProbeCommand(probeToken),
-            connection_id: password === '********' ? (document.getElementById('webshell-edit-id')?.value || '') : ''
-        })
+    // Include request construction and synchronous transport errors in the failure path.
+    return Promise.resolve().then(function () {
+        return apiFetch('/api/webshell/exec', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                url: conn.url,
+                password: conn.password || '',
+                type: conn.type || 'php',
+                method: ((conn.method || 'post').toLowerCase() === 'get') ? 'get' : 'post',
+                cmd_param: conn.cmdParam || '',
+                encoding: webshellConnEncoding(conn),
+                os: webshellConnOS(conn),
+                connection_id: conn.id || '',
+                command: buildWebshellProbeCommand(probeToken)
+            })
+        });
     })
         .then(function (r) { return r.json(); })
         .then(function (data) {
@@ -1322,7 +1324,7 @@ function runBatchProbeWebshellConnections() {
 
     var workers = [];
     for (var i = 0; i < concurrency; i++) workers.push(runOne());
-    Promise.all(workers).finally(function () {
+    return Promise.all(workers).finally(function () {
         webshellBatchProbeRunning = false;
         updateWebshellBatchProbeButton(done, total, okCount);
     });
