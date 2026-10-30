@@ -32,6 +32,19 @@ func TestReductionCacheRootDir(t *testing.T) {
 	}
 }
 
+func TestSanitizeEinoPathSegmentForWindows(t *testing.T) {
+	got := sanitizeEinoPathSegment(`call_2hwSDB7U504wTZ7Y8t1DKjtb|fc_0bf3b3607a76b6c4016a8eed99151c87d2b7ecfa3c97cb75ee`)
+	if strings.ContainsAny(got, `<>:"/\|?*`) {
+		t.Fatalf("sanitized path segment still contains a Windows-invalid character: %q", got)
+	}
+	if strings.ContainsRune(got, '\x00') {
+		t.Fatalf("sanitized path segment still contains a control character: %q", got)
+	}
+	if strings.Contains(got, "..") {
+		t.Fatalf("sanitized path segment still contains traversal: %q", got)
+	}
+}
+
 func TestBuildAgenticReductionMiddlewareClearsOldAgenticToolResult(t *testing.T) {
 	ctx := context.Background()
 	loc, err := localbk.NewBackend(ctx, &localbk.Config{})
@@ -48,10 +61,11 @@ func TestBuildAgenticReductionMiddlewareClearsOldAgenticToolResult(t *testing.T)
 	}
 	oldText := strings.Repeat("old-tool-output-", 20)
 	newText := strings.Repeat("new-tool-output-", 20)
+	oldCallID := "call_2hwSDB7U504wTZ7Y8t1DKjtb|fc_0bf3b3607a76b6c4016a8eed99151c87d2b7ecfa3c97cb75ee"
 	state := &adk.TypedChatModelAgentState[*schema.AgenticMessage]{
 		Messages: []*schema.AgenticMessage{
-			agenticAssistantToolCall("old-call", "execute", `{"command":"old"}`),
-			agenticToolResult("old-call", "execute", oldText),
+			agenticAssistantToolCall(oldCallID, "execute", `{"command":"old"}`),
+			agenticToolResult(oldCallID, "execute", oldText),
 			agenticAssistantToolCall("new-call", "execute", `{"command":"new"}`),
 			agenticToolResult("new-call", "execute", newText),
 		},
@@ -70,6 +84,16 @@ func TestBuildAgenticReductionMiddlewareClearsOldAgenticToolResult(t *testing.T)
 	}
 	if newGot != newText {
 		t.Fatalf("latest tool result should be retained, got %q", newGot)
+	}
+	files, err := filepath.Glob(filepath.Join(root, "conversations", "conv-1", "clear", "*"))
+	if err != nil {
+		t.Fatalf("glob clear offload files: %v", err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("clear offload files = %d, want one sanitized file: %v", len(files), files)
+	}
+	if strings.ContainsAny(filepath.Base(files[0]), `<>:"/\|?*`) {
+		t.Fatalf("clear offload file name is not Windows-safe: %q", filepath.Base(files[0]))
 	}
 }
 
