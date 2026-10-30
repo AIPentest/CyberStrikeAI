@@ -2666,6 +2666,31 @@ function ensureAIConfigShape(cfg) {
     return normalizeAIConfigProviderProfiles({ default_channel: def, channels });
 }
 
+// parseCustomHeadersInput 把「每行一条 KEY=VALUE」的文本解析为请求头对象。
+// 空行与 # 开头的行会被忽略；键或值为空的行直接跳过。
+function parseCustomHeadersInput() {
+    const el = document.getElementById('openai-custom-headers');
+    if (!el) return {};
+    const out = {};
+    String(el.value || '').split(/\r?\n/).forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.charAt(0) === '#') return;
+        const idx = trimmed.indexOf('=');
+        if (idx <= 0) return;
+        const key = trimmed.slice(0, idx).trim();
+        const value = trimmed.slice(idx + 1).trim();
+        if (!key || !value) return;
+        out[key] = value;
+    });
+    return out;
+}
+
+// formatCustomHeaders 把请求头对象写回「每行一条 KEY=VALUE」的文本。
+function formatCustomHeaders(headers) {
+    if (!headers || typeof headers !== 'object') return '';
+    return Object.keys(headers).sort().map((k) => k + '=' + headers[k]).join('\n');
+}
+
 function readAIChannelFromMainForm(id) {
     const prev = currentConfig?.ai?.channels?.[id] || {};
     const maxCompletionTokens = parseInt(document.getElementById('openai-max-completion-tokens')?.value, 10) || 32768;
@@ -2678,6 +2703,7 @@ function readAIChannelFromMainForm(id) {
         model: document.getElementById('openai-model')?.value.trim() || '',
         max_total_tokens: parseInt(document.getElementById('openai-max-total-tokens')?.value, 10) || 120000,
         max_completion_tokens: maxCompletionTokens,
+        headers: parseCustomHeadersInput(),
         reasoning: {
             ...(prev.reasoning || {}),
             mode: document.getElementById('openai-reasoning-mode')?.value || 'auto',
@@ -2710,6 +2736,8 @@ function writeAIChannelToMainForm(id) {
     if (maxTokensEl) maxTokensEl.value = ch.max_total_tokens || 120000;
     const maxCompletionTokensEl = document.getElementById('openai-max-completion-tokens');
     if (maxCompletionTokensEl) maxCompletionTokensEl.value = ch.max_completion_tokens || 32768;
+    const customHeadersEl = document.getElementById('openai-custom-headers');
+    if (customHeadersEl) customHeadersEl.value = formatCustomHeaders(ch.headers);
     const r = ch.reasoning || {};
     const modeEl = document.getElementById('openai-reasoning-mode');
     if (modeEl) {
@@ -2814,7 +2842,8 @@ function bindAIChannelEditorPreviewSync() {
         'openai-provider',
         'openai-api-key',
         'openai-base-url',
-        'openai-model'
+        'openai-model',
+        'openai-custom-headers'
     ];
     ids.forEach((fieldId) => {
         const el = document.getElementById(fieldId);
@@ -3256,7 +3285,8 @@ async function probeSelectedAIChannels() {
                     channel_id: id,
                     base_url: ch.base_url || '',
                     api_key: ch.api_key || '',
-                    model: ch.model || ''
+                    model: ch.model || '',
+                    headers: ch.headers || {}
                 })
             });
             const result = await response.json().catch(() => ({}));
@@ -3769,11 +3799,16 @@ function collectHitlAuditModelEffectiveConfig() {
         base_url: document.getElementById('openai-base-url')?.value.trim() || '',
         model: document.getElementById('openai-model')?.value.trim() || ''
     };
+    const overriddenBaseUrl = document.getElementById('hitl-audit-model-base-url')?.value.trim() || '';
+    const mainChannelId = normalizeAIChannelId(selectedAIChannelId || currentConfig?.ai?.default_channel || 'default');
+    const mainHeaders = currentConfig?.ai?.channels?.[mainChannelId]?.headers || {};
     return {
         provider: document.getElementById('hitl-audit-model-provider')?.value || main.provider,
-        base_url: document.getElementById('hitl-audit-model-base-url')?.value.trim() || main.base_url,
+        base_url: overriddenBaseUrl || main.base_url,
         api_key: document.getElementById('hitl-audit-model-api-key')?.value.trim() || main.api_key,
-        model: document.getElementById('hitl-audit-model-name')?.value.trim() || main.model
+        model: document.getElementById('hitl-audit-model-name')?.value.trim() || main.model,
+        // 审计模型留空即复用主渠道，自定义请求头必须一起跟随，否则私有鉴权头的供应商测试必然失败。
+        headers: overriddenBaseUrl ? {} : mainHeaders
     };
 }
 
@@ -3952,7 +3987,8 @@ async function testOpenAIConnection() {
                 channel_id: channelId,
                 base_url: baseUrl,
                 api_key: apiKey,
-                model: model
+                model: model,
+                headers: currentConfig?.ai?.channels?.[channelId]?.headers || {}
             })
         });
 

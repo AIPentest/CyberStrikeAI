@@ -351,13 +351,13 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 		subAgentCount = len(agents.MergeYAMLAndMarkdown(h.config.MultiAgent.SubAgents, load.SubAgents))
 	}
 	multiPub := config.MultiAgentPublic{
-		Enabled:                               h.config.MultiAgent.Enabled,
-		RobotDefaultAgentMode:                 config.NormalizeRobotAgentMode(h.config.MultiAgent),
-		BatchUseMultiAgent:                    h.config.MultiAgent.BatchUseMultiAgent,
-		SubAgentCount:                         subAgentCount,
-		Orchestration:                         config.NormalizeMultiAgentOrchestration(h.config.MultiAgent.Orchestration),
-		PlanExecuteLoopMaxIterations:          h.config.MultiAgent.PlanExecuteLoopMaxIterations,
-		SummarizationUserIntentLedgerMaxRunes: h.config.MultiAgent.EinoMiddleware.SummarizationUserIntentLedgerMaxRunesEffective(),
+		Enabled:                                    h.config.MultiAgent.Enabled,
+		RobotDefaultAgentMode:                      config.NormalizeRobotAgentMode(h.config.MultiAgent),
+		BatchUseMultiAgent:                         h.config.MultiAgent.BatchUseMultiAgent,
+		SubAgentCount:                              subAgentCount,
+		Orchestration:                              config.NormalizeMultiAgentOrchestration(h.config.MultiAgent.Orchestration),
+		PlanExecuteLoopMaxIterations:               h.config.MultiAgent.PlanExecuteLoopMaxIterations,
+		SummarizationUserIntentLedgerMaxRunes:      h.config.MultiAgent.EinoMiddleware.SummarizationUserIntentLedgerMaxRunesEffective(),
 		SummarizationUserIntentLedgerEntryMaxRunes: h.config.MultiAgent.EinoMiddleware.SummarizationUserIntentLedgerEntryMaxRunesEffective(),
 		LatestUserMessageMaxRunes:                  h.config.MultiAgent.EinoMiddleware.LatestUserMessageMaxRunesEffective(),
 		LatestUserMessageHeadRunes:                 h.config.MultiAgent.EinoMiddleware.LatestUserMessageHeadRunesEffective(),
@@ -1262,12 +1262,13 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 
 // TestOpenAIRequest 测试OpenAI连接请求
 type TestOpenAIRequest struct {
-	CredentialScope string `json:"credential_scope,omitempty"`
-	ChannelID       string `json:"channel_id,omitempty"`
-	Provider        string `json:"provider"`
-	BaseURL         string `json:"base_url"`
-	APIKey          string `json:"api_key"`
-	Model           string `json:"model"`
+	CredentialScope string            `json:"credential_scope,omitempty"`
+	ChannelID       string            `json:"channel_id,omitempty"`
+	Provider        string            `json:"provider"`
+	BaseURL         string            `json:"base_url"`
+	APIKey          string            `json:"api_key"`
+	Model           string            `json:"model"`
+	Headers         map[string]string `json:"headers,omitempty"`
 }
 
 // TestOpenAI 测试OpenAI API连接是否可用
@@ -1317,11 +1318,15 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 		BaseURL:  baseURL,
 		APIKey:   strings.TrimSpace(req.APIKey),
 		Model:    req.Model,
+		Headers:  config.ExpandHeaderMap(req.Headers),
 	}
 	client := openai.NewClient(tmpCfg, nil, h.logger)
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 	defer cancel()
+	// 连接测试没有真实对话上下文，用一个明确的探测值填充 %session_id%，
+	// 这样带会话占位符的渠道也能在测试时把自定义头真实发出去。
+	ctx = openai.WithSessionID(ctx, "connect-test")
 
 	start := time.Now()
 	if llm.IsClaudeProvider(req.Provider) {
@@ -2150,6 +2155,7 @@ func updateOpenAIConfig(doc *yaml.Node, cfg config.OpenAIConfig) {
 	setStringInMap(openaiNode, "api_key", cfg.APIKey)
 	setStringInMap(openaiNode, "base_url", cfg.BaseURL)
 	setStringInMap(openaiNode, "model", cfg.Model)
+	setStringMapInMap(openaiNode, "headers", cfg.Headers)
 	if cfg.MaxTotalTokens > 0 {
 		setIntInMap(openaiNode, "max_total_tokens", cfg.MaxTotalTokens)
 	}
@@ -2206,6 +2212,7 @@ func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) {
 		setStringInMap(channelNode, "api_key", ch.APIKey)
 		setStringInMap(channelNode, "base_url", ch.BaseURL)
 		setStringInMap(channelNode, "model", ch.Model)
+		setStringMapInMap(channelNode, "headers", ch.Headers)
 		if ch.MaxTotalTokens > 0 {
 			setIntInMap(channelNode, "max_total_tokens", ch.MaxTotalTokens)
 		}
@@ -2605,6 +2612,34 @@ func setStringInMap(mapNode *yaml.Node, key, value string) {
 	valueNode.Tag = "!!str"
 	valueNode.Style = 0
 	valueNode.Value = value
+}
+
+// setStringMapInMap 把 map[string]string 写成 YAML 映射节点（键排序，空值删除）。
+func setStringMapInMap(mapNode *yaml.Node, key string, values map[string]string) {
+	if len(values) == 0 {
+		removeKeyFromMap(mapNode, key)
+		return
+	}
+	keys := make([]string, 0, len(values))
+	for k := range values {
+		if strings.TrimSpace(k) == "" {
+			continue
+		}
+		keys = append(keys, k)
+	}
+	if len(keys) == 0 {
+		removeKeyFromMap(mapNode, key)
+		return
+	}
+	sort.Strings(keys)
+	mapValue := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	for _, k := range keys {
+		mapValue.Content = append(mapValue.Content,
+			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: k},
+			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: values[k]})
+	}
+	_, valueNode := ensureKeyValue(mapNode, key)
+	*valueNode = *mapValue
 }
 
 func removeKeyFromMap(mapNode *yaml.Node, key string) {

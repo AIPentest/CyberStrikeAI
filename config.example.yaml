@@ -108,6 +108,14 @@ ai:
       model: qwen3-max
       max_total_tokens: 120000
       max_completion_tokens: 32768
+      # headers: 可选。追加或覆盖发给模型网关的 HTTP 请求头，值支持 ${ENV_VAR} 与 ${ENV_VAR:-默认值}。
+      # 用于兼容要求私有鉴权头、版本头或组织头的第三方 OpenAI 兼容供应商（如 opencode 等聚合网关）。
+      # 配置后会覆盖同名的内置头（Authorization、User-Agent 等），空值项会被忽略。
+      # headers:
+      #   X-Api-Key: ${OPENCODE_API_KEY}
+      #   x-opencode-session: "%session_id%" # 自动替换为当前对话 ID
+      #   X-Client-Name: cyberstrike-ai
+      #   HTTP-Referer: https://example.com
       # Eino 路径模型推理：DeepSeek/OpenAI 为 thinking / reasoning_effort；Claude 4.6+ 为 adaptive + output_config.effort（仅显式配置 effort 时下发）；3.7 为 enabled+budget_tokens:10000（文档示例），effort 不映射，自定义预算用 extra_request_fields
       reasoning:
         mode: on # auto | on | off；off：OpenAI/Claude 不附加推理字段，DeepSeek 发送 thinking.type=disabled（其默认开启思考）

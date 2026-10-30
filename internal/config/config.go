@@ -847,6 +847,9 @@ type OpenAIConfig struct {
 	Model               string `yaml:"model" json:"model"`
 	MaxTotalTokens      int    `yaml:"max_total_tokens,omitempty" json:"max_total_tokens,omitempty"`
 	MaxCompletionTokens int    `yaml:"max_completion_tokens,omitempty" json:"max_completion_tokens,omitempty"`
+	// Headers 追加或覆盖发给模型网关的 HTTP 请求头，值支持 ${ENV_VAR} 展开。
+	// 用于兼容要求私有鉴权头、版本头或组织头的第三方 OpenAI 兼容供应商。
+	Headers map[string]string `yaml:"headers,omitempty" json:"headers,omitempty"`
 	// Reasoning 控制 Eino ChatModel 的 thinking / reasoning_effort / output_config 等（Eino 单/多代理路径生效）。
 	Reasoning OpenAIReasoningConfig `yaml:"reasoning,omitempty" json:"reasoning,omitempty"`
 }
@@ -866,6 +869,7 @@ type AIChannelConfig struct {
 	Model               string                `yaml:"model" json:"model"`
 	MaxTotalTokens      int                   `yaml:"max_total_tokens,omitempty" json:"max_total_tokens,omitempty"`
 	MaxCompletionTokens int                   `yaml:"max_completion_tokens,omitempty" json:"max_completion_tokens,omitempty"`
+	Headers             map[string]string     `yaml:"headers,omitempty" json:"headers,omitempty"`
 	Reasoning           OpenAIReasoningConfig `yaml:"reasoning,omitempty" json:"reasoning,omitempty"`
 }
 
@@ -881,6 +885,7 @@ func (c AIChannelConfig) ToOpenAIConfig() OpenAIConfig {
 		Model:               c.Model,
 		MaxTotalTokens:      c.MaxTotalTokens,
 		MaxCompletionTokens: c.MaxCompletionTokens,
+		Headers:             ExpandHeaderMap(c.Headers),
 		Reasoning:           c.Reasoning,
 	}
 }
@@ -897,6 +902,7 @@ func AIChannelFromOpenAI(id, name string, oa OpenAIConfig) AIChannelConfig {
 		Model:               oa.Model,
 		MaxTotalTokens:      oa.MaxTotalTokens,
 		MaxCompletionTokens: oa.MaxCompletionTokens,
+		Headers:             ExpandHeaderMap(oa.Headers),
 		Reasoning:           oa.Reasoning,
 	}
 }
