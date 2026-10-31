@@ -4,7 +4,10 @@ args:
   - "-c"
   - |
     import argparse
+    import datetime
+    import email.utils
     import json
+    import math
     import os
     import re
     import shlex
@@ -272,6 +275,227 @@ args:
                 return super().handle_request(request)
             finally:
                 request.url = original_url
+
+
+    def parse_proxy_list(raw):
+        """Accept newline-separated endpoints or JSON strings/{proxies: [...]}.
+
+        Validate the entire update before using it. Never include credentials in errors.
+        """
+        if isinstance(raw, str):
+            raw = raw.strip()
+            if not raw:
+                return []
+            if raw.startswith(("[", "{")):
+                try:
+                    raw = json.loads(raw)
+                except ValueError:
+                    raise ValueError("Invalid proxy list JSON") from None
+            else:
+                raw = raw.splitlines()
+        if isinstance(raw, dict):
+            raw = raw.get("proxies", raw.get("data"))
+        if not isinstance(raw, list) or len(raw) > 256:
+            raise ValueError("Proxy list must contain at most 256 entries")
+        proxies = []
+        for value in raw:
+            if not isinstance(value, str):
+                raise ValueError("Proxy entries must be URL strings or host:port strings")
+            value = value.strip()
+            if not value:
+                continue
+            if "://" not in value:
+                value = "http://" + value
+            try:
+                parts = urllib.parse.urlsplit(value)
+                valid = (
+                    parts.scheme.lower() in {"http", "https", "socks5"}
+                    and parts.hostname and parts.port and 0 < parts.port <= 65535
+                    and parts.path in {"", "/"} and not parts.query and not parts.fragment
+                    and not any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in value)
+                )
+                if not valid:
+                    raise ValueError()
+                # Normalize host/scheme for deduplication, preserving encoded credentials.
+                host = parts.hostname.lower()
+                if ":" in host:
+                    host = "[" + host + "]"
+                auth = parts.netloc.rsplit("@", 1)[0] + "@" if "@" in parts.netloc else ""
+                value = f"{parts.scheme.lower()}://{auth}{host}:{parts.port}"
+                httpx.URL(value)
+            except (ValueError, httpx.InvalidURL):
+                raise ValueError("Invalid proxy endpoint (expected http(s)://host:port or socks5://host:port)") from None
+            if value not in proxies:
+                proxies.append(value)
+        return proxies
+
+
+    def fetch_proxy_source(source):
+        try:
+            parts = urllib.parse.urlsplit(source)
+            if parts.scheme not in {"http", "https"} or not parts.hostname or parts.fragment:
+                raise ValueError()
+            httpx.URL(source)
+        except (ValueError, httpx.InvalidURL):
+            raise ValueError("Proxy source must be an HTTP(S) URL") from None
+        # Separate control-plane client: no target cookies, headers, proxy or env proxy.
+        try:
+            with httpx.Client(timeout=10.0, trust_env=False, follow_redirects=False) as client:
+                with client.stream("GET", source) as response:
+                    if response.status_code != 200:
+                        raise ValueError("Proxy source returned HTTP " + str(response.status_code))
+                    body = bytearray()
+                    for chunk in response.iter_bytes(chunk_size=65536):
+                        body.extend(chunk)
+                        if len(body) > 1024 * 1024:
+                            raise ValueError("Proxy source response exceeds 1 MiB")
+                    proxies = parse_proxy_list(body.decode("utf-8-sig"))
+                    if not proxies:
+                        raise ValueError("Proxy source returned an empty list")
+                    return proxies
+        except (httpx.HTTPError, UnicodeError):
+            raise ValueError("Could not fetch proxy source (check connectivity, credentials and TLS)") from None
+
+
+    def retry_after_seconds(value):
+        if not value:
+            return 0.0
+        value = value.strip()
+        if value.isascii() and value.isdigit():
+            value = value.lstrip("0") or "0"
+            return 86400.0 if len(value) > 6 else float(min(int(value), 86400))
+        try:
+            date = email.utils.parsedate_to_datetime(value)
+            if date.tzinfo is None:
+                date = date.replace(tzinfo=datetime.timezone.utc)
+            return min(86400.0, max(0.0, (date - datetime.datetime.now(datetime.timezone.utc)).total_seconds()))
+        except (ValueError, TypeError, OverflowError):
+            return 0.0
+
+
+    class ProxyPoolTransport(httpx.BaseTransport):
+        """Invocation-local sticky proxy pool; retries only GET/HEAD/OPTIONS headers.
+
+        Each hop has a bounded budget and never falls back to a direct connection.
+        Body-stream failures are surfaced rather than replaying a partial response.
+        """
+        RETRY_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+        def __init__(self, proxies, source="", max_attempts=3, cooldown=60.0,
+                     fail_status="403,429", transport_kwargs=None):
+            if not 1 <= max_attempts <= 10:
+                raise ValueError("proxy_max_attempts must be between 1 and 10")
+            if not math.isfinite(cooldown) or not 0 <= cooldown <= 86400:
+                raise ValueError("proxy_cooldown must be between 0 and 86400 seconds")
+            try:
+                statuses = set() if fail_status.strip().lower() == "none" else {
+                    int(v.strip()) for v in fail_status.split(",") if v.strip()
+                }
+                if any(v < 400 or v > 599 for v in statuses):
+                    raise ValueError()
+            except ValueError:
+                raise ValueError("proxy_fail_status must be comma-separated HTTP error codes (400-599)") from None
+            self.proxies = parse_proxy_list(proxies)
+            self.source = source.strip()
+            self.max_attempts = max_attempts
+            self.cooldown = cooldown
+            self.fail_status = statuses
+            self.transport_kwargs = dict(transport_kwargs or {})
+            self.transport_kwargs.pop("proxy", None)
+            self.transport_kwargs["trust_env"] = False
+            self.transports = {}
+            self.cooling = {}
+            self.target_wait = {}
+            self.current = None
+            if self.source:
+                self.refresh()
+            if not self.proxies:
+                raise ValueError("Proxy pool has no endpoints")
+
+        def refresh(self):
+            proxies = fetch_proxy_source(self.source)
+            merged = list(dict.fromkeys(self.proxies + proxies))
+            if len(merged) > 256:
+                raise ValueError("Proxy pool exceeds 256 endpoints")
+            self.proxies = merged
+
+        def select(self, attempted):
+            now = time.monotonic()
+            candidates = ([self.current] if self.current else []) + self.proxies
+            for proxy in candidates:
+                if proxy not in attempted and self.cooling.get(proxy, 0) <= now:
+                    self.current = proxy
+                    return proxy
+            return None
+
+        def handle_request(self, request):
+            target = (request.url.scheme, request.url.host, request.url.port)
+            if self.target_wait.get(target, 0) > time.monotonic():
+                raise httpx.ProxyError("Target Retry-After is still active; no request sent", request=request)
+            attempted = set()
+            refreshed = False
+            retryable = request.method.upper() in self.RETRY_METHODS
+            for attempt in range(1, self.max_attempts + 1):
+                proxy = self.select(attempted)
+                if proxy is None and self.source and not refreshed:
+                    refreshed = True
+                    try:
+                        self.refresh()
+                    except ValueError as exc:
+                        raise httpx.ProxyError(str(exc), request=request) from None
+                    proxy = self.select(attempted)
+                if proxy is None:
+                    raise httpx.ProxyError("Proxy pool exhausted: no unused healthy endpoint; direct fallback disabled", request=request)
+                attempted.add(proxy)
+                label = self.proxies.index(proxy) + 1
+                print(f"[proxy pool] attempt {attempt}/{self.max_attempts} via proxy #{label}", file=sys.stderr)
+                try:
+                    if proxy not in self.transports:
+                        self.transports[proxy] = PathAsIsTransport(proxy=proxy, **self.transport_kwargs)
+                    response = self.transports[proxy].handle_request(request)
+                except ImportError:
+                    raise httpx.ProxyError("SOCKS support requires pip install 'httpx[socks]'", request=request) from None
+                except httpx.TransportError as exc:
+                    self.cooling[proxy] = time.monotonic() + self.cooldown
+                    print(f"[proxy pool] proxy #{label}: {type(exc).__name__}; cooling down", file=sys.stderr)
+                    if not retryable or attempt == self.max_attempts:
+                        raise httpx.ProxyError(
+                            f"Proxy pool request failed ({type(exc).__name__}); automatic replay stopped",
+                            request=request,
+                        ) from None
+                    continue
+                blocked = response.status_code in self.fail_status
+                wait = retry_after_seconds(response.headers.get("Retry-After")) if response.status_code == 429 else 0.0
+                response.extensions["proxy_pool"] = {"proxy": label, "attempts": attempt, "failed": blocked}
+                if wait > 0:
+                    self.target_wait[target] = time.monotonic() + wait
+                    print("[proxy pool] Retry-After received; automatic replay stopped, retry later", file=sys.stderr)
+                if not blocked:
+                    return response
+                self.cooling[proxy] = time.monotonic() + max(self.cooldown, wait)
+                print(f"[proxy pool] proxy #{label}: HTTP {response.status_code} matched failure policy; cooling down", file=sys.stderr)
+                if not retryable:
+                    print("[proxy pool] method is not GET/HEAD/OPTIONS; automatic replay stopped", file=sys.stderr)
+                if not retryable or wait > 0 or attempt == self.max_attempts:
+                    return response
+                # Keep the last response observable if no replacement is available.
+                available = self.select(attempted)
+                if available is None and self.source and not refreshed:
+                    refreshed = True
+                    try:
+                        self.refresh()
+                    except ValueError as exc:
+                        print(f"[proxy pool] {exc}; preserving last response", file=sys.stderr)
+                    available = self.select(attempted)
+                if available is None:
+                    print("[proxy pool] no replacement available; preserving last response", file=sys.stderr)
+                    return response
+                response.close()
+            raise httpx.ProxyError("Proxy pool attempt budget exhausted", request=request)
+
+        def close(self):
+            for transport in self.transports.values():
+                transport.close()
 
 
     def send_path_as_is(
@@ -964,6 +1188,11 @@ args:
         parser.add_argument("--cookies", default="")
         parser.add_argument("--user-agent", dest="user_agent", default="")
         parser.add_argument("--proxy", default="")
+        parser.add_argument("--proxy-pool", default="")
+        parser.add_argument("--proxy-source", default="")
+        parser.add_argument("--proxy-max-attempts", type=int, default=3)
+        parser.add_argument("--proxy-cooldown", type=float, default=60.0)
+        parser.add_argument("--proxy-fail-status", default="403,429")
         parser.add_argument("--timeout", default="")
         parser.add_argument("--repeat", type=int, default=1)
         parser.add_argument("--delay", default="0")
@@ -1118,6 +1347,9 @@ args:
                 sys.exit(1)
         cert = additional_options.get("cert")
         explicit_proxy = (args.proxy or "").strip()
+        pool_enabled = bool(args.proxy_pool.strip() or args.proxy_source.strip())
+        if pool_enabled and explicit_proxy:
+            parser.error("proxy and proxy_pool/proxy_source are mutually exclusive")
         forward_proxy = resolve_forward_proxy(explicit_proxy, trust_env, encoded_url)
 
         transport_kwargs = {
@@ -1133,6 +1365,19 @@ args:
         if forward_proxy:
             transport_kwargs["proxy"] = forward_proxy
 
+        if pool_enabled:
+            try:
+                transport = ProxyPoolTransport(
+                    args.proxy_pool, source=args.proxy_source,
+                    max_attempts=args.proxy_max_attempts, cooldown=args.proxy_cooldown,
+                    fail_status=args.proxy_fail_status, transport_kwargs=transport_kwargs,
+                )
+            except ValueError as exc:
+                parser.error(str(exc))
+            forward_proxy = ""
+        else:
+            transport = PathAsIsTransport(**transport_kwargs)
+
         # Always path-as-is (security-testing default; matches curl --path-as-is)
         initial_absolute = needs_http_absolute_form(forward_proxy, encoded_url)
         initial_wire_target = wire_request_target(encoded_url, absolute_form=initial_absolute)
@@ -1143,8 +1388,8 @@ args:
             "verify": verify_option,
             "follow_redirects": False,  # redirects handled by send_path_as_is
             "cookies": cookie_jar,
-            "trust_env": trust_env,
-            "transport": PathAsIsTransport(**transport_kwargs),
+            "trust_env": False if pool_enabled else trust_env,
+            "transport": transport,
         }
 
         if args.show_command:
@@ -1164,7 +1409,7 @@ args:
 
         exit_code = 0
         verify_tls = verify_option if isinstance(verify_option, bool) else True
-        skip_probe = bool(forward_proxy)
+        skip_probe = pool_enabled or bool(forward_proxy)
 
         client = httpx.Client(**client_kwargs)
         try:
@@ -1214,6 +1459,12 @@ args:
                         decoded_body, used_encoding, encoding_source = decode_body_bytes(bytes(body_buffer), response.headers, args.response_encoding)
 
                         print(f"\n===== Response #{run_index + 1} =====")
+                        pool_meta = response.extensions.get("proxy_pool")
+                        if pool_meta:
+                            print(f"[proxy pool] final proxy #{pool_meta['proxy']}, attempts={pool_meta['attempts']}")
+                            if pool_meta["failed"]:
+                                exit_code = 1
+                                print("[proxy pool] failure policy still matched; response preserved, direct fallback disabled")
                         download_target = (args.download or "").strip()
                         if download_target:
                             # 支持多次请求时通过 {i} 占位符区分文件名
@@ -1344,7 +1595,7 @@ args:
             print("\nInterrupted.", file=sys.stderr)
             sys.exit(130)
 enabled: true
-short_description: "纯Python HTTP测试框架（httpx，会话复用+编码守护）"
+short_description: "纯Python HTTP测试框架（httpx，代理池切换+会话复用+编码守护）"
 description: |
   纯 Python 构建的 HTTP 测试框架：基于 httpx 会话，结合 socket 探针补齐 DNS/TCP/TLS 观测，
   提供全流程的请求体编码守护、重复播放与可观测能力，适配盲注延时、复杂 payload 调优等场景。
@@ -1358,6 +1609,7 @@ description: |
   - 可重复观测：repeat/delay + TTFB/total/speed_download 统计，便于盲注/时序测试
   - 扩展开关：http2 / httpx_options 解析 http2、cert、verify、trust_env、max_redirects 等 httpx 选项
   - 响应体瘦身：response_filter 按行/块正则提取，配合 max_lines/max_bytes 限制 stdout，降低 Agent token 消耗
+  - 代理池：proxy_pool 列表 / proxy_source HTTP(S) 接口，故障冷却与有界切换；仅自动重放 GET/HEAD/OPTIONS，429 Retry-After 停止重放；耗尽不直连
 
   **响应过滤最佳实践：**
   - 大页面/HTML：用 `response_filter` 抓 error|exception|password|token|uid 等关键字行
@@ -1401,6 +1653,34 @@ parameters:
     description: "代理（http(s)://或socks5://地址，直接传递给httpx Client）"
     required: false
     flag: "--proxy"
+  - name: "proxy_pool"
+    type: "string"
+    description: "代理池：JSON 字符串数组或换行列表，支持 http(s)://host:port、socks5://host:port；与 proxy 互斥；状态仅在本次工具调用内保留"
+    required: false
+    flag: "--proxy-pool"
+  - name: "proxy_source"
+    type: "string"
+    description: "用户配置的代理供应商 HTTP(S) 接口；返回换行列表、JSON 数组或 {proxies:[...]} / {data:[...]}；开始及耗尽时有界拉取；与 proxy 互斥"
+    required: false
+    flag: "--proxy-source"
+  - name: "proxy_max_attempts"
+    type: "int"
+    description: "每个请求/重定向跳的代理尝试上限（1-10）；每个代理最多尝试一次；仅 GET/HEAD/OPTIONS 自动重放"
+    required: false
+    default: 3
+    flag: "--proxy-max-attempts"
+  - name: "proxy_cooldown"
+    type: "string"
+    description: "失败代理冷却秒数（0-86400，默认60）；仅在本次工具调用内生效"
+    required: false
+    default: "60"
+    flag: "--proxy-cooldown"
+  - name: "proxy_fail_status"
+    type: "string"
+    description: "触发代理切换的 HTTP 错误状态码，逗号分隔（默认403,429）；只是切换策略，不代表确认封禁；传 none 禁用状态码切换；429 带有效 Retry-After 时停止自动重放"
+    required: false
+    default: "403,429"
+    flag: "--proxy-fail-status"
   - name: "timeout"
     type: "string"
     description: "最大超时时间（秒，支持小数）"
