@@ -474,6 +474,32 @@ class ProxyPoolTests(unittest.TestCase):
                 self.assertEqual(second.requests, [("target.invalid", 80)])
                 self.assertEqual(good.requests[0][1], "/a/../b?x=%2F")
 
+    def test_min_switch_interval_prevents_early_failover(self):
+        with server(403) as first, server() as second:
+            pool = Pool(json.dumps([first.url, second.url]), min_switch_interval=60, cooldown=0)
+            with httpx.Client(transport=pool, trust_env=False) as client:
+                with mock.patch.object(NS["time"], "monotonic", return_value=100):
+                    response, *_ = send(client)
+                    with contextlib.closing(response):
+                        response.read()
+                        self.assertEqual(response.status_code, 403)
+                self.assertEqual(len(second.requests), 0)
+                with mock.patch.object(NS["time"], "monotonic", return_value=161):
+                    response, *_ = send(client)
+                    with contextlib.closing(response):
+                        self.assertEqual(response.read(), b"ok")
+
+    def test_managed_fixed_policy_overrides_model_pool(self):
+        with server(body=b"managed") as fixed, server(body=b"model-choice") as other:
+            policy = {"mode": "fixed", "proxy_url": fixed.url}
+            result = subprocess.run([sys.executable, "-c", SCRIPT, "--url", "http://target.invalid/",
+                                     "--proxy-pool", other.url, "--proxy-strategy", "round_robin"],
+                                    text=True, capture_output=True, timeout=15,
+                                    env={**os.environ, "CSAI_HTTP_PROXY_CONFIG": json.dumps(policy)})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("managed", result.stdout)
+            self.assertEqual(len(other.requests), 0)
+
     def run_cli(self, *args):
         return subprocess.run([sys.executable, "-c", SCRIPT, *args], text=True, capture_output=True,
                               timeout=15, env={**os.environ, "HTTP_PROXY": "http://127.0.0.1:1"})

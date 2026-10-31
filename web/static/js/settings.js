@@ -686,6 +686,7 @@ function syncC2NavFromConfig(cfg) {
 
 // 切换设置分类
 function switchSettingsSection(section) {
+    if (section === "proxy") loadProxySettings();
     if (section === 'rbac') {
         if (typeof switchPage === 'function') {
             switchPage('platform-rbac');

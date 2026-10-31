@@ -608,3 +608,15 @@ project:
 # 把目录变成跟踪该仓库的 git 工作树，此后按正常安装一键更新。
 # update:
 #   repo: https://github.com/AIPentest/CyberStrikeAI.git  # 一个仓库地址；留空/不写 = 官方仓库
+
+# HTTP 测试工具的受管出口；不影响 Kali 其他工具、外部 MCP 或大模型 API。
+# 固定 URL 是否固定公网 IP 取决于供应商。运行中的工具使用启动时快照。
+proxy:
+  mode: manual # manual=沿用工具参数，fixed=固定代理，pool=显式启用代理池
+  proxy_url: "" # fixed 模式必填，支持 http(s)/socks5://host:port
+  proxy_pool: "" # pool 模式：每行一个代理 URL；与供应商至少配置一项
+  proxy_source: "" # 可选供应商 HTTP(S) 地址
+  strategy: sticky # sticky 或 round_robin
+  max_attempts: 3
+  cooldown: 60
+  min_switch_interval: 60 # 间隔内即使失败也不提前切换；0 表示不限制

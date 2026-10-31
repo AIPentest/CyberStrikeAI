@@ -21,6 +21,7 @@ import (
 )
 
 type Config struct {
+	Proxy       ProxyConfig           `yaml:"proxy,omitempty" json:"proxy"`
 	Version     string                `yaml:"version,omitempty" json:"version,omitempty"` // 前端显示的版本号，如 v1.3.3
 	Server      ServerConfig          `yaml:"server"`
 	Log         LogConfig             `yaml:"log"`
@@ -1652,6 +1653,9 @@ func Load(path string) (*Config, error) {
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("解析配置文件失败: %w", err)
+	}
+	if err := cfg.Proxy.Validate(); err != nil {
+		return nil, err
 	}
 	if err := cfg.Agent.validateTaskTimeout(); err != nil {
 		return nil, err

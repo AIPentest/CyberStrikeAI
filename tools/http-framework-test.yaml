@@ -404,7 +404,11 @@ args:
         RETRY_METHODS = {"GET", "HEAD", "OPTIONS"}
 
         def __init__(self, proxies, source="", max_attempts=3, cooldown=60.0,
-                     fail_status="403,429", transport_kwargs=None, strategy="sticky"):
+                     fail_status="403,429", transport_kwargs=None, strategy="sticky", min_switch_interval=0):
+            if not math.isfinite(min_switch_interval) or not 0 <= min_switch_interval <= 86400:
+                raise ValueError("proxy_min_switch_interval must be between 0 and 86400")
+            self.min_switch_interval = min_switch_interval
+            self.last_switch = None
             if strategy not in {"sticky", "round_robin"}:
                 raise ValueError("proxy_strategy must be sticky or round_robin")
             self.strategy = strategy
@@ -452,13 +456,17 @@ args:
 
         def select(self, attempted, advance=True):
             now = time.monotonic()
-            if self.strategy == "round_robin":
+            if self.current and self.last_switch is not None and now - self.last_switch < self.min_switch_interval:
+                candidates = [self.current]
+            elif self.strategy == "round_robin":
                 candidates = self.proxies[self.cursor:] + self.proxies[:self.cursor]
             else:
                 candidates = ([self.current] if self.current else []) + self.proxies
             for proxy in candidates:
                 if proxy not in attempted and self.cooling.get(proxy, 0) <= now:
                     if advance:
+                        if self.current != proxy:
+                            self.last_switch = now
                         self.current = proxy
                         self.cursor = (self.proxies.index(proxy) + 1) % len(self.proxies)
                     return proxy
@@ -1227,6 +1235,7 @@ args:
         parser.add_argument("--proxy-pool", default="")
         parser.add_argument("--proxy-source", default="")
         parser.add_argument("--proxy-strategy", choices=["sticky", "round_robin"], default="sticky")
+        parser.add_argument("--proxy-min-switch-interval", type=float, default=0)
         parser.add_argument("--proxy-max-attempts", type=int, default=3)
         parser.add_argument("--proxy-cooldown", type=float, default=60.0)
         parser.add_argument("--proxy-fail-status", default="403,429")
@@ -1274,6 +1283,27 @@ args:
         )
         # parse_known_args: tolerate legacy executor that appended bare "http2=true" tokens
         args, unknown_args = parser.parse_known_args()
+        managed = os.environ.get("CSAI_HTTP_PROXY_CONFIG", "")
+        if managed:
+            try:
+                policy = json.loads(managed)
+                args.proxy = ""
+                args.proxy_pool = ""
+                args.proxy_source = ""
+                if policy["mode"] == "fixed":
+                    args.proxy = parse_proxy_list(policy["proxy_url"])[0]
+                elif policy["mode"] == "pool":
+                    args.proxy_pool = policy["proxy_pool"]
+                    args.proxy_source = policy["proxy_source"]
+                    args.proxy_strategy = policy.get("strategy") or "sticky"
+                    args.proxy_max_attempts = policy.get("max_attempts") or 3
+                    args.proxy_cooldown = policy.get("cooldown", 60)
+                    args.proxy_min_switch_interval = policy.get("min_switch_interval", 60)
+                    args.proxy_fail_status = "403,429"
+                else:
+                    raise ValueError()
+            except (ValueError, KeyError, TypeError, IndexError, RecursionError):
+                parser.error("Invalid managed HTTP proxy configuration")
         leaked_options = parse_additional_options(" ".join(unknown_args)) if unknown_args else {}
 
         response_filter = (args.response_filter or "").strip()
@@ -1409,6 +1439,7 @@ args:
                     max_attempts=args.proxy_max_attempts, cooldown=args.proxy_cooldown,
                     fail_status=args.proxy_fail_status, transport_kwargs=transport_kwargs,
                     strategy=args.proxy_strategy,
+                    min_switch_interval=args.proxy_min_switch_interval,
                 )
             except ValueError as exc:
                 parser.error(str(exc))
@@ -1707,6 +1738,12 @@ parameters:
     required: false
     default: "sticky"
     flag: "--proxy-strategy"
+  - name: "proxy_min_switch_interval"
+    type: "string"
+    description: "代理最短切换间隔秒数（0-86400，工具参数默认0）；间隔内失败也不提前切换；受管设置可覆盖此值"
+    required: false
+    default: "0"
+    flag: "--proxy-min-switch-interval"
   - name: "proxy_max_attempts"
     type: "int"
     description: "每个请求/重定向跳的代理尝试上限（1-10）；每个代理最多尝试一次；仅 GET/HEAD/OPTIONS 自动重放"

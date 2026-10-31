@@ -39,7 +39,7 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="/static/css/style.css?v=20261027-pagination-custom-select">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261031-proxy-settings">
     <link rel="stylesheet" href="/static/css/tool-guard.css?v=20260907-7">
     <link rel="stylesheet" href="/static/css/chat-plan-progress.css?v=20260813-4">
     <link rel="stylesheet" href="/static/css/c2.css">
@@ -3605,6 +3605,7 @@
                                 <div class="settings-nav-item" data-section="token-usage" role="button" tabindex="0" onclick="switchSettingsSection('token-usage')" onkeydown="if(event.key==='Enter'||event.key===' ') { event.preventDefault(); switchSettingsSection('token-usage'); }">
                                     <span data-i18n="settings.nav.tokenUsage">Token 用量</span>
                                 </div>
+                                <div class="settings-nav-item" data-section="proxy" role="button" tabindex="0" onclick="switchSettingsSection('proxy')" onkeydown="if(event.key==='Enter'||event.key===' ') { event.preventDefault(); switchSettingsSection('proxy'); }"><span data-i18n="proxySettings.title">代理设置</span></div>
                                 <div class="settings-nav-item" data-section="hitl" onclick="switchSettingsSection('hitl')">
                                     <span data-i18n="settings.nav.hitl">人机协同</span>
                                 </div>
@@ -4017,7 +4018,22 @@
                                 </div>
                             </div>
 
-                            <!-- 人机协同 -->
+                            <div id="settings-section-proxy" class="settings-section-content"><div class="settings-section-header"><h3 data-i18n="proxySettings.title">代理设置</h3></div><p class="form-hint" data-i18n="proxySettings.scope"></p>
+<div class="form-group"><label for="proxy-setting-mode" data-i18n="proxySettings.mode"></label><select id="proxy-setting-mode" onchange="syncProxySettingsMode()"><option value="manual" data-i18n="proxySettings.manual">沿用工具参数（默认）</option><option value="fixed" data-i18n="proxySettings.fixed">固定代理（推荐稳定会话）</option><option value="pool" data-i18n="proxySettings.pool">代理池（显式启用）</option></select></div>
+<div data-proxy-mode="fixed" hidden><div class="form-group"><label for="proxy-setting-proxy_url" data-i18n="proxySettings.proxy_url"></label><input id="proxy-setting-proxy_url" type="password" autocomplete="new-password"></div></div>
+<div data-proxy-mode="pool" hidden>
+<div class="form-group"><label for="proxy-setting-proxy_pool" data-i18n="proxySettings.proxy_pool"></label><textarea id="proxy-setting-proxy_pool" rows="5" spellcheck="false"></textarea></div>
+<div class="form-group"><label for="proxy-setting-proxy_source" data-i18n="proxySettings.proxy_source"></label><input id="proxy-setting-proxy_source" type="password" autocomplete="new-password"></div>
+<div class="form-group"><label for="proxy-setting-strategy" data-i18n="proxySettings.strategy"></label><select id="proxy-setting-strategy"><option value="sticky" data-i18n="proxySettings.sticky">复用成功代理</option><option value="round_robin" data-i18n="proxySettings.round_robin">按间隔轮询</option></select></div>
+<div class="proxy-limit-grid"><div class="form-group"><label for="proxy-setting-max_attempts" data-i18n="proxySettings.max_attempts"></label><input id="proxy-setting-max_attempts" type="number" value="3" min="1" max="10" step="1" required></div>
+<div class="form-group"><label for="proxy-setting-cooldown" data-i18n="proxySettings.cooldown"></label><input id="proxy-setting-cooldown" type="number" value="60" min="0" max="86400" step="1" required></div>
+<div class="form-group"><label for="proxy-setting-min_switch_interval" data-i18n="proxySettings.min_switch_interval"></label><input id="proxy-setting-min_switch_interval" type="number" value="60" min="0" max="86400" step="1" required></div>
+</div><p class="form-hint" data-i18n="proxySettings.intervalHint"></p></div>
+<p class="form-hint" data-i18n="proxySettings.secrets">已保存的地址与凭证显示为 ********，原样保存会保留，清空可删除。代理池模式中，静态列表和供应商至少填写一项。</p>
+<p class="form-hint" data-i18n="proxySettings.isolation">Kali 工具与大模型 API：此设置仅作用于 http-framework-test。其他扫描工具、终端、外部 MCP 和模型 API 保持自身出口；不会修改系统 HTTP_PROXY，也不会在运行中重启或切换其他工具的连接。需要代理的其他工具请使用其原生固定代理参数。</p>
+<p class="form-hint" data-i18n="proxySettings.stability">固定代理地址不保证供应商固定公网 IP。稳定会话请使用供应商的固定出口或粘性会话服务。设置修改仅影响后续启动的 HTTP 工具调用。受管模式会覆盖模型传入的代理选项；这不是对任意 Shell 命令的网络隔离。</p>
+<div class="settings-actions"><button id="proxy-settings-save" disabled class="btn-primary" onclick="saveProxySettings()" data-require-permission="config:write" data-i18n="proxySettings.save">保存并应用代理设置</button></div></div>
+<!-- 人机协同 -->
                             <div id="settings-section-hitl" class="settings-section-content">
                                 <div class="settings-section-header">
                                     <h3 data-i18n="settings.hitl.title">人机协同</h3>
@@ -7031,7 +7047,8 @@
     <script src="/static/js/hitl.js?v=20260819-1-pagination-20261027"></script>
     <script src="/static/js/tool-guard.js?v=20261010-conflict"></script>
     <script src="/static/js/token-usage.js?v=20261012-token-analytics"></script>
-    <script src="/static/js/settings.js?v=20261011-token-settings-pagination-20261027"></script>
+    <script src="/static/js/proxy-settings.js?v=20261031"></script>
+    <script src="/static/js/settings.js?v=20261031-proxy-settings"></script>
     <script src="/static/js/audit-datetime-picker.js"></script>
     <script src="/static/js/audit.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/storage.js"></script>

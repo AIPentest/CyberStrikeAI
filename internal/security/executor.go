@@ -32,6 +32,8 @@ var ToolOutputCallbackCtxKey = toolOutputCallbackCtxKey{}
 
 // Executor 安全工具执行器
 type Executor struct {
+	proxyMu                 sync.RWMutex
+	proxyConfig             config.ProxyConfig
 	config                  *config.SecurityConfig
 	toolIndex               map[string]*config.ToolConfig // 工具索引，用于 O(1) 查找
 	mcpServer               *mcp.Server
@@ -183,9 +185,11 @@ func (e *Executor) ExecuteTool(ctx context.Context, toolName string, args map[st
 		}, nil
 	}
 
+	proxySnapshot := e.proxySnapshot(toolName)
 	// 执行命令
 	cmd := exec.CommandContext(ctx, toolConfig.Command, cmdArgs...)
 	applyDefaultTerminalEnv(cmd)
+	applyHTTPProxySnapshot(cmd, proxySnapshot)
 	attachNonInteractiveStdin(cmd)
 	_ = prepareShellCmdSession(cmd)
 
@@ -207,6 +211,7 @@ func (e *Executor) ExecuteTool(ctx context.Context, toolName string, args map[st
 			)
 			cmd2 := exec.CommandContext(ctx, toolConfig.Command, cmdArgs...)
 			applyDefaultTerminalEnv(cmd2)
+			applyHTTPProxySnapshot(cmd2, proxySnapshot)
 			_ = prepareShellCmdSession(cmd2)
 			output, err = runCommandWithPTY(ctx, cmd2, cb, e.toolOutputMaxBytes, spill)
 		}
@@ -219,6 +224,7 @@ func (e *Executor) ExecuteTool(ctx context.Context, toolName string, args map[st
 			)
 			cmd2 := exec.CommandContext(ctx, toolConfig.Command, cmdArgs...)
 			applyDefaultTerminalEnv(cmd2)
+			applyHTTPProxySnapshot(cmd2, proxySnapshot)
 			_ = prepareShellCmdSession(cmd2)
 			output, err = runCommandWithPTY(ctx, cmd2, nil, e.toolOutputMaxBytes, spill)
 		}

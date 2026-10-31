@@ -2,11 +2,11 @@
 
 [English](../en-US/http-proxy-pool.md) | [文档首页](README.md)
 
-`http-framework-test` 支持用户提供的代理列表及代理供应商接口。连接失败或响应命中指定状态码时，在次数上限内切换代理；成功代理继续复用连接。默认关闭，原有 `proxy` 参数及无代理调用方式继续可用。
+`http-framework-test` 支持用户提供的代理列表及代理供应商接口。连接失败或响应命中指定状态码时，在次数上限内切换代理；成功代理继续复用连接。默认沿用工具参数。也可在「系统设置 → 代理设置」统一管理此 HTTP 工具的出口。
 
 ## 使用
 
-更新工具文件后，在系统设置中应用配置或重启服务以重新加载工具参数。代理池通过每次工具调用的参数启用，不需要修改 `config.yaml`。
+更新工具文件后，在系统设置中应用配置或重启服务以重新加载工具参数。也可以在代理二级菜单保存配置，后续调用立即生效；运行中进程保留启动时快照。
 
 调用 `http-framework-test` 时传入以下参数（MCP 工具参数示例）：
 
@@ -75,7 +75,7 @@ HTTP CONNECT 隧道中的 HTTPS 响应需要由发起请求的客户端解密才
 
 403 也可能是业务权限错误，429 也可能按账号或其他维度限流；默认状态码只是可配置的失败策略，不宣称已确认 IP 被封。不匹配状态码的验证码页、HTTP 200 拦截页目前保持原样。重放和等待规则参考 [RFC 9110 §9.2.2](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2) 和 [RFC 6585 §4](https://www.rfc-editor.org/rfc/rfc6585.html#section-4)。
 
-池状态只在单次工具调用内保留，不跨会话共享。其他扫描工具、`exec`、Eino `execute`、外部 MCP、LLM API 连接暂不接入本池；未新增全局代理设置页。供应商拉取使用独立客户端，开启 TLS 校验，不继承目标请求的 Cookie、Authorization、环境代理或 `allow_insecure`；生产供应商接口建议使用 HTTPS。
+池状态只在单次工具调用内保留，不跨会话共享。其他扫描工具、`exec`、Eino `execute`、外部 MCP、LLM API 连接暂不接入本池；系统设置中的代理页面只管理上述 HTTP 工具。供应商拉取使用独立客户端，开启 TLS 校验，不继承目标请求的 Cookie、Authorization、环境代理或 `allow_insecure`；生产供应商接口建议使用 HTTPS。
 
 ## 排错与源码
 
@@ -97,3 +97,20 @@ python3 -m unittest discover -s scripts -p 'test_http_proxy_pool.py' -v
 ```
 
 测试从 YAML 读取实际执行代码，使用本地 HTTP 代理、CONNECT 隧道及 TLS 服务验证切换、路径保真、重放限制、等待期、供应商刷新与凭证隔离；不访问外部目标或真实供应商。HTTPS 测试需要 `openssl`。
+
+## 系统设置与稳定出口
+
+系统设置 → 代理设置提供三种模式：沿用工具参数、固定代理、代理池。固定模式在不同调用之间持续使用配置的同一代理地址，不做失败切换；需要稳定 IP 的登录态优先选它。池模式可选择复用或轮询，界面默认最短切换间隔 60 秒。间隔同时限制故障切换，尚未到期时保留响应或报错，不提前更换出口。计时只在单次调用内有效；跨调用仍需稳定出口时使用固定模式及供应商的固定 IP 服务。
+
+保存通过既有 `PUT /api/config` 的 `proxy` 段持久化并热应用，只影响以后启动的 `http-framework-test`。`proxy_url`、`proxy_pool`、`proxy_source` 在 GET 响应中整体脱敏；`********` 原样提交会保留已有值，空字符串表示清除。设置页列表每行一个 URL；结构化供应商格式仍可由供应商接口提供。配置示例见 `config.example.yaml` 的 `proxy` 段。受管设置通过该工具专用的进程环境快照传递，不加入命令参数或自动注入模型上下文；它不限制任意 Shell 命令的网络行为。
+
+### 参考项目与采用的做法
+
+| 参考 | 做法与本项目选择 |
+| --- | --- |
+| [Zyte Sessions](https://docs.zyte.com/zyte-api/usage/features.html#sessions) | IP、Cookie 和连接环境共同影响会话。提供固定出口模式，登录态不默认轮询。 |
+| [HTTPX Clients](https://www.python-httpx.org/advanced/clients/) | 复用连接和 Cookie。运行中的调用保持快照，设置变更不拆除已有连接。 |
+| [Nuclei](https://docs.projectdiscovery.io/opensource/nuclei/running) | 原生代理选项和请求速率分别配置。其他 Kali 工具使用自身代理与限速能力，不从文本输出猜测封禁并重新启动进程。 |
+| [Nmap 代理限制](https://nmap.org/book/man-bypass-firewalls-ids.html) | 代理支持有协议和扫描阶段限制，不能承诺统一 HTTP 环境变量覆盖所有原始报文扫描。未适配工具保持原路由。 |
+
+大模型 API 的流式响应、连接池和提供商重试继续使用既有客户端，不接入扫描代理池；模型侧的账号/Token 限流应走现有退避策略。不同供应商是否要求固定公网 IP 需按其接口约定判断，本功能不会自动改动模型出口或轮询 API 连接。

@@ -2,11 +2,11 @@
 
 [中文](../zh-CN/http-proxy-pool.md) | [Documentation home](README.md)
 
-`http-framework-test` accepts a user-supplied proxy list and/or provider endpoint. It switches proxies within a bounded attempt budget on transport failures or configured HTTP status codes, and reuses a successful proxy. The feature is opt-in; the existing single `proxy` option and calls without a pool remain available.
+`http-framework-test` accepts a user-supplied proxy list and/or provider endpoint. It switches proxies within a bounded attempt budget on transport failures or configured HTTP status codes, and reuses a successful proxy. Settings → Proxy settings can manage egress for this HTTP tool; the default remains per-call arguments.
 
 ## Usage
 
-After updating the tool file, apply configuration in settings or restart the service to reload its parameters. Pool options are per-call arguments; no `config.yaml` change is required.
+After updating the tool file, apply configuration in settings or restart the service to reload its parameters. The proxy submenu also supports persistent settings that apply to subsequent invocations without restarting active processes.
 
 Example MCP tool arguments:
 
@@ -65,7 +65,7 @@ Entries may also be objects such as `{"host":"127.0.0.1","port":8081,"scheme":"h
 
 A 403 can be an application authorization failure; a 429 can apply to an account or other scope. Status matching is a configurable policy, not proof of an IP ban. CAPTCHA or HTTP 200 block pages remain unchanged. Replay and waiting rules are informed by [RFC 9110 §9.2.2](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2) and [RFC 6585 §4](https://www.rfc-editor.org/rfc/rfc6585.html#section-4).
 
-Pool state lasts for one tool invocation. Other scanners, `exec`, Eino `execute`, external MCP servers and LLM API connections are outside this pool; no global settings page is added. Provider fetching uses a separate client with TLS verification and no target cookies, target Authorization, environment proxies or inherited `allow_insecure`. Use HTTPS for production provider endpoints.
+Pool state lasts for one tool invocation. Other scanners, `exec`, Eino `execute`, external MCP servers and LLM API connections are outside this pool; the settings submenu manages only this HTTP tool. Provider fetching uses a separate client with TLS verification and no target cookies, target Authorization, environment proxies or inherited `allow_insecure`. Use HTTPS for production provider endpoints.
 
 ## Troubleshooting and source
 
@@ -87,3 +87,13 @@ python3 -m unittest discover -s scripts -p 'test_http_proxy_pool.py' -v
 ```
 
 Tests execute the code read from the tool YAML against local HTTP proxies, CONNECT tunnels and TLS servers. No external targets or real providers are contacted. The HTTPS fixture requires `openssl`.
+
+## Managed settings and stable egress
+
+Settings → Proxy settings offers manual arguments, a fixed proxy, or a pool. Fixed mode keeps the configured endpoint across calls and does not fail over. Pool mode offers sticky or round-robin selection with a minimum switch interval (60 seconds in the settings form). The interval also prevents early failover: return the failure response/error instead. Timing is invocation-local; use fixed mode and a provider with fixed egress for stability across calls. A fixed URL alone cannot guarantee the provider's public IP.
+
+`PUT /api/config` persists the `proxy` object and applies it to future HTTP tool invocations. GET masks `proxy_url`, `proxy_pool`, and `proxy_source`; preserve `********` to keep a saved value or send an empty string to clear it. The settings list accepts one URL per line; provider responses may still use structured entries. See `config.example.yaml`. Managed values override model-supplied proxy arguments through a process-local environment snapshot, never global HTTP_PROXY or command arguments. This is not a network sandbox for arbitrary shell commands.
+
+Design references: [Zyte sessions](https://docs.zyte.com/zyte-api/usage/features.html#sessions) motivate stable IP/cookie conditions; [HTTPX clients](https://www.python-httpx.org/advanced/clients/) motivate connection reuse; [Nuclei](https://docs.projectdiscovery.io/opensource/nuclei/running) exposes distinct proxy/rate controls; [Nmap](https://nmap.org/book/man-bypass-firewalls-ids.html) documents limits on which scan phases support proxies. Other Kali tools retain native routing, proxy and rate settings. No output-based ban guessing or process restarts are introduced.
+
+LLM API transports, streams and retry/backoff remain separate from the scan pool. Account/token rate limits are handled by existing provider retry policies. Stable public-IP requirements depend on the provider; this feature never rotates model API egress.
