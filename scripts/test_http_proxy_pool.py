@@ -155,6 +155,10 @@ class ProxyPoolTests(unittest.TestCase):
     def test_parse_formats_validate_and_deduplicate(self):
         parse = NS["parse_proxy_list"]
         self.assertEqual(parse("LOCALHOST:8080\nhttp://localhost:8080/"), ["http://localhost:8080"])
+        self.assertEqual(parse("[::1]:8080\n127.0.0.1:8081"),
+                         ["http://[::1]:8080", "http://127.0.0.1:8081"])
+        self.assertEqual(parse('["http://[::1]:8080", "http://127.0.0.1:8081"]'),
+                         ["http://[::1]:8080", "http://127.0.0.1:8081"])
         self.assertEqual(parse('{"data":["socks5://[::1]:1080"]}'), ["socks5://[::1]:1080"])
         self.assertEqual(parse('{"proxies":["https://user:p%40ss@EXAMPLE.COM:443"]}'),
                          ["https://user:p%40ss@example.com:443"])
@@ -165,6 +169,37 @@ class ProxyPoolTests(unittest.TestCase):
                 with self.assertRaises(ValueError) as caught:
                     parse(value)
                 self.assertNotIn("secret", str(caught.exception))
+
+    def test_deeply_nested_provider_json_is_a_validation_error(self):
+        body = ("[" * 20000 + "]" * 20000).encode()
+        with server(body=body) as provider:
+            with self.assertRaisesRegex(ValueError, "Invalid proxy list JSON"):
+                Pool("", source=provider.url + "/?key=secret")
+
+    def test_provider_text_starting_with_bare_ipv6(self):
+        with server(body=b"[::1]:8080\n127.0.0.1:8081") as provider:
+            pool = Pool("", source=provider.url)
+            self.assertEqual(pool.proxies, ["http://[::1]:8080", "http://127.0.0.1:8081"])
+
+    def test_refresh_failure_preserves_response_and_closes_transport(self):
+        with server(403, b"blocked evidence") as proxy:
+            def reply(handler):
+                if len(handler.server.requests) == 1:
+                    return 200, {}, proxy.url.encode()
+                return 503, {}, b"provider unavailable"
+            with server(reply=reply) as provider:
+                pool = Pool("", source=provider.url + "/?key=secret")
+                with httpx.Client(transport=pool, trust_env=False) as client:
+                    response, *_ = send(client)
+                    with contextlib.closing(response):
+                        self.assertEqual(response.read(), b"blocked evidence")
+                        self.assertTrue(response.extensions["proxy_pool"]["failed"])
+                    transport = pool.transports[pool.proxies[0]]
+                    with mock.patch.object(transport, "close", wraps=transport.close) as close:
+                        client.close()
+                        close.assert_called_once()
+                self.assertEqual(len(provider.requests), 2)
+                self.assertNotIn("secret", self.diagnostics.getvalue())
 
     def test_configuration_bounds(self):
         for kwargs in [dict(max_attempts=0), dict(max_attempts=11), dict(cooldown=-1),

@@ -286,10 +286,12 @@ args:
             raw = raw.strip()
             if not raw:
                 return []
-            if raw.startswith(("[", "{")):
+            # A bare [IPv6]:port endpoint is a text line, not a JSON array.
+            ipv6_line = re.match(r'^\[[^\[\]"\r\n]+\]:', raw) is not None
+            if raw.startswith("{") or (raw.startswith("[") and not ipv6_line):
                 try:
                     raw = json.loads(raw)
-                except ValueError:
+                except (ValueError, RecursionError):
                     raise ValueError("Invalid proxy list JSON") from None
             else:
                 raw = raw.splitlines()
