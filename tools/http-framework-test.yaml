@@ -301,6 +301,26 @@ args:
             raise ValueError("Proxy list must contain at most 256 entries")
         proxies = []
         for value in raw:
+            if isinstance(value, dict):
+                if "url" in value:
+                    value = value["url"]
+                else:
+                    host = value.get("host", value.get("ip"))
+                    port = value.get("port")
+                    scheme = value.get("scheme", "http")
+                    username = value.get("username", "")
+                    password = value.get("password", "")
+                    if (not isinstance(host, str) or not host or
+                            not isinstance(port, (str, int)) or isinstance(port, bool) or
+                            not str(port).isascii() or not str(port).isdigit() or
+                            not all(isinstance(v, str) for v in (scheme, username, password)) or
+                            any(c in host for c in "@/?#") or (password and not username)):
+                        raise ValueError("Invalid structured proxy entry")
+                    if ":" in host and not host.startswith("["):
+                        host = "[" + host + "]"
+                    auth = (urllib.parse.quote(username, safe="") + ":" +
+                            urllib.parse.quote(password, safe="") + "@") if username else ""
+                    value = f"{scheme}://{auth}{host}:{port}"
             if not isinstance(value, str):
                 raise ValueError("Proxy entries must be URL strings or host:port strings")
             value = value.strip()
@@ -384,7 +404,11 @@ args:
         RETRY_METHODS = {"GET", "HEAD", "OPTIONS"}
 
         def __init__(self, proxies, source="", max_attempts=3, cooldown=60.0,
-                     fail_status="403,429", transport_kwargs=None):
+                     fail_status="403,429", transport_kwargs=None, strategy="sticky"):
+            if strategy not in {"sticky", "round_robin"}:
+                raise ValueError("proxy_strategy must be sticky or round_robin")
+            self.strategy = strategy
+            self.cursor = 0
             if not 1 <= max_attempts <= 10:
                 raise ValueError("proxy_max_attempts must be between 1 and 10")
             if not math.isfinite(cooldown) or not 0 <= cooldown <= 86400:
@@ -410,7 +434,12 @@ args:
             self.target_wait = {}
             self.current = None
             if self.source:
-                self.refresh()
+                try:
+                    self.refresh()
+                except ValueError as exc:
+                    if not self.proxies:
+                        raise
+                    print(f"[proxy pool] {exc}; using configured static endpoints", file=sys.stderr)
             if not self.proxies:
                 raise ValueError("Proxy pool has no endpoints")
 
@@ -421,12 +450,17 @@ args:
                 raise ValueError("Proxy pool exceeds 256 endpoints")
             self.proxies = merged
 
-        def select(self, attempted):
+        def select(self, attempted, advance=True):
             now = time.monotonic()
-            candidates = ([self.current] if self.current else []) + self.proxies
+            if self.strategy == "round_robin":
+                candidates = self.proxies[self.cursor:] + self.proxies[:self.cursor]
+            else:
+                candidates = ([self.current] if self.current else []) + self.proxies
             for proxy in candidates:
                 if proxy not in attempted and self.cooling.get(proxy, 0) <= now:
-                    self.current = proxy
+                    if advance:
+                        self.current = proxy
+                        self.cursor = (self.proxies.index(proxy) + 1) % len(self.proxies)
                     return proxy
             return None
 
@@ -481,14 +515,14 @@ args:
                 if not retryable or wait > 0 or attempt == self.max_attempts:
                     return response
                 # Keep the last response observable if no replacement is available.
-                available = self.select(attempted)
+                available = self.select(attempted, advance=False)
                 if available is None and self.source and not refreshed:
                     refreshed = True
                     try:
                         self.refresh()
                     except ValueError as exc:
                         print(f"[proxy pool] {exc}; preserving last response", file=sys.stderr)
-                    available = self.select(attempted)
+                    available = self.select(attempted, advance=False)
                 if available is None:
                     print("[proxy pool] no replacement available; preserving last response", file=sys.stderr)
                     return response
@@ -1192,6 +1226,7 @@ args:
         parser.add_argument("--proxy", default="")
         parser.add_argument("--proxy-pool", default="")
         parser.add_argument("--proxy-source", default="")
+        parser.add_argument("--proxy-strategy", choices=["sticky", "round_robin"], default="sticky")
         parser.add_argument("--proxy-max-attempts", type=int, default=3)
         parser.add_argument("--proxy-cooldown", type=float, default=60.0)
         parser.add_argument("--proxy-fail-status", default="403,429")
@@ -1373,6 +1408,7 @@ args:
                     args.proxy_pool, source=args.proxy_source,
                     max_attempts=args.proxy_max_attempts, cooldown=args.proxy_cooldown,
                     fail_status=args.proxy_fail_status, transport_kwargs=transport_kwargs,
+                    strategy=args.proxy_strategy,
                 )
             except ValueError as exc:
                 parser.error(str(exc))
@@ -1662,9 +1698,15 @@ parameters:
     flag: "--proxy-pool"
   - name: "proxy_source"
     type: "string"
-    description: "用户配置的代理供应商 HTTP(S) 接口；返回换行列表、JSON 数组或 {proxies:[...]} / {data:[...]}；开始及耗尽时有界拉取；与 proxy 互斥"
+    description: "用户配置的代理供应商 HTTP(S) 接口；返回换行列表、JSON 数组或 {proxies:[...]} / {data:[...]}，元素可为 URL 或 host/ip+port 对象；开始及耗尽时有界拉取；与 proxy 互斥"
     required: false
     flag: "--proxy-source"
+  - name: "proxy_strategy"
+    type: "string"
+    description: "代理选择策略：sticky（默认，成功后复用），round_robin（每次请求/重定向跳轮询可用代理）；均跳过冷却代理"
+    required: false
+    default: "sticky"
+    flag: "--proxy-strategy"
   - name: "proxy_max_attempts"
     type: "int"
     description: "每个请求/重定向跳的代理尝试上限（1-10）；每个代理最多尝试一次；仅 GET/HEAD/OPTIONS 自动重放"

@@ -20,12 +20,12 @@ func TestHTTPProxyPoolToolArguments(t *testing.T) {
 	pool := "http://user:p%40ss@localhost:8081\nhttp://localhost:8082"
 	args := executor.buildCommandArgs(tool.Name, tool, map[string]interface{}{
 		"url": "https://target.invalid/a/../b", "proxy_pool": pool,
-		"proxy_source":       "https://provider.invalid/?key=placeholder",
-		"proxy_max_attempts": float64(2), "proxy_cooldown": "0", "proxy_fail_status": "none",
+		"proxy_source":   "https://provider.invalid/?key=placeholder",
+		"proxy_strategy": "round_robin", "proxy_max_attempts": float64(2), "proxy_cooldown": "0", "proxy_fail_status": "none",
 	})
 	want := map[string]string{
 		"--proxy-pool": pool, "--proxy-source": "https://provider.invalid/?key=placeholder",
-		"--proxy-max-attempts": "2", "--proxy-cooldown": "0", "--proxy-fail-status": "none",
+		"--proxy-strategy": "round_robin", "--proxy-max-attempts": "2", "--proxy-cooldown": "0", "--proxy-fail-status": "none",
 	}
 	for flag, value := range want {
 		found := false

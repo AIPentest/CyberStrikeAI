@@ -208,6 +208,40 @@ class ProxyPoolTests(unittest.TestCase):
             with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
                 Pool("localhost:8080", **kwargs)
 
+    def test_structured_provider_entries(self):
+        raw = {"data": [{"ip": "::1", "port": 1080, "scheme": "socks5",
+                         "username": "u@", "password": "p:/"},
+                        {"url": "http://localhost:8080"}]}
+        self.assertEqual(NS["parse_proxy_list"](raw),
+                         ["socks5://u%40:p%3A%2F@[::1]:1080", "http://localhost:8080"])
+        for row in [{"host": "evil@host", "port": 80}, {"host": "host", "port": True},
+                    {"host": "host", "port": 80, "password": "secret"}]:
+            with self.assertRaises(ValueError) as caught:
+                NS["parse_proxy_list"]([row])
+            self.assertNotIn("secret", str(caught.exception))
+
+    def test_round_robin_rotates_without_skipping_failover_candidate(self):
+        with server(403) as bad, server() as second, server() as third:
+            pool = Pool(json.dumps([bad.url, second.url, third.url]), strategy="round_robin")
+            with httpx.Client(transport=pool, trust_env=False) as client:
+                for expected in [2, 3, 2]:
+                    response, *_ = send(client)
+                    with contextlib.closing(response):
+                        self.assertEqual(response.read(), b"ok")
+                        self.assertEqual(response.extensions["proxy_pool"]["proxy"], expected)
+            self.assertEqual(len(bad.requests), 1)
+
+    def test_provider_outage_keeps_static_pool_and_source_only_fails(self):
+        with server() as proxy, server(503) as provider:
+            pool = Pool(proxy.url, source=provider.url + "/?key=secret")
+            with httpx.Client(transport=pool, trust_env=False) as client:
+                response, *_ = send(client)
+                with contextlib.closing(response):
+                    self.assertEqual(response.read(), b"ok")
+            with self.assertRaisesRegex(ValueError, "HTTP 503"):
+                Pool("", source=provider.url)
+            self.assertNotIn("secret", self.diagnostics.getvalue())
+
     def test_failover_and_sticky_connection_preserve_raw_path(self):
         with server(403, b"blocked") as blocked, server() as good:
             pool = Pool(json.dumps([blocked.url, good.url]), cooldown=60)
@@ -475,6 +509,17 @@ class ProxyPoolTests(unittest.TestCase):
                                   "--proxy-max-attempts", "1", "--proxy-cooldown", "0",
                                   "--proxy-fail-status", "none")
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_cli_round_robin_repeats_use_different_proxies(self):
+        with server(body=b"first-proxy") as first, server(body=b"second-proxy") as second:
+            result = self.run_cli("--url", "http://target.invalid/", "--proxy-pool",
+                                  json.dumps([first.url, second.url]), "--repeat", "2",
+                                  "--proxy-strategy", "round_robin")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("first-proxy", result.stdout)
+            self.assertIn("second-proxy", result.stdout)
+            self.assertEqual(len(first.requests), 1)
+            self.assertEqual(len(second.requests), 1)
 
 
 if __name__ == "__main__":

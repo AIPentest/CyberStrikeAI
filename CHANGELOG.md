@@ -4,7 +4,7 @@
 
 ### Added
 
-- `http-framework-test` 新增可选代理池：支持代理列表与供应商接口、失败冷却及有界切换；仅自动重放 GET/HEAD/OPTIONS，遵守 429 Retry-After，切换失败时返回响应或错误且不回退直连。附中英文指南与本地 HTTP/HTTPS/SOCKS5 回归测试（#357）。
+- `http-framework-test` 新增可选代理池：支持静态/结构化代理列表与供应商接口、粘性/轮询策略、供应商故障静态回退、失败冷却及有界切换；仅自动重放 GET/HEAD/OPTIONS，遵守 429 Retry-After，切换失败时返回响应或错误且不回退直连。附中英文指南与本地 HTTP/HTTPS/SOCKS5 回归测试（#357）。
 
 - 支持通过 `agent.task_timeout_minutes` 配置单代理、多代理、工作流及异步任务执行超时：未配置默认 600 分钟，`0` 表示不限时，负数拒绝加载；续跑保留重新计时行为，单次工具超时仍独立生效。
 

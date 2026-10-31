@@ -39,19 +39,20 @@ The endpoint must return UTF-8 newline-separated endpoints, a JSON array of endp
 {"proxies": ["http://127.0.0.1:8081", "127.0.0.1:8082"]}
 ```
 
-Other provider formats require an adapter. No public free-proxy sources are built in. The source is fetched at startup and at most once more per request/redirect hop when available candidates run out. New endpoints are deduplicated and merged without clearing cooldowns. Fetches have a 10-second timeout, do not follow redirects, accept at most 1 MiB, and the pool holds at most 256 endpoints. An initial fetch failure stops the call. A refresh failure preserves the last HTTP failure response, or reports an error if no response exists.
+Entries may also be objects such as `{"host":"127.0.0.1","port":8081,"scheme":"http","username":"user","password":"pass"}` (`ip` aliases `host`) or `{"url":"http://127.0.0.1:8081"}`. Scheme defaults to HTTP, credentials are optional and automatically URL-encoded. Other provider formats require an adapter. No public free-proxy sources are built in. The source is fetched at startup and at most once more per request/redirect hop when available candidates run out. New endpoints are deduplicated and merged without clearing cooldowns. Fetches have 10-second connect/read timeouts, do not follow redirects, accept at most 1 MiB, and the pool holds at most 256 endpoints. An initial fetch failure warns and uses static endpoints when available; source-only calls fail. A refresh failure preserves the last HTTP failure response, or reports an error if no response exists.
 
 ## Behavior
 
 | Parameter | Default | Meaning |
 | --- | --- | --- |
 | `proxy_pool` | Empty | JSON string array or newline-separated list |
+| `proxy_strategy` | `"sticky"` | `sticky` reuses successful proxies; `round_robin` rotates and skips cooldowns |
 | `proxy_source` | Empty | User-configured HTTP(S) provider endpoint, optionally combined with a list |
 | `proxy_max_attempts` | `3` | 1–10 distinct proxy attempts per request/redirect hop |
 | `proxy_cooldown` | `"60"` | 0–86400 seconds before a failed proxy is eligible again |
 | `proxy_fail_status` | `"403,429"` | Comma-separated status codes from 400–599; `"none"` disables status-based switching |
 
-- Successful proxies stay selected. Failed proxies enter cooldown. Each proxy is tried at most once per request/redirect hop.
+- Successful proxies stay selected by default. With `proxy_strategy="round_robin"`, each request/redirect hop rotates through eligible proxies. Failed proxies enter cooldown. Each proxy is tried at most once per request/redirect hop.
 - Only GET, HEAD and OPTIONS are replayed automatically. POST, PUT, DELETE and other methods retain the first result. An explicit `repeat` still requests additional executions.
 - Transport failures before response headers can trigger switching. Failures while reading a response body are reported without replaying a partial response.
 - A 429 with a valid future `Retry-After` stops automatic replay and reports that the caller should retry later. Further requests to that origin within the same tool invocation are blocked until the wait expires; waits are recorded for at most 24 hours.
