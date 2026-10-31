@@ -47451,3 +47451,14 @@ html[data-theme="dark"] .token-usage-panel { --token-cache-color: #2dd4bf; }
     .token-usage-subtitle { max-width: 220px; line-height: 1.6; }
     .token-usage-trend-svg { min-width: 480px; }
 }
+
+/* HTTP-tool proxy policy settings */
+#settings-section-proxy { max-width: 960px; }
+#settings-section-proxy .form-group { margin-bottom: 18px; }
+#settings-section-proxy .form-hint { line-height: 1.65; margin: 12px 0 18px; }
+#settings-section-proxy textarea { min-height: 120px; max-height: 240px; }
+#settings-section-proxy [data-proxy-mode][hidden] { display: none !important; }
+#settings-section-proxy .proxy-limit-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 700px) {
+    #settings-section-proxy .proxy-limit-grid { grid-template-columns: 1fr; gap: 0; }
+}

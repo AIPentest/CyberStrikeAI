@@ -846,6 +846,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 					"type":        "object",
 					"description": "配置信息（含 openai、vision、multi_agent 等）",
 					"properties": map[string]interface{}{
+						"proxy": map[string]interface{}{"type": "object", "description": "HTTP-tool-only egress policy: mode manual/fixed/pool, masked proxy_url/proxy_pool/proxy_source, strategy sticky/round_robin, max_attempts 1-10 (0=3), cooldown and min_switch_interval 0-86400 seconds. PUT persists and applies to subsequent HTTP invocations; model/other tool egress is unchanged."},
 						"agent": map[string]interface{}{
 							"$ref": "#/components/schemas/AgentConfig",
 						},
@@ -858,6 +859,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 					"type":        "object",
 					"description": "更新配置请求",
 					"properties": map[string]interface{}{
+						"proxy": map[string]interface{}{"type": "object", "description": "HTTP-tool-only egress policy: mode manual/fixed/pool, masked proxy_url/proxy_pool/proxy_source, strategy sticky/round_robin, max_attempts 1-10 (0=3), cooldown and min_switch_interval 0-86400 seconds. PUT persists and applies to subsequent HTTP invocations; model/other tool egress is unchanged."},
 						"agent": map[string]interface{}{
 							"$ref": "#/components/schemas/AgentConfig",
 						},

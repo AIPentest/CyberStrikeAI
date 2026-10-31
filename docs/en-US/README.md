@@ -20,6 +20,7 @@
 ## Feature guides
 
 - [Resuming Project Tasks](project-resume.md) · [Token Usage Analysis](token-usage-monitoring.md)
+- [HTTP Test Tool Proxy Pool](http-proxy-pool.md)
 - [Asset Management](asset-management.md) · [Knowledge Base](knowledge-base.md) · [Robot / Chatbot](robot.md) · [Vision](VISION.md)
 - [WebShell](webshell.md) · [C2](c2.md) · [MCP Federation](mcp-federation.md)
 

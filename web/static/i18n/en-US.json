@@ -5133,5 +5133,31 @@
     "promptRequired": "Enter a retest prompt.",
     "navigationChanged": "You switched conversations. Return to the retest branch to send the prompt.",
     "branchCreated": "The retest branch was created. Continue verification in that branch."
+  },
+  "proxySettings": {
+    "title": "Proxy settings",
+    "scope": "Configure egress for the HTTP test tool. Use a fixed proxy for logins and stable sessions; use a pool for independent requests that allow egress changes.",
+    "mode": "Egress policy",
+    "manual": "Use tool arguments (default)",
+    "fixed": "Fixed proxy (recommended for sessions)",
+    "pool": "Proxy pool (opt in)",
+    "proxy_url": "Fixed proxy URL",
+    "proxy_pool": "Static proxies (one URL per line)",
+    "proxy_source": "Provider URL (optional)",
+    "strategy": "Pool selection strategy",
+    "sticky": "Reuse successful proxy",
+    "round_robin": "Rotate at intervals",
+    "max_attempts": "Maximum proxy attempts per request",
+    "cooldown": "Failure cooldown (seconds)",
+    "min_switch_interval": "Minimum switch interval (seconds)",
+    "secrets": "Saved addresses and credentials appear as ********. Keep the marker to retain a value, or clear it to delete. Pool mode requires a static list or provider.",
+    "isolation": "Kali tools and model APIs: this setting applies only to http-framework-test. Other scanners, terminals, external MCP and model APIs keep their own egress. System HTTP_PROXY is not modified; running tools are not restarted or rerouted. Use native fixed-proxy options for other tools that need a proxy.",
+    "stability": "A fixed proxy URL does not guarantee a fixed public IP from its provider. Use a provider with fixed egress or sticky sessions. Changes affect subsequent HTTP tool invocations only. Managed mode overrides model-supplied proxy options; it is not a network sandbox for arbitrary shell commands.",
+    "intervalHint": "Within each HTTP tool invocation, keep the proxy until the interval ends, even on failure. Use fixed mode for stable IPs or logins across invocations.",
+    "save": "Save and apply proxy settings",
+    "saved": "Proxy settings applied to subsequent HTTP tool invocations.",
+    "loadError": "Could not load proxy settings",
+    "saveError": "Could not apply proxy settings",
+    "invalidNumber": "Enter valid attempt and timing values"
   }
 }

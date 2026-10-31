@@ -264,6 +264,7 @@ func (h *ConfigHandler) ApplyWechatRobotBinding(wc config.RobotWechatConfig) err
 
 // GetConfigResponse 获取配置响应
 type GetConfigResponse struct {
+	Proxy      config.ProxyConfig       `json:"proxy"`
 	AI         config.AIConfig          `json:"ai"`
 	OpenAI     config.OpenAIConfig      `json:"openai"`
 	Vision     config.VisionConfig      `json:"vision"`
@@ -374,6 +375,7 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 	}
 
 	response, err := maskedConfigResponse(GetConfigResponse{
+		Proxy:      h.config.Proxy,
 		AI:         h.config.AI,
 		OpenAI:     h.config.OpenAI,
 		Vision:     h.config.Vision,
@@ -723,6 +725,7 @@ func (h *ConfigHandler) GetTools(c *gin.Context) {
 
 // UpdateConfigRequest 更新配置请求
 type UpdateConfigRequest struct {
+	Proxy      *config.ProxyConfig         `json:"proxy,omitempty"`
 	AI         *config.AIConfig            `json:"ai,omitempty"`
 	OpenAI     *config.OpenAIConfig        `json:"openai,omitempty"`
 	Vision     *config.VisionConfig        `json:"vision,omitempty"`
@@ -805,6 +808,21 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 	if err := restoreConfigRequestSecrets(&req, h.config); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	previousProxy := h.config.Proxy
+	proxySaved := false
+	defer func() {
+		if !proxySaved {
+			h.config.Proxy = previousProxy
+		}
+	}()
+	if req.Proxy != nil {
+		if err := req.Proxy.Validate(); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		h.config.Proxy = *req.Proxy
 	}
 
 	// 更新OpenAI配置
@@ -1254,6 +1272,10 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 		return
 	}
 
+	proxySaved = true
+	if req.Proxy != nil && h.executor != nil {
+		h.executor.SetProxyConfig(h.config.Proxy)
+	}
 	if h.audit != nil {
 		h.audit.RecordOK(c, "config", "update", "更新内存配置", "config", "", nil)
 	}
@@ -1763,6 +1785,7 @@ func (h *ConfigHandler) ApplyConfig(c *gin.Context) {
 	h.mcpServer.ClearTools()
 
 	// 重新注册安全工具
+	h.executor.SetProxyConfig(h.config.Proxy)
 	h.executor.SetToolOutputMaxBytes(h.config.MultiAgent.EinoMiddleware.ReductionMaxLengthForTruncEffective())
 	h.executor.SetToolOutputSpillRoot(h.config.MultiAgent.EinoMiddleware.ReductionRootDir)
 	h.executor.RegisterTools(h.mcpServer)
@@ -1955,6 +1978,7 @@ func (h *ConfigHandler) saveConfig() error {
 		return fmt.Errorf("解析配置文件失败: %w", err)
 	}
 
+	updateProxyConfig(root, h.config.Proxy)
 	updateAgentConfig(root, h.config.Agent)
 	updateMCPConfig(root, h.config.MCP)
 	updateAIConfig(root, h.config.AI)
@@ -2939,4 +2963,16 @@ func convertParamType(t string) string {
 	default:
 		return "string"
 	}
+}
+
+func updateProxyConfig(doc *yaml.Node, cfg config.ProxyConfig) {
+	node := ensureMap(doc.Content[0], "proxy")
+	setStringInMap(node, "mode", cfg.Mode)
+	setStringInMap(node, "proxy_url", cfg.URL)
+	setStringInMap(node, "proxy_pool", cfg.Pool)
+	setStringInMap(node, "proxy_source", cfg.Source)
+	setStringInMap(node, "strategy", cfg.Strategy)
+	setIntInMap(node, "max_attempts", cfg.MaxAttempts)
+	setIntInMap(node, "cooldown", cfg.Cooldown)
+	setIntInMap(node, "min_switch_interval", cfg.MinSwitchInterval)
 }
