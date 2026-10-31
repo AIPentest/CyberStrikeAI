@@ -157,6 +157,8 @@ shodan:
 # Agent 配置
 # 达到最大迭代次数时，AI 会自动总结测试结果
 agent:
+  # 修改后重启服务，对新任务生效；例如 1440 = 24 小时，单次工具超时独立生效。
+  task_timeout_minutes: 600 # 任务执行超时（分钟）；未配置=600，0=不限时，负数无效；续跑重新计时
   max_iterations: 12000 # 全局最大迭代次数（单代理 / Deep / Supervisor / Plan-Execute 主执行器 / 子代理均沿用；agents/*.md 中 max_iterations>0 可单独覆盖）
   tool_timeout_minutes: 60 # 单次工具执行最大时长（分钟），超时自动终止；0 表示不限制（不推荐，易出现长时间挂起）
   tool_wait_timeout_seconds: 300 # 工具本轮最多等待（秒）；到时返回 execution_id，worker 继续后台执行，可用 wait_tool_execution 继续等待；0=等到完成

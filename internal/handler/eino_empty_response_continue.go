@@ -19,7 +19,7 @@ func (h *AgentHandler) rebindEinoRunningTask(parent context.Context, conversatio
 	}
 	baseCtx, cancelWithCause := context.WithCancelCause(detachedAgentContext(parent))
 	h.tasks.BindTaskCancel(conversationID, cancelWithCause)
-	taskCtx, newTimeoutCancel := context.WithTimeout(baseCtx, 600*time.Minute)
+	taskCtx, newTimeoutCancel := h.newTaskContext(baseCtx)
 	h.tasks.UpdateTaskStatus(conversationID, "running")
 	return baseCtx, cancelWithCause, taskCtx, newTimeoutCancel
 }
