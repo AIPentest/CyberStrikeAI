@@ -3811,6 +3811,19 @@
                                                             <span class="checkbox-text" data-i18n="settingsBasic.openaiReasoningAllowClient">允许对话页覆盖推理选项</span>
                                                         </label>
                                                     </details>
+                                                    <details class="ai-channel-form-section ai-channel-advanced-section">
+                                                        <summary>
+                                                            <span>
+                                                                <strong>自定义请求头</strong>
+                                                                <small>每行一条 KEY=VALUE；值支持 ${ENV_VAR}、${ENV_VAR:-默认值} 与 %session_id%（自动填当前对话 ID）；同名头会覆盖内置 Authorization。</small>
+                                                            </span>
+                                                        </summary>
+                                                        <div class="form-group">
+                                                            <label for="openai-custom-headers">请求头</label>
+                                                            <textarea id="openai-custom-headers" rows="4" spellcheck="false" placeholder="X-Api-Key=sk-xxx&#10;x-opencode-session=%session_id%&#10;HTTP-Referer=https://example.com"></textarea>
+                                                            <small class="form-hint">用于要求私有鉴权头、版本头或组织头的第三方 OpenAI 兼容供应商（例如 opencode 等聚合网关）。留空表示不附加。</small>
+                                                        </div>
+                                                    </details>
                                                 </div>
                                             </div>
                                         </div>
