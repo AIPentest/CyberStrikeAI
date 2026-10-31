@@ -26,8 +26,14 @@ import (
 func softRecoveryToolCallMiddleware() compose.InvokableToolMiddleware {
 	return func(next compose.InvokableToolEndpoint) compose.InvokableToolEndpoint {
 		return func(ctx context.Context, input *compose.ToolInput) (*compose.ToolOutput, error) {
+			if input != nil && strings.EqualFold(strings.TrimSpace(input.Name), "read_file") {
+				input.Arguments = normalizeReadFileArguments(input.Arguments)
+			}
 			output, err := next(ctx, input)
 			if err == nil {
+				if output != nil && input != nil {
+					output.Result = enrichReadFileToolResult(input.Name, input.Arguments, output.Result)
+				}
 				return output, nil
 			}
 			if !isSoftRecoverableToolError(err) {

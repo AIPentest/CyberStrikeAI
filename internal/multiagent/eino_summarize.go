@@ -47,8 +47,8 @@ const einoSummarizeUserInstruction = `关键：仅以纯文本响应。禁止调
 - 用户指定的方法、工具、优先级与待办
 - 否定约束（不测什么、不用什么手法）
 
-## 2. 资产与服务枚举摘要
-- 主域/核心资产、关键子域或主机短表（或数量+代表样例）
+## 2. 资产与服务枚举摘要（若为源码审计，必须逐一列出所有已读取的源码文件路径、行号范围及审计结论）
+- 主域/核心资产，或源码审计中已精读的文件列表及各文件是否存在漏洞的明确结论
 - 高价值目标、已识别服务/端口要点
 - 资产状态（存活/可攻/已排除/待验证）
 
@@ -72,7 +72,7 @@ const einoSummarizeUserInstruction = `关键：仅以纯文本响应。禁止调
 ## 7. 当前进度、策略决策与下一步
 - 当前位置（已完成/进行中/卡点）
 - 失败尝试与死路（方法、现象/报错摘要、结论）
-- 策略决策与下一步具体操作（须与最近用户请求及未完成任务一致）
+- 策略决策与下一步具体操作（须与最近用户请求一致；若为源码审计且核心文件已读取完毕，下一步必须写：立即停止调用任何工具，直接基于已有发现输出最终完整白帽审计报告，严禁再次调用 read_file 重读已读文件）
 
 ## 8. 原始证据检索线索（追加）
 - 只追加工具结果、关键发现与关键进展的简短检索线索，不再归纳用户输入，不改写前面各章节
@@ -136,7 +136,7 @@ func newEinoSummarizationMiddleware(
 		modelName = "gpt-4o"
 	}
 	tokenCounter := einoSummarizationTokenCounter(modelName)
-	recentTrailMax := trigger / 4
+	recentTrailMax := trigger * 2 / 5
 	if recentTrailMax < 2048 {
 		recentTrailMax = 2048
 	}
@@ -568,9 +568,12 @@ func summarizeFinalizeWithRecentAssistantToolTrail(
 
 	// 目标：至少保留 minRounds 个 round 的执行轨迹；在预算允许时尽量多保留。
 	// 优先确保最后一个 round（通常是最新的 tool 往返或 assistant 回复）存在。
-	const minRounds = 2
+	// Keep only the single latest round (maxKeepRounds = 1) after <summary>.
+	// Retaining 8-10 old already-summarized tool rounds after <summary> duplicates tokens
+	// and puts the model back into mid-exploration momentum instead of following <summary>'s next step.
+	const maxKeepRounds = 1
 
-	selectedRoundsReverse := make([]messageRound, 0, 8)
+	selectedRoundsReverse := make([]messageRound, 0, 2)
 	selectedCount := 0
 	totalTokens := 0
 
@@ -589,18 +592,16 @@ func summarizeFinalizeWithRecentAssistantToolTrail(
 	}
 
 	for i := len(rounds) - 1; i >= 0; i-- {
+		if selectedCount >= maxKeepRounds {
+			break
+		}
 		r := rounds[i]
 		n, err := tokensOfRound(r)
 		if err != nil {
 			return nil, err
 		}
-		// 预算不够：已经保留了足够 round 则停，否则跳过该 round 继续往前找
-		// （避免一个超大 round 挤占全部预算，至少保证有轨迹）。
-		if totalTokens+n > recentTrailTokenBudget {
-			if selectedCount >= minRounds {
-				break
-			}
-			continue
+		if totalTokens+n > recentTrailTokenBudget && selectedCount >= 1 {
+			break
 		}
 		totalTokens += n
 		selectedRoundsReverse = append(selectedRoundsReverse, r)

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/einomcp"
@@ -28,6 +29,7 @@ func prepareEinoAgenticSkills(
 	ma *config.MultiAgentConfig,
 	logger *zap.Logger,
 ) (loc *localbk.Local, skillMW adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage], fsTools bool, skillsRoot string, err error) {
+	resetSessionReadFiles()
 	if ma == nil {
 		return nil, nil, false, "", nil
 	}
@@ -122,7 +124,7 @@ func subAgentAgenticFilesystemMiddleware(
 		return nil, nil
 	}
 	mw, err := filesystem.NewTyped[*schema.AgenticMessage](ctx, &filesystem.MiddlewareConfig{
-		Backend: loc,
+		Backend:                          loc,
 		StreamingShell: &einoStreamingShellWrap{
 			inner:                   security.NewEinoStreamingShell(),
 			invokeNotify:            invokeNotify,
@@ -169,6 +171,9 @@ func (m *einoAgenticFilesystemToolMiddleware) WrapInvokableToolCall(ctx context.
 		return wrapped, nil
 	}
 	return func(ctx context.Context, argumentsInJSON string, opts ...tool.Option) (string, error) {
+		if strings.EqualFold(strings.TrimSpace(tCtx.Name), "read_file") {
+			argumentsInJSON = normalizeReadFileArguments(argumentsInJSON)
+		}
 		args := parseToolArgumentsObject(argumentsInJSON)
 		if len(args) > 0 && m.binder != nil {
 			m.binder.BindArguments(tCtx.CallID, args)
@@ -177,6 +182,7 @@ func (m *einoAgenticFilesystemToolMiddleware) WrapInvokableToolCall(ctx context.
 		if runErr != nil {
 			return result, runErr
 		}
+		result = enrichReadFileToolResult(tCtx.Name, argumentsInJSON, result)
 		return m.boundToolResult(tCtx.CallID, result), nil
 	}, nil
 }
@@ -233,4 +239,152 @@ func agentShellNoOutputTimeoutSeconds(cfg *config.Config) int {
 		return 300
 	}
 	return v
+}
+
+
+var (
+	sessionReadFilesMu sync.Mutex
+	sessionReadFiles   = make(map[string]int)
+)
+
+func resetSessionReadFiles() {
+	sessionReadFilesMu.Lock()
+	sessionReadFiles = make(map[string]int)
+	sessionReadFilesMu.Unlock()
+}
+
+// enrichReadFileToolResult adds total line count metadata, an explicit [EOF REACHED]
+// loop-breaker message, and session-level full-file deduplication so the model never
+// loops past EOF or re-reads the entire repository 3-4 times in the same audit session.
+func enrichReadFileToolResult(toolName, argumentsInJSON, result string) string {
+	if !strings.EqualFold(strings.TrimSpace(toolName), "read_file") {
+		return result
+	}
+	if strings.HasPrefix(result, "[File: ") || strings.HasPrefix(result, "[EOF REACHED]") || strings.HasPrefix(result, "[ALREADY READ IN THIS SESSION]") {
+		return result
+	}
+	args := parseToolArgumentsObject(argumentsInJSON)
+	if len(args) == 0 {
+		return result
+	}
+	fp, _ := args["file_path"].(string)
+	fp = strings.TrimSpace(fp)
+	if fp == "" {
+		return result
+	}
+	offset := 1
+	if v, ok := args["offset"].(float64); ok && int(v) > 0 {
+		offset = int(v)
+	}
+	limit := 200
+	if v, ok := args["limit"].(float64); ok && int(v) > 0 {
+		limit = int(v)
+	}
+	data, err := os.ReadFile(fp)
+	if err != nil {
+		return result
+	}
+	contentStr := string(data)
+	totalLines := 0
+	if len(contentStr) > 0 {
+		totalLines = strings.Count(contentStr, "\n") + 1
+		if strings.HasSuffix(contentStr, "\n") && totalLines > 1 {
+			totalLines--
+		}
+	}
+	if strings.Contains(result, "past its last line") || strings.Contains(result, "No content read from") {
+		return fmt.Sprintf(
+			"[EOF REACHED] File %s has ONLY %d lines in total. Your requested offset (%d) is past the last line (%d). You have ALREADY read to the end of this file. DO NOT call read_file on %s with a larger offset!",
+			fp, totalLines, offset, totalLines, fp,
+		)
+	}
+	endLine := offset + limit - 1
+	sessionReadFilesMu.Lock()
+	prevMaxLine := sessionReadFiles[fp]
+	if prevMaxLine >= totalLines && totalLines > 0 {
+		sessionReadFilesMu.Unlock()
+		return fmt.Sprintf(
+			"[ALREADY READ IN THIS SESSION] File %s (%d lines) was ALREADY read in full (lines 1..%d) earlier in this audit session, and its complete code/findings are already in your context above. DO NOT call read_file again on already-read files! Please analyze the code already in your context, mark your analysis tasks completed, and output the final comprehensive white-hat audit report immediately.",
+			fp, totalLines, totalLines,
+		)
+	}
+	if endLine >= totalLines && offset <= 1 {
+		sessionReadFiles[fp] = totalLines
+	} else if offset <= prevMaxLine+1 && endLine > prevMaxLine {
+		sessionReadFiles[fp] = endLine
+	}
+	sessionReadFilesMu.Unlock()
+
+	if endLine >= totalLines {
+		return fmt.Sprintf(
+			"[File: %s | Total lines: %d | Showing lines %d..%d (END OF FILE)]\n%s\n[EOF REACHED: End of file (%d total lines). Do not call read_file on this file again.]",
+			fp, totalLines, offset, totalLines, result, totalLines,
+		)
+	}
+	return fmt.Sprintf(
+		"[File: %s | Total lines: %d | Showing lines %d..%d (%d lines remaining)]\n%s",
+		fp, totalLines, offset, endLine, totalLines-endLine, result,
+	)
+}
+
+// normalizeReadFileArguments coalesces tiny pagination limits on source files:
+// if a file has <= 600 lines remaining, read to EOF in one call; if > 600 lines remaining
+// and limit < 500, bump limit to 500 to avoid 15-turn micro-pagination loops.
+func normalizeReadFileArguments(argumentsInJSON string) string {
+	args := parseToolArgumentsObject(argumentsInJSON)
+	if len(args) == 0 {
+		return argumentsInJSON
+	}
+	fp, _ := args["file_path"].(string)
+	fp = strings.TrimSpace(fp)
+	if fp == "" {
+		return argumentsInJSON
+	}
+	data, err := os.ReadFile(fp)
+	if err != nil {
+		return argumentsInJSON
+	}
+	contentStr := string(data)
+	totalLines := 0
+	if len(contentStr) > 0 {
+		totalLines = strings.Count(contentStr, "\n") + 1
+		if strings.HasSuffix(contentStr, "\n") && totalLines > 1 {
+			totalLines--
+		}
+	}
+	if totalLines <= 0 {
+		return argumentsInJSON
+	}
+	offset := 1
+	if v, ok := args["offset"].(float64); ok && int(v) > 0 {
+		offset = int(v)
+	}
+	limit := 200
+	if v, ok := args["limit"].(float64); ok && int(v) > 0 {
+		limit = int(v)
+	}
+	if offset > totalLines {
+		return argumentsInJSON
+	}
+	remaining := totalLines - offset + 1
+	changed := false
+	if v, ok := args["offset"].(float64); !ok || int(v) <= 0 {
+		args["offset"] = 1
+		changed = true
+	}
+	if remaining <= 600 && limit < remaining {
+		args["limit"] = remaining
+		changed = true
+	} else if remaining > 600 && limit < 500 {
+		args["limit"] = 500
+		changed = true
+	}
+	if !changed {
+		return argumentsInJSON
+	}
+	b, err := json.Marshal(args)
+	if err != nil {
+		return argumentsInJSON
+	}
+	return string(b)
 }
