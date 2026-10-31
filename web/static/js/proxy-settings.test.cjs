@@ -23,3 +23,13 @@ test('masked credentials survive save without restarting other services',async()
  assert.equal(f.calls.some(x=>x.url==='/api/config/apply'),false);
  assert.equal(f.elements['proxy-settings-save'].disabled,false);
 });
+test('hidden pool validation does not prevent switching to a fixed proxy',async()=>{
+ const f=fixture({mode:'pool'});await f.ctx.loadProxySettings();
+ f.elements['proxy-setting-max_attempts'].value='';
+ f.elements['proxy-setting-max_attempts'].checkValidity=()=>false;
+ f.elements['proxy-setting-mode'].value='fixed';
+ f.elements['proxy-setting-proxy_url'].value='http://localhost:8080';
+ await f.ctx.saveProxySettings();
+ const write=f.calls.find(x=>x.options?.method==='PUT');assert.ok(write);
+ assert.equal(JSON.parse(write.options.body).proxy.max_attempts,3);
+});

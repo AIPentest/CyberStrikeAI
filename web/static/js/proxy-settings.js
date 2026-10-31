@@ -30,8 +30,9 @@ async function saveProxySettings() {
         for (const key of ['mode', 'proxy_url', 'proxy_pool', 'proxy_source', 'strategy']) proxy[key] = document.getElementById(`proxy-setting-${key}`).value.trim();
         for (const key of ['max_attempts', 'cooldown', 'min_switch_interval']) {
             const input = document.getElementById(`proxy-setting-${key}`);
-            if (!input.checkValidity() || input.value === '') throw new Error(window.t('proxySettings.invalidNumber'));
-            proxy[key] = Number(input.value);
+            const valid = input.checkValidity() && input.value !== '';
+            if (!valid && proxy.mode === 'pool') throw new Error(window.t('proxySettings.invalidNumber'));
+            proxy[key] = valid ? Number(input.value) : ({max_attempts: 3, cooldown: 60, min_switch_interval: 60})[key];
         }
         const response = await apiFetch('/api/config', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({proxy})});
         if (!response.ok) throw new Error((await response.json()).error || window.t('proxySettings.saveError'));
