@@ -7,7 +7,7 @@ async function loadProxySettings() {
         const response = await apiFetch('/api/config');
         if (!response.ok) throw new Error(window.t('proxySettings.loadError'));
         const saved = (await response.json()).proxy || {};
-        const cfg = saved.mode ? saved : {}; 
+        const cfg = saved.mode ? saved : {};
         const defaults = {mode: 'manual', proxy_url: '', proxy_pool: '', proxy_source: '', strategy: 'sticky', max_attempts: 3, cooldown: 60, min_switch_interval: 60};
         for (const [key, fallback] of Object.entries(defaults)) {
             document.getElementById(`proxy-setting-${key}`).value = cfg[key] === undefined || cfg[key] === '' || (key === 'max_attempts' && cfg[key] === 0) ? fallback : cfg[key];
