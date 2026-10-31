@@ -40,6 +40,7 @@
         })();
     </script>
     <link rel="stylesheet" href="/static/css/style.css?v=20261027-pagination-custom-select">
+    <link rel="stylesheet" href="/static/css/vulnerability-download.css?v=20261030-2">
     <link rel="stylesheet" href="/static/css/tool-guard.css?v=20260907-7">
     <link rel="stylesheet" href="/static/css/chat-plan-progress.css?v=20260813-4">
     <link rel="stylesheet" href="/static/css/c2.css">
@@ -7018,6 +7019,19 @@
     <script src="/static/js/builtin-tools.js"></script>
     <script src="/static/js/auth.js?v=20261008-password-eye-1"></script>
     <script src="/static/js/modal.js"></script>
+    <dialog id="vulnerability-download-dialog" aria-labelledby="vulnerability-download-heading" aria-describedby="vulnerability-download-hint">
+        <div class="vulnerability-download-content">
+            <h3 id="vulnerability-download-heading" data-i18n="vulnerabilityDownload.title">下载漏洞报告</h3>
+            <p id="vulnerability-download-hint" data-i18n="vulnerabilityDownload.hint">请选择下载格式</p>
+            <div class="vulnerability-download-formats">
+                <button type="button" class="btn-secondary" data-download-format="md" onclick="downloadSelectedVulnerability('md')" data-i18n="vulnerabilityDownload.markdown">Markdown（.md）</button>
+                <button type="button" class="btn-primary" data-download-format="docx" onclick="downloadSelectedVulnerability('docx')" data-i18n="vulnerabilityDownload.word">Word（.docx）</button>
+            </div>
+            <p id="vulnerability-download-message" role="status" aria-live="polite"></p>
+            <button type="button" class="btn-secondary" onclick="closeVulnerabilityDownload()" data-i18n="vulnerabilityDownload.cancel">取消</button>
+        </div>
+    </dialog>
+
     <script src="/static/js/notifications.js"></script>
     <script src="/static/js/info-collect.js?v=20260717-1"></script>
     <script src="/static/js/assets.js?v=20260717-7"></script>
@@ -7043,7 +7057,8 @@
     <script src="/static/js/skills.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/fact-graph.js"></script>
     <script src="/static/js/projects.js?v=20260819-1-pagination-20261027"></script>
-    <script src="/static/js/vulnerability.js?v=20261010-retest-2-pagination-20261027"></script>
+    <script src="/static/js/vulnerability.js?v=20261030-format-download"></script>
+    <script src="/static/js/vulnerability-download.js?v=20261030-2"></script>
     <script src="/static/js/webshell.js?v=20261011-token-usage"></script>
     <script src="/static/js/chat-files.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/tasks.js?v=20261027-pagination-custom-select"></script>

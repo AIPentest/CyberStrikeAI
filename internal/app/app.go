@@ -1333,6 +1333,7 @@ func setupRoutes(
 		protected.GET("/vulnerability-alerts/subscription", vulnerabilityHandler.GetMyAlertSubscription)
 		protected.PUT("/vulnerability-alerts/subscription", vulnerabilityHandler.UpdateMyAlertSubscription)
 		protected.GET("/vulnerabilities/:id", vulnerabilityHandler.GetVulnerability)
+		protected.GET("/vulnerabilities/:id/download", vulnerabilityHandler.DownloadVulnerability)
 		protected.POST("/vulnerabilities", vulnerabilityHandler.CreateVulnerability)
 		protected.POST("/vulnerabilities/:id/retest", vulnerabilityHandler.CreateRetest)
 		protected.PUT("/vulnerabilities/:id", vulnerabilityHandler.UpdateVulnerability)
