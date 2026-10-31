@@ -27,6 +27,41 @@ CyberStrikeAI-main/
 
 `data/`、`config.yaml`、自定义 `tools/roles/skills/agents/knowledge_base` 是最重要的持久化内容，升级前应备份。
 
+## 从 GitHub 拉取后复现环境
+
+代码可以完整复现，但**环境本身并不在仓库里**。克隆后还需要处理下面这些项：
+
+| 项 | 为什么不在仓库 | 怎么补齐 |
+| --- | --- | --- |
+| 分支 | 功能开发在特性分支，`main` 只跟随上游 | `git checkout <特性分支>` |
+| `config.yaml` | 含 API Key 与登录密码，已被 `.gitignore` 忽略 | 由 `config.example.yaml` 生成后**手工填写密钥** |
+| `data/`（SQLite 库） | 运行时数据，不含历史 | 首次启动自动创建（空库 + 新管理员密码） |
+| `data/screenshots/` | 截图产物 | 运行时生成，需对渲染服务用户可写 |
+| `cyberstrike-ai` 二进制 | 构建产物 | `go build -o cyberstrike-ai ./cmd/server` |
+| Playwright + Chromium（约 200MB） | 体积过大，且属于宿主机依赖 | `npm i playwright && npx playwright install chromium` |
+| systemd 单元 | 只提供模板 | 安装到 `/etc/systemd/system/`（bootstrap 会做） |
+| Go 工具链 / gcc | 宿主机依赖（`go-sqlite3` 需要 cgo） | `apt install -y build-essential` + 安装 Go 1.25+ |
+
+一键完成除「填密钥」以外的全部准备：
+
+```bash
+# 先预览将执行的动作
+./scripts/bootstrap.sh --dry-run --with-screenshot --shot-user <普通用户>
+
+# 实际执行（需要 root 安装 systemd 单元）
+sudo ./scripts/bootstrap.sh --with-screenshot --shot-user <普通用户>
+```
+
+脚本会：检查依赖 → 编译二进制 → 首次生成 `config.yaml`（已存在则不动）→ 创建
+`data/`、`log/`、`tmp/`、`data/screenshots/` 并处理权限 → 从模板安装并启用
+`cyberstrikeai.service` 与 `cyberstrike-shot.service` → 以非 root 用户安装 Playwright。
+
+完成后仍需**手工填写 `config.yaml` 的密钥**（`openai.api_key`，测绘 API Key 按需），
+然后 `sudo systemctl start cyberstrikeai`。首次启动的管理员密码会打印在
+`journalctl -u cyberstrikeai` 中（匹配 `ADMIN SETUP`）。
+
+> `config.yaml` 与 `data/` 含密钥和数据，不要提交到任何仓库。
+
 ## 快速启动
 
 仓库提供 `run.sh`，适合本地体验和小规模部署：
@@ -163,6 +198,42 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now cyberstrikeai
 sudo journalctl -u cyberstrikeai -f
 ```
+
+## 站点渲染服务（可选）
+
+站点截图功能需要一个独立的浏览器渲染服务。它**不是主服务的一部分**：主服务通常以 root
+运行，直接渲染不可信目标站点风险过高，因此浏览器放在独立的非 root 进程里，主服务通过
+`127.0.0.1:8099` 的 HTTP 接口调用它。
+
+源码与 systemd 单元在仓库内 `scripts/shot-service/`。
+
+```bash
+# 1) 以运行服务的普通用户（不要用 root）安装依赖
+mkdir -p ~/shot-service && cd ~/shot-service
+npm init -y
+npm i playwright --no-audit --no-fund
+npx playwright install chromium      # 约 120MB
+
+# 2) 部署服务代码
+cp <repo>/scripts/shot-service/server.js ~/shot-service/
+
+# 3) 截图目录：主服务建目录，chown 给浏览器运行用户
+sudo mkdir -p <repo>/data/screenshots
+sudo chown <运行用户>:<运行用户> <repo>/data/screenshots
+
+# 4) 安装并启动单元（按需修改 User 与路径）
+sudo cp <repo>/scripts/shot-service/cyberstrike-shot.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now cyberstrike-shot
+systemctl is-active cyberstrike-shot
+curl -s http://127.0.0.1:8099/health     # 期望 {"ok":true,...}
+```
+
+配置见 [配置参考 → 站点截图](configuration.md)。主服务启动时会探测 `/health`；
+渲染服务不可用时会自动降级为「不自动截图」，不影响其它功能。
+
+> 该服务会真实访问目标站点，请只在授权范围内使用，并对生产站点降低采集频率。
+> 浏览器以非 root 运行，systemd 单元带 `NoNewPrivileges`、`PrivateTmp`、`ProtectSystem=full`。
 
 ## 数据与备份
 

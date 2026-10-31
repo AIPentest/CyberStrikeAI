@@ -78,3 +78,12 @@ Thumbs.db
 desktop.ini
 .idea/
 .vscode/
+
+# ===== 本地开发（dev 实例）=====
+dev.yaml
+dev.yaml.bak
+reports/
+data-dev/
+log-dev/
+.air.toml.bak
+tmp/air/

@@ -16,6 +16,13 @@ Asset management provides three main views:
 
 Assets can launch single-target analysis or batch scans. After an Agent records findings and completes the scan callback, the inventory displays related vulnerability counts, risk level, and latest scan time.
 
+The asset inventory offers two browsing modes:
+
+- **Type tabs with flat tables**: Subdomains / Sites / IPs / Services, each with its own filters and pagination; a DNS name that resolves to several IPs shows multiple values in one cell.
+- **Hierarchy view**: collapsible tree of Company (project) → Domain → Subdomain → IP → Port → Service → Fingerprint/Version.
+
+Besides manual entry and search-engine import, assets are also **collected automatically**: when an Agent runs subfinder, httpx, naabu, nmap, fscan, amass, masscan, rustscan, wafw00f, katana, gau, or waybackurls, the raw output is parsed into assets and stored—the model does not have to call `create_asset` for every row. `http`/`https` sites are additionally queued for **site screenshots**.
+
 The overview can show the last 7, 30, or 90 days. It includes added/inactive asset trends, vulnerability discovery trends (including critical/high findings), total and 30-day scan coverage, never-scanned and stale counts, and the top eight protocols. Every statistic is restricted to the current user's accessible assets.
 
 ## Asset fields
@@ -23,7 +30,9 @@ The overview can show the last 7, 30, or 90 days. It includes added/inactive ass
 An asset can include:
 
 - host, IP address, domain, port, and protocol;
-- page title and service or product fingerprint;
+- DNS mappings: one domain can resolve to several IPs (aggregated from tool output A records, shown in the Associated IPs column);
+- page title and HTTP `Server` header;
+- service name, technology fingerprints, and versions (from `nmap -sV`, httpx tech detection, wafw00f, and similar);
 - country/region, state/province, and city;
 - responsible person, department, business system, environment, and criticality;
 - source, source query, and tags;
@@ -34,6 +43,93 @@ An asset can include:
 - related vulnerability count and current risk level.
 
 At least one of `host`, `ip`, or `domain` is required.
+
+## Companies and root domains
+
+The asset inventory has a dedicated **Companies** panel that maintains "company → root domain"
+ownership. It is decoupled from *projects*: a project is the container for one engagement, while a
+company is a long-lived organization that may span several projects.
+
+### Where root domains come from
+
+| Source | Meaning |
+| --- | --- |
+| `manual` | Typed by the user in the panel (when creating a company or added later); stored as **confirmed** |
+| `auto:<tool>` | Registered automatically when the Agent collects a previously unseen root domain; stored as **pending** |
+| `fofa` / `local` | Suggestions from "Find root domains"; only owned after the user selects them |
+
+Domains are normalized to the eTLD+1 form (`a.b.example.com` → `example.com`) and are globally
+unique: a root domain can belong to only one company.
+
+### Pending confirmation
+
+Automatically discovered root domains are not attributed to a company directly; they land in the
+**unassigned** list (status `pending`) and wait for a human decision:
+
+- **Confirm ownership**: pick a company and the status becomes `confirmed`;
+- **Ignore**: the status becomes `ignored`, and later collection runs will not prompt again.
+
+Decisions made by the user are never overwritten by subsequent automatic collection.
+
+### Finding root domains
+
+The "Find root domains" action combines two sources:
+
+1. **Local first**: root domains already present in assets whose project, business system, or
+   department matches the company name;
+2. **Recon API**: when `fofa.api_key` is configured, an `org="company"` query is ranked by root
+   domain frequency.
+
+Without a recon API key only local results are returned, together with a warning (not a failure).
+Each suggestion notes whether the domain is already owned.
+
+### Relationship to the hierarchy view
+
+The Company level in the hierarchy view resolves in this order:
+
+1. the asset's root domain has a **confirmed** ownership → use that company's name;
+2. otherwise, if the asset's **project name equals a company name** → merge into that company node
+   (so the same name never appears twice);
+3. otherwise fall back to the project name, and unbound assets go to "Unassigned project".
+
+> Endpoints: `GET/POST /api/companies`, `PUT/DELETE /api/companies/:id`, `POST /api/companies/:id/domains`,
+> `POST /api/companies/:id/lookup`, `GET /api/company-domains?status=pending`, and
+> `POST /api/company-domains/:id/confirm|ignore`. Reads and writes reuse `asset:read` / `asset:write`.
+
+## Hierarchical views and level-by-level probing
+
+The asset tabs follow the asset hierarchy, drilling down from organization to fingerprint:
+
+```
+Company -> Root domain -> Subdomain -> IP -> Port -> Site -> Fingerprint -> (web fingerprint) directory discovery
+```
+
+Every data tab supports three kinds of actions:
+
+- **Add**: manually record an object at that level. Subdomains / IPs / ports go into the asset
+  inventory; root domains go into company ownership; fingerprints are derived and cannot be added
+  manually.
+- **Exclude / Restore**: sets the asset status to `inactive` (root domains become `ignored`,
+  fingerprint records are deleted). Excluded rows show a badge and can be restored; exclusion is a
+  reversible soft state.
+- **Probe**: starts an Agent task against that row. After a confirmation dialog the system creates
+  a conversation, links the related assets, fills in the level-specific prompt, and sends it.
+
+The probing chain:
+
+| From | Next step | Typical tools |
+| --- | --- | --- |
+| Company | root domains + subdomain enumeration | subfinder, amass |
+| Root domain | subdomain enumeration | subfinder, amass |
+| Subdomain | resolve IP | httpx, nmap |
+| IP | port scan | naabu, nmap |
+| Port | service and fingerprint detection | nmap -sV, httpx -td |
+| Site | fingerprint + directory discovery | httpx, dirsearch/gobuster |
+| Fingerprint (web) | directory discovery | dirsearch, gobuster, ffuf |
+
+> Probing really visits the target and runs security tools—**use it only within authorized scope**.
+> Newly discovered assets flow back into the inventory through automatic collection, closing the
+> loop. The Probe button is disabled for non-web fingerprints.
 
 ## Build an asset baseline
 
@@ -108,6 +204,28 @@ FOFA returns the state/province as `region`, which is saved to the asset provinc
 
 Internet search results are not automatically your assets. Narrow the query with organization domains, certificates, network ranges, or product fingerprints, then verify authorization before saving results.
 
+### Automatic collection from Agent tasks
+
+When an Agent runs reconnaissance tools in a conversation or batch task, the tool output is parsed and written to the asset inventory automatically:
+
+| Tool | Extracted data |
+| --- | --- |
+| `subfinder`, `amass` | subdomains (plain text and `-json` output) |
+| `httpx` | URL, status code, title, `Server`, technology fingerprints and versions |
+| `naabu`, `masscan`, `rustscan` | IP, port, TCP/UDP |
+| `nmap` | open ports, service names, product and version (XML and text tables) |
+| `fscan` | ports, web titles, service fingerprints (hosts from vulnerability lines too) |
+| `wafw00f` | WAF name as a fingerprint |
+| `katana`, `gau`, `waybackurls` | crawled URLs normalized to host/port/protocol |
+
+Behaviour notes:
+
+- Parsing runs after a successful tool call and **never blocks or breaks the Agent loop**; failures are only logged.
+- The asset source is stored as `tool:<name>` and tagged `auto-collected`, so collected assets are distinguishable from manual or search-engine imports.
+- When the conversation is bound to a project, collected assets inherit that project (the Company level of the hierarchy view is the project name).
+- A domain resolving to several IPs is recorded separately; the Associated IPs column renders them as multiple values.
+- At most 5,000 hosts are ingested per tool output to keep full-port scans from overwhelming a transaction.
+
 ## Normalization and deduplication
 
 Different sources may describe the same target in different forms. The system:
@@ -120,7 +238,9 @@ Different sources may describe the same target in different forms. The system:
 - removes empty or duplicate tags;
 - supplies default source and status values.
 
-Assets use “target + port + protocol” as the service-level deduplication key. The preferred target is the domain, followed by the IP address, then the host. As a result, `80/http` and `443/https` on the same host remain separate assets.
+Assets use “target + port + protocol” as the service-level deduplication key. The target is the **host (subdomain-level) first**, then the IP address, and finally the domain. This keeps `a.example.com` and `b.example.com` as separate assets under the same root domain; keying on the domain instead would let subdomains overwrite each other and would drop the subdomain level from the hierarchy view.
+
+Hosts are normalized before comparison, so `https://example.com/path`, `example.com:443`, and `example.com` are treated as the same target. As a result, `80/http` and `443/https` on the same host remain separate assets.
 
 When an existing asset is imported again, non-empty incoming fields and the last-seen time are updated. Existing fields omitted by the new record and the original first-seen time are preserved.
 
@@ -136,6 +256,11 @@ Keyword search in the Web UI covers hosts, IP addresses, domains, titles, servic
 - sorting by last seen, latest scan, risk, vulnerability count, first seen, target name, or port.
 
 Sorting by latest scan time in ascending order places never-scanned assets first, making coverage gaps visible.
+
+The inventory offers two browsing modes:
+
+- **Type tabs with flat tables**: four data tabs (Subdomains, Sites, IPs, Services) plus three placeholder tabs (SSL certificates, File leaks, URLs) whose collection is not implemented yet, and the "All assets" and "Hierarchy" views. Each data tab has its own keyword and source filters; the Subdomains tab additionally filters by record type (A/CNAME). Pages hold 50 rows.
+- **Hierarchy view**: collapsible Company (project) → Domain → Subdomain → IP → Port → Service → Fingerprint/Version tree. Assets without a project fall under "Unassigned project", and the domain level uses the effective TLD+1.
 
 Frequently used combinations can be saved as filter views. Saved views use the current browser's `localStorage`; they are not synchronized to the server, other browsers, or other users.
 
@@ -157,6 +282,34 @@ Available actions:
 Bulk edit, project binding, and batch delete are all-or-nothing transactions. If any requested asset is missing or outside the caller's scope, the entire operation fails without a partial update.
 
 Merge is only allowed when every duplicate shares a domain, IP address, or Host with the primary asset, and accepts 2-100 selected records. Existing primary values win, tags are unioned subject to the 30-tag limit, and the other records are deleted. It requires both `asset:write` and `asset:delete`; confirm the primary record and the scan history you need to retain before merging.
+
+## Site screenshots
+
+For `http`/`https` sites the system can render page thumbnails, which helps identify sites quickly and supports evidence in reports.
+
+### How it works
+
+Screenshots are **not rendered by the main process**. The service usually runs as root, and rendering untrusted target sites from it would be too risky, so the browser runs in a separate non-root process:
+
+```
+main service (queue / storage / auth) --> http://127.0.0.1:8099 --> Node + Playwright (non-root) --> Chromium
+```
+
+See the deployment guide and `scripts/shot-service/README.md` for installation.
+
+### Triggers and display
+
+- **Automatic**: when the Agent collects a new http/https site it is queued; the same site is not captured again within `screenshot.min_interval_hours` (default 24 hours).
+- **Manual**: hover a row in the Sites tab and choose "Recapture" to force a new capture.
+- The Screenshot column shows a thumbnail; click it for a larger preview. States are: no screenshot, queued, capturing, done, failed, disabled.
+- PNG files are stored under `screenshot.dir` (default `data/screenshots/<assetID>.png`) and metadata is kept in the `asset_screenshots` table.
+- Serving a screenshot requires an authenticated session: `GET /api/assets/screenshot?id=<assetID>`.
+
+### Caveats
+
+- Screenshots really do visit the target site—**use this only within authorized scope**, and lower the capture rate against production sites.
+- The screenshot directory must be writable by the rendering service's user, otherwise captures are stored with `failed` status and a permission error.
+- When the rendering service is unavailable the system disables screenshots automatically (it probes `/health` at startup), so it does not write a failure row per asset; the manual endpoint returns 503.
 
 ## Scanning and risk updates
 

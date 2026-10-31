@@ -168,6 +168,30 @@ Reclaims disk space used by runtime artifacts. Manage it from **System settings 
 | `workflow_checkpoints` | 7 days | workflow run checkpoints, `data/workflow-checkpoints` |
 | `diagnostic_logs` | 14 days | diagnostic logs, `log/diagnostic-*.log` |
 
+## Site screenshots
+
+```yaml
+screenshot:
+  enabled: true                # queue a capture for newly discovered http/https sites
+  service_url: http://127.0.0.1:8099
+  dir: data/screenshots        # must be writable by the rendering service's user
+  timeout_seconds: 30
+  concurrency: 2               # browser rendering is CPU/RAM heavy; 1-3 recommended
+  viewport_width: 1280
+  viewport_height: 800
+  min_interval_hours: 24       # per-site re-capture interval; explicit 0 captures every time
+```
+
+The whole section is optional; the defaults above apply when it is omitted.
+
+- Rendering is done by a **separate local Node service** (`scripts/shot-service/`, Playwright + Chromium). The main service only queues work, stores results, and serves images behind auth. The browser runs as a non-root user so untrusted sites are never rendered with the main service's privileges.
+- `enabled` defaults to `true`. At startup the main service probes `service_url`'s `/health`; if it is unreachable, screenshots are disabled automatically instead of recording a failure for every asset (the manual endpoint returns 503).
+- `dir` must be writable by the rendering service's user, otherwise captures are stored with `failed` status plus a permission error.
+- `min_interval_hours` uses pointer semantics to distinguish "not configured" (default 24 hours) from "explicitly 0" (capture every time).
+- Files land in `dir/<assetID>.png`; metadata lives in the `asset_screenshots` table. `GET /api/assets/screenshot?id=<assetID>` requires an authenticated session.
+
+Installation steps: [deployment guide](deployment.md).
+
 ## Change Template
 
 Before changing config, write down:

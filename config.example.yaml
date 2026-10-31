@@ -606,3 +606,19 @@ project:
 # 把目录变成跟踪该仓库的 git 工作树，此后按正常安装一键更新。
 # update:
 #   repo: https://github.com/AIPentest/CyberStrikeAI.git  # 一个仓库地址；留空/不写 = 官方仓库
+
+# ============================================
+# 站点截图（可选）
+# ============================================
+# 渲染由独立的本地 Node 服务（Playwright + Chromium）完成，见 scripts/shot-service/。
+# 浏览器以非 root 用户运行，主服务只做排队、落库与鉴权下发。
+# 主服务启动时会探测 service_url 的 /health，不可用则降级为「不自动截图」。
+#screenshot:
+#  enabled: true                # 发现新的 http/https 站点时自动排队截图
+#  service_url: http://127.0.0.1:8099
+#  dir: data/screenshots        # 该目录需对截图服务的运行用户可写
+#  timeout_seconds: 30
+#  concurrency: 2               # 浏览器渲染吃 CPU/内存，建议 1-3
+#  viewport_width: 1280
+#  viewport_height: 800
+#  min_interval_hours: 24       # 同一站点重复截图的最小间隔；显式写 0 表示每次都截

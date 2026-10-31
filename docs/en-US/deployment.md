@@ -27,6 +27,43 @@ chat_uploads/
 
 Back these up before upgrades.
 
+## Reproducing an environment from GitHub
+
+The code reproduces fully, but **the environment itself is not in the repository**. After cloning
+you still have to handle the following:
+
+| Item | Why it is not in the repo | How to provide it |
+| --- | --- | --- |
+| Branch | feature work lives on a feature branch; `main` follows upstream | `git checkout <feature-branch>` |
+| `config.yaml` | contains API keys and the login password; git-ignored | generate from `config.example.yaml`, then **fill in the keys by hand** |
+| `data/` (SQLite DB) | runtime data, no history | created on first start (empty DB + new admin password) |
+| `data/screenshots/` | capture output | created at runtime; must be writable by the renderer user |
+| `cyberstrike-ai` binary | build artifact | `go build -o cyberstrike-ai ./cmd/server` |
+| Playwright + Chromium (~200MB) | too large; a host dependency | `npm i playwright && npx playwright install chromium` |
+| systemd units | only templates ship | install into `/etc/systemd/system/` (bootstrap does it) |
+| Go toolchain / gcc | host dependencies (`go-sqlite3` needs cgo) | `apt install -y build-essential` plus Go 1.25+ |
+
+One command covers everything except filling in the keys:
+
+```bash
+# preview what will happen
+./scripts/bootstrap.sh --dry-run --with-screenshot --shot-user <normal-user>
+
+# actually run it (root is required to install systemd units)
+sudo ./scripts/bootstrap.sh --with-screenshot --shot-user <normal-user>
+```
+
+The script checks dependencies, builds the binary, generates `config.yaml` on first run (never
+overwrites an existing one), creates `data/`, `log/`, `tmp/`, `data/screenshots/` with the right
+ownership, installs and enables `cyberstrikeai.service` and `cyberstrike-shot.service` from the
+templates, and installs Playwright as a non-root user.
+
+Afterwards you still have to **fill in the keys** in `config.yaml` (`openai.api_key`, plus recon
+API keys if needed) and run `sudo systemctl start cyberstrikeai`. The first-start admin password is
+printed in `journalctl -u cyberstrikeai` (search for `ADMIN SETUP`).
+
+> `config.yaml` and `data/` contain secrets and data—never commit them.
+
 ## Startup Modes
 
 Local quick start:
@@ -74,6 +111,45 @@ proxy_http_version 1.1;
 proxy_set_header Upgrade $http_upgrade;
 proxy_set_header Connection "upgrade";
 ```
+
+## Site rendering service (optional)
+
+Site screenshots need a separate browser rendering service. It is **not part of the main
+service**: the main service usually runs as root, and rendering untrusted target sites from it
+would be too risky. The browser therefore lives in its own non-root process, and the main service
+calls it over `127.0.0.1:8099`.
+
+The source and systemd unit ship in `scripts/shot-service/` inside the repository.
+
+```bash
+# 1) Install dependencies as the service's normal user (never root)
+mkdir -p ~/shot-service && cd ~/shot-service
+npm init -y
+npm i playwright --no-audit --no-fund
+npx playwright install chromium      # about 120MB
+
+# 2) Deploy the service code
+cp <repo>/scripts/shot-service/server.js ~/shot-service/
+
+# 3) Screenshot directory: create as root, chown to the browser user
+sudo mkdir -p <repo>/data/screenshots
+sudo chown <service-user>:<service-user> <repo>/data/screenshots
+
+# 4) Install and start the unit (adjust User and paths)
+sudo cp <repo>/scripts/shot-service/cyberstrike-shot.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now cyberstrike-shot
+systemctl is-active cyberstrike-shot
+curl -s http://127.0.0.1:8099/health     # expect {"ok":true,...}
+```
+
+Configuration: [configuration reference → Site screenshots](configuration.md). The main service
+probes `/health` at startup; when the renderer is unreachable it disables automatic captures
+instead of failing, and other features are unaffected.
+
+> The renderer really visits target sites—use it only within authorized scope and lower the
+> capture rate against production targets. The browser runs as a non-root user and the systemd
+> unit sets `NoNewPrivileges`, `PrivateTmp`, and `ProtectSystem=full`.
 
 ## Upgrading
 

@@ -1,0 +1,32 @@
+[Unit]
+Description=CyberStrikeAI site screenshot renderer (Playwright + Chromium)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=idamini
+Group=idamini
+WorkingDirectory=/home/idamini/shot-service
+Environment=SHOT_HOST=127.0.0.1
+Environment=SHOT_PORT=8099
+Environment=SHOT_MAX_CONCURRENCY=3
+Environment=SHOT_TIMEOUT_MS=30000
+# Playwright 的浏览器缓存在该用户 home 下
+Environment=PLAYWRIGHT_BROWSERS_PATH=/home/idamini/.cache/ms-playwright
+Environment=LANG=zh_CN.UTF-8
+ExecStart=/usr/bin/node /home/idamini/shot-service/server.js
+Restart=always
+RestartSec=5
+TimeoutStopSec=15
+
+# 渲染不可信站点，做基础收敛：
+# - 以非 root 用户运行（最主要的一道边界）
+# - 禁止提权、独立 /tmp、系统目录只读
+# 注意：不要加 ProtectHome=read-only，Chromium 需要在用户 home 下写缓存/崩溃转储。
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
