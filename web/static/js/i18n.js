@@ -72,10 +72,20 @@
             const translated = i18next.t(key);
             // 缺键时保留模板中的后备文案，避免页面直接显示 assets.project 一类内部键名。
             const text = translated && translated !== key ? translated : '';
-            // 仅当元素无子元素（仅文本或空）时才替换文本，避免覆盖卡片内的数字、子节点等；input/textarea 永不设置 textContent
+            // 仅当元素无子元素（仅文本或空）时才替换整段文本；否则只替换首个纯文本节点
+            // （例如 label「项目名称 <span class="required"">*</span>」只换“项目名称”那段，保留 <span>）。
+            // input/textarea 永不设置 textContent；卡片内数字/子节点照旧不做全文覆盖。
             const hasNoElementChildren = !el.querySelector('*');
-            if (!skipText && !isFormControl && hasNoElementChildren && text && typeof text === 'string') {
-                el.textContent = text;
+            if (!skipText && !isFormControl && text && typeof text === 'string') {
+                if (hasNoElementChildren) {
+                    el.textContent = text;
+                } else {
+                    // 只替换首个纯文本节点（如 label「项目名称 <span class="required">*</span>」只换“项目名称”，保留 <span>）
+                    const firstNode = el.firstChild;
+                    if (firstNode && firstNode.nodeType === 3 && firstNode.textContent.trim()) {
+                        firstNode.textContent = text + ' ';
+                    }
+                }
             }
 
             if (attrList) {
