@@ -4,13 +4,19 @@
 
 ### Added
 
-- Added async conversation APIs for single-agent and multi-agent: requests return a task receipt on acceptance, and client disconnects do not stop execution; supports per-user isolated idempotent submission, persistent state and result queries, explicit cancellation, and interrupted-state recovery after service restarts. Synchronous interfaces remain compatible.
+- 支持通过 `agent.task_timeout_minutes` 配置单代理、多代理、工作流及异步任务执行超时：未配置默认 600 分钟，`0` 表示不限时，负数拒绝加载；续跑保留重新计时行为，单次工具超时仍独立生效。
+
+- 新增单代理与多代理异步对话 API：接收后返回任务回执，客户端断线不停止执行；支持按用户隔离的幂等提交、持久状态与结果查询、显式取消以及服务重启后的中断状态。同步接口保持兼容。
 
 - At startup, all project management tables are checked automatically against the unified latest SQLite schema: missing tables are created and missing columns added, with no per-column migration list to maintain; existing data and extra tables/columns are preserved; a failed structural repair rolls back and blocks startup. HITL and notification tables are included in the unified initialization, and the historical vulnerability foreign-key migration preserves extra columns, indexes, triggers, and dependent records.
 
 ### Fixed
 
-- Fixed official OpenAI models known to support `none` still applying server-side default reasoning after reasoning was disabled (#366): the explicit disable parameter is now sent and preserved per provider, endpoint, and model, covering the Planner and forced tool choice; DeepSeek and third-party compatible-gateway behavior is preserved, and the tool-calling limitation that requires Responses is now clearly noted.
+- 修复 WebShell 批量探活因请求构建异常一直停留在“探活中”的问题；使用连接自身 ID 读取已保存凭据，并在探活失败后恢复按钮、继续处理其他连接。
+
+- 修复审计 Agent 向不支持 thinking 字段的兼容网关发起请求失败的问题；支持独立兼容 profile，并按模型和地址识别默认行为。
+
+- 修复已知支持 `none` 的官方 OpenAI 模型在关闭推理后仍使用服务端默认推理的问题（#366）：按提供商、端点和模型发送并保留显式关闭参数，覆盖 Planner 和强制工具选择；保留 DeepSeek 与第三方兼容网关行为，并明确提示需要 Responses 的工具调用限制。
 
 - Prevented the built-in admin from losing privileges: deactivating the built-in `admin` or removing its system administrator role is rejected, and on failure the original profile, permissions, and sessions are preserved; the UI disables the corresponding actions accordingly.
 
