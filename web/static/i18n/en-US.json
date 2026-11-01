@@ -1466,7 +1466,9 @@
     "einoAgent": "Eino agent: {{name}}",
     "peAgentPlanner": "Planner",
     "peAgentExecutor": "Executor",
-    "peAgentReplanning": "Replanner"
+    "peAgentReplanning": "Replanner",
+    "startingEinoSingleAgent": "Starting Eino ADK single agent (ChatModelAgent)...",
+    "mergedTraceContinuing": "Merged user supplement with the latest trace, continuing reasoning..."
   },
   "timeline": {
     "blocked": "Blocked",

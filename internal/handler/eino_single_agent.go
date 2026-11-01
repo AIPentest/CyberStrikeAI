@@ -139,7 +139,7 @@ func (h *AgentHandler) EinoSingleAgentLoopStream(c *gin.Context) {
 		}
 	}()
 
-	sendEvent("progress", "正在启动 Eino ADK 单代理（ChatModelAgent）...", map[string]interface{}{
+	sendEvent("progress", "Starting Eino ADK single agent (ChatModelAgent)...", map[string]interface{}{
 		"conversationId": conversationID,
 	})
 
@@ -319,7 +319,7 @@ func (h *AgentHandler) EinoSingleAgentLoopStream(c *gin.Context) {
 				curHistory = hist
 			}
 			curFinalMessage = inject
-			sendEvent("progress", "已合并用户补充与最新轨迹，正在继续推理…", map[string]interface{}{
+			sendEvent("progress", "Merged user supplement with the latest trace, continuing reasoning...", map[string]interface{}{
 				"conversationId": conversationID,
 				"source":         "interrupt_continue",
 			})

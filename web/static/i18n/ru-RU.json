@@ -1478,7 +1478,9 @@
     "einoAgent": "Агент Eino: {{name}}",
     "peAgentPlanner": "Планировщик",
     "peAgentExecutor": "Исполнитель",
-    "peAgentReplanning": "Перепланировщик"
+    "peAgentReplanning": "Перепланировщик",
+    "startingEinoSingleAgent": "Starting Eino ADK single agent (ChatModelAgent)...",
+    "mergedTraceContinuing": "Merged user supplement with the latest trace, continuing reasoning..."
   },
   "timeline": {
     "blocked": "Заблокировано",

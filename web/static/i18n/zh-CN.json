@@ -1454,7 +1454,9 @@
     "einoAgent": "Eino 代理：{{name}}",
     "peAgentPlanner": "规划器",
     "peAgentExecutor": "执行器",
-    "peAgentReplanning": "重规划"
+    "peAgentReplanning": "重规划",
+    "startingEinoSingleAgent": "正在启动 Eino ADK 单代理（ChatModelAgent）...",
+    "mergedTraceContinuing": "已合并用户补充与最新轨迹，正在继续推理…"
   },
   "timeline": {
     "blocked": "已拦截",

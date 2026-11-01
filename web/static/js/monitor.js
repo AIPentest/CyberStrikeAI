@@ -383,6 +383,9 @@ function translateProgressMessage(message, data) {
         '开始分析请求并制定测试策略': 'progress.analyzingRequestPlanning',
         '正在启动 Eino DeepAgent...': 'progress.startingEinoDeepAgent',
         '正在启动 Eino 多代理...': 'progress.startingEinoMultiAgent',
+        // legacy Chinese single-agent marker kept byte-identical for historical rows; new backend emits English
+        '正在启动 Eino ADK 单代理（ChatModelAgent）...': 'progress.startingEinoSingleAgent',
+        '已合并用户补充与最新轨迹，正在继续推理…': 'progress.mergedTraceContinuing',
         // 英文（与 en-US.json 一致，避免后端/缓存已是英文时无法随语言切换）
         'Calling AI model...': 'progress.callingAI',
         'Last iteration: generating summary and next steps...': 'progress.lastIterSummary',
@@ -392,7 +395,9 @@ function translateProgressMessage(message, data) {
         'Analyzing your request...': 'progress.analyzingRequestShort',
         'Analyzing your request and planning test strategy...': 'progress.analyzingRequestPlanning',
         'Starting Eino DeepAgent...': 'progress.startingEinoDeepAgent',
-        'Starting Eino multi-agent...': 'progress.startingEinoMultiAgent'
+        'Starting Eino multi-agent...': 'progress.startingEinoMultiAgent',
+        'Starting Eino ADK single agent (ChatModelAgent)...': 'progress.startingEinoSingleAgent',
+        'Merged user supplement with the latest trace, continuing reasoning...': 'progress.mergedTraceContinuing'
     };
     if (map[trim]) return window.t(map[trim]);
     const einoAgentRe = /^\[Eino\]\s*(.+)$/;
