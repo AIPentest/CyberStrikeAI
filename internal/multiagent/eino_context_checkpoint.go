@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -219,6 +220,13 @@ func truncateIndexLabel(text string, cap int) string {
 
 func finalizeSummarizationMemory(msg adk.Message, originals []adk.Message, transcriptPath string, db *database.DB, projectID, conversationID, memoryScope string, cfg config.ProjectConfig, logger *zap.Logger) adk.Message {
 	msg = stripAnalysisFromSummarizationMessage(msg)
+	if ledgerSec := buildAuditedFilesLedgerSection(originals); ledgerSec != "" && msg != nil {
+		clone := *msg
+		if clone.Content != "" {
+			clone.Content = appendSummarizationSection(clone.Content, ledgerSec)
+		}
+		msg = &clone
+	}
 	snapshot, err := writeSummarizationTranscriptSnapshot(transcriptPath, originals)
 	if err != nil && logger != nil {
 		if snapshot != "" {
@@ -286,4 +294,104 @@ func summarizationMemoryScope(scopes []string) string {
 func summarizationScopeID(scope string) string {
 	hash := sha256.Sum256([]byte(scope))
 	return fmt.Sprintf("%x", hash[:16])
+}
+
+
+const auditedFilesLedgerHeading = "## 9. 已读取文件台账（系统自动生成，严禁重复调用 read_file 重读）"
+
+func buildAuditedFilesLedgerSection(originals []adk.Message) string {
+	if len(originals) == 0 {
+		return ""
+	}
+	var order []string
+	seen := make(map[string][]string)
+	addEntry := func(fp, rng string) {
+		fp = strings.TrimSpace(fp)
+		if fp == "" {
+			return
+		}
+		if _, ok := seen[fp]; !ok {
+			order = append(order, fp)
+		}
+		if rng != "" {
+			for _, existing := range seen[fp] {
+				if existing == rng {
+					return
+				}
+			}
+			seen[fp] = append(seen[fp], rng)
+		}
+	}
+
+	for _, m := range originals {
+		if m == nil {
+			continue
+		}
+		// Preserve entries from any prior summary's ledger section
+		if m.Content != "" && strings.Contains(m.Content, auditedFilesLedgerHeading) {
+			inLedger := false
+			for _, line := range strings.Split(m.Content, "\n") {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, auditedFilesLedgerHeading) {
+					inLedger = true
+					continue
+				}
+				if !inLedger {
+					continue
+				}
+				if strings.HasPrefix(line, "## ") || strings.HasPrefix(line, "</") {
+					break
+				}
+				if strings.HasPrefix(line, "- `") {
+					rest := strings.TrimPrefix(line, "- `")
+					if idx := strings.Index(rest, "`"); idx > 0 {
+						fp := rest[:idx]
+						rng := strings.TrimSpace(rest[idx+1:])
+						addEntry(fp, rng)
+					}
+				}
+			}
+		}
+		for _, tc := range m.ToolCalls {
+			if !strings.EqualFold(strings.TrimSpace(tc.Function.Name), "read_file") {
+				continue
+			}
+			raw := strings.TrimSpace(tc.Function.Arguments)
+			if raw == "" {
+				continue
+			}
+			var args map[string]interface{}
+			if err := json.Unmarshal([]byte(raw), &args); err != nil {
+				continue
+			}
+			fp, _ := args["file_path"].(string)
+			if fp == "" {
+				continue
+			}
+			offset := 1
+			if v, ok := args["offset"].(float64); ok && int(v) >= 0 {
+				offset = int(v)
+			}
+			limit := 200
+			if v, ok := args["limit"].(float64); ok && int(v) > 0 {
+				limit = int(v)
+			}
+			addEntry(fp, fmt.Sprintf("offset=%d,limit=%d", offset, limit))
+		}
+	}
+	if len(order) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString(auditedFilesLedgerHeading)
+	sb.WriteString("\n以下文件在压缩前的历史轮次中**已经读取完毕**。除非确实需要读取尚未覆盖的行号区间，否则**严禁再次调用 `read_file` 重新读取下列已读文件区间**！请直接检查尚未读取的剩余文件，或基于已有发现直接输出最终报告：\n")
+	for _, fp := range order {
+		rngs := strings.Join(seen[fp], "; ")
+		if rngs != "" {
+			sb.WriteString(fmt.Sprintf("- `%s` (%s)\n", fp, rngs))
+		} else {
+			sb.WriteString(fmt.Sprintf("- `%s`\n", fp))
+		}
+	}
+	return strings.TrimRight(sb.String(), "\n")
 }
