@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"time"
 
 	"cyberstrike-ai/internal/database"
 	"cyberstrike-ai/internal/mcp"
@@ -98,7 +97,7 @@ func (h *AgentHandler) submitAgentRunWithExecutor(c *gin.Context, multi bool, ex
 		return
 	}
 	base, cancel := context.WithCancelCause(detachedAgentContext(c.Request.Context()))
-	ctx, timeoutCancel := context.WithTimeout(base, 600*time.Minute)
+	ctx, timeoutCancel := h.newTaskContext(base)
 	task, err := h.tasks.StartTask(prep.ConversationID, req.Message, cancel)
 	if err != nil {
 		timeoutCancel()
