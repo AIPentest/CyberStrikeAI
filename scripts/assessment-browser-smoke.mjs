@@ -31,7 +31,7 @@ const server = http.createServer(async (req, res) => {
         }
         let body = ''; for await (const chunk of req) body += chunk;
         const input = body ? JSON.parse(body) : {};
-        if (url.pathname === '/api/assessments/options') { send({ models: [{ id: 'fixture', name: 'Fixture', model: 'local-test' }], tools: [{ name: 'inspect', description: 'Inspect local fixture' }] }); return; }
+        if (url.pathname === '/api/assessments/options') { send({ models: [{ id: 'fixture', name: 'Fixture', model: 'local-test' }], tools: [{ name: 'inspect', description: 'Inspect local fixture' }], projects: [{id:'fixture-project',name:'本地测试项目'}] }); return; }
         if (url.pathname === '/api/assessments' && req.method === 'POST') {
             const created = { ...task, ...input, id: 'created-' + (++sequence), status: 'draft', steps: [], tokens: 0, rounds: 0, created_at: now(), updated_at: now() }; tasks.unshift(created); send({ assessment: created }); return;
         }
@@ -78,9 +78,10 @@ try {
     await evaluate("document.documentElement.dataset.theme='dark'"); await click('[data-tab=chain]'); await screenshot('desktop-dark-chain'); await evaluate("document.documentElement.dataset.theme='light'");
     await click('[data-tab=evidence]'); assert.equal(await evaluate("document.querySelectorAll('[data-assessment-action=vulnerability]').length"), 1);
     await click('[data-tab=logs]'); assert.equal(await evaluate('window.XSS || 0'), 0, 'untrusted log rendered as HTML');
-    await click('[data-assessment-action=new]'); await waitFor("document.getElementById('assessment-create')?.open");
+    await click('[data-assessment-action=new]'); await waitFor("document.getElementById('assessment-create')?.open"); assert.equal(await evaluate("document.querySelector('[name=project_id] option:last-child').textContent"), '本地测试项目');
     await evaluate(`document.querySelector('[name=name]').value='Created in browser';document.querySelector('[name=goal]').value='Inspect fixture';document.querySelector('[name=scope]').value='Local fixture';document.querySelector('[name=tools]').checked=true;document.getElementById('assessment-create-form').requestSubmit()`);
     await waitFor("document.querySelector('#assessment-detail h2')?.textContent==='Created in browser'");
+    assert.ok((await evaluate('location.hash')).startsWith('#assessments?task=created-'), 'created task deep link missing');
     await click('[data-assessment-action=start]'); await waitFor("document.querySelector('#assessment-detail .assessment-status')?.dataset.status==='awaiting_approval'");
     await click('[data-tab=plan]'); await waitFor("!!document.querySelector('[data-assessment-action=approve]')"); await click('[data-assessment-action=approve]'); await waitFor("document.querySelector('#assessment-detail .assessment-status')?.dataset.status==='completed'");
     await click('[data-id=fixture-assessment]'); await waitFor("document.querySelector('#assessment-detail h2')?.textContent==='本地测评 · 浏览器验证'");

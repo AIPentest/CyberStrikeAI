@@ -66,7 +66,19 @@ func (h *AssessmentHandler) Options(c *gin.Context) {
 	for _, tool := range tools {
 		safe = append(safe, gin.H{"name": tool.Function.Name, "description": tool.Function.Description})
 	}
-	c.JSON(200, gin.H{"models": options, "tools": safe})
+	projects := []gin.H{}
+	session, _ := security.CurrentSession(c)
+	if security.SessionHasPermission(c, "project:read") {
+		list, err := h.DB.ListProjectsForAccess("active", "", 500, 0, session.UserID, session.ScopeFor("project:read"))
+		if err != nil {
+			h.fail(c, err)
+			return
+		}
+		for _, p := range list {
+			projects = append(projects, gin.H{"id": p.ID, "name": p.Name})
+		}
+	}
+	c.JSON(200, gin.H{"models": options, "tools": safe, "projects": projects})
 }
 func allAssessmentToolNames(h *AssessmentHandler) []string {
 	if r, ok := h.Engine.Runtime.(*assessment.CSAIRuntime); ok && r.Agent != nil {
