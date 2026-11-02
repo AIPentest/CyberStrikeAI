@@ -113,26 +113,97 @@
         } catch (err) { if (version === epoch) message(err.message, true); }
         finally { loading = false; }
     }
+    let createDialogLoading = false;
     async function createDialog() {
-        options = await api('/options');
-        const prior = document.getElementById('assessment-create'); if (prior) prior.remove();
-        const dialog = document.createElement('dialog'); dialog.id = 'assessment-create'; dialog.className = 'assessment-dialog';
-        const field = (name, type, value, extra) => '<label class="assessment-field">' + esc(tr(name)) + '<input name="' + name + '" type="' + type + '" value="' + esc(value || '') + '" ' + (extra || '') + '></label>';
-        dialog.innerHTML = '<form id="assessment-create-form"><h2>' + esc(tr('new')) + '</h2>' + field('name', 'text', '', 'required maxlength="200"') +
-            ['goal', 'scope', 'material', 'criteria'].map(name => '<label class="assessment-field">' + esc(tr(name)) + '<textarea name="' + name + '" rows="3" maxlength="' + (name === 'material' ? '24000' : '12000') + '"' + (!['material','criteria'].includes(name) ? ' required' : '') + '></textarea></label>').join('') +
-            '<div class="assessment-form-grid">' + '<label class="assessment-field">' + esc(tr('project')) + '<select name="project_id"><option value="">' + esc(tr('none')) + '</option>' + (options.projects || []).map(p => '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>').join('') + '</select></label>' + '<label class="assessment-field">' + esc(tr('model')) + '<select name="model">' + options.models.map(m => '<option value="' + esc(m.id) + '"' + (m.default ? ' selected' : '') + '>' + esc((m.name || m.id || tr('default')) + ' · ' + m.model) + '</option>').join('') + '</select></label>' +
-            '<label class="assessment-field">' + esc(tr('approvalMode')) + '<select name="approval_mode"><option value="policy">' + esc(tr('approvalPolicy')) + '</option><option value="manual">' + esc(tr('approvalManual')) + '</option></select></label>' + field('concurrency', 'number', 2, 'min="1" max="4" required') + field('token_budget', 'number', 200000, 'min="4000" max="10000000" required') + field('duration', 'number', 120, 'min="1" max="1440" required') + field('max_rounds', 'number', 12, 'min="1" max="50" required') + '</div>' +
-            '<details><summary>' + esc(tr('specialists')) + '</summary><label class="assessment-field">'+esc(tr('reviewModel'))+'<select name="reviewer_model"><option value="">'+esc(tr('inheritModel'))+'</option>'+options.models.map(m=>'<option value="'+esc(m.id)+'">'+esc(m.name||m.id)+'</option>').join('')+'</select></label>' + ['general','recon','auth','validation','verification'].map(p=>'<label class="assessment-field">'+esc(tr('profiles.'+p))+'<select name="worker_model_'+p+'"><option value="">'+esc(tr('inheritModel'))+'</option>'+options.models.map(m=>'<option value="'+esc(m.id)+'">'+esc(m.name||m.id)+'</option>').join('')+'</select></label>').join('') + '<label class="assessment-field">'+esc(tr('selectedSkills'))+'<select name="skill_ids" multiple size="4">'+(options.skills||[]).map(id=>'<option value="'+esc(id)+'">'+esc(id)+'</option>').join('')+'</select></label></details>' +
-            '<fieldset><legend>' + esc(tr('tools')) + '</legend><p>' + esc(tr('toolsHint')) + '</p><div class="assessment-tool-picker">' + options.tools.map(tool => '<label><input type="checkbox" name="tools" value="' + esc(tool.name) + '"><span><strong>' + esc(tool.name) + '</strong><small>' + esc(tool.description) + '</small></span></label>').join('') + '</div></fieldset><p id="assessment-create-error" role="alert"></p><div class="assessment-actions"><button type="button" class="btn-secondary" data-assessment-action="cancel-create">' + esc(tr('cancel')) + '</button><button class="btn-primary" type="submit">' + esc(tr('createDraft')) + '</button></div></form>';
-        document.body.appendChild(dialog); dialog.addEventListener('click', onClick);
-        dialog.querySelector('form').addEventListener('submit', async ev => {
-            ev.preventDefault(); const submit = dialog.querySelector('[type=submit]'); submit.disabled = true;
-            const data = new FormData(ev.target), body = Object.fromEntries(data.entries());
-            body.tools = data.getAll('tools'); body.criteria=String(data.get('criteria')||'').split(/\n/).map(s=>s.trim()).filter(Boolean); body.skill_ids=data.getAll('skill_ids'); body.worker_models={}; ['general','recon','auth','validation','verification'].forEach(p=>{const key='worker_model_'+p; if(data.get(key)) body.worker_models[p]=data.get(key); delete body[key];}); ['concurrency', 'token_budget', 'max_rounds'].forEach(key => body[key] = Number(body[key])); body.remaining_seconds = Number(body.duration) * 60; delete body.duration;
-            try { const created = await api('', 'POST', body); selected = created.assessment.id; history.replaceState(null, '', '#assessments?task=' + encodeURIComponent(selected)); events = []; after = 0; task = created.assessment; dialog.close(); dialog.remove(); tab = 'overview'; await refresh(true); }
-            catch (err) { dialog.querySelector('#assessment-create-error').textContent = err.message; submit.disabled = false; }
-        });
-        dialog.showModal();
+        if (createDialogLoading || document.getElementById('assessment-create')?.open) return;
+        createDialogLoading = true;
+        const version = epoch;
+        try {
+            options = await api('/options');
+            if (version !== epoch || !root()) return;
+            const prior = document.getElementById('assessment-create');
+            if (prior) prior.remove();
+            const dialog = document.createElement('dialog');
+            dialog.id = 'assessment-create';
+            dialog.className = 'assessment-dialog assessment-create-dialog';
+            dialog.setAttribute('aria-labelledby', 'assessment-create-title');
+            dialog.setAttribute('aria-describedby', 'assessment-create-intro');
+            const required = '<span class="assessment-required" aria-hidden="true">*</span>';
+            const field = (name, type, value, extra) => '<label class="assessment-field"><span>' + esc(tr(name === 'concurrency' ? 'concurrencyShort' : name)) + '</span><input name="' + name + '" type="' + type + '" value="' + esc(value ?? '') + '" ' + (extra || '') + '></label>';
+            const textarea = (name, rows, mandatory, placeholder) => '<label class="assessment-field"><span>' + esc(tr(name)) + (mandatory ? required : '') + '</span><textarea name="' + name + '" rows="' + rows + '" maxlength="' + (name === 'material' ? '24000' : '12000') + '" placeholder="' + esc(tr(placeholder)) + '"' + (mandatory ? ' required' : '') + '></textarea></label>';
+            const modelOptions = (inherit) => (inherit ? '<option value="">' + esc(tr('inheritModel')) + '</option>' : '') + options.models.map(m => '<option value="' + esc(m.id) + '"' + (!inherit && m.default ? ' selected' : '') + '>' + esc((m.name || m.id || tr('default')) + (m.model ? ' · ' + m.model : '')) + '</option>').join('');
+            const closeIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+            dialog.innerHTML = '<form id="assessment-create-form">' +
+                '<header class="assessment-dialog-header"><div><h2 id="assessment-create-title">' + esc(tr('new')) + '</h2><p id="assessment-create-intro">' + esc(tr('createIntro')) + '</p></div><button type="button" class="assessment-icon-button" data-assessment-action="cancel-create" aria-label="' + esc(tr('cancel')) + '">' + closeIcon + '</button></header>' +
+                '<div class="assessment-create-scroll"><div class="assessment-create-grid"><div class="assessment-create-main">' +
+                '<section class="assessment-create-section"><h3>' + esc(tr('taskBasics')) + '</h3><div class="assessment-form-grid">' +
+                '<label class="assessment-field"><span>' + esc(tr('name')) + required + '</span><input name="name" type="text" required maxlength="200" placeholder="' + esc(tr('namePlaceholder')) + '" autofocus></label>' +
+                '<label class="assessment-field"><span>' + esc(tr('project')) + '<small>' + esc(tr('optional')) + '</small></span><select name="project_id"><option value="">' + esc(tr('noProject')) + '</option>' + (options.projects || []).map(p => '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>').join('') + '</select></label></div>' +
+                textarea('goal', 3, true, 'goalPlaceholder') + textarea('scope', 3, true, 'scopePlaceholder') +
+                '<details class="assessment-disclosure"><summary>' + esc(tr('materialsAndCriteria')) + '<span>' + esc(tr('optional')) + '</span></summary><div class="assessment-disclosure-body">' + textarea('material', 2, false, 'materialPlaceholder') + textarea('criteria', 2, false, 'criteriaPlaceholder') + '</div></details></section>' +
+                '<section class="assessment-create-section"><div class="assessment-section-heading"><h3>' + esc(tr('tools')) + required + '</h3><span id="assessment-tools-count" class="assessment-selection-count" role="status"></span></div>' +
+                '<div class="assessment-tool-toolbar"><input type="search" id="assessment-tools-search" placeholder="' + esc(tr('searchTools')) + '" aria-label="' + esc(tr('searchTools')) + '"><button type="button" class="btn-secondary btn-small" data-tool-selection="visible">' + esc(tr('selectVisible')) + '</button><button type="button" class="assessment-text-button" data-tool-selection="clear">' + esc(tr('clearSelection')) + '</button></div>' +
+                '<div class="assessment-tool-picker">' + options.tools.map(tool => '<label class="assessment-tool-option" data-tool-search="' + esc((tool.name + ' ' + tool.description).toLowerCase()) + '"><input type="checkbox" name="tools" value="' + esc(tool.name) + '"><span><strong>' + esc(tool.name) + '</strong><small title="' + esc(tool.description) + '">' + esc(tool.description) + '</small></span></label>').join('') + '<p id="assessment-tools-empty" class="assessment-inline-hint" hidden>' + esc(tr('noMatchingTools')) + '</p></div><p class="assessment-inline-hint">' + esc(tr('selectionHint')) + '</p></section></div>' +
+                '<aside class="assessment-runtime-panel"><h3>' + esc(tr('runSettings')) + '</h3><label class="assessment-field"><span>' + esc(tr('model')) + '</span><select name="model">' + modelOptions(false) + '</select></label>' +
+                '<label class="assessment-field"><span>' + esc(tr('approvalMode')) + '</span><select name="approval_mode"><option value="policy">' + esc(tr('approvalPolicyShort')) + '</option><option value="manual">' + esc(tr('approvalManualShort')) + '</option></select></label>' +
+                '<p class="assessment-inline-hint">' + esc(tr('approvalPolicyHint')) + '</p><div class="assessment-form-grid">' + field('concurrency', 'number', 2, 'min="1" max="4" required') + field('runMinutes', 'number', 120, 'min="1" max="1440" required') + field('token_budget', 'number', 200000, 'min="4000" max="10000000" required') + field('max_rounds', 'number', 12, 'min="1" max="50" required') + '</div><p class="assessment-inline-hint">' + esc(tr('runtimeBudgetHint')) + '</p>' +
+                '<details class="assessment-disclosure"><summary>' + esc(tr('advancedSettings')) + '</summary><div class="assessment-disclosure-body"><label class="assessment-field"><span>' + esc(tr('reviewModel')) + '</span><select name="reviewer_model">' + modelOptions(true) + '</select></label>' +
+                ['general', 'recon', 'auth', 'validation', 'verification'].map(p => '<label class="assessment-field"><span>' + esc(tr('profiles.' + p)) + '</span><select name="worker_model_' + p + '">' + modelOptions(true) + '</select></label>').join('') +
+                '<label class="assessment-field"><span>' + esc(tr('selectedSkills')) + '</span><select name="skill_ids" multiple size="4">' + (options.skills || []).map(id => '<option value="' + esc(id) + '">' + esc(id) + '</option>').join('') + '</select></label>' + (!(options.skills || []).length ? '<p class="assessment-inline-hint">' + esc(tr('noSkillsAvailable')) + '</p>' : '') + '</div></details></aside></div></div>' +
+                '<footer class="assessment-dialog-footer"><div class="assessment-footer-copy"><p id="assessment-create-error" role="alert"></p><p>' + esc(tr('draftHint')) + '</p></div><div class="assessment-actions"><button type="button" class="btn-secondary" data-assessment-action="cancel-create">' + esc(tr('cancel')) + '</button><button class="btn-primary" type="submit">' + esc(tr('createDraft')) + '</button></div></footer></form>';
+            document.body.appendChild(dialog);
+            dialog.addEventListener('close', () => dialog.remove());
+            dialog.addEventListener('click', onClick);
+            const checkboxes = () => [...dialog.querySelectorAll('input[name=tools]')];
+            const updateSelection = () => {
+                const boxes = checkboxes(), count = boxes.filter(b => b.checked).length;
+                dialog.querySelector('#assessment-tools-count').textContent = tr('selectedTools') + ' ' + count + ' / 100';
+                boxes.forEach(b => b.closest('label').classList.toggle('selected', b.checked));
+                const visible = boxes.filter(b => !b.closest('label').hidden);
+                dialog.querySelector('[data-tool-selection=visible]').disabled = !visible.length || count + visible.filter(b => !b.checked).length > 100;
+                dialog.querySelector('#assessment-tools-empty').hidden = visible.length > 0;
+            };
+            dialog.querySelector('#assessment-tools-search').addEventListener('input', ev => {
+                const query = ev.target.value.trim().toLowerCase();
+                dialog.querySelectorAll('.assessment-tool-option').forEach(row => { row.hidden = !row.dataset.toolSearch.includes(query); });
+                updateSelection();
+            });
+            dialog.addEventListener('change', ev => {
+                if (ev.target.name !== 'tools') return;
+                if (checkboxes().filter(b => b.checked).length > 100) { ev.target.checked = false; dialog.querySelector('#assessment-create-error').textContent = tr('toolLimit'); }
+                updateSelection();
+            });
+            dialog.querySelectorAll('[data-tool-selection]').forEach(btn => btn.addEventListener('click', () => {
+                checkboxes().forEach(b => { if (btn.dataset.toolSelection === 'clear') b.checked = false; else if (!b.closest('label').hidden) b.checked = true; });
+                updateSelection();
+            }));
+            dialog.querySelector('form').addEventListener('submit', async ev => {
+                ev.preventDefault();
+                const submit = dialog.querySelector('[type=submit]'), error = dialog.querySelector('#assessment-create-error');
+                error.textContent = '';
+                const data = new FormData(ev.target), body = Object.fromEntries(data.entries());
+                body.tools = data.getAll('tools');
+                if (!body.tools.length || body.tools.length > 100) { error.textContent = tr('chooseTools'); dialog.querySelector('#assessment-tools-search').focus(); return; }
+                body.criteria = String(data.get('criteria') || '').split(/\n/).map(s => s.trim()).filter(Boolean);
+                body.skill_ids = data.getAll('skill_ids');
+                body.worker_models = {};
+                ['general', 'recon', 'auth', 'validation', 'verification'].forEach(p => { const key = 'worker_model_' + p; if (data.get(key)) body.worker_models[p] = data.get(key); delete body[key]; });
+                ['concurrency', 'token_budget', 'max_rounds'].forEach(key => body[key] = Number(body[key]));
+                body.remaining_seconds = Number(body.runMinutes) * 60;
+                delete body.runMinutes;
+                submit.disabled = true;
+                try {
+                    const created = await api('', 'POST', body);
+                    selected = created.assessment.id;
+                    history.replaceState(null, '', '#assessments?task=' + encodeURIComponent(selected));
+                    events = []; after = 0; task = created.assessment; tab = 'overview';
+                    dialog.close();
+                    await refresh(true);
+                } catch (err) { error.textContent = err.message; submit.disabled = false; }
+            });
+            updateSelection();
+            dialog.showModal();
+        } finally { createDialogLoading = false; }
     }
     function budgetDialog() {
         if (!task || !can('assessment:write')) return;
@@ -147,7 +218,7 @@
             if (action === 'select') { epoch++; selected = target.dataset.id; history.replaceState(null, '', '#assessments?task=' + encodeURIComponent(selected)); task = null; events = []; after = 0; delete root().dataset.updated; detail(); await refresh(true); return; }
             if (action === 'tab') { tab = target.dataset.tab; detail(); return; }
             if (action === 'refresh') { await refresh(true); return; }
-            if (action === 'new') { await createDialog(); return; }
+            if (action === 'new') { const label=target.textContent; target.disabled=true;target.textContent=tr('loadingOptions');try{await createDialog();}finally{target.textContent=label;target.disabled=false;}return; }
             if (action === 'cancel-budget') { document.getElementById('assessment-budget').remove(); return; }
             if (action === 'budget') { budgetDialog(); return; }
             if (action === 'cancel-create') { document.getElementById('assessment-create').close(); return; }

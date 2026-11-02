@@ -274,3 +274,245 @@ html[data-theme=dark] #assessment-graph {
         height:360px;
     }
 }
+
+/* Explicit centering is required: the global reset removes dialog's UA margin. */
+.assessment-dialog {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(680px, calc(100vw - 32px));
+    max-width: none;
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    box-shadow: 0 24px 80px rgba(15, 23, 42, .24);
+}
+.assessment-dialog::backdrop {
+    background: rgba(15, 23, 42, .42);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+}
+.assessment-create-dialog {
+    width: min(1020px, calc(100vw - 48px));
+    padding: 0;
+    overflow: hidden;
+    border-radius: 18px;
+}
+.assessment-create-dialog[open] { display: flex; }
+#assessment-create-form {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    height: min(800px, calc(100vh - 48px));
+    height: min(800px, calc(100dvh - 48px));
+    overflow: hidden;
+}
+.assessment-dialog-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 24px 28px 20px;
+    border-bottom: 1px solid var(--border-color);
+    flex: 0 0 auto;
+}
+.assessment-dialog-header h2 {
+    margin: 0;
+    font-size: 22px;
+    line-height: 1.35;
+    font-weight: 650;
+    letter-spacing: -.3px;
+}
+.assessment-dialog-header p {
+    margin: 7px 0 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+}
+.assessment-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.assessment-icon-button:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.assessment-create-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 24px 28px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+.assessment-create-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 290px;
+    align-items: start;
+    gap: 28px;
+}
+.assessment-create-main, .assessment-runtime-panel { min-width: 0; }
+.assessment-create-section + .assessment-create-section { margin-top: 24px; }
+.assessment-create-dialog h3 {
+    margin: 0 0 14px;
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 650;
+    color: var(--text-primary);
+}
+.assessment-create-dialog .assessment-field {
+    margin: 0 0 16px;
+    gap: 7px;
+    min-width: 0;
+    font-size: 13px;
+}
+.assessment-create-dialog .assessment-field > span { line-height: 1.5; font-weight: 500; }
+.assessment-create-dialog .assessment-field small {
+    margin-left: 7px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 400;
+}
+.assessment-required { color: var(--accent-color); margin-left: 4px; }
+.assessment-create-dialog .assessment-field input,
+.assessment-create-dialog .assessment-field textarea,
+.assessment-create-dialog .assessment-field select,
+.assessment-tool-toolbar input {
+    min-height: 40px;
+    padding: 9px 11px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+.assessment-create-dialog input::placeholder,
+.assessment-create-dialog textarea::placeholder { color: var(--text-secondary); opacity: .65; }
+.assessment-create-dialog .assessment-field textarea { resize: vertical; min-height: 76px; max-height: 220px; }
+.assessment-create-dialog .assessment-field input:focus,
+.assessment-create-dialog .assessment-field textarea:focus,
+.assessment-create-dialog .assessment-field select:focus,
+.assessment-tool-toolbar input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(0, 102, 255, .10);
+}
+.assessment-create-dialog .assessment-field select:not([multiple]) {
+    -webkit-appearance: none;
+    appearance: none;
+    padding-right: 32px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%236c757d' stroke-width='1.5'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 9px center;
+    background-size: 16px;
+    text-overflow: ellipsis;
+}
+.assessment-create-dialog .assessment-form-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 14px; }
+.assessment-runtime-panel {
+    padding: 18px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-secondary);
+}
+.assessment-runtime-panel .assessment-form-grid .assessment-field > span { min-height: 36px; display: flex; align-items: flex-end; }
+.assessment-inline-hint {
+    margin: 8px 0 14px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+.assessment-disclosure {
+    border-top: 1px solid var(--border-color);
+    padding-top: 13px;
+}
+.assessment-disclosure > summary {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 3px 0;
+}
+.assessment-disclosure > summary > span { font-size: 11px; font-weight: 400; margin-left: 8px; }
+.assessment-disclosure[open] > summary { color: var(--text-primary); }
+.assessment-disclosure-body { margin-top: 14px; }
+.assessment-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.assessment-section-heading h3 { margin-bottom: 0; }
+.assessment-selection-count { color: var(--accent-color); font-size: 12px; white-space: nowrap; }
+.assessment-tool-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.assessment-tool-toolbar input { min-width: 0; width: 0; flex: 1; }
+.assessment-text-button { padding: 6px 2px; border: 0; background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer; white-space: nowrap; }
+.assessment-text-button:hover { color: var(--accent-color); }
+.assessment-create-dialog .assessment-tool-picker { max-height: 240px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-primary); }
+.assessment-create-dialog .assessment-tool-option { padding: 11px 12px; gap: 10px; cursor: pointer; }
+.assessment-tool-option[hidden] { display: none; }
+.assessment-tool-option:last-of-type { border-bottom: 0; }
+.assessment-tool-option:hover, .assessment-tool-option.selected { background: rgba(0, 102, 255, .045); }
+.assessment-create-dialog .assessment-tool-option input { flex: 0 0 16px; width: 16px; height: 16px; margin-top: 3px; accent-color: var(--accent-color); }
+.assessment-tool-option > span { min-width: 0; }
+.assessment-tool-option strong { display: block; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+.assessment-tool-option small { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin-top: 3px; }
+#assessment-tools-empty { padding: 14px; margin: 0; }
+.assessment-dialog-footer {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+    padding: 16px 28px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-primary);
+}
+.assessment-footer-copy { min-width: 0; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+#assessment-create-error:empty { display: none; }
+.assessment-dialog-footer .assessment-actions { flex-wrap: nowrap; flex-shrink: 0; }
+.assessment-dialog-footer button { min-height: 40px; padding: 9px 18px; border-radius: 8px; font-size: 13px; }
+.assessment-create-dialog button:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 3px; }
+@media (max-width: 760px) {
+    .assessment-create-dialog { width: calc(100vw - 24px); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); border-radius: 14px; }
+    #assessment-create-form { height: calc(100vh - 24px); height: calc(100dvh - 24px); }
+    .assessment-dialog-header { padding: 18px 18px 15px; gap: 12px; }
+    .assessment-dialog-header h2 { font-size: 20px; }
+    .assessment-create-scroll { padding: 18px; }
+    .assessment-create-grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+    .assessment-dialog-footer { padding: 13px 18px; gap: 10px; }
+    .assessment-footer-copy > p:last-child { display: none; }
+    .assessment-dialog-footer .assessment-actions { margin-left: auto; }
+    .assessment-tool-toolbar { flex-wrap: wrap; }
+    .assessment-tool-toolbar input { flex-basis: 100%; width: 100%; }
+}
+@media (max-width: 420px) {
+    .assessment-create-main > .assessment-create-section > .assessment-form-grid { grid-template-columns: minmax(0, 1fr); }
+}
+.assessment-create-dialog .btn-secondary {
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+.assessment-create-dialog .btn-secondary:hover { background: var(--bg-tertiary); }
+.assessment-create-dialog .btn-secondary:disabled { opacity: .45; cursor: not-allowed; }
+html[data-theme="dark"] .assessment-create-dialog .assessment-field input,
+html[data-theme="dark"] .assessment-create-dialog .assessment-field textarea,
+html[data-theme="dark"] .assessment-create-dialog .assessment-field select,
+html[data-theme="dark"] .assessment-create-dialog .assessment-tool-toolbar input {
+    border-color: var(--border-color);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+html[data-theme="dark"] .assessment-create-dialog input::placeholder,
+html[data-theme="dark"] .assessment-create-dialog textarea::placeholder { color: var(--text-secondary); opacity: .78; }
+html[data-theme="dark"] .assessment-create-dialog .btn-secondary {
+    background: var(--bg-primary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+html[data-theme="dark"] .assessment-create-dialog .btn-secondary:hover { background: var(--bg-tertiary); }

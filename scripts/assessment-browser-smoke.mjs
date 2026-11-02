@@ -103,6 +103,20 @@ try {
     await click('[data-assessment-action=fact]'); await waitFor("document.getElementById('assessment-message').textContent.includes('已保存')");
     await click('[data-tab=logs]'); assert.equal(await evaluate('window.XSS || 0'), 0, 'untrusted log rendered as HTML');
     await click('[data-assessment-action=new]'); await waitFor("document.getElementById('assessment-create')?.open"); assert.equal(await evaluate("document.querySelector('[name=project_id] option:last-child').textContent"), '本地测试项目');
+    const dialogLayout = await evaluate("(()=>{const d=document.getElementById('assessment-create').getBoundingClientRect(), f=document.querySelector('#assessment-create .assessment-dialog-footer').getBoundingClientRect();return {left:d.left,right:d.right,top:d.top,bottom:d.bottom,footer:f.bottom,width:innerWidth,height:innerHeight}})()");
+    assert.ok(Math.abs(dialogLayout.left - (dialogLayout.width - dialogLayout.right)) < 3, 'create dialog is not horizontally centered');
+    assert.ok(dialogLayout.top >= 12 && dialogLayout.bottom <= dialogLayout.height - 12 && dialogLayout.footer <= dialogLayout.bottom, 'create dialog/footer escapes viewport');
+    await screenshot('desktop-create');
+    await evaluate("document.documentElement.dataset.theme='dark'"); await delay(300); await screenshot('desktop-dark-create'); await evaluate("document.documentElement.dataset.theme='light'");
+    await evaluate("document.getElementById('assessment-tools-search').value='no-match-fixture';document.getElementById('assessment-tools-search').dispatchEvent(new Event('input'))");
+    assert.equal(await evaluate("document.getElementById('assessment-tools-empty').hidden"), false);
+    await evaluate("document.getElementById('assessment-tools-search').value='inspect';document.getElementById('assessment-tools-search').dispatchEvent(new Event('input'))");
+    await click('[data-tool-selection=visible]');
+    assert.ok(await evaluate("document.getElementById('assessment-tools-count').textContent.includes('1 / 100')"));
+    await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    await screenshot('mobile-create');
+    assert.ok(await evaluate("(()=>{const d=document.getElementById('assessment-create'),r=d.getBoundingClientRect(),f=d.querySelector('.assessment-dialog-footer').getBoundingClientRect();return r.left>=8&&r.right<=innerWidth-8&&f.bottom<=innerHeight-8&&d.scrollWidth<=d.clientWidth+1})()"), 'mobile create dialog overflows or hides footer');
+    await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
     await evaluate(`document.querySelector('[name=name]').value='Created in browser';document.querySelector('[name=goal]').value='Inspect fixture';document.querySelector('[name=scope]').value='Local fixture';document.querySelector('[name=criteria]').value='Record a fixture response';document.querySelector('[name=tools]').checked=true;document.getElementById('assessment-create-form').requestSubmit()`);
     await waitFor("document.querySelector('#assessment-detail h2')?.textContent==='Created in browser'");
     assert.ok((await evaluate('location.hash')).startsWith('#assessments?task=created-'), 'created task deep link missing');
@@ -119,7 +133,7 @@ try {
     assert.equal(unauthorizedRequests,0,'a logged-in workbench request omitted its Bearer token');
     for(const route of ['/api/assessments','/api/assessments/options','/api/assessments/fixture-assessment/report','/api/assessments/fixture-assessment/metrics']) assert.ok(authenticatedPaths.has(route),'missing authenticated request: '+route);
     await evaluate('cleanupAssessmentsPage()');
-    console.log(JSON.stringify({ ok: true, screenshots: out, checks: ['real auth.js login and Bearer propagation', 'authenticated create/options/control/downloads', 'task selection', 'poll preserves draft', 'graph', 'candidate publishing controls', 'XSS escaping', 'create', 'start', 'approval', 'completion', 'mobile overflow'] }, null, 2));
+    console.log(JSON.stringify({ ok: true, screenshots: out, checks: ['real auth.js login and Bearer propagation', 'authenticated create/options/control/downloads', 'task selection', 'poll preserves draft', 'graph', 'candidate publishing controls', 'XSS escaping', 'create', 'start', 'approval', 'completion', 'mobile overflow', 'centered create modal and visible footer', 'tool search and bulk selection', 'desktop/dark/mobile create layout'] }, null, 2));
 } finally {
     if (socket) socket.close(); chrome.kill(); server.close();
 }
