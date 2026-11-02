@@ -39,7 +39,7 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="/static/css/style.css?v=20261027-pagination-custom-select">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261029-hierarchy-1">
     <link rel="stylesheet" href="/static/css/tool-guard.css?v=20260907-7">
     <link rel="stylesheet" href="/static/css/chat-plan-progress.css?v=20260813-4">
     <link rel="stylesheet" href="/static/css/c2.css">
@@ -1962,6 +1962,21 @@
                         </div>
                     </div>
                     <div class="page-content asset-content">
+                        <!-- 资产层级顺序 tab：公司 → 主域名 → 子域名 → IP → 端口 → 站点 → 指纹 → 占位类型 → 全部资产 → 层级 -->
+                        <div class="asset-type-tabs" role="tablist" data-i18n="assets.type.tabsLabel" data-i18n-attr="aria-label" aria-label="资产类型">
+                            <button id="asset-tab-company" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="company" onclick="assetTableSwitch('company')"><span data-i18n="assets.company.tabName">公司</span><span id="company-tab-badge" class="asset-type-tab-badge" hidden></span></button>
+                            <button id="asset-tab-domain" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="domain" onclick="assetTableSwitch('domain')" data-i18n="assets.type.tab.domain">主域名</button>
+                            <button id="asset-tab-subdomain" class="asset-type-tab is-active" type="button" role="tab" aria-selected="true" data-asset-type-tab="subdomain" onclick="assetTableSwitch('subdomain')" data-i18n="assets.type.tab.subdomain">子域名</button>
+                            <button id="asset-tab-ip" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="ip" onclick="assetTableSwitch('ip')" data-i18n="assets.type.tab.ip">IP</button>
+                            <button id="asset-tab-service" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="service" onclick="assetTableSwitch('service')" data-i18n="assets.type.tab.port">端口</button>
+                            <button id="asset-tab-site" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="site" onclick="assetTableSwitch('site')" data-i18n="assets.type.tab.site">站点</button>
+                            <button id="asset-tab-fingerprint" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="fingerprint" onclick="assetTableSwitch('fingerprint')" data-i18n="assets.type.tab.fingerprint">指纹</button>
+                            <button id="asset-tab-ssl" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="ssl" onclick="assetTableSwitch('ssl')" data-i18n="assets.type.tab.ssl">SSL证书</button>
+                            <button id="asset-tab-fileleak" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="fileleak" onclick="assetTableSwitch('fileleak')" data-i18n="assets.type.tab.fileleak">文件泄露</button>
+                            <button id="asset-tab-urlinfo" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="urlinfo" onclick="assetTableSwitch('urlinfo')" data-i18n="assets.type.tab.urlinfo">URL信息</button>
+                            <button id="asset-tab-all" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="all" onclick="assetTableSwitch('all')" data-i18n="assets.type.tab.all">全部资产</button>
+                            <button id="asset-tab-tree" class="asset-type-tab" type="button" role="tab" aria-selected="false" data-asset-type-tab="tree" onclick="assetTableSwitch('tree')" data-i18n="assets.type.tab.tree">层级</button>
+                        </div>
                         <div class="asset-toolbar">
                             <div class="asset-toolbar-main">
                                 <input id="asset-search" type="search" data-i18n="assets.searchPlaceholder" data-i18n-attr="placeholder" placeholder="搜索主机、IP、域名、标题、服务、责任人或标签" onkeydown="if(event.key==='Enter')loadAssets(1)">
@@ -2035,6 +2050,112 @@
                                 </table>
                             </div>
                             <div id="asset-pagination" class="pagination-container pagination-fixed"></div>
+                        </div>
+                        <!-- 按资产类型的扁平表格：由 assets-table.js 渲染筛选行、表头、表体与分页 -->
+                        <div id="asset-table-view" class="asset-table-view" hidden>
+                            <div class="asset-type-filters">
+                                <input id="asset-type-search" type="search" autocomplete="off" spellcheck="false" data-i18n="assets.type.searchPlaceholder" data-i18n-attr="placeholder" placeholder="关键字：域名 / IP / 标题">
+                                <input id="asset-type-source" class="asset-type-source-input" type="text" autocomplete="off" spellcheck="false" data-i18n="assets.type.sourcePlaceholder" data-i18n-attr="placeholder" placeholder="来源，如 tool:httpx">
+                                <select id="asset-type-record-filter" data-i18n="assets.type.recordType" data-i18n-attr="aria-label" aria-label="解析类型">
+                                    <option value="" data-i18n="assets.type.recordTypeAll">全部</option>
+                                    <option value="A">A</option>
+                                    <option value="CNAME">CNAME</option>
+                                </select>
+                                <!-- 仅站点 tab 显示：前端过滤当前页无截图资产 -->
+                                <label id="asset-type-no-shot-wrap" class="asset-type-no-shot" hidden>
+                                    <input id="asset-type-no-shot-filter" type="checkbox">
+                                    <span data-i18n="assets.type.onlyNoScreenshot">仅看无截图</span>
+                                </label>
+                                <button id="asset-type-add-btn" class="btn-secondary" type="button" hidden data-i18n="assets.add.button">添加</button>
+                                <button id="asset-type-search-btn" class="btn-primary" type="button" data-i18n="common.search">搜索</button>
+                                <button id="asset-type-reset-btn" class="btn-link" type="button" data-i18n="assets.type.reset">重置</button>
+                                <button id="asset-type-refresh-btn" class="btn-secondary" type="button" data-i18n="common.refresh">刷新</button>
+                            </div>
+                            <!-- 各层级「添加」内联表单（由 assets-table.js 按当前 tab 渲染） -->
+                            <div id="asset-type-add-panel" class="asset-type-add-panel" hidden></div>
+                            <div class="asset-type-card">
+                                <div class="asset-type-table-wrap">
+                                    <table class="asset-type-table">
+                                        <thead id="asset-type-table-head"></thead>
+                                        <tbody id="asset-type-table-body"></tbody>
+                                    </table>
+                                </div>
+                                <div id="asset-type-pagination" class="asset-type-pagination"></div>
+                            </div>
+                        </div>
+                        <!-- 尚未接入采集的资产类型（SSL证书 / 文件泄露 / URL信息）占位 -->
+                        <div id="asset-placeholder-view" class="asset-placeholder" hidden>
+                            <strong data-i18n="assets.type.notConnectedTitle">该类型采集尚未接入</strong>
+                            <span data-i18n="assets.type.notConnectedHint">接入后这里会展示对应的资产数据</span>
+                        </div>
+                        <!-- 公司 tab：公司列表 + 待归属主域名（由 assets-table.js 渲染） -->
+                        <div id="asset-company-view" class="asset-company-view" hidden>
+                            <div id="company-notice" class="asset-company-notice" role="status" hidden></div>
+
+                            <section class="asset-company-panel">
+                                <div class="asset-company-panel-head">
+                                    <div>
+                                        <h3 data-i18n="assets.company.createTitle">新增公司</h3>
+                                        <p class="asset-company-panel-hint" data-i18n="assets.company.createHint">公司名必填；主域名可留空，创建后可用「自动查找主域名」补全。</p>
+                                    </div>
+                                </div>
+                                <form id="company-create-form" class="asset-company-form" novalidate>
+                                    <label class="asset-company-field">
+                                        <span data-i18n="assets.company.name">公司名</span>
+                                        <input id="company-create-name" type="text" maxlength="200" autocomplete="off" data-i18n="assets.company.namePlaceholder" data-i18n-attr="placeholder" placeholder="请输入公司名">
+                                    </label>
+                                    <label class="asset-company-field">
+                                        <span data-i18n="assets.company.note">备注</span>
+                                        <input id="company-create-note" type="text" maxlength="500" autocomplete="off" data-i18n="assets.company.notePlaceholder" data-i18n-attr="placeholder" placeholder="可选备注">
+                                    </label>
+                                    <label class="asset-company-field asset-company-field--wide">
+                                        <span data-i18n="assets.company.domains">主域名</span>
+                                        <textarea id="company-create-domains" rows="2" data-i18n="assets.company.domainsPlaceholder" data-i18n-attr="placeholder" placeholder="逗号或换行分隔，可留空后自动查找"></textarea>
+                                    </label>
+                                    <div class="asset-company-form-actions asset-company-field--wide">
+                                        <button id="company-create-submit" class="btn-primary" type="submit" data-i18n="assets.company.createAction">新增公司</button>
+                                        <span id="company-create-error" class="asset-company-error" role="alert" hidden></span>
+                                    </div>
+                                </form>
+                            </section>
+
+                            <div id="company-status" class="asset-company-status" hidden></div>
+
+                            <section id="company-pending-section" class="asset-company-panel">
+                                <div class="asset-company-panel-head">
+                                    <div>
+                                        <h3><span data-i18n="assets.company.pendingTitle">待归属主域名</span> <span id="company-pending-count" class="asset-company-count">0</span></h3>
+                                        <p class="asset-company-panel-hint" data-i18n="assets.company.pendingHint">这些主域名由自动发现产生，确认归属后归入公司。</p>
+                                    </div>
+                                    <button id="company-refresh" class="btn-secondary" type="button" data-i18n="common.refresh">刷新</button>
+                                </div>
+                                <div id="company-pending-list" class="asset-company-pending-list"></div>
+                            </section>
+
+                            <section id="company-list-section" class="asset-company-panel">
+                                <div class="asset-company-panel-head">
+                                    <div><h3 data-i18n="assets.company.listTitle">公司列表</h3></div>
+                                </div>
+                                <div id="company-list" class="asset-company-list"></div>
+                            </section>
+                        </div>
+                        <!-- 资产层级树视图：由 assets-tree.js 渲染，默认隐藏，切到「层级」时显示 -->
+                        <div id="asset-tree-view" class="asset-tree-view" hidden>
+                            <div class="asset-tree-toolbar">
+                                <div class="asset-tree-search-wrap">
+                                    <input id="asset-tree-search" class="asset-tree-search" type="search" autocomplete="off" spellcheck="false" data-i18n="assets.tree.searchPlaceholder" data-i18n-attr="placeholder" placeholder="搜索项目、域名、IP、端口、服务或指纹">
+                                    <button id="asset-tree-search-clear" class="asset-tree-clear" type="button" hidden onclick="assetTreeClearSearch()" data-i18n="assets.tree.clearSearch" data-i18n-attr="aria-label" data-i18n-skip-text="true" aria-label="清除搜索">×</button>
+                                </div>
+                                <div class="asset-tree-actions">
+                                    <button class="btn-secondary" type="button" onclick="assetTreeExpandAll()" data-i18n="assets.tree.expandAll">展开全部</button>
+                                    <button class="btn-secondary" type="button" onclick="assetTreeCollapseAll()" data-i18n="assets.tree.collapseAll">折叠全部</button>
+                                    <button class="btn-secondary" type="button" onclick="loadAssetTree(true)" data-i18n="common.refresh">刷新</button>
+                                </div>
+                                <span id="asset-tree-meta" class="asset-tree-meta"></span>
+                            </div>
+                            <div class="asset-tree-card">
+                                <div id="asset-tree-root" class="asset-tree-root" role="tree" aria-multiselectable="false" data-i18n="assets.tree.rootLabel" data-i18n-attr="aria-label" data-i18n-skip-text="true" aria-label="资产层级树"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -7012,6 +7133,21 @@
         </div>
     </div>
 
+    <!-- 站点截图大图预览（assets-table.js 控制显隐；ESC / 点击遮罩关闭） -->
+    <div id="asset-shot-lightbox" class="asset-shot-lightbox" hidden role="dialog" aria-modal="true" data-i18n="assets.type.previewTitle" data-i18n-attr="aria-label" aria-label="截图预览">
+        <div class="asset-shot-lightbox-panel">
+            <div class="asset-shot-lightbox-head">
+                <strong data-i18n="assets.type.previewTitle">截图预览</strong>
+                <span id="asset-shot-lightbox-meta" class="asset-shot-lightbox-meta"></span>
+                <button id="asset-shot-lightbox-close" class="asset-shot-lightbox-close" type="button" data-i18n="common.close" data-i18n-attr="aria-label" data-i18n-skip-text="true" aria-label="关闭">×</button>
+            </div>
+            <div class="asset-shot-lightbox-body">
+                <img id="asset-shot-lightbox-img" alt="" hidden>
+                <span id="asset-shot-lightbox-loading" class="asset-shot-lightbox-loading" data-i18n="common.loading">加载中...</span>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/vendor/i18next.min.js"></script>
     <script src="/static/js/i18n.js"></script>
     <script src="/static/js/theme.js"></script>
@@ -7054,6 +7190,10 @@
     <script src="/static/js/rbac.js"></script>
     <script src="/static/js/c2.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/rbac-guards.js?v=20260907-1"></script>
+    <!-- 资产层级树视图：依赖 i18n.js / auth.js(apiFetch)，必须在 mobile-ui.js 之前 -->
+    <script src="/static/js/assets-tree.js?v=20261029-1"></script>
+    <!-- 资产类型 tab + 扁平表格：依赖 apiFetch / assets-tree.js，必须在 mobile-ui.js 之前 -->
+    <script src="/static/js/assets-table.js?v=20261029-5"></script>
     <!-- 移动端交互层：必须最后加载，它包装 window.switchPage 并注入移动端 DOM -->
     <script src="/static/js/mobile-ui.js?v=20261006-9"></script>
 </body>

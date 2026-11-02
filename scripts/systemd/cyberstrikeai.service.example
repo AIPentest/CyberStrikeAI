@@ -1,0 +1,22 @@
+[Unit]
+Description=CyberStrikeAI SecOps Platform
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# 主服务需要执行本地安全工具、绑定端口，通常以 root 运行。
+# 若改为普通用户，请确认：低端口绑定、本地工具执行、进程隔离相关能力都在该用户权限内。
+User=__RUN_USER__
+Group=__RUN_USER__
+WorkingDirectory=__REPO_DIR__
+Environment=HOME=__HOME_DIR__
+Environment=LANG=zh_CN.UTF-8
+# --https 使用内存自签证书；已有正式证书时改用配置里的 tls_cert_path/tls_key_path。
+ExecStart=__REPO_DIR__/cyberstrike-ai -config __REPO_DIR__/config.yaml --https
+Restart=always
+RestartSec=15
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

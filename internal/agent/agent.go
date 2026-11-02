@@ -35,6 +35,24 @@ type Agent struct {
 	toolNameMapping     map[string]string // 工具名称映射：OpenAI格式 -> 原始格式（用于外部MCP工具）
 	promptBaseDir       string            // 解析 system_prompt_path 时相对路径的基准目录（通常为 config.yaml 所在目录）
 	toolDescriptionMode string            // 工具描述模式: "short" | "full"，默认 short
+	// toolResultHook 在工具执行成功后被调用，供资产自动采集等旁路逻辑使用。
+	// 用回调而不是直接持有 *database.DB，是为了避免 agent 包反向依赖存储层。
+	toolResultHook ToolResultHook
+}
+
+// ToolResultHook 是「工具执行成功」后的旁路回调。
+// 典型用途：从第三方信息收集工具（subfinder/httpx/naabu/nmap）的原始输出里
+// 清洗出资产并落库，让模型不必逐条调用 create_asset。
+//
+// 约束：实现方必须不阻塞主流程、不 panic；调用点已用 recover 兜底，
+// 且回调耗时会计入单次工具调用的耗时。
+type ToolResultHook func(ctx context.Context, toolName string, args map[string]interface{}, output string)
+
+// SetToolResultHook 注册工具结果旁路回调（由装配层在创建 Agent 后注入）。
+func (a *Agent) SetToolResultHook(hook ToolResultHook) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.toolResultHook = hook
 }
 
 type agentConversationIDKey struct{}
@@ -613,6 +631,27 @@ func (a *Agent) executeToolViaMCP(ctx context.Context, toolName string, args map
 	}
 
 	resultStr := resultText.String()
+
+	// 旁路：把第三方信息收集工具的原始输出清洗成资产并落库。
+	// 只在工具成功且未出错时触发；任何异常都被隔离，绝不影响 Agent 主流程。
+	if result != nil && !result.IsError {
+		a.mu.RLock()
+		hook := a.toolResultHook
+		a.mu.RUnlock()
+		if hook != nil {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						a.logger.Error("工具结果旁路回调 panic（已忽略）",
+							zap.String("tool", toolName),
+							zap.Any("panic", r),
+						)
+					}
+				}()
+				hook(toolCtx, toolName, args, resultStr)
+			}()
+		}
+	}
 
 	return &ToolExecutionResult{
 		Result:      resultStr,

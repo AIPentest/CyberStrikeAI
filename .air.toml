@@ -1,0 +1,17 @@
+# CyberStrikeAI 开发用热重载配置（air）
+# 只服务 dev 实例（dev.yaml / 8081）；生产实例仍由 systemd 管在 8080，互不影响。
+root = "."
+tmp_dir = "tmp/air"
+
+[build]
+  cmd = "go build -o ./tmp/air/cyberstrike-dev ./cmd/server"
+  bin = "./tmp/air/run-dev.sh"
+  # go 改了要重编；tools/roles 等 yaml 改了要重启进程才会重新加载
+  include_ext = ["go", "yaml"]
+  exclude_dir = ["data", "data-dev", "log", "log-dev", "tmp", "venv", "reports", "web", "docs", ".git", "node_modules"]
+  exclude_regex = ["_test\\.go"]
+  delay = 800
+  stop_on_error = true
+
+[log]
+  time = true

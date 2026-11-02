@@ -2,8 +2,6 @@ package database
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -25,14 +23,7 @@ func TestParseDBTime_projectFactFormats(t *testing.T) {
 }
 
 func TestListProjectFacts_updatedAtJSON(t *testing.T) {
-	root, err := os.Getwd()
-	if err != nil {
-		t.Skip(err)
-	}
-	dbPath := filepath.Join(root, "..", "..", "data", "conversations.db")
-	if _, err := os.Stat(dbPath); err != nil {
-		t.Skip("conversations.db not found")
-	}
+	dbPath := copyRepoDBToTemp(t)
 	db, err := NewDB(dbPath, zap.NewNop())
 	if err != nil {
 		t.Fatal(err)

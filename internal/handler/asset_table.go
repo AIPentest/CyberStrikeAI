@@ -1,0 +1,678 @@
+package handler
+
+import (
+	"net"
+	"net/http"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"cyberstrike-ai/internal/database"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+)
+
+//
+// 与 /api/assets/tree（层级树）互补：树适合看归属关系，表格适合按类型检索。
+// 支持的类型：subdomain（子域名）、site（站点）、ip、service（服务）。
+
+type assetTablePortItem struct {
+	Port     int    `json:"port"`
+	Protocol string `json:"protocol"`
+	Service  string `json:"service"`
+}
+
+type assetTableRow struct {
+	Key         string               `json:"key"`
+	Host        string               `json:"host"`
+	Domain      string               `json:"domain"`
+	IP          string               `json:"ip"`
+	Port        int                  `json:"port"`
+	Protocol    string               `json:"protocol"`
+	Service     string               `json:"service"`
+	Version     string               `json:"version"`
+	RecordType  string               `json:"record_type"`
+	RecordValue string               `json:"record_value"`
+	IPs         []string             `json:"ips"`
+	Title       string               `json:"title"`
+	Server      string               `json:"server"`
+	Source      string               `json:"source"`
+	Sources     []string             `json:"sources"`
+	AssetCount  int                  `json:"asset_count"`
+	Ports       []assetTablePortItem `json:"ports,omitempty"`
+	// AssetID 仅站点行下发，供前端触发截图 / 加载缩略图。
+	AssetID string `json:"asset_id,omitempty"`
+	// Screenshot 仅站点行下发。
+	Screenshot *assetScreenshotInfo `json:"screenshot,omitempty"`
+	// AssetIDs 该行聚合到的资产 ID 列表（子域名/IP 行可能对应多条资产），
+	// 供前端批量排除与发起探测任务使用。
+	AssetIDs []string `json:"asset_ids,omitempty"`
+	// Technology/IsWeb 仅「指纹」行下发：技术名与其对应资产是否为 web 站点。
+	Technology string `json:"technology,omitempty"`
+	IsWeb      bool   `json:"is_web,omitempty"`
+	// Status/Note 供主域名等行展示归属状态与备注。
+	Status string `json:"status,omitempty"`
+	Note   string `json:"note,omitempty"`
+	// CompanyName 仅「主域名」行下发。
+	CompanyName string    `json:"company_name,omitempty"`
+	FirstSeenAt time.Time `json:"first_seen_at"`
+	LastSeenAt  time.Time `json:"last_seen_at"`
+}
+
+type assetTableResponse struct {
+	Type     string          `json:"type"`
+	Total    int             `json:"total"`
+	Page     int             `json:"page"`
+	PageSize int             `json:"page_size"`
+	Facets   map[string]int  `json:"facets"`
+	Rows     []assetTableRow `json:"rows"`
+}
+
+const (
+	assetTableDefaultPageSize = 50
+	assetTableMaxPageSize     = 200
+)
+
+// Table 返回按资产类型聚合的表格数据。
+func (h *AssetHandler) Table(c *gin.Context) {
+	tableType := strings.ToLower(strings.TrimSpace(c.DefaultQuery("type", "subdomain")))
+	switch tableType {
+	case "subdomain", "site", "ip", "service", "domain", "fingerprint":
+	default:
+		c.JSON(400, gin.H{"error": "type 仅支持 subdomain/site/ip/service"})
+		return
+	}
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", strconv.Itoa(assetTableDefaultPageSize)))
+	if err != nil || pageSize < 1 {
+		pageSize = assetTableDefaultPageSize
+	}
+	if pageSize > assetTableMaxPageSize {
+		pageSize = assetTableMaxPageSize
+	}
+	keyword := strings.ToLower(strings.TrimSpace(c.Query("q")))
+	sourceFilter := strings.TrimSpace(c.Query("source"))
+	recordTypeFilter := strings.ToUpper(strings.TrimSpace(c.Query("record_type")))
+
+	filter, err := assetListFilterFromQuery(c)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	assets := h.loadAssetsForView(filter, assetAccess(c))
+
+	hosts := make([]string, 0, len(assets))
+	ids := make([]string, 0, len(assets))
+	for _, asset := range assets {
+		if asset == nil {
+			continue
+		}
+		if host := strings.ToLower(strings.TrimSpace(asset.Host)); host != "" && net.ParseIP(host) == nil {
+			hosts = append(hosts, host)
+		}
+		ids = append(ids, asset.ID)
+	}
+	hostIPs, err := h.db.ListAssetHostIPs(hosts)
+	if err != nil {
+		h.logger.Warn("资产表格：查询域名解析关系失败，降级为单 IP", zap.Error(err))
+		hostIPs = nil
+	}
+	fingerprints, err := h.db.ListAssetFingerprints(ids)
+	if err != nil {
+		h.logger.Warn("资产表格：查询指纹失败，降级为无服务信息", zap.Error(err))
+		fingerprints = nil
+	}
+
+	domainRows, domainErr := h.buildDomainTableRows()
+	allRows := buildAssetTableRows(tableType, assets, hostIPs, fingerprints)
+	if tableType == "domain" {
+		if domainErr != nil {
+			h.logger.Error("资产表格：查询主域名失败", zap.Error(domainErr))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询主域名失败"})
+			return
+		}
+		allRows = domainRows
+	}
+	// 站点 tab 附带截图元信息（缩略图/排队中/失败原因）。
+	if tableType == "site" {
+		assetIDs := make([]string, 0, len(allRows))
+		for _, row := range allRows {
+			if row.AssetID != "" {
+				assetIDs = append(assetIDs, row.AssetID)
+			}
+		}
+		if metas, err := h.db.ListAssetScreenshots(assetIDs); err != nil {
+			h.logger.Warn("资产表格：查询截图元信息失败", zap.Error(err))
+		} else {
+			for i := range allRows {
+				if allRows[i].AssetID == "" {
+					continue
+				}
+				info := screenshotInfoFor(allRows[i].AssetID, metas[allRows[i].AssetID], h.shots != nil)
+				allRows[i].Screenshot = &info
+			}
+		}
+	}
+	facets := assetTableFacets(assets, hostIPs)
+	if domainErr == nil {
+		facets["domain"] = len(domainRows)
+	}
+	facets["fingerprint"] = len(buildFingerprintRows(assets, fingerprints))
+
+	rows := filterAssetTableRows(allRows, keyword, sourceFilter, recordTypeFilter)
+	total := len(rows)
+	start := (page - 1) * pageSize
+	if start > total {
+		start = total
+	}
+	end := start + pageSize
+	if end > total {
+		end = total
+	}
+	paged := make([]assetTableRow, 0, end-start)
+	paged = append(paged, rows[start:end]...)
+
+	c.JSON(200, assetTableResponse{
+		Type:     tableType,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+		Facets:   facets,
+		Rows:     paged,
+	})
+}
+
+// loadAssetsForView 分页拉全量资产（与层级视图一致的上限策略）。
+func (h *AssetHandler) loadAssetsForView(filter database.AssetListFilter, access database.RBACListAccess) []*database.Asset {
+	items := make([]*database.Asset, 0, assetTreePageSize)
+	for offset := 0; offset < assetTreeMaxRows; offset += assetTreePageSize {
+		batch, total, err := h.db.ListAssets(assetTreePageSize, offset, filter, access)
+		if err != nil {
+			h.logger.Error("资产视图：查询资产失败", zap.Error(err))
+			return items
+		}
+		items = append(items, batch...)
+		if len(batch) < assetTreePageSize || len(items) >= total {
+			break
+		}
+	}
+	return items
+}
+
+func buildAssetTableRows(tableType string, assets []*database.Asset, hostIPs map[string][]database.AssetHostIP, fingerprints map[string][]database.AssetFingerprint) []assetTableRow {
+	switch tableType {
+	case "subdomain":
+		return buildSubdomainRows(assets, hostIPs)
+	case "site":
+		return buildSiteRows(assets, hostIPs)
+	case "ip":
+		return buildIPRows(assets, fingerprints)
+	case "service":
+		return buildServiceRows(assets, fingerprints)
+	case "fingerprint":
+		return buildFingerprintRows(assets, fingerprints)
+	}
+	return nil
+}
+
+// subdomainIPs 返回某个域名关联的 IP：优先用解析关系表（多 A 记录），
+// 没有记录时退回资产自身的 IP，保证手工导入的数据也能显示。
+func subdomainIPs(host string, asset *database.Asset, hostIPs map[string][]database.AssetHostIP) []string {
+	ips := make([]string, 0, 2)
+	for _, item := range hostIPs[strings.ToLower(host)] {
+		if item.IP != "" && !containsString(ips, item.IP) {
+			ips = append(ips, item.IP)
+		}
+	}
+	if ip := strings.TrimSpace(asset.IP); ip != "" && !containsString(ips, ip) {
+		ips = append(ips, ip)
+	}
+	return ips
+}
+
+func buildSubdomainRows(assets []*database.Asset, hostIPs map[string][]database.AssetHostIP) []assetTableRow {
+	type aggregate struct {
+		row   assetTableRow
+		count int
+		ids   []string
+	}
+	byHost := make(map[string]*aggregate)
+	for _, asset := range assets {
+		if asset == nil {
+			continue
+		}
+		host := strings.ToLower(strings.TrimSpace(asset.Host))
+		if host == "" || net.ParseIP(host) != nil {
+			continue
+		}
+		agg, ok := byHost[host]
+		if !ok {
+			agg = &aggregate{row: assetTableRow{
+				Key:    host,
+				Host:   host,
+				Domain: assetRootDomain(asset),
+				IPs:    subdomainIPs(host, asset, hostIPs),
+			}}
+			byHost[host] = agg
+		}
+		agg.count++
+		agg.ids = appendUniqueString(agg.ids, asset.ID)
+		if agg.row.Source == "" && asset.Source != "" {
+			agg.row.Source = asset.Source
+		}
+		agg.row.Sources = appendUniqueString(agg.row.Sources, asset.Source)
+		if agg.row.FirstSeenAt.IsZero() || asset.FirstSeenAt.Before(agg.row.FirstSeenAt) {
+			agg.row.FirstSeenAt = asset.FirstSeenAt
+		}
+		if asset.LastSeenAt.After(agg.row.LastSeenAt) {
+			agg.row.LastSeenAt = asset.LastSeenAt
+		}
+	}
+	rows := make([]assetTableRow, 0, len(byHost))
+	for _, agg := range byHost {
+		row := agg.row
+		row.AssetCount = agg.count
+		row.AssetIDs = agg.ids
+		if len(row.IPs) > 0 {
+			// 目前只采集到 A 记录；CNAME 采集接入后此处可扩展。
+			row.RecordType = "A"
+			row.RecordValue = row.IPs[0]
+			row.IP = row.IPs[0]
+		}
+		sort.Strings(row.Sources)
+		rows = append(rows, row)
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].Domain != rows[j].Domain {
+			return rows[i].Domain < rows[j].Domain
+		}
+		return rows[i].Host < rows[j].Host
+	})
+	return rows
+}
+
+func buildSiteRows(assets []*database.Asset, hostIPs map[string][]database.AssetHostIP) []assetTableRow {
+	rows := make([]assetTableRow, 0, len(assets))
+	for _, asset := range assets {
+		if asset == nil {
+			continue
+		}
+		protocol := strings.ToLower(strings.TrimSpace(asset.Protocol))
+		if protocol != "http" && protocol != "https" {
+			continue
+		}
+		host := strings.ToLower(strings.TrimSpace(asset.Host))
+		row := assetTableRow{
+			Key:         host + "\x00" + strconv.Itoa(asset.Port) + "\x00" + protocol,
+			AssetID:     asset.ID,
+			Host:        host,
+			Domain:      assetRootDomain(asset),
+			IP:          assetIPAddress(asset),
+			Port:        asset.Port,
+			Protocol:    protocol,
+			Title:       asset.Title,
+			Server:      asset.Server,
+			Source:      asset.Source,
+			IPs:         subdomainIPs(host, asset, hostIPs),
+			AssetCount:  1,
+			FirstSeenAt: asset.FirstSeenAt,
+			LastSeenAt:  asset.LastSeenAt,
+		}
+		if row.Source != "" {
+			row.Sources = []string{row.Source}
+		}
+		row.AssetIDs = []string{asset.ID}
+		rows = append(rows, row)
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].Host != rows[j].Host {
+			return rows[i].Host < rows[j].Host
+		}
+		return rows[i].Port < rows[j].Port
+	})
+	return rows
+}
+
+func buildIPRows(assets []*database.Asset, fingerprints map[string][]database.AssetFingerprint) []assetTableRow {
+	type aggregate struct {
+		row   assetTableRow
+		hosts map[string]bool
+		ports map[string]assetTablePortItem
+		ids   []string
+	}
+	byIP := make(map[string]*aggregate)
+	for _, asset := range assets {
+		if asset == nil {
+			continue
+		}
+		ip := assetIPAddress(asset)
+		if ip == "" {
+			continue
+		}
+		agg, ok := byIP[ip]
+		if !ok {
+			agg = &aggregate{
+				row:   assetTableRow{Key: ip, IP: ip, Source: asset.Source},
+				hosts: make(map[string]bool),
+				ports: make(map[string]assetTablePortItem),
+			}
+			byIP[ip] = agg
+		}
+		host := strings.ToLower(strings.TrimSpace(asset.Host))
+		if host != "" && net.ParseIP(host) == nil {
+			agg.hosts[host] = true
+		}
+		agg.ids = appendUniqueString(agg.ids, asset.ID)
+		agg.row.Sources = appendUniqueString(agg.row.Sources, asset.Source)
+		if agg.row.FirstSeenAt.IsZero() || asset.FirstSeenAt.Before(agg.row.FirstSeenAt) {
+			agg.row.FirstSeenAt = asset.FirstSeenAt
+		}
+		if asset.LastSeenAt.After(agg.row.LastSeenAt) {
+			agg.row.LastSeenAt = asset.LastSeenAt
+		}
+		if asset.Port > 0 {
+			service := assetTableServiceFor(asset, fingerprints)
+			portKey := strconv.Itoa(asset.Port) + "|" + strings.ToLower(strings.TrimSpace(asset.Protocol))
+			agg.ports[portKey] = assetTablePortItem{
+				Port:     asset.Port,
+				Protocol: strings.ToLower(strings.TrimSpace(asset.Protocol)),
+				Service:  service,
+			}
+		}
+	}
+	rows := make([]assetTableRow, 0, len(byIP))
+	for _, agg := range byIP {
+		row := agg.row
+		row.AssetIDs = agg.ids
+		// asset_count 表示该 IP 关联的域名数；纯 IP 资产按 1 计。
+		row.AssetCount = len(agg.hosts)
+		if row.AssetCount == 0 {
+			row.AssetCount = 1
+		}
+		for _, item := range agg.ports {
+			row.Ports = append(row.Ports, item)
+		}
+		sort.Slice(row.Ports, func(i, j int) bool {
+			if row.Ports[i].Port != row.Ports[j].Port {
+				return row.Ports[i].Port < row.Ports[j].Port
+			}
+			return row.Ports[i].Protocol < row.Ports[j].Protocol
+		})
+		sort.Strings(row.Sources)
+		rows = append(rows, row)
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].IP < rows[j].IP })
+	return rows
+}
+
+// buildFingerprintRows 把逐资产指纹聚合成「技术/版本」维度的行，
+// 并标出该技术是否对应 web 站点（用于「指纹 -> 目录探测」）。
+func buildFingerprintRows(assets []*database.Asset, fingerprints map[string][]database.AssetFingerprint) []assetTableRow {
+	type agg struct {
+		row    assetTableRow
+		assets map[string]bool
+		web    bool
+	}
+	webAssets := make(map[string]bool, len(assets))
+	for _, asset := range assets {
+		if asset == nil {
+			continue
+		}
+		protocol := strings.ToLower(strings.TrimSpace(asset.Protocol))
+		if protocol == "http" || protocol == "https" {
+			webAssets[asset.ID] = true
+		}
+	}
+	byKey := make(map[string]*agg)
+	for _, asset := range assets {
+		if asset == nil {
+			continue
+		}
+		for _, fp := range fingerprints[asset.ID] {
+			technology := strings.TrimSpace(fp.Technology)
+			service := strings.TrimSpace(fp.Service)
+			if technology == "" && service == "" {
+				continue
+			}
+			key := service + "|" + technology + "|" + fp.Version
+			item, ok := byKey[key]
+			if !ok {
+				item = &agg{
+					row: assetTableRow{
+						Key:        key,
+						Technology: technology,
+						Service:    service,
+						Version:    fp.Version,
+					},
+					assets: make(map[string]bool),
+				}
+				byKey[key] = item
+			}
+			item.assets[asset.ID] = true
+			if webAssets[asset.ID] {
+				item.web = true
+			}
+			if item.row.Source == "" {
+				item.row.Source = asset.Source
+			}
+			if item.row.FirstSeenAt.IsZero() || asset.FirstSeenAt.Before(item.row.FirstSeenAt) {
+				item.row.FirstSeenAt = asset.FirstSeenAt
+			}
+			if asset.LastSeenAt.After(item.row.LastSeenAt) {
+				item.row.LastSeenAt = asset.LastSeenAt
+			}
+		}
+	}
+	rows := make([]assetTableRow, 0, len(byKey))
+	for _, item := range byKey {
+		row := item.row
+		row.AssetCount = len(item.assets)
+		row.IsWeb = item.web
+		rows = append(rows, row)
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].AssetCount != rows[j].AssetCount {
+			return rows[i].AssetCount > rows[j].AssetCount
+		}
+		if rows[i].Technology != rows[j].Technology {
+			return rows[i].Technology < rows[j].Technology
+		}
+		return rows[i].Version < rows[j].Version
+	})
+	return rows
+}
+
+// buildDomainTableRows 把「公司 -> 主域名」归属转成表格行（忽略已排除的域名）。
+func (h *AssetHandler) buildDomainTableRows() ([]assetTableRow, error) {
+	domains, err := h.db.ListCompanyDomains("")
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]assetTableRow, 0, len(domains))
+	for _, item := range domains {
+		if item.Status == database.CompanyDomainStatusIgnored {
+			continue
+		}
+		rows = append(rows, assetTableRow{
+			Key:         item.ID,
+			Domain:      item.Domain,
+			Host:        item.Domain,
+			Source:      item.Source,
+			Status:      item.Status,
+			Note:        item.Note,
+			CompanyName: item.CompanyName,
+			AssetCount:  item.AssetCount,
+			FirstSeenAt: item.CreatedAt,
+			LastSeenAt:  item.UpdatedAt,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].AssetCount != rows[j].AssetCount {
+			return rows[i].AssetCount > rows[j].AssetCount
+		}
+		return rows[i].Domain < rows[j].Domain
+	})
+	return rows, nil
+}
+
+func buildServiceRows(assets []*database.Asset, fingerprints map[string][]database.AssetFingerprint) []assetTableRow {
+	rows := make([]assetTableRow, 0, len(assets))
+	for _, asset := range assets {
+		if asset == nil || asset.Port <= 0 {
+			continue
+		}
+		host := strings.ToLower(strings.TrimSpace(asset.Host))
+		row := assetTableRow{
+			Key:         host + "\x00" + strconv.Itoa(asset.Port) + "\x00" + strings.ToLower(asset.Protocol),
+			Host:        host,
+			Domain:      assetRootDomain(asset),
+			IP:          assetIPAddress(asset),
+			Port:        asset.Port,
+			Protocol:    strings.ToLower(strings.TrimSpace(asset.Protocol)),
+			Service:     assetTableServiceFor(asset, fingerprints),
+			Version:     assetTableVersionFor(asset, fingerprints),
+			Source:      asset.Source,
+			AssetCount:  1,
+			FirstSeenAt: asset.FirstSeenAt,
+			LastSeenAt:  asset.LastSeenAt,
+		}
+		if row.Source != "" {
+			row.Sources = []string{row.Source}
+		}
+		row.AssetIDs = []string{asset.ID}
+		rows = append(rows, row)
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].Host != rows[j].Host {
+			return rows[i].Host < rows[j].Host
+		}
+		if rows[i].Port != rows[j].Port {
+			return rows[i].Port < rows[j].Port
+		}
+		return rows[i].Protocol < rows[j].Protocol
+	})
+	return rows
+}
+
+// assetTableServiceFor 取资产的服务名：优先指纹表，其次资产 Server 头，最后协议。
+func assetTableServiceFor(asset *database.Asset, fingerprints map[string][]database.AssetFingerprint) string {
+	for _, fp := range fingerprints[asset.ID] {
+		if fp.Service != "" {
+			return fp.Service
+		}
+	}
+	if server := strings.ToLower(strings.TrimSpace(asset.Server)); server != "" {
+		return server
+	}
+	return strings.ToLower(strings.TrimSpace(asset.Protocol))
+}
+
+// assetTableVersionFor 取资产的版本：指纹表里第一个带版本的记录。
+func assetTableVersionFor(asset *database.Asset, fingerprints map[string][]database.AssetFingerprint) string {
+	for _, fp := range fingerprints[asset.ID] {
+		if fp.Version != "" {
+			return fp.Version
+		}
+	}
+	return ""
+}
+
+func assetTableFacets(assets []*database.Asset, hostIPs map[string][]database.AssetHostIP) map[string]int {
+	hosts := make(map[string]bool)
+	ips := make(map[string]bool)
+	facets := map[string]int{"subdomain": 0, "site": 0, "ip": 0, "service": 0}
+	for _, asset := range assets {
+		if asset == nil {
+			continue
+		}
+		host := strings.ToLower(strings.TrimSpace(asset.Host))
+		if host != "" && net.ParseIP(host) == nil {
+			hosts[host] = true
+		}
+		protocol := strings.ToLower(strings.TrimSpace(asset.Protocol))
+		if protocol == "http" || protocol == "https" {
+			facets["site"]++
+		}
+		if asset.Port > 0 {
+			facets["service"]++
+		}
+		if ip := assetIPAddress(asset); ip != "" {
+			ips[ip] = true
+		}
+	}
+	// 解析关系表里出现、但资产尚未落库的域名也算进子域名总数。
+	for host := range hostIPs {
+		if host != "" {
+			hosts[host] = true
+		}
+	}
+	facets["subdomain"] = len(hosts)
+	facets["ip"] = len(ips)
+	return facets
+}
+
+func filterAssetTableRows(rows []assetTableRow, keyword, source, recordType string) []assetTableRow {
+	if keyword == "" && source == "" && recordType == "" {
+		return rows
+	}
+	filtered := make([]assetTableRow, 0, len(rows))
+	for _, row := range rows {
+		if source != "" && !strings.EqualFold(row.Source, source) && !containsStringFold(row.Sources, source) {
+			continue
+		}
+		if recordType != "" && !strings.EqualFold(row.RecordType, recordType) {
+			continue
+		}
+		if keyword != "" && !assetTableRowMatches(row, keyword) {
+			continue
+		}
+		filtered = append(filtered, row)
+	}
+	return filtered
+}
+
+func assetTableRowMatches(row assetTableRow, keyword string) bool {
+	for _, field := range []string{row.Host, row.Domain, row.IP, row.Title, row.Server, row.Service} {
+		if strings.Contains(strings.ToLower(field), keyword) {
+			return true
+		}
+	}
+	for _, ip := range row.IPs {
+		if strings.Contains(strings.ToLower(ip), keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsStringFold(items []string, want string) bool {
+	for _, item := range items {
+		if strings.EqualFold(item, want) {
+			return true
+		}
+	}
+	return false
+}
+
+// DeleteFingerprints 按技术/服务/版本删除指纹记录（资产视图「指纹」页的排除操作）。
+func (h *AssetHandler) DeleteFingerprints(c *gin.Context) {
+	technology := strings.TrimSpace(c.Query("technology"))
+	service := strings.TrimSpace(c.Query("service"))
+	version := strings.TrimSpace(c.Query("version"))
+	if technology == "" && service == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "至少需要 technology 或 service 参数"})
+		return
+	}
+	deleted, err := h.db.DeleteAssetFingerprints(service, technology, version)
+	if err != nil {
+		h.logger.Error("删除指纹失败", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除指纹失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"deleted": deleted})
+}

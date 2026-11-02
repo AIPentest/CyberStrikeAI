@@ -1,8 +1,6 @@
 package database
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -45,14 +43,7 @@ func TestBuildAuditLogsWhere_relatedUserID(t *testing.T) {
 }
 
 func TestListAuditLogs_timeFilterMixedStorageFormats(t *testing.T) {
-	root, err := os.Getwd()
-	if err != nil {
-		t.Skip(err)
-	}
-	dbPath := filepath.Join(root, "..", "..", "data", "conversations.db")
-	if _, err := os.Stat(dbPath); err != nil {
-		t.Skip("conversations.db not found")
-	}
+	dbPath := copyRepoDBToTemp(t)
 	db, err := NewDB(dbPath, zap.NewNop())
 	if err != nil {
 		t.Fatal(err)

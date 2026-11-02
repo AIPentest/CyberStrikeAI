@@ -261,6 +261,30 @@ storage:
 | `workflow_checkpoints` | 7 天 | 工作流断点 `data/workflow-checkpoints` |
 | `diagnostic_logs` | 14 天 | 诊断日志 `log/diagnostic-*.log` |
 
+## 站点截图
+
+```yaml
+screenshot:
+  enabled: true                # 发现新的 http/https 站点时自动排队截图
+  service_url: http://127.0.0.1:8099
+  dir: data/screenshots        # 该目录需对截图服务的运行用户可写
+  timeout_seconds: 30
+  concurrency: 2               # 浏览器渲染吃 CPU/内存，建议 1-3
+  viewport_width: 1280
+  viewport_height: 800
+  min_interval_hours: 24       # 同一站点重复截图的最小间隔；显式写 0 表示每次都截
+```
+
+整段可省略，全部走上述默认值。
+
+- 浏览器渲染由**独立的本地 Node 服务**（`scripts/shot-service/`，Playwright + Chromium）完成，主服务只做排队、落库与鉴权下发。浏览器以非 root 用户运行，避免以主服务权限渲染不可信站点。
+- `enabled` 默认 `true`；启动时会探测 `service_url` 的 `/health`，不可用则自动降级为「不自动截图」，不会给每个资产写失败记录（手动截图接口返回 503）。
+- `dir` 必须对渲染服务的运行用户可写，否则截图会以 `failed` 状态落库并附带权限错误。
+- `min_interval_hours` 用指针语义区分「未配置」（默认 24 小时）与「显式写 0」（每次都重截）。
+- 截图落盘为 `dir/<资产ID>.png`，元信息在 `asset_screenshots` 表；下发接口 `GET /api/assets/screenshot?id=<资产ID>` 需要登录态。
+
+安装步骤见 [部署指南 → 站点渲染服务（可选）](deployment.md)。
+
 ## C2、WebShell、项目
 
 ```yaml

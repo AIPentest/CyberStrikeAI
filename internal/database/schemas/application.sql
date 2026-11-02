@@ -861,3 +861,93 @@ CREATE INDEX idx_workflow_runs_workflow ON workflow_runs(workflow_id);
 CREATE UNIQUE INDEX uq_workflow_package_imports_actor_key ON workflow_package_imports(actor_user_id, idempotency_key);
 
 CREATE UNIQUE INDEX uq_workflow_package_imports_inspection_success ON workflow_package_imports(inspection_id) WHERE result IN ('created','overwritten','renamed','kept_existing','skipped_identical');
+
+-- 资产服务/技术指纹：一个资产（host+port+protocol）上可能探到多个指纹，
+-- 由工具输出解析（internal/assetintel）后自动写入，供资产「层级视图」展示
+-- 端口 -> 服务 -> 指纹 -> 版本。UNIQUE 约束保证重复扫描幂等。
+CREATE TABLE asset_fingerprints (
+    id TEXT PRIMARY KEY,
+    asset_id TEXT NOT NULL,
+    service TEXT NOT NULL DEFAULT '',
+    technology TEXT NOT NULL DEFAULT '',
+    version TEXT NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    UNIQUE (asset_id, service, technology, version),
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_asset_fingerprints_asset ON asset_fingerprints(asset_id);
+
+CREATE INDEX idx_asset_fingerprints_technology ON asset_fingerprints(technology);
+
+-- 域名 -> IP 解析关系：支持「一个子域名关联多个 IP」（多 A 记录）。
+-- assets 表一条记录只存一个 IP，且去重键是 host+port+protocol，
+-- 同域名多 IP 会被合并覆盖，因此单独建表按 (host,ip,record_type) 累积。
+CREATE TABLE asset_host_ips (
+    id TEXT PRIMARY KEY,
+    host TEXT NOT NULL,
+    ip TEXT NOT NULL,
+    record_type TEXT NOT NULL DEFAULT 'A',
+    source TEXT NOT NULL DEFAULT '',
+    first_seen_at DATETIME NOT NULL,
+    last_seen_at DATETIME NOT NULL,
+    UNIQUE (host, ip, record_type)
+);
+
+CREATE INDEX idx_asset_host_ips_host ON asset_host_ips(host);
+
+CREATE INDEX idx_asset_host_ips_ip ON asset_host_ips(ip);
+
+-- 站点截图元信息：图片本体落在文件系统（screenshot.dir），这里只存状态与路径。
+-- status: pending / running / done / failed。
+CREATE TABLE asset_screenshots (
+    asset_id TEXT PRIMARY KEY,
+    status TEXT NOT NULL DEFAULT 'pending',
+    file_path TEXT NOT NULL DEFAULT '',
+    status_code INTEGER NOT NULL DEFAULT 0,
+    title TEXT NOT NULL DEFAULT '',
+    error TEXT NOT NULL DEFAULT '',
+    width INTEGER NOT NULL DEFAULT 0,
+    height INTEGER NOT NULL DEFAULT 0,
+    captured_at DATETIME,
+    updated_at DATETIME NOT NULL,
+    FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_asset_screenshots_status ON asset_screenshots(status);
+
+-- 公司（组织）实体：与「项目」解耦，一个公司可跨多个项目。
+-- 资产层级视图的「公司」层通过 company_domains 的域名归属映射得出。
+CREATE TABLE companies (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    owner_user_id TEXT,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
+);
+
+CREATE UNIQUE INDEX uq_companies_name ON companies(name COLLATE NOCASE);
+
+-- 公司 -> 主域名（eTLD+1）归属。
+-- status: confirmed（已确认）/ pending（自动发现待确认）/ ignored（已忽略）。
+-- domain 全局唯一，保证一个主域名只会归属一家公司。
+-- company_id 为空表示「待归属」：由自动采集发现、尚未分配给任何公司。
+CREATE TABLE company_domains (
+    id TEXT PRIMARY KEY,
+    company_id TEXT,
+    domain TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'manual',
+    status TEXT NOT NULL DEFAULT 'confirmed',
+    note TEXT NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL
+);
+
+CREATE UNIQUE INDEX uq_company_domains_domain ON company_domains(domain);
+
+CREATE INDEX idx_company_domains_company ON company_domains(company_id);
+
+CREATE INDEX idx_company_domains_status ON company_domains(status);
