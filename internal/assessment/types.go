@@ -45,19 +45,25 @@ type Task struct {
 }
 
 type Step struct {
-	Checkpoint    string              `json:"checkpoint,omitempty"`
-	RetrievedIDs  []string            `json:"retrieved_execution_ids,omitempty"`
-	RetiredReason string              `json:"retired_reason,omitempty"`
-	ID            string              `json:"id"`
-	Key           string              `json:"key"`
-	Title         string              `json:"title"`
-	Instruction   string              `json:"instruction"`
-	DependsOn     []string            `json:"depends_on"`
-	Status        string              `json:"status"`
-	Turns         int                 `json:"turns"`
-	Result        string              `json:"result"`
-	Evidence      []Evidence          `json:"evidence"`
-	Messages      []agent.ChatMessage `json:"-"`
+	ApprovalID         string              `json:"approval_id,omitempty"`
+	ApprovalDigest     string              `json:"approval_digest,omitempty"`
+	ApprovalKind       string              `json:"approval_kind,omitempty"`
+	ApprovedBy         string              `json:"approved_by,omitempty"`
+	ApprovedExecutorID string              `json:"approved_executor_id,omitempty"`
+	SeenCallIDs        []string            `json:"seen_call_ids,omitempty"`
+	Checkpoint         string              `json:"checkpoint,omitempty"`
+	RetrievedIDs       []string            `json:"retrieved_execution_ids,omitempty"`
+	RetiredReason      string              `json:"retired_reason,omitempty"`
+	ID                 string              `json:"id"`
+	Key                string              `json:"key"`
+	Title              string              `json:"title"`
+	Instruction        string              `json:"instruction"`
+	DependsOn          []string            `json:"depends_on"`
+	Status             string              `json:"status"`
+	Turns              int                 `json:"turns"`
+	Result             string              `json:"result"`
+	Evidence           []Evidence          `json:"evidence"`
+	Messages           []agent.ChatMessage `json:"-"`
 	// Trace is private model state stored in the payload, excluded by Public().
 	Trace         json.RawMessage `json:"trace,omitempty"`
 	Pending       *agent.ToolCall `json:"pending,omitempty"`
@@ -77,6 +83,7 @@ type ObservedAsset struct {
 }
 
 type Evidence struct {
+	Revision     string         `json:"revision,omitempty"`
 	Asset        *ObservedAsset `json:"asset,omitempty"`
 	Kind         string         `json:"kind"` // fact | finding | asset | gap
 	Title        string         `json:"title"`
@@ -156,6 +163,9 @@ func (t *Task) Public() *Task {
 	_ = json.Unmarshal(b, &out)
 	for _, s := range out.Steps {
 		s.Trace = nil
+		for i := range s.Evidence {
+			s.Evidence[i].Revision = EvidenceRevision(s.Evidence[i])
+		}
 	}
 	return &out
 }

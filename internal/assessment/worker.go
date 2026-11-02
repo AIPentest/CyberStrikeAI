@@ -119,7 +119,11 @@ func (e *Engine) work(ctx context.Context, id, sid string) (runErr error) {
 			if !allowed {
 				return fmt.Errorf("tool %q is outside the selected allowlist", tc.Function.Name)
 			}
-			if !s.Approved || s.Pending == nil || s.Pending.ID != tc.ID {
+			approved, approvalErr := e.approvedCall(ctx, t, s, *tc)
+			if approvalErr != nil {
+				return approvalErr
+			}
+			if !approved {
 				manual := true
 				if policy, ok := e.Runtime.(interface{ RequiresApproval(*Task, string) bool }); ok {
 					manual = policy.RequiresApproval(t, tc.Function.Name)
@@ -130,8 +134,12 @@ func (e *Engine) work(ctx context.Context, id, sid string) (runErr error) {
 						if st == nil || st.Status != "running" {
 							return ErrConflict
 						}
+						clearApproval(st)
 						st.Pending = tc
 						st.Approved = true
+						st.ApprovalKind = "policy"
+						st.ApprovalDigest = callDigest(*tc)
+						st.ApprovedExecutorID = t.ExecutorID
 						saveTrace(st, msgs)
 						return nil
 					}); err != nil {
@@ -139,19 +147,21 @@ func (e *Engine) work(ctx context.Context, id, sid string) (runErr error) {
 					}
 					continue
 				}
+				auditRequest := map[string]any{"call": tc}
 				return e.Store.Change(id, sid, "approval_requested", tc.Function.Name, func(t *Task) error {
 					s := t.Step(sid)
 					if s == nil || s.Status != "running" {
 						return ErrConflict
 					}
-					s.Status = "awaiting_approval"
-					s.Pending = tc
-					s.Approved = false
+					requestApproval(t, s, tc)
+					auditRequest["approval_id"] = s.ApprovalID
+					auditRequest["call_digest"] = s.ApprovalDigest
+					auditRequest["executor_id"] = s.ApprovedExecutorID
 					saveTrace(s, msgs)
 					return nil
-				})
+				}, auditRequest)
 			}
-			if err = e.Store.Event(id, sid, "tool_start", tc.Function.Name, tc); err != nil {
+			if err = e.Store.Event(id, sid, "tool_start", tc.Function.Name, map[string]any{"call": tc, "approval_id": s.ApprovalID, "approval_kind": s.ApprovalKind, "call_digest": s.ApprovalDigest, "executor_id": t.ExecutorID}); err != nil {
 				return err
 			}
 			result, execErr := e.Runtime.Execute(ctx, t, sid, *tc)
@@ -173,7 +183,7 @@ func (e *Engine) work(ctx context.Context, id, sid string) (runErr error) {
 				}
 				saveTrace(st, msgs)
 				st.Pending = nil
-				st.Approved = false
+				clearApproval(st)
 				st.ExecutionID = result.ExecutionID
 				if result.ExecutionID != "" {
 					st.ExecutionIDs = append(st.ExecutionIDs, result.ExecutionID)
@@ -207,12 +217,18 @@ func (e *Engine) work(ctx context.Context, id, sid string) (runErr error) {
 		}
 		if len(reply.Message.ToolCalls) > 0 && !settling {
 			msgs = append(msgs, reply.Message)
-			for _, tc := range reply.Message.ToolCalls {
-				if tc.ID == "" {
-					return fmt.Errorf("tool call has no id")
-				}
+			if err = validateToolCalls(msgs[:len(msgs)-1], reply.Message.ToolCalls, s.SeenCallIDs); err != nil {
+				return err
 			}
-			if err = e.Store.Change(id, sid, "model", "Worker requested tools", func(t *Task) error { st := t.Step(sid); st.Turns++; saveTrace(st, msgs); return nil }); err != nil {
+			if err = e.Store.Change(id, sid, "model", "Worker requested tools", func(t *Task) error {
+				st := t.Step(sid)
+				st.Turns++
+				for _, c := range reply.Message.ToolCalls {
+					st.SeenCallIDs = append(st.SeenCallIDs, c.ID)
+				}
+				saveTrace(st, msgs)
+				return nil
+			}); err != nil {
 				return err
 			}
 			continue

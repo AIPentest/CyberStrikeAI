@@ -87,19 +87,25 @@ func (s *Store) Events(id string, after int64) ([]Event, error) {
 	}
 	defer rows.Close()
 	out := []Event{}
+	bytes := 0
 	for rows.Next() {
 		var e Event
 		var b string
 		if err = rows.Scan(&e.ID, &e.StepID, &e.Kind, &e.Message, &b, &e.CreatedAt); err != nil {
 			return nil, err
 		}
+		size := len(b) + len(e.Message) + len(e.StepID) + len(e.Kind) + 128
+		if bytes+size > 1<<20 && len(out) > 0 {
+			break
+		}
+		bytes += size
 		e.Data = json.RawMessage(b)
 		out = append(out, e)
 	}
 	return out, rows.Err()
 }
 func (s *Store) List(user, scope string, limit, offset int) ([]*Task, error) {
-	q := `SELECT payload FROM assessments a WHERE 1=1`
+	q := `SELECT json_remove(payload, '$.steps', '$.material') FROM assessments a WHERE 1=1`
 	args := []any{}
 	if scope != database.RBACScopeAll {
 		if scope == database.RBACScopeOwn {
@@ -127,10 +133,7 @@ func (s *Store) List(user, scope string, limit, offset int) ([]*Task, error) {
 		if err = json.Unmarshal([]byte(b), &t); err != nil {
 			return nil, err
 		}
-		p := t.Public()
-		p.Steps = nil
-		p.Material = ""
-		out = append(out, p)
+		out = append(out, &t)
 	}
 	return out, rows.Err()
 }
@@ -222,7 +225,7 @@ func settleTime(t *Task) {
 func interrupt(s *Step, reason string) {
 	s.Status = "blocked"
 	s.Result = reason
-	s.Approved = false
+	clearApproval(s)
 	s.Pending = nil
 	// Trace is retained as evidence; retry starts a fresh bounded session.
 }

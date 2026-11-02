@@ -49,10 +49,10 @@
 | GET / POST | `/api/assessments` | 分页列表（limit/offset）/ 创建草稿 |
 | GET / DELETE | `/api/assessments/:id` | 查询 / 删除非活跃任务 |
 | POST | `/api/assessments/:id/control/:action` | `start`、`resume`、`pause`、`stop`、`steer` |
-| POST | `/api/assessments/:id/steps/:stepId/decision` | `{ "approved": true/false }`，仅批准该次调用 |
+| POST | `/api/assessments/:id/steps/:stepId/decision` | `{ "approved": true/false, "approval_id": "当前步骤返回的编号" }`，仅批准该次调用 |
 | POST | `/api/assessments/:id/steps/:stepId/retry` | 明确重试受阻步骤，不自动重复外部操作 |
-| GET | `/api/assessments/:id/events?after=0` | 按 ID 增量读取，单页最多 200 条 |
-| POST | `/api/assessments/:id/publish` | `{ "step_id": "…", "index": 0, "kind": "fact|asset|vulnerability" }` |
+| GET | `/api/assessments/:id/events?after=0` | 按 ID 增量读取，单页最多 200 条且约 1 MiB |
+| POST | `/api/assessments/:id/publish` | `{ "step_id": "…", "index": 0, "kind": "fact|asset|vulnerability", "revision": "展示证据的版本" }` |
 | GET | `/api/assessments/:id/report` | 下载包含部分结果的 Markdown 报告 |
 
 创建示例（工具名应从 options 中选择）：
@@ -87,3 +87,5 @@
 ### 长程回归场景
 
 `internal/assessment/longrun_test.go` 覆盖慢 Worker、慢规划器、替代路线与退休分支、多轮依赖链、历史长输出尾部检索、跨 Worker 证据、检查点恢复、格式修复和预算边界。均为确定性本地夹具，用于验证机制和避免回归；这些测试不等同于真实模型的漏洞发现率、成本或长时稳定性对标。
+
+安全边界、已修复问题和回归场景见 [深度测评安全复查](DEEP_ASSESSMENT_SECURITY_REVIEW.md)。审批编号和证据版本为必填字段，旧客户端应刷新页面后提交；过期请求返回 409。

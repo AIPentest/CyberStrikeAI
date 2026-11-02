@@ -16,7 +16,9 @@ const task = { id: 'fixture-assessment', name: '本地测评 · 浏览器验证'
     { id: 's1', key: 'inspect', title: '检查响应和服务信息', instruction: '读取测试夹具并记录响应。', depends_on: [], status: 'completed', result: '响应证据已记录。', checkpoint: '服务响应已保存，后续可复用。', evidence: [{ kind: 'fact', title: '已记录测试响应', detail: '本地测试数据返回固定响应。', execution_ids: ['fixture-execution-1'] }] },
     { id: 's2', key: 'access', title: '核验访问控制边界', instruction: '对照测试夹具中的两个角色。', depends_on: ['inspect'], status: 'blocked', result: '等待补充测试角色。', evidence: [{ kind: 'finding', title: '待复核访问控制线索', detail: '仅为合成数据，需在授权环境中复核。', execution_ids: ['fixture-execution-2'] }] }
 ] };
+for (const step of task.steps) for (const evidence of step.evidence) evidence.revision="fixture-version";
 const tasks = [task];
+let holdDetail=false;const detailWaiters=[];
 const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     const send = data => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(data)); };
@@ -42,12 +44,13 @@ const server = http.createServer(async (req, res) => {
         if (url.pathname.includes('/control/')) {
             const action = url.pathname.split('/').at(-1);
             if (action === 'steer') current.material += '\n' + input.message;
-            else if (action === 'start') { current.status = 'awaiting_approval'; current.steps = [{ ...task.steps[0], id: 'review-step', status: 'awaiting_approval', pending: { id: 'call1', function: { name: 'inspect', arguments: { target: 'local-fixture' } } } }]; }
+            else if (action === 'start') { current.status = 'awaiting_approval'; current.steps = [{ ...task.steps[0], id: 'review-step', status: 'awaiting_approval', approval_id: 'fixture-request', pending: { id: 'call1', function: { name: 'inspect', arguments: { target: 'local-fixture' } } } }]; }
             else current.status = action === 'pause' ? 'paused' : 'stopped';
             current.updated_at = now(); send({ ok: true }); return;
         }
-        if (url.pathname.endsWith('/decision')) { current.status = input.approved ? 'completed' : 'blocked'; current.steps[0].status = current.status; current.steps[0].pending = null; current.updated_at = now(); send({ ok: true }); return; }
-        if (url.pathname.endsWith('/publish')) { send({ result: { id: 'published' } }); return; }
+        if (url.pathname.endsWith('/decision')) { if(input.approval_id !== current.steps[0].approval_id) {res.statusCode=409;send({error:'stale approval'});return;} current.status = input.approved ? 'completed' : 'blocked'; current.steps[0].status = current.status; current.steps[0].pending = null; current.updated_at = now(); send({ ok: true }); return; }
+        if (url.pathname.endsWith('/publish')) { if(input.revision !== 'fixture-version'){res.statusCode=409;send({error:'stale evidence'});return;} send({ result: { id: 'published' } }); return; }
+        if(holdDetail && req.method === "GET") await new Promise(resolve => detailWaiters.push(resolve));
         send({ assessment: current });
     } catch (error) { res.statusCode = 500; send({ error: error.message }); }
 });
@@ -78,6 +81,7 @@ try {
     await click('[data-tab=chain]'); await waitFor("!!document.querySelector('#assessment-graph canvas')"); await screenshot('desktop-chain');
     await evaluate("document.documentElement.dataset.theme='dark'"); await click('[data-tab=chain]'); await screenshot('desktop-dark-chain'); await evaluate("document.documentElement.dataset.theme='light'");
     await click('[data-tab=evidence]'); assert.equal(await evaluate("document.querySelectorAll('[data-assessment-action=vulnerability]').length"), 1);
+    await click('[data-assessment-action=fact]'); await waitFor("document.getElementById('assessment-message').textContent.includes('已保存')");
     await click('[data-tab=logs]'); assert.equal(await evaluate('window.XSS || 0'), 0, 'untrusted log rendered as HTML');
     await click('[data-assessment-action=new]'); await waitFor("document.getElementById('assessment-create')?.open"); assert.equal(await evaluate("document.querySelector('[name=project_id] option:last-child').textContent"), '本地测试项目');
     await evaluate(`document.querySelector('[name=name]').value='Created in browser';document.querySelector('[name=goal]').value='Inspect fixture';document.querySelector('[name=scope]').value='Local fixture';document.querySelector('[name=tools]').checked=true;document.getElementById('assessment-create-form').requestSubmit()`);
@@ -85,7 +89,7 @@ try {
     assert.ok((await evaluate('location.hash')).startsWith('#assessments?task=created-'), 'created task deep link missing');
     await click('[data-assessment-action=start]'); await waitFor("document.querySelector('#assessment-detail .assessment-status')?.dataset.status==='awaiting_approval'");
     await click('[data-tab=plan]'); await waitFor("!!document.querySelector('[data-assessment-action=approve]')"); await click('[data-assessment-action=approve]'); await waitFor("document.querySelector('#assessment-detail .assessment-status')?.dataset.status==='completed'");
-    await click('[data-id=fixture-assessment]'); await waitFor("document.querySelector('#assessment-detail h2')?.textContent==='本地测评 · 浏览器验证'");
+    holdDetail=true; await click('[data-id=fixture-assessment]'); assert.equal(await evaluate("document.querySelector('#assessment-detail [data-assessment-action=start]') === null"), true, 'stale task controls remained during switch'); holdDetail=false; detailWaiters.splice(0).forEach(resolve=>resolve()); await waitFor("document.querySelector('#assessment-detail h2')?.textContent==='本地测评 · 浏览器验证'");
     await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
     await click('[data-tab=plan]'); await evaluate("document.getElementById('assessment-tab').scrollIntoView()"); await screenshot('mobile-plan');
     assert.ok(await evaluate('document.documentElement.scrollWidth <= window.innerWidth + 1'), 'mobile horizontal overflow');

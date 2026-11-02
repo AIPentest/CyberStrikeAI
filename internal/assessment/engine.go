@@ -82,6 +82,14 @@ func (e *Engine) StartAs(id, actorID string) error {
 			return ErrBudget
 		}
 		t.Status = "running"
+		for _, s := range t.Steps {
+			if s.Status == "awaiting_approval" && s.Pending != nil {
+				t.ExecutorID = actorID
+				requestApproval(t, s, s.Pending)
+			} else if s.Status == "pending" {
+				clearApproval(s)
+			}
+		}
 		t.ExecutorID = actorID
 		t.Reason = ""
 		t.Deadline = time.Now().Unix() + t.RemainingSeconds
@@ -90,15 +98,23 @@ func (e *Engine) StartAs(id, actorID string) error {
 		return err
 	}
 	ctx, cancel := context.WithDeadline(ctx, time.Unix(time.Now().Unix()+t.RemainingSeconds, 0))
-	run := &activeRun{cancel: cancel, done: make(chan struct{})}
+	scope := security.NewProcessScope()
+	workers := runlease.New()
+	ctx = runlease.WithScope(security.WithProcessScope(ctx, scope), workers)
+	closeAdmission := func() { scope.Seal(); workers.Cancel(); cancel() }
+	stopDeadlineWatch := context.AfterFunc(ctx, func() { scope.Seal(); workers.Cancel() })
+	run := &activeRun{cancel: closeAdmission, done: make(chan struct{})}
 	e.active[id] = run
 	go func() {
-		defer func() { cancel(); e.mu.Lock(); delete(e.active, id); close(run.done); e.mu.Unlock() }()
+		defer func() {
+			stopDeadlineWatch()
+			closeAdmission()
+			e.mu.Lock()
+			delete(e.active, id)
+			close(run.done)
+			e.mu.Unlock()
+		}()
 		// Isolate and reap local subprocesses even if an MCP tool detaches cancellation.
-		scope := security.NewProcessScope()
-		ctx = security.WithProcessScope(ctx, scope)
-		workers := runlease.New()
-		ctx = runlease.WithScope(ctx, workers)
 		err := func() (err error) {
 			defer func() {
 				if p := recover(); p != nil {
@@ -204,26 +220,31 @@ func (e *Engine) Close() {
 		<-r.done
 	}
 }
-func (e *Engine) Decide(id, step string, approved bool) error {
+func (e *Engine) Decide(id, step, approvalID, reviewerID string, approved bool) error {
+	event := map[string]any{"approval_id": approvalID, "reviewer_id": reviewerID, "approved": approved}
 	return e.Store.Change(id, step, "approval", fmt.Sprintf("approved=%t", approved), func(t *Task) error {
 		s := t.Step(step)
-		if s == nil || s.Status != "awaiting_approval" || s.Pending == nil {
+		if s == nil || s.Status != "awaiting_approval" || s.Pending == nil || approvalID == "" || approvalID != s.ApprovalID || reviewerID == "" || s.ApprovalDigest != callDigest(*s.Pending) {
 			return ErrConflict
 		}
 		if t.Terminal() || t.Status == "pausing" || t.Status == "stopping" {
 			return ErrConflict
 		}
+		event["call_digest"] = s.ApprovalDigest
+		event["executor_id"] = s.ApprovedExecutorID
 		if approved {
 			s.Approved = true
+			s.ApprovalKind = "manual"
+			s.ApprovedBy = reviewerID
 			s.Status = "pending"
 		} else {
 			s.Status = "blocked"
 			s.Result = "Tool execution denied by reviewer"
 			s.Pending = nil
-			s.Approved = false
+			clearApproval(s)
 		}
 		return nil
-	})
+	}, event)
 }
 func (e *Engine) Retry(id, step string) error {
 	return e.Store.Change(id, step, "retry", "Explicit retry requested; prior evidence retained in events", func(t *Task) error {
@@ -238,7 +259,7 @@ func (e *Engine) Retry(id, step string) error {
 		s.Trace = nil
 		s.Turns = 0
 		s.Pending = nil
-		s.Approved = false
+		clearApproval(s)
 		s.Result = ""
 		return nil
 	})
@@ -502,6 +523,9 @@ func (e *Engine) plan(ctx context.Context, id string) error {
 		}
 		if reads >= 3 {
 			return fmt.Errorf("planner memory-read budget exhausted")
+		}
+		if err = validateToolCalls(msgs, r.Message.ToolCalls, nil); err != nil {
+			return err
 		}
 		msgs = append(msgs, r.Message)
 		for _, call := range r.Message.ToolCalls {

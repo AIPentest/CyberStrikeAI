@@ -158,7 +158,7 @@ func TestAssessmentAPIPublishEvidenceWithNoConversationAndStableIdentity(t *test
 	}
 	for i := 0; i < 2; i++ {
 		for _, kind := range []string{"fact", "vulnerability"} {
-			w := request("POST", "/api/assessments/"+task.ID+"/publish", `{"step_id":"step","index":0,"kind":"`+kind+`"}`)
+			w := publishFixture(t, h, request, task.ID, `{"step_id":"step","index":0,"kind":"`+kind+`"}`)
 			if w.Code != 200 {
 				t.Fatalf("publish %s: %d %s", kind, w.Code, w.Body.String())
 			}
@@ -174,7 +174,7 @@ func TestAssessmentAPIPublishEvidenceWithNoConversationAndStableIdentity(t *test
 	}
 	// A global project read role must not widen a restricted project write role.
 	session.PermissionScopes = map[string]string{"assessment:write": database.RBACScopeAll, "project:read": database.RBACScopeAll, "project:write": database.RBACScopeOwn}
-	w := request("POST", "/api/assessments/"+task.ID+"/publish", `{"step_id":"step","index":0,"kind":"fact"}`)
+	w := publishFixture(t, h, request, task.ID, `{"step_id":"step","index":0,"kind":"fact"}`)
 	if w.Code != 403 {
 		t.Fatalf("project scope widening: %d", w.Code)
 	}
@@ -200,7 +200,7 @@ func TestAssessmentAPIPublishesObservedAsset(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < 2; i++ {
-		w := request("POST", "/api/assessments/"+task.ID+"/publish", `{"step_id":"step","index":0,"kind":"asset"}`)
+		w := publishFixture(t, h, request, task.ID, `{"step_id":"step","index":0,"kind":"asset"}`)
 		if w.Code != 200 {
 			t.Fatal(w.Code, w.Body.String())
 		}
@@ -210,7 +210,7 @@ func TestAssessmentAPIPublishesObservedAsset(t *testing.T) {
 		t.Fatalf("asset duplicate/missing: %d %v", count, err)
 	}
 	delete(session.Permissions, "asset:write")
-	w := request("POST", "/api/assessments/"+task.ID+"/publish", `{"step_id":"step","index":0,"kind":"asset"}`)
+	w := publishFixture(t, h, request, task.ID, `{"step_id":"step","index":0,"kind":"asset"}`)
 	if w.Code != 403 {
 		t.Fatal("asset permission bypass", w.Code)
 	}
@@ -230,5 +230,90 @@ func TestAssessmentAPIBindsRunToCurrentOperator(t *testing.T) {
 	}
 	if current.ExecutorID != session.UserID || current.OwnerID != task.OwnerID {
 		t.Fatalf("wrong run identity: %+v", current)
+	}
+}
+
+func publishFixture(t *testing.T, h *AssessmentHandler, request func(string, string, string) *httptest.ResponseRecorder, id, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	var input map[string]any
+	if err := json.Unmarshal([]byte(body), &input); err != nil {
+		t.Fatal(err)
+	}
+	task, err := h.Engine.Store.Get(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := task.Step(input["step_id"].(string))
+	input["revision"] = assessment.EvidenceRevision(st.Evidence[int(input["index"].(float64))])
+	b, _ := json.Marshal(input)
+	return request("POST", "/api/assessments/"+id+"/publish", string(b))
+}
+
+func TestAssessmentApprovalScopesAndStaleRequest(t *testing.T) {
+	h, session, request := assessmentAPI(t)
+	task := createAPIAssessment(t, request)
+	call := &agent.ToolCall{ID: "call", Function: agent.FunctionCall{Name: "inspect", Arguments: map[string]interface{}{}}}
+	h.Engine.Store.Change(task.ID, "", "", "", func(t *assessment.Task) error {
+		t.Steps = []*assessment.Step{{ID: "step", Status: "awaiting_approval", Pending: call, ApprovalID: "new-request"}}
+		return nil
+	})
+	// A broad assessment role cannot widen the separate own-scoped HITL role.
+	session.UserID = "other-reviewer"
+	session.PermissionScopes = map[string]string{"assessment:write": database.RBACScopeAll, "hitl:write": database.RBACScopeOwn}
+	w := request("POST", "/api/assessments/"+task.ID+"/steps/step/decision", `{"approved":true,"approval_id":"new-request"}`)
+	if w.Code != 403 {
+		t.Fatal("HITL scope was widened", w.Code, w.Body.String())
+	}
+	session.UserID = task.OwnerID
+	session.PermissionScopes = nil
+	w = request("POST", "/api/assessments/"+task.ID+"/steps/step/decision", `{"approved":true,"approval_id":"old-request"}`)
+	if w.Code != 409 {
+		t.Fatal("stale approval accepted", w.Code, w.Body.String())
+	}
+}
+func TestAssessmentPublishRejectsChangedEvidence(t *testing.T) {
+	h, _, request := assessmentAPI(t)
+	task := createAPIAssessment(t, request)
+	old := assessment.Evidence{Kind: "finding", Title: "Reviewed candidate", Detail: "old observation", ExecutionIDs: []string{"exec"}}
+	revision := assessment.EvidenceRevision(old)
+	changed := old
+	changed.Detail = "Changed after review"
+	h.Engine.Store.Change(task.ID, "", "", "", func(t *assessment.Task) error {
+		t.Steps = []*assessment.Step{{ID: "step", Evidence: []assessment.Evidence{changed}}}
+		return nil
+	})
+	body := `{"step_id":"step","index":0,"kind":"vulnerability","revision":"` + revision + `"}`
+	w := request("POST", "/api/assessments/"+task.ID+"/publish", body)
+	if w.Code != 409 {
+		t.Fatal("unreviewed replacement published", w.Code)
+	}
+	var count int
+	h.DB.QueryRow(`SELECT count(*) FROM vulnerabilities`).Scan(&count)
+	if count != 0 {
+		t.Fatal("stale request wrote candidate")
+	}
+}
+func TestAssessmentJSONBodiesAreBounded(t *testing.T) {
+	_, _, request := assessmentAPI(t)
+	task := createAPIAssessment(t, request)
+	w := request("POST", "/api/assessments/"+task.ID+"/control/steer", `{"message":"`+strings.Repeat("x", 256<<10)+`"}`)
+	if w.Code != 413 {
+		t.Fatal("large body was parsed without bound", w.Code)
+	}
+}
+func TestAssessmentMutationOriginGuard(t *testing.T) {
+	for _, tc := range []struct {
+		origin, site, auth string
+		want               bool
+	}{{"https://evil.test", "cross-site", "", false}, {"null", "", "", false}, {"", "cross-site", "", false}, {"https://csai.test", "same-origin", "", true}, {"https://integration.test", "cross-site", "Bearer fixture", true}} {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest("POST", "https://csai.test/api/assessments/x/control/start", nil)
+		c.Request.Header.Set("Origin", tc.origin)
+		c.Request.Header.Set("Sec-Fetch-Site", tc.site)
+		c.Request.Header.Set("Authorization", tc.auth)
+		if got := assessmentMutationOriginAllowed(c); got != tc.want {
+			t.Fatalf("origin %q: got %v", tc.origin, got)
+		}
 	}
 }

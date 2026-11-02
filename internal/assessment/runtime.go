@@ -18,13 +18,17 @@ import (
 // CSAIRuntime reuses the existing model transport and Agent->MCP execution path.
 // The execution namespace is an assessment/step ID, never a chat database row.
 type CSAIRuntime struct {
-	DB     *database.DB
-	Agent  *agent.Agent
-	Config *config.Config
-	Logger *zap.Logger
+	ConfigSnapshot func() (*config.Config, error)
+	DB             *database.DB
+	Agent          *agent.Agent
+	Config         *config.Config
+	Logger         *zap.Logger
 }
 
 func (r *CSAIRuntime) Context(ctx context.Context, t *Task) (context.Context, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	actorID := t.ExecutorID
 	if actorID == "" {
 		actorID = t.OwnerID
@@ -43,7 +47,7 @@ func (r *CSAIRuntime) Context(ctx context.Context, t *Task) (context.Context, er
 	if t.ProjectID != "" && (!principal.HasPermission("project:read") || !r.DB.UserCanAccessResource(principal.UserID, principal.ScopeFor("project:read"), "project", t.ProjectID)) {
 		return nil, fmt.Errorf("operator no longer has access to the linked project")
 	}
-	return authctx.WithPrincipal(ctx, principal), nil
+	return mcp.WithMCPProjectID(authctx.WithPrincipal(ctx, principal), t.ProjectID), nil
 }
 func (r *CSAIRuntime) Tools(t *Task) ([]agent.Tool, error) {
 	if r.Agent == nil {
@@ -88,12 +92,16 @@ func (r *CSAIRuntime) Complete(ctx context.Context, t *Task, msgs []agent.ChatMe
 	if err != nil {
 		return nil, err
 	}
+	snapshot, err := r.configuration()
+	if err != nil {
+		return nil, err
+	}
 	if t.Model != "" {
-		if _, _, ok := r.Config.AI.ResolveChannel(t.Model); !ok {
+		if _, _, ok := snapshot.AI.ResolveChannel(t.Model); !ok {
 			return nil, fmt.Errorf("model channel no longer exists")
 		}
 	}
-	cfg, _, ok := r.Config.ResolveAIChannel(t.Model)
+	cfg, _, ok := snapshot.ResolveAIChannel(t.Model)
 	if !ok {
 		return nil, fmt.Errorf("unknown model channel %q", t.Model)
 	}
@@ -106,6 +114,23 @@ func (r *CSAIRuntime) Complete(ctx context.Context, t *Task, msgs []agent.ChatMe
 func (r *CSAIRuntime) Execute(ctx context.Context, t *Task, sid string, call agent.ToolCall) (*agent.ToolExecutionResult, error) {
 	ctx, err := r.Context(ctx, t)
 	if err != nil {
+		return nil, err
+	}
+	allowed := false
+	defs, err := r.Tools(t)
+	if err != nil {
+		return nil, err
+	}
+	for _, def := range defs {
+		if def.Function.Name == call.Function.Name {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return nil, fmt.Errorf("tool is outside the assessment allowlist")
+	}
+	if err = ctx.Err(); err != nil {
 		return nil, err
 	}
 	// Reserved execution ID only supplies MCP trace attribution; no chat is created.
@@ -130,7 +155,9 @@ func (r *CSAIRuntime) Execute(ctx context.Context, t *Task, sid string, call age
 			}
 			continue
 		}
-		result.Result = r.Agent.MCPExecutionResultText(result.ExecutionID)
+		if stored := r.Agent.MCPExecutionResultText(result.ExecutionID); stored != "" {
+			result.Result = stored
+		}
 		result.IsError = status != mcp.ToolExecutionStatusCompleted
 		result.Blocked = status == mcp.ToolExecutionStatusBlocked
 		if status == "" {
@@ -147,13 +174,27 @@ func (r *CSAIRuntime) RequiresApproval(t *Task, name string) bool {
 	if t.ApprovalMode == "manual" {
 		return true
 	}
-	if r.Config.Hitl.EffectiveDefaultMode() == "off" {
+	snapshot, err := r.configuration()
+	if err != nil {
+		return true
+	}
+	if snapshot.Hitl.EffectiveDefaultMode() == "off" {
 		return false
 	}
-	for _, allowed := range r.Config.Hitl.ToolWhitelist {
+	for _, allowed := range snapshot.Hitl.ToolWhitelist {
 		if strings.EqualFold(strings.TrimSpace(allowed), name) {
 			return false
 		}
 	}
 	return true
+}
+
+func (r *CSAIRuntime) configuration() (*config.Config, error) {
+	if r.ConfigSnapshot != nil {
+		return r.ConfigSnapshot()
+	}
+	if r.Config == nil {
+		return nil, fmt.Errorf("configuration unavailable")
+	}
+	return r.Config, nil
 }

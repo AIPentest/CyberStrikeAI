@@ -114,10 +114,10 @@ func TestAssessmentApprovalCompletionAndChatIndependence(t *testing.T) {
 	if waiting.Public().Steps[0].Trace != nil {
 		t.Fatal("private transcript exposed")
 	}
-	if err := e.Decide(task.ID, st.ID, true); err != nil {
+	if err := e.Decide(task.ID, st.ID, st.ApprovalID, "reviewer", true); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.Decide(task.ID, st.ID, true); !errors.Is(err, ErrConflict) {
+	if err := e.Decide(task.ID, st.ID, st.ApprovalID, "reviewer", true); !errors.Is(err, ErrConflict) {
 		t.Fatal("duplicate decision accepted")
 	}
 	completed := waitTask(t, store, task.ID, func(t *Task) bool { return t.Status == "completed" && t.Deadline == 0 })
@@ -196,7 +196,7 @@ func TestPauseCancelsInFlightWorkAndRequiresExplicitRetry(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := waitTask(t, store, task.ID, func(t *Task) bool { return len(t.Steps) > 0 && t.Steps[0].Status == "awaiting_approval" })
-	if err := e.Decide(task.ID, got.Steps[0].ID, true); err != nil {
+	if err := e.Decide(task.ID, got.Steps[0].ID, got.Steps[0].ApprovalID, "reviewer", true); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -292,7 +292,7 @@ func TestWorkerRejectsFabricatedEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := waitTask(t, store, task.ID, func(t *Task) bool { return len(t.Steps) > 0 && t.Steps[0].Status == "awaiting_approval" })
-	if err := e.Decide(task.ID, got.Steps[0].ID, true); err != nil {
+	if err := e.Decide(task.ID, got.Steps[0].ID, got.Steps[0].ApprovalID, "reviewer", true); err != nil {
 		t.Fatal(err)
 	}
 	got = waitTask(t, store, task.ID, func(t *Task) bool { return t.Status == "blocked" && t.Deadline == 0 })

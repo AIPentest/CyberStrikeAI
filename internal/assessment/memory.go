@@ -207,6 +207,7 @@ func validateEvidence(t *Task, s *Step, rows []Evidence) error {
 	}
 	for i := range rows {
 		v := &rows[i]
+		v.Revision = ""
 		if v.Kind != "fact" && v.Kind != "finding" && v.Kind != "asset" && v.Kind != "gap" {
 			return fmt.Errorf("invalid evidence kind")
 		}

@@ -53,11 +53,11 @@
         } else if (tab === 'plan') {
             body.innerHTML = task.steps.map(s => '<article class="assessment-card"><div class="assessment-step-title"><h3>' + esc(s.title) + '</h3>' + badge(s.status) + '</div><small>' + esc(s.key) + (s.depends_on && s.depends_on.length ? ' ← ' + esc(s.depends_on.join(', ')) : '') + '</small><p class="assessment-text">' + esc(s.instruction) + '</p><p class="assessment-text">' + esc(s.result) + '</p>' + (s.checkpoint ? '<p class="assessment-text">' + esc(tr('checkpoint')) + ': ' + esc(s.checkpoint) + '</p>' : '') + (s.retired_reason ? '<p class="assessment-text">' + esc(tr('retiredReason')) + ': ' + esc(s.retired_reason) + '</p>' : '') +
                 (s.pending ? '<div class="assessment-approval"><h4>' + esc(tr('approval')) + '</h4><p>' + esc(tr('approvalHint')) + '</p><strong>' + esc(s.pending.function.name) + '</strong><pre>' + esc(JSON.stringify(s.pending.function.arguments, null, 2)) + '</pre>' +
-                    (s.status === 'awaiting_approval' && !['completed', 'stopped', 'exhausted', 'failed'].includes(task.status) ? button('approve', tr('approve'), 'hitl:write', 'data-step="' + esc(s.id) + '"' + (!can('assessment:write') ? ' disabled' : '')) + button('deny', tr('deny'), 'hitl:write', 'data-step="' + esc(s.id) + '"' + (!can('assessment:write') ? ' disabled' : '')) : '<p>' + esc(tr('approved')) + '</p>') + '</div>' : '') +
+                    (s.status === 'awaiting_approval' && !['completed', 'stopped', 'exhausted', 'failed'].includes(task.status) ? button('approve', tr('approve'), 'hitl:write', 'data-step="' + esc(s.id) + '" data-approval="' + esc(s.approval_id) + '"' + (!can('assessment:write') ? ' disabled' : '')) + button('deny', tr('deny'), 'hitl:write', 'data-step="' + esc(s.id) + '" data-approval="' + esc(s.approval_id) + '"' + (!can('assessment:write') ? ' disabled' : '')) : '<p>' + esc(tr('approved')) + '</p>') + '</div>' : '') +
                 (s.status === 'blocked' && resumable ? button('retry', tr('retry'), 'assessment:write', 'data-step="' + esc(s.id) + '"') : '') + '</article>').join('') || '<p class="assessment-empty">' + esc(tr('noSteps')) + '</p>';
         } else if (tab === 'evidence') {
             body.innerHTML = '<p>' + esc(tr('candidateHint')) + '</p>' + task.steps.map(s => (s.evidence || []).map((v, i) => '<article class="assessment-card"><small>' + esc(s.title) + ' · ' + esc(v.kind) + '</small><h3>' + esc(v.title) + '</h3><p class="assessment-text">' + esc(v.detail) + '</p><p class="assessment-text">' + esc((v.execution_ids || []).join('\n')) + '</p>' +
-                (v.kind !== 'gap' && v.execution_ids.length ? (task.project_id ? button('fact', tr('publishFact'), 'project:write', 'data-step="' + esc(s.id) + '" data-index="' + i + '"') : '') + (v.kind === 'asset' && v.asset ? button('asset', tr('publishAsset'), 'asset:write', 'data-step="' + esc(s.id) + '" data-index="' + i + '"') : '') + (v.kind === 'finding' ? button('vulnerability', tr('publishFinding'), 'vulnerability:write', 'data-step="' + esc(s.id) + '" data-index="' + i + '"') : '') : '') + '</article>').join('')).join('');
+                (v.kind !== 'gap' && v.execution_ids.length ? (task.project_id ? button('fact', tr('publishFact'), 'project:write', 'data-step="' + esc(s.id) + '" data-index="' + i + '" data-revision="' + esc(v.revision) + '"') : '') + (v.kind === 'asset' && v.asset ? button('asset', tr('publishAsset'), 'asset:write', 'data-step="' + esc(s.id) + '" data-index="' + i + '" data-revision="' + esc(v.revision) + '"') : '') + (v.kind === 'finding' ? button('vulnerability', tr('publishFinding'), 'vulnerability:write', 'data-step="' + esc(s.id) + '" data-index="' + i + '" data-revision="' + esc(v.revision) + '"') : '') : '') + '</article>').join('')).join('');
         } else if (tab === 'logs') {
             body.innerHTML = '<div class="assessment-log">' + events.map(ev => '<details><summary><time>' + esc(ev.created_at) + '</time> · ' + esc(ev.kind) + ' · ' + esc(ev.message.slice(0, 100)) + '</summary><pre>' + esc(ev.message) + '\n' + esc(ev.data ? JSON.stringify(ev.data, null, 2) : '') + '</pre></details>').join('') + '</div>';
         } else if (tab === 'chain') {
@@ -131,9 +131,9 @@
     }
     async function onClick(ev) {
         const target = ev.target.closest('[data-assessment-action]'); if (!target || target.disabled) return;
-        const action = target.dataset.assessmentAction; const id = selected;
+        const action = target.dataset.assessmentAction; const id = task && task.id === selected ? task.id : null;
         try {
-            if (action === 'select') { epoch++; selected = target.dataset.id; history.replaceState(null, '', '#assessments?task=' + encodeURIComponent(selected)); task = null; events = []; after = 0; delete root().dataset.updated; await refresh(true); return; }
+            if (action === 'select') { epoch++; selected = target.dataset.id; history.replaceState(null, '', '#assessments?task=' + encodeURIComponent(selected)); task = null; events = []; after = 0; delete root().dataset.updated; detail(); await refresh(true); return; }
             if (action === 'tab') { tab = target.dataset.tab; detail(); return; }
             if (action === 'refresh') { await refresh(true); return; }
             if (action === 'new') { await createDialog(); return; }
@@ -143,10 +143,10 @@
             target.disabled = true;
             if (['start', 'pause', 'stop'].includes(action)) await api('/' + id + '/control/' + action, 'POST', {});
             else if (action === 'steer') await api('/' + id + '/control/steer', 'POST', { message: document.getElementById('assessment-guidance').value });
-            else if (action === 'approve' || action === 'deny') await api('/' + id + '/steps/' + target.dataset.step + '/decision', 'POST', { approved: action === 'approve' });
+            else if (action === 'approve' || action === 'deny') await api('/' + id + '/steps/' + target.dataset.step + '/decision', 'POST', { approved: action === 'approve', approval_id: target.dataset.approval });
             else if (action === 'retry') { if (!window.confirm(tr('retryConfirm'))) return; await api('/' + id + '/steps/' + target.dataset.step + '/retry', 'POST', {}); }
             else if (action === 'delete') { if (!window.confirm(tr('deleteConfirm'))) return; await api('/' + id, 'DELETE'); selected = ''; history.replaceState(null, '', '#assessments'); task = null; events = []; after = 0; }
-            else if (action === 'fact' || action === 'vulnerability' || action === 'asset') { await api('/' + id + '/publish', 'POST', { step_id: target.dataset.step, index: Number(target.dataset.index), kind: action }); message(tr('published')); }
+            else if (action === 'fact' || action === 'vulnerability' || action === 'asset') { await api('/' + id + '/publish', 'POST', { step_id: target.dataset.step, index: Number(target.dataset.index), kind: action, revision: target.dataset.revision }); message(tr('published')); }
             else if (action === 'report') {
                 const response = await fetch('/api/assessments/' + id + '/report', { credentials: 'same-origin' }); if (!response.ok) throw new Error(response.statusText);
                 const url = URL.createObjectURL(await response.blob()); const link = document.createElement('a'); link.href = url; link.download = 'assessment-' + id + '.md'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);

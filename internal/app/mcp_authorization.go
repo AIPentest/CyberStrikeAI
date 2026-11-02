@@ -124,6 +124,11 @@ func mcpToolAuthorizer(db *database.DB) func(context.Context, string, map[string
 			if err := require("asset:write"); err != nil {
 				return err
 			}
+			if projectID := mcpAuthorizationString(args, "project_id"); projectID != "" {
+				if bound := mcpEffectiveProjectFilter(ctx, db); bound != "" && bound != projectID {
+					return fmt.Errorf("asset destination is outside the current project")
+				}
+			}
 			if projectID := mcpAuthorizationString(args, "project_id"); projectID != "" && (db == nil || !db.UserCanAccessResource(principal.UserID, principal.ScopeFor("asset:write"), "project", projectID)) {
 				return fmt.Errorf("no access to project %s", projectID)
 			}
@@ -138,6 +143,11 @@ func mcpToolAuthorizer(db *database.DB) func(context.Context, string, map[string
 					return fmt.Errorf("no access to conversation %s", conversationID)
 				}
 				return nil
+			}
+			if projectID := mcpAuthorizationString(args, "project_id"); projectID != "" {
+				if bound := mcpEffectiveProjectFilter(ctx, db); bound != "" && bound != projectID {
+					return fmt.Errorf("asset destination is outside the current project")
+				}
 			}
 			if projectID := mcpAuthorizationString(args, "project_id"); projectID != "" && (db == nil || !db.UserCanAccessResource(principal.UserID, principal.ScopeFor("asset:write"), "project", projectID)) {
 				return fmt.Errorf("no access to project %s", projectID)
@@ -316,6 +326,11 @@ func authorizeMCPProjectResourceBoundary(ctx context.Context, db *database.DB, r
 		return nil
 	}
 	if filter == database.ProjectFilterUnbound {
+		// Asset/vulnerability managers historically allow an unbound session to
+		// operate across its RBAC-visible records; bound sessions remain constrained.
+		if resourceType == "asset" || resourceType == "vulnerability" {
+			return nil
+		}
 		if projectID != "" {
 			return fmt.Errorf("resource %s %s belongs to project %s, current conversation is unbound", resourceType, resourceID, projectID)
 		}
@@ -332,6 +347,14 @@ func authorizeMCPProjectResourceBoundary(ctx context.Context, db *database.DB, r
 
 func mcpResourceProjectID(db *database.DB, resourceType, resourceID string) (string, bool, error) {
 	switch resourceType {
+	case "asset", "vulnerability":
+		table := "assets"
+		if resourceType == "vulnerability" {
+			table = "vulnerabilities"
+		}
+		var projectID string
+		err := db.QueryRow(`SELECT COALESCE(project_id,'') FROM `+table+` WHERE id=?`, resourceID).Scan(&projectID)
+		return projectID, true, err
 	case "webshell":
 		conn, err := db.GetWebshellConnection(resourceID)
 		if err != nil {

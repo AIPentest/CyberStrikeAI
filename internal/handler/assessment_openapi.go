@@ -36,14 +36,14 @@ func addAssessmentSpec(spec map[string]interface{}) {
 	body(control, map[string]interface{}{"type": "object", "properties": map[string]interface{}{"message": str()}})
 	paths["/api/assessments/{id}/control/{action}"] = map[string]interface{}{"post": control}
 	decision := op("Decide one exact tool call (also requires hitl:write)", "assessment:write", "id", "stepId")
-	body(decision, map[string]interface{}{"type": "object", "required": []string{"approved"}, "properties": map[string]interface{}{"approved": map[string]interface{}{"type": "boolean"}}})
+	body(decision, map[string]interface{}{"type": "object", "required": []string{"approved", "approval_id"}, "properties": map[string]interface{}{"approval_id": str(), "approved": map[string]interface{}{"type": "boolean"}}})
 	paths["/api/assessments/{id}/steps/{stepId}/decision"] = map[string]interface{}{"post": decision}
 	paths["/api/assessments/{id}/steps/{stepId}/retry"] = map[string]interface{}{"post": op("Explicitly retry blocked work after reviewing partial effects", "assessment:write", "id", "stepId")}
-	events := op("Read up to 200 durable events after a cursor", "assessment:read", "id")
+	events := op("Read up to 200 durable events after a cursor (approximately 1 MiB per page)", "assessment:read", "id")
 	events["parameters"] = append(events["parameters"].([]map[string]interface{}), map[string]interface{}{"in": "query", "name": "after", "schema": map[string]interface{}{"type": "integer", "format": "int64", "default": 0}})
 	paths["/api/assessments/{id}/events"] = map[string]interface{}{"get": events}
 	publish := op("Publish reviewed evidence (also requires destination write permissions)", "assessment:write", "id")
-	body(publish, map[string]interface{}{"type": "object", "required": []string{"step_id", "index", "kind"}, "properties": map[string]interface{}{"step_id": str(), "index": map[string]interface{}{"type": "integer", "minimum": 0}, "kind": map[string]interface{}{"type": "string", "enum": []string{"fact", "asset", "vulnerability"}}}})
+	body(publish, map[string]interface{}{"type": "object", "required": []string{"step_id", "index", "kind", "revision"}, "properties": map[string]interface{}{"step_id": str(), "revision": str(), "index": map[string]interface{}{"type": "integer", "minimum": 0}, "kind": map[string]interface{}{"type": "string", "enum": []string{"fact", "asset", "vulnerability"}}}})
 	paths["/api/assessments/{id}/publish"] = map[string]interface{}{"post": publish}
 	report := op("Download an evidence-based Markdown report, including partial results", "assessment:read", "id")
 	report["responses"].(map[string]interface{})["200"] = map[string]interface{}{"description": "Markdown report", "content": map[string]interface{}{"text/markdown": map[string]interface{}{"schema": str()}}}

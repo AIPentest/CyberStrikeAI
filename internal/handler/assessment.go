@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,14 +20,23 @@ import (
 )
 
 type AssessmentHandler struct {
-	Engine *assessment.Engine
-	DB     *database.DB
-	Config *config.Config
-	Audit  *audit.Service
+	ConfigSnapshot func() (*config.Config, error)
+	Engine         *assessment.Engine
+	DB             *database.DB
+	Config         *config.Config
+	Audit          *audit.Service
 }
 
+func (h *AssessmentHandler) bind(c *gin.Context, v any) error {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 128<<10)
+	return c.ShouldBindJSON(v)
+}
 func (h *AssessmentHandler) fail(c *gin.Context, err error) {
 	code := http.StatusBadRequest
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		code = http.StatusRequestEntityTooLarge
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		code = 404
 	}
@@ -36,6 +46,9 @@ func (h *AssessmentHandler) fail(c *gin.Context, err error) {
 	c.JSON(code, gin.H{"error": err.Error()})
 }
 func (h *AssessmentHandler) task(c *gin.Context) (*assessment.Task, bool) {
+	if !assessmentMutationOriginAllowed(c) {
+		return nil, false
+	}
 	session, ok := security.CurrentSession(c)
 	if !ok {
 		c.AbortWithStatus(401)
@@ -53,12 +66,17 @@ func (h *AssessmentHandler) task(c *gin.Context) (*assessment.Task, bool) {
 	return t, true
 }
 func (h *AssessmentHandler) Options(c *gin.Context) {
+	cfg, err := h.configuration()
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
 	options := []gin.H{}
-	for id, ch := range h.Config.AI.Channels {
-		options = append(options, gin.H{"id": id, "name": ch.Name, "model": ch.Model, "default": id == h.Config.AI.DefaultChannel})
+	for id, ch := range cfg.AI.Channels {
+		options = append(options, gin.H{"id": id, "name": ch.Name, "model": ch.Model, "default": id == cfg.AI.DefaultChannel})
 	}
 	if len(options) == 0 {
-		options = append(options, gin.H{"id": "", "name": "Default", "model": h.Config.OpenAI.Model, "default": true})
+		options = append(options, gin.H{"id": "", "name": "Default", "model": cfg.OpenAI.Model, "default": true})
 	}
 	sort.Slice(options, func(i, j int) bool { return options[i]["id"].(string) < options[j]["id"].(string) })
 	tools, _ := h.Engine.Runtime.Tools(&assessment.Task{Tools: allAssessmentToolNames(h)})
@@ -113,6 +131,14 @@ func (h *AssessmentHandler) Get(c *gin.Context) {
 	}
 }
 func (h *AssessmentHandler) Create(c *gin.Context) {
+	if !assessmentMutationOriginAllowed(c) {
+		return
+	}
+	cfg, err := h.configuration()
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
 	// Only creation fields are accepted. Runtime state/owner cannot be supplied.
 	var req struct {
 		ApprovalMode string   `json:"approval_mode"`
@@ -129,7 +155,7 @@ func (h *AssessmentHandler) Create(c *gin.Context) {
 		Rounds       int      `json:"max_rounds"`
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 128<<10)
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := h.bind(c, &req); err != nil {
 		h.fail(c, err)
 		return
 	}
@@ -146,12 +172,12 @@ func (h *AssessmentHandler) Create(c *gin.Context) {
 		}
 	}
 	if req.Model != "" {
-		if _, _, ok := h.Config.AI.ResolveChannel(req.Model); !ok {
+		if _, _, ok := cfg.AI.ResolveChannel(req.Model); !ok {
 			h.fail(c, fmt.Errorf("unknown model channel"))
 			return
 		}
 	}
-	if _, _, ok := h.Config.ResolveAIChannel(req.Model); !ok {
+	if _, _, ok := cfg.ResolveAIChannel(req.Model); !ok {
 		h.fail(c, fmt.Errorf("unknown model channel"))
 		return
 	}
@@ -209,7 +235,7 @@ func (h *AssessmentHandler) Control(c *gin.Context) {
 		var req struct {
 			Message string `json:"message"`
 		}
-		if err = c.ShouldBindJSON(&req); err == nil {
+		if err = h.bind(c, &req); err == nil {
 			text := strings.TrimSpace(req.Message)
 			if len(text) == 0 || len(text) > 8000 {
 				err = fmt.Errorf("message must contain 1..8000 bytes")
@@ -245,22 +271,28 @@ func (h *AssessmentHandler) Decision(c *gin.Context) {
 		c.JSON(403, gin.H{"error": "hitl:write is required"})
 		return
 	}
+	session, _ := security.CurrentSession(c)
+	if !h.DB.UserCanAccessResource(session.UserID, session.ScopeFor("hitl:write"), "assessment", t.ID) {
+		c.JSON(403, gin.H{"error": "approval scope does not include this assessment"})
+		return
+	}
 	var req struct {
-		Approved *bool `json:"approved"`
+		ApprovalID string `json:"approval_id"`
+		Approved   *bool  `json:"approved"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := h.bind(c, &req); err != nil {
 		h.fail(c, err)
 		return
 	}
-	if req.Approved == nil {
-		h.fail(c, fmt.Errorf("approved is required"))
+	if req.Approved == nil || strings.TrimSpace(req.ApprovalID) == "" {
+		h.fail(c, fmt.Errorf("approved and approval_id are required"))
 		return
 	}
-	if err := h.Engine.Decide(t.ID, c.Param("stepId"), *req.Approved); err != nil {
+	if err := h.Engine.Decide(t.ID, c.Param("stepId"), req.ApprovalID, session.UserID, *req.Approved); err != nil {
 		h.fail(c, err)
 		return
 	}
-	h.Audit.RecordOK(c, "assessment", "approval", "Assessment tool decision", "assessment", t.ID, map[string]interface{}{"step_id": c.Param("stepId"), "approved": *req.Approved})
+	h.Audit.RecordOK(c, "assessment", "approval", "Assessment tool decision", "assessment", t.ID, map[string]interface{}{"step_id": c.Param("stepId"), "approved": *req.Approved, "approval_id": req.ApprovalID})
 	c.JSON(200, gin.H{"ok": true})
 }
 func (h *AssessmentHandler) Retry(c *gin.Context) {
@@ -316,11 +348,12 @@ func (h *AssessmentHandler) Publish(c *gin.Context) {
 		return
 	}
 	var req struct {
-		StepID string `json:"step_id"`
-		Index  int    `json:"index"`
-		Kind   string `json:"kind"`
+		StepID   string `json:"step_id"`
+		Revision string `json:"revision"`
+		Index    int    `json:"index"`
+		Kind     string `json:"kind"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := h.bind(c, &req); err != nil {
 		h.fail(c, err)
 		return
 	}
@@ -330,6 +363,10 @@ func (h *AssessmentHandler) Publish(c *gin.Context) {
 		return
 	}
 	v := st.Evidence[req.Index]
+	if req.Revision == "" || req.Revision != assessment.EvidenceRevision(v) {
+		h.fail(c, assessment.ErrConflict)
+		return
+	}
 	if len(v.ExecutionIDs) == 0 || v.Kind == "gap" {
 		h.fail(c, fmt.Errorf("execution-backed observation required"))
 		return
@@ -380,7 +417,14 @@ func (h *AssessmentHandler) Publish(c *gin.Context) {
 			return
 		}
 		a := v.Asset
-		imported, err := h.DB.UpsertAssets([]*database.Asset{{ProjectID: t.ProjectID, Host: a.Host, IP: a.IP, Domain: a.Domain, Port: a.Port, Protocol: a.Protocol, Server: a.Server, Title: v.Title, Source: "assessment", SourceQuery: body, Tags: []string{"assessment:" + t.ID}}}, session.UserID, session.ScopeFor("asset:write") == database.RBACScopeAll)
+		assets := []*database.Asset{{ProjectID: t.ProjectID, Host: a.Host, IP: a.IP, Domain: a.Domain, Port: a.Port, Protocol: a.Protocol, Server: a.Server, Title: v.Title, Source: "assessment", SourceQuery: body, Tags: []string{"assessment:" + t.ID}}}
+		var imported database.AssetImportResult
+		var err error
+		if t.ProjectID != "" {
+			imported, err = h.DB.UpsertAssetsInProject(assets, session.UserID, session.ScopeFor("asset:write") == database.RBACScopeAll, t.ProjectID)
+		} else {
+			imported, err = h.DB.UpsertAssets(assets, session.UserID, session.ScopeFor("asset:write") == database.RBACScopeAll)
+		}
 		if err != nil {
 			h.fail(c, err)
 			return
@@ -396,4 +440,35 @@ func (h *AssessmentHandler) Publish(c *gin.Context) {
 	}
 	h.Audit.RecordOK(c, "assessment", "publish", "Published reviewed observation", "assessment", t.ID, map[string]interface{}{"step_id": st.ID, "kind": req.Kind})
 	c.JSON(200, gin.H{"result": result})
+}
+
+// Bearer-authenticated integrations do not rely on ambient browser cookies.
+// Cookie mutations must originate from this host, including non-JSON controls.
+func assessmentMutationOriginAllowed(c *gin.Context) bool {
+	if c.Request.Method == http.MethodGet || c.Request.Method == http.MethodHead || c.GetHeader("Authorization") != "" {
+		return true
+	}
+	origin := c.GetHeader("Origin")
+	if origin != "" {
+		u, err := url.Parse(origin)
+		if err != nil || u.Host != c.Request.Host || (u.Scheme != "http" && u.Scheme != "https") {
+			c.AbortWithStatusJSON(403, gin.H{"error": "cross-origin assessment mutation denied"})
+			return false
+		}
+	}
+	if origin == "" && c.GetHeader("Sec-Fetch-Site") == "cross-site" {
+		c.AbortWithStatusJSON(403, gin.H{"error": "cross-site assessment mutation denied"})
+		return false
+	}
+	return true
+}
+
+func (h *AssessmentHandler) configuration() (*config.Config, error) {
+	if h.ConfigSnapshot != nil {
+		return h.ConfigSnapshot()
+	}
+	if h.Config == nil {
+		return nil, fmt.Errorf("configuration unavailable")
+	}
+	return h.Config, nil
 }

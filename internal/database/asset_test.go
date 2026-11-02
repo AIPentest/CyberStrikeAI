@@ -580,3 +580,49 @@ func TestAssetIPURLWithPrefilledIPDoesNotBecomeDomain(t *testing.T) {
 		}
 	}
 }
+
+func TestScopedAssetImportCannotOverwriteOwnerlessRecord(t *testing.T) {
+	db, err := NewDB(filepath.Join(t.TempDir(), "ownerless.db"), zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	original := &Asset{Host: "https://fixture.example.test", Title: "Protected ownerless asset"}
+	if _, err = db.UpsertAssets([]*Asset{original}, "", true); err != nil {
+		t.Fatal(err)
+	}
+	result, err := db.UpsertAssets([]*Asset{{Host: original.Host, Title: "Unauthorized replacement", ProjectID: "attacker-project"}}, "scoped-user", false)
+	if err != nil || result.Skipped != 1 || result.Updated != 0 {
+		t.Fatal("ownerless row writable by scoped import", result, err)
+	}
+	saved, err := db.GetAsset(original.ID, RBACListAccess{Scope: RBACScopeAll})
+	if err != nil || saved.Title != original.Title || saved.ProjectID != "" {
+		t.Fatal("asset changed", saved, err)
+	}
+	result, err = db.UpsertAssets([]*Asset{{Host: original.Host, Title: "Admin update"}}, "admin", true)
+	if err != nil || result.Updated != 1 {
+		t.Fatal("explicit global import broken", result, err)
+	}
+}
+
+func TestProjectBoundImportCannotReassignDeduplicatedAsset(t *testing.T) {
+	db, err := NewDB(filepath.Join(t.TempDir(), "bound-import.db"), zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	currentProject, _ := db.CreateProject(&Project{Name: "current"})
+	otherProject, _ := db.CreateProject(&Project{Name: "other"})
+	original := &Asset{Host: "https://shared.example.test", ProjectID: otherProject.ID, Title: "Original"}
+	if _, err = db.UpsertAssets([]*Asset{original}, "admin", true); err != nil {
+		t.Fatal(err)
+	}
+	result, err := db.UpsertAssetsInProject([]*Asset{{Host: original.Host, ProjectID: currentProject.ID, Title: "Reassigned"}}, "admin", true, currentProject.ID)
+	if err != nil || result.Skipped != 1 {
+		t.Fatal("project boundary bypass via dedup", result, err)
+	}
+	saved, err := db.GetAsset(original.ID, RBACListAccess{Scope: RBACScopeAll})
+	if err != nil || saved.ProjectID != otherProject.ID || saved.Title != "Original" {
+		t.Fatal("foreign project record changed", err)
+	}
+}
