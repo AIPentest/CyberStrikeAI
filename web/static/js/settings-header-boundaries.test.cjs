@@ -17,3 +17,7 @@ test('audit shares headers only when it inherits model identity',()=>{
 test('explicit audit headers belong to audit configuration',()=>{
  assert.deepEqual(collect({'hitl-audit-model-base-url':'https://audit.invalid'},{'X-Api-Key':'********'}).headers,{'X-Api-Key':'********'});
 });
+test('empty audit headers follow the same identity policy as omitted headers',()=>{
+ assert.deepEqual(collect({},{}).headers,collect().headers);
+ assert.deepEqual(collect({'hitl-audit-model-api-key':'audit-key'},{}).headers,{});
+});

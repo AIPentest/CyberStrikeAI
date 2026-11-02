@@ -3804,13 +3804,14 @@ function collectHitlAuditModelEffectiveConfig() {
     const overriddenBaseUrl = document.getElementById('hitl-audit-model-base-url')?.value.trim() || '';
     const mainChannelId = normalizeAIChannelId(selectedAIChannelId || currentConfig?.ai?.default_channel || 'default');
     const mainHeaders = currentConfig?.ai?.channels?.[mainChannelId]?.headers || {};
+    const auditHeaders = currentConfig?.hitl?.audit_model?.headers || {};
     return {
         provider: document.getElementById('hitl-audit-model-provider')?.value || main.provider,
         base_url: overriddenBaseUrl || main.base_url,
         api_key: document.getElementById('hitl-audit-model-api-key')?.value.trim() || main.api_key,
         model: document.getElementById('hitl-audit-model-name')?.value.trim() || main.model,
         // 审计模型留空即复用主渠道，自定义请求头必须一起跟随，否则私有鉴权头的供应商测试必然失败。
-        headers: currentConfig?.hitl?.audit_model?.headers ?? ((overriddenBaseUrl || auditProvider || auditKey) ? {} : mainHeaders)
+        headers: Object.keys(auditHeaders).length ? auditHeaders : ((overriddenBaseUrl || auditProvider || auditKey) ? {} : mainHeaders)
     };
 }
 

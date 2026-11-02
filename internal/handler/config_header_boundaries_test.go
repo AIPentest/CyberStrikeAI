@@ -167,3 +167,56 @@ func TestAuditHeadersPersistAndRestoreMaskedConfig(t *testing.T) {
 		t.Fatal("audit header lost on save")
 	}
 }
+
+func TestPrivateHeaderNamesAreMaskedAndRestored(t *testing.T) {
+	cfg := &config.Config{AI: config.AIConfig{Channels: map[string]config.AIChannelConfig{"a": {Headers: map[string]string{"X-Gateway-Token": "private-token", "X-Client-Name": "client-name"}}, "b": {Headers: map[string]string{"X-Gateway-Token": "other-token"}}}}}
+	response, err := maskedConfigResponse(configSecretSnapshot(cfg))
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(response)
+	if strings.Contains(string(raw), "private-token") || strings.Contains(string(raw), "other-token") || strings.Contains(string(raw), "client-name") {
+		t.Fatal("custom header disclosed")
+	}
+	var req UpdateConfigRequest
+	if err = json.Unmarshal(raw, &req); err != nil {
+		t.Fatal(err)
+	}
+	// HTTP field casing is not an identity change, but channels must remain isolated.
+	ch := req.AI.Channels["a"]
+	delete(ch.Headers, "X-Gateway-Token")
+	ch.Headers["x-gateway-token"] = maskedSecret
+	req.AI.Channels["a"] = ch
+	if err = restoreConfigRequestSecrets(&req, cfg); err != nil {
+		t.Fatal(err)
+	}
+	if req.AI.Channels["a"].Headers["x-gateway-token"] != "private-token" || req.AI.Channels["b"].Headers["X-Gateway-Token"] != "other-token" {
+		t.Fatal("wrong channel credential")
+	}
+	if cfg.AI.Channels["a"].Headers["X-Gateway-Token"] != "private-token" {
+		t.Fatal("live config mutated")
+	}
+	for _, headers := range []map[string]interface{}{{"Missing": maskedSecret}, {"X-Gateway-Token": maskedSecret, "x-gateway-token": maskedSecret}} {
+		if transformHeaderSecrets(headers, map[string]interface{}{"X-Gateway-Token": "private-token"}, true) == nil {
+			t.Fatal("ambiguous or missing header accepted")
+		}
+	}
+}
+func TestEmptyAuditHeadersRoundTripPreservesPolicy(t *testing.T) {
+	main := config.OpenAIConfig{Headers: map[string]string{"Authorization": "Bearer main"}}
+	for _, identity := range []string{"", "https://audit.invalid"} {
+		hitl := config.HitlConfig{AuditModel: config.OpenAIConfig{BaseURL: identity, Headers: map[string]string{}}}
+		before := hitl.AuditModelEffective(main).Headers["Authorization"]
+		var doc yaml.Node
+		yaml.Unmarshal([]byte("hitl: {}\n"), &doc)
+		updateHitlConfig(&doc, hitl)
+		raw, _ := yaml.Marshal(&doc)
+		var saved config.Config
+		if err := yaml.Unmarshal(raw, &saved); err != nil {
+			t.Fatal(err)
+		}
+		if after := saved.Hitl.AuditModelEffective(main).Headers["Authorization"]; after != before {
+			t.Fatalf("round trip changed header policy: %q -> %q", before, after)
+		}
+	}
+}

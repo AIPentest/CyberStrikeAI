@@ -16,7 +16,7 @@ func TestAuditModelHeaderIdentityBoundary(t *testing.T) {
 		{"endpoint", OpenAIConfig{BaseURL: "https://audit.invalid/v1"}, ""},
 		{"key", OpenAIConfig{APIKey: "audit-key"}, ""},
 		{"explicit", OpenAIConfig{BaseURL: "https://audit.invalid", Headers: map[string]string{"Authorization": "${CSAI_AUDIT_TEST_HEADER}"}}, "audit-secret"},
-		{"explicit empty", OpenAIConfig{Headers: map[string]string{}}, ""},
+		{"empty follows inheritance", OpenAIConfig{Headers: map[string]string{}}, "Bearer main"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := (HitlConfig{AuditModel: tc.audit}).AuditModelEffective(main)

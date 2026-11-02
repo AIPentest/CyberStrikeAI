@@ -6,7 +6,7 @@ import "strings"
 // boundary, even when its provider or URL happens to equal the main model's.
 // A model-name-only override can safely continue using the main identity.
 func auditModelHeaders(main, audit OpenAIConfig) map[string]string {
-	if audit.Headers != nil {
+	if len(audit.Headers) > 0 {
 		return ExpandHeaderMap(audit.Headers)
 	}
 	if strings.TrimSpace(audit.Provider) != "" || strings.TrimSpace(audit.BaseURL) != "" || strings.TrimSpace(audit.APIKey) != "" {
