@@ -427,3 +427,7 @@ For vulnerability reporting and deployment hardening guidance, see [SECURITY.md]
 ---
 
 Need help or want to contribute? Open an issue or PR—community tooling additions are welcome!
+
+### Deep assessments
+
+The Deep Assessment sidebar runs durable assessments independently of chat, with adaptive planning, bounded workers, evidence, approvals, pause/recovery and reports. See [usage, permissions and budget behavior](docs/DEEP_ASSESSMENTS.md).

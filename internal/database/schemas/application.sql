@@ -861,3 +861,25 @@ CREATE INDEX idx_workflow_runs_workflow ON workflow_runs(workflow_id);
 CREATE UNIQUE INDEX uq_workflow_package_imports_actor_key ON workflow_package_imports(actor_user_id, idempotency_key);
 
 CREATE UNIQUE INDEX uq_workflow_package_imports_inspection_success ON workflow_package_imports(inspection_id) WHERE result IN ('created','overwritten','renamed','kept_existing','skipped_identical');
+
+-- Assessment state is independent of conversations; deleting a chat never deletes a task.
+CREATE TABLE IF NOT EXISTS assessments (
+    id TEXT PRIMARY KEY,
+    owner_user_id TEXT NOT NULL,
+    project_id TEXT NOT NULL DEFAULT '',
+    name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    updated_at DATETIME NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_assessments_owner ON assessments(owner_user_id, updated_at);
+CREATE TABLE IF NOT EXISTS assessment_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    assessment_id TEXT NOT NULL REFERENCES assessments(id) ON DELETE CASCADE,
+    step_id TEXT NOT NULL DEFAULT '',
+    kind TEXT NOT NULL,
+    message TEXT NOT NULL,
+    data TEXT NOT NULL DEFAULT '{}',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_assessment_events_task ON assessment_events(assessment_id, id);
