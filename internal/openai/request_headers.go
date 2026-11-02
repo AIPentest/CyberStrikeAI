@@ -112,6 +112,7 @@ func (rt *headersRoundTripper) RoundTrip(req *http.Request) (*http.Response, err
 	if rt == nil || req == nil {
 		return base.RoundTrip(req)
 	}
-	applyCustomHeaders(req, rt.cfg)
-	return base.RoundTrip(req)
+	cloned := req.Clone(req.Context())
+	applyCustomHeaders(cloned, rt.cfg)
+	return base.RoundTrip(cloned)
 }

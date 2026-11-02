@@ -118,7 +118,7 @@ func (c *Client) ChatCompletion(ctx context.Context, payload interface{}, out in
 	applyCustomHeaders(req, c.config)
 
 	requestStart := time.Now()
-	resp, err := c.httpClient.Do(req)
+	resp, err := customHeaderHTTPClient(c.httpClient, c.config).Do(req)
 	if err != nil {
 		return fmt.Errorf("call openai api: %w", err)
 	}
@@ -211,7 +211,7 @@ func (c *Client) ChatCompletionStream(ctx context.Context, payload interface{}, 
 	applyCustomHeaders(req, c.config)
 
 	requestStart := time.Now()
-	resp, err := c.httpClient.Do(req)
+	resp, err := customHeaderHTTPClient(c.httpClient, c.config).Do(req)
 	if err != nil {
 		return "", fmt.Errorf("call openai api: %w", err)
 	}
@@ -362,7 +362,7 @@ func (c *Client) ChatCompletionStreamWithToolCalls(
 	applyCustomHeaders(req, c.config)
 
 	requestStart := time.Now()
-	resp, err := c.httpClient.Do(req)
+	resp, err := customHeaderHTTPClient(c.httpClient, c.config).Do(req)
 	if err != nil {
 		return "", nil, "", fmt.Errorf("call openai api: %w", err)
 	}
@@ -577,7 +577,7 @@ func (c *Client) ListModels(ctx context.Context) ([]string, error) {
 	req.Header.Set("Authorization", "Bearer "+c.config.APIKey)
 	applyCustomHeaders(req, c.config)
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := customHeaderHTTPClient(c.httpClient, c.config).Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("call openai models api: %w", err)
 	}
