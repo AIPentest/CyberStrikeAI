@@ -626,7 +626,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	if err := assessmentStore.Recover(); err != nil {
 		return nil, fmt.Errorf("recover assessments: %w", err)
 	}
-	app.assessmentEngine = assessment.NewEngine(assessmentStore, &assessment.CSAIRuntime{DB: db, Agent: agent, ConfigSnapshot: configHandler.AssessmentConfigSnapshot, Logger: log.Logger}, log.Logger)
+	app.assessmentEngine = assessment.NewEngine(assessmentStore, &assessment.CSAIRuntime{DB: db, Agent: agent, SkillsRoot: skillpackage.SkillsRootFromConfig(cfg.SkillsDir, configPath), ConfigSnapshot: configHandler.AssessmentConfigSnapshot, Logger: log.Logger}, log.Logger)
 
 	// 设置路由（使用 App 实例以便动态获取 handler）
 	setupRoutes(
@@ -1019,6 +1019,7 @@ func setupRoutes(
 		protected.DELETE("/assessments/:id", assessmentHandler.Delete)
 		protected.GET("/assessments/:id/events", assessmentHandler.Events)
 		protected.GET("/assessments/:id/report", assessmentHandler.Report)
+		protected.GET("/assessments/:id/metrics", assessmentHandler.Metrics)
 		protected.POST("/assessments/:id/steps/:stepId/decision", assessmentHandler.Decision)
 		protected.POST("/assessments/:id/steps/:stepId/retry", assessmentHandler.Retry)
 		protected.POST("/assessments/:id/publish", assessmentHandler.Publish)

@@ -96,7 +96,13 @@ func (h *AssessmentHandler) Options(c *gin.Context) {
 			projects = append(projects, gin.H{"id": p.ID, "name": p.Name})
 		}
 	}
-	c.JSON(200, gin.H{"models": options, "tools": safe, "projects": projects})
+	skills := []string{}
+	if security.SessionHasPermission(c, "skills:read") {
+		if r, ok := h.Engine.Runtime.(*assessment.CSAIRuntime); ok {
+			skills = r.SkillOptions()
+		}
+	}
+	c.JSON(200, gin.H{"models": options, "tools": safe, "projects": projects, "skills": skills, "profiles": []string{"general", "recon", "auth", "validation", "verification"}})
 }
 func allAssessmentToolNames(h *AssessmentHandler) []string {
 	if r, ok := h.Engine.Runtime.(*assessment.CSAIRuntime); ok && r.Agent != nil {
@@ -141,18 +147,22 @@ func (h *AssessmentHandler) Create(c *gin.Context) {
 	}
 	// Only creation fields are accepted. Runtime state/owner cannot be supplied.
 	var req struct {
-		ApprovalMode string   `json:"approval_mode"`
-		Name         string   `json:"name"`
-		Goal         string   `json:"goal"`
-		Scope        string   `json:"scope"`
-		Material     string   `json:"material"`
-		ProjectID    string   `json:"project_id"`
-		Model        string   `json:"model"`
-		Tools        []string `json:"tools"`
-		Concurrency  int      `json:"concurrency"`
-		TokenBudget  int      `json:"token_budget"`
-		Seconds      int64    `json:"remaining_seconds"`
-		Rounds       int      `json:"max_rounds"`
+		Criteria      []string          `json:"criteria"`
+		ReviewerModel string            `json:"reviewer_model"`
+		WorkerModels  map[string]string `json:"worker_models"`
+		SkillIDs      []string          `json:"skill_ids"`
+		ApprovalMode  string            `json:"approval_mode"`
+		Name          string            `json:"name"`
+		Goal          string            `json:"goal"`
+		Scope         string            `json:"scope"`
+		Material      string            `json:"material"`
+		ProjectID     string            `json:"project_id"`
+		Model         string            `json:"model"`
+		Tools         []string          `json:"tools"`
+		Concurrency   int               `json:"concurrency"`
+		TokenBudget   int               `json:"token_budget"`
+		Seconds       int64             `json:"remaining_seconds"`
+		Rounds        int               `json:"max_rounds"`
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 128<<10)
 	if err := h.bind(c, &req); err != nil {
@@ -181,10 +191,40 @@ func (h *AssessmentHandler) Create(c *gin.Context) {
 		h.fail(c, fmt.Errorf("unknown model channel"))
 		return
 	}
-	t := &assessment.Task{ApprovalMode: req.ApprovalMode, Name: req.Name, Goal: req.Goal, Scope: req.Scope, Material: req.Material, ProjectID: req.ProjectID, OwnerID: session.UserID, Model: req.Model, Tools: req.Tools, Concurrency: req.Concurrency, TokenBudget: req.TokenBudget, RemainingSeconds: req.Seconds, MaxRounds: req.Rounds}
+	t := &assessment.Task{Criteria: req.Criteria, ReviewerModel: req.ReviewerModel, WorkerModels: req.WorkerModels, SkillIDs: req.SkillIDs, ApprovalMode: req.ApprovalMode, Name: req.Name, Goal: req.Goal, Scope: req.Scope, Material: req.Material, ProjectID: req.ProjectID, OwnerID: session.UserID, Model: req.Model, Tools: req.Tools, Concurrency: req.Concurrency, TokenBudget: req.TokenBudget, RemainingSeconds: req.Seconds, MaxRounds: req.Rounds}
 	if err := t.Validate(); err != nil {
 		h.fail(c, err)
 		return
+	}
+	channels := []string{t.ReviewerModel}
+	for _, channel := range t.WorkerModels {
+		channels = append(channels, channel)
+	}
+	for _, channel := range channels {
+		if channel != "" {
+			if _, _, ok := cfg.AI.ResolveChannel(channel); !ok {
+				h.fail(c, fmt.Errorf("unknown specialist/review channel"))
+				return
+			}
+		}
+	}
+	if len(t.SkillIDs) > 0 {
+		if !security.SessionHasPermission(c, "skills:read") {
+			c.JSON(403, gin.H{"error": "skills:read required"})
+			return
+		}
+		available := map[string]bool{}
+		if r, ok := h.Engine.Runtime.(*assessment.CSAIRuntime); ok {
+			for _, id := range r.SkillOptions() {
+				available[id] = true
+			}
+		}
+		for _, id := range t.SkillIDs {
+			if !available[id] {
+				h.fail(c, fmt.Errorf("unavailable skill %q", id))
+				return
+			}
+		}
 	}
 	tools, err := h.Engine.Runtime.Tools(t)
 	if err != nil {
@@ -229,6 +269,11 @@ func (h *AssessmentHandler) Control(c *gin.Context) {
 		}
 		session, _ := security.CurrentSession(c)
 		err = h.Engine.StartAs(t.ID, session.UserID)
+	case "budget":
+		var req assessment.BudgetChange
+		if err = h.bind(c, &req); err == nil {
+			err = h.Engine.AdjustBudget(t.ID, req)
+		}
 	case "pause", "stop":
 		err = h.Engine.Control(t.ID, action)
 	case "steer":
@@ -241,7 +286,7 @@ func (h *AssessmentHandler) Control(c *gin.Context) {
 				err = fmt.Errorf("message must contain 1..8000 bytes")
 			} else {
 				err = h.Engine.Store.Change(t.ID, "", "steer", text, func(t *assessment.Task) error {
-					if t.Status != "draft" && t.Status != "paused" && t.Status != "blocked" {
+					if t.Status != "draft" && t.Status != "paused" && t.Status != "blocked" && t.Status != "partial" && t.Status != "failed" {
 						return assessment.ErrConflict
 					}
 					if len(t.Material)+len(text) > 24000 {
@@ -471,4 +516,13 @@ func (h *AssessmentHandler) configuration() (*config.Config, error) {
 		return nil, fmt.Errorf("configuration unavailable")
 	}
 	return h.Config, nil
+}
+
+func (h *AssessmentHandler) Metrics(c *gin.Context) {
+	t, ok := h.task(c)
+	if !ok {
+		return
+	}
+	c.Header("Content-Disposition", `attachment; filename="assessment-metrics-`+t.ID+`.json"`)
+	c.Data(200, "application/json", assessment.MetricsJSON(t))
 }

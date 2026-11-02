@@ -165,7 +165,7 @@ func (s *Store) Delete(id string) error {
 
 // Recover never replays an interrupted external action automatically.
 func (s *Store) Recover() error {
-	rows, err := s.DB.Query(`SELECT id,payload FROM assessments WHERE status IN ('running','awaiting_approval','pausing','stopping','completed','blocked','failed','exhausted')`)
+	rows, err := s.DB.Query(`SELECT id,payload FROM assessments WHERE status IN ('running','awaiting_approval','pausing','stopping','completed','partial','blocked','failed','exhausted')`)
 	if err != nil {
 		return err
 	}

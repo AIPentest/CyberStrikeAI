@@ -22,9 +22,19 @@
 - 内置 `assessment_checkpoint` 原子保存中途进展和证据，不执行外部动作。停止、超时或异常恢复保留已保存的进展。记忆与检查点工具不需要外部动作审批。
 - 模型返回格式错误或引用不成立时，最多进行两次无工具的结构化修复，仍计入 Token 预算；不因修复重新执行外部命令。预算预留被其他 Worker 暂占时等待结算；已经返回并付费的最终结果会保存。
 
+## 验收、专业分工和恢复
+
+- 创建时可填写最多 12 条验收条件（留空则采用目标），选择独立复核模型，并为 general/recon/auth/validation/verification 分工指定模型渠道。规划器可为每步选用更窄的工具子集，不能扩大任务白名单。
+- 可选择最多四个已有技能作为 Worker 参考。技能从配置的技能目录安全读取；不运行技能脚本，不扩大权限。需要 skills:read。工作台支持外部 MCP 的模型格式名称，其他角色的工具查询不会清空本任务的外部工具映射。
+- 规划器提出结束后，独立复核器逐项验收。候选发现会安排单独 verification 步骤；确认/否定发现必须引用该步骤的新成功执行记录。复核按每批最多八个候选保存结果；尚有验收缺口、未复测发现或复核未完成时显示 partial，不假报 completed。
+- 完全相同的动作连续得到相同结果且没有新增证据时，第三次执行前停止该方向。已经判定停滞的动作不能仅换标题重派；改变参数、补充人工线索或明确重试可以重新评估。正常等待/轮询工具不应用这项启发式拦截。
+- 模型限流/临时网络错误最多退避重试两次，重试只发生在模型请求上且仍计入预算。模型认证错误、目标登录态、策略拒绝、结果不明与停滞分别记录原因。模型故障后的明确重试保留完整的已完成工具交互；不自动重放外部操作。
+- 暂停、受阻、部分完成、失败或预算耗尽后，可调整总 Token 上限、剩余秒数和最大规划轮数。已花费 Token 不清零，活跃任务不能修改预算。普通探索预留 20%（最多 64,000 Token）供验收和收尾；预留不保证任意大输入都能完成复核。
+- 记忆查询默认按最近结果返回，支持多关键词、工具、资产与失败/成功过滤，返回 next_before；旧 after 游标继续支持正序读取。查询同时返回匹配的受阻/淘汰方向，避免遗忘负面结果。
+
 ## 生命周期与恢复
 
-- 状态：`draft` → `running` / `awaiting_approval` → `completed`、`blocked`、`exhausted`、`failed`、`paused` 或 `stopped`。
+- 状态：`draft` → `running` / `awaiting_approval` → `completed`、`blocked`、`exhausted`、`failed`、`partial`、`paused` 或 `stopped`。
 - 前端只查询持久化状态与增量事件。离开页面、断开浏览器、删除聊天不会取消测评，也不会创建隐藏聊天。
 - 暂停与停止先取消本轮执行，再回收本地进程和 MCP 异步 worker。未确认的远程取消会作为失败/缺口保留，不能当作成功结束。
 - 服务启动时把遗留活跃任务恢复为暂停；当时正在执行的步骤标记为 `blocked`。它们可能已有部分外部效果，必须检查日志并明确重试。未执行的审批请求会保留，不自动批准或重放。
@@ -48,11 +58,12 @@
 | GET | `/api/assessments/options` | 可选模型渠道和独立工具，不返回凭据 |
 | GET / POST | `/api/assessments` | 分页列表（limit/offset）/ 创建草稿 |
 | GET / DELETE | `/api/assessments/:id` | 查询 / 删除非活跃任务 |
-| POST | `/api/assessments/:id/control/:action` | `start`、`resume`、`pause`、`stop`、`steer` |
+| POST | `/api/assessments/:id/control/:action` | `start`、`resume`、`pause`、`stop`、`steer`、`budget` |
 | POST | `/api/assessments/:id/steps/:stepId/decision` | `{ "approved": true/false, "approval_id": "当前步骤返回的编号" }`，仅批准该次调用 |
 | POST | `/api/assessments/:id/steps/:stepId/retry` | 明确重试受阻步骤，不自动重复外部操作 |
 | GET | `/api/assessments/:id/events?after=0` | 按 ID 增量读取，单页最多 200 条且约 1 MiB |
 | POST | `/api/assessments/:id/publish` | `{ "step_id": "…", "index": 0, "kind": "fact|asset|vulnerability", "revision": "展示证据的版本" }` |
+| GET | `/api/assessments/:id/metrics` | 下载评测指标 JSON |
 | GET | `/api/assessments/:id/report` | 下载包含部分结果的 Markdown 报告 |
 
 创建示例（工具名应从 options 中选择）：
@@ -89,3 +100,9 @@
 `internal/assessment/longrun_test.go` 覆盖慢 Worker、慢规划器、替代路线与退休分支、多轮依赖链、历史长输出尾部检索、跨 Worker 证据、检查点恢复、格式修复和预算边界。均为确定性本地夹具，用于验证机制和避免回归；这些测试不等同于真实模型的漏洞发现率、成本或长时稳定性对标。
 
 安全边界、已修复问题和回归场景见 [深度测评安全复查](DEEP_ASSESSMENT_SECURITY_REVIEW.md)。审批编号和证据版本为必填字段，旧客户端应刷新页面后提交；过期请求返回 409。
+
+### 可重复效果评测
+
+报告与 metrics JSON 包含逐项验收、候选/复核数量、实际工具次数、唯一动作、拦截的重复动作、模型调用/重试次数，以及按阶段统计的 Token。使用 `python3 scripts/assessment-evaluate.py --baseline /path/baseline --candidate /path/candidate` 比较两组下载指标；脚本不会发起模型或目标请求。应使用相同授权场景、实际模型配置和预算，并另行人工核实发现。指标中的完成率是系统复核结果，不等同于具有外部真值的漏洞召回率或准确率。
+
+预算 API 示例：`POST /api/assessments/:id/control/budget`，正文 `{"token_budget":300000,"remaining_seconds":3600,"max_rounds":20}`。更新后任务保持暂停，由用户明确继续。

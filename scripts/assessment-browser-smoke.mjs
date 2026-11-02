@@ -43,12 +43,14 @@ const server = http.createServer(async (req, res) => {
         if (url.pathname.endsWith('/events')) { send({ events: url.searchParams.get('after') === '0' ? [{ id: 1, kind: 'fixture', message: '<img src=x onerror="window.XSS=1">', data: {}, created_at: now() }] : [] }); return; }
         if (url.pathname.includes('/control/')) {
             const action = url.pathname.split('/').at(-1);
-            if (action === 'steer') current.material += '\n' + input.message;
+            if (action === 'budget') { current.token_budget=input.token_budget;current.remaining_seconds=input.remaining_seconds;current.max_rounds=input.max_rounds;current.status='paused'; }
+            else if (action === 'steer') current.material += '\n' + input.message;
             else if (action === 'start') { current.status = 'awaiting_approval'; current.steps = [{ ...task.steps[0], id: 'review-step', status: 'awaiting_approval', approval_id: 'fixture-request', pending: { id: 'call1', function: { name: 'inspect', arguments: { target: 'local-fixture' } } } }]; }
             else current.status = action === 'pause' ? 'paused' : 'stopped';
             current.updated_at = now(); send({ ok: true }); return;
         }
         if (url.pathname.endsWith('/decision')) { if(input.approval_id !== current.steps[0].approval_id) {res.statusCode=409;send({error:'stale approval'});return;} current.status = input.approved ? 'completed' : 'blocked'; current.steps[0].status = current.status; current.steps[0].pending = null; current.updated_at = now(); send({ ok: true }); return; }
+        if (url.pathname.endsWith('/metrics')) {send({task_id:current.id,status:current.status,tokens:current.tokens});return;}
         if (url.pathname.endsWith('/publish')) { if(input.revision !== 'fixture-version'){res.statusCode=409;send({error:'stale evidence'});return;} send({ result: { id: 'published' } }); return; }
         if(holdDetail && req.method === "GET") await new Promise(resolve => detailWaiters.push(resolve));
         send({ assessment: current });
@@ -78,13 +80,16 @@ try {
     assert.equal(await evaluate("document.getElementById('assessment-guidance').value"), 'preserve unsaved guidance', 'poll erased typed guidance');
     assert.ok(await evaluate("document.getElementById('assessment-tab').textContent.includes('先核验响应，再检查访问控制边界')"));
     await screenshot('desktop-overview');
+    await click('[data-tab=review]'); await waitFor("document.getElementById('assessment-tab').textContent.includes('验收条件')");
+    await click('[data-assessment-action=budget]'); await waitFor("document.getElementById('assessment-budget')?.open");
+    await evaluate("document.querySelector('#assessment-budget [name=token_budget]').value='250000';document.querySelector('#assessment-budget form').requestSubmit()");await waitFor("!document.getElementById('assessment-budget')");
     await click('[data-tab=chain]'); await waitFor("!!document.querySelector('#assessment-graph canvas')"); await screenshot('desktop-chain');
     await evaluate("document.documentElement.dataset.theme='dark'"); await click('[data-tab=chain]'); await screenshot('desktop-dark-chain'); await evaluate("document.documentElement.dataset.theme='light'");
     await click('[data-tab=evidence]'); assert.equal(await evaluate("document.querySelectorAll('[data-assessment-action=vulnerability]').length"), 1);
     await click('[data-assessment-action=fact]'); await waitFor("document.getElementById('assessment-message').textContent.includes('已保存')");
     await click('[data-tab=logs]'); assert.equal(await evaluate('window.XSS || 0'), 0, 'untrusted log rendered as HTML');
     await click('[data-assessment-action=new]'); await waitFor("document.getElementById('assessment-create')?.open"); assert.equal(await evaluate("document.querySelector('[name=project_id] option:last-child').textContent"), '本地测试项目');
-    await evaluate(`document.querySelector('[name=name]').value='Created in browser';document.querySelector('[name=goal]').value='Inspect fixture';document.querySelector('[name=scope]').value='Local fixture';document.querySelector('[name=tools]').checked=true;document.getElementById('assessment-create-form').requestSubmit()`);
+    await evaluate(`document.querySelector('[name=name]').value='Created in browser';document.querySelector('[name=goal]').value='Inspect fixture';document.querySelector('[name=scope]').value='Local fixture';document.querySelector('[name=criteria]').value='Record a fixture response';document.querySelector('[name=tools]').checked=true;document.getElementById('assessment-create-form').requestSubmit()`);
     await waitFor("document.querySelector('#assessment-detail h2')?.textContent==='Created in browser'");
     assert.ok((await evaluate('location.hash')).startsWith('#assessments?task=created-'), 'created task deep link missing');
     await click('[data-assessment-action=start]'); await waitFor("document.querySelector('#assessment-detail .assessment-status')?.dataset.status==='awaiting_approval'");

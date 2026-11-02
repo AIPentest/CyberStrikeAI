@@ -34,22 +34,25 @@
         const el = document.getElementById('assessment-detail'); if (!el) return;
         if (!task) { el.innerHTML = '<div class="assessment-empty"><h2>' + esc(tr('welcome')) + '</h2><p>' + esc(tr('welcomeBody')) + '</p></div>'; return; }
         const active = ['running', 'awaiting_approval', 'pausing', 'stopping'].includes(task.status);
-        const resumable = ['draft', 'paused', 'blocked'].includes(task.status);
+        const resumable = ['draft', 'paused', 'blocked', 'partial', 'failed'].includes(task.status);
         const tools = task.tools.join(', ');
         let controls = '';
         if (resumable && can('agent:execute')) controls += button('start', tr(task.status === 'draft' ? 'start' : 'resume'), 'assessment:write');
         if (['running', 'awaiting_approval'].includes(task.status)) controls += button('pause', tr('pause'), 'assessment:write');
         if (!['completed', 'stopped', 'exhausted', 'failed'].includes(task.status)) controls += button('stop', tr('stop'), 'assessment:write');
-        controls += button('report', tr('report'), 'assessment:read');
+        controls += button('report', tr('report'), 'assessment:read') + button('metrics', tr('metrics'), 'assessment:read');
+        if (['draft','paused','blocked','partial','failed','exhausted'].includes(task.status)) controls += button('budget', tr('adjustBudget'), 'assessment:write');
         if (!active) controls += button('delete', tr('delete'), 'assessment:delete');
         el.innerHTML = '<div class="assessment-detail-heading"><div><h2>' + esc(task.name) + '</h2>' + badge(task.status) + '</div><div class="assessment-actions">' + controls + '</div></div>' +
             '<div class="assessment-metrics"><div><strong>' + task.steps.filter(s => s.status === 'completed').length + ' / ' + task.steps.filter(s => s.status !== 'skipped').length + '</strong><span>' + esc(tr('steps')) + (task.steps.some(s => s.status === 'skipped') ? ' · ' + esc(tr('status.skipped')) + ' ' + task.steps.filter(s => s.status === 'skipped').length : '') + '</span></div><div><strong>' + task.tokens.toLocaleString() + ' / ' + task.token_budget.toLocaleString() + '</strong><span>' + esc(tr('tokens')) + '</span></div><div><strong>' + task.rounds + ' / ' + task.max_rounds + '</strong><span>' + esc(tr('rounds')) + '</span></div><div><strong>' + Math.max(0, Math.ceil((task.deadline ? task.deadline - Date.now() / 1000 : task.remaining_seconds) / 60)) + '</strong><span>' + esc(tr('minutes')) + '</span></div></div>' +
-            '<div class="assessment-tabs" role="tablist">' + ['overview', 'plan', 'chain', 'evidence', 'logs'].map(id => '<button role="tab" aria-selected="' + (tab === id) + '" class="' + (tab === id ? 'active' : '') + '" data-assessment-action="tab" data-tab="' + id + '">' + esc(tr(id)) + '</button>').join('') + '</div><div id="assessment-tab" role="tabpanel"></div>';
+            '<div class="assessment-tabs" role="tablist">' + ['overview', 'review', 'plan', 'chain', 'evidence', 'logs'].map(id => '<button role="tab" aria-selected="' + (tab === id) + '" class="' + (tab === id ? 'active' : '') + '" data-assessment-action="tab" data-tab="' + id + '">' + esc(tr(id)) + '</button>').join('') + '</div><div id="assessment-tab" role="tabpanel"></div>';
         const body = document.getElementById('assessment-tab');
         if (tab === 'overview') {
             body.innerHTML = ['goal', 'scope', 'material', 'strategy', 'summary'].map(key => '<section class="assessment-card"><h3>' + esc(tr(key)) + '</h3><div class="assessment-text">' + esc(task[key] || tr('none')) + '</div></section>').join('') +
                 '<p class="assessment-text">' + esc(tr('reason')) + ': ' + esc(task.reason || '—') + '\n' + esc(tr('model')) + ': ' + esc(task.model || tr('default')) + '\n' + esc(tr('tools')) + ': ' + esc(tools) + '\n' + esc(tr('project')) + ': ' + esc(task.project_id || '—') + '</p>' +
                 (resumable ? '<label class="assessment-field">' + esc(tr('guidance')) + '<textarea id="assessment-guidance" maxlength="8000" rows="3"></textarea></label>' + button('steer', tr('saveGuidance'), 'assessment:write') : '');
+        } else if (tab === 'review') {
+            body.innerHTML = '<h3>' + esc(tr('criteria')) + '</h3>' + (task.criteria || [task.goal]).map((c,i) => {const v=task.review && task.review.criteria.find(x=>x.index===i);return '<article class="assessment-card"><h3>'+esc(c)+'</h3><strong>'+esc(tr('verdict.'+(v?v.status:'insufficient')))+'</strong><p class="assessment-text">'+esc(v?v.reason:tr('reviewPending'))+'</p></article>';}).join('') + '<h3>'+esc(tr('findingReview'))+'</h3>' + (task.review && task.review.findings || []).map(v=>'<article class="assessment-card"><strong>'+esc(tr('verdict.'+v.status))+'</strong><p class="assessment-text">'+esc(v.reason)+'</p><small>'+esc((v.execution_ids||[]).join(', '))+'</small></article>').join('') + '<h3>'+esc(tr('phaseUsage'))+'</h3><pre class="assessment-text">'+esc(JSON.stringify(task.usage || {},null,2))+'</pre>';
         } else if (tab === 'plan') {
             body.innerHTML = task.steps.map(s => '<article class="assessment-card"><div class="assessment-step-title"><h3>' + esc(s.title) + '</h3>' + badge(s.status) + '</div><small>' + esc(s.key) + (s.depends_on && s.depends_on.length ? ' ← ' + esc(s.depends_on.join(', ')) : '') + '</small><p class="assessment-text">' + esc(s.instruction) + '</p><p class="assessment-text">' + esc(s.result) + '</p>' + (s.checkpoint ? '<p class="assessment-text">' + esc(tr('checkpoint')) + ': ' + esc(s.checkpoint) + '</p>' : '') + (s.retired_reason ? '<p class="assessment-text">' + esc(tr('retiredReason')) + ': ' + esc(s.retired_reason) + '</p>' : '') +
                 (s.pending ? '<div class="assessment-approval"><h4>' + esc(tr('approval')) + '</h4><p>' + esc(tr('approvalHint')) + '</p><strong>' + esc(s.pending.function.name) + '</strong><pre>' + esc(JSON.stringify(s.pending.function.arguments, null, 2)) + '</pre>' +
@@ -115,19 +118,26 @@
         const dialog = document.createElement('dialog'); dialog.id = 'assessment-create'; dialog.className = 'assessment-dialog';
         const field = (name, type, value, extra) => '<label class="assessment-field">' + esc(tr(name)) + '<input name="' + name + '" type="' + type + '" value="' + esc(value || '') + '" ' + (extra || '') + '></label>';
         dialog.innerHTML = '<form id="assessment-create-form"><h2>' + esc(tr('new')) + '</h2>' + field('name', 'text', '', 'required maxlength="200"') +
-            ['goal', 'scope', 'material'].map(name => '<label class="assessment-field">' + esc(tr(name)) + '<textarea name="' + name + '" rows="3" maxlength="' + (name === 'material' ? '24000' : '12000') + '"' + (name !== 'material' ? ' required' : '') + '></textarea></label>').join('') +
+            ['goal', 'scope', 'material', 'criteria'].map(name => '<label class="assessment-field">' + esc(tr(name)) + '<textarea name="' + name + '" rows="3" maxlength="' + (name === 'material' ? '24000' : '12000') + '"' + (!['material','criteria'].includes(name) ? ' required' : '') + '></textarea></label>').join('') +
             '<div class="assessment-form-grid">' + '<label class="assessment-field">' + esc(tr('project')) + '<select name="project_id"><option value="">' + esc(tr('none')) + '</option>' + (options.projects || []).map(p => '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>').join('') + '</select></label>' + '<label class="assessment-field">' + esc(tr('model')) + '<select name="model">' + options.models.map(m => '<option value="' + esc(m.id) + '"' + (m.default ? ' selected' : '') + '>' + esc((m.name || m.id || tr('default')) + ' · ' + m.model) + '</option>').join('') + '</select></label>' +
             '<label class="assessment-field">' + esc(tr('approvalMode')) + '<select name="approval_mode"><option value="policy">' + esc(tr('approvalPolicy')) + '</option><option value="manual">' + esc(tr('approvalManual')) + '</option></select></label>' + field('concurrency', 'number', 2, 'min="1" max="4" required') + field('token_budget', 'number', 200000, 'min="4000" max="10000000" required') + field('duration', 'number', 120, 'min="1" max="1440" required') + field('max_rounds', 'number', 12, 'min="1" max="50" required') + '</div>' +
+            '<details><summary>' + esc(tr('specialists')) + '</summary><label class="assessment-field">'+esc(tr('reviewModel'))+'<select name="reviewer_model"><option value="">'+esc(tr('inheritModel'))+'</option>'+options.models.map(m=>'<option value="'+esc(m.id)+'">'+esc(m.name||m.id)+'</option>').join('')+'</select></label>' + ['general','recon','auth','validation','verification'].map(p=>'<label class="assessment-field">'+esc(tr('profiles.'+p))+'<select name="worker_model_'+p+'"><option value="">'+esc(tr('inheritModel'))+'</option>'+options.models.map(m=>'<option value="'+esc(m.id)+'">'+esc(m.name||m.id)+'</option>').join('')+'</select></label>').join('') + '<label class="assessment-field">'+esc(tr('selectedSkills'))+'<select name="skill_ids" multiple size="4">'+(options.skills||[]).map(id=>'<option value="'+esc(id)+'">'+esc(id)+'</option>').join('')+'</select></label></details>' +
             '<fieldset><legend>' + esc(tr('tools')) + '</legend><p>' + esc(tr('toolsHint')) + '</p><div class="assessment-tool-picker">' + options.tools.map(tool => '<label><input type="checkbox" name="tools" value="' + esc(tool.name) + '"><span><strong>' + esc(tool.name) + '</strong><small>' + esc(tool.description) + '</small></span></label>').join('') + '</div></fieldset><p id="assessment-create-error" role="alert"></p><div class="assessment-actions"><button type="button" class="btn-secondary" data-assessment-action="cancel-create">' + esc(tr('cancel')) + '</button><button class="btn-primary" type="submit">' + esc(tr('createDraft')) + '</button></div></form>';
         document.body.appendChild(dialog); dialog.addEventListener('click', onClick);
         dialog.querySelector('form').addEventListener('submit', async ev => {
             ev.preventDefault(); const submit = dialog.querySelector('[type=submit]'); submit.disabled = true;
             const data = new FormData(ev.target), body = Object.fromEntries(data.entries());
-            body.tools = data.getAll('tools'); ['concurrency', 'token_budget', 'max_rounds'].forEach(key => body[key] = Number(body[key])); body.remaining_seconds = Number(body.duration) * 60; delete body.duration;
+            body.tools = data.getAll('tools'); body.criteria=String(data.get('criteria')||'').split(/\n/).map(s=>s.trim()).filter(Boolean); body.skill_ids=data.getAll('skill_ids'); body.worker_models={}; ['general','recon','auth','validation','verification'].forEach(p=>{const key='worker_model_'+p; if(data.get(key)) body.worker_models[p]=data.get(key); delete body[key];}); ['concurrency', 'token_budget', 'max_rounds'].forEach(key => body[key] = Number(body[key])); body.remaining_seconds = Number(body.duration) * 60; delete body.duration;
             try { const created = await api('', 'POST', body); selected = created.assessment.id; history.replaceState(null, '', '#assessments?task=' + encodeURIComponent(selected)); events = []; after = 0; task = created.assessment; dialog.close(); dialog.remove(); tab = 'overview'; await refresh(true); }
             catch (err) { dialog.querySelector('#assessment-create-error').textContent = err.message; submit.disabled = false; }
         });
         dialog.showModal();
+    }
+    function budgetDialog() {
+        if (!task || !can('assessment:write')) return;
+        const id=task.id, dialog=document.createElement('dialog'); dialog.id='assessment-budget'; dialog.className='assessment-dialog';
+        dialog.innerHTML='<form><h2>'+esc(tr('adjustBudget'))+'</h2><p>'+esc(tr('budgetHint'))+'</p>' + [['token_budget',task.token_budget,task.tokens+1000,10000000],['remaining_seconds',Math.max(task.remaining_seconds,3600),60,86400],['max_rounds',Math.min(50,Math.max(task.max_rounds,task.rounds+1)),task.rounds+1,50]].map(([name,value,min,max])=>'<label class="assessment-field">'+esc(tr(name))+'<input name="'+name+'" type="number" min="'+min+'" max="'+max+'" value="'+value+'" required></label>').join('')+'<p role="alert"></p><div class="assessment-actions">'+button('cancel-budget',tr('cancel'))+'<button class="btn-primary" type="submit">'+esc(tr('saveBudget'))+'</button></div></form>';
+        dialog.addEventListener('click',onClick);dialog.querySelector('form').addEventListener('submit',async ev=>{ev.preventDefault();const btn=dialog.querySelector('[type=submit]');btn.disabled=true;try{const data=Object.fromEntries(new FormData(ev.target));Object.keys(data).forEach(k=>data[k]=Number(data[k]));await api('/'+id+'/control/budget','POST',data);dialog.remove();await refresh(true);}catch(err){dialog.querySelector('[role=alert]').textContent=err.message;btn.disabled=false;}});document.body.appendChild(dialog);dialog.showModal();
     }
     async function onClick(ev) {
         const target = ev.target.closest('[data-assessment-action]'); if (!target || target.disabled) return;
@@ -137,6 +147,8 @@
             if (action === 'tab') { tab = target.dataset.tab; detail(); return; }
             if (action === 'refresh') { await refresh(true); return; }
             if (action === 'new') { await createDialog(); return; }
+            if (action === 'cancel-budget') { document.getElementById('assessment-budget').remove(); return; }
+            if (action === 'budget') { budgetDialog(); return; }
             if (action === 'cancel-create') { document.getElementById('assessment-create').close(); return; }
             if (action === 'next' || action === 'previous') { offset = Math.max(0, offset + (action === 'next' ? 50 : -50)); await refresh(true); return; }
             if (!id) return;
@@ -147,9 +159,9 @@
             else if (action === 'retry') { if (!window.confirm(tr('retryConfirm'))) return; await api('/' + id + '/steps/' + target.dataset.step + '/retry', 'POST', {}); }
             else if (action === 'delete') { if (!window.confirm(tr('deleteConfirm'))) return; await api('/' + id, 'DELETE'); selected = ''; history.replaceState(null, '', '#assessments'); task = null; events = []; after = 0; }
             else if (action === 'fact' || action === 'vulnerability' || action === 'asset') { await api('/' + id + '/publish', 'POST', { step_id: target.dataset.step, index: Number(target.dataset.index), kind: action, revision: target.dataset.revision }); message(tr('published')); }
-            else if (action === 'report') {
-                const response = await fetch('/api/assessments/' + id + '/report', { credentials: 'same-origin' }); if (!response.ok) throw new Error(response.statusText);
-                const url = URL.createObjectURL(await response.blob()); const link = document.createElement('a'); link.href = url; link.download = 'assessment-' + id + '.md'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+            else if (action === 'report' || action === 'metrics') {
+                const response = await fetch('/api/assessments/' + id + '/' + action, { credentials: 'same-origin' }); if (!response.ok) throw new Error(response.statusText);
+                const url = URL.createObjectURL(await response.blob()); const link = document.createElement('a'); link.href = url; link.download = 'assessment-' + id + (action === 'metrics' ? '-metrics.json' : '.md'); link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
             }
             await refresh(true);
         } catch (err) { message(err.message, true); }
@@ -159,5 +171,5 @@
         window.cleanupAssessmentsPage(); epoch++; const hash=window.location.hash.split('?'); if(hash[0]==='#assessments'){selected=new URLSearchParams(hash[1]||'').get('task')||selected;} if (!root()) return; shell(); root().addEventListener('click', onClick); refresh(true);
         timer = setInterval(() => { if (!document.hidden) refresh(false); }, 2500);
     };
-    window.cleanupAssessmentsPage = function () { if (timer) clearInterval(timer); timer = null; epoch++; destroyGraph(); const dialog=document.getElementById('assessment-create'); if(dialog) dialog.remove(); if (root()) root().removeEventListener('click', onClick); };
+    window.cleanupAssessmentsPage = function () { if (timer) clearInterval(timer); timer = null; epoch++; destroyGraph(); const dialog=document.getElementById('assessment-create'); if(dialog) dialog.remove(); const budget=document.getElementById('assessment-budget');if(budget)budget.remove(); if (root()) root().removeEventListener('click', onClick); };
 })();

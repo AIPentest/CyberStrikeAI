@@ -18,6 +18,7 @@ import (
 // CSAIRuntime reuses the existing model transport and Agent->MCP execution path.
 // The execution namespace is an assessment/step ID, never a chat database row.
 type CSAIRuntime struct {
+	SkillsRoot     string
 	ConfigSnapshot func() (*config.Config, error)
 	DB             *database.DB
 	Agent          *agent.Agent
@@ -55,7 +56,7 @@ func (r *CSAIRuntime) Tools(t *Task) ([]agent.Tool, error) {
 	}
 	// Conversation/project-memory mutation tools require chat provenance and cannot
 	// be called under a fabricated conversation. Publishing is an explicit API action.
-	available := r.Agent.ToolsForRole(t.Tools)
+	available := r.Agent.ToolsForRole(nil)
 	out := []agent.Tool{}
 	for _, tool := range available {
 		selected := false
@@ -96,12 +97,19 @@ func (r *CSAIRuntime) Complete(ctx context.Context, t *Task, msgs []agent.ChatMe
 	if err != nil {
 		return nil, err
 	}
-	if t.Model != "" {
-		if _, _, ok := snapshot.AI.ResolveChannel(t.Model); !ok {
+	channel := t.Model
+	p := requestPurpose(ctx)
+	if p.Phase == "review" && t.ReviewerModel != "" {
+		channel = t.ReviewerModel
+	} else if p.Profile != "" && t.WorkerModels[p.Profile] != "" {
+		channel = t.WorkerModels[p.Profile]
+	}
+	if channel != "" {
+		if _, _, ok := snapshot.AI.ResolveChannel(channel); !ok {
 			return nil, fmt.Errorf("model channel no longer exists")
 		}
 	}
-	cfg, _, ok := snapshot.ResolveAIChannel(t.Model)
+	cfg, _, ok := snapshot.ResolveAIChannel(channel)
 	if !ok {
 		return nil, fmt.Errorf("unknown model channel %q", t.Model)
 	}
@@ -118,6 +126,9 @@ func (r *CSAIRuntime) Execute(ctx context.Context, t *Task, sid string, call age
 	}
 	allowed := false
 	defs, err := r.Tools(t)
+	if s := t.Step(sid); s != nil {
+		defs, err = r.WorkerTools(t, s)
+	}
 	if err != nil {
 		return nil, err
 	}

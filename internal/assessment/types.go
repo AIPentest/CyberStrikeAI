@@ -16,35 +16,54 @@ const MaxTurns = 20
 
 // Task is the durable source of truth. No chat conversation or message is created.
 type Task struct {
-	Strategy         string    `json:"strategy,omitempty"`
-	ExecutorID       string    `json:"executor_id,omitempty"`
-	ApprovalMode     string    `json:"approval_mode"`
-	ID               string    `json:"id"`
-	OwnerID          string    `json:"owner_id"`
-	ProjectID        string    `json:"project_id"`
-	Name             string    `json:"name"`
-	Goal             string    `json:"goal"`
-	Scope            string    `json:"scope"`
-	Material         string    `json:"material"`
-	Model            string    `json:"model"`
-	Tools            []string  `json:"tools"`
-	Concurrency      int       `json:"concurrency"`
-	TokenBudget      int       `json:"token_budget"`
-	Tokens           int       `json:"tokens"` // actual usage, or conservative charge if usage is absent
-	Reserved         int       `json:"reserved_tokens"`
-	RemainingSeconds int64     `json:"remaining_seconds"`
-	Deadline         int64     `json:"deadline"`
-	MaxRounds        int       `json:"max_rounds"`
-	Rounds           int       `json:"rounds"`
-	Status           string    `json:"status"`
-	Reason           string    `json:"reason"`
-	Summary          string    `json:"summary"`
-	Steps            []*Step   `json:"steps"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	PreviousReview   *Review           `json:"previous_review,omitempty"`
+	Criteria         []string          `json:"criteria"`
+	ReviewerModel    string            `json:"reviewer_model,omitempty"`
+	WorkerModels     map[string]string `json:"worker_models,omitempty"`
+	SkillIDs         []string          `json:"skill_ids,omitempty"`
+	Review           *Review           `json:"review,omitempty"`
+	Phase            string            `json:"phase,omitempty"`
+	FailureKind      string            `json:"failure_kind,omitempty"`
+	ModelCalls       int               `json:"model_calls"`
+	ModelRetries     int               `json:"model_retries"`
+	Usage            map[string]int    `json:"usage"`
+	Strategy         string            `json:"strategy,omitempty"`
+	ExecutorID       string            `json:"executor_id,omitempty"`
+	ApprovalMode     string            `json:"approval_mode"`
+	ID               string            `json:"id"`
+	OwnerID          string            `json:"owner_id"`
+	ProjectID        string            `json:"project_id"`
+	Name             string            `json:"name"`
+	Goal             string            `json:"goal"`
+	Scope            string            `json:"scope"`
+	Material         string            `json:"material"`
+	Model            string            `json:"model"`
+	Tools            []string          `json:"tools"`
+	Concurrency      int               `json:"concurrency"`
+	TokenBudget      int               `json:"token_budget"`
+	Tokens           int               `json:"tokens"` // actual usage, or conservative charge if usage is absent
+	Reserved         int               `json:"reserved_tokens"`
+	RemainingSeconds int64             `json:"remaining_seconds"`
+	Deadline         int64             `json:"deadline"`
+	MaxRounds        int               `json:"max_rounds"`
+	Rounds           int               `json:"rounds"`
+	Status           string            `json:"status"`
+	Reason           string            `json:"reason"`
+	Summary          string            `json:"summary"`
+	Steps            []*Step           `json:"steps"`
+	CreatedAt        time.Time         `json:"created_at"`
+	UpdatedAt        time.Time         `json:"updated_at"`
 }
 
 type Step struct {
+	ToolCalls          int                 `json:"tool_calls"`
+	RetryCount         int                 `json:"retry_count"`
+	Profile            string              `json:"profile,omitempty"`
+	VerifyOf           string              `json:"verify_of,omitempty"`
+	ToolNames          []string            `json:"tools,omitempty"`
+	FailureKind        string              `json:"failure_kind,omitempty"`
+	Attempts           []Attempt           `json:"attempts,omitempty"`
+	Suppressed         int                 `json:"suppressed_actions"`
 	ApprovalID         string              `json:"approval_id,omitempty"`
 	ApprovalDigest     string              `json:"approval_digest,omitempty"`
 	ApprovalKind       string              `json:"approval_kind,omitempty"`
@@ -140,6 +159,27 @@ func (t *Task) Validate() error {
 	}
 	if t.ApprovalMode != "policy" && t.ApprovalMode != "manual" {
 		return fmt.Errorf("approval_mode must be policy or manual")
+	}
+	t.Criteria = criterionText(t.Criteria)
+	defaultCriterion := len(t.Criteria) == 0
+	if len(t.Criteria) == 0 {
+		t.Criteria = []string{t.Goal}
+	}
+	if len(t.Criteria) > 12 {
+		return fmt.Errorf("at most 12 acceptance criteria")
+	}
+	for _, c := range t.Criteria {
+		if len(c) > 2000 && !defaultCriterion {
+			return fmt.Errorf("acceptance criterion too long")
+		}
+	}
+	if len(t.SkillIDs) > 4 {
+		return fmt.Errorf("at most four selected skills")
+	}
+	for p := range t.WorkerModels {
+		if !validProfile(p) {
+			return fmt.Errorf("unknown worker profile %q", p)
+		}
 	}
 	t.ID = uuid.NewString()
 	t.Status = "draft"

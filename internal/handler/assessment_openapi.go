@@ -19,6 +19,7 @@ func addAssessmentSpec(spec map[string]interface{}) {
 	create := op("Create a durable assessment draft (no conversation)", "assessment:write")
 	create["responses"].(map[string]interface{})["201"] = map[string]interface{}{"description": "Draft created"}
 	body(create, map[string]interface{}{"type": "object", "required": []string{"name", "goal", "scope", "tools"}, "properties": map[string]interface{}{
+		"criteria": map[string]interface{}{"type": "array", "items": str(), "maxItems": 12}, "reviewer_model": str(), "skill_ids": map[string]interface{}{"type": "array", "items": str(), "maxItems": 4}, "worker_models": map[string]interface{}{"type": "object", "additionalProperties": str()},
 		"name": str(), "goal": str(), "scope": str(), "material": str(), "project_id": str(), "model": str(),
 		"approval_mode":     map[string]interface{}{"type": "string", "enum": []string{"policy", "manual"}},
 		"tools":             map[string]interface{}{"type": "array", "items": str(), "minItems": 1, "maxItems": 100},
@@ -32,8 +33,8 @@ func addAssessmentSpec(spec map[string]interface{}) {
 	paths["/api/assessments"] = map[string]interface{}{"get": list, "post": create}
 	paths["/api/assessments/options"] = map[string]interface{}{"get": op("List model channels and conversation-independent tools", "assessment:read")}
 	paths["/api/assessments/{id}"] = map[string]interface{}{"get": op("Get assessment without private model transcript", "assessment:read", "id"), "delete": op("Delete a settled assessment and its events", "assessment:delete", "id")}
-	control := op("Control: start, resume, pause, stop or steer (start also requires agent:execute)", "assessment:write", "id", "action")
-	body(control, map[string]interface{}{"type": "object", "properties": map[string]interface{}{"message": str()}})
+	control := op("Control: start, resume, pause, stop, steer or budget (start also requires agent:execute)", "assessment:write", "id", "action")
+	body(control, map[string]interface{}{"type": "object", "properties": map[string]interface{}{"message": str(), "token_budget": map[string]interface{}{"type": "integer"}, "remaining_seconds": map[string]interface{}{"type": "integer"}, "max_rounds": map[string]interface{}{"type": "integer"}}})
 	paths["/api/assessments/{id}/control/{action}"] = map[string]interface{}{"post": control}
 	decision := op("Decide one exact tool call (also requires hitl:write)", "assessment:write", "id", "stepId")
 	body(decision, map[string]interface{}{"type": "object", "required": []string{"approved", "approval_id"}, "properties": map[string]interface{}{"approval_id": str(), "approved": map[string]interface{}{"type": "boolean"}}})
@@ -47,5 +48,6 @@ func addAssessmentSpec(spec map[string]interface{}) {
 	paths["/api/assessments/{id}/publish"] = map[string]interface{}{"post": publish}
 	report := op("Download an evidence-based Markdown report, including partial results", "assessment:read", "id")
 	report["responses"].(map[string]interface{})["200"] = map[string]interface{}{"description": "Markdown report", "content": map[string]interface{}{"text/markdown": map[string]interface{}{"schema": str()}}}
+	paths["/api/assessments/{id}/metrics"] = map[string]interface{}{"get": op("Download reproducible evaluation metrics", "assessment:read", "id")}
 	paths["/api/assessments/{id}/report"] = map[string]interface{}{"get": report}
 }

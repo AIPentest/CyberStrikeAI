@@ -3,6 +3,7 @@ package assessment
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -294,7 +295,7 @@ func TestPaidFinalResponseIsNotLostAtBudgetBoundary(t *testing.T) {
 	if err != nil || response.Message.Content != "valuable final evidence" {
 		t.Fatal("paid result discarded", err)
 	}
-	if _, err = e.call(context.Background(), task.ID, []agent.ChatMessage{{Role: "user", Content: "again"}}, nil); err != ErrBudget {
+	if _, err = e.call(context.Background(), task.ID, []agent.ChatMessage{{Role: "user", Content: "again"}}, nil); !errors.Is(err, ErrBudget) {
 		t.Fatal("new request exceeded budget", err)
 	}
 }

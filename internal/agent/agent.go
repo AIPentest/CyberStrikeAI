@@ -366,13 +366,6 @@ func (a *Agent) getAvailableTools(roleTools []string) []Tool {
 				// 外部工具使用 "mcpName::toolName" 作为toolKey
 				externalToolKey := externalTool.Name
 
-				// 如果指定了角色工具列表，只添加在列表中的工具
-				if len(roleToolSet) > 0 {
-					if !roleToolSet[externalToolKey] {
-						continue // 不在角色工具列表中，跳过
-					}
-				}
-
 				// 解析工具名称：mcpName::toolName
 				var mcpName, actualToolName string
 				if idx := strings.Index(externalTool.Name, "::"); idx > 0 {
@@ -417,6 +410,13 @@ func (a *Agent) getAvailableTools(roleTools []string) []Tool {
 
 				// 保存名称映射关系（OpenAI格式 -> 原始格式）
 				extMap[openAIName] = externalTool.Name
+
+				// 如果指定了角色工具列表，只添加在列表中的工具
+				if len(roleToolSet) > 0 {
+					if !roleToolSet[externalToolKey] {
+						continue // 不在角色工具列表中，跳过
+					}
+				}
 
 				tools = append(tools, Tool{
 					Type: "function",

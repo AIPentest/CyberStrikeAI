@@ -18,6 +18,7 @@ import (
 )
 
 type fakeRuntime struct {
+	review   func(context.Context, *Task, []agent.ChatMessage, []agent.Tool) (*ModelReply, error)
 	complete func(context.Context, *Task, []agent.ChatMessage, []agent.Tool) (*ModelReply, error)
 	execute  func(context.Context, *Task, string, agent.ToolCall) (*agent.ToolExecutionResult, error)
 	calls    atomic.Int32
@@ -28,6 +29,31 @@ func (f *fakeRuntime) Tools(*Task) ([]agent.Tool, error) {
 	return []agent.Tool{{Type: "function", Function: agent.FunctionDefinition{Name: "inspect", Parameters: map[string]interface{}{"type": "object"}}}}, nil
 }
 func (f *fakeRuntime) Complete(ctx context.Context, t *Task, m []agent.ChatMessage, tools []agent.Tool, _ int) (*ModelReply, error) {
+	if requestPurpose(ctx).Phase == "review" {
+		if f.review != nil {
+			return f.review(ctx, t, m, tools)
+		}
+		out := Review{Summary: "Fixture acceptance reviewed"}
+		refs := []string{}
+		for _, s := range t.Steps {
+			refs = append(refs, s.SuccessfulIDs...)
+		}
+		for i := range criteria(t) {
+			status := "satisfied"
+			if len(refs) == 0 {
+				status = "insufficient"
+			}
+			out.Criteria = append(out.Criteria, CriterionResult{Index: i, Status: status, Reason: "Fixture checks", ExecutionIDs: refs})
+		}
+		for _, s := range t.Steps {
+			for i, v := range s.Evidence {
+				if v.Kind == "finding" {
+					out.Findings = append(out.Findings, FindingReview{StepID: s.ID, EvidenceIndex: i, Status: "needs_retest", Reason: "Fixture candidate"})
+				}
+			}
+		}
+		return reply(out), nil
+	}
 	return f.complete(ctx, t, m, tools)
 }
 func (f *fakeRuntime) Execute(ctx context.Context, t *Task, id string, c agent.ToolCall) (*agent.ToolExecutionResult, error) {
@@ -121,7 +147,7 @@ func TestAssessmentApprovalCompletionAndChatIndependence(t *testing.T) {
 		t.Fatal("duplicate decision accepted")
 	}
 	completed := waitTask(t, store, task.ID, func(t *Task) bool { return t.Status == "completed" && t.Deadline == 0 })
-	if r.calls.Load() != 1 || completed.Tokens != 400 || completed.Reserved != 0 {
+	if r.calls.Load() != 1 || completed.Tokens != 500 || completed.Reserved != 0 {
 		t.Fatalf("unexpected accounting/calls: %+v, %d", completed, r.calls.Load())
 	}
 	var count int
