@@ -10,7 +10,7 @@
     const badge = (s) => '<span class="assessment-status" data-status="' + esc(s) + '">' + esc(tr('status.' + s)) + '</span>';
     const button = (action, text, permission, attrs) => '<button type="button" class="btn-secondary btn-small" data-assessment-action="' + action + '" ' + (attrs || '') + (permission && !can(permission) ? ' disabled' : '') + '>' + esc(text) + '</button>';
     async function api(path, method, body) {
-        const response = await fetch('/api/assessments' + path, { method: method || 'GET', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+        const response = await apiFetch('/api/assessments' + path, { method: method || 'GET', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || response.statusText);
         return data;
@@ -109,6 +109,7 @@
                     const field = document.getElementById('assessment-guidance'); if (field && value) field.value = value;
                 }
             } else detail();
+            if (document.getElementById('assessment-message')?.classList.contains('is-error')) message('', false);
         } catch (err) { if (version === epoch) message(err.message, true); }
         finally { loading = false; }
     }
@@ -160,7 +161,7 @@
             else if (action === 'delete') { if (!window.confirm(tr('deleteConfirm'))) return; await api('/' + id, 'DELETE'); selected = ''; history.replaceState(null, '', '#assessments'); task = null; events = []; after = 0; }
             else if (action === 'fact' || action === 'vulnerability' || action === 'asset') { await api('/' + id + '/publish', 'POST', { step_id: target.dataset.step, index: Number(target.dataset.index), kind: action, revision: target.dataset.revision }); message(tr('published')); }
             else if (action === 'report' || action === 'metrics') {
-                const response = await fetch('/api/assessments/' + id + '/' + action, { credentials: 'same-origin' }); if (!response.ok) throw new Error(response.statusText);
+                const response = await apiFetch('/api/assessments/' + id + '/' + action, { credentials: 'same-origin' }); if (!response.ok) throw new Error(response.statusText);
                 const url = URL.createObjectURL(await response.blob()); const link = document.createElement('a'); link.href = url; link.download = 'assessment-' + id + (action === 'metrics' ? '-metrics.json' : '.md'); link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
             }
             await refresh(true);
