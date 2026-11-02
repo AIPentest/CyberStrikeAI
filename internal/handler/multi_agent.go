@@ -173,7 +173,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	var runErr error
 
 	baseCtx, cancelWithCause = context.WithCancelCause(detachedAgentContext(c.Request.Context()))
-	taskCtx, timeoutCancel := context.WithTimeout(baseCtx, 600*time.Minute)
+	taskCtx, timeoutCancel := h.newTaskContext(baseCtx)
 
 	if startedTask, err := h.tasks.StartTask(conversationID, req.Message, cancelWithCause); err != nil {
 		var errorMsg string
@@ -341,7 +341,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 			timeoutCancel()
 			baseCtx, cancelWithCause = context.WithCancelCause(detachedAgentContext(baseCtx))
 			h.tasks.BindTaskCancel(conversationID, cancelWithCause)
-			taskCtx, timeoutCancel = context.WithTimeout(baseCtx, 600*time.Minute)
+			taskCtx, timeoutCancel = h.newTaskContext(baseCtx)
 			h.tasks.UpdateTaskStatus(conversationID, "running")
 			continue
 		}
@@ -477,7 +477,7 @@ func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 
 	baseCtx, cancelWithCause := context.WithCancelCause(c.Request.Context())
 	defer cancelWithCause(nil)
-	taskCtx, timeoutCancel := context.WithTimeout(baseCtx, 600*time.Minute)
+	taskCtx, timeoutCancel := h.newTaskContext(baseCtx)
 	defer timeoutCancel()
 	jsonTask, startErr := h.tasks.StartTask(prep.ConversationID, req.Message, cancelWithCause)
 	if startErr != nil {

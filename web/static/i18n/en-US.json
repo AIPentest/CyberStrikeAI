@@ -2,7 +2,8 @@
   "lang": {
     "zhCN": "中文",
     "enUS": "English",
-    "ruRU": "Русский"
+    "ruRU": "Русский",
+    "arSA": "العربية"
   },
   "mobile": {
     "openNav": "Open navigation menu",
@@ -5133,5 +5134,14 @@
     "promptRequired": "Enter a retest prompt.",
     "navigationChanged": "You switched conversations. Return to the retest branch to send the prompt.",
     "branchCreated": "The retest branch was created. Continue verification in that branch."
+  },
+  "vulnerabilityDownload": {
+    "title": "Download vulnerability report",
+    "hint": "Choose a file format",
+    "markdown": "Markdown (.md)",
+    "word": "Word (.docx)",
+    "cancel": "Cancel",
+    "download": "Download vulnerability report",
+    "busy": "Preparing download…"
   }
 }

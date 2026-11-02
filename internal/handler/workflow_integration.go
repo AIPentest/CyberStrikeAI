@@ -88,7 +88,7 @@ func (h *AgentHandler) runRoleWorkflowStreamIfBound(
 	}
 	baseCtx, cancelWithCause := context.WithCancelCause(detachedAgentContext(c.Request.Context()))
 	defer cancelWithCause(nil)
-	taskCtx, timeoutCancel := context.WithTimeout(baseCtx, 600*time.Minute)
+	taskCtx, timeoutCancel := h.newTaskContext(baseCtx)
 	defer timeoutCancel()
 
 	if startedTask, err := h.tasks.StartTask(conversationID, userMessage, cancelWithCause); err != nil {
@@ -231,7 +231,7 @@ func (h *AgentHandler) runRoleWorkflowJSONIfBound(c *gin.Context, req *ChatReque
 
 	baseCtx, cancelWithCause := context.WithCancelCause(c.Request.Context())
 	defer cancelWithCause(nil)
-	taskCtx, timeoutCancel := context.WithTimeout(baseCtx, 600*time.Minute)
+	taskCtx, timeoutCancel := h.newTaskContext(baseCtx)
 	defer timeoutCancel()
 
 	if startedTask, err := h.tasks.StartTask(conversationID, userMessage, cancelWithCause); err != nil {
