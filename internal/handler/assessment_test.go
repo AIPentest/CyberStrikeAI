@@ -215,3 +215,20 @@ func TestAssessmentAPIPublishesObservedAsset(t *testing.T) {
 		t.Fatal("asset permission bypass", w.Code)
 	}
 }
+
+func TestAssessmentAPIBindsRunToCurrentOperator(t *testing.T) {
+	h, session, request := assessmentAPI(t)
+	task := createAPIAssessment(t, request)
+	session.UserID = "assigned-operator"
+	w := request("POST", "/api/assessments/"+task.ID+"/control/start", `{}`)
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	current, err := h.Engine.Store.Get(task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.ExecutorID != session.UserID || current.OwnerID != task.OwnerID {
+		t.Fatalf("wrong run identity: %+v", current)
+	}
+}

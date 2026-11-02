@@ -16,6 +16,7 @@ const MaxTurns = 20
 
 // Task is the durable source of truth. No chat conversation or message is created.
 type Task struct {
+	ExecutorID       string    `json:"executor_id,omitempty"`
 	ApprovalMode     string    `json:"approval_mode"`
 	ID               string    `json:"id"`
 	OwnerID          string    `json:"owner_id"`

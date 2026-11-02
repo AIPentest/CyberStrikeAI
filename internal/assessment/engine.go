@@ -49,7 +49,11 @@ func NewEngine(s *Store, r Runtime, log *zap.Logger) *Engine {
 	}
 	return &Engine{Store: s, Runtime: r, log: log, active: map[string]*activeRun{}}
 }
-func (e *Engine) Start(id string) error {
+func (e *Engine) Start(id string) error { return e.StartAs(id, "") }
+
+// StartAs binds execution to the authenticated operator, never the potentially
+// more privileged resource owner when an assigned collaborator resumes a task.
+func (e *Engine) StartAs(id, actorID string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.closed || e.active[id] != nil || len(e.active) >= 4 {
@@ -59,6 +63,10 @@ func (e *Engine) Start(id string) error {
 	if err != nil {
 		return err
 	}
+	if actorID == "" {
+		actorID = t.OwnerID
+	}
+	t.ExecutorID = actorID
 	ctx, err := e.Runtime.Context(context.Background(), t)
 	if err != nil {
 		return err
@@ -74,6 +82,7 @@ func (e *Engine) Start(id string) error {
 			return ErrBudget
 		}
 		t.Status = "running"
+		t.ExecutorID = actorID
 		t.Reason = ""
 		t.Deadline = time.Now().Unix() + t.RemainingSeconds
 		return nil

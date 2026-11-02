@@ -189,7 +189,8 @@ func (h *AssessmentHandler) Control(c *gin.Context) {
 			c.JSON(403, gin.H{"error": "agent:execute is required"})
 			return
 		}
-		err = h.Engine.Start(t.ID)
+		session, _ := security.CurrentSession(c)
+		err = h.Engine.StartAs(t.ID, session.UserID)
 	case "pause", "stop":
 		err = h.Engine.Control(t.ID, action)
 	case "steer":

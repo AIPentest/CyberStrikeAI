@@ -25,16 +25,23 @@ type CSAIRuntime struct {
 }
 
 func (r *CSAIRuntime) Context(ctx context.Context, t *Task) (context.Context, error) {
-	access, err := r.DB.ResolveRBACAccess(t.OwnerID)
+	actorID := t.ExecutorID
+	if actorID == "" {
+		actorID = t.OwnerID
+	}
+	access, err := r.DB.ResolveRBACAccess(actorID)
 	if err != nil {
 		return nil, err
 	}
 	if access == nil || !access.User.Enabled || !access.Permissions["assessment:write"] || !access.Permissions["agent:execute"] {
-		return nil, fmt.Errorf("assessment owner is disabled or lacks assessment:write / agent:execute")
+		return nil, fmt.Errorf("assessment operator is disabled or lacks assessment:write / agent:execute")
 	}
 	principal := authctx.NewPrincipalWithScopes(access.User.ID, access.User.Username, access.Scope, access.Permissions, access.PermissionScopes)
+	if !r.DB.UserCanAccessResource(principal.UserID, principal.ScopeFor("assessment:write"), "assessment", t.ID) {
+		return nil, fmt.Errorf("operator no longer has write access to this assessment")
+	}
 	if t.ProjectID != "" && (!principal.HasPermission("project:read") || !r.DB.UserCanAccessResource(principal.UserID, principal.ScopeFor("project:read"), "project", t.ProjectID)) {
-		return nil, fmt.Errorf("owner no longer has access to the linked project")
+		return nil, fmt.Errorf("operator no longer has access to the linked project")
 	}
 	return authctx.WithPrincipal(ctx, principal), nil
 }

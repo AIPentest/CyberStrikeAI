@@ -3,6 +3,8 @@ package assessment
 import (
 	"context"
 	"cyberstrike-ai/internal/agent"
+	"cyberstrike-ai/internal/authctx"
+	"cyberstrike-ai/internal/database"
 	"cyberstrike-ai/internal/mcp"
 	"cyberstrike-ai/internal/security"
 	"go.uber.org/zap"
@@ -65,5 +67,44 @@ func TestRuntimeWaitsForActualMCPCompletion(t *testing.T) {
 	}
 	if time.Since(started) < 1200*time.Millisecond || result.IsError || !strings.Contains(result.Result, "actually completed") || ag.MCPExecutionStatus(result.ExecutionID) != "completed" {
 		t.Fatalf("background submission mistaken for completion: %+v", result)
+	}
+}
+
+func TestRuntimeCollaboratorDoesNotInheritOwnerPrivileges(t *testing.T) {
+	store, task := fixture(t)
+	if err := store.DB.BootstrapRBAC("fixture", security.PermissionCatalog); err != nil {
+		t.Fatal(err)
+	}
+	owner, err := store.DB.GetRBACUserByUsername("admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	role, err := store.DB.UpsertRBACRole("assessment-collaborator", "collaborator", "", database.RBACScopeAssigned, []string{"assessment:write", "agent:execute"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	actor, err := store.DB.CreateRBACUser("collaborator", "Collaborator", "fixture", true, []string{role.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = store.DB.AssignResourceToUser(actor.ID, "assessment", task.ID); err != nil {
+		t.Fatal(err)
+	}
+	task.OwnerID = owner.ID
+	task.ExecutorID = actor.ID
+	r := &CSAIRuntime{DB: store.DB}
+	ctx, err := r.Context(context.Background(), task)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, ok := authctx.PrincipalFromContext(ctx)
+	if !ok || p.UserID != actor.ID || p.HasPermission("agent:local-execute") {
+		t.Fatal("inherited owner privileges", p)
+	}
+	if _, err = store.DB.Exec(`DELETE FROM rbac_resource_assignments WHERE user_id=?`, actor.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = r.Context(context.Background(), task); err == nil {
+		t.Fatal("revoked assessment access was ignored")
 	}
 }

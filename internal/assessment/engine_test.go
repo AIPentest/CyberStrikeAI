@@ -396,3 +396,26 @@ func TestCandidatePublicationIsAtomicAndIdempotent(t *testing.T) {
 		t.Fatal("reviewer edits overwritten", err)
 	}
 }
+
+func TestRecoveryHandlesCrashDuringTerminalCleanup(t *testing.T) {
+	store, task := fixture(t)
+	if err := store.Change(task.ID, "", "", "", func(t *Task) error { t.Status = "completed"; t.Deadline = time.Now().Unix() + 100; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Delete(task.ID); !errors.Is(err, ErrConflict) {
+		t.Fatal("deleted before cleanup completed", err)
+	}
+	if err := store.Recover(); err != nil {
+		t.Fatal(err)
+	}
+	current, err := store.Get(task.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.Status != "paused" || current.Deadline != 0 {
+		t.Fatalf("unsettled terminal task stuck after restart: %+v", current)
+	}
+	if err = store.Delete(task.ID); err != nil {
+		t.Fatal(err)
+	}
+}

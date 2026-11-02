@@ -155,18 +155,25 @@ func (s *Store) Delete(id string) error {
 
 // Recover never replays an interrupted external action automatically.
 func (s *Store) Recover() error {
-	rows, err := s.DB.Query(`SELECT id FROM assessments WHERE status IN ('running','awaiting_approval','pausing','stopping')`)
+	rows, err := s.DB.Query(`SELECT id,payload FROM assessments WHERE status IN ('running','awaiting_approval','pausing','stopping','completed','blocked','failed','exhausted')`)
 	if err != nil {
 		return err
 	}
 	var ids []string
 	for rows.Next() {
-		var id string
-		if err = rows.Scan(&id); err != nil {
+		var id, payload string
+		if err = rows.Scan(&id, &payload); err != nil {
 			rows.Close()
 			return err
 		}
-		ids = append(ids, id)
+		var task Task
+		if err = json.Unmarshal([]byte(payload), &task); err != nil {
+			rows.Close()
+			return err
+		}
+		if task.Deadline > 0 || task.Status == "running" || task.Status == "awaiting_approval" || task.Status == "pausing" || task.Status == "stopping" {
+			ids = append(ids, id)
+		}
 	}
 	err = rows.Err()
 	rows.Close()

@@ -32,7 +32,7 @@
 
 ## API
 
-所有端点均需登录。`assessment:read/write/delete` 控制测评资源，支持 owner/assigned/all 范围。启动另需 `agent:execute`；工具执行前重新解析所有者当前权限，继续经过原有 MCP authorizer 与 Tool Guard。审批另需 `hitl:write`。
+所有端点均需登录。`assessment:read/write/delete` 控制测评资源，支持 owner/assigned/all 范围。启动另需 `agent:execute`；每次启动/继续绑定实际操作者身份，工具执行前重新解析其当前权限（协作者不会继承任务所有者的更高权限），继续经过原有 MCP authorizer 与 Tool Guard。审批另需 `hitl:write`。
 
 | 方法 | 路径 | 作用 |
 |---|---|---|
