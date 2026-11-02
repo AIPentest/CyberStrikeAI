@@ -5147,6 +5147,9 @@
     "busy": "Preparing download…"
   },
   "assessments": {
+    "strategy": "Strategy and remaining roadmap",
+    "checkpoint": "Saved progress",
+    "retiredReason": "Reason for retiring direction",
     "publishAsset": "Save to asset library",
     "approvalMode": "Tool approval policy",
     "approvalPolicy": "Global policy (autonomous when HITL is off)",
@@ -5212,6 +5215,7 @@
     "deleteConfirm": "Delete the assessment and logs? Published facts and vulnerabilities are retained.",
     "published": "Saved with assessment and execution provenance.",
     "status": {
+      "skipped": "Retired",
       "draft": "Draft",
       "running": "Running",
       "awaiting_approval": "Awaiting approval",

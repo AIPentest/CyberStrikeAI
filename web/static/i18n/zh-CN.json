@@ -5135,6 +5135,9 @@
     "busy": "正在准备下载…"
   },
   "assessments": {
+    "strategy": "执行策略与后续路线",
+    "checkpoint": "已保存进展",
+    "retiredReason": "放弃方向的原因",
     "publishAsset": "保存至资产库",
     "approvalMode": "工具审批策略",
     "approvalPolicy": "沿用全局策略（默认关闭时自主执行）",
@@ -5200,6 +5203,7 @@
     "deleteConfirm": "确认删除该测评及执行日志？已发布的项目事实和漏洞会保留。",
     "published": "已保存，来源测评和执行证据已附带。",
     "status": {
+      "skipped": "已淘汰",
       "draft": "草稿",
       "running": "执行中",
       "awaiting_approval": "等待审批",

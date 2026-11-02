@@ -16,6 +16,7 @@ const MaxTurns = 20
 
 // Task is the durable source of truth. No chat conversation or message is created.
 type Task struct {
+	Strategy         string    `json:"strategy,omitempty"`
 	ExecutorID       string    `json:"executor_id,omitempty"`
 	ApprovalMode     string    `json:"approval_mode"`
 	ID               string    `json:"id"`
@@ -44,16 +45,19 @@ type Task struct {
 }
 
 type Step struct {
-	ID          string              `json:"id"`
-	Key         string              `json:"key"`
-	Title       string              `json:"title"`
-	Instruction string              `json:"instruction"`
-	DependsOn   []string            `json:"depends_on"`
-	Status      string              `json:"status"`
-	Turns       int                 `json:"turns"`
-	Result      string              `json:"result"`
-	Evidence    []Evidence          `json:"evidence"`
-	Messages    []agent.ChatMessage `json:"-"`
+	Checkpoint    string              `json:"checkpoint,omitempty"`
+	RetrievedIDs  []string            `json:"retrieved_execution_ids,omitempty"`
+	RetiredReason string              `json:"retired_reason,omitempty"`
+	ID            string              `json:"id"`
+	Key           string              `json:"key"`
+	Title         string              `json:"title"`
+	Instruction   string              `json:"instruction"`
+	DependsOn     []string            `json:"depends_on"`
+	Status        string              `json:"status"`
+	Turns         int                 `json:"turns"`
+	Result        string              `json:"result"`
+	Evidence      []Evidence          `json:"evidence"`
+	Messages      []agent.ChatMessage `json:"-"`
 	// Trace is private model state stored in the payload, excluded by Public().
 	Trace         json.RawMessage `json:"trace,omitempty"`
 	Pending       *agent.ToolCall `json:"pending,omitempty"`

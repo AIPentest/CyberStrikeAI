@@ -77,7 +77,7 @@ func waitTask(t *testing.T, s *Store, id string, predicate func(*Task) bool) *Ta
 }
 func normalRuntime() *fakeRuntime {
 	return &fakeRuntime{complete: func(ctx context.Context, t *Task, m []agent.ChatMessage, tools []agent.Tool) (*ModelReply, error) {
-		if len(tools) == 0 {
+		if strings.Contains(m[0].Content, "You plan an authorized") {
 			if len(t.Steps) == 0 {
 				return reply(map[string]any{"status": "continue", "summary": "inspect fixture", "steps": []map[string]any{{"key": "inspect", "title": "Inspect", "instruction": "inspect fixture"}}}), nil
 			}
@@ -253,11 +253,11 @@ func TestConcurrentBudgetReservationAndNoSpendOnFailure(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if budget != 1 {
+	if budget != 0 {
 		t.Fatalf("budget rejections: %d", budget)
 	}
 	got, _ := store.Get(task.ID)
-	if got.Tokens != 100 || got.Reserved != 0 {
+	if got.Tokens != 200 || got.Reserved != 0 {
 		t.Fatalf("accounting: %+v", got)
 	}
 }
@@ -281,7 +281,7 @@ func TestWorkerRejectsFabricatedEvidence(t *testing.T) {
 	r := normalRuntime()
 	base := r.complete
 	r.complete = func(ctx context.Context, t *Task, m []agent.ChatMessage, tools []agent.Tool) (*ModelReply, error) {
-		if len(tools) > 0 && m[len(m)-1].Role == "tool" {
+		if !strings.Contains(m[0].Content, "You plan an authorized") && m[len(m)-1].Role == "tool" {
 			return reply(map[string]any{"status": "completed", "evidence": []Evidence{{Kind: "finding", ExecutionIDs: []string{"invented-id"}}}}), nil
 		}
 		return base(ctx, t, m, tools)

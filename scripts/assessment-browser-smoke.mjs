@@ -12,8 +12,8 @@ const out = await fs.mkdtemp(path.join(os.tmpdir(), 'csai-assessment-browser-'))
 const labels = JSON.parse(await fs.readFile('web/static/i18n/zh-CN.json', 'utf8')).assessments;
 const now = () => new Date().toISOString();
 let sequence = 0;
-const task = { id: 'fixture-assessment', name: '本地测评 · 浏览器验证', goal: '核验本地隔离测试数据', scope: '仅使用浏览器测试夹具，无外部目标', material: '已提供两个测试端点', model: 'fixture', tools: ['inspect'], approval_mode: 'manual', concurrency: 2, token_budget: 200000, tokens: 1250, reserved_tokens: 0, remaining_seconds: 7200, deadline: 0, rounds: 2, max_rounds: 12, status: 'paused', reason: 'user_paused', summary: '已记录响应证据，下一步检查访问控制。', project_id: 'fixture-project', created_at: now(), updated_at: now(), steps: [
-    { id: 's1', key: 'inspect', title: '检查响应和服务信息', instruction: '读取测试夹具并记录响应。', depends_on: [], status: 'completed', result: '响应证据已记录。', evidence: [{ kind: 'fact', title: '已记录测试响应', detail: '本地测试数据返回固定响应。', execution_ids: ['fixture-execution-1'] }] },
+const task = { id: 'fixture-assessment', name: '本地测评 · 浏览器验证', goal: '核验本地隔离测试数据', scope: '仅使用浏览器测试夹具，无外部目标', material: '已提供两个测试端点', strategy: '先核验响应，再检查访问控制边界', model: 'fixture', tools: ['inspect'], approval_mode: 'manual', concurrency: 2, token_budget: 200000, tokens: 1250, reserved_tokens: 0, remaining_seconds: 7200, deadline: 0, rounds: 2, max_rounds: 12, status: 'paused', reason: 'user_paused', summary: '已记录响应证据，下一步检查访问控制。', project_id: 'fixture-project', created_at: now(), updated_at: now(), steps: [
+    { id: 's1', key: 'inspect', title: '检查响应和服务信息', instruction: '读取测试夹具并记录响应。', depends_on: [], status: 'completed', result: '响应证据已记录。', checkpoint: '服务响应已保存，后续可复用。', evidence: [{ kind: 'fact', title: '已记录测试响应', detail: '本地测试数据返回固定响应。', execution_ids: ['fixture-execution-1'] }] },
     { id: 's2', key: 'access', title: '核验访问控制边界', instruction: '对照测试夹具中的两个角色。', depends_on: ['inspect'], status: 'blocked', result: '等待补充测试角色。', evidence: [{ kind: 'finding', title: '待复核访问控制线索', detail: '仅为合成数据，需在授权环境中复核。', execution_ids: ['fixture-execution-2'] }] }
 ] };
 const tasks = [task];
@@ -73,6 +73,7 @@ try {
     await click('[data-id=fixture-assessment]'); await waitFor("!!document.getElementById('assessment-guidance')");
     await evaluate("document.getElementById('assessment-guidance').value='preserve unsaved guidance'"); await delay(3000);
     assert.equal(await evaluate("document.getElementById('assessment-guidance').value"), 'preserve unsaved guidance', 'poll erased typed guidance');
+    assert.ok(await evaluate("document.getElementById('assessment-tab').textContent.includes('先核验响应，再检查访问控制边界')"));
     await screenshot('desktop-overview');
     await click('[data-tab=chain]'); await waitFor("!!document.querySelector('#assessment-graph canvas')"); await screenshot('desktop-chain');
     await evaluate("document.documentElement.dataset.theme='dark'"); await click('[data-tab=chain]'); await screenshot('desktop-dark-chain'); await evaluate("document.documentElement.dataset.theme='light'");

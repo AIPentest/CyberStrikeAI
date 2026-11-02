@@ -70,6 +70,9 @@ func (r *CSAIRuntime) Tools(t *Task) ([]agent.Tool, error) {
 			}
 		}
 		name := strings.ToLower(tool.Function.Name)
+		if name == memoryTool || name == checkpointTool {
+			continue
+		}
 		if strings.Contains(name, "project_fact") || strings.Contains(name, "context_checkpoint") || name == "record_vulnerability" {
 			continue
 		}

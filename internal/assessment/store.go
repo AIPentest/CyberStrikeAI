@@ -33,7 +33,7 @@ func (s *Store) Get(id string) (*Task, error) {
 
 // Change serializes read-modify-write with SQLite's immediate write transaction.
 // Event insertion and the state transition commit together.
-func (s *Store) Change(id, stepID, kind, message string, fn func(*Task) error) error {
+func (s *Store) Change(id, stepID, kind, message string, fn func(*Task) error, eventData ...any) error {
 	tx, err := s.DB.Begin()
 	if err != nil {
 		return err
@@ -59,7 +59,14 @@ func (s *Store) Change(id, stepID, kind, message string, fn func(*Task) error) e
 		return err
 	}
 	if kind != "" {
-		if _, err = tx.Exec(`INSERT INTO assessment_events(assessment_id,step_id,kind,message) VALUES(?,?,?,?)`, id, stepID, kind, message); err != nil {
+		data := []byte(`{}`)
+		if len(eventData) > 0 {
+			data, err = json.Marshal(eventData[0])
+			if err != nil {
+				return err
+			}
+		}
+		if _, err = tx.Exec(`INSERT INTO assessment_events(assessment_id,step_id,kind,message,data) VALUES(?,?,?,?,?)`, id, stepID, kind, message, string(data)); err != nil {
 			return err
 		}
 	}
