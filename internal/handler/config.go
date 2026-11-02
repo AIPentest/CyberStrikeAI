@@ -2359,6 +2359,7 @@ func updateHitlConfig(doc *yaml.Node, cfg config.HitlConfig) {
 	setStringInMap(auditModelNode, "base_url", cfg.AuditModel.BaseURL)
 	setStringInMap(auditModelNode, "api_key", cfg.AuditModel.APIKey)
 	setStringInMap(auditModelNode, "model", cfg.AuditModel.Model)
+	setStringInMap(ensureMap(auditModelNode, "reasoning"), "profile", cfg.AuditModel.Reasoning.Profile)
 	// flow 样式 [a, b, c] 单行展示，工具多时比块序列省行数
 	setFlowStringSliceInMap(hitlNode, "tool_whitelist", cfg.ToolWhitelist)
 	setStringInMap(hitlNode, "default_mode", cfg.EffectiveDefaultMode())
