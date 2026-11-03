@@ -306,8 +306,8 @@
                 textarea('goal', 3, true, 'goalPlaceholder') + textarea('scope', 3, true, 'scopePlaceholder') +
                 '<details class="assessment-disclosure"><summary>' + esc(tr('materialsAndCriteria')) + '<span>' + esc(tr('optional')) + '</span></summary><div class="assessment-disclosure-body">' + textarea('material', 2, false, 'materialPlaceholder') + textarea('criteria', 2, false, 'criteriaPlaceholder') + '</div></details></section>' +
                 '<section class="assessment-create-section"><div class="assessment-section-heading"><h3>' + esc(tr('tools')) + required + '</h3><span id="assessment-tools-count" class="assessment-selection-count" role="status"></span></div>' +
-                '<div class="assessment-tool-toolbar"><input type="search" id="assessment-tools-search" placeholder="' + esc(tr('searchTools')) + '" aria-label="' + esc(tr('searchTools')) + '"><button type="button" class="btn-secondary btn-small" data-tool-selection="visible">' + esc(tr('selectVisible')) + '</button><button type="button" class="assessment-text-button" data-tool-selection="clear">' + esc(tr('clearSelection')) + '</button></div>' +
-                '<div class="assessment-tool-picker">' + options.tools.map(tool => '<label class="assessment-tool-option" data-tool-search="' + esc((tool.name + ' ' + tool.description).toLowerCase()) + '"><input type="checkbox" name="tools" value="' + esc(tool.name) + '"><span><strong>' + esc(tool.name) + '</strong><small title="' + esc(tool.description) + '">' + esc(tool.description) + '</small></span></label>').join('') + '<p id="assessment-tools-empty" class="assessment-inline-hint" hidden>' + esc(tr('noMatchingTools')) + '</p></div><p class="assessment-inline-hint">' + esc(tr('selectionHint')) + '</p></section></div>' +
+                '<div class="assessment-tool-toolbar"><input type="search" id="assessment-tools-search" placeholder="' + esc(tr('searchTools')) + '" aria-label="' + esc(tr('searchTools')) + '"><button type="button" class="btn-secondary btn-small" data-tool-selection="all">' + esc(tr('selectAllTools')) + '</button><button type="button" class="btn-secondary btn-small" data-tool-selection="visible" hidden>' + esc(tr('selectVisible')) + '</button><button type="button" class="assessment-text-button" data-tool-selection="clear">' + esc(tr('clearSelection')) + '</button></div>' +
+                '<div class="assessment-tool-picker">' + options.tools.map(tool => '<label class="assessment-tool-option" data-tool-search="' + esc((tool.name + ' ' + tool.description).toLowerCase()) + '"><input type="checkbox" name="tools" value="' + esc(tool.name) + '"><span><strong>' + esc(tool.name) + '</strong><small title="' + esc(tool.description) + '">' + esc(tool.description) + '</small></span></label>').join('') + '<p id="assessment-tools-empty" class="assessment-inline-hint" hidden>' + esc(tr('noMatchingTools')) + '</p></div><p class="assessment-inline-hint">' + esc(tr(options.tools.length > 100 ? 'bulkToolsHint' : 'selectionHint')) + '</p><p id="assessment-tools-selection-note" class="assessment-inline-hint" role="status"></p></section></div>' +
                 '<aside class="assessment-runtime-panel"><h3>' + esc(tr('runSettings')) + '</h3><label class="assessment-field"><span>' + esc(tr('model')) + '</span><select name="model">' + modelOptions(false) + '</select></label>' +
                 '<label class="assessment-field"><span>' + esc(tr('approvalMode')) + '</span><select name="approval_mode"><option value="policy">' + esc(tr('approvalPolicyShort')) + '</option><option value="manual">' + esc(tr('approvalManualShort')) + '</option></select></label>' +
                 '<p class="assessment-inline-hint">' + esc(tr('approvalPolicyHint')) + '</p><div class="assessment-form-grid">' + field('concurrency', 'number', 2, 'min="1" max="4" required') + field('runMinutes', 'number', 120, 'min="1" max="1440" required') + field('token_budget', 'number', 200000, 'min="4000" max="10000000" required') + field('max_rounds', 'number', 12, 'min="1" max="50" required') + '</div><p class="assessment-inline-hint">' + esc(tr('runtimeBudgetHint')) + '</p>' +
@@ -324,7 +324,11 @@
                 dialog.querySelector('#assessment-tools-count').textContent = tr('selectedTools') + ' ' + count + ' / 100';
                 boxes.forEach(b => b.closest('label').classList.toggle('selected', b.checked));
                 const visible = boxes.filter(b => !b.closest('label').hidden);
-                dialog.querySelector('[data-tool-selection=visible]').disabled = !visible.length || count + visible.filter(b => !b.checked).length > 100;
+                dialog.querySelector('[data-tool-selection=all]').disabled = count >= 100 || boxes.every(b => b.checked);
+                const selectVisible = dialog.querySelector('[data-tool-selection=visible]');
+                selectVisible.hidden = !dialog.querySelector('#assessment-tools-search').value.trim();
+                selectVisible.disabled = count >= 100 || visible.every(b => b.checked);
+                dialog.querySelector('[data-tool-selection=clear]').disabled = !count;
                 dialog.querySelector('#assessment-tools-empty').hidden = visible.length > 0;
             };
             dialog.querySelector('#assessment-tools-search').addEventListener('input', ev => {
@@ -334,11 +338,19 @@
             });
             dialog.addEventListener('change', ev => {
                 if (ev.target.name !== 'tools') return;
-                if (checkboxes().filter(b => b.checked).length > 100) { ev.target.checked = false; dialog.querySelector('#assessment-create-error').textContent = tr('toolLimit'); }
+                const note = dialog.querySelector('#assessment-tools-selection-note'); note.textContent = '';
+                if (checkboxes().filter(b => b.checked).length > 100) { ev.target.checked = false; note.textContent = tr('toolLimit'); }
                 updateSelection();
             });
             dialog.querySelectorAll('[data-tool-selection]').forEach(btn => btn.addEventListener('click', () => {
-                checkboxes().forEach(b => { if (btn.dataset.toolSelection === 'clear') b.checked = false; else if (!b.closest('label').hidden) b.checked = true; });
+                const boxes = checkboxes(), note = dialog.querySelector('#assessment-tools-selection-note'); note.textContent = '';
+                if (btn.dataset.toolSelection === 'clear') boxes.forEach(b => { b.checked = false; });
+                else {
+                    let remaining = Math.max(0, 100 - boxes.filter(b => b.checked).length);
+                    const candidates = boxes.filter(b => !b.checked && (btn.dataset.toolSelection === 'all' || !b.closest('label').hidden));
+                    candidates.forEach(b => { if (remaining > 0) { b.checked = true; remaining--; } });
+                    if (candidates.some(b => !b.checked)) note.textContent = tr('bulkToolsLimited');
+                }
                 updateSelection();
             }));
             dialog.querySelector('form').addEventListener('submit', async ev => {

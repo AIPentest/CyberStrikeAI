@@ -516,6 +516,7 @@ html[data-theme=dark] #assessment-graph {
 .assessment-selection-count { color: var(--accent-color); font-size: 12px; white-space: nowrap; }
 .assessment-tool-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .assessment-tool-toolbar input { min-width: 0; width: 0; flex: 1; }
+.assessment-tool-toolbar button[hidden],#assessment-tools-selection-note:empty { display: none; }
 .assessment-text-button { padding: 6px 2px; border: 0; background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer; white-space: nowrap; }
 .assessment-text-button:hover { color: var(--accent-color); }
 .assessment-create-dialog .assessment-tool-picker { max-height: 240px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-primary); }

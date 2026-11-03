@@ -5147,6 +5147,9 @@
     "busy": "Preparing download…"
   },
   "assessments": {
+  "selectAllTools": "Select all",
+  "bulkToolsHint": "Select up to 100 tools per task. Select all keeps existing selections and adds tools in list order up to the limit.",
+  "bulkToolsLimited": "100 tools selected; some tools remain unselected. Deselect tools to make room for others.",
   "dag": "Execution DAG",
   "dagHint": "Arrows show dependencies. Steps in one column may run in parallel, subject to concurrency limits and prerequisite states.",
   "dagDetails": "Node details",

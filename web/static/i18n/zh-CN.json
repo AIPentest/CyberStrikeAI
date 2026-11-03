@@ -5135,6 +5135,9 @@
     "busy": "正在准备下载…"
   },
   "assessments": {
+  "selectAllTools": "全选",
+  "bulkToolsHint": "单次最多选择 100 个工具；全选会保留已选项，并按列表顺序补选至上限。",
+  "bulkToolsLimited": "已选满 100 个工具，仍有部分工具未选中。可取消部分选择后再调整。",
   "dag": "执行 DAG",
   "dagHint": "箭头表示步骤依赖；同列步骤可能并行，实际执行受并发数量和前置状态约束。",
   "dagDetails": "节点详情",

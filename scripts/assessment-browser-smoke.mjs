@@ -14,6 +14,7 @@ const now = () => new Date().toISOString();
 let sequence = 0;
 const authenticatedPaths = new Set();
 let unauthorizedRequests = 0;
+const fixtureTools = [{ name: 'inspect', description: 'Inspect local fixture' }, ...Array.from({ length: 104 }, (_, i) => ({ name: 'fixture_tool_' + String(i + 1).padStart(3, '0'), description: 'Local tool fixture' }))];
 const fixtureSession = { token: 'assessment-fixture-session', expires_at: new Date(Date.now()+3600000).toISOString(), user: {id:'fixture-user',username:'fixture'}, roles:['admin'], scope:'all', permissions:['assessment:read','assessment:write','assessment:delete','agent:execute','hitl:write','project:read','project:write','asset:write','vulnerability:write','skills:read'] };
 const task = { id: 'fixture-assessment', name: '本地测评 · 浏览器验证', goal: '核验本地隔离测试数据', scope: '仅使用浏览器测试夹具，无外部目标', material: '已提供两个测试端点', strategy: '先核验响应，再检查访问控制边界', model: 'fixture', tools: ['inspect'], approval_mode: 'manual', concurrency: 2, token_budget: 200000, tokens: 1250, reserved_tokens: 0, remaining_seconds: 7200, deadline: 0, rounds: 2, max_rounds: 12, status: 'paused', reason: 'user_paused', summary: '已记录响应证据，下一步检查访问控制。', project_id: 'fixture-project', created_at: now(), updated_at: now(), steps: [
     { id: 's1', key: 'inspect', title: '检查响应和服务信息', instruction: '读取测试夹具并记录响应。', depends_on: [], status: 'completed', result: '响应证据已记录。', checkpoint: '服务响应已保存，后续可复用。', evidence: [{ kind: 'fact', title: '已记录测试响应', detail: '本地测试数据返回固定响应。', execution_ids: ['fixture-execution-1'] }] },
@@ -51,7 +52,7 @@ const server = http.createServer(async (req, res) => {
         }
         if (url.pathname === '/api/auth/validate') {send(fixtureSession);return;}
         if (url.pathname.endsWith('/report')) {res.setHeader('Content-Type','text/markdown');res.end('# Fixture assessment report');return;}
-        if (url.pathname === '/api/assessments/options') { send({ models: [{ id: 'fixture', name: 'Fixture', model: 'local-test' }], tools: [{ name: 'inspect', description: 'Inspect local fixture' }], projects: [{id:'fixture-project',name:'本地测试项目'}] }); return; }
+        if (url.pathname === '/api/assessments/options') { send({ models: [{ id: 'fixture', name: 'Fixture', model: 'local-test' }], tools: fixtureTools, projects: [{id:'fixture-project',name:'本地测试项目'}] }); return; }
         if (url.pathname === '/api/assessments' && req.method === 'POST') {
             const created = { ...task, ...input, id: 'created-' + (++sequence), status: 'draft', steps: [], tokens: 0, rounds: 0, created_at: now(), updated_at: now() }; tasks.unshift(created); send({ assessment: created }); return;
         }
@@ -156,6 +157,9 @@ try {
     await click('[data-assessment-action=fact]'); await waitFor("document.getElementById('assessment-message').textContent.includes('已保存')");
     await click('[data-tab=logs]'); assert.equal(await evaluate('window.XSS || 0'), 0, 'untrusted log rendered as HTML');
     await click('[data-assessment-action=new]'); await waitFor("document.getElementById('assessment-create')?.open"); assert.equal(await evaluate("document.querySelector('[name=project_id] option:last-child').textContent"), '本地测试项目');
+    assert.equal(await evaluate("document.querySelector('[data-tool-selection=all]').textContent"),'全选');
+    assert.equal(await evaluate("document.querySelector('[data-tool-selection=all]').disabled"),false,'more than 100 tools disabled bulk selection');
+    assert.equal(await evaluate("getComputedStyle(document.querySelector('[data-tool-selection=visible]')).display"),'none','search-specific action shown without search');
     const dialogLayout = await evaluate("(()=>{const d=document.getElementById('assessment-create').getBoundingClientRect(), f=document.querySelector('#assessment-create .assessment-dialog-footer').getBoundingClientRect();return {left:d.left,right:d.right,top:d.top,bottom:d.bottom,footer:f.bottom,width:innerWidth,height:innerHeight}})()");
     assert.ok(Math.abs(dialogLayout.left - (dialogLayout.width - dialogLayout.right)) < 3, 'create dialog is not horizontally centered');
     assert.ok(dialogLayout.top >= 12 && dialogLayout.bottom <= dialogLayout.height - 12 && dialogLayout.footer <= dialogLayout.bottom, 'create dialog/footer escapes viewport');
@@ -166,6 +170,20 @@ try {
     await evaluate("document.getElementById('assessment-tools-search').value='inspect';document.getElementById('assessment-tools-search').dispatchEvent(new Event('input'))");
     await click('[data-tool-selection=visible]');
     assert.ok(await evaluate("document.getElementById('assessment-tools-count').textContent.includes('1 / 100')"));
+    await evaluate("document.getElementById('assessment-tools-search').value='fixture_tool_104';document.getElementById('assessment-tools-search').dispatchEvent(new Event('input'))");
+    await click('[data-tool-selection=visible]');
+    assert.equal(await evaluate("document.querySelectorAll('input[name=tools]:checked').length"),2,'filtered selection discarded an existing selection');
+    await click('[data-tool-selection=all]');
+    assert.equal(await evaluate("document.querySelectorAll('input[name=tools]:checked').length"),100,'select all must fill the limit even while filtering');
+    assert.equal(await evaluate("document.querySelector('[name=tools][value=fixture_tool_104]').checked"),true,'select all discarded a prior selection');
+    assert.ok(await evaluate("document.getElementById('assessment-tools-selection-note').textContent.includes('仍有部分工具未选中')"),'partial bulk selection was not disclosed');
+    await evaluate("document.getElementById('assessment-tools-search').value='';document.getElementById('assessment-tools-search').dispatchEvent(new Event('input'));document.querySelector('.assessment-tool-toolbar').scrollIntoView()");
+    await screenshot('desktop-tools-select-all');
+    await click('[data-tool-selection=clear]');
+    assert.equal(await evaluate("document.querySelectorAll('input[name=tools]:checked').length"),0,'clear did not clear hidden selections');
+    assert.equal(await evaluate("document.getElementById('assessment-tools-selection-note').textContent"),'','clear left a stale limit notice');
+    await evaluate("document.getElementById('assessment-tools-search').value='inspect';document.getElementById('assessment-tools-search').dispatchEvent(new Event('input'))");
+    await click('[data-tool-selection=visible]');
     await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
     await screenshot('mobile-create');
     assert.ok(await evaluate("(()=>{const d=document.getElementById('assessment-create'),r=d.getBoundingClientRect(),f=d.querySelector('.assessment-dialog-footer').getBoundingClientRect();return r.left>=8&&r.right<=innerWidth-8&&f.bottom<=innerHeight-8&&d.scrollWidth<=d.clientWidth+1})()"), 'mobile create dialog overflows or hides footer');
@@ -187,7 +205,7 @@ try {
     assert.equal(unauthorizedRequests,0,'a logged-in workbench request omitted its Bearer token');
     for(const route of ['/api/assessments','/api/assessments/options','/api/assessments/fixture-assessment/report','/api/assessments/fixture-assessment/metrics']) assert.ok(authenticatedPaths.has(route),'missing authenticated request: '+route);
     await evaluate('cleanupAssessmentsPage()');
-    console.log(JSON.stringify({ ok: true, screenshots: out, checks: ['real auth.js login and Bearer propagation', 'authenticated create/options/control/downloads', 'task selection', 'poll preserves draft', 'graph', 'DAG parallel branches and joins', 'DAG click/keyboard selection and zoom', 'DAG polling preserves viewport, selection and dragged nodes', 'DAG replanning, empty state and library fallback', 'desktop/dark/mobile DAG layout', 'candidate publishing controls', 'XSS escaping', 'create', 'start', 'approval', 'completion', 'mobile overflow', 'centered create modal and visible footer', 'tool search and bulk selection', 'desktop/dark/mobile create layout'] }, null, 2));
+    console.log(JSON.stringify({ ok: true, screenshots: out, checks: ['real auth.js login and Bearer propagation', 'authenticated create/options/control/downloads', 'task selection', 'poll preserves draft', 'graph', 'DAG parallel branches and joins', 'DAG click/keyboard selection and zoom', 'DAG polling preserves viewport, selection and dragged nodes', 'DAG replanning, empty state and library fallback', 'desktop/dark/mobile DAG layout', 'candidate publishing controls', 'XSS escaping', 'create', 'start', 'approval', 'completion', 'mobile overflow', 'centered create modal and visible footer', 'tool search and bulk selection with 105 tools, selection preservation and 100-tool cap', 'desktop/dark/mobile create layout'] }, null, 2));
 } finally {
     if (socket) socket.close(); chrome.kill(); server.close();
 }
