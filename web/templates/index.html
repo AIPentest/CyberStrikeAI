@@ -44,6 +44,7 @@
     <link rel="stylesheet" href="/static/css/tool-guard.css?v=20260907-7">
     <link rel="stylesheet" href="/static/css/chat-plan-progress.css?v=20260813-4">
     <link rel="stylesheet" href="/static/css/c2.css">
+    <link rel="stylesheet" href="/static/css/assessments.css">
     <link rel="stylesheet" href="/static/vendor/xterm.css">
     <!-- 移动端样式层：全部规则限定在 767.98px 以下，桌面端零影响 -->
     <link rel="stylesheet" href="/static/css/mobile.css?v=20261015-project-table-3">
@@ -233,6 +234,12 @@
                                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                             </svg>
                             <span data-i18n="nav.chat">对话</span>
+                        </div>
+                    </div>
+                    <div class="nav-item" data-page="assessments" data-require-permission="assessment:read">
+                        <div class="nav-item-content" data-title="深度测评" onclick="switchPage('assessments')" data-i18n="nav.assessments" data-i18n-attr="data-title" data-i18n-skip-text="true">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><path d="M12 8v4M12 12l-7 4M12 12l7 4"/></svg>
+                            <span data-i18n="nav.assessments">深度测评</span>
                         </div>
                     </div>
                     <div class="nav-item nav-item-has-submenu" data-page="security" data-require-permission-any="hitl:read config:read">
@@ -2948,6 +2955,8 @@
                 </div>
 
                 <!-- 任务管理页面 -->
+                <div id="page-assessments" class="page"><div id="assessment-workbench"></div></div>
+
                 <div id="page-tasks" class="page">
                     <div class="page-header">
                         <h2 data-i18n="tasks.title">任务管理</h2>
@@ -7075,6 +7084,7 @@
     <script src="/static/js/vulnerability-download.js?v=20261030-2"></script>
     <script src="/static/js/webshell.js?v=20261011-token-usage"></script>
     <script src="/static/js/chat-files.js?v=20261027-pagination-custom-select"></script>
+    <script src="/static/js/assessments.js"></script>
     <script src="/static/js/tasks.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/workflow-package-client.js"></script>
     <script src="/static/js/workflows.js"></script>

@@ -1,9 +1,9 @@
 name: Context memory
 on:
   push:
-    paths: ['internal/agent/**', 'internal/attackchain/**', 'internal/app/**', 'internal/config/**', 'internal/database/**', 'internal/handler/**', 'internal/mcp/**', 'internal/multiagent/**', 'internal/project/**', 'internal/projectprompt/**', 'go.mod', 'go.sum', '.github/workflows/context-memory.yml']
+    paths: ['internal/assessment/**', 'internal/agent/**', 'internal/attackchain/**', 'internal/app/**', 'internal/config/**', 'internal/database/**', 'internal/handler/**', 'internal/mcp/**', 'internal/multiagent/**', 'internal/project/**', 'internal/projectprompt/**', 'go.mod', 'go.sum', '.github/workflows/context-memory.yml']
   pull_request:
-    paths: ['internal/agent/**', 'internal/attackchain/**', 'internal/app/**', 'internal/config/**', 'internal/database/**', 'internal/handler/**', 'internal/mcp/**', 'internal/multiagent/**', 'internal/project/**', 'internal/projectprompt/**', 'go.mod', 'go.sum', '.github/workflows/context-memory.yml']
+    paths: ['internal/assessment/**', 'internal/agent/**', 'internal/attackchain/**', 'internal/app/**', 'internal/config/**', 'internal/database/**', 'internal/handler/**', 'internal/mcp/**', 'internal/multiagent/**', 'internal/project/**', 'internal/projectprompt/**', 'go.mod', 'go.sum', '.github/workflows/context-memory.yml']
 permissions:
   contents: read
 jobs:
@@ -20,4 +20,4 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Test compaction, resume, snapshots and scoped memory
-        run: go test -race ./internal/agent ./internal/attackchain ./internal/app ./internal/database ./internal/handler ./internal/multiagent ./internal/project ./internal/projectprompt
+        run: go test -race ./internal/assessment ./internal/agent ./internal/attackchain ./internal/app ./internal/database ./internal/handler ./internal/multiagent ./internal/project ./internal/projectprompt

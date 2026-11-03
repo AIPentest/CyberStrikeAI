@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"cyberstrike-ai/internal/agent"
+	"cyberstrike-ai/internal/assessment"
 	"cyberstrike-ai/internal/audit"
 	"cyberstrike-ai/internal/authctx"
 	"cyberstrike-ai/internal/c2"
@@ -44,6 +45,7 @@ import (
 
 // App 应用
 type App struct {
+	assessmentEngine   *assessment.Engine
 	config             *config.Config
 	logger             *logger.Logger
 	router             *gin.Engine
@@ -620,6 +622,12 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 		os.Exit(0)
 	}, configHandler.UpdateSource, configHandler.SetUpdateSource)
 
+	assessmentStore := &assessment.Store{DB: db}
+	if err := assessmentStore.Recover(); err != nil {
+		return nil, fmt.Errorf("recover assessments: %w", err)
+	}
+	app.assessmentEngine = assessment.NewEngine(assessmentStore, &assessment.CSAIRuntime{DB: db, Agent: agent, SkillsRoot: skillpackage.SkillsRootFromConfig(cfg.SkillsDir, configPath), ConfigSnapshot: configHandler.AssessmentConfigSnapshot, Logger: log.Logger}, log.Logger)
+
 	// 设置路由（使用 App 实例以便动态获取 handler）
 	setupRoutes(
 		router,
@@ -802,6 +810,9 @@ func (a *App) RunWithContext(ctx context.Context) error {
 
 // Shutdown 关闭应用
 func (a *App) Shutdown() {
+	if a.assessmentEngine != nil {
+		a.assessmentEngine.Close()
+	}
 	if a.agentHandler != nil {
 		a.agentHandler.ShutdownTasks()
 	}
@@ -1000,6 +1011,19 @@ func setupRoutes(
 		}
 	}))
 	{
+		assessmentHandler := &handler.AssessmentHandler{Engine: app.assessmentEngine, DB: app.db, ConfigSnapshot: configHandler.AssessmentConfigSnapshot, Audit: auditSvc}
+		protected.GET("/assessments/options", assessmentHandler.Options)
+		protected.GET("/assessments", assessmentHandler.List)
+		protected.POST("/assessments", assessmentHandler.Create)
+		protected.GET("/assessments/:id", assessmentHandler.Get)
+		protected.DELETE("/assessments/:id", assessmentHandler.Delete)
+		protected.GET("/assessments/:id/events", assessmentHandler.Events)
+		protected.GET("/assessments/:id/report", assessmentHandler.Report)
+		protected.GET("/assessments/:id/metrics", assessmentHandler.Metrics)
+		protected.POST("/assessments/:id/steps/:stepId/decision", assessmentHandler.Decision)
+		protected.POST("/assessments/:id/steps/:stepId/retry", assessmentHandler.Retry)
+		protected.POST("/assessments/:id/publish", assessmentHandler.Publish)
+		protected.POST("/assessments/:id/control/:action", assessmentHandler.Control)
 		protected.GET("/rbac/me", rbacHandler.Me)
 		protected.GET("/rbac/metadata", rbacHandler.Metadata)
 		protected.GET("/rbac/users", rbacHandler.ListUsers)

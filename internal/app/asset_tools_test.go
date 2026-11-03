@@ -188,7 +188,7 @@ func TestAssetReadToolsRespectConversationProjectScope(t *testing.T) {
 	}
 
 	result, _, err = server.CallTool(boundCtx, builtin.ToolGetAsset, map[string]interface{}{"id": assets[1].ID})
-	if err != nil || result == nil || !result.IsError {
+	if err == nil || !strings.Contains(err.Error(), "tool authorization denied") {
 		t.Fatalf("bound get read a foreign-project asset: result=%#v err=%v", result, err)
 	}
 

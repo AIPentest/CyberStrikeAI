@@ -304,6 +304,15 @@ func appendAssetAccess(query string, args []interface{}, access RBACListAccess, 
 }
 
 func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...bool) (AssetImportResult, error) {
+	return db.upsertAssets(assets, ownerUserID, len(allowGlobal) > 0 && allowGlobal[0], nil)
+}
+
+// UpsertAssetsInProject enforces the caller's project boundary inside the same
+// transaction that resolves deduplication, including for globally scoped users.
+func (db *DB) UpsertAssetsInProject(assets []*Asset, ownerUserID string, global bool, projectID string) (AssetImportResult, error) {
+	return db.upsertAssets(assets, ownerUserID, global, &projectID)
+}
+func (db *DB) upsertAssets(assets []*Asset, ownerUserID string, global bool, projectBoundary *string) (AssetImportResult, error) {
 	result := AssetImportResult{}
 	tx, err := db.Begin()
 	if err != nil {
@@ -317,6 +326,9 @@ func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...b
 			continue
 		}
 		normalizeAsset(asset)
+		if projectBoundary != nil && asset.ProjectID != *projectBoundary {
+			return result, fmt.Errorf("asset is outside the current project")
+		}
 		if err := validateAsset(asset); err != nil {
 			return result, fmt.Errorf("第 %d 个资产无效: %w", result.Created+result.Updated+result.Skipped+1, err)
 		}
@@ -326,8 +338,8 @@ func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...b
 			continue
 		}
 		var existingID string
-		var existingOwner sql.NullString
-		err := tx.QueryRow(`SELECT id,owner_user_id FROM assets WHERE dedup_key = ?`, key).Scan(&existingID, &existingOwner)
+		var existingOwner, existingProject sql.NullString
+		err := tx.QueryRow(`SELECT id,owner_user_id,project_id FROM assets WHERE dedup_key = ?`, key).Scan(&existingID, &existingOwner, &existingProject)
 		tagsJSON, _ := json.Marshal(asset.Tags)
 		if err == sql.ErrNoRows {
 			asset.ID = uuid.NewString()
@@ -356,8 +368,11 @@ func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...b
 			return result, fmt.Errorf("检查资产去重键失败: %w", err)
 		}
 		asset.ID = existingID
-		global := len(allowGlobal) > 0 && allowGlobal[0]
-		if !global && existingOwner.Valid && strings.TrimSpace(existingOwner.String) != "" && strings.TrimSpace(existingOwner.String) != strings.TrimSpace(ownerUserID) {
+		if projectBoundary != nil && existingProject.String != *projectBoundary {
+			result.Skipped++
+			continue
+		}
+		if !global && strings.TrimSpace(existingOwner.String) != strings.TrimSpace(ownerUserID) {
 			result.Skipped++
 			continue
 		}
