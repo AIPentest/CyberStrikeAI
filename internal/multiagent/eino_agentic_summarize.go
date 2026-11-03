@@ -76,7 +76,7 @@ func newEinoAgenticSummarizationMiddleware(
 			Tools:    input.Tools,
 		})
 	}
-	recentTrailMax := trigger / 4
+	recentTrailMax := trigger * 2 / 5
 	if recentTrailMax < 2048 {
 		recentTrailMax = 2048
 	}
