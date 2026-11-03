@@ -3,6 +3,7 @@
     'use strict';
     let selected = '', tab = 'overview', timer = null, offset = 0, epoch = 0, loading = false;
     let task = null, rows = [], events = [], after = 0, options = { models: [], tools: [] }, graph = null;
+    let dagView = null, graphResize = null, graphTheme = null;
     const root = () => document.getElementById('assessment-workbench');
     const tr = (key) => typeof window.t === 'function' ? window.t('assessments.' + key) : key;
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -19,7 +20,16 @@
         const el = document.getElementById('assessment-message');
         if (el) { el.textContent = text; el.classList.toggle('is-error', !!error); }
     }
-    function destroyGraph() { if (graph) { graph.destroy(); graph = null; } }
+    function destroyGraph() {
+        if (graphResize) { graphResize.disconnect(); graphResize = null; }
+        if (graphTheme) { graphTheme.disconnect(); graphTheme = null; }
+        if (!graph) return;
+        const context = graph.scratch('assessmentDag');
+        if (context) dagView = { ...context, zoom: graph.zoom(), pan: { ...graph.pan() },
+            selected: graph.$('node:selected').id(), positions: new Map(graph.nodes().map(n => [n.id(), { ...n.position() }])),
+            scroll: document.getElementById('assessment-dag-inspector')?.scrollTop || 0 };
+        graph.destroy(); graph = null;
+    }
     function shell() {
         root().innerHTML = '<div class="assessment-header"><div><h1>' + esc(tr('title')) + '</h1><p>' + esc(tr('subtitle')) + '</p></div><div class="assessment-actions">' + button('refresh', tr('refresh')) + button('new', tr('new'), 'assessment:write') + '</div></div>' +
             '<p id="assessment-message" role="status" aria-live="polite"></p><div class="assessment-layout"><aside class="assessment-list"><h2>' + esc(tr('tasks')) + '</h2><div id="assessment-task-list"></div><div class="assessment-actions">' + button('previous', tr('previous')) + button('next', tr('next')) + '</div></aside><section id="assessment-detail" class="assessment-detail"></section></div>';
@@ -30,6 +40,7 @@
         el.innerHTML = rows.length ? rows.map(r => '<button class="assessment-list-item' + (r.id === selected ? ' selected' : '') + '" data-assessment-action="select" data-id="' + esc(r.id) + '"><strong>' + esc(r.name) + '</strong>' + badge(r.status) + '<small>' + esc(new Date(r.updated_at).toLocaleString()) + '</small></button>').join('') : '<p class="assessment-empty">' + esc(tr('empty')) + '</p>';
     }
     function detail() {
+        const pickerFocused = document.activeElement?.id === 'assessment-dag-picker';
         destroyGraph();
         const el = document.getElementById('assessment-detail'); if (!el) return;
         if (!task) { el.innerHTML = '<div class="assessment-empty"><h2>' + esc(tr('welcome')) + '</h2><p>' + esc(tr('welcomeBody')) + '</p></div>'; return; }
@@ -45,12 +56,15 @@
         if (!active) controls += button('delete', tr('delete'), 'assessment:delete');
         el.innerHTML = '<div class="assessment-detail-heading"><div><h2>' + esc(task.name) + '</h2>' + badge(task.status) + '</div><div class="assessment-actions">' + controls + '</div></div>' +
             '<div class="assessment-metrics"><div><strong>' + task.steps.filter(s => s.status === 'completed').length + ' / ' + task.steps.filter(s => s.status !== 'skipped').length + '</strong><span>' + esc(tr('steps')) + (task.steps.some(s => s.status === 'skipped') ? ' · ' + esc(tr('status.skipped')) + ' ' + task.steps.filter(s => s.status === 'skipped').length : '') + '</span></div><div><strong>' + task.tokens.toLocaleString() + ' / ' + task.token_budget.toLocaleString() + '</strong><span>' + esc(tr('tokens')) + '</span></div><div><strong>' + task.rounds + ' / ' + task.max_rounds + '</strong><span>' + esc(tr('rounds')) + '</span></div><div><strong>' + Math.max(0, Math.ceil((task.deadline ? task.deadline - Date.now() / 1000 : task.remaining_seconds) / 60)) + '</strong><span>' + esc(tr('minutes')) + '</span></div></div>' +
-            '<div class="assessment-tabs" role="tablist">' + ['overview', 'review', 'plan', 'chain', 'evidence', 'logs'].map(id => '<button role="tab" aria-selected="' + (tab === id) + '" class="' + (tab === id ? 'active' : '') + '" data-assessment-action="tab" data-tab="' + id + '">' + esc(tr(id)) + '</button>').join('') + '</div><div id="assessment-tab" role="tabpanel"></div>';
+            '<div class="assessment-tabs" role="tablist">' + ['overview', 'dag', 'plan', 'review', 'chain', 'evidence', 'logs'].map(id => '<button role="tab" aria-selected="' + (tab === id) + '" class="' + (tab === id ? 'active' : '') + '" data-assessment-action="tab" data-tab="' + id + '">' + esc(tr(id)) + '</button>').join('') + '</div><div id="assessment-tab" role="tabpanel"></div>';
         const body = document.getElementById('assessment-tab');
         if (tab === 'overview') {
             body.innerHTML = ['goal', 'scope', 'material', 'strategy', 'summary'].map(key => '<section class="assessment-card"><h3>' + esc(tr(key)) + '</h3><div class="assessment-text">' + esc(task[key] || tr('none')) + '</div></section>').join('') +
                 '<p class="assessment-text">' + esc(tr('reason')) + ': ' + esc(task.reason || '—') + '\n' + esc(tr('model')) + ': ' + esc(task.model || tr('default')) + '\n' + esc(tr('tools')) + ': ' + esc(tools) + '\n' + esc(tr('project')) + ': ' + esc(task.project_id || '—') + '</p>' +
                 (resumable ? '<label class="assessment-field">' + esc(tr('guidance')) + '<textarea id="assessment-guidance" maxlength="8000" rows="3"></textarea></label>' + button('steer', tr('saveGuidance'), 'assessment:write') : '');
+        } else if (tab === 'dag') {
+            renderDag(body);
+            if (pickerFocused) document.getElementById('assessment-dag-picker')?.focus({ preventScroll: true });
         } else if (tab === 'review') {
             body.innerHTML = '<h3>' + esc(tr('criteria')) + '</h3>' + (task.criteria || [task.goal]).map((c,i) => {const v=task.review && task.review.criteria.find(x=>x.index===i);return '<article class="assessment-card"><h3>'+esc(c)+'</h3><strong>'+esc(tr('verdict.'+(v?v.status:'insufficient')))+'</strong><p class="assessment-text">'+esc(v?v.reason:tr('reviewPending'))+'</p></article>';}).join('') + '<h3>'+esc(tr('findingReview'))+'</h3>' + (task.review && task.review.findings || []).map(v=>'<article class="assessment-card"><strong>'+esc(tr('verdict.'+v.status))+'</strong><p class="assessment-text">'+esc(v.reason)+'</p><small>'+esc((v.execution_ids||[]).join(', '))+'</small></article>').join('') + '<h3>'+esc(tr('phaseUsage'))+'</h3><pre class="assessment-text">'+esc(JSON.stringify(task.usage || {},null,2))+'</pre>';
         } else if (tab === 'plan') {
@@ -67,6 +81,156 @@
             body.innerHTML = '<p>' + esc(tr('chainHint')) + '</p><div id="assessment-graph" aria-label="' + esc(tr('chain')) + '"></div><p id="assessment-graph-selection" class="assessment-text"></p>';
             renderGraph();
         }
+    }
+    // Longest-path ranks keep every dependency left of its successor, including
+    // multi-parent joins. No external layout plugin or CDN is required.
+    function buildDag(assessment) {
+        const steps = assessment.steps || [], byKey = new Map(steps.map(s => [s.key, s]));
+        const nodeID = s => 'step:' + s.id;
+        const nodes = [{ data: { id: 'goal', label: tr('goal'), kind: 'goal' } }];
+        const edges = [], parents = new Map([['goal', []]]), children = new Map([['goal', []]]);
+        let invalid = false;
+        for (const s of steps) {
+            const id = nodeID(s);
+            nodes.push({ data: { id, stepID: s.id, kind: s.status, label: s.title.slice(0, 30) + (s.title.length > 30 ? '…' : '') + '\n' + tr('status.' + s.status) } });
+            parents.set(id, []); children.set(id, []);
+        }
+        for (const s of steps) {
+            const deps = [...new Set(s.depends_on || [])], target = nodeID(s);
+            const sources = deps.length ? deps.flatMap(key => {
+                const dep = byKey.get(key);
+                if (!dep) { invalid = true; return []; }
+                return [nodeID(dep)];
+            }) : ['goal'];
+            for (const source of sources) {
+                parents.get(target).push(source); children.get(source).push(target);
+                edges.push({ data: { id: 'edge:' + edges.length, source, target } });
+            }
+        }
+        const degrees = new Map(nodes.map(n => [n.data.id, parents.get(n.data.id).length]));
+        const ranks = new Map(nodes.map(n => [n.data.id, n.data.id === 'goal' ? 0 : 1]));
+        const queue = nodes.map(n => n.data.id).filter(id => !degrees.get(id));
+        for (let i = 0; i < queue.length; i++) {
+            const id = queue[i];
+            for (const next of children.get(id)) {
+                ranks.set(next, Math.max(ranks.get(next), ranks.get(id) + 1));
+                degrees.set(next, degrees.get(next) - 1);
+                if (!degrees.get(next)) queue.push(next);
+            }
+        }
+        if (queue.length !== nodes.length) {
+            invalid = true;
+            // Keep damaged legacy data inspectable; never loop on a cycle or
+            // silently drop steps and present an incomplete graph as a valid DAG.
+            const tail = Math.max(...ranks.values()) + 1;
+            nodes.filter(n => degrees.get(n.data.id)).forEach(n => ranks.set(n.data.id, tail));
+        }
+        const layers = [];
+        for (const n of nodes) (layers[ranks.get(n.data.id)] ||= []).push(n.data.id);
+        const order = new Map();
+        const record = () => layers.forEach(ids => ids.forEach((id, i) => order.set(id, i)));
+        record();
+        // Barycentric sweeps reduce crossings while keeping a deterministic order.
+        for (let pass = 0; pass < 4; pass++) {
+            const forward = pass % 2 === 0, adjacent = forward ? parents : children;
+            const indices = layers.map((_, i) => i).filter(i => i > 0);
+            if (!forward) indices.reverse();
+            for (const i of indices) {
+                const score = id => { const peers = adjacent.get(id); return peers.length ? peers.reduce((v, p) => v + order.get(p), 0) / peers.length : order.get(id); };
+                layers[i].sort((a, b) => score(a) - score(b)); record();
+            }
+        }
+        for (const n of nodes) {
+            const rank = ranks.get(n.data.id), layer = layers[rank];
+            n.position = { x: rank * 266, y: (layer.indexOf(n.data.id) - (layer.length - 1) / 2) * 112 };
+        }
+        return { elements: [...nodes, ...edges], invalid, signature: JSON.stringify([nodes.map(n => n.data.id), edges.map(e => [e.data.source, e.data.target])]) };
+    }
+    function dagStyles(container) {
+        const css = getComputedStyle(container), color = (name, fallback) => css.getPropertyValue(name).trim() || fallback;
+        return [
+            { selector: 'node', style: { label: 'data(label)', shape: 'round-rectangle', width: 204, height: 80,
+                'background-color': color('--bg-primary', '#fff'), 'border-color': color('--border-color', '#cbd5e1'), 'border-width': 1.5,
+                color: color('--text-primary', '#334155'), 'text-valign': 'center', 'text-wrap': 'wrap', 'text-max-width': '178px', 'font-size': 13, 'line-height': 1.3 } },
+            { selector: 'node[kind="goal"]', style: { 'background-color': '#4f46e5', color: '#fff', 'border-color': '#4f46e5', width: 140, height: 52 } },
+            { selector: 'node[kind="running"]', style: { 'border-color': '#6366f1', 'border-width': 3 } },
+            { selector: 'node[kind="completed"]', style: { 'border-color': '#0d9488', 'border-width': 2 } },
+            { selector: 'node[kind="awaiting_approval"], node[kind="blocked"]', style: { 'border-color': '#d97706', 'border-width': 2 } },
+            { selector: 'node[kind="failed"]', style: { 'border-color': '#dc2626', 'border-width': 2 } },
+            { selector: 'node[kind="skipped"]', style: { 'border-style': 'dashed', 'background-opacity': .6 } },
+            { selector: 'edge', style: { width: 1.5, 'line-color': color('--text-muted', '#94a3b8'), 'target-arrow-color': color('--text-muted', '#94a3b8'), 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', 'arrow-scale': .85 } },
+            { selector: 'edge.dag-path', style: { width: 2.5, 'line-color': '#818cf8', 'target-arrow-color': '#818cf8' } },
+            { selector: 'node:selected', style: { 'overlay-color': '#6366f1', 'overlay-opacity': .13, 'overlay-padding': 6 } }
+        ];
+    }
+    function renderDagInspector(step) {
+        const panel = document.getElementById('assessment-dag-inspector'); if (!panel) return;
+        const section = (title, value) => value ? '<section><h4>' + esc(tr(title)) + '</h4><p class="assessment-text">' + esc(value) + '</p></section>' : '';
+        if (!step) { panel.innerHTML = '<small>' + esc(tr('dagDetails')) + '</small><h3>' + esc(tr('goal')) + '</h3>' + section('goal', task.goal) + section('scope', task.scope); return; }
+        const byKey = new Map(task.steps.map(s => [s.key, s]));
+        panel.innerHTML = '<small>' + esc(tr('dagDetails')) + '</small><h3>' + esc(step.title) + '</h3>' + badge(step.status) + '<p class="assessment-dag-key">' + esc(step.key) + '</p>' +
+            section('dagInstruction', step.instruction) + section('checkpoint', step.checkpoint) + section('dagResult', step.result) + section('retiredReason', step.retired_reason) +
+            '<section><h4>' + esc(tr('dagDependencies')) + '</h4>' + ((step.depends_on || []).length ? step.depends_on.map(key => {
+                const dep = byKey.get(key); return dep ? '<button type="button" class="assessment-dag-dependency" data-dag-step="' + esc(dep.id) + '">' + esc(dep.title) + badge(dep.status) + '</button>' : '<p class="assessment-text">' + esc(key) + '</p>';
+            }).join('') : '<p>' + esc(tr('dagNoDependencies')) + '</p>') + '</section>' +
+            ((step.evidence || []).length ? '<section><h4>' + esc(tr('evidence')) + ' · ' + step.evidence.length + '</h4>' + step.evidence.map(e => '<p class="assessment-text">' + esc(e.title) + '</p>').join('') + '</section>' : '') +
+            '<div class="assessment-actions">' + button('tab', tr(step.pending ? 'dagReviewCall' : 'plan'), null, 'data-tab="plan"') + '</div>';
+        panel.querySelectorAll('[data-dag-step]').forEach(el => el.addEventListener('click', () => selectDagStep(el.dataset.dagStep, true)));
+    }
+    function selectDagStep(id, center) {
+        const step = task.steps.find(s => s.id === id);
+        const picker = document.getElementById('assessment-dag-picker'); if (picker) picker.value = step ? step.id : '';
+        renderDagInspector(step);
+        if (!graph || !graph.scratch('assessmentDag')) return;
+        const node = graph.getElementById(step ? 'step:' + step.id : 'goal');
+        graph.elements().removeClass('dag-path'); graph.nodes().unselect(); node.select();
+        if (step) {
+            const path = node.predecessors().union(node.successors()).union(node);
+            path.edges().addClass('dag-path');
+        }
+        if (center) { graph.resize(); graph.zoom(Math.max(graph.zoom(), .8)); graph.center(node); }
+    }
+    function renderDag(body) {
+        if (!task.steps.length) {
+            body.innerHTML = '<div class="assessment-dag-empty"><span aria-hidden="true">◇ → ◇</span><h3>' + esc(tr('dagEmpty')) + '</h3><p>' + esc(tr('noSteps')) + '</p></div>'; return;
+        }
+        const data = buildDag(task), states = [...new Set(task.steps.map(s => s.status))];
+        const controls = [['out', '−', 'dagZoomOut'], ['in', '+', 'dagZoomIn'], ['fit', tr('dagFit'), 'dagFit'], ['layout', tr('dagLayout'), 'dagLayout']];
+        body.innerHTML = '<div class="assessment-dag-heading"><div><h3>' + esc(tr('dag')) + '</h3><p>' + esc(tr('dagHint')) + '</p></div><span class="assessment-dag-count">' + task.steps.length + ' ' + esc(tr('dagNodes')) + ' · ' + (data.elements.filter(e => e.data.source && e.data.source !== 'goal').length) + ' ' + esc(tr('dagEdges')) + '</span></div>' +
+            '<div class="assessment-dag-toolbar"><label for="assessment-dag-picker">' + esc(tr('dagLocate')) + '</label><select id="assessment-dag-picker"><option value="">' + esc(tr('goal')) + '</option>' + task.steps.map(s => '<option value="' + esc(s.id) + '">' + esc(s.title + ' · ' + tr('status.' + s.status)) + '</option>').join('') + '</select><div class="assessment-actions">' + controls.map(([action, label, title]) => '<button type="button" class="btn-secondary btn-small" data-dag-action="' + action + '" aria-label="' + esc(tr(title)) + '" title="' + esc(tr(title)) + '">' + esc(label) + '</button>').join('') + '</div></div>' +
+            (data.invalid ? '<p class="assessment-dag-warning" role="alert">' + esc(tr('dagInvalid')) + '</p>' : '') +
+            '<div class="assessment-dag-layout"><div class="assessment-dag-canvas-wrap"><div id="assessment-dag-canvas" role="img" aria-label="' + esc(tr('dagAccessible')) + '"></div><div class="assessment-dag-legend">' + states.map(s => badge(s)).join('') + '</div></div><aside id="assessment-dag-inspector" class="assessment-dag-inspector" aria-label="' + esc(tr('dagDetails')) + '"></aside></div>';
+        const picker = document.getElementById('assessment-dag-picker');
+        picker.addEventListener('change', () => selectDagStep(picker.value, true));
+        const preferred = task.steps.find(s => s.status === 'running') || task.steps.find(s => s.status === 'awaiting_approval') || task.steps.find(s => s.status === 'blocked') || task.steps[0];
+        const container = document.getElementById('assessment-dag-canvas');
+        if (!window.cytoscape) {
+            container.classList.add('assessment-dag-unavailable'); container.textContent = tr('dagUnavailable');
+            body.querySelectorAll('[data-dag-action]').forEach(b => { b.disabled = true; });
+            selectDagStep(preferred.id, false); return;
+        }
+        const saved = dagView?.taskID === task.id ? dagView : null;
+        if (saved?.signature === data.signature) data.elements.forEach(e => { if (saved.positions.has(e.data.id)) e.position = saved.positions.get(e.data.id); });
+        graph = window.cytoscape({ container, elements: data.elements, layout: { name: 'preset', fit: false }, style: dagStyles(container),
+            minZoom: .08, maxZoom: 2, wheelSensitivity: .2, selectionType: 'single', boxSelectionEnabled: false });
+        graph.scratch('assessmentDag', { taskID: task.id, signature: data.signature });
+        const fit = () => { graph.resize(); graph.fit(graph.elements(), 36); if (graph.zoom() > 1) { graph.zoom(1); graph.center(); } };
+        if (saved) { graph.zoom(saved.zoom); graph.pan(saved.pan); } else fit();
+        const selectedNode = saved?.selected ? graph.getElementById(saved.selected) : null;
+        // A phone-sized fit of a long DAG becomes unreadable. Start at the active
+        // step with readable labels; Fit still provides the complete overview.
+        selectDagStep(selectedNode?.length ? selectedNode.data('stepID') : preferred.id, !saved && container.clientWidth < 500);
+        document.getElementById('assessment-dag-inspector').scrollTop = saved?.scroll || 0;
+        graph.on('tap', 'node', ev => selectDagStep(ev.target.data('stepID'), false));
+        graph.on('tap', ev => { if (ev.target === graph) selectDagStep('', false); });
+        body.querySelectorAll('[data-dag-action]').forEach(el => el.addEventListener('click', () => {
+            const action = el.dataset.dagAction;
+            if (action === 'layout') { const fresh = buildDag(task); fresh.elements.filter(e => e.position).forEach(e => graph.getElementById(e.data.id).position(e.position)); fit(); }
+            else if (action === 'fit') fit();
+            else graph.zoom({ level: Math.max(graph.minZoom(), Math.min(graph.maxZoom(), graph.zoom() * (action === 'in' ? 1.25 : .8))), renderedPosition: { x: graph.width() / 2, y: graph.height() / 2 } });
+        }));
+        if (window.ResizeObserver) { graphResize = new ResizeObserver(() => { if (graph) graph.resize(); }); graphResize.observe(container); }
+        if (window.MutationObserver) { graphTheme = new MutationObserver(() => { if (graph) graph.style(dagStyles(container)); }); graphTheme.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); }
     }
     function renderGraph() {
         const container = document.getElementById('assessment-graph');

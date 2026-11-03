@@ -20,7 +20,15 @@ const task = { id: 'fixture-assessment', name: '本地测评 · 浏览器验证'
     { id: 's2', key: 'access', title: '核验访问控制边界', instruction: '对照测试夹具中的两个角色。', depends_on: ['inspect'], status: 'blocked', result: '等待补充测试角色。', evidence: [{ kind: 'finding', title: '待复核访问控制线索', detail: '仅为合成数据，需在授权环境中复核。', execution_ids: ['fixture-execution-2'] }] }
 ] };
 for (const step of task.steps) for (const evidence of step.evidence) evidence.revision="fixture-version";
-const tasks = [task];
+const dagTask = { ...task, id: 'dag-fixture', name: '执行 DAG · 并行分支验证', status: 'running', steps: [
+    { id:'d1', key:'inventory', title:'整理授权资产与入口', instruction:'汇总本地夹具的入口信息。', status:'completed', depends_on:[], result:'已整理两个测试入口。', evidence:[] },
+    { id:'d2', key:'auth', title:'检查身份与访问边界', instruction:'使用两个测试角色核对权限。', status:'running', depends_on:['inventory'], checkpoint:'已记录角色对照表。', evidence:[] },
+    { id:'d3', key:'input', title:'核验输入处理行为', instruction:'核对本地夹具的输入与响应。', status:'awaiting_approval', depends_on:['inventory'], evidence:[] },
+    { id:'d4', key:'verify', title:'独立复核候选发现', instruction:'复查两条分支提供的证据。', status:'pending', depends_on:['auth','input'], evidence:[] },
+    { id:'d5', key:'retired', title:'已关闭的探索方向', instruction:'保留历史方向。', status:'skipped', depends_on:['inventory'], retired_reason:'已有证据排除该假设。', evidence:[] },
+    { id:'d6', key:'review', title:'汇总证据与验收结论', instruction:'对照验收条件整理报告。', status:'pending', depends_on:['verify'], evidence:[] }
+] };
+const tasks = [task, dagTask];
 let holdDetail=false;const detailWaiters=[];
 const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -99,6 +107,51 @@ try {
     await evaluate("document.querySelector('#assessment-budget [name=token_budget]').value='250000';document.querySelector('#assessment-budget form').requestSubmit()");await waitFor("!document.getElementById('assessment-budget')");
     await click('[data-tab=chain]'); await waitFor("!!document.querySelector('#assessment-graph canvas')"); await screenshot('desktop-chain');
     await evaluate("document.documentElement.dataset.theme='dark'"); await click('[data-tab=chain]'); await screenshot('desktop-dark-chain'); await evaluate("document.documentElement.dataset.theme='light'");
+    await evaluate("window.fixtureCytoscape=window.cytoscape;window.cytoscape=(...args)=>(window.fixtureGraph=window.fixtureCytoscape(...args))");
+    await click('[data-id=dag-fixture]'); await waitFor("document.querySelector('#assessment-detail h2')?.textContent==='执行 DAG · 并行分支验证'");
+    await click('[data-tab=dag]'); await waitFor("!!document.querySelector('#assessment-dag-canvas canvas')");
+    assert.equal(await evaluate('fixtureGraph.nodes().length'), 7);
+    assert.equal(await evaluate('fixtureGraph.edges().length'), 7);
+    assert.ok(await evaluate("fixtureGraph.edges().every(e=>e.source().position('x')<e.target().position('x'))"), 'DAG dependencies point backwards');
+    await evaluate("document.getElementById('assessment-tab').scrollIntoView()");
+    await screenshot('desktop-dag');
+    await evaluate("document.documentElement.dataset.theme='dark'"); await delay(300); await screenshot('desktop-dark-dag'); await evaluate("document.documentElement.dataset.theme='light'");
+    const chooseStep = async id => evaluate(`document.getElementById('assessment-dag-picker').value=${JSON.stringify(id)};document.getElementById('assessment-dag-picker').dispatchEvent(new Event('change'))`);
+    await chooseStep('d4');
+    assert.equal(await evaluate("document.querySelectorAll('#assessment-dag-inspector [data-dag-step]').length"),2, 'join inspector lost a prerequisite');
+    await click('[data-dag-step=d2]');
+    assert.equal(await evaluate("document.getElementById('assessment-dag-picker').value"), 'd2');
+    await evaluate("fixtureGraph.getElementById('step:d3').emit('tap');void 0");
+    assert.equal(await evaluate("document.getElementById('assessment-dag-picker').value"), 'd3', 'canvas click did not select step');
+    const zoom = await evaluate('fixtureGraph.zoom()'); await click('[data-dag-action=in]');
+    assert.ok(await evaluate('fixtureGraph.zoom()') > zoom, 'zoom control had no effect');
+    await evaluate("fixtureGraph.zoom(.7);fixtureGraph.pan({x:51,y:83});fixtureGraph.getElementById('step:d3').position({x:560,y:150});void 0");
+    dagTask.steps[2].status='completed'; dagTask.updated_at=now();
+    await waitFor("document.querySelector('#assessment-dag-inspector .assessment-status')?.dataset.status==='completed'");
+    assert.equal(await evaluate('fixtureGraph.zoom()'),.7,'poll reset zoom');
+    assert.deepEqual(await evaluate('fixtureGraph.pan()'),{x:51,y:83},'poll reset pan');
+    assert.deepEqual(await evaluate("fixtureGraph.getElementById('step:d3').position()"),{x:560,y:150},'poll reset dragged node');
+    assert.equal(await evaluate("document.getElementById('assessment-dag-picker').value"),'d3','poll reset selection');
+    dagTask.steps.push({id:'d7',key:'new',title:'补充复核步骤',status:'pending',depends_on:['verify'],evidence:[]});dagTask.updated_at=now();
+    await waitFor("fixtureGraph.getElementById('step:d7').length===1");
+    assert.equal(await evaluate("document.getElementById('assessment-dag-picker').value"),'d3','replanning reset selection');
+    await click('[data-dag-action=layout]');
+    assert.ok(await evaluate("fixtureGraph.edges().every(e=>e.source().position('x')<e.target().position('x'))"),'new DAG step not laid out');
+    dagTask.steps[2].result='<img src=x onerror="window.XSS=1">';dagTask.updated_at=now();
+    await waitFor("document.getElementById('assessment-dag-inspector').textContent.includes('<img src=x')");
+    assert.equal(await evaluate('window.XSS || 0'),0,'DAG inspector rendered untrusted HTML');
+    await cdp('Emulation.setDeviceMetricsOverride', {width:390,height:844,deviceScaleFactor:1,mobile:true});
+    await chooseStep('d3');
+    assert.ok(await evaluate("Math.abs(fixtureGraph.getElementById('step:d3').renderedPosition('x')-fixtureGraph.width()/2)<1"),'node location uses stale canvas dimensions after resize');
+    await evaluate("document.querySelector('.assessment-dag-heading').scrollIntoView()"); await screenshot('mobile-dag');
+    assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth + 1'),'mobile DAG overflows');
+    await cdp('Emulation.setDeviceMetricsOverride', {width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+    await evaluate('window.cytoscape=null'); await click('[data-tab=dag]');
+    assert.ok(await evaluate("document.querySelector('.assessment-dag-unavailable') !== null"),'missing-library fallback absent');
+    await chooseStep('d4');
+    assert.equal(await evaluate("document.querySelectorAll('#assessment-dag-inspector [data-dag-step]').length"),2,'fallback hides dependencies');
+    await evaluate('window.cytoscape=window.fixtureCytoscape');
+    await click('[data-id=fixture-assessment]'); await waitFor("document.querySelector('#assessment-detail h2')?.textContent==='本地测评 · 浏览器验证'");
     await click('[data-tab=evidence]'); assert.equal(await evaluate("document.querySelectorAll('[data-assessment-action=vulnerability]').length"), 1);
     await click('[data-assessment-action=fact]'); await waitFor("document.getElementById('assessment-message').textContent.includes('已保存')");
     await click('[data-tab=logs]'); assert.equal(await evaluate('window.XSS || 0'), 0, 'untrusted log rendered as HTML');
@@ -120,6 +173,7 @@ try {
     await evaluate(`document.querySelector('[name=name]').value='Created in browser';document.querySelector('[name=goal]').value='Inspect fixture';document.querySelector('[name=scope]').value='Local fixture';document.querySelector('[name=criteria]').value='Record a fixture response';document.querySelector('[name=tools]').checked=true;document.getElementById('assessment-create-form').requestSubmit()`);
     await waitFor("document.querySelector('#assessment-detail h2')?.textContent==='Created in browser'");
     assert.ok((await evaluate('location.hash')).startsWith('#assessments?task=created-'), 'created task deep link missing');
+    await click('[data-tab=dag]'); assert.ok(await evaluate("!!document.querySelector('.assessment-dag-empty')"),'draft DAG empty state missing');
     await click('[data-assessment-action=start]'); await waitFor("document.querySelector('#assessment-detail .assessment-status')?.dataset.status==='awaiting_approval'");
     await click('[data-tab=plan]'); await waitFor("!!document.querySelector('[data-assessment-action=approve]')"); await click('[data-assessment-action=approve]'); await waitFor("document.querySelector('#assessment-detail .assessment-status')?.dataset.status==='completed'");
     holdDetail=true; await click('[data-id=fixture-assessment]'); assert.equal(await evaluate("document.querySelector('#assessment-detail [data-assessment-action=start]') === null"), true, 'stale task controls remained during switch'); holdDetail=false; detailWaiters.splice(0).forEach(resolve=>resolve()); await waitFor("document.querySelector('#assessment-detail h2')?.textContent==='本地测评 · 浏览器验证'");
@@ -133,7 +187,7 @@ try {
     assert.equal(unauthorizedRequests,0,'a logged-in workbench request omitted its Bearer token');
     for(const route of ['/api/assessments','/api/assessments/options','/api/assessments/fixture-assessment/report','/api/assessments/fixture-assessment/metrics']) assert.ok(authenticatedPaths.has(route),'missing authenticated request: '+route);
     await evaluate('cleanupAssessmentsPage()');
-    console.log(JSON.stringify({ ok: true, screenshots: out, checks: ['real auth.js login and Bearer propagation', 'authenticated create/options/control/downloads', 'task selection', 'poll preserves draft', 'graph', 'candidate publishing controls', 'XSS escaping', 'create', 'start', 'approval', 'completion', 'mobile overflow', 'centered create modal and visible footer', 'tool search and bulk selection', 'desktop/dark/mobile create layout'] }, null, 2));
+    console.log(JSON.stringify({ ok: true, screenshots: out, checks: ['real auth.js login and Bearer propagation', 'authenticated create/options/control/downloads', 'task selection', 'poll preserves draft', 'graph', 'DAG parallel branches and joins', 'DAG click/keyboard selection and zoom', 'DAG polling preserves viewport, selection and dragged nodes', 'DAG replanning, empty state and library fallback', 'desktop/dark/mobile DAG layout', 'candidate publishing controls', 'XSS escaping', 'create', 'start', 'approval', 'completion', 'mobile overflow', 'centered create modal and visible footer', 'tool search and bulk selection', 'desktop/dark/mobile create layout'] }, null, 2));
 } finally {
     if (socket) socket.close(); chrome.kill(); server.close();
 }
