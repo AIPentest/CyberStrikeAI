@@ -1,6 +1,6 @@
 /**
- * 项目事实图渲染（Cytoscape + ELK），供项目管理页使用。
- * 节点采用 SVG 卡片背景（左上角图标 + 多行文字），避免 Cytoscape 原生 label 定位问题。
+ * Project fact graph rendering (Cytoscape + ELK), for use by the project management page.
+ * Nodes use an SVG card background (top-left icon + multiple lines of text), avoiding Cytoscape's native label positioning issues.
  */
 (function (global) {
     'use strict';
@@ -55,49 +55,49 @@
 
     const NODE_TYPE_STYLES = {
         target: {
-            typeLabel: graphT('projects.graphNodeTypes.target', '目标'),
+            typeLabel: graphT('projects.graphNodeTypes.target', 'Target'),
             typeEn: 'TARGET',
             accent: { light: '#4F46E5', dark: '#818cf8' },
             bgEnd: { light: '#F5F3FF', dark: '#1e1b4b' },
             icon: 'target',
         },
         finding: {
-            typeLabel: graphT('projects.graphNodeTypes.finding', '发现'),
+            typeLabel: graphT('projects.graphNodeTypes.finding', 'discover'),
             typeEn: 'FINDING',
             accent: { light: '#E11D48', dark: '#fb7185' },
             bgEnd: { light: '#FFF1F2', dark: '#3f1219' },
             icon: 'finding',
         },
         exploit: {
-            typeLabel: graphT('projects.graphNodeTypes.exploit', '利用'),
+            typeLabel: graphT('projects.graphNodeTypes.exploit', 'use / utilize'),
             typeEn: 'EXPLOIT',
             accent: { light: '#B45309', dark: '#fbbf24' },
             bgEnd: { light: '#FFFBEB', dark: '#3b2712' },
             icon: 'vulnerability',
         },
         vulnerability: {
-            typeLabel: graphT('projects.graphNodeTypes.vulnerability', '漏洞'),
+            typeLabel: graphT('projects.graphNodeTypes.vulnerability', 'loophole'),
             typeEn: 'VULN',
             accent: { light: '#9333EA', dark: '#c084fc' },
             bgEnd: { light: '#F5F3FF', dark: '#2e1065' },
             icon: 'vuln',
         },
         auth: {
-            typeLabel: graphT('projects.graphNodeTypes.auth', '认证'),
+            typeLabel: graphT('projects.graphNodeTypes.auth', 'authentication'),
             typeEn: 'AUTH',
             accent: { light: '#0D9488', dark: '#2dd4bf' },
             bgEnd: { light: '#F0FDFA', dark: '#0f2926' },
             icon: 'default',
         },
         infra: {
-            typeLabel: graphT('projects.graphNodeTypes.infra', '基础设施'),
+            typeLabel: graphT('projects.graphNodeTypes.infra', 'infrastructure'),
             typeEn: 'INFRA',
             accent: { light: '#64748B', dark: '#94a3b8' },
             bgEnd: { light: '#F8FAFC', dark: '#1e293b' },
             icon: 'default',
         },
         chain: {
-            typeLabel: graphT('projects.graphNodeTypes.chain', '攻击链'),
+            typeLabel: graphT('projects.graphNodeTypes.chain', 'attack chain'),
             typeEn: 'CHAIN',
             accent: { light: '#7C3AED', dark: '#a78bfa' },
             bgEnd: { light: '#F5F3FF', dark: '#2e1065' },
@@ -111,21 +111,21 @@
             icon: 'vulnerability',
         },
         business: {
-            typeLabel: graphT('projects.graphNodeTypes.business', '业务'),
+            typeLabel: graphT('projects.graphNodeTypes.business', 'business'),
             typeEn: 'BUSINESS',
             accent: { light: '#0369A1', dark: '#38bdf8' },
             bgEnd: { light: '#F0F9FF', dark: '#0c2540' },
             icon: 'default',
         },
         missing: {
-            typeLabel: graphT('projects.graphNodeTypes.missing', '缺失'),
+            typeLabel: graphT('projects.graphNodeTypes.missing', 'Missing'),
             typeEn: 'MISSING',
             accent: { light: '#CBD5E1', dark: '#64748b' },
             bgEnd: { light: '#F1F5F9', dark: '#1e293b' },
             icon: 'default',
         },
         note: {
-            typeLabel: graphT('projects.graphNodeTypes.note', '备注'),
+            typeLabel: graphT('projects.graphNodeTypes.note', 'Remarks'),
             typeEn: 'NOTE',
             accent: { light: '#94A3B8', dark: '#94a3b8' },
             bgEnd: { light: '#F8FAFC', dark: '#1e293b' },
@@ -179,8 +179,8 @@
 
     function buildStatusBadge(confidence) {
         const conf = (confidence || '').toLowerCase();
-        if (conf === 'tentative') return graphT('projects.graphStatusBadges.tentative', '待确认');
-        if (conf === 'deprecated') return graphT('projects.graphStatusBadges.deprecated', '已废弃');
+        if (conf === 'tentative') return graphT('projects.graphStatusBadges.tentative', 'To be confirmed');
+        if (conf === 'deprecated') return graphT('projects.graphStatusBadges.deprecated', 'Deprecated');
         return '';
     }
 
@@ -476,7 +476,7 @@
         }
     }
 
-    // ELK 分层（仅影响节点纵向位置，不修改边的 source/target）
+    // ELK layering (only affects the vertical position of nodes, does not modify edge source/target)
     function pathGraphNodeLayer(type, factKey) {
         const key = (factKey || '').toLowerCase();
         if (key.startsWith('vuln:')) return '4';
@@ -559,7 +559,7 @@
     function render(container, graphData, options) {
         if (!container || typeof cytoscape === 'undefined') {
             if (container) {
-                container.innerHTML = '<div class="error-message">' + escapeHtml(graphT('projects.graphCytoscapeNotLoaded', 'Cytoscape 未加载')) + '</div>';
+                container.innerHTML = '<div class="error-message">' + escapeHtml(graphT('projects.graphCytoscapeNotLoaded', 'Cytoscape not loaded')) + '</div>';
             }
             return null;
         }
@@ -572,7 +572,7 @@
         const edges = _graphData.edges || [];
         if (!nodes.length) {
             const title = (options && options.emptyTitle) || '';
-            const hint = (options && options.emptyText) || graphT('projects.graphEmptyFallback', '暂无事实关系');
+            const hint = (options && options.emptyText) || graphT('projects.graphEmptyFallback', 'No fact relations yet');
             const steps = (options && options.emptySteps) || [];
             const actionLabel = options && options.emptyActionLabel;
             const stepsHtml = steps.length
@@ -786,7 +786,7 @@
         }
     }
 
-    /** 与后端 GraphNodeType 一致：优先 category，vuln: 合成节点例外；无 category 时回退 type/key。 */
+    /** Consistent with backend GraphNodeType: prefer category, vuln: synthetic node exception; fall back to type/key when category is absent. */
     function resolveGraphNodeType(node) {
         if (!node) return 'note';
         const key = String(node.fact_key || node.id || '').toLowerCase();

@@ -1,5 +1,5 @@
 ﻿/**
- * 项目管理与事实黑板
+ * Project Management and Fact Blackboard
  */
 let projectsCache = [];
 let projectsCacheAll = [];
@@ -45,7 +45,7 @@ function requireProjectWrite() {
     if (typeof requirePermission !== 'function') return true;
     return requirePermission(
         'project:write',
-        tpFmt('projects.writePermissionDenied', '当前账号仅有只读权限，无法创建或修改项目'),
+        tpFmt('projects.writePermissionDenied', 'The current account has read-only access only and cannot create or modify projects'),
     );
 }
 
@@ -53,7 +53,7 @@ function requireProjectDelete() {
     if (typeof requirePermission !== 'function') return true;
     return requirePermission(
         'project:delete',
-        tpFmt('projects.writePermissionDenied', '当前账号仅有只读权限，无法删除项目'),
+        tpFmt('projects.writePermissionDenied', 'The current account only has read-only permissions and cannot delete the project.'),
     );
 }
 
@@ -243,22 +243,22 @@ function refreshProjectsFilterSelects() {
     }
 }
 
-/** 与后端 internal/project/fact_template.go 对齐 */
-const FACT_ATTACK_CHAIN_BODY_TEMPLATE = `## 结论（可验证，一句话）
-<勿仅写「存在漏洞」；写明类型 + 位置 + 触发条件>
+/** Align with backend internal/project/fact_template.go */
+const FACT_ATTACK_CHAIN_BODY_TEMPLATE = `## Conclusion (verifiable, one sentence)
+<Do not merely write "vulnerability exists"; specify type + location + trigger conditions>
 
-## 目标与入口
-- 目标: <URL / IP:Port / 主机名>
-- 入口: <路径 / 接口 / 参数>
-- 前置条件: <匿名 / 角色 / Cookie / 其他依赖>
+## Target and Entry
+- Target: <URL / IP:Port / hostname>
+- Entry: <path / interface / parameter>
+- Preconditions: <anonymous / role / Cookie / other dependencies>
 
-## 攻击链（逐步可复现）
-1. <侦察/发现>
-2. <利用/触发>
-3. <影响证明（读文件、RCE 回显、越权数据等）>
+## Attack Chain (step-by-step reproducible)
+1. <recon/discovery>
+2. <exploit/trigger>
+3. <impact proof (file read, RCE echo, unauthorized data access, etc.)>
 
 ## Exploit / POC
-### 请求
+### Request
 \`\`\`http
 <METHOD> <path> HTTP/1.1
 Host: ...
@@ -267,37 +267,37 @@ Host: ...
 <body>
 \`\`\`
 
-### 响应 / 现象
-<关键响应片段、状态码、差异点>
+### Response / Phenomenon
+<key response snippet, status code, difference points>
 
-### 命令 / 脚本（如有）
+### Command / Script (if any)
 \`\`\`bash
 <command>
 \`\`\`
 
-## 关键证据
-- <工具输出摘要 / 截图路径 / 会话或消息 ID>
+## Key Evidence
+- <tool output summary / screenshot path / session or message ID>
 
-## 关联
-- related_vulnerability_id: <可选>
-- 依赖事实: <fact_key，如 auth/session_cookie>
-  - 结构化关系边（自动同步；links 文本格式 type: source_fact_key）:
+## Relations
+- related_vulnerability_id: <optional>
+- Dependent facts: <fact_key, e.g. auth/session_cookie>
+  - Structured relation edges (auto-sync; links text format type: source_fact_key):
   - discovered_on: target/primary_domain
 
-## 备注与不确定性
-<待验证假设、环境差异、绕过尝试记录>`;
+## Notes and Uncertainties
+<hypotheses to verify, environment differences, bypass attempt records>`;
 
-const FACT_ENV_BODY_TEMPLATE = `## 摘要
-<该事实的核心认知>
+const FACT_ENV_BODY_TEMPLATE = `## Summary
+<core understanding of this fact>
 
-## 细节
-<端口/版本/路径/凭据特征/业务规则等>
+## Details
+<ports/versions/paths/credential characteristics/business rules, etc.>
 
-## 来源与证据
-<命令输出、响应片段、发现时间>
+## Sources and Evidence
+<command output, response snippets, discovery time>
 
-## 关联
-- 相关 fact_key: <可选>`;
+## Related
+- related fact_key: <optional>`;
 
 const FACT_ATTACK_CHAIN_PREFIXES = ['finding/', 'chain/', 'exploit/', 'poc/'];
 const FACT_ATTACK_CHAIN_CATEGORIES = new Set(['finding', 'chain', 'exploit', 'poc', 'vuln']);
@@ -316,9 +316,9 @@ function isSparseFactBody(category, factKey, body) {
     const lower = text.toLowerCase();
     const hasSteps =
         lower.includes('attack chain') ||
-        lower.includes('攻击链') ||
+        lower.includes('attack chain') ||
         lower.includes('## attack') ||
-        lower.includes('## 攻击') ||
+        lower.includes('## Attack') ||
         lower.includes('## exploit') ||
         lower.includes('## poc');
     const hasHTTP =
@@ -330,8 +330,8 @@ function isSparseFactBody(category, factKey, body) {
     const hasReq =
         lower.includes('request') ||
         lower.includes('response') ||
-        lower.includes('请求') ||
-        lower.includes('响应') ||
+        lower.includes('request') ||
+        lower.includes('response') ||
         lower.includes('payload');
     return !(hasSteps || hasHTTP || hasReq);
 }
@@ -403,7 +403,7 @@ function rememberProjectsInNameMap(list) {
     });
 }
 
-/** 与后端 projectListSearchPattern 对齐：name / description / id 子串匹配（忽略大小写） */
+/** Aligned with backend projectListSearchPattern: name / description / id substring matching (case-insensitive) */
 function matchProjectSearchQuery(project, query) {
     const q = String(query || '').trim().toLowerCase();
     if (!q) return true;
@@ -424,7 +424,7 @@ function sortProjectsForPicker(projects) {
     });
 }
 
-/** 从已加载列表中筛选活跃项目（对话选择器 / 项目筛选下拉） */
+/** Filter active projects from the loaded list (conversation picker / project filter dropdown) */
 function filterActiveProjectsLocal(projects, query) {
     const list = (projects || []).filter((p) => p && p.id && p.status !== 'archived');
     const q = String(query || '').trim();
@@ -503,15 +503,15 @@ function parseProjectsListResponse(data) {
 
 async function resolveProjectsListTotal(params, parsed, pageSize, offset) {
     const serverTotal = parsed.total;
-    // 服务端 total 明确大于当前页末尾 → 直接信任
+    // Server-side total is clearly greater than the current page's end → trust it directly
     if (!parsed.isLegacyArray && serverTotal > offset + parsed.items.length) {
         return serverTotal;
     }
-    // 不足一页 → 已是最后一页
+    // Less than one page → already the last page
     if (parsed.items.length < pageSize) {
         return Math.max(serverTotal, offset + parsed.items.length);
     }
-    // 满页但 total 可能被误算为 items.length → 探测下一页
+    // Full page but total may be miscalculated as items.length → probe next page
     const probe = new URLSearchParams(params);
     probe.set('offset', String(offset + pageSize));
     probe.set('limit', '1');
@@ -567,7 +567,7 @@ async function fetchProjectsList(includeArchived, opts = {}) {
     return projectsCache;
 }
 
-/** 对话页等项目选择器：确保全量列表已拉取（去重并发请求） */
+/** Conversation page etc. project selector: ensure the full list has been fetched (deduplicate concurrent requests) */
 async function ensureProjectsLoaded(force) {
     if (!force && _projectsListReady) return projectsCacheAll;
     if (!force && _projectsFetchPromise) return _projectsFetchPromise;
@@ -603,7 +603,7 @@ function prefetchProjectsForChat() {
     ensureProjectsLoaded().catch(() => {});
 }
 
-/** 新对话沿用用户最近选择的项目；没有选择时才保持未绑定。 */
+/** New conversations inherit the user's most recently selected project; they remain unbound only when nothing has been selected. */
 async function ensureDefaultActiveProjectForNewChat() {
     const id = getActiveProjectId();
     if (!id) return '';
@@ -695,7 +695,7 @@ function updateProjectsListCount() {
     if (el) el.textContent = String(projectsListPagination.total || projectsCache.length);
 }
 
-/** 事实分类 → 徽章样式（与 fact_template.go 常量对齐） */
+/** Fact classification → badge style（aligned with fact_template.go constants） */
 const FACT_CATEGORY_BADGE = {
     target: 'projects-category--target',
     auth: 'projects-category--auth',
@@ -1066,7 +1066,7 @@ async function loadProjectAssets(page) {
     if (!tbody || !currentProjectId) return;
     const requestedPage = Math.max(1, Number(page || projectAssetsPagination.page || 1));
     projectAssetsPagination.page = requestedPage;
-    tbody.innerHTML = `<tr class="is-empty-row"><td colspan="7">${escapeHtml(tpFmt('common.loading', '加载中...'))}</td></tr>`;
+    tbody.innerHTML = `<tr class="is-empty-row"><td colspan="7">\${escapeHtml(tpFmt('common.loading', 'Loading...'))}</td></tr>`;
     const qs = new URLSearchParams({
         project_id: currentProjectId,
         page: String(requestedPage),
@@ -1078,7 +1078,7 @@ async function loadProjectAssets(page) {
         projectAssetsPagination.total = 0;
         projectAssetsPagination.totalPages = 1;
         if (countEl) countEl.textContent = '0';
-        tbody.innerHTML = `<tr class="is-empty-row"><td colspan="7">${escapeHtml(tpFmt('common.loadFailed', '加载失败'))}</td></tr>`;
+        tbody.innerHTML = `<tr class="is-empty-row"><td colspan="7">\${escapeHtml(tpFmt('common.loadFailed', 'Failed to load'))}</td></tr>`;
         renderProjectAssetsPagination();
         return;
     }
@@ -1090,9 +1090,9 @@ async function loadProjectAssets(page) {
     if (projectAssetsPagination.page > projectAssetsPagination.totalPages) {
         return loadProjectAssets(projectAssetsPagination.totalPages);
     }
-    if (countEl) countEl.textContent = tpFmt('projects.assetCount', `${data.total || 0} 个资产`, { count: data.total || 0 });
+    if (countEl) countEl.textContent = tpFmt('projects.assetCount', `\${data.total || 0} assets`, { count: data.total || 0 });
     if (!currentProjectAssets.length) {
-        tbody.innerHTML = `<tr class="is-empty-row"><td colspan="7">${escapeHtml(tpFmt('projects.noBoundAssets', '暂无绑定到此项目的资产'))}</td></tr>`;
+        tbody.innerHTML = `<tr class="is-empty-row"><td colspan="7">\${escapeHtml(tpFmt('projects.noBoundAssets', 'No assets bound to this project yet'))}</td></tr>`;
         renderProjectAssetsPagination();
         return;
     }
@@ -1101,7 +1101,7 @@ async function loadProjectAssets(page) {
         const service = [asset.protocol, asset.port ? ':' + asset.port : ''].join('') || '-';
         const fingerprint = [asset.title, asset.server].filter(Boolean).join(' · ') || '-';
         const updated = asset.last_seen_at ? new Date(asset.last_seen_at).toLocaleString() : '-';
-        const status = asset.status === 'inactive' ? tpFmt('assets.statusInactive', '停用') : tpFmt('assets.statusActive', '活跃');
+        const status = asset.status === 'inactive' ? tpFmt('assets.statusInactive', 'Deactivate') : tpFmt('assets.statusActive', 'active');
         return `<tr>
             <td class="cell-summary"><button type="button" class="projects-asset-target" onclick="openProjectAssetDetail(${index})" title="${escapeHtml(target)}">${escapeHtml(target)}</button></td>
             <td><code>${escapeHtml(service)}</code></td>
@@ -1127,19 +1127,19 @@ function renderProjectAssetsPagination() {
     const atLast = page >= totalPages || total === 0;
     root.innerHTML = `<div class="pagination">
         <div class="pagination-info">
-            <span>${escapeHtml(tpFmt('projects.paginationShow', `显示 ${start}-${end} / 共 ${total}`, { start, end, total }))}</span>
-            <label class="pagination-page-size">${escapeHtml(tpFmt('projects.paginationPerPage', '每页显示'))}
+            <span>${escapeHtml(tpFmt('projects.paginationShow', `Show ${start}-${end} / ${total} total`, { start, end, total }))}</span>
+            <label class="pagination-page-size">${escapeHtml(tpFmt('projects.paginationPerPage', 'per page'))}
                 <select id="project-assets-page-size" onchange="changeProjectAssetsPageSize(this.value)">
                     ${[10, 20, 50, 100].map(size => `<option value="${size}" ${size === pageSize ? 'selected' : ''}>${size}</option>`).join('')}
                 </select>
             </label>
         </div>
         <div class="pagination-controls">
-            <button type="button" class="btn-secondary" onclick="loadProjectAssets(1)" ${atFirst ? 'disabled' : ''}>${escapeHtml(tpFmt('skillsPage.firstPage', '首页'))}</button>
-            <button type="button" class="btn-secondary" onclick="loadProjectAssets(${Math.max(1, page - 1)})" ${atFirst ? 'disabled' : ''}>${escapeHtml(tpFmt('projects.paginationPrev', '上一页'))}</button>
-            <span class="pagination-page">${escapeHtml(tpFmt('skillsPage.pageOf', `第 ${page} / ${totalPages} 页`, { current: page, total: totalPages }))}</span>
-            <button type="button" class="btn-secondary" onclick="loadProjectAssets(${Math.min(totalPages, page + 1)})" ${atLast ? 'disabled' : ''}>${escapeHtml(tpFmt('projects.paginationNext', '下一页'))}</button>
-            <button type="button" class="btn-secondary" onclick="loadProjectAssets(${totalPages})" ${atLast ? 'disabled' : ''}>${escapeHtml(tpFmt('skillsPage.lastPage', '尾页'))}</button>
+            <button type="button" class="btn-secondary" onclick="loadProjectAssets(1)" ${atFirst ? 'disabled' : ''}>${escapeHtml(tpFmt('skillsPage.firstPage', 'Homepage'))}</button>
+            <button type="button" class="btn-secondary" onclick="loadProjectAssets(${Math.max(1, page - 1)})" ${atFirst ? 'disabled' : ''}>${escapeHtml(tpFmt('projects.paginationPrev', 'Previous page'))}</button>
+            <span class="pagination-page">${escapeHtml(tpFmt('skillsPage.pageOf', `Page ${page} / ${totalPages}`, { current: page, total: totalPages }))}</span>
+            <button type="button" class="btn-secondary" onclick="loadProjectAssets(${Math.min(totalPages, page + 1)})" ${atLast ? 'disabled' : ''}>${escapeHtml(tpFmt('projects.paginationNext', 'Next page'))}</button>
+            <button type="button" class="btn-secondary" onclick="loadProjectAssets(${totalPages})" ${atLast ? 'disabled' : ''}>${escapeHtml(tpFmt('skillsPage.lastPage', 'Last page'))}</button>
         </div>
     </div>`;
     if (typeof initPaginationSelects === 'function') initPaginationSelects(root);
@@ -1165,7 +1165,7 @@ async function unbindAssetFromProject(index) {
     const asset = currentProjectAssets[Number(index)];
     if (!asset || !asset.id || !currentProjectId) return;
     const target = asset.host || asset.domain || asset.ip || asset.id;
-    const message = tpFmt('projects.unbindAssetConfirm', `确定将“${target}”从当前项目解绑吗？资产不会被删除。`, { target });
+    const message = tpFmt('projects.unbindAssetConfirm', `Are you sure you want to unbind "\${target}" from the current project? The asset will not be deleted.`, { target });
     if (!confirm(message)) return;
     try {
         const res = await apiFetch('/api/assets/project-binding', {
@@ -1175,7 +1175,7 @@ async function unbindAssetFromProject(index) {
         });
         if (!res.ok) throw new Error(await res.text());
         if (typeof showInlineToast === 'function') {
-            showInlineToast(tpFmt('projects.unbindAssetDone', '已从项目解绑资产', { target }));
+            showInlineToast(tpFmt('projects.unbindAssetDone', 'Asset unbound from project', { target }));
         }
         await loadProjectAssets(projectAssetsPagination.page);
         await refreshProjectHeaderStats();
@@ -1210,7 +1210,7 @@ async function handleGraphConnectNodePick(factKey) {
     if (!_graphConnectSource) {
         _graphConnectSource = factKey;
         if (typeof showNotification === 'function') {
-            showNotification(tpFmt('projects.graphConnectPickTarget', `已选源节点 ${factKey}，请点击目标节点`, { source: factKey }), 'info');
+            showNotification(tpFmt('projects.graphConnectPickTarget', `Source node \${factKey} selected, please click the target node`, { source: factKey }), 'info');
         }
         return;
     }
@@ -1230,7 +1230,7 @@ async function handleGraphConnectNodePick(factKey) {
         }),
     });
     _graphConnectSource = null;
-    if (!(await notifyProjectApiFailure(res, 'projects.graphConnectFailed', '创建边失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.graphConnectFailed', 'Failed to create edge'))) return;
     if (typeof showNotification === 'function') showNotification(tp('projects.graphConnectSuccess'), 'success');
     loadProjectFactGraph();
     loadProjectFacts();
@@ -1452,7 +1452,7 @@ async function deleteProjectFactEdge(edgeId) {
     const res = await apiFetch(`/api/projects/${currentProjectId}/fact-edges/${encodeURIComponent(edgeId)}`, {
         method: 'DELETE',
     });
-    if (!(await notifyProjectApiFailure(res, 'projects.graphEdgeDeleteFailed', '删除边失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.graphEdgeDeleteFailed', 'Failed to delete edge'))) return;
     if (typeof showNotification === 'function') showNotification(tp('projects.graphEdgeDeleteSuccess'), 'success');
     const keepKey = _selectedGraphFactKey;
     await loadProjectFactGraph();
@@ -1618,13 +1618,13 @@ async function promoteConversationAttackChain(conversationId) {
         `/api/projects/${currentProjectId}/promote-attack-chain/${encodeURIComponent(conversationId)}`,
         { method: 'POST' },
     );
-    if (!(await notifyProjectApiFailure(res, 'projects.promoteAttackChainFailed', '沉淀失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.promoteAttackChainFailed', 'Precipitation failure'))) return;
     const data = await res.json();
     if (typeof showNotification === 'function') {
         showNotification(
             tpFmt(
                 'projects.promoteAttackChainSuccess',
-                `已沉淀 ${data.facts_created || 0} 新 / ${data.facts_updated || 0} 更新 / ${data.edges_created || 0} 边`,
+                `Settled \${data.facts_created || 0} new / \${data.facts_updated || 0} updated / \${data.edges_created || 0} edges`,
                 data,
             ),
             'success',
@@ -1783,7 +1783,7 @@ async function createVulnerabilityFromCurrentFact() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
-    if (!(await notifyProjectApiFailure(res, 'projects.createVulnerabilityFailed', '创建漏洞失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.createVulnerabilityFailed', 'Failed to create vulnerability'))) return;
     const vuln = await res.json();
     const upd = await apiFetch(`/api/projects/${currentProjectId}/facts/${encodeURIComponent(f.id)}`, {
         method: 'PUT',
@@ -1797,7 +1797,7 @@ async function createVulnerabilityFromCurrentFact() {
             related_vulnerability_id: vuln.id,
         }),
     });
-    if (!(await notifyProjectApiFailure(upd, 'projects.linkFailed', '关联失败'))) return;
+    if (!(await notifyProjectApiFailure(upd, 'projects.linkFailed', 'Association failed'))) return;
     const createdVulnLabel = vuln.title || vuln.id;
     const successMsg = tp('projects.createVulnerabilityAndLinkSuccess', {
         value: createdVulnLabel,
@@ -1830,7 +1830,7 @@ async function deprecateProjectFactByKey(factKey) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fact_key: factKey }),
     });
-    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', '操作失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', 'Operation failed'))) return;
     loadProjectFacts();
 }
 
@@ -1847,7 +1847,7 @@ async function restoreProjectFactByKey(factKey) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fact_key: factKey, confidence: 'tentative' }),
     });
-    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', '操作失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', 'Operation failed'))) return;
     loadProjectFacts();
 }
 
@@ -1998,14 +1998,14 @@ async function showEditProjectModal(projectId, options = {}) {
     });
 }
 
-/** 从对话区「选择项目」面板打开新建项目，创建成功后自动绑定当前对话 */
+/** Open new project creation from the 「Select Project」 panel in the conversation area; automatically bind the current conversation upon successful creation */
 function showNewProjectModalFromChat() {
     closeChatProjectPanel();
     window._projectModalFromChat = true;
     showNewProjectModal();
 }
 
-/** 从对话侧栏新建项目，保持当前对话的项目绑定不变。 */
+/** Create a new project from the conversation sidebar, keeping the current conversation's project binding unchanged. */
 function showNewProjectModalFromChatSidebar() {
     if (!requireProjectWrite()) return;
     window._projectModalFromChat = false;
@@ -2028,7 +2028,7 @@ async function saveProjectModal() {
         const res = editId
             ? await apiFetch(`/api/projects/${editId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
             : await apiFetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        if (!(await notifyProjectApiFailure(res, 'projects.saveFailed', '保存失败'))) return;
+        if (!(await notifyProjectApiFailure(res, 'projects.saveFailed', 'Save failed'))) return;
         const fromChat = !!window._projectModalFromChat;
         const fromChatSidebar = !!window._projectModalFromChatSidebar;
         const fromWebshellConnId = window._projectModalFromWebshellConnId || '';
@@ -2051,9 +2051,9 @@ async function saveProjectModal() {
         }
     } catch (error) {
         if (typeof notifyApiError === 'function') {
-            notifyApiError(error?.message || tpFmt('projects.saveFailed', '保存失败'));
+            notifyApiError(error?.message || tpFmt('projects.saveFailed', 'Save failed'));
         } else {
-            alert(error?.message || tpFmt('projects.saveFailed', '保存失败'));
+            alert(error?.message || tpFmt('projects.saveFailed', 'Save failed'));
         }
     } finally {
         if (submitBtn) submitBtn.disabled = false;
@@ -2116,7 +2116,7 @@ async function saveProjectSettings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
-    if (!(await notifyProjectApiFailure(res, 'projects.saveFailed', '保存失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.saveFailed', 'Save failed'))) return;
     await loadProjectsList();
     await selectProject(currentProjectId);
     if (typeof notifyApiError === 'function') {
@@ -2184,13 +2184,13 @@ function showProjectListActionMenu(event, projectId, source = '') {
     const deleteText = document.getElementById('projects-list-menu-delete-text');
     if (editText) {
         editText.textContent = source === 'chat'
-            ? pickerMessage(tp, 'projects.renameProject', '重命名')
+            ? pickerMessage(tp, 'projects.renameProject', 'rename')
             : tp('projects.editProject');
     }
     if (pinText) {
         pinText.textContent = p.pinned
-            ? pickerMessage(tp, 'projects.unpinProjectAction', '取消置顶')
-            : pickerMessage(tp, 'projects.pinProjectAction', '置顶项目');
+            ? pickerMessage(tp, 'projects.unpinProjectAction', 'Unpin')
+            : pickerMessage(tp, 'projects.pinProjectAction', 'Pinned project');
     }
     if (archiveText) {
         archiveText.textContent = p.status === 'archived'
@@ -2228,7 +2228,7 @@ async function toggleProjectPinnedFromListMenu() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pinned: nextPinned }),
     });
-    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', '操作失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', 'Operation failed'))) return;
 
     updateCachedProjectPinnedState(projectId, nextPinned);
     await loadProjectsList();
@@ -2261,7 +2261,7 @@ async function toggleProjectArchiveById(projectId) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: next }),
     });
-    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', '操作失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', 'Operation failed'))) return;
     await loadProjectsList();
     if (currentProjectId === projectId && projectsCache.some((item) => item.id === projectId)) {
         await selectProject(projectId);
@@ -2277,7 +2277,7 @@ async function deleteProjectById(projectId) {
     if (!projectId || !confirm(tp('projects.confirmDeleteProject'))) return;
     const deletedIndex = projectsCache.findIndex((p) => p.id === projectId);
     const res = await apiFetch(`/api/projects/${projectId}`, { method: 'DELETE' });
-    if (!(await notifyProjectApiFailure(res, 'projects.deleteFailed', '删除失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.deleteFailed', 'Delete failed'))) return;
     if (getActiveProjectId() === projectId) setActiveProjectId('');
     if (currentProjectId === projectId) currentProjectId = null;
     await loadProjectsList();
@@ -2444,7 +2444,7 @@ async function saveFactModal() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload),
           });
-    if (!(await notifyProjectApiFailure(res, 'projects.saveFailed', '保存失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.saveFailed', 'Save failed'))) return;
     closeFactModal();
     loadProjectFacts();
     if (currentProjectTab === 'graph') loadProjectFactGraph();
@@ -2454,7 +2454,7 @@ async function deleteProjectFact(id) {
     if (!requireProjectWrite()) return;
     if (!confirm(tp('projects.confirmDeleteFact'))) return;
     const res = await apiFetch(`/api/projects/${currentProjectId}/facts/${id}`, { method: 'DELETE' });
-    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', '操作失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', 'Operation failed'))) return;
     loadProjectFacts();
     if (currentProjectTab === 'graph') loadProjectFactGraph();
 }
@@ -2536,14 +2536,14 @@ function getChatProjectSelection() {
     return getActiveProjectId();
 }
 
-/** 用于 UI：返回当前选中的项目 ID（有效性由 normalizeStaleChatProjectSelection 异步校验） */
+/** For UI: returns the currently selected project ID (validity is asynchronously validated by normalizeStaleChatProjectSelection) */
 function resolveChatProjectSelection() {
     return getChatProjectSelection() || '';
 }
 
 let _normalizingStaleProject = false;
 
-/** 清除 localStorage 或对话上残留的失效项目 ID */
+/** Clear stale item IDs left over in localStorage or in the conversation */
 async function normalizeStaleChatProjectSelection() {
     if (_normalizingStaleProject) return;
     const raw = (getChatProjectSelection() || '').trim();
@@ -2748,16 +2748,16 @@ function getProjectApprovalUrgency(details) {
     if (!timing.timeoutSeconds || !timing.expiresAt) {
         return {
             level: 'normal',
-            label: pickerMessage(tp, 'hitl.approvalUrgencyUnlimited', '审批不限时'),
+            label: pickerMessage(tp, 'hitl.approvalUrgencyUnlimited', 'Approval without time limit'),
             remaining: 0,
         };
     }
     const remaining = Math.max(0, timing.expiresAt - Date.now());
     const level = projectApprovalUrgencyLevel(remaining, true);
     const urgencyLabels = {
-        critical: pickerMessage(tp, 'hitl.approvalUrgencyWithinOne', '最早审批将在 1 分钟内到期'),
-        warning: pickerMessage(tp, 'hitl.approvalUrgencyOneToThree', '最早审批将在 1–3 分钟内到期'),
-        normal: pickerMessage(tp, 'hitl.approvalUrgencyMoreThanThree', '最早审批将在 3 分钟后到期'),
+        critical: pickerMessage(tp, 'hitl.approvalUrgencyWithinOne', 'The earliest approval will expire in 1 minute'),
+        warning: pickerMessage(tp, 'hitl.approvalUrgencyOneToThree', 'The earliest approval will expire within 1–3 minutes'),
+        normal: pickerMessage(tp, 'hitl.approvalUrgencyMoreThanThree', 'The earliest approval will expire in 3 minutes'),
     };
     return {
         level,
@@ -2792,12 +2792,12 @@ function createProjectTaskStatus(kind, details, options) {
     const status = document.createElement('span');
     status.className = `project-task-status project-task-status--${kind}`;
     const label = isApprovalSummary
-        ? tpFmt('hitl.waitingApprovalCount', `等待批准 ${approvalCount}`, { count: approvalCount })
+        ? tpFmt('hitl.waitingApprovalCount', `Awaiting approval \${approvalCount}`, { count: approvalCount })
         : (kind === 'approval'
-        ? pickerMessage(tp, 'hitl.waitingApprovalShort', '等待批准')
+        ? pickerMessage(tp, 'hitl.waitingApprovalShort', 'Pending approval')
         : (kind === 'running'
-            ? pickerMessage(tp, 'tasks.statusRunning', '运行中')
-            : pickerMessage(tp, 'chat.completedUnread', '已完成，尚未查看')));
+            ? pickerMessage(tp, 'tasks.statusRunning', 'Running')
+            : pickerMessage(tp, 'chat.completedUnread', 'Completed, not yet viewed')));
     if (kind === 'approval') {
         const timing = getProjectApprovalTiming(details);
         status.innerHTML = '<span class="project-approval-label"></span>' +
@@ -2806,8 +2806,8 @@ function createProjectTaskStatus(kind, details, options) {
                 : '');
         status.querySelector('.project-approval-label').textContent = label;
         if (isApprovalSummary) {
-            // 项目文件夹只汇总待审批数量，始终使用绿色；
-            // 紧急程度仅属于具体对话，避免多个审批让项目颜色来回跳变。
+            // Project folder only aggregates the pending approval count, always uses green;
+            // Urgency only belongs to the specific conversation, avoiding multiple approvals causing the project color to jump back and forth.
             status.classList.add('project-task-status--approval-summary', 'is-urgency-normal');
             status.dataset.approvalCount = String(approvalCount);
             status.dataset.approvalUrgency = 'normal';
@@ -2863,7 +2863,7 @@ function projectFolderDisclosureMarkup(isExpanded) {
 }
 
 function projectFolderIconMarkup(isExpanded) {
-    // Codex 风格：折叠时为闭合文件夹，展开时露出向前翻开的文件夹盖。
+    // Codex style: when collapsed, a closed folder; when expanded, it reveals a folder cover that flips open forward.
     const path = isExpanded
         ? 'M3.5 18V6.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v1.25M3.5 18l1.75-6.25A2 2 0 0 1 7.18 10.3H20.5l-2 7.7H3.5Z'
         : 'M3.5 7a2 2 0 0 1 2-2h4l2 2H18.5a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V7Zm0 2.5h17';
@@ -2910,7 +2910,7 @@ function ensureProjectFolderPreview() {
     preview.className = 'project-folder-preview';
     preview.hidden = true;
     preview.setAttribute('role', 'dialog');
-    preview.setAttribute('aria-label', pickerMessage(tp, 'chat.projectPreviewLabel', '项目信息'));
+    preview.setAttribute('aria-label', pickerMessage(tp, 'chat.projectPreviewLabel', 'Project Information'));
     preview.innerHTML = `
         <div class="project-folder-preview-header">
             <span class="project-folder-preview-icon" aria-hidden="true">
@@ -2987,9 +2987,9 @@ function showProjectFolderPreview(project, row, conversations) {
     const title = project.name || tp('common.untitled');
     const total = conversations.length;
     const active = conversations.filter((conversation) => chatProjectFolderContext.runningIds.has(conversation.id)).length;
-    const fallbackStats = `${total} 个任务 · ${active} 个已开启`;
+    const fallbackStats = `\${total} tasks · \${active} active`;
     const description = clampProjectPreviewText(project.description)
-        || pickerMessage(tp, 'chat.projectPreviewNoDescription', '暂无项目说明');
+        || pickerMessage(tp, 'chat.projectPreviewNoDescription', 'No project description available');
     const scope = getProjectScopePreview(project);
 
     preview.dataset.projectId = project.id || '';
@@ -3006,13 +3006,13 @@ function showProjectFolderPreview(project, row, conversations) {
     const scopeRow = preview.querySelector('.project-folder-preview-scope');
     scopeRow.hidden = isUnassigned || !scope;
     scopeRow.querySelector('span').textContent = scope
-        ? tpFmt('chat.projectPreviewScope', `测试范围：${scope}`, { scope })
+        ? tpFmt('chat.projectPreviewScope', `Test scope: \${scope}`, { scope })
         : '';
     const editButton = preview.querySelector('.project-folder-preview-edit');
     editButton.hidden = isUnassigned;
     editButton.querySelector('span').textContent = tpFmt(
         'chat.projectPreviewEdit',
-        '编辑项目'
+        'Edit Project'
     );
     preview.hidden = false;
     row.querySelector('.project-folder-item')?.setAttribute('aria-controls', preview.id);
@@ -3060,7 +3060,7 @@ function formatProjectConversationPreviewAge(value) {
     };
     return tpFmt(
         'chat.conversationPreviewDateTime',
-        `${parts.year}年${parts.month}月${parts.day}日 ${parts.hour}:${parts.minute}`,
+        `\${parts.year}-\${parts.month}-\${parts.day} \${parts.hour}:\${parts.minute}`,
         parts
     );
 }
@@ -3068,10 +3068,10 @@ function formatProjectConversationPreviewAge(value) {
 function getProjectConversationModeLabel(conversation) {
     const mode = String(conversation?.agentMode || conversation?.agent_mode || '').trim().toLowerCase();
     const labels = {
-        eino_single: ['chat.agentModeEinoSingle', 'Eino 单代理（ADK）'],
+        eino_single: ['chat.agentModeEinoSingle', 'Eino Single Agent (ADK)'],
         deep: ['chat.agentModeDeep', 'Deep（DeepAgent）'],
         plan_execute: ['chat.agentModePlanExecuteLabel', 'Plan-Execute'],
-        supervisor: ['chat.agentModeSupervisorLabel', 'Supervisor（专家路由）'],
+        supervisor: ['chat.agentModeSupervisorLabel', 'Supervisor (Expert Routing)'],
     };
     if (labels[mode]) return tpFmt(labels[mode][0], labels[mode][1]);
     return clampProjectPreviewText(
@@ -3151,25 +3151,25 @@ function showProjectConversationPreview(conversation, project, row) {
     const completed = chatProjectFolderContext.completedByConversation.get(conversation.id);
     const isUnread = !isRunning && isProjectConversationUnread(conversation.id);
     const status = isWaitingApproval
-        ? pickerMessage(tp, 'hitl.waitingApprovalShort', '等待批准')
+        ? pickerMessage(tp, 'hitl.waitingApprovalShort', 'Pending approval')
         : (isRunning
-        ? pickerMessage(tp, 'tasks.statusRunning', '执行中')
+        ? pickerMessage(tp, 'tasks.statusRunning', 'Executing')
         : (isUnread
-            ? pickerMessage(tp, 'chat.conversationPreviewUnread', '有未读更新')
+            ? pickerMessage(tp, 'chat.conversationPreviewUnread', 'You have unread updates')
             : (completed
-                ? pickerMessage(tp, 'chat.conversationPreviewViewed', '已查看')
-                : pickerMessage(tp, 'chat.conversationPreviewConversation', '对话'))));
+                ? pickerMessage(tp, 'chat.conversationPreviewViewed', 'Viewed')
+                : pickerMessage(tp, 'chat.conversationPreviewConversation', 'dialogue'))));
     const statusEl = preview.querySelector('.project-conversation-preview-status');
 
     preview.querySelector('.project-conversation-preview-title').textContent = conversation.title
-        || pickerMessage(tp, 'projects.untitledConversation', '未命名对话');
+        || pickerMessage(tp, 'projects.untitledConversation', 'Unnamed conversation');
     const ageEl = preview.querySelector('.project-conversation-preview-age');
     ageEl.textContent = formatProjectConversationPreviewAge(
         conversation.updatedAt || conversation.updated_at || conversation.createdAt || conversation.created_at
     );
     ageEl.hidden = !ageEl.textContent;
     preview.querySelector('.project-conversation-preview-project').textContent = project?.name
-        || pickerMessage(tp, 'chat.conversationPreviewNoProject', '未绑定项目');
+        || pickerMessage(tp, 'chat.conversationPreviewNoProject', 'Unbound project');
     const modeIcon = preview.querySelector('.project-conversation-preview-mode-icon');
     if (modeIcon) {
         modeIcon.className = 'project-conversation-preview-mode-icon agent-mode-logo agent-mode-logo--' + getProjectConversationModeIconClass(conversation);
@@ -3245,7 +3245,7 @@ function appendChatProjectFolderItem(list, project, expandedIds, conversations) 
         const pinIcon = document.createElement('span');
         pinIcon.className = 'project-folder-pinned';
         pinIcon.textContent = '📌';
-        pinIcon.title = pickerMessage(tp, 'projects.pinned', '已置顶');
+        pinIcon.title = pickerMessage(tp, 'projects.pinned', 'Pinned to top');
         pinIcon.setAttribute('aria-label', pinIcon.title);
         label.appendChild(pinIcon);
     }
@@ -3302,8 +3302,8 @@ function appendChatProjectFolderItem(list, project, expandedIds, conversations) 
     newConversationButton.setAttribute(
         'aria-label',
         isUnassigned
-            ? pickerMessage(tp, 'chat.newUnassignedConversation', '新建无项目对话')
-            : pickerMessage(tp, 'chat.newConversationInProject', '在此项目中新建对话')
+            ? pickerMessage(tp, 'chat.newUnassignedConversation', 'Create new conversation without a project')
+            : pickerMessage(tp, 'chat.newConversationInProject', 'Create a new conversation in this project')
     );
     newConversationButton.title = newConversationButton.getAttribute('aria-label');
     newConversationButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
@@ -3339,7 +3339,7 @@ function appendChatProjectConversationItem(list, conversation, project) {
 
     const title = document.createElement('span');
     title.className = 'project-conversation-title';
-    title.textContent = conversation.title || pickerMessage(tp, 'projects.untitledConversation', '未命名对话');
+    title.textContent = conversation.title || pickerMessage(tp, 'projects.untitledConversation', 'Unnamed conversation');
 
     const label = document.createElement('span');
     label.className = 'project-conversation-label';
@@ -3348,7 +3348,7 @@ function appendChatProjectConversationItem(list, conversation, project) {
         const pinIcon = document.createElement('span');
         pinIcon.className = 'conversation-item-pinned project-conversation-pinned';
         pinIcon.textContent = '📌';
-        pinIcon.title = pickerMessage(tp, 'projects.pinned', '已置顶');
+        pinIcon.title = pickerMessage(tp, 'projects.pinned', 'Pinned to top');
         pinIcon.setAttribute('aria-label', pinIcon.title);
         label.appendChild(pinIcon);
     }
@@ -3387,7 +3387,7 @@ function appendChatProjectConversationItem(list, conversation, project) {
     menuButton.className = 'project-conversation-menu';
     menuButton.setAttribute(
         'aria-label',
-        pickerMessage(tp, 'chat.conversationActions', '对话操作')
+        pickerMessage(tp, 'chat.conversationActions', 'dialogue operation')
     );
     menuButton.title = menuButton.getAttribute('aria-label');
     menuButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
@@ -3451,8 +3451,8 @@ async function loadChatProjectFolderContext() {
     chatProjectFolderContext.pendingApprovalByConversation = new Map();
     (pendingData.items || []).filter(isHumanProjectPendingApproval).forEach((item) => {
         const conversationId = String(item?.conversationId || '').trim();
-        // pending 审批必须属于当前进程仍在运行的任务；服务重启/取消后的旧记录
-        // 即使在并发窗口内被读到，也不能重新显示倒计时徽标。
+        // pending approval must belong to the task still running in the current process; old records after service restart/cancellation
+        // Even if read within the concurrency window, the countdown badge cannot be re-displayed.
         if (conversationId && chatProjectFolderContext.runningIds.has(conversationId) &&
             !chatProjectFolderContext.pendingApprovalByConversation.has(conversationId)) {
             chatProjectFolderContext.pendingApprovalByConversation.set(conversationId, item);
@@ -3518,7 +3518,7 @@ function removeChatProjectConversation(conversationId) {
 
 function refreshChatProjectFoldersAfterAction() {
     Promise.resolve().then(() => refreshChatProjectFolders()).catch((error) => {
-        console.warn('刷新项目对话列表失败:', error);
+        console.warn('Failed to refresh project conversation list:', error);
     });
 }
 
@@ -3537,12 +3537,12 @@ function resolveChatProjectFolderSelection() {
 function appendChatProjectFoldersLoadMore(list, remainingCount) {
     if (!list || remainingCount <= 0) return;
     const button = document.createElement('button');
-    const label = pickerMessage(tp, 'common.loadMore', '加载更多');
+    const label = pickerMessage(tp, 'common.loadMore', 'Load more');
     button.type = 'button';
     button.className = 'project-folders-load-more';
     button.setAttribute('aria-label', tpFmt(
         'chat.projectFoldersLoadMoreRemaining',
-        `${label}，剩余 ${remainingCount} 个项目`,
+        `\${label}, \${remainingCount} items remaining`,
         { count: remainingCount }
     ));
     button.innerHTML = `<span>${escapeHtml(label)}</span><span class="project-folders-load-more-count">${remainingCount}</span>`;
@@ -3604,8 +3604,8 @@ function renderChatProjectFolders(projects) {
         const empty = document.createElement('div');
         empty.className = 'project-folders-empty';
         empty.textContent = chatProjectFolderSearchQuery
-            ? pickerMessage(tp, 'chat.filterProjectSearchEmpty', '没有匹配的项目')
-            : pickerMessage(tp, 'projects.noProjects', '暂无项目');
+            ? pickerMessage(tp, 'chat.filterProjectSearchEmpty', 'No matching items')
+            : pickerMessage(tp, 'projects.noProjects', 'No projects yet');
         list.appendChild(empty);
         return;
     }
@@ -3629,7 +3629,7 @@ async function refreshChatProjectFolders() {
     const seq = ++chatProjectFolderRenderSeq;
     if (!isProjectsCacheReady()) {
         list.innerHTML = '';
-        appendChatProjectPanelMessage(list, 'project-folders-empty', pickerMessage(tp, 'common.loading', '加载中…'));
+        appendChatProjectPanelMessage(list, 'project-folders-empty', pickerMessage(tp, 'common.loading', 'Loading...'));
     }
     try {
         const [projects] = await Promise.all([
@@ -3644,7 +3644,7 @@ async function refreshChatProjectFolders() {
         appendChatProjectPanelMessage(
             list,
             'project-folders-empty',
-            pickerMessage(tp, 'projects.loadProjectsFailed', '加载项目失败')
+            pickerMessage(tp, 'projects.loadProjectsFailed', 'Failed to load project')
         );
     }
 }
@@ -3830,7 +3830,7 @@ async function renderProjectPickerPanel(panelKey, config) {
         loadingEl = appendChatProjectPanelMessage(
             list,
             'chat-project-panel-loading',
-            pickerMessage(t, 'common.loading', '加载中…')
+            pickerMessage(t, 'common.loading', 'Loading...')
         );
     }
 
@@ -3849,7 +3849,7 @@ async function renderProjectPickerPanel(panelKey, config) {
             appendChatProjectPanelMessage(
                 list,
                 'chat-project-panel-empty',
-                pickerMessage(t, 'chat.filterProjectSearchEmpty', '没有匹配的项目')
+                pickerMessage(t, 'chat.filterProjectSearchEmpty', 'No matching items')
             );
         }
     } catch (e) {
@@ -3859,7 +3859,7 @@ async function renderProjectPickerPanel(panelKey, config) {
         appendChatProjectPanelMessage(
             list,
             'chat-project-panel-empty',
-            pickerMessage(t, 'chat.filterProjectSearchFailed', '加载项目失败，请重试')
+            pickerMessage(t, 'chat.filterProjectSearchFailed', 'Failed to load project, please try again')
         );
     } finally {
         if (loadingEl && loadingEl.parentNode) loadingEl.remove();
@@ -4019,7 +4019,7 @@ async function applyChatProjectSelection(projectId) {
     }
 }
 
-/** 对话页项目选择器：同步按钮文案；若浮层已打开则刷新列表 */
+/** Conversation page project selector: sync button copy; refresh the list if the overlay is open */
 async function refreshChatProjectSelector(options = {}) {
     if (!document.getElementById('chat-project-btn')) return;
     try {
@@ -4040,7 +4040,7 @@ async function refreshChatProjectSelector(options = {}) {
 }
 
 async function onChatProjectChange() {
-    /* 兼容旧调用；新 UI 使用 selectChatProject */
+    /* Compatible with old calls; new UI uses selectChatProject */
     await applyChatProjectSelection(getChatProjectSelection());
 }
 

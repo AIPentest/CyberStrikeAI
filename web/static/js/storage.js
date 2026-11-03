@@ -1,10 +1,10 @@
-﻿// 运行空间占用统计与垃圾清理（系统设置 -> 存储清理）
+﻿// Run space usage statistics and junk cleanup (System Settings -> Storage Cleanup)
 //
-// 数据来源：
-//   GET  /api/storage/meta    清理策略与类别元信息
-//   GET  /api/storage/status  文件系统容量 + 各类别占用/可回收量
-//   POST /api/storage/cleanup 预览（dry_run）或执行清理
-//   PUT  /api/config          保存策略（storage 段）
+// Data source：
+//   GET  /api/storage/meta    Cleaning policy and category meta information
+//   GET /api/storage/status File system capacity + per-category occupied/reclaimable amounts
+//   POST /api/storage/cleanup preview (dry_run) or execute cleanup
+//   PUT  /api/config          Save strategy (storage section)
 (function () {
     'use strict';
 
@@ -28,7 +28,7 @@
         return fallback;
     }
 
-    // 类别名称/说明来自后端（中文硬编码），优先走 i18n，缺失时回退服务端文案。
+    // Category name/description comes from the backend (hardcoded in Chinese), prefer i18n first, falling back to server-side copy when missing.
     function catLabel(cat) {
         if (!cat) return '';
         return st('settingsStorage.cat.' + cat.key, cat.label || cat.key);
@@ -48,7 +48,7 @@
             v /= 1024;
             i++;
         }
-        // 字节不给小数，其余保留一位；数值较大时省去小数避免噪声
+        // Bytes get no decimals, the rest keep one; omit decimals for large values to avoid noise
         var digits = i === 0 ? 0 : (v >= 100 ? 0 : 1);
         return v.toFixed(digits) + ' ' + units[i];
     }
@@ -74,13 +74,13 @@
 
     async function loadMeta() {
         var r = await apiFetch('/api/storage/meta');
-        if (!r.ok) throw new Error(await readErr(r, st('settingsStorage.loadMetaFailed', '获取清理策略失败')));
+        if (!r.ok) throw new Error(await readErr(r, st('settingsStorage.loadMetaFailed', 'Failed to get cleanup policy')));
         meta = await r.json();
     }
 
     async function loadStatus(refresh) {
         var r = await apiFetch('/api/storage/status' + (refresh ? '?refresh=1' : ''));
-        if (!r.ok) throw new Error(await readErr(r, st('settingsStorage.loadStatusFailed', '获取存储占用失败')));
+        if (!r.ok) throw new Error(await readErr(r, st('settingsStorage.loadStatusFailed', 'Failed to get storage usage')));
         status = await r.json();
     }
 
@@ -90,7 +90,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        if (!r.ok) throw new Error(await readErr(r, st('settingsStorage.cleanupFailed', '清理请求失败')));
+        if (!r.ok) throw new Error(await readErr(r, st('settingsStorage.cleanupFailed', 'Failed to clear request')));
         return await r.json();
     }
 
@@ -108,7 +108,7 @@
         var fs = (status && status.filesystem) || {};
         var totals = (status && status.totals) || {};
 
-        setText('storage-disk-used', fs.available ? fmtBytes(fs.used_bytes) : st('settingsStorage.unavailable', '不可用'));
+        setText('storage-disk-used', fs.available ? fmtBytes(fs.used_bytes) : st('settingsStorage.unavailable', 'unavailable'));
         var fill = document.getElementById('storage-usage-bar-fill');
         if (fill) {
             var pct = fs.available ? Math.max(0, Math.min(100, Number(fs.used_percent) || 0)) : 0;
@@ -116,13 +116,13 @@
             fill.classList.toggle('storage-usage-bar-fill--warn', pct >= 85);
         }
         setText('storage-disk-detail', fs.available
-            ? fmtBytes(fs.free_bytes) + ' ' + st('settingsStorage.free', '可用') + ' / ' + fmtBytes(fs.total_bytes)
+            ? fmtBytes(fs.free_bytes) + ' ' + st('settingsStorage.free', 'available') + ' / ' + fmtBytes(fs.total_bytes)
             : '');
 
         setText('storage-total-bytes', fmtBytes(totals.bytes));
-        setText('storage-total-units', (totals.units || 0) + ' ' + st('settingsStorage.itemsUnit', '项'));
+        setText('storage-total-units', (totals.units || 0) + ' ' + st('settingsStorage.itemsUnit', 'item'));
         setText('storage-reclaimable-bytes', fmtBytes(totals.reclaimable_bytes));
-        setText('storage-reclaimable-units', (totals.reclaimable_units || 0) + ' ' + st('settingsStorage.itemsUnit', '项'));
+        setText('storage-reclaimable-units', (totals.reclaimable_units || 0) + ' ' + st('settingsStorage.itemsUnit', 'item'));
 
         if (fs.available && fs.inodes_total > 0) {
             var usedInodes = Math.max(0, fs.inodes_total - fs.inodes_free);
@@ -130,7 +130,7 @@
             setText('storage-inodes', usedInodes.toLocaleString() + ' / ' + fs.inodes_total.toLocaleString()
                 + ' (' + inodePct.toFixed(1) + '%)');
         } else {
-            setText('storage-inodes', st('settingsStorage.unavailable', '不可用'));
+            setText('storage-inodes', st('settingsStorage.unavailable', 'unavailable'));
         }
     }
 
@@ -140,7 +140,7 @@
         var categories = (meta && meta.categories) || [];
         if (!categories.length) {
             tbody.innerHTML = '<tr><td colspan="7" class="storage-empty">'
-                + esc(st('settingsStorage.noCategories', '暂无可清理类别')) + '</td></tr>';
+                + esc(st('settingsStorage.noCategories', 'No categories available for cleanup yet')) + '</td></tr>';
             return;
         }
         var byKey = {};
@@ -151,21 +151,21 @@
             var missing = !!s.missing;
             var reclaimParts = [];
             if (!missing) {
-                reclaimParts.push((s.reclaimable_units || 0) + ' ' + st('settingsStorage.itemsUnit', '项'));
+                reclaimParts.push((s.reclaimable_units || 0) + ' ' + st('settingsStorage.itemsUnit', 'item'));
                 if (s.orphan_units) {
-                    reclaimParts.push(st('settingsStorage.orphanSuffix', '含孤儿') + ' ' + s.orphan_units);
+                    reclaimParts.push(st('settingsStorage.orphanSuffix', 'including orphans') + ' ' + s.orphan_units);
                 }
                 if (s.skipped_active) {
-                    reclaimParts.push(st('settingsStorage.skippedActive', '跳过活跃') + ' ' + s.skipped_active);
+                    reclaimParts.push(st('settingsStorage.skippedActive', 'Skip active') + ' ' + s.skipped_active);
                 }
             }
             var retentionTitle = st('settingsStorage.defaultRetention', 'Default') + ' '
                 + (m.default_retention != null ? m.default_retention : '-') + ' '
-                + st('settingsStorage.daysUnit', '天');
+                + st('settingsStorage.daysUnit', 'sky');
             return '<tr class="' + (m.enabled ? '' : 'storage-row--disabled') + '">'
                 + '<td><span class="storage-cat-label" title="' + esc(catHint(m)) + '">' + esc(catLabel(m)) + '</span></td>'
                 + '<td>' + (missing
-                    ? '<span class="storage-muted">' + esc(st('settingsStorage.unused', '未使用')) + '</span>'
+                    ? '<span class="storage-muted">' + esc(st('settingsStorage.unused', 'unused')) + '</span>'
                     : '<code class="storage-root" title="' + esc(s.root || '') + '">' + esc(shortRoot(s.root)) + '</code>') + '</td>'
                 + '<td>' + (missing ? '—' : (s.units || 0)) + '</td>'
                 + '<td>' + (missing ? '—' : fmtBytes(s.bytes)) + '</td>'
@@ -180,7 +180,7 @@
         }).join('');
     }
 
-    // 目录列只展示末两级，完整路径放在 title 里，避免长绝对路径把表格撑破。
+    // The directory column shows only the last two levels; the full path is placed in the title attribute, to avoid long absolute paths breaking the table.
     function shortRoot(root) {
         var s = String(root || '');
         if (!s) return '';
@@ -211,7 +211,7 @@
             return;
         }
         var d = new Date(status.scanned_at);
-        el.textContent = st('settingsStorage.scannedAt', '扫描于') + ' '
+        el.textContent = st('settingsStorage.scannedAt', 'Scanned on') + ' '
             + (isNaN(d.getTime()) ? String(status.scanned_at) : d.toLocaleString());
     }
 
@@ -220,11 +220,11 @@
         if (!el) return;
         var totals = (rep && rep.totals) || {};
         var head = isPreview
-            ? st('settingsStorage.previewTitle', '预览结果（未删除任何文件）')
-            : st('settingsStorage.cleanDone', '清理完成');
+            ? st('settingsStorage.previewTitle', 'Preview result (no files deleted)')
+            : st('settingsStorage.cleanDone', 'Cleanup complete');
         var summary = isPreview
-            ? fmtBytes(totals.reclaimable_bytes) + ' / ' + (totals.reclaimable_units || 0) + ' ' + st('settingsStorage.itemsUnit', '项')
-            : fmtBytes(totals.freed_bytes) + ' / ' + (totals.removed_units || 0) + ' ' + st('settingsStorage.itemsUnit', '项');
+            ? fmtBytes(totals.reclaimable_bytes) + ' / ' + (totals.reclaimable_units || 0) + ' ' + st('settingsStorage.itemsUnit', 'item')
+            : fmtBytes(totals.freed_bytes) + ' / ' + (totals.removed_units || 0) + ' ' + st('settingsStorage.itemsUnit', 'item');
 
         var rows = ((rep && rep.categories) || [])
             .filter(function (c) {
@@ -232,8 +232,8 @@
             })
             .map(function (c) {
                 var main = isPreview
-                    ? fmtBytes(c.reclaimable_bytes) + ' / ' + (c.reclaimable_units || 0) + ' ' + st('settingsStorage.itemsUnit', '项')
-                    : fmtBytes(c.freed_bytes) + ' / ' + (c.removed_units || 0) + ' ' + st('settingsStorage.itemsUnit', '项');
+                    ? fmtBytes(c.reclaimable_bytes) + ' / ' + (c.reclaimable_units || 0) + ' ' + st('settingsStorage.itemsUnit', 'item')
+                    : fmtBytes(c.freed_bytes) + ' / ' + (c.removed_units || 0) + ' ' + st('settingsStorage.itemsUnit', 'item');
                 var errs = (c.errors || []).slice(0, 3).map(esc).join('<br>');
                 return '<li><span>' + esc(catLabel(c)) + '</span><span>' + esc(main)
                     + (errs ? '<br><span class="storage-error-text">' + errs + '</span>' : '')
@@ -243,10 +243,10 @@
         var html = '<div class="storage-result-head"><strong>' + esc(head) + '</strong><span>' + esc(summary) + '</span></div>';
         html += rows.length
             ? '<ul class="storage-result-list">' + rows.join('') + '</ul>'
-            : '<p class="storage-muted">' + esc(st('settingsStorage.nothingToClean', '当前没有符合清理条件的内容。')) + '</p>';
+            : '<p class="storage-muted">' + esc(st('settingsStorage.nothingToClean', 'Currently, there is no content that meets the cleanup criteria.')) + '</p>';
         if (totals.skipped_active) {
-            html += '<p class="storage-muted">' + esc(st('settingsStorage.skippedActiveNote', '已跳过最近仍在活动的会话：')
-                + totals.skipped_active + ' ' + st('settingsStorage.itemsUnit', '项')) + '</p>';
+            html += '<p class="storage-muted">' + esc(st('settingsStorage.skippedActiveNote', 'Skipped the most recently still-active session:')
+                + totals.skipped_active + ' ' + st('settingsStorage.itemsUnit', 'item')) + '</p>';
         }
         el.className = 'storage-result';
         el.innerHTML = html;
@@ -258,7 +258,7 @@
         if (!el) return;
         el.className = 'storage-result storage-result--error';
         el.innerHTML = '<div class="storage-result-head"><strong>'
-            + esc(st('settingsStorage.failed', '操作失败')) + '</strong><span>' + esc(message) + '</span></div>';
+            + esc(st('settingsStorage.failed', 'Operation failed')) + '</strong><span>' + esc(message) + '</span></div>';
         el.hidden = false;
     }
 
@@ -290,7 +290,7 @@
             active_grace_hours: intOr(document.getElementById('storage-active-grace-hours') && document.getElementById('storage-active-grace-hours').value, 1),
             categories: {}
         };
-        // 先用服务端元信息铺底，保证未渲染/缺字段时不会把既有策略清成默认值。
+        // First seed the base with server-side metadata, ensuring that unrendered/missing fields won't reset existing policies to default values.
         ((meta && meta.categories) || []).forEach(function (m) {
             payload.categories[m.key] = { enabled: !!m.enabled, retention_days: intOr(m.retention_days, 0) };
         });
@@ -334,12 +334,12 @@
 
     window.runStorageCleanup = async function () {
         var totals = (status && status.totals) || {};
-        var message = st('settingsStorage.confirmClean', '将永久删除约 {size}（{count} 项）运行空间文件，无法恢复。建议先执行「预览可清理项」。确认继续？')
+        var message = st('settingsStorage.confirmClean', 'This will permanently delete approximately {size} ({count} items) of run space files, which cannot be recovered. It is recommended to run \'Preview cleanable items\' first. Continue?')
             .replace('{size}', fmtBytes(totals.reclaimable_bytes))
             .replace('{count}', String(totals.reclaimable_units || 0));
         if (!window.confirm(message)) return;
         await withBusy(async function () {
-            // 服务端要求真实删除必须同时带 dry_run=false 与 confirm=true。
+            // The server requires real deletion to carry both dry_run=false and confirm=true simultaneously.
             var rep = await postCleanup({ dry_run: false, confirm: true });
             renderResult(rep, false);
             await loadStatus(true);
@@ -350,18 +350,18 @@
     window.saveStorageSettings = async function () {
         var payload = collectPolicy();
         await withBusy(async function () {
-            // 只调 PUT /api/config：UpdateConfig 会合并 storage 段并写回 config.yaml，
-            // 清理器每次执行都实时读取配置，无需 /api/config/apply 触发重启类副作用。
+            // Just call PUT /api/config: UpdateConfig will merge the storage section and write back to config.yaml,
+            // The cleaner reads the configuration live on every execution, so there's no need for /api/config/apply to trigger restart-type side effects.
             var r = await apiFetch('/api/config', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ storage: payload })
             });
-            if (!r.ok) throw new Error(await readErr(r, st('settingsStorage.saveFailed', '保存失败')));
+            if (!r.ok) throw new Error(await readErr(r, st('settingsStorage.saveFailed', 'Save failed')));
             await loadMeta();
             renderPolicy();
             renderRows();
-            window.alert(st('settingsStorage.saved', '清理策略已保存'));
+            window.alert(st('settingsStorage.saved', 'Cleanup policy saved'));
         });
     };
 })();

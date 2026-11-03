@@ -45,9 +45,9 @@ const rbacScopeMeta = {
 };
 
 const rbacResourceLabels = {
-    user: '平台用户',
-    project: '项目', conversation: '对话', vulnerability: '漏洞', webshell: 'WebShell 连接',
-    batch_task: '批量任务', c2_listener: 'C2 监听器', asset: '资产',
+    user: 'Platform user',
+    project: 'project', conversation: 'dialogue', vulnerability: 'loophole', webshell: 'WebShell connection',
+    batch_task: 'Batch task', c2_listener: 'C2 listener', asset: 'asset',
 };
 
 function rbacText(value, fallback = '') {
@@ -104,7 +104,7 @@ function rbacFormatResourceDetail(type, detail) {
     const text = rbacText(detail);
     if (!text) return '';
     if (type === 'conversation' && text) {
-        return rbacT('rbac.resourceDetailProject', '所属项目 {{id}}', { id: rbacShortId(text) });
+        return rbacT('rbac.resourceDetailProject', 'Parent project {{id}}', { id: rbacShortId(text) });
     }
     return text;
 }
@@ -123,9 +123,9 @@ async function rbacCopyResourceId(id) {
             document.execCommand('copy');
             document.body.removeChild(input);
         }
-        rbacNotify(rbacT('rbac.copiedId', '已复制'), 'success');
+        rbacNotify(rbacT('rbac.copiedId', 'Copied'), 'success');
     } catch (error) {
-        rbacNotify(`${rbacT('rbac.copyId', '复制 ID')}: ${error.message || error}`, 'error');
+        rbacNotify(`${rbacT('rbac.copyId', 'Copy ID')}: ${error.message || error}`, 'error');
     }
 }
 
@@ -179,10 +179,10 @@ function renderRbacNoRoleNotice(user) {
     box.hidden = false;
     box.innerHTML = `
         <div class="rbac-no-role-notice-copy">
-            <strong>${rbacEscape(rbacT('rbac.noRoleNoticeTitle', '尚未分配角色'))}</strong>
-            <span>${rbacEscape(rbacT('rbac.noRoleNoticeHint', '请先分配角色，再配置资源授权。无角色时仅可访问本人创建的数据，且大部分功能不可用。'))}</span>
+            <strong>${rbacEscape(rbacT('rbac.noRoleNoticeTitle', 'Role not yet assigned'))}</strong>
+            <span>${rbacEscape(rbacT('rbac.noRoleNoticeHint', 'Please assign roles first, then configure resource authorization. Without a role, you can only access data you created yourself, and most functions are unavailable.'))}</span>
         </div>
-        <button type="button" class="btn-secondary btn-small" onclick="focusRbacRoleAssignment()">${rbacEscape(rbacT('rbac.assignRolesNow', '去分配角色'))}</button>`;
+        <button type="button" class="btn-secondary btn-small" onclick="focusRbacRoleAssignment()">${rbacEscape(rbacT('rbac.assignRolesNow', 'Go assign roles'))}</button>`;
 }
 
 function renderRbacPendingSelection() {
@@ -203,7 +203,7 @@ function renderRbacPendingSelection() {
     const resourceType = document.getElementById('rbac-assignment-type')?.value || '';
     const items = [
         ...selectedIds.map(id => ({ id, meta: rbacSelectedResourceMeta(id), manual: false })),
-        ...manualIds.filter(id => !rbacState.selectedResourceIds.has(id)).map(id => ({ id, meta: { label: id, detail: rbacT('rbac.advancedAssignment', '高级：直接输入资源 ID'), type: resourceType }, manual: true })),
+        ...manualIds.filter(id => !rbacState.selectedResourceIds.has(id)).map(id => ({ id, meta: { label: id, detail: rbacT('rbac.advancedAssignment', 'Advanced: directly input resource ID'), type: resourceType }, manual: true })),
     ];
     list.innerHTML = items.map(item => `
         <div class="rbac-pending-item">
@@ -211,7 +211,7 @@ function renderRbacPendingSelection() {
                 <strong>${rbacEscape(item.meta.label || item.id)}</strong>
                 ${(item.meta.label || item.id) === item.id ? '' : `<small title="${rbacEscape(item.id)}">${rbacEscape(rbacShortId(item.id))}</small>`}
             </div>
-            <button type="button" class="rbac-pending-remove" data-resource-id="${rbacEscape(item.id)}" data-manual="${item.manual ? 'true' : 'false'}" onclick="removeRbacPendingItem(this)" title="${rbacEscape(rbacT('rbac.removePending', '移除'))}" aria-label="${rbacEscape(rbacT('rbac.removePending', '移除'))}">×</button>
+            <button type="button" class="rbac-pending-remove" data-resource-id="${rbacEscape(item.id)}" data-manual="${item.manual ? 'true' : 'false'}" onclick="removeRbacPendingItem(this)" title="${rbacEscape(rbacT('rbac.removePending', 'Remove'))}" aria-label="${rbacEscape(rbacT('rbac.removePending', 'Remove'))}">×</button>
         </div>`).join('');
 }
 
@@ -240,10 +240,10 @@ function rbacNotify(message, type = 'info') {
 }
 
 function rbacUserDisplayName(user) {
-    // 内置 admin 账号种子 display_name（rbac.go 190）；仅与种子值精确匹配时按 UI 语言翻译。
+    // Seed the display_name for the built-in admin account (rbac.go 190); translate according to the UI language only when it exactly matches the seed value.
     if (user && user.id === 'admin') {
         const raw = String(user.displayName || user.display_name || '').trim();
-        if (raw === '管理员') {
+        if (raw === 'administrator') {
             const translated = rbacT('rbac.builtinAdminDisplayName', '');
             if (translated) return translated;
         }
@@ -355,13 +355,13 @@ function renderRbacEffectivePermissionsContent(user) {
     const access = resolveUserEffectiveAccess(user);
     const modules = Object.keys(access.permissionsByModule).sort();
     if (!modules.length) {
-        popover.innerHTML = `<div class="rbac-permissions-popover-inner"><div class="rbac-empty"><strong>${rbacT('rbac.empty.noEffectivePermissions', '暂无有效权限')}</strong><span>${rbacEscape(rbacT('rbac.empty.assignRoleFirst', '分配角色后即可查看权限明细'))}</span></div></div>`;
+        popover.innerHTML = `<div class="rbac-permissions-popover-inner"><div class="rbac-empty"><strong>${rbacT('rbac.empty.noEffectivePermissions', 'No valid permissions available')}</strong><span>${rbacEscape(rbacT('rbac.empty.assignRoleFirst', 'Once a role is assigned, you can view permission details'))}</span></div></div>`;
         return;
     }
     popover.innerHTML = `
         <div class="rbac-permissions-popover-inner">
             <div class="rbac-effective-permissions-head">
-                <strong>${rbacEscape(rbacT('rbac.effectivePermissionsDetail', '有效权限明细'))}</strong>
+                <strong>${rbacEscape(rbacT('rbac.effectivePermissionsDetail', 'Effective Permission Details'))}</strong>
                 <span class="rbac-permissions-popover-count">${access.effectivePermissions.size}</span>
             </div>
             <div class="rbac-effective-permissions-body">
@@ -414,7 +414,7 @@ async function initPlatformRbacPage() {
     const typeInput = document.getElementById('rbac-assignment-type');
     if (typeInput) rbacState.assignmentResourceType = typeInput.value || 'conversation';
     bindRbacPermissionsPopoverDismiss();
-    await rbacRun(loadPlatformRbac, rbacT('rbac.errors.loadFailed', '加载失败'));
+    await rbacRun(loadPlatformRbac, rbacT('rbac.errors.loadFailed', 'Load failed'));
     initRbacSelects();
 }
 
@@ -432,7 +432,7 @@ function initRbacSelects() {
 async function refreshRbacAssignments() {
     const res = await apiFetch('/api/rbac/resource-assignments');
     const result = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(result.error || rbacT('rbac.errors.loadDataFailed', '无法加载权限数据'));
+    if (!res.ok) throw new Error(result.error || rbacT('rbac.errors.loadDataFailed', 'Unable to load permission data'));
     rbacState.assignments = result.assignments || [];
     renderRbacOverview();
     renderRbacUsers();
@@ -459,7 +459,7 @@ async function loadPlatformRbac() {
     const payloads = await Promise.all(responses.map(response => response.json().catch(() => ({}))));
     const failedIndex = responses.findIndex(response => !response.ok);
     if (failedIndex >= 0) {
-        throw new Error(payloads[failedIndex].error || rbacT('rbac.errors.loadDataFailed', '无法加载权限数据'));
+        throw new Error(payloads[failedIndex].error || rbacT('rbac.errors.loadDataFailed', 'Unable to load permission data'));
     }
     const [meta, users, roles, assignments] = payloads;
     rbacState.permissions = meta.permissions || {};
@@ -483,17 +483,17 @@ async function refreshPlatformRbac(button) {
     const originalText = button ? button.textContent : '';
     if (button) {
         button.disabled = true;
-        button.textContent = rbacT('common.loading', '刷新中…');
+        button.textContent = rbacT('common.loading', 'Refreshing…');
     }
     try {
         await loadPlatformRbac();
         initRbacSelects();
     } catch (error) {
-        rbacNotify(`${rbacT('rbac.errors.loadFailed', '刷新失败')}: ${error.message || error}`, 'error');
+        rbacNotify(`${rbacT('rbac.errors.loadFailed', 'Refresh failed')}: ${error.message || error}`, 'error');
     } finally {
         if (button) {
             button.disabled = false;
-            button.textContent = originalText || rbacT('common.refresh', '刷新');
+            button.textContent = originalText || rbacT('common.refresh', 'refresh');
         }
     }
 }
@@ -549,10 +549,10 @@ function renderRbacOverview() {
             const access = resolveUserEffectiveAccess(user);
             context.hidden = false;
             context.innerHTML = `
-                <span class="rbac-context-label">${rbacEscape(rbacT('rbac.currentMemberLabel', '当前成员'))}</span>
+                <span class="rbac-context-label">${rbacEscape(rbacT('rbac.currentMemberLabel', 'Current member'))}</span>
                 <strong class="rbac-context-member" title="${rbacEscape(rbacUserDisplayName(user))}">${rbacEscape(rbacUserDisplayName(user))}</strong>
-                <span class="rbac-context-stat"><b>${access.userRoles.length}</b>${rbacEscape(rbacT('rbac.metricRolesPill', '个角色'))}</span>
-                <span class="rbac-context-stat"><b>${access.assignmentCount}</b>${rbacEscape(rbacT('rbac.metricAssignmentsPill', '项授权'))}</span>`;
+                <span class="rbac-context-stat"><b>${access.userRoles.length}</b>${rbacEscape(rbacT('rbac.metricRolesPill', 'character'))}</span>
+                <span class="rbac-context-stat"><b>${access.assignmentCount}</b>${rbacEscape(rbacT('rbac.metricAssignmentsPill', 'item authorization'))}</span>`;
         }
     }
 }
@@ -567,7 +567,7 @@ function renderRbacUsers() {
         ? rbacState.users.filter(user => `${user.username || ''} ${rbacUserDisplayName(user)}`.toLowerCase().includes(keyword))
         : rbacState.users;
     if (!users.length) {
-        list.innerHTML = `<div class="rbac-empty"><strong>${keyword ? rbacT('rbac.empty.noMatchingUsers', '没有匹配的成员') : rbacT('rbac.empty.noUsers', '还没有平台成员')}</strong><span>${keyword ? rbacT('rbac.empty.tryAnotherKeyword', '试试其他关键词') : rbacT('rbac.empty.addFirstUser', '点击右上角“添加成员”开始配置')}</span></div>`;
+        list.innerHTML = `<div class="rbac-empty"><strong>${keyword ? rbacT('rbac.empty.noMatchingUsers', 'No matching members') : rbacT('rbac.empty.noUsers', 'No platform members yet')}</strong><span>${keyword ? rbacT('rbac.empty.tryAnotherKeyword', 'Try other keywords') : rbacT('rbac.empty.addFirstUser', 'Click "Add Member" in the top right corner to start configuring')}</span></div>`;
         return;
     }
     list.innerHTML = users.map(user => {
@@ -577,12 +577,12 @@ function renderRbacUsers() {
             return role ? rbacRoleName(role) : roleId;
         }).join(' / ');
         const assignmentCount = rbacState.assignments.filter(a => (a.userId || a.user_id) === user.id).length;
-        const summary = `${roleNames || rbacT('rbac.noRoleAssigned', '未分配角色')} · ${assignmentCount ? rbacT('rbac.resourceCount', '{{count}} 项资源', { count: assignmentCount }) : rbacT('rbac.noExplicitGrant', '无单独授权')}`;
-        const handle = `@${user.username}${rbacUserIsBuiltin(user) ? ` · ${rbacT('rbac.builtinAccount', '内置账号')}` : ''}`;
+        const summary = `${roleNames || rbacT('rbac.noRoleAssigned', 'Unassigned roles')} · ${assignmentCount ? rbacT('rbac.resourceCount', '{{count}} resources', { count: assignmentCount }) : rbacT('rbac.noExplicitGrant', 'No separate authorization')}`;
+        const handle = `@${user.username}${rbacUserIsBuiltin(user) ? ` · ${rbacT('rbac.builtinAccount', 'built-in account')}` : ''}`;
         return `
             <button type="button" class="rbac-user-row${active}" onclick="selectRbacUser('${rbacEscape(user.id)}')" title="${rbacEscape(`${rbacUserDisplayName(user)} (${handle}) — ${summary}`)}">
                 <strong class="rbac-user-name">${rbacEscape(rbacUserDisplayName(user))}</strong>
-                <span class="rbac-pill ${user.enabled ? 'is-ok' : 'is-muted'}">${user.enabled ? rbacT('rbac.statusEnabled', '启用') : rbacT('rbac.statusDisabled', '停用')}</span>
+                <span class="rbac-pill ${user.enabled ? 'is-ok' : 'is-muted'}">${user.enabled ? rbacT('rbac.statusEnabled', 'Enable') : rbacT('rbac.statusDisabled', 'Deactivate')}</span>
                 <small class="rbac-user-handle">${rbacEscape(handle)}</small>
                 <span class="rbac-user-summary">${rbacEscape(summary)}</span>
             </button>`;
@@ -596,7 +596,7 @@ function setRbacUserSearch(value) {
 
 function selectRbacUser(userId) {
     if (userId !== rbacState.selectedUserId && selectedUserRolesAreDirty() &&
-        !confirm(rbacT('rbac.confirmDiscardSwitchUser', '当前角色变更尚未保存，确定放弃并切换成员吗？'))) return;
+        !confirm(rbacT('rbac.confirmDiscardSwitchUser', 'The current role changes have not been saved yet. Are you sure you want to discard them and switch to another member?'))) return;
     rbacState.selectedUserId = userId;
     rbacState.pendingRoleUserId = '';
     rbacState.pendingUserRoles.clear();
@@ -620,7 +620,7 @@ function rbacScopeInfo(scope) {
     const meta = rbacScopeMeta[scope] || { tone: '' };
     return {
         tone: meta.tone,
-        label: rbacT(`rbac.scopes.${scope}.label`, scope || rbacT('rbac.notConfigured', '未设置')),
+        label: rbacT(`rbac.scopes.${scope}.label`, scope || rbacT('rbac.notConfigured', 'Not set')),
         hint: rbacT(`rbac.scopes.${scope}.hint`, ''),
     };
 }
@@ -634,7 +634,7 @@ function renderRbacRoleCatalog() {
         return !query || `${rbacRoleName(role)} ${rbacRoleDescription(role)} ${permissionText}`.toLowerCase().includes(query);
     });
     if (!roles.length) {
-        box.innerHTML = `<div class="rbac-empty"><strong>${rbacT('rbac.empty.noMatchingRoles', '没有匹配的角色')}</strong><span>${rbacT('rbac.empty.adjustRoleSearch', '调整搜索条件或新建自定义角色')}</span></div>`;
+        box.innerHTML = `<div class="rbac-empty"><strong>${rbacT('rbac.empty.noMatchingRoles', 'No matching roles')}</strong><span>${rbacT('rbac.empty.adjustRoleSearch', 'Adjust search conditions or create a custom role')}</span></div>`;
         return;
     }
     box.innerHTML = roles.map(role => {
@@ -644,20 +644,20 @@ function renderRbacRoleCatalog() {
         const scope = rbacScopeInfo(role.scope);
         return `<article class="rbac-catalog-card">
             <div class="rbac-catalog-card-head">
-                <div><h4>${rbacEscape(rbacRoleName(role))}</h4><p>${rbacEscape(rbacRoleDescription(role) || rbacT('rbac.noRoleDescription', '暂无角色说明'))}</p></div>
-                ${rbacRoleIsSystem(role) ? `<span class="rbac-pill">${rbacT('rbac.systemBuiltin', '系统内置')}</span>` : `<span class="rbac-pill is-custom">${rbacT('rbac.customRole', '自定义')}</span>`}
+                <div><h4>${rbacEscape(rbacRoleName(role))}</h4><p>${rbacEscape(rbacRoleDescription(role) || rbacT('rbac.noRoleDescription', 'No role description available'))}</p></div>
+                ${rbacRoleIsSystem(role) ? `<span class="rbac-pill">${rbacT('rbac.systemBuiltin', 'Built-in system')}</span>` : `<span class="rbac-pill is-custom">${rbacT('rbac.customRole', 'Custom')}</span>`}
             </div>
             <div class="rbac-catalog-stats">
-                <div><strong>${permissions.length}</strong><span>${rbacT('rbac.operationPermissions', '操作权限')}</span></div>
-                <div><strong>${members}</strong><span>${rbacT('rbac.assignedMembers', '已分配成员')}</span></div>
-                <div><strong>${rbacEscape(scope.label)}</strong><span>${rbacT('rbac.scope', '资源范围')}</span></div>
+                <div><strong>${permissions.length}</strong><span>${rbacT('rbac.operationPermissions', 'Operation permissions')}</span></div>
+                <div><strong>${members}</strong><span>${rbacT('rbac.assignedMembers', 'Assigned members')}</span></div>
+                <div><strong>${rbacEscape(scope.label)}</strong><span>${rbacT('rbac.scope', 'resource scope')}</span></div>
             </div>
             <div class="rbac-module-tags">${modules.slice(0, 6).map(module => `<span title="${rbacEscape(module)}">${rbacEscape(rbacPermissionModuleLabel(module))}</span>`).join('')}${modules.length > 6 ? `<span>+${modules.length - 6}</span>` : ''}</div>
             <div class="rbac-catalog-card-foot">
                 <span>${rbacEscape(scope.hint)}</span>
                 <div>
-                    <button type="button" class="btn-secondary btn-small" onclick="openRbacRoleModal('${rbacEscape(role.id)}')">${rbacRoleIsSystem(role) ? rbacT('rbac.viewPermissions', '查看权限') : rbacT('common.edit', '编辑')}</button>
-                    ${rbacRoleIsSystem(role) ? '' : `<button type="button" class="btn-secondary btn-small btn-delete" onclick="deleteRbacRole('${rbacEscape(role.id)}')">${rbacT('common.delete', '删除')}</button>`}
+                    <button type="button" class="btn-secondary btn-small" onclick="openRbacRoleModal('${rbacEscape(role.id)}')">${rbacRoleIsSystem(role) ? rbacT('rbac.viewPermissions', 'View permission') : rbacT('common.edit', 'edit')}</button>
+                    ${rbacRoleIsSystem(role) ? '' : `<button type="button" class="btn-secondary btn-small btn-delete" onclick="deleteRbacRole('${rbacEscape(role.id)}')">${rbacT('common.delete', 'Delete')}</button>`}
                 </div>
             </div>
         </article>`;
@@ -674,16 +674,16 @@ function renderRbacRoles() {
     ensurePendingUserRoles(user);
     if (title) {
         if (user) {
-            const status = user.enabled ? rbacT('rbac.statusEnabled', '启用') : rbacT('rbac.statusDisabled', '停用');
+            const status = user.enabled ? rbacT('rbac.statusEnabled', 'Enable') : rbacT('rbac.statusDisabled', 'Deactivate');
             const displayName = rbacUserDisplayName(user);
             const handle = user.username === displayName ? '' : `@${user.username} · `;
             title.innerHTML = `<span class="rbac-detail-name" title="${rbacEscape(displayName)}">${rbacEscape(displayName)}</span><span class="rbac-detail-meta" title="${rbacEscape(`${handle}${status}`)}">${rbacEscape(handle)}${rbacEscape(status)}</span>`;
         } else {
-            title.textContent = rbacT('rbac.selectUser', '选择用户');
+            title.textContent = rbacT('rbac.selectUser', 'Select user');
         }
     }
     if (subtitle) {
-        subtitle.textContent = user ? '' : rbacT('rbac.selectUserHint', '选择一个平台用户后编辑角色、状态与资源授权。');
+        subtitle.textContent = user ? '' : rbacT('rbac.selectUserHint', 'Select a platform user, then edit the role, status, and resource permissions.');
         subtitle.hidden = !!user;
     }
     if (editBtn) editBtn.disabled = !user;
@@ -697,17 +697,17 @@ function renderRbacRoles() {
             const scope = rbacScopeInfo(access.effectiveScope);
             const permissionCount = access.effectivePermissions.size;
             const permissionCountHtml = permissionCount
-                ? `<button type="button" class="rbac-summary-count rbac-summary-count--interactive" aria-expanded="${rbacState.showEffectivePermissions ? 'true' : 'false'}" aria-haspopup="dialog" aria-controls="rbac-permissions-popover" title="${rbacEscape(rbacT('rbac.viewPermissionsDetail', '查看明细'))}" onclick="toggleRbacEffectivePermissions(event)">${permissionCount}</button>`
+                ? `<button type="button" class="rbac-summary-count rbac-summary-count--interactive" aria-expanded="${rbacState.showEffectivePermissions ? 'true' : 'false'}" aria-haspopup="dialog" aria-controls="rbac-permissions-popover" title="${rbacEscape(rbacT('rbac.viewPermissionsDetail', 'View Details'))}" onclick="toggleRbacEffectivePermissions(event)">${permissionCount}</button>`
                 : `<strong class="rbac-summary-count">${permissionCount}</strong>`;
             summary.innerHTML = `
-                <div><span>${rbacT('rbac.roles', '角色')}</span><strong>${access.userRoles.length}</strong></div>
+                <div><span>${rbacT('rbac.roles', 'role')}</span><strong>${access.userRoles.length}</strong></div>
                 <div class="rbac-summary-permissions">
-                    <span>${rbacT('rbac.effectivePermissions', '有效权限')}</span>
+                    <span>${rbacT('rbac.effectivePermissions', 'effective permissions')}</span>
                     ${permissionCountHtml}
-                    <div id="rbac-permissions-popover" class="rbac-permissions-popover" role="dialog" aria-label="${rbacEscape(rbacT('rbac.effectivePermissionsDetail', '有效权限明细'))}" hidden></div>
+                    <div id="rbac-permissions-popover" class="rbac-permissions-popover" role="dialog" aria-label="${rbacEscape(rbacT('rbac.effectivePermissionsDetail', 'Effective Permission Details'))}" hidden></div>
                 </div>
-                <div><span>${rbacT('rbac.effectiveScope', '有效资源范围')}</span><strong title="${rbacEscape(scope.hint)}">${rbacEscape(scope.label)}</strong></div>
-                <div><span>${rbacT('rbac.metricAssignments', '资源授权')}</span><strong>${access.assignmentCount}</strong></div>
+                <div><span>${rbacT('rbac.effectiveScope', 'valid resource range')}</span><strong title="${rbacEscape(scope.hint)}">${rbacEscape(scope.label)}</strong></div>
+                <div><span>${rbacT('rbac.metricAssignments', 'Resource Authorization')}</span><strong>${access.assignmentCount}</strong></div>
                 `;
         }
     }
@@ -716,7 +716,7 @@ function renderRbacRoles() {
     const box = document.getElementById('rbac-roles-list');
     if (!box) return;
     if (!rbacState.roles.length) {
-        box.innerHTML = `<div class="empty-state">${rbacT('rbac.empty.noRoles', '暂无角色')}</div>`;
+        box.innerHTML = `<div class="empty-state">${rbacT('rbac.empty.noRoles', 'No roles yet')}</div>`;
         return;
     }
     const userRoles = user ? rbacState.pendingUserRoles : new Set();
@@ -730,16 +730,16 @@ function renderRbacRoles() {
             <article class="rbac-role-card${checked ? ' is-selected' : ''}">
                 <div class="rbac-role-card-head">
                     <label class="checkbox-label">
-                        <input type="checkbox" class="modern-checkbox" ${checked ? 'checked' : ''} ${!user || protectedRole ? 'disabled' : ''} title="${protectedRole ? rbacEscape(rbacT('rbac.protectBuiltinAdminRole', '内置管理员必须保留管理员角色')) : ''}" onchange="toggleSelectedUserRole('${rbacEscape(role.id)}', this.checked)">
+                        <input type="checkbox" class="modern-checkbox" ${checked ? 'checked' : ''} ${!user || protectedRole ? 'disabled' : ''} title="${protectedRole ? rbacEscape(rbacT('rbac.protectBuiltinAdminRole', 'Built-in administrator must retain the administrator role')) : ''}" onchange="toggleSelectedUserRole('${rbacEscape(role.id)}', this.checked)">
                         <span class="checkbox-custom"></span>
                         <span class="checkbox-text"><strong>${rbacEscape(rbacRoleName(role))}</strong></span>
                     </label>
                     <span class="rbac-pill ${scope.tone}">${rbacEscape(scope.label)}</span>
                 </div>
-                <p>${rbacEscape(rbacRoleDescription(role) || rbacT('rbac.noDescription', '无描述'))}</p>
+                <p>${rbacEscape(rbacRoleDescription(role) || rbacT('rbac.noDescription', 'No description'))}</p>
                 <div class="rbac-role-card-foot">
-                    <span>${rbacT('rbac.permissionCount', '{{count}} 项权限', { count: permissionCount })}</span>
-                    <span>${rbacT('rbac.userCount', '{{count}} 个用户', { count: assignedUsers })}</span>
+                    <span>${rbacT('rbac.permissionCount', '{{count}} permissions', { count: permissionCount })}</span>
+                    <span>${rbacT('rbac.userCount', '{{count}} users', { count: assignedUsers })}</span>
                     <span>${rbacEscape(scope.hint)}</span>
                 </div>
             </article>`;
@@ -805,11 +805,11 @@ async function saveSelectedUserRoles() {
                 roles,
             }),
         });
-        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || rbacT('rbac.errors.saveFailed', '保存失败'));
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || rbacT('rbac.errors.saveFailed', 'Save failed'));
         await refreshRbacUserRoles(user.id, roles);
-        rbacNotify(rbacT('rbac.messages.roleChangesSaved', '角色变更已保存，权限立即生效'), 'success');
+        rbacNotify(rbacT('rbac.messages.roleChangesSaved', 'Role changes have been saved, permissions take effect immediately'), 'success');
         if (rbacState.activeTab === 'audit') loadRbacUserAuditLogs();
-    }, rbacT('rbac.errors.saveFailed', '保存失败'));
+    }, rbacT('rbac.errors.saveFailed', 'Save failed'));
     if (!saved) {
         renderRbacRoles();
     }
@@ -817,7 +817,7 @@ async function saveSelectedUserRoles() {
 
 function switchRbacTab(tab) {
     if (tab !== rbacState.activeTab && selectedUserRolesAreDirty() &&
-        !confirm(rbacT('rbac.confirmDiscardSwitchTab', '当前角色变更尚未保存，确定放弃并切换标签吗？'))) return;
+        !confirm(rbacT('rbac.confirmDiscardSwitchTab', 'The current role changes have not been saved yet. Are you sure you want to discard them and switch to another tab?'))) return;
     if (tab !== rbacState.activeTab && selectedUserRolesAreDirty()) resetSelectedUserRoles();
     rbacState.activeTab = tab;
     document.querySelectorAll('.rbac-tab').forEach(btn => btn.classList.toggle('is-active', btn.dataset.rbacTab === tab));
@@ -863,13 +863,13 @@ function renderRbacAssignments() {
     const count = document.getElementById('rbac-current-assignment-count');
     if (count) count.textContent = String(rows.length);
     if (!user) {
-        box.innerHTML = `<div class="rbac-empty"><strong>${rbacT('rbac.empty.selectUserFirst', '请先选择用户')}</strong></div>`;
+        box.innerHTML = `<div class="rbac-empty"><strong>${rbacT('rbac.empty.selectUserFirst', 'Please select a user first')}</strong></div>`;
         renderRbacAssignmentPagination(0, 1);
         renderRbacPendingSelection();
         return;
     }
     if (!rows.length) {
-        box.innerHTML = `<div class="rbac-empty"><strong>${rbacT('rbac.empty.noAssignments', '暂无资源授权')}</strong><span>${rbacT('rbac.empty.addAssignmentHint', '在左侧勾选资源，或使用上方「确认授权」按钮')}</span></div>`;
+        box.innerHTML = `<div class="rbac-empty"><strong>${rbacT('rbac.empty.noAssignments', 'No resource authorization yet')}</strong><span>${rbacT('rbac.empty.addAssignmentHint', 'Check resources on the left, or use the "Confirm Authorization" button above')}</span></div>`;
         renderRbacAssignmentPagination(0, 1);
         renderRbacPendingSelection();
         return;
@@ -888,7 +888,7 @@ function renderRbacAssignments() {
     const start = rbacState.assignmentPage * rbacState.assignmentPageSize;
     const visibleRows = filteredRows.slice(start, start + rbacState.assignmentPageSize);
     if (!filteredRows.length) {
-        box.innerHTML = `<div class="rbac-empty"><strong>${rbacT('rbac.empty.noMatchingAssignments', '没有匹配的授权')}</strong><span>${rbacT('rbac.empty.adjustAssignmentFilter', '调整资源类型或搜索条件')}</span></div>`;
+        box.innerHTML = `<div class="rbac-empty"><strong>${rbacT('rbac.empty.noMatchingAssignments', 'No matching authorization')}</strong><span>${rbacT('rbac.empty.adjustAssignmentFilter', 'Adjust resource type or search criteria')}</span></div>`;
         renderRbacAssignmentPagination(0, 1);
         renderRbacPendingSelection();
         return;
@@ -907,8 +907,8 @@ function renderRbacAssignments() {
                 <span class="rbac-assignment-id" title="${rbacEscape(id)}">${rbacEscape(rbacShortId(id))}</span>
                 <span class="rbac-assignment-detail">${detail ? rbacEscape(detail) : '—'}</span>
                 <span class="rbac-assignment-actions">
-                    <button type="button" class="btn-link btn-small" onclick="rbacCopyResourceId('${rbacEscape(id)}')">${rbacEscape(rbacT('rbac.copyId', '复制 ID'))}</button>
-                    <button type="button" class="btn-link btn-small is-danger" onclick="deleteRbacAssignment('${rbacEscape(row.id)}')">${rbacT('rbac.revoke', '撤销')}</button>
+                    <button type="button" class="btn-link btn-small" onclick="rbacCopyResourceId('${rbacEscape(id)}')">${rbacEscape(rbacT('rbac.copyId', 'Copy ID'))}</button>
+                    <button type="button" class="btn-link btn-small is-danger" onclick="deleteRbacAssignment('${rbacEscape(row.id)}')">${rbacT('rbac.revoke', 'revoke')}</button>
                 </span>
             </div>`;
     }).join('');
@@ -927,12 +927,12 @@ function renderRbacAssignmentPagination(total, totalPages) {
     const next = pagination.querySelector('[data-rbac-page-next]');
     if (info) {
         info.textContent = total
-            ? rbacT('rbac.pagination.pageSummary', '第 {{page}} / {{pages}} 页 · 共 {{total}} 项', {
+            ? rbacT('rbac.pagination.pageSummary', 'Page {{page}} / {{pages}} · {{total}} items total', {
                 page: rbacState.assignmentPage + 1,
                 pages,
                 total,
             })
-            : rbacT('rbac.pagination.emptySummary', '共 0 项');
+            : rbacT('rbac.pagination.emptySummary', 'Total: 0 items');
     }
     if (previous) previous.disabled = total === 0 || rbacState.assignmentPage === 0;
     if (next) next.disabled = total === 0 || rbacState.assignmentPage >= pages - 1;
@@ -962,7 +962,7 @@ function changeRbacResourceType() {
     const previousType = rbacState.assignmentResourceType || 'conversation';
     if (nextType === previousType) return;
     if (rbacState.selectedResourceIds.size > 0 &&
-        !confirm(rbacT('rbac.confirmDiscardResourceType', '切换资源类型将清空当前选择，确定继续吗？'))) {
+        !confirm(rbacT('rbac.confirmDiscardResourceType', 'Switching the resource type will clear the current selection. Are you sure you want to continue?'))) {
         typeInput.value = previousType;
         initRbacSelects();
         return;
@@ -989,13 +989,13 @@ async function loadRbacResourceOptions() {
     if (!picker || !typeInput || !selectedRbacUser()) return;
     const requestSeq = ++rbacState.resourceRequestSeq;
     const query = document.getElementById('rbac-resource-search')?.value.trim() || '';
-    picker.innerHTML = `<div class="rbac-picker-status">${rbacT('rbac.loadingResources', '正在加载真实资源…')}</div>`;
+    picker.innerHTML = `<div class="rbac-picker-status">${rbacT('rbac.loadingResources', 'Loading real resources…')}</div>`;
     syncRbacResourcePagination(true);
     try {
         const offset = rbacState.resourcePage * rbacState.resourcePageSize;
         const res = await apiFetch(`/api/rbac/resources?type=${encodeURIComponent(typeInput.value)}&q=${encodeURIComponent(query)}&limit=${rbacState.resourcePageSize}&offset=${offset}`);
         const result = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(result.error || rbacT('rbac.errors.loadResourcesFailed', '加载资源失败'));
+        if (!res.ok) throw new Error(result.error || rbacT('rbac.errors.loadResourcesFailed', 'Failed to load resource'));
         if (requestSeq !== rbacState.resourceRequestSeq) return;
         rbacState.resourceOptions = result.resources || [];
         rbacState.resourceHasMore = !!result.has_more;
@@ -1005,7 +1005,7 @@ async function loadRbacResourceOptions() {
         if (requestSeq !== rbacState.resourceRequestSeq) return;
         rbacState.resourceHasMore = false;
         rbacState.resourceTotal = 0;
-        picker.innerHTML = `<div class="rbac-picker-status is-error">${rbacEscape(error.message || rbacT('rbac.errors.loadResourcesFailed', '加载资源失败'))} <button type="button" class="btn-link" onclick="loadRbacResourceOptions()">${rbacT('rbac.retry', '重试')}</button></div>`;
+        picker.innerHTML = `<div class="rbac-picker-status is-error">${rbacEscape(error.message || rbacT('rbac.errors.loadResourcesFailed', 'Failed to load resource'))} <button type="button" class="btn-link" onclick="loadRbacResourceOptions()">${rbacT('rbac.retry', 'Retry')}</button></div>`;
         syncRbacResourcePagination(false);
     }
 }
@@ -1019,7 +1019,7 @@ function renderRbacResourcePicker() {
         .filter(row => (row.userId === user?.id || row.user_id === user?.id) && (row.resourceType || row.resource_type) === resourceType)
         .map(row => row.resourceId || row.resource_id));
     if (!rbacState.resourceOptions.length) {
-        picker.innerHTML = `<div class="rbac-picker-status">${rbacT('rbac.empty.noMatchingResources', '没有匹配的真实资源')}</div>`;
+        picker.innerHTML = `<div class="rbac-picker-status">${rbacT('rbac.empty.noMatchingResources', 'No matching real resource')}</div>`;
         syncRbacResourcePagination(false);
         return;
     }
@@ -1034,8 +1034,8 @@ function renderRbacResourcePicker() {
                 <strong>${rbacEscape(resource.label || resource.id)}</strong>
             </span>
             <span class="rbac-resource-option-id" title="${rbacEscape(resource.id)}">${rbacEscape(rbacShortId(resource.id))}</span>
-            <span class="rbac-resource-option-detail">${alreadyAssigned ? rbacT('rbac.alreadyAssigned', '已授权') : (rbacEscape(detail) || '—')}</span>
-            <button type="button" class="btn-link btn-small rbac-resource-copy" onclick="event.preventDefault(); event.stopPropagation(); rbacCopyResourceId('${rbacEscape(resource.id)}')">${rbacEscape(rbacT('rbac.copyId', '复制 ID'))}</button>
+            <span class="rbac-resource-option-detail">${alreadyAssigned ? rbacT('rbac.alreadyAssigned', 'Authorized') : (rbacEscape(detail) || '—')}</span>
+            <button type="button" class="btn-link btn-small rbac-resource-copy" onclick="event.preventDefault(); event.stopPropagation(); rbacCopyResourceId('${rbacEscape(resource.id)}')">${rbacEscape(rbacT('rbac.copyId', 'Copy ID'))}</button>
         </label>`;
     }).join('');
     syncRbacResourcePagination(false);
@@ -1052,7 +1052,7 @@ function syncRbacResourcePagination(loading) {
     if (next) next.disabled = loading || !rbacState.resourceHasMore;
     if (info) {
         const pages = Math.max(1, Math.ceil(rbacState.resourceTotal / rbacState.resourcePageSize));
-        info.textContent = rbacT('rbac.pagination.pageSummary', '第 {{page}} / {{pages}} 页 · 共 {{total}} 项', {
+        info.textContent = rbacT('rbac.pagination.pageSummary', 'Page {{page}} / {{pages}} · {{total}} items total', {
             page: rbacState.resourcePage + 1,
             pages,
             total: rbacState.resourceTotal,
@@ -1096,14 +1096,14 @@ async function loadRbacUserAuditLogs() {
     const user = selectedRbacUser();
     if (!box) return;
     if (!user) {
-        box.innerHTML = `<div class="rbac-empty"><strong>${rbacT('rbac.empty.selectUserFirst', '请先选择用户')}</strong></div>`;
+        box.innerHTML = `<div class="rbac-empty"><strong>${rbacT('rbac.empty.selectUserFirst', 'Please select a user first')}</strong></div>`;
         rbacState.auditPage = 0;
         rbacState.auditTotal = 0;
         renderRbacAuditPagination();
         return;
     }
     rbacState.auditLoading = true;
-    box.innerHTML = `<div class="rbac-picker-status">${rbacT('common.loading', '加载中…')}</div>`;
+    box.innerHTML = `<div class="rbac-picker-status">${rbacT('common.loading', 'Loading...')}</div>`;
     try {
         const params = new URLSearchParams({
             category: 'rbac',
@@ -1115,13 +1115,13 @@ async function loadRbacUserAuditLogs() {
         if (rbacState.auditResourceType) params.set('resource_type', rbacState.auditResourceType);
         const res = await apiFetch(`/api/audit/logs?${params.toString()}`);
         const result = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(result.error || rbacT('rbac.errors.loadAuditFailed', '加载审计记录失败'));
+        if (!res.ok) throw new Error(result.error || rbacT('rbac.errors.loadAuditFailed', 'Failed to load audit records'));
         rbacState.auditLogs = result.logs || [];
         rbacState.auditTotal = Number(result.total || 0);
         renderRbacAuditLogs();
         renderRbacAuditPagination();
     } catch (error) {
-        box.innerHTML = `<div class="rbac-picker-status is-error">${rbacEscape(error.message || rbacT('rbac.errors.loadAuditFailed', '加载审计记录失败'))} <button type="button" class="btn-link" onclick="loadRbacUserAuditLogs()">${rbacT('rbac.retry', '重试')}</button></div>`;
+        box.innerHTML = `<div class="rbac-picker-status is-error">${rbacEscape(error.message || rbacT('rbac.errors.loadAuditFailed', 'Failed to load audit records'))} <button type="button" class="btn-link" onclick="loadRbacUserAuditLogs()">${rbacT('rbac.retry', 'Retry')}</button></div>`;
         renderRbacAuditPagination();
     } finally {
         rbacState.auditLoading = false;
@@ -1146,13 +1146,13 @@ function renderRbacAuditPagination() {
     if (previous) previous.disabled = atFirst;
     if (next) next.disabled = atLast;
     if (last) last.disabled = atLast;
-    if (info) info.textContent = rbacT('rbac.pagination.pageIndicator', '第 {{page}} / {{pages}} 页', {
+    if (info) info.textContent = rbacT('rbac.pagination.pageIndicator', 'Page {{page}} / {{pages}}', {
         page: rbacState.auditPage + 1,
         pages,
     });
     const start = rbacState.auditTotal === 0 ? 0 : rbacState.auditPage * rbacState.auditPageSize + 1;
     const end = Math.min(rbacState.auditTotal, (rbacState.auditPage + 1) * rbacState.auditPageSize);
-    if (range) range.textContent = rbacT('rbac.pagination.recordRange', '显示 {{start}}-{{end}} / 共 {{total}} 条记录', {
+    if (range) range.textContent = rbacT('rbac.pagination.recordRange', 'Showing {{start}}-{{end}} / {{total}} records total', {
         start,
         end,
         total: rbacState.auditTotal,
@@ -1201,7 +1201,7 @@ function renderRbacAuditLogs() {
     const box = document.getElementById('rbac-audit-list');
     if (!box) return;
     if (!rbacState.auditLogs.length) {
-        box.innerHTML = `<div class="rbac-empty"><strong>${rbacT('rbac.empty.noAuditLogs', '暂无变更记录')}</strong><span>${rbacT('rbac.empty.noAuditLogsHint', '该成员的角色与授权变更会显示在这里')}</span></div>`;
+        box.innerHTML = `<div class="rbac-empty"><strong>${rbacT('rbac.empty.noAuditLogs', 'No change records yet')}</strong><span>${rbacT('rbac.empty.noAuditLogsHint', 'Changes to this member\'s roles and permissions will be displayed here')}</span></div>`;
         return;
     }
     const formatTime = typeof formatAuditTime === 'function'
@@ -1209,22 +1209,22 @@ function renderRbacAuditLogs() {
         : (iso) => rbacText(iso);
     const header = `
         <div class="rbac-audit-table-head" role="row">
-            <span role="columnheader">${rbacEscape(rbacT('rbac.auditColumns.action', '操作'))}</span>
-            <span role="columnheader">${rbacEscape(rbacT('rbac.auditColumns.actor', '操作人'))}</span>
-            <span role="columnheader">${rbacEscape(rbacT('rbac.auditColumns.resourceType', '资源类型'))}</span>
-            <span role="columnheader">${rbacEscape(rbacT('rbac.auditColumns.resourceId', '资源 ID'))}</span>
-            <span role="columnheader">${rbacEscape(rbacT('rbac.auditColumns.time', '操作时间'))}</span>
+            <span role="columnheader">${rbacEscape(rbacT('rbac.auditColumns.action', 'operation'))}</span>
+            <span role="columnheader">${rbacEscape(rbacT('rbac.auditColumns.actor', 'Operator'))}</span>
+            <span role="columnheader">${rbacEscape(rbacT('rbac.auditColumns.resourceType', 'Resource type'))}</span>
+            <span role="columnheader">${rbacEscape(rbacT('rbac.auditColumns.resourceId', 'Resource ID'))}</span>
+            <span role="columnheader">${rbacEscape(rbacT('rbac.auditColumns.time', 'Operation time'))}</span>
         </div>`;
     const rows = rbacState.auditLogs.map(log => {
         const resourceType = log.resourceType || log.resource_type;
         const resourceId = log.resourceId || log.resource_id;
         return `
         <article class="rbac-audit-row" role="row">
-            <strong class="rbac-audit-action" role="cell" data-label="${rbacEscape(rbacT('rbac.auditColumns.action', '操作'))}"><span class="rbac-audit-cell-value">${rbacEscape(rbacAuditActionLabel(log))}</span></strong>
-            <span class="rbac-audit-actor" role="cell" data-label="${rbacEscape(rbacT('rbac.auditColumns.actor', '操作人'))}"><span class="rbac-pill rbac-audit-cell-value">${rbacEscape(log.actor || rbacT('rbac.unknownActor', '未知操作者'))}</span></span>
-            <span class="rbac-audit-detail" role="cell" data-label="${rbacEscape(rbacT('rbac.auditColumns.resourceType', '资源类型'))}"><span class="rbac-audit-cell-value">${resourceType ? rbacEscape(rbacResourceLabel(resourceType)) : '—'}</span></span>
-            <span class="rbac-audit-detail rbac-audit-resource-id" role="cell" data-label="${rbacEscape(rbacT('rbac.auditColumns.resourceId', '资源 ID'))}"><span class="rbac-audit-cell-value">${resourceId ? rbacEscape(resourceId) : '—'}</span></span>
-            <span class="rbac-audit-time" role="cell" data-label="${rbacEscape(rbacT('rbac.auditColumns.time', '操作时间'))}"><span class="rbac-audit-cell-value">${rbacEscape(formatTime(log.createdAt || log.created_at))}</span></span>
+            <strong class="rbac-audit-action" role="cell" data-label="${rbacEscape(rbacT('rbac.auditColumns.action', 'operation'))}"><span class="rbac-audit-cell-value">${rbacEscape(rbacAuditActionLabel(log))}</span></strong>
+            <span class="rbac-audit-actor" role="cell" data-label="${rbacEscape(rbacT('rbac.auditColumns.actor', 'Operator'))}"><span class="rbac-pill rbac-audit-cell-value">${rbacEscape(log.actor || rbacT('rbac.unknownActor', 'Unknown Operator'))}</span></span>
+            <span class="rbac-audit-detail" role="cell" data-label="${rbacEscape(rbacT('rbac.auditColumns.resourceType', 'Resource type'))}"><span class="rbac-audit-cell-value">${resourceType ? rbacEscape(rbacResourceLabel(resourceType)) : '—'}</span></span>
+            <span class="rbac-audit-detail rbac-audit-resource-id" role="cell" data-label="${rbacEscape(rbacT('rbac.auditColumns.resourceId', 'Resource ID'))}"><span class="rbac-audit-cell-value">${resourceId ? rbacEscape(resourceId) : '—'}</span></span>
+            <span class="rbac-audit-time" role="cell" data-label="${rbacEscape(rbacT('rbac.auditColumns.time', 'Operation time'))}"><span class="rbac-audit-cell-value">${rbacEscape(formatTime(log.createdAt || log.created_at))}</span></span>
         </article>`;
     }).join('');
     box.removeAttribute('role');
@@ -1246,7 +1246,7 @@ function openRbacUserModal(userId = '') {
     enabledInput.checked = user ? !!user.enabled : true;
     enabledInput.disabled = rbacUserIsBuiltin(user) && enabledInput.checked;
     enabledInput.dataset.stateDisabled = String(enabledInput.disabled);
-    enabledInput.title = enabledInput.disabled ? rbacT('rbac.protectBuiltinAdminEnabled', '内置管理员不能停用') : '';
+    enabledInput.title = enabledInput.disabled ? rbacT('rbac.protectBuiltinAdminEnabled', 'Built-in administrator cannot be disabled') : '';
     const createRoles = document.getElementById('rbac-user-roles-create-section');
     const editRoles = document.getElementById('rbac-user-roles-edit-section');
     if (createRoles) createRoles.hidden = !!user;
@@ -1262,7 +1262,7 @@ function renderRbacUserRolesReadonly(user) {
     if (!box) return;
     const roles = rbacUserRoles(user).map(roleId => rbacState.roles.find(role => role.id === roleId)).filter(Boolean);
     if (!roles.length) {
-        box.innerHTML = `<div class="rbac-empty is-compact"><strong>${rbacT('rbac.noRoleAssigned', '未分配角色')}</strong></div>`;
+        box.innerHTML = `<div class="rbac-empty is-compact"><strong>${rbacT('rbac.noRoleAssigned', 'Unassigned roles')}</strong></div>`;
         return;
     }
     box.innerHTML = roles.map(role => {
@@ -1279,7 +1279,7 @@ function openRbacRolesFromUserModal() {
 function openRbacUserModalForSelected() {
     const user = selectedRbacUser();
     if (!user) return;
-    if (selectedUserRolesAreDirty() && !confirm(rbacT('rbac.confirmDiscardEditUser', '当前角色变更尚未保存，确定放弃并编辑成员资料吗？'))) return;
+    if (selectedUserRolesAreDirty() && !confirm(rbacT('rbac.confirmDiscardEditUser', 'The current role changes have not been saved yet. Are you sure you want to discard them and edit the member profile?'))) return;
     if (selectedUserRolesAreDirty()) resetSelectedUserRoles();
     openRbacUserModal(user.id);
 }
@@ -1297,7 +1297,7 @@ function renderRbacUserRoleCheckboxes(selected) {
         <label class="checkbox-label rbac-checkbox-item">
             <input type="checkbox" class="modern-checkbox" value="${rbacEscape(role.id)}" ${selected.has(role.id) ? 'checked' : ''}>
             <span class="checkbox-custom"></span>
-            <span class="checkbox-text rbac-role-option-text"><strong>${rbacEscape(rbacRoleName(role))}</strong><small>${rbacEscape(scope.label)} · ${rbacEscape(rbacRoleDescription(role) || rbacT('rbac.noDescription', '无描述'))}</small></span>
+            <span class="checkbox-text rbac-role-option-text"><strong>${rbacEscape(rbacRoleName(role))}</strong><small>${rbacEscape(scope.label)} · ${rbacEscape(rbacRoleDescription(role) || rbacT('rbac.noDescription', 'No description'))}</small></span>
         </label>`;
     }).join('');
 }
@@ -1327,11 +1327,11 @@ async function saveRbacUser() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
-        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || rbacT('rbac.errors.saveFailed', '保存失败'));
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || rbacT('rbac.errors.saveFailed', 'Save failed'));
         closeRbacUserModal();
         await loadPlatformRbac();
         if (isEdit && rbacState.activeTab === 'audit') loadRbacUserAuditLogs();
-    }, rbacT('rbac.errors.saveUserFailed', '保存用户失败'));
+    }, rbacT('rbac.errors.saveUserFailed', 'Failed to save user'));
 }
 
 async function deleteSelectedRbacUser() {
@@ -1339,11 +1339,11 @@ async function deleteSelectedRbacUser() {
         const user = selectedRbacUser();
         if (!user) return;
         if (rbacUserIsBuiltin(user)) {
-            rbacNotify(rbacT('rbac.deleteBuiltinUser', '内置管理员不能删除'), 'error');
+            rbacNotify(rbacT('rbac.deleteBuiltinUser', 'Built-in administrator cannot be deleted'), 'error');
             return;
         }
         const access = resolveUserEffectiveAccess(user);
-        const confirmMessage = rbacT('rbac.deleteUserConfirmDetailed', '确认删除成员 {{name}}（@{{username}}）？\n\n将立即吊销其会话，并清除 {{roles}} 个角色绑定与 {{grants}} 项资源授权。', {
+        const confirmMessage = rbacT('rbac.deleteUserConfirmDetailed', 'Confirm deleting member {{name}} (@{{username}})?\n\nThis will immediately revoke their sessions and remove {{roles}} role bindings and {{grants}} resource grants.', {
             name: rbacUserDisplayName(user),
             username: user.username,
             roles: access.userRoles.length,
@@ -1351,10 +1351,10 @@ async function deleteSelectedRbacUser() {
         });
         if (!confirm(confirmMessage)) return;
         const res = await apiFetch(`/api/rbac/users/${encodeURIComponent(user.id)}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || rbacT('rbac.errors.deleteFailed', '删除失败'));
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || rbacT('rbac.errors.deleteFailed', 'Delete failed'));
         rbacState.selectedUserId = '';
         await loadPlatformRbac();
-    }, rbacT('rbac.errors.deleteUserFailed', '删除用户失败'));
+    }, rbacT('rbac.errors.deleteUserFailed', 'Failed to delete user'));
 }
 
 function openRbacRoleModal(roleId = '') {
@@ -1375,8 +1375,8 @@ function openRbacRoleModal(roleId = '') {
     });
     const title = document.getElementById('rbac-role-modal-title');
     if (title) title.textContent = rbacState.editingRoleIsSystem
-        ? rbacT('rbac.viewSystemRole', '查看系统角色')
-        : (role ? rbacT('rbac.editRole', '编辑角色') : rbacT('rbac.createRole', '新建角色'));
+        ? rbacT('rbac.viewSystemRole', 'View system roles')
+        : (role ? rbacT('rbac.editRole', 'Edit Role') : rbacT('rbac.createRole', 'Create Role'));
     const search = document.getElementById('rbac-permission-search');
     if (search) search.value = '';
     rbacState.permissionSearch = '';
@@ -1403,7 +1403,7 @@ function renderRbacPermissionCheckboxes() {
         grouped[module].push(key);
     });
     if (!Object.keys(grouped).length) {
-        box.innerHTML = `<div class="empty-state">${rbacT('rbac.empty.noMatchingPermissions', '没有匹配的权限')}</div>`;
+        box.innerHTML = `<div class="empty-state">${rbacT('rbac.empty.noMatchingPermissions', 'No matching permissions')}</div>`;
         return;
     }
     box.innerHTML = Object.keys(grouped).sort().map(module => `
@@ -1455,19 +1455,19 @@ async function saveRbacRole() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
-        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || rbacT('rbac.errors.saveFailed', '保存失败'));
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || rbacT('rbac.errors.saveFailed', 'Save failed'));
         closeRbacRoleModal();
         await loadPlatformRbac();
-    }, rbacT('rbac.errors.saveRoleFailed', '保存角色失败'));
+    }, rbacT('rbac.errors.saveRoleFailed', 'Failed to save role'));
 }
 
 async function deleteRbacRole(roleId) {
     await rbacRun(async () => {
-        if (!confirm(rbacT('rbac.deleteRoleConfirm', '确认删除该平台角色？'))) return;
+        if (!confirm(rbacT('rbac.deleteRoleConfirm', 'Confirm deletion of this platform role?'))) return;
         const res = await apiFetch(`/api/rbac/roles/${encodeURIComponent(roleId)}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || rbacT('rbac.errors.deleteFailed', '删除失败'));
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || rbacT('rbac.errors.deleteFailed', 'Delete failed'));
         await loadPlatformRbac();
-    }, rbacT('rbac.errors.deleteRoleFailed', '删除角色失败'));
+    }, rbacT('rbac.errors.deleteRoleFailed', 'Failed to delete role'));
 }
 
 async function createRbacAssignment() {
@@ -1478,11 +1478,11 @@ async function createRbacAssignment() {
         const manualIds = document.getElementById('rbac-assignment-id').value.split(/[\s,，;；]+/).map(id => id.trim()).filter(Boolean);
         const resourceIds = Array.from(new Set([...rbacState.selectedResourceIds, ...manualIds]));
         if (!resourceIds.length) {
-            rbacNotify(rbacT('rbac.errors.enterResourceId', '请输入至少一个资源 ID'), 'error');
+            rbacNotify(rbacT('rbac.errors.enterResourceId', 'Please enter at least one resource ID'), 'error');
             return;
         }
         if (resourceIds.length > 100) {
-            rbacNotify(rbacT('rbac.errors.tooManyResources', '一次最多授权 100 个资源'), 'error');
+            rbacNotify(rbacT('rbac.errors.tooManyResources', 'Authorize at most 100 resources at a time'), 'error');
             return;
         }
         const res = await apiFetch('/api/rbac/resource-assignments', {
@@ -1491,7 +1491,7 @@ async function createRbacAssignment() {
             body: JSON.stringify({ user_id: user.id, resource_type: resourceType, resource_ids: resourceIds, auto_detect: true }),
         });
         const result = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(result.error || rbacT('rbac.errors.batchGrantFailed', '批量授权失败'));
+        if (!res.ok) throw new Error(result.error || rbacT('rbac.errors.batchGrantFailed', 'Batch authorization failed'));
         document.getElementById('rbac-assignment-id').value = '';
         rbacState.selectedResourceIds.clear();
         rbacState.selectedResourceMeta.clear();
@@ -1502,19 +1502,19 @@ async function createRbacAssignment() {
         const created = Number(result.created || 0);
         const skipped = Number(result.skipped || 0);
         rbacNotify(skipped
-            ? rbacT('rbac.messages.grantPartial', '新增 {{created}} 项授权，{{skipped}} 项已存在或重复', { created, skipped })
-            : rbacT('rbac.messages.grantSuccess', '已授权 {{count}} 项{{resource}}', { count: created, resource: rbacResourceLabel(resourceType) }), 'success');
-    }, rbacT('rbac.errors.grantFailed', '授权失败'));
+            ? rbacT('rbac.messages.grantPartial', 'Added {{created', { created, skipped })
+            : rbacT('rbac.messages.grantSuccess', 'Authorized {{count}} {{resource}} items', { count: created, resource: rbacResourceLabel(resourceType) }), 'success');
+    }, rbacT('rbac.errors.grantFailed', 'Authorization failed'));
 }
 
 async function deleteRbacAssignment(id) {
     await rbacRun(async () => {
         const res = await apiFetch(`/api/rbac/resource-assignments/${encodeURIComponent(id)}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || rbacT('rbac.errors.revokeFailed', '撤销失败'));
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || rbacT('rbac.errors.revokeFailed', 'Revoke failed'));
         await refreshRbacAssignments();
         if (rbacState.activeTab === 'assignments') await loadRbacResourceOptions();
         if (rbacState.activeTab === 'audit') loadRbacUserAuditLogs();
-    }, rbacT('rbac.errors.revokeFailed', '撤销失败'));
+    }, rbacT('rbac.errors.revokeFailed', 'Revoke failed'));
 }
 
 document.addEventListener('languagechange', () => {
@@ -1532,7 +1532,7 @@ document.addEventListener('languagechange', () => {
         const title = document.getElementById('rbac-role-modal-title');
         if (name) name.value = rbacRoleName(role);
         if (description) description.value = rbacRoleDescription(role);
-        if (title) title.textContent = rbacT('rbac.viewSystemRole', '查看系统角色');
+        if (title) title.textContent = rbacT('rbac.viewSystemRole', 'View system roles');
     }
 });
 

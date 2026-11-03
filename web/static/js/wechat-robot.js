@@ -1,4 +1,4 @@
-// 微信 iLink 机器人：扫码绑定与状态轮询
+// WeChat iLink bot: QR code binding and status polling
 
 let wechatBindSessionKey = null;
 let wechatBindPollTimer = null;
@@ -18,13 +18,13 @@ function setWechatBadge(mode) {
     badge.classList.remove('robot-wechat-badge--idle', 'robot-wechat-badge--bound', 'robot-wechat-badge--scanning');
     if (mode === 'bound') {
         badge.classList.add('robot-wechat-badge--bound');
-        badge.textContent = wechatT('settings.robots.wechat.statusBound', '已连接');
+        badge.textContent = wechatT('settings.robots.wechat.statusBound', 'Connected');
     } else if (mode === 'scanning') {
         badge.classList.add('robot-wechat-badge--scanning');
-        badge.textContent = wechatT('settings.robots.wechat.statusScanning', '绑定中…');
+        badge.textContent = wechatT('settings.robots.wechat.statusScanning', 'Binding…');
     } else {
         badge.classList.add('robot-wechat-badge--idle');
-        badge.textContent = wechatT('settings.robots.wechat.statusIdle', '未绑定');
+        badge.textContent = wechatT('settings.robots.wechat.statusIdle', 'unbound');
     }
 }
 
@@ -56,9 +56,9 @@ function ensureWechatSteps() {
     const ol = document.createElement('ol');
     ol.className = 'robot-wechat-steps';
     ol.innerHTML = `
-        <li class="robot-wechat-step is-active">${wechatT('settings.robots.wechat.step1', '生成二维码')}</li>
-        <li class="robot-wechat-step">${wechatT('settings.robots.wechat.step2', '微信扫码')}</li>
-        <li class="robot-wechat-step">${wechatT('settings.robots.wechat.step3', '确认绑定')}</li>`;
+        <li class="robot-wechat-step is-active">${wechatT('settings.robots.wechat.step1', 'Generate QR code')}</li>
+        <li class="robot-wechat-step">${wechatT('settings.robots.wechat.step2', 'Scan WeChat QR code')}</li>
+        <li class="robot-wechat-step">${wechatT('settings.robots.wechat.step3', 'Confirm binding')}</li>`;
     panel.insertBefore(ol, panel.firstChild);
 }
 
@@ -101,9 +101,9 @@ function clearWechatBindSuccessNotice() {
     }
 }
 
-/** 绑定成功后的内联提示（约 4.5 秒后自动淡出） */
+/** Inline hint after successful binding (automatically fades out after about 4.5 seconds) */
 function showWechatBindSuccessNotice(message) {
-    const text = message || wechatT('settings.robots.wechat.boundSuccess', '绑定成功，微信机器人已启用。');
+    const text = message || wechatT('settings.robots.wechat.boundSuccess', 'Binding successful, WeChat bot has been enabled.');
     const flash = document.getElementById('robot-wechat-bound-flash');
     const flashText = document.getElementById('robot-wechat-bound-flash-text');
 
@@ -126,7 +126,7 @@ function showWechatBindSuccessNotice(message) {
     }
 }
 
-/** 已绑定：收起二维码区，仅展示紧凑摘要 */
+/** Already bound: collapse the QR code area, show only a compact summary */
 function showWechatBoundUI(wechat) {
     const wc = wechat || {};
     const wrap = document.getElementById('robot-wechat-qr-wrap');
@@ -158,7 +158,7 @@ function showWechatBoundUI(wechat) {
     const id = wc.ilink_bot_id || document.getElementById('robot-wechat-ilink-bot-id')?.value?.trim() || '';
     if (summary) {
         if (id) {
-            const prefix = wechatT('settings.robots.wechat.boundBotId', '已绑定 Bot ID：');
+            const prefix = wechatT('settings.robots.wechat.boundBotId', 'Bound Bot ID:');
             summary.innerHTML = `${prefix}<code>${escapeHtml(id)}</code>`;
             summary.hidden = false;
         } else {
@@ -168,7 +168,7 @@ function showWechatBoundUI(wechat) {
     }
 
     if (btn) {
-        btn.textContent = wechatT('settings.robots.wechat.rebindButton', '重新绑定');
+        btn.textContent = wechatT('settings.robots.wechat.rebindButton', 'Rebind');
     }
     if (typeof refreshRobotManager === 'function') {
         refreshRobotManager();
@@ -183,7 +183,7 @@ function escapeHtml(text) {
         .replace(/"/g, '&quot;');
 }
 
-/** 扫码绑定进行中 */
+/** QR scan binding in progress */
 function showWechatScanUI() {
     const wrap = document.getElementById('robot-wechat-qr-wrap');
     const boundPanel = document.getElementById('robot-wechat-bound-panel');
@@ -209,11 +209,11 @@ function showWechatScanUI() {
     if (verifyInput) verifyInput.value = '';
 
     if (btn) {
-        btn.textContent = wechatT('settings.robots.wechat.bindButton', '生成二维码并绑定');
+        btn.textContent = wechatT('settings.robots.wechat.bindButton', 'Generate QR code and bind');
     }
 }
 
-/** 未绑定且未在扫码：隐藏面板 */
+/** Not bound and not scanning: hide panel */
 function hideWechatQrWrap() {
     const wrap = document.getElementById('robot-wechat-qr-wrap');
     const summary = document.getElementById('robot-wechat-bound-summary');
@@ -297,11 +297,11 @@ async function startWechatRobotBind() {
         });
         const data = await res.json();
         if (!res.ok) {
-            throw new Error(data.error || data.message || wechatT('settings.robots.wechat.qrFetchFail', '获取二维码失败'));
+            throw new Error(data.error || data.message || wechatT('settings.robots.wechat.qrFetchFail', 'Failed to get QR code'));
         }
         wechatBindSessionKey = data.session_key;
         setWechatQrImage(data);
-        setWechatQrStatus(data.message || wechatT('settings.robots.wechat.qrReadyHint', '请使用微信扫描二维码'), false);
+        setWechatQrStatus(data.message || wechatT('settings.robots.wechat.qrReadyHint', 'Please use WeChat to scan the QR code'), false);
         pollWechatBindStatus();
     } catch (e) {
         setWechatQrStatus(e.message || String(e), true);
@@ -320,7 +320,7 @@ async function pollWechatBindStatus() {
         const res = await apiFetch(url, { method: 'GET' });
         const data = await res.json();
         if (!res.ok) {
-            throw new Error(data.error || wechatT('settings.robots.wechat.pollFail', '轮询失败'));
+            throw new Error(data.error || wechatT('settings.robots.wechat.pollFail', 'Polling failed'));
         }
 
         const verifyWrap = document.getElementById('robot-wechat-verify-wrap');
@@ -335,7 +335,7 @@ async function pollWechatBindStatus() {
                     if (idEl) idEl.value = data.ilink_bot_id;
                 }
                 showWechatBindSuccessNotice(
-                    data.message || wechatT('settings.robots.wechat.boundSuccess', '绑定成功，微信机器人已启用。')
+                    data.message || wechatT('settings.robots.wechat.boundSuccess', 'Binding successful, WeChat bot has been enabled.')
                 );
                 if (typeof loadConfig === 'function') {
                     await loadConfig(false);
@@ -352,22 +352,22 @@ async function pollWechatBindStatus() {
             case 'need_verifycode':
                 updateWechatSteps('scan');
                 if (verifyWrap) verifyWrap.hidden = false;
-                setWechatQrStatus(data.message || wechatT('settings.robots.wechat.verifyCodeHint', '请输入手机微信显示的数字'), false);
+                setWechatQrStatus(data.message || wechatT('settings.robots.wechat.verifyCodeHint', 'Please enter the numbers displayed on your phone\'s WeChat'), false);
                 break;
             case 'scaned':
                 updateWechatSteps('confirm');
                 if (verifyWrap) verifyWrap.hidden = true;
-                setWechatQrStatus(wechatT('settings.robots.wechat.qrScanWait', '已扫码，请在手机上确认…'), false);
+                setWechatQrStatus(wechatT('settings.robots.wechat.qrScanWait', 'QR code scanned, please confirm on your phone...'), false);
                 break;
             case 'binded_redirect':
                 stopWechatBindPoll();
                 showWechatBindSuccessNotice(
-                    data.message || wechatT('settings.robots.wechat.alreadyBound', '该微信已绑定过，无需重复绑定。')
+                    data.message || wechatT('settings.robots.wechat.alreadyBound', 'This WeChat has already been linked; there is no need to link it again.')
                 );
                 showWechatBoundUI({ bound: true });
                 return;
             case 'expired':
-                setWechatQrStatus(wechatT('settings.robots.wechat.qrExpired', '二维码已过期，请重新点击「生成二维码并绑定」'), true);
+                setWechatQrStatus(wechatT('settings.robots.wechat.qrExpired', 'The QR code has expired, please click "Generate QR Code and Bind" again'), true);
                 setWechatBadge('scanning');
                 stopWechatBindPoll();
                 return;
@@ -392,8 +392,8 @@ async function submitWechatVerifyCode() {
             body: JSON.stringify({ session_key: wechatBindSessionKey, verify_code: code })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || wechatT('settings.robots.wechat.verifyCodeFail', '提交失败'));
-        setWechatQrStatus(data.message || wechatT('settings.robots.wechat.verifyCodeWait', '已提交配对码，等待确认…'), false);
+        if (!res.ok) throw new Error(data.error || wechatT('settings.robots.wechat.verifyCodeFail', 'Submission failed'));
+        setWechatQrStatus(data.message || wechatT('settings.robots.wechat.verifyCodeWait', 'Pairing code submitted, waiting for confirmation…'), false);
         pollWechatBindStatus();
     } catch (e) {
         setWechatQrStatus(e.message || String(e), true);
@@ -409,7 +409,7 @@ function refreshWechatRobotBoundUI(wechat) {
         hideWechatQrWrap();
         const btn = document.getElementById('robot-wechat-bind-btn');
         if (btn) {
-            btn.textContent = wechatT('settings.robots.wechat.bindButton', '生成二维码并绑定');
+            btn.textContent = wechatT('settings.robots.wechat.bindButton', 'Generate QR code and bind');
         }
         if (typeof refreshRobotManager === 'function') {
             refreshRobotManager();

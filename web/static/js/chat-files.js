@@ -1,7 +1,7 @@
-// 对话附件（chat_uploads）文件管理
+// Conversation attachments (chat_uploads) file management
 
 let chatFilesCache = [];
-/** 后端 GET /api/chat-uploads 返回的目录相对路径（含空文件夹），与 files 合并成树 */
+/** Relative directory paths returned by the backend GET /api/chat-uploads (including empty folders), merged with files into a tree */
 let chatFilesFoldersCache = [];
 const chatFilesProjectNameById = {};
 const chatFilesConversationTitleById = {};
@@ -25,11 +25,11 @@ const CHAT_FILES_TREE_REDUCTION_ROOT = 'tool_outputs';
 const CHAT_FILES_TREE_WORKSPACE_ROOT = 'workspace';
 const CHAT_FILES_TREE_ARTIFACT_ROOT = 'conversation_artifacts';
 
-/** 按文件夹浏览模式下的当前路径（虚拟根段数组），如 ['uploads','2024-03-21','uuid'] */
+/** Current path under folder browsing mode (virtual root segment array), e.g. ['uploads','2024-03-21','uuid'] */
 let chatFilesBrowsePath = [];
-/** 非空时，下一次上传文件落到此相对路径（chat_uploads 下目录），如 2026-03-21/uuid/sub */
+/** When non-empty, the next uploaded file lands in this relative path (a directory under chat_uploads), e.g. 2026-03-21/uuid/sub */
 let chatFilesPendingUploadDir = '';
-/** 文件管理页面向服务器上传进行中，避免重复选择并禁用顶栏按钮 */
+/** File management page upload to server in progress, avoid duplicate selection and disable top bar buttons */
 let chatFilesXHRUploadBusy = false;
 
 const CHAT_FILES_FILTER_SELECT_IDS = ['chat-files-filter-source', 'chat-files-group-by'];
@@ -293,7 +293,7 @@ function chatFilesCloseAllMenus() {
 }
 
 /**
- * 「更多」菜单使用 fixed 定位，避免表格外层 overflow 把菜单裁成一条细线。
+ * The "More" menu uses fixed positioning to avoid the table's outer layer overflow clipping the menu into a thin line.
  */
 function chatFilesToggleMoreMenu(ev, idx) {
     if (ev) ev.stopPropagation();
@@ -368,7 +368,7 @@ async function loadChatFilesPage() {
     if (pager) pager.hidden = true;
     wrap.classList.remove('chat-files-table-wrap--grouped');
     wrap.classList.remove('chat-files-table-wrap--tree');
-    wrap.innerHTML = '<div class="loading-spinner" data-i18n="common.loading">加载中…</div>';
+    wrap.innerHTML = '<div class="loading-spinner" data-i18n="common.loading">Loading…</div>';
     if (typeof window.applyTranslations === 'function') {
         window.applyTranslations(wrap);
     }
@@ -426,7 +426,7 @@ async function loadChatFilesPage() {
         console.error(e);
         wrap.classList.remove('chat-files-table-wrap--grouped');
         wrap.classList.remove('chat-files-table-wrap--tree');
-        const msg = (typeof window.t === 'function') ? window.t('chatFilesPage.errorLoad') : '加载失败';
+        const msg = (typeof window.t === 'function') ? window.t('chatFilesPage.errorLoad') : 'Load failed';
         wrap.innerHTML = '<div class="error-message">' + escapeHtml(msg + ': ' + (e.message || String(e))) + '</div>';
         renderChatFilesPagination();
     }
@@ -459,7 +459,7 @@ async function exportChatFiles() {
                 /* keep raw */
             }
             if (res.status === 404) {
-                msg = (typeof window.t === 'function') ? window.t('chatFilesPage.exportEmpty') : '没有可导出的文件';
+                msg = (typeof window.t === 'function') ? window.t('chatFilesPage.exportEmpty') : 'No files to export';
             }
             throw new Error(msg || String(res.status));
         }
@@ -473,7 +473,7 @@ async function exportChatFiles() {
         a.download = filename;
         a.click();
         URL.revokeObjectURL(a.href);
-        const ok = (typeof window.t === 'function') ? window.t('chatFilesPage.exportStarted') : '已开始导出';
+        const ok = (typeof window.t === 'function') ? window.t('chatFilesPage.exportStarted') : 'Export started';
         chatFilesShowToast(ok);
     } catch (e) {
         alert((e && e.message) ? e.message : String(e));
@@ -520,13 +520,13 @@ function renderChatFilesPagination() {
     const end = Math.min(chatFilesTotal, chatFilesPage * chatFilesPageSize);
     const info = (typeof window.t === 'function')
         ? window.t('chatFilesPage.paginationInfo', { start: start, end: end, total: chatFilesTotal })
-        : ('显示 ' + start + '-' + end + ' / ' + chatFilesTotal);
+        : ('display' + start + '-' + end + ' / ' + chatFilesTotal);
     const pageText = (typeof window.t === 'function')
         ? window.t('chatFilesPage.paginationPage', { page: chatFilesPage, totalPages: totalPages })
-        : ('第 ' + chatFilesPage + ' / ' + totalPages + ' 页');
-    const pageSizeLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.pageSize') : '每页';
-    const prevLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.prevPage') : '上一页';
-    const nextLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.nextPage') : '下一页';
+        : ('No.' + chatFilesPage + ' / ' + totalPages + 'page');
+    const pageSizeLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.pageSize') : 'per page';
+    const prevLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.prevPage') : 'Previous page';
+    const nextLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.nextPage') : 'Next page';
     const sizes = [10, 20, 50, 100].map(function (n) {
         return '<option value="' + n + '"' + (n === chatFilesPageSize ? ' selected' : '') + '>' + n + '</option>';
     }).join('');
@@ -619,15 +619,15 @@ async function copyChatFilePathIdx(idx) {
         : ('chat_uploads/' + String(f.relativePath || '').replace(/^\/+/, ''));
     const ok = await chatFilesCopyText(text);
     if (ok) {
-        const msg = (typeof window.t === 'function') ? window.t('chatFilesPage.pathCopied') : '路径已复制，可粘贴到对话中引用';
+        const msg = (typeof window.t === 'function') ? window.t('chatFilesPage.pathCopied') : 'Path copied, you can paste it into the conversation to reference it.';
         chatFilesShowToast(msg);
     } else {
-        const fail = (typeof window.t === 'function') ? window.t('common.copyFailed') : '复制失败';
+        const fail = (typeof window.t === 'function') ? window.t('common.copyFailed') : 'Copy failed';
         alert(fail);
     }
 }
 
-/** 常见二进制扩展名：此类文件无法在纯文本编辑器中打开 */
+/** Common binary extensions: such files cannot be opened in a plain text editor */
 const CHAT_FILES_BINARY_EXT = new Set([
     'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico', 'tif', 'tiff', 'heic', 'heif', 'svgz',
     'pdf', 'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'zst',
@@ -652,7 +652,7 @@ function chatFileIsBinaryByName(fileName) {
 function chatFilesEditBlockedHint() {
     return (typeof window.t === 'function')
         ? window.t('chatFilesPage.editBinaryHint')
-        : '图片、压缩包等二进制文件无法在此以文本方式编辑，请使用「下载」。';
+        : 'Binary files such as images and archives cannot be edited as text here; please use "Download".';
 }
 
 function chatFilesAlertMessage(raw) {
@@ -662,9 +662,9 @@ function chatFilesAlertMessage(raw) {
         return chatFilesEditBlockedHint();
     }
     if (lower.includes('file too large') || lower.includes('entity too large') || lower.includes('413')) {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.editTooLarge') : '文件过大，无法在此编辑。';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.editTooLarge') : 'The file is too large to edit here.';
     }
-    return s || ((typeof window.t === 'function') ? window.t('chatFilesPage.errorGeneric') : '操作失败');
+    return s || ((typeof window.t === 'function') ? window.t('chatFilesPage.errorGeneric') : 'Operation failed');
 }
 
 function chatFilesGetGroupByMode() {
@@ -694,7 +694,7 @@ function chatFilesCompareDateKeysDesc(a, b) {
     return bs.localeCompare(as);
 }
 
-/** 目录树节点：dirs[段名] -> 子节点；files: { idx, name }[] */
+/** Directory tree node: dirs[section name] -> child node; files: { idx, name }[] */
 function chatFilesTreeMakeNode() {
     return { dirs: {}, files: [] };
 }
@@ -742,7 +742,7 @@ function chatFilesTreePathForFile(f) {
     return CHAT_FILES_TREE_UPLOAD_ROOT + '/' + rp;
 }
 
-/** 将后端返回的目录相对路径（如 a/b/c）并入树，便于展示空文件夹 */
+/** Merge the relative directory paths returned by the backend (e.g., a/b/c) into the tree, making it easier to display empty folders */
 function chatFilesTreeInsertFolderPath(root, relSlash) {
     const rp = String(relSlash || '').replace(/\\/g, '/').replace(/^\/+/, '');
     if (!rp) return;
@@ -809,15 +809,15 @@ function chatFilesIsInternalSource(f) {
 
 function chatFilesSourceLabel(source) {
     if (source === 'reduction') {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceReduction') : '工具输出';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceReduction') : 'Tool output';
     }
     if (source === 'workspace') {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceWorkspace') : '工作目录';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceWorkspace') : 'working directory';
     }
     if (source === 'conversation_artifact') {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceConversationArtifact') : '会话产物';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceConversationArtifact') : 'Session product';
     }
-    return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceUpload') : '对话附件';
+    return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceUpload') : 'Conversation attachment';
 }
 
 function chatFilesBrowseCanMutateCurrentPath() {
@@ -834,16 +834,16 @@ function chatFilesBrowseCanDeleteFolderPath(path) {
 
 function chatFilesTreeDisplayName(name) {
     if (name === CHAT_FILES_TREE_UPLOAD_ROOT) {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeUploadsRoot') : '对话附件';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeUploadsRoot') : 'Conversation attachment';
     }
     if (name === CHAT_FILES_TREE_REDUCTION_ROOT) {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeReductionRoot') : '工具输出';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeReductionRoot') : 'Tool output';
     }
     if (name === CHAT_FILES_TREE_WORKSPACE_ROOT) {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeWorkspaceRoot') : '工作目录';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeWorkspaceRoot') : 'working directory';
     }
     if (name === CHAT_FILES_TREE_ARTIFACT_ROOT) {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeArtifactsRoot') : '会话产物';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeArtifactsRoot') : 'Session product';
     }
     return name;
 }
@@ -877,7 +877,7 @@ function chatFilesConversationDisplay(id) {
 }
 
 function chatFilesProjectDisplay(id) {
-    const empty = (typeof window.t === 'function') ? window.t('chatFilesPage.projectUnbound') : '未绑定项目';
+    const empty = (typeof window.t === 'function') ? window.t('chatFilesPage.projectUnbound') : 'Unbound project';
     return chatFilesIDDisplay(id, chatFilesProjectNameById, empty);
 }
 
@@ -976,7 +976,7 @@ function chatFilesBuildGroups(files, mode) {
     return groups;
 }
 
-/** 分组标题：长 ID 缩短展示，完整值放在 title */
+/** Group title: long ID shown abbreviated, full value placed in title */
 function chatFilesGroupHeadingID(key, emptyLabel) {
     return chatFilesIDDisplay(key, null, emptyLabel);
 }
@@ -995,8 +995,8 @@ function renderChatFilesTable() {
 
     chatFilesDisplayed = chatFilesNameFilter(chatFilesCache);
     const groupMode = chatFilesGetGroupByMode();
-    const emptyMsg = (typeof window.t === 'function') ? window.t('chatFilesPage.empty') : '暂无文件';
-    // 「按文件夹」模式下即使尚无文件，也要显示 chat_uploads 路径栏与「新建文件夹」，否则无法先建目录
+    const emptyMsg = (typeof window.t === 'function') ? window.t('chatFilesPage.empty') : 'No files yet';
+    // In "By folder" mode, even when there are no files yet, still display the chat_uploads path bar and the "New folder" option; otherwise you cannot create the directory first
     if (!chatFilesDisplayed.length && groupMode !== 'folder') {
         wrap.classList.remove('chat-files-table-wrap--grouped');
         wrap.classList.remove('chat-files-table-wrap--tree');
@@ -1008,13 +1008,13 @@ function renderChatFilesTable() {
         return;
     }
 
-    const thDate = (typeof window.t === 'function') ? window.t('chatFilesPage.colDate') : '日期';
-    const thConv = (typeof window.t === 'function') ? window.t('chatFilesPage.colConversation') : '会话';
-    const thSubPath = (typeof window.t === 'function') ? window.t('chatFilesPage.colSubPath') : '子路径';
-    const thName = (typeof window.t === 'function') ? window.t('chatFilesPage.colName') : '文件名';
-    const thSize = (typeof window.t === 'function') ? window.t('chatFilesPage.colSize') : '大小';
-    const thModified = (typeof window.t === 'function') ? window.t('chatFilesPage.colModified') : '修改时间';
-    const thActions = (typeof window.t === 'function') ? window.t('chatFilesPage.colActions') : '操作';
+    const thDate = (typeof window.t === 'function') ? window.t('chatFilesPage.colDate') : 'date';
+    const thConv = (typeof window.t === 'function') ? window.t('chatFilesPage.colConversation') : 'conversation';
+    const thSubPath = (typeof window.t === 'function') ? window.t('chatFilesPage.colSubPath') : 'subpath';
+    const thName = (typeof window.t === 'function') ? window.t('chatFilesPage.colName') : 'file name';
+    const thSize = (typeof window.t === 'function') ? window.t('chatFilesPage.colSize') : 'size';
+    const thModified = (typeof window.t === 'function') ? window.t('chatFilesPage.colModified') : 'Modified time';
+    const thActions = (typeof window.t === 'function') ? window.t('chatFilesPage.colActions') : 'operation';
 
     const svgCopy = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
     const svgDownload = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
@@ -1022,9 +1022,9 @@ function renderChatFilesTable() {
     const svgFolder = '<svg class="chat-files-tree-icon" width="16" height="16" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
     const svgFile = '<svg class="chat-files-tree-file-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
 
-    const tCopyTitle = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.copyPathTitle') : '复制服务器上的绝对路径，可粘贴到对话中引用');
-    const tDlTitle = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.download') : '下载');
-    const tMoreTitle = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.moreActions') : '更多操作');
+    const tCopyTitle = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.copyPathTitle') : 'Copy the absolute path on the server, which can be pasted into the conversation for reference');
+    const tDlTitle = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.download') : 'download');
+    const tMoreTitle = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.moreActions') : 'More actions');
 
     function rowHtml(f, idx) {
         const rp = f.relativePath || '';
@@ -1041,11 +1041,11 @@ function renderChatFilesTable() {
 
         const bin = chatFileIsBinaryByName(f.name);
         const editHint = escapeHtml(chatFilesEditBlockedHint());
-        const editUnavailable = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.editUnavailable')) : '不可编辑';
-        const tEdit = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.edit')) : '编辑';
-        const tOpenChat = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.openChat')) : '打开对话';
-        const tRename = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.rename')) : '重命名';
-        const tDelete = (typeof window.t === 'function') ? escapeHtml(window.t('common.delete')) : '删除';
+        const editUnavailable = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.editUnavailable')) : 'not editable';
+        const tEdit = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.edit')) : 'edit';
+        const tOpenChat = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.openChat')) : 'Open conversation';
+        const tRename = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.rename')) : 'rename';
+        const tDelete = (typeof window.t === 'function') ? escapeHtml(window.t('common.delete')) : 'Delete';
 
         const menuParts = [];
         if (canOpenChat) {
@@ -1065,7 +1065,7 @@ function renderChatFilesTable() {
         const menuHtml = menuParts.join('');
 
         const subRaw = (f.subPath && String(f.subPath).trim()) ? String(f.subPath).trim() : '';
-        const rootLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.folderRoot') : '（根目录）';
+        const rootLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.folderRoot') : '(root directory)';
         let subCellInner;
         if (subRaw) {
             const segs = subRaw.split('/').filter(function (s) {
@@ -1129,12 +1129,12 @@ function renderChatFilesTable() {
             return (chatFilesDisplayed[b.idx].modifiedUnix || 0) - (chatFilesDisplayed[a.idx].modifiedUnix || 0);
         });
 
-        const tRoot = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.browseRoot') : '文件');
-        const tUp = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.browseUp') : '上级');
-        const tMkdir = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.newFolderButton') : '新建文件夹');
-        const tEmpty = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.folderEmpty') : '此文件夹为空');
-        const tCopyFolder = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.copyFolderPathTitle') : '复制目录路径');
-        const tEnter = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.enterFolderTitle') : '进入');
+        const tRoot = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.browseRoot') : 'file');
+        const tUp = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.browseUp') : 'superior');
+        const tMkdir = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.newFolderButton') : 'New Folder');
+        const tEmpty = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.folderEmpty') : 'This folder is empty');
+        const tCopyFolder = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.copyFolderPathTitle') : 'Copy directory path');
+        const tEnter = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.enterFolderTitle') : 'enter');
 
         let breadcrumbHtml = '<nav class="chat-files-breadcrumb" aria-label="breadcrumb">';
         breadcrumbHtml += '<button type="button" class="chat-files-breadcrumb-link" onclick="chatFilesNavigateBreadcrumb(-1)">' + tRoot + '</button>';
@@ -1165,8 +1165,8 @@ function renderChatFilesTable() {
 
         const svgTrash = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
         const svgUploadToFolder = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
-        const tDeleteFolder = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.deleteFolderTitle') : '删除文件夹');
-        const tUploadToFolder = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.uploadToFolderTitle') : '上传到此文件夹');
+        const tDeleteFolder = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.deleteFolderTitle') : 'Delete folder');
+        const tUploadToFolder = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.uploadToFolderTitle') : 'Upload to this folder');
 
         function rowHtmlBrowseFolder(name) {
             const nameAttr = encodeURIComponent(String(name));
@@ -1210,11 +1210,11 @@ function renderChatFilesTable() {
 
             const bin = chatFileIsBinaryByName(f.name);
             const editHint = escapeHtml(chatFilesEditBlockedHint());
-            const editUnavailable = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.editUnavailable')) : '不可编辑';
-            const tEdit = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.edit')) : '编辑';
-            const tOpenChat = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.openChat')) : '打开对话';
-            const tRename = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.rename')) : '重命名';
-            const tDelete = (typeof window.t === 'function') ? escapeHtml(window.t('common.delete')) : '删除';
+            const editUnavailable = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.editUnavailable')) : 'not editable';
+            const tEdit = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.edit')) : 'edit';
+            const tOpenChat = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.openChat')) : 'Open conversation';
+            const tRename = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.rename')) : 'rename';
+            const tDelete = (typeof window.t === 'function') ? escapeHtml(window.t('common.delete')) : 'Delete';
 
             const menuParts = [];
             if (canOpenChat) {
@@ -1378,7 +1378,7 @@ async function deleteChatFolderFromBrowse(folderName) {
     const segs = chatFilesBrowsePath.concat([folderName]);
     if (!chatFilesBrowseCanDeleteFolderPath(segs)) return;
     const rel = chatFilesUploadRelativeDirFromBrowsePath(segs);
-    const q = (typeof window.t === 'function') ? window.t('chatFilesPage.confirmDeleteFolder') : '确定删除该文件夹及其中的全部文件？';
+    const q = (typeof window.t === 'function') ? window.t('chatFilesPage.confirmDeleteFolder') : 'Are you sure you want to delete this folder and all the files in it?';
     if (!confirm(q)) return;
     try {
         const res = await apiFetch('/api/chat-uploads', {
@@ -1400,7 +1400,7 @@ async function deleteChatFolderFromBrowse(folderName) {
                     loadChatFilesPage();
                     const cleared = (typeof window.t === 'function')
                         ? window.t('chatFilesPage.folderRemovedStale')
-                        : '服务器上不存在该目录，列表已刷新。';
+                        : 'The directory does not exist on the server. The list has been refreshed.';
                     if (typeof chatFilesShowToast === 'function') {
                         chatFilesShowToast(cleared);
                     } else {
@@ -1447,10 +1447,10 @@ async function copyChatFolderPathFromBrowse(folderName) {
     }
     const ok = await chatFilesCopyText(text);
     if (ok) {
-        const msg = (typeof window.t === 'function') ? window.t('chatFilesPage.folderPathCopied') : '目录路径已复制';
+        const msg = (typeof window.t === 'function') ? window.t('chatFilesPage.folderPathCopied') : 'Directory path has been copied';
         chatFilesShowToast(msg);
     } else {
-        const fail = (typeof window.t === 'function') ? window.t('common.copyFailed') : '复制失败';
+        const fail = (typeof window.t === 'function') ? window.t('common.copyFailed') : 'Copy failed';
         alert(fail);
     }
 }
@@ -1571,7 +1571,7 @@ async function downloadChatFile(relativePath, filename) {
 }
 
 async function deleteChatFile(relativePath) {
-    const q = (typeof window.t === 'function') ? window.t('chatFilesPage.confirmDelete') : '确定删除该文件？';
+    const q = (typeof window.t === 'function') ? window.t('chatFilesPage.confirmDelete') : 'Are you sure you want to delete this file?';
     if (!confirm(q)) return;
     try {
         const res = await apiFetch('/api/chat-uploads', {
@@ -1727,7 +1727,7 @@ async function submitChatFilesMkdir() {
     if (name.includes('/') || name.includes('\\') || name === '.' || name === '..') {
         const msg = (typeof window.t === 'function')
             ? window.t('chatFilesPage.mkdirInvalidName')
-            : '名称无效';
+            : 'Invalid name';
         alert(msg);
         return;
     }
@@ -1759,7 +1759,7 @@ async function submitChatFilesMkdir() {
         loadChatFilesPage();
         const okMsg = (typeof window.t === 'function')
             ? window.t('chatFilesPage.mkdirOk')
-            : '文件夹已创建';
+            : 'Folder created';
         chatFilesShowToast(okMsg);
     } catch (e) {
         alert((e && e.message) ? e.message : String(e));
@@ -1783,7 +1783,7 @@ function chatFilesSetUploadProgressUI(visible, percent, fileName) {
     const name = fileName || '';
     label.textContent = (typeof window.t === 'function')
         ? window.t('chatFilesPage.uploadingFile', { name: name, percent: p })
-        : ('正在上传 ' + name + ' · ' + p + '%');
+        : ('Uploading' + name + ' · ' + p + '%');
 }
 
 function chatFilesSetUploadBusy(busy) {
@@ -1869,7 +1869,7 @@ async function chatFilesUploadFile(file, target) {
         if (data && data.ok) {
             const msg = (typeof window.t === 'function')
                 ? window.t('chatFilesPage.uploadOkHint')
-                : '上传成功。在列表中点击「复制路径」即可粘贴到对话中引用。';
+                : 'Upload successful. Click "Copy Path" in the list to paste it into the conversation for reference.';
             chatFilesShowToast(msg);
         }
         return true;
@@ -1941,7 +1941,7 @@ function setupChatFilesDragDrop() {
     });
 }
 
-// 语言切换后重新渲染列表：表头与「更多」菜单由 JS 拼接，无 data-i18n，需用当前语言的 t() 再生成一遍
+// After switching the language, re-render the list: the table headers and 「More」 menu are concatenated by JS and have no data-i18n, so they must be regenerated using the current language's t()
 document.addEventListener('languagechange', function () {
     if (typeof window.currentPage !== 'function') return;
     if (window.currentPage() !== 'chat-files') return;
