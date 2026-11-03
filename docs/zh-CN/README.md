@@ -21,7 +21,7 @@
 
 - [项目任务续接](project-resume.md) · [Token 用量分析](token-usage-monitoring.md)
 - [资产管理](asset-management.md) · [知识库](knowledge-base.md) · [机器人接入](robot.md) · [视觉分析](VISION.md)
-- [WebShell](webshell.md) · [C2](c2.md) · [MCP 联邦](mcp-federation.md)
+- [WebShell](webshell.md) · [C2](c2.md) · [MCP 联邦](mcp-federation.md) · [Parallel Search MCP](parallel-search.md)
 
 ## 运维与参考
 
