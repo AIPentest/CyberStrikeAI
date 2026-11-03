@@ -45,14 +45,14 @@ func ToolsFromDefinitions(
 			return nil, fmt.Errorf("tool %q: %w", d.Function.Name, err)
 		}
 		out = append(out, &mcpBridgeTool{
-			info:           info,
-			name:           d.Function.Name,
-			agent:          ag,
-			holder:         holder,
-			record:         rec,
-			chunk:          toolOutputChunk,
-			invokeNotify:   invokeNotify,
-			einoAgentName:  strings.TrimSpace(einoAgentName),
+			info:          info,
+			name:          d.Function.Name,
+			agent:         ag,
+			holder:        holder,
+			record:        rec,
+			chunk:         toolOutputChunk,
+			invokeNotify:  invokeNotify,
+			einoAgentName: strings.TrimSpace(einoAgentName),
 		})
 	}
 	return out, nil
@@ -77,10 +77,27 @@ func toolInfoFromDefinition(d agent.Tool) (*schema.ToolInfo, error) {
 		// 空参数对象
 	}
 	return &schema.ToolInfo{
-		Name:        fn.Name,
+		Name:        sanitizeOpenAIToolName(fn.Name),
 		Desc:        fn.Description,
 		ParamsOneOf: schema.NewParamsOneOfByJSONSchema(&js),
 	}, nil
+}
+
+// sanitizeOpenAIToolName converts MCP names to OpenAI's ^[a-zA-Z0-9_-]+$ format.
+// The original name remains on mcpBridgeTool and is still used for MCP routing.
+func sanitizeOpenAIToolName(name string) string {
+	name = strings.ReplaceAll(name, "::", "__")
+	var b strings.Builder
+	b.Grow(len(name))
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') || r == '_' || r == '-' {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('_')
+		}
+	}
+	return b.String()
 }
 
 type mcpBridgeTool struct {
