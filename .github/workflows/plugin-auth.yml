@@ -1,0 +1,28 @@
+name: Plugin authentication
+on:
+  pull_request:
+    paths:
+      - 'plugins/**'
+      - 'scripts/test-plugin-auth.sh'
+      - '.github/workflows/plugin-auth.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/**'
+      - 'scripts/test-plugin-auth.sh'
+      - '.github/workflows/plugin-auth.yml'
+permissions:
+  contents: read
+jobs:
+  auth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - run: bash scripts/test-plugin-auth.sh

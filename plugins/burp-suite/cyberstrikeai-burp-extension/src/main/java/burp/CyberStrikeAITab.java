@@ -15,6 +15,7 @@ final class CyberStrikeAITab implements ITab {
     private final JTextField hostField = new JTextField("127.0.0.1");
     private final JTextField portField = new JTextField("8080");
     private final JCheckBox useHttpsBox = new JCheckBox("HTTPS", true);
+    private final JTextField usernameField = new JTextField("admin");
     private final JPasswordField passwordField = new JPasswordField();
     private final JButton validateButton = new JButton("Validate");
     private final JButton clearButton = new JButton("Clear Output");
@@ -102,6 +103,7 @@ final class CyberStrikeAITab implements ITab {
 
         hostField.setColumns(14);
         portField.setColumns(6);
+        usernameField.setColumns(10);
         passwordField.setColumns(12);
 
         JPanel row1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
@@ -111,6 +113,8 @@ final class CyberStrikeAITab implements ITab {
         row1.add(portField);
         useHttpsBox.setToolTipText("Use https:// for CyberStrikeAI (self-signed certs are trusted automatically)");
         row1.add(useHttpsBox);
+        row1.add(new JLabel("Username"));
+        row1.add(usernameField);
         row1.add(new JLabel("Password"));
         row1.add(passwordField);
         row1.add(validateButton);
@@ -406,12 +410,37 @@ final class CyberStrikeAITab implements ITab {
 
     // right panel builds scroll panes for each tab
 
+    private void setConnectionEditable(boolean editable) {
+        hostField.setEnabled(editable);
+        portField.setEnabled(editable);
+        useHttpsBox.setEnabled(editable);
+        usernameField.setEnabled(editable);
+        passwordField.setEnabled(editable);
+    }
+
+    private void invalidateAuthentication() {
+        tokenRef.set("");
+        statusLabel.setText("Connection changed — please Validate again");
+    }
+
     private void wireActions() {
+        javax.swing.event.DocumentListener credentialsChanged = new javax.swing.event.DocumentListener() {
+            @Override public void insertUpdate(javax.swing.event.DocumentEvent e) { invalidateAuthentication(); }
+            @Override public void removeUpdate(javax.swing.event.DocumentEvent e) { invalidateAuthentication(); }
+            @Override public void changedUpdate(javax.swing.event.DocumentEvent e) { invalidateAuthentication(); }
+        };
+        for (JTextField field : new JTextField[]{hostField, portField, usernameField, passwordField}) {
+            field.getDocument().addDocumentListener(credentialsChanged);
+        }
+        useHttpsBox.addActionListener(e -> invalidateAuthentication());
         validateButton.addActionListener(e -> {
             if ("Cancel".equals(validateButton.getText())) {
                 cancelValidateInProgress();
                 return;
             }
+            final CyberStrikeAIClient.Config cfg = currentConfig();
+            tokenRef.set("");
+            setConnectionEditable(false);
             validateButton.setText("Cancel");
             validateButton.setEnabled(true);
             stopButton.setEnabled(true);
@@ -419,7 +448,6 @@ final class CyberStrikeAITab implements ITab {
             log("Validating connection... (max ~10s; click Cancel or Stop to abort)");
             Thread worker = new Thread(() -> {
                 try {
-                    CyberStrikeAIClient.Config cfg = currentConfig();
                     String token = client.loginAndValidate(cfg);
                     if (Thread.currentThread().isInterrupted()) {
                         return;
@@ -439,6 +467,7 @@ final class CyberStrikeAITab implements ITab {
                 } finally {
                     validateThreadRef.set(null);
                     SwingUtilities.invokeLater(() -> {
+                        setConnectionEditable(true);
                         validateButton.setText("Validate");
                         validateButton.setEnabled(true);
                     });
@@ -543,7 +572,7 @@ final class CyberStrikeAITab implements ITab {
         String password = new String(passwordField.getPassword());
         String scheme = useHttpsBox.isSelected() ? "https" : "http";
         String baseUrl = scheme + "://" + host + ":" + port;
-        return new CyberStrikeAIClient.Config(baseUrl, password);
+        return new CyberStrikeAIClient.Config(baseUrl, usernameField.getText(), password);
     }
 
     String getToken() {
@@ -773,14 +802,12 @@ final class CyberStrikeAITab implements ITab {
 
     private void cancelValidateInProgress() {
         client.cancelActiveRequest();
-        Thread t = validateThreadRef.getAndSet(null);
+        Thread t = validateThreadRef.get();
         if (t != null) {
             t.interrupt();
         }
         SwingUtilities.invokeLater(() -> {
-            statusLabel.setText("Cancelled");
-            validateButton.setText("Validate");
-            validateButton.setEnabled(true);
+            statusLabel.setText("Cancelling...");
         });
         log("Validation cancelled.");
     }

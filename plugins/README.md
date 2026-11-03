@@ -11,7 +11,7 @@ Optional integrations that connect CyberStrikeAI with other tools.
 ### Browser (Chrome / Edge)
 
 - **Path**: `plugins/browser-extension/cyberstrikeai-browser-extension/`
-- **Version**: **0.3.8**
+- **Version**: **0.3.11**
 - **Install**: `chrome://extensions/` → Load unpacked → F12 → **CyberStrikeAI** tab
 - **Package**: `bash package.sh` → `dist/cyberstrikeai-browser-extension.zip`
 - **Docs**: `README.zh-CN.md` (full) / `README.md` (summary)
