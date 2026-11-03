@@ -2,9 +2,9 @@
 
 ### 功能概述
 
-- 在 Burp 的 `CyberStrikeAI` 标签页中配置 **Host、端口、密码**
+- 在 Burp 的 `CyberStrikeAI` 标签页中配置 **Host、端口、用户名、密码**
 - 点击 **Validate（验证）**：
-  - 调用 `POST /api/auth/login` 用密码换取 Token
+  - 调用 `POST /api/auth/login` 用用户名和密码换取 Token
   - 调用 `GET /api/auth/validate` 校验 Token
   - 验证通过后 Token 会保存在插件内存中（本次 Burp 会话有效）
 - 右键任意 HTTP 请求包 → **Send to CyberStrikeAI (stream test)**：
@@ -84,7 +84,8 @@ cd plugins/burp-suite/cyberstrikeai-burp-extension
    - **Host**：例如 `127.0.0.1`
    - **Port**：例如 `8080`
    - **HTTPS**：默认勾选（对接 `config.yaml` 中 `tls_enabled` / 自签证书）；插件会自动信任本地自签证书，无需导入
-   - **Password**：你的 CyberStrikeAI 登录密码（对应服务端 `auth.password`）
+   - **Username**：网页登录用户名，默认 `admin`；自建账号填写自己的用户名
+   - **Password**：该账号的网页登录密码，不要拼接用户名
 3) 点击 **Validate**
    - 成功：状态显示 `OK (token saved)`
    - 失败：状态会显示错误原因（例如密码错误、服务不可达、401/403 等）
@@ -93,10 +94,16 @@ cd plugins/burp-suite/cyberstrikeai-burp-extension
 6) 在弹出框中按需选择**项目、角色、对话模式**，并编辑测试指令后点确定
 7) 每次发送后会在 `CyberStrikeAI` 标签页左侧显示一个“测试记录”（请求标题 + 模式/角色 + 状态）；点击对应记录即可在右侧查看该次的流式输出结果
 
+修改连接信息或账号密码后，需要重新点击 **Validate**。密码仅保留在当前界面，不持久化保存。
+
 ### 常见问题（排错）
 
+- **提示“用户名不能为空”，但界面只有 Password**
+  - 旧插件未适配 RBAC 登录。重新构建并加载包含 Username 字段的 JAR；修改源码不会更新已加载的旧 JAR。
+
+
 - **Validate 失败 / 401**
-  - 确认密码是否正确（服务端 `auth.password`）
+  - 确认用户名和密码与网页登录一致
   - 确认 IP/端口是否能访问（例如浏览器能打开 `https://IP:PORT/`）
   - 服务端启用 TLS 时勾选 **HTTPS**（默认已勾选）；自签证书无需手动导入
   - 若仍为纯 HTTP 部署，取消勾选 **HTTPS**
