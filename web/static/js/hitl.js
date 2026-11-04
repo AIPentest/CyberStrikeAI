@@ -122,7 +122,7 @@ function hitlLocale() {
         if (window.__locale.startsWith('ru')) return 'ru-RU';
         return 'en-US';
     }
-    return (typeof navigator !== 'undefined' && navigator.language) ? navigator.language : 'en-US';
+    return (typeof navigator !== 'undefined' && (navigator.language || (navigator.languages && navigator.languages[0]))) ? (navigator.language || navigator.languages[0]) : 'en-US';
 }
 
 function initHitlPageSizeFromStorage(storageKey, fallbackSize, assignFn) {

@@ -22,7 +22,7 @@
             console.warn('Unable to read language settings:', e);
         }
 
-        const navLang = (navigator.language || navigator.userLanguage || '').toLowerCase();
+        const navLang = (navigator.language || (navigator.languages && navigator.languages[0]) || '').toLowerCase();
         if (navLang.startsWith('zh')) {
             return 'zh-CN';
         }

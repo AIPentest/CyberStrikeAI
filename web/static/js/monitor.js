@@ -9767,6 +9767,11 @@ document.addEventListener('DOMContentLoaded', function () {
     bindMonitorStatsPanelEvents();
     if (window.i18nReady && typeof window.i18nReady.then === 'function') {
         window.i18nReady.then(function () {
+            // Re-sync once after i18n applies: initMonitorFilterSelects above snapshots the
+            // option texts into the custom trigger/dropdown before translations load, so
+            // without this the filter shows the raw Chinese template copy until a
+            // languagechange event re-syncs it.
+            syncAllMonitorFilterSelects();
             refreshMonitorPanelFromState();
         });
     }
