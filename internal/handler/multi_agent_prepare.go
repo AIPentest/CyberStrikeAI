@@ -206,7 +206,8 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 		userMessageID = userMsgRow.ID
 	}
 
-	assistantMsg, aerr := h.db.AddMessage(conversationID, "assistant", "处理中...", nil)
+	// Placeholder "Processing..." (legacy Chinese "处理中..." rows dual-accepted).
+	assistantMsg, aerr := h.db.AddMessage(conversationID, "assistant", "Processing...", nil)
 	var assistantMessageID string
 	if aerr != nil {
 		h.logger.Warn("failed to create assistant message placeholder", zap.Error(aerr))

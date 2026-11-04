@@ -891,9 +891,9 @@ func (h *AgentHandler) ProcessMessageForRobot(ctx context.Context, platform stri
 		return "", "", fmt.Errorf("failed to save user message: %w", err)
 	}
 
-	// Legacy Chinese placeholder "处理中..." is stored as the initial assistant
-	// message row (frontend chat.js dual-accepts it with 'Processing...').
-	assistantMsg, err := h.db.AddMessage(conversationID, "assistant", "处理中...", nil)
+	// The initial assistant message row holds the placeholder "Processing..."
+	// (legacy Chinese "处理中..." rows in old data are dual-accepted everywhere).
+	assistantMsg, err := h.db.AddMessage(conversationID, "assistant", "Processing...", nil)
 	if err != nil {
 		h.logger.Warn("robot: failed to create assistant placeholder message", zap.Error(err))
 	}

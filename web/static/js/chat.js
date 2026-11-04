@@ -6347,7 +6347,7 @@ async function prefetchLastAssistantProcessDetails() {
     if (!last || !last.id) return;
     const bubble = last.querySelector('.message-bubble');
     const visibleText = bubble ? String(bubble.textContent || '').trim() : '';
-    const isPlaceholder = visibleText === 'Processing...' || visibleText === 'Processing...';
+    const isPlaceholder = visibleText === 'Processing...' || visibleText === '处理中...';
     if (!isPlaceholder) return;
     const container = document.getElementById('process-details-' + last.id);
     if (!container || container.dataset.lazyNotLoaded !== '1') return;
@@ -6562,7 +6562,7 @@ async function loadConversation(conversationId) {
                     : null;
                 let displayContent = msg.content;
                 if (msg.role === 'assistant' &&
-                    (assistantContent === 'Processing...' || assistantContent === 'Processing...') && terminalState) {
+                    (assistantContent === 'Processing...' || assistantContent === '处理中...') && terminalState) {
                     displayContent = terminalState.detail.message || msg.content;
                 }
 
@@ -6572,7 +6572,7 @@ async function loadConversation(conversationId) {
                 const msgTime = (msg && msg.role === 'assistant' && msg.updatedAt) ? msg.updatedAt : (msg ? msg.createdAt : null);
                 const mcpIds = (msg.mcpExecutionIds && Array.isArray(msg.mcpExecutionIds)) ? msg.mcpExecutionIds : [];
                 const isAssistantPlaceholder = msg.role === 'assistant' && (
-                    assistantContent === 'Processing...' || assistantContent === 'Processing...'
+                    assistantContent === 'Processing...' || assistantContent === '处理中...'
                 );
                 const addOpts = (msg.role === 'assistant' && (mcpIds.length > 0 || isAssistantPlaceholder))
                     ? {

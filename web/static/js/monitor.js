@@ -1083,7 +1083,8 @@ function updateAssistantBubbleContent(assistantMessageId, content, renderMarkdow
 
     const newContent = content == null ? '' : String(content);
     const normalizedContent = newContent.trim();
-    if (normalizedContent !== 'Processing...' && normalizedContent !== 'Processing...') {
+    // dual-accept: legacy Chinese placeholder "处理中..." kept for old rows, English 'Processing...' for new rows
+    if (normalizedContent !== 'Processing...' && normalizedContent !== '处理中...') {
         assistantElement.classList.remove('assistant-placeholder-content');
         bubble.hidden = false;
     }
@@ -5571,7 +5572,7 @@ function assistantMessageNeedsTaskReplayReconcile(assistantEl) {
     if (assistantEl.classList.contains('assistant-placeholder-content')) return true;
     const bubble = assistantEl.querySelector('.message-bubble');
     const text = bubble ? String(bubble.textContent || '').trim() : '';
-    return !!(bubble && bubble.hidden) || text === 'Processing...' || text === 'Processing...';
+    return !!(bubble && bubble.hidden) || text === 'Processing...' || text === '处理中...';
 }
 
 /**
