@@ -1,30 +1,30 @@
 name: "strings"
 command: "strings"
 enabled: true
-short_description: "从二进制文件中提取字符串"
+short_description: "Extract strings from binary files"
 description: |
-  Strings工具用于从二进制文件中提取可打印字符串。
+  The Strings tool is used to extract printable strings from binary files.
 
-  **主要功能：**
-  - 字符串提取
-  - 可配置最小长度
-  - 支持多种文件格式
+  **Key features:**
+  - String extraction
+  - Configurable minimum length
+  - Support for multiple file formats
 
-  **使用场景：**
-  - 二进制分析
-  - 恶意软件分析
-  - 取证分析
-  - 逆向工程
+  **Use cases:**
+  - Binary analysis
+  - Malware analysis
+  - Forensic analysis
+  - Reverse engineering
 parameters:
   - name: "file_path"
     type: "string"
-    description: "要分析的文件路径"
+    description: "Path of the file to analyze"
     required: true
     position: 0
     format: "positional"
   - name: "min_len"
     type: "int"
-    description: "最小字符串长度"
+    description: "Minimum string length"
     required: false
     flag: "-n"
     format: "flag"
@@ -32,14 +32,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的strings参数。用于传递未在参数列表中定义的strings选项。
+      Additional strings arguments. Used to pass strings options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add commonly used parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Make sure the arguments are properly formatted to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

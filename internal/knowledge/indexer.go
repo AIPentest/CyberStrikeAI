@@ -54,7 +54,7 @@ func NewIndexer(ctx context.Context, db *sql.DB, embedder *Embedder, logger *zap
 		return nil, fmt.Errorf("embedder is nil")
 	}
 	if err := EnsureKnowledgeEmbeddingsSchema(db); err != nil {
-		return nil, fmt.Errorf("knowledge_embeddings 结构迁移: %w", err)
+		return nil, fmt.Errorf("knowledge_embeddings schema migration: %w", err)
 	}
 	if kcfg == nil {
 		kcfg = &config.KnowledgeConfig{}
@@ -85,7 +85,7 @@ func NewIndexer(ctx context.Context, db *sql.DB, embedder *Embedder, logger *zap
 	fl, err = fileloader.NewFileLoader(ctx, nil)
 	if err != nil {
 		if logger != nil {
-			logger.Warn("Eino FileLoader 初始化失败，prefer_source_file 将回退数据库正文", zap.Error(err))
+			logger.Warn("Eino FileLoader init failed, prefer_source_file will fall back to database content", zap.Error(err))
 		}
 		fl = nil
 		err = nil
@@ -106,7 +106,7 @@ func NewIndexer(ctx context.Context, db *sql.DB, embedder *Embedder, logger *zap
 // RecompileIndexChain 在配置或嵌入模型变更后重建 Eino 索引链（无需重启进程）。
 func (idx *Indexer) RecompileIndexChain(ctx context.Context) error {
 	if idx == nil || idx.db == nil || idx.embedder == nil {
-		return fmt.Errorf("indexer 未初始化")
+		return fmt.Errorf("indexer not initialized")
 	}
 	if err := EnsureKnowledgeEmbeddingsSchema(idx.db); err != nil {
 		return err
@@ -127,20 +127,20 @@ func (idx *Indexer) RecompileIndexChain(ctx context.Context) error {
 // IndexItem 索引单个知识项：先清空旧向量，再走 Compose 链（分块、嵌入、写入）。
 func (idx *Indexer) IndexItem(ctx context.Context, itemID string) error {
 	if idx.indexChain == nil {
-		return fmt.Errorf("索引链未初始化")
+		return fmt.Errorf("index chain not initialized")
 	}
 	if idx.embedder == nil {
-		return fmt.Errorf("嵌入器未初始化")
+		return fmt.Errorf("embedder not initialized")
 	}
 
 	var content, category, title, filePath string
 	err := idx.db.QueryRow("SELECT content, category, title, file_path FROM knowledge_base_items WHERE id = ?", itemID).Scan(&content, &category, &title, &filePath)
 	if err != nil {
-		return fmt.Errorf("获取知识项失败：%w", err)
+		return fmt.Errorf("failed to get knowledge item: %w", err)
 	}
 
 	if _, err := idx.db.Exec("DELETE FROM knowledge_embeddings WHERE item_id = ?", itemID); err != nil {
-		return fmt.Errorf("删除旧向量失败：%w", err)
+		return fmt.Errorf("failed to delete old vectors: %w", err)
 	}
 
 	body := strings.TrimSpace(content)
@@ -161,7 +161,7 @@ func (idx *Indexer) IndexItem(ctx context.Context, itemID string) error {
 				body = s
 			}
 		} else if idx.logger != nil {
-			idx.logger.Warn("优先源文件读取失败，使用数据库正文",
+			idx.logger.Warn("preferred source file read failed, using database content",
 				zap.String("itemId", itemID),
 				zap.String("path", filePath),
 				zap.Error(lerr))
@@ -185,7 +185,7 @@ func (idx *Indexer) IndexItem(ctx context.Context, itemID string) error {
 
 	ids, err := idx.indexChain.Invoke(ctx, []*schema.Document{root}, compose.WithIndexerOption(idxOpts...))
 	if err != nil {
-		msg := fmt.Sprintf("索引写入失败 (知识项：%s): %v", itemID, err)
+		msg := fmt.Sprintf("index write failed (item: %s): %v", itemID, err)
 		idx.mu.Lock()
 		idx.lastError = msg
 		idx.lastErrorTime = time.Now()
@@ -194,7 +194,7 @@ func (idx *Indexer) IndexItem(ctx context.Context, itemID string) error {
 	}
 
 	if idx.logger != nil {
-		idx.logger.Info("知识项索引完成", zap.String("itemId", itemID), zap.Int("chunks", len(ids)))
+		idx.logger.Info("knowledge item indexed", zap.String("itemId", itemID), zap.Int("chunks", len(ids)))
 	}
 	idx.rebuildMu.Lock()
 	idx.rebuildLastItemID = itemID
@@ -208,7 +208,7 @@ func (idx *Indexer) HasIndex() (bool, error) {
 	var count int
 	err := idx.db.QueryRow("SELECT COUNT(*) FROM knowledge_embeddings").Scan(&count)
 	if err != nil {
-		return false, fmt.Errorf("检查索引失败：%w", err)
+		return false, fmt.Errorf("failed to check index: %w", err)
 	}
 	return count > 0, nil
 }
@@ -218,7 +218,7 @@ func (idx *Indexer) beginIndexRun() error {
 	defer idx.rebuildMu.Unlock()
 
 	if idx.isRebuilding {
-		return fmt.Errorf("索引任务已在进行中")
+		return fmt.Errorf("an indexing task is already in progress")
 	}
 	idx.isRebuilding = true
 	idx.rebuildTotalItems = 0
@@ -288,7 +288,7 @@ func (idx *Indexer) runRebuildIndex(ctx context.Context) error {
 
 	rows, err := idx.db.QueryContext(ctx, "SELECT id FROM knowledge_base_items ORDER BY updated_at ASC, id ASC")
 	if err != nil {
-		return fmt.Errorf("查询知识项失败：%w", err)
+		return fmt.Errorf("failed to query knowledge items: %w", err)
 	}
 	defer rows.Close()
 
@@ -298,9 +298,9 @@ func (idx *Indexer) runRebuildIndex(ctx context.Context) error {
 	}
 
 	idx.setIndexRunTotal(len(itemIDs))
-	idx.logger.Info("开始重建索引", zap.Int("totalItems", len(itemIDs)))
+	idx.logger.Info("starting full index rebuild", zap.Int("totalItems", len(itemIDs)))
 
-	return idx.indexItemIDs(ctx, itemIDs, "索引重建完成")
+	return idx.indexItemIDs(ctx, itemIDs, "index rebuild complete")
 }
 
 func (idx *Indexer) runIndexMissing(ctx context.Context) error {
@@ -314,19 +314,19 @@ func (idx *Indexer) runIndexMissing(ctx context.Context) error {
 		ORDER BY i.updated_at ASC, i.id ASC
 	`)
 	if err != nil {
-		return fmt.Errorf("查询未索引知识项失败：%w", err)
+		return fmt.Errorf("failed to query un-indexed knowledge items: %w", err)
 	}
 	defer rows.Close()
 
 	itemIDs, err := scanKnowledgeItemIDs(rows)
 	if err != nil {
-		return fmt.Errorf("扫描未索引知识项 ID 失败：%w", err)
+		return fmt.Errorf("failed to scan un-indexed knowledge item IDs: %w", err)
 	}
 
 	idx.setIndexRunTotal(len(itemIDs))
-	idx.logger.Info("开始补齐缺失索引", zap.Int("totalItems", len(itemIDs)))
+	idx.logger.Info("starting missing-index fill", zap.Int("totalItems", len(itemIDs)))
 
-	return idx.indexItemIDs(ctx, itemIDs, "索引构建完成")
+	return idx.indexItemIDs(ctx, itemIDs, "index build complete")
 }
 
 func scanKnowledgeItemIDs(rows *sql.Rows) ([]string, error) {
@@ -334,12 +334,12 @@ func scanKnowledgeItemIDs(rows *sql.Rows) ([]string, error) {
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("扫描知识项 ID 失败：%w", err)
+			return nil, fmt.Errorf("failed to scan knowledge item ID: %w", err)
 		}
 		itemIDs = append(itemIDs, id)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("扫描知识项 ID 失败：%w", err)
+		return nil, fmt.Errorf("failed to scan knowledge item ID: %w", err)
 	}
 	return itemIDs, nil
 }
@@ -359,7 +359,7 @@ func (idx *Indexer) indexItemIDs(ctx context.Context, itemIDs []string, doneMess
 			if consecutiveFailures == 1 {
 				firstFailureItemID = itemID
 				firstFailureError = err
-				idx.logger.Warn("索引知识项失败",
+				idx.logger.Warn("failed to index knowledge item",
 					zap.String("itemId", itemID),
 					zap.Int("totalItems", len(itemIDs)),
 					zap.Error(err),
@@ -367,30 +367,30 @@ func (idx *Indexer) indexItemIDs(ctx context.Context, itemIDs []string, doneMess
 			}
 
 			if consecutiveFailures >= maxConsecutiveFailures {
-				errorMsg := fmt.Sprintf("连续 %d 个知识项索引失败，可能存在配置问题（如嵌入模型配置错误、API 密钥无效、余额不足等）。第一个失败项：%s, 错误：%v", consecutiveFailures, firstFailureItemID, firstFailureError)
+				errorMsg := fmt.Sprintf("%d consecutive knowledge items failed to index, likely a configuration problem (e.g. wrong embedding model, invalid API key, insufficient quota). First failed item: %s, error: %v", consecutiveFailures, firstFailureItemID, firstFailureError)
 				idx.mu.Lock()
 				idx.lastError = errorMsg
 				idx.lastErrorTime = time.Now()
 				idx.mu.Unlock()
 
-				idx.logger.Error("连续索引失败次数过多，立即停止索引",
+				idx.logger.Error("too many consecutive index failures, stopping indexing immediately",
 					zap.Int("consecutiveFailures", consecutiveFailures),
 					zap.Int("totalItems", len(itemIDs)),
 					zap.Int("processedItems", i+1),
 					zap.String("firstFailureItemId", firstFailureItemID),
 					zap.Error(firstFailureError),
 				)
-				return fmt.Errorf("连续索引失败次数过多：%v", firstFailureError)
+				return fmt.Errorf("too many consecutive index failures: %v", firstFailureError)
 			}
 
 			if failedCount > len(itemIDs)*3/10 && failedCount == len(itemIDs)*3/10+1 {
-				errorMsg := fmt.Sprintf("索引失败的知识项过多 (%d/%d)，可能存在配置问题。第一个失败项：%s, 错误：%v", failedCount, len(itemIDs), firstFailureItemID, firstFailureError)
+				errorMsg := fmt.Sprintf("too many knowledge items failed to index (%d/%d), likely a configuration problem. First failed item: %s, error: %v", failedCount, len(itemIDs), firstFailureItemID, firstFailureError)
 				idx.mu.Lock()
 				idx.lastError = errorMsg
 				idx.lastErrorTime = time.Now()
 				idx.mu.Unlock()
 
-				idx.logger.Error("索引失败的知识项过多，可能存在配置问题",
+				idx.logger.Error("too many knowledge items failed to index, likely a configuration problem",
 					zap.Int("failedCount", failedCount),
 					zap.Int("totalItems", len(itemIDs)),
 					zap.String("firstFailureItemId", firstFailureItemID),
@@ -412,7 +412,7 @@ func (idx *Indexer) indexItemIDs(ctx context.Context, itemIDs []string, doneMess
 		idx.rebuildMu.Unlock()
 
 		if (i+1)%10 == 0 || (len(itemIDs) > 0 && (i+1)*100/len(itemIDs)%10 == 0 && (i+1)*100/len(itemIDs) > 0) {
-			idx.logger.Info("索引进度", zap.Int("current", i+1), zap.Int("total", len(itemIDs)), zap.Int("failed", failedCount))
+			idx.logger.Info("indexing progress", zap.Int("current", i+1), zap.Int("total", len(itemIDs)), zap.Int("failed", failedCount))
 		}
 	}
 

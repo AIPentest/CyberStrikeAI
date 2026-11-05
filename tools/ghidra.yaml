@@ -1,59 +1,59 @@
 name: "ghidra"
 command: "analyzeHeadless"
 enabled: true
-short_description: "高级二进制分析和逆向工程工具"
+short_description: "Advanced binary analysis and reverse engineering tool"
 description: |
-  Ghidra是NSA开发的免费二进制分析和逆向工程工具。
+  Ghidra is a free binary analysis and reverse engineering tool developed by the NSA.
 
-  **主要功能：**
-  - 反汇编和反编译
-  - 高级分析
-  - 脚本支持
-  - 协作功能
+  **Main features:**
+  - Disassembly and decompilation
+  - Advanced analysis
+  - Scripting support
+  - Collaboration features
 
-  **使用场景：**
-  - 二进制分析
-  - 逆向工程
-  - 恶意软件分析
-  - 漏洞研究
+  **Use cases:**
+  - Binary analysis
+  - Reverse engineering
+  - Malware analysis
+  - Vulnerability research
 parameters:
   - name: "project_dir"
     type: "string"
-    description: "Ghidra项目存放目录"
+    description: "Directory where Ghidra projects are stored"
     required: false
     default: "/tmp/ghidra_projects"
     position: 0
     format: "positional"
   - name: "project_name"
     type: "string"
-    description: "Ghidra项目名称"
+    description: "Ghidra project name"
     required: false
     default: "cyberstrike_analysis"
     position: 1
     format: "positional"
   - name: "binary"
     type: "string"
-    description: "要分析的二进制文件路径"
+    description: "Path of the binary file to analyze"
     required: true
     flag: "-import"
     format: "flag"
   - name: "script_file"
     type: "string"
-    description: "可选的Ghidra脚本文件（通过 -postScript 执行）"
+    description: "Optional Ghidra script file (executed via -postScript)"
     required: false
     flag: "-postScript"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的ghidra参数。用于传递未在参数列表中定义的ghidra选项。
+      Additional ghidra arguments. Used to pass ghidra options that are not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples based on tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

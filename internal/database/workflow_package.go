@@ -108,7 +108,7 @@ func (db *DB) ApplyWorkflowPackageImport(ctx context.Context, req WorkflowPackag
 	if prevErr == nil {
 		existingHash = previous.RequestHash
 		if existingHash != req.RequestHash {
-			return nil, false, workflowPackageStoreError("WFPKG_IDEMPOTENCY_KEY_REUSED", "幂等键已用于其他请求")
+			return nil, false, workflowPackageStoreError("WFPKG_IDEMPOTENCY_KEY_REUSED", "the idempotency key was already used for another request")
 		}
 		return previous, true, nil
 	}
@@ -117,7 +117,7 @@ func (db *DB) ApplyWorkflowPackageImport(ctx context.Context, req WorkflowPackag
 	}
 	inspection, err := scanWorkflowPackageInspection(tx.QueryRowContext(ctx, `SELECT id,package_hash,manifest_json,workflow_payload_json,inspection_json,source_workflow_id,source_revision,source_content_hash,source_graph_hash,local_conflict_state,COALESCE(local_workflow_id,''),COALESCE(local_content_hash,''),COALESCE(local_graph_hash,''),created_by,status,created_at,expires_at,consumed_at FROM workflow_package_inspections WHERE id=? AND created_by=?`, req.InspectionID, req.ActorUserID))
 	if err == sql.ErrNoRows {
-		return nil, false, workflowPackageStoreError("WFPKG_INSPECTION_NOT_FOUND", "预检不存在")
+		return nil, false, workflowPackageStoreError("WFPKG_INSPECTION_NOT_FOUND", "pre-inspection not found")
 	}
 	if err != nil {
 		return nil, false, err
@@ -125,10 +125,10 @@ func (db *DB) ApplyWorkflowPackageImport(ctx context.Context, req WorkflowPackag
 	now := time.Now().UTC()
 	if !inspection.ExpiresAt.After(now) || inspection.Status == "expired" {
 		_, _ = tx.ExecContext(ctx, `UPDATE workflow_package_inspections SET status='expired' WHERE id=?`, inspection.ID)
-		return nil, false, workflowPackageStoreError("WFPKG_INSPECTION_EXPIRED", "预检已过期")
+		return nil, false, workflowPackageStoreError("WFPKG_INSPECTION_EXPIRED", "the pre-inspection has expired")
 	}
 	if inspection.Status != "ready" {
-		return nil, false, workflowPackageStoreError("WFPKG_INSPECTION_CONSUMED", "预检已被使用")
+		return nil, false, workflowPackageStoreError("WFPKG_INSPECTION_CONSUMED", "the pre-inspection has already been used")
 	}
 	var payload struct {
 		ID          string `json:"id"`
@@ -144,7 +144,7 @@ func (db *DB) ApplyWorkflowPackageImport(ctx context.Context, req WorkflowPackag
 	if req.Action == "rename" {
 		targetID = strings.TrimSpace(req.NewWorkflowID)
 		if !validWorkflowPackageID(targetID) {
-			return nil, false, workflowPackageStoreError("WFPKG_INVALID_RENAME_ID", "新工作流 ID 无效")
+			return nil, false, workflowPackageStoreError("WFPKG_INVALID_RENAME_ID", "the new workflow ID is invalid")
 		}
 	}
 	sourceCurrent, err := scanWorkflowDefinition(tx.QueryRowContext(ctx, "SELECT "+workflowDefinitionColumns+" FROM workflow_definitions WHERE id=?", inspection.SourceWorkflowID))
@@ -170,13 +170,13 @@ func (db *DB) ApplyWorkflowPackageImport(ctx context.Context, req WorkflowPackag
 	switch req.Action {
 	case "create":
 		if inspection.LocalConflictState != "none" || current != nil {
-			return nil, false, workflowPackageStoreError("WFPKG_ID_CONFLICT", "目标工作流已存在")
+			return nil, false, workflowPackageStoreError("WFPKG_ID_CONFLICT", "the target workflow already exists")
 		}
 		result = "created"
 		resultingID = targetID
 	case "keep_existing":
 		if inspection.LocalConflictState == "none" {
-			return nil, false, workflowPackageStoreError("WFPKG_ID_CONFLICT", "当前预检不允许保留本地")
+			return nil, false, workflowPackageStoreError("WFPKG_ID_CONFLICT", "the current pre-inspection does not allow keeping the local workflow")
 		}
 		if inspection.LocalConflictState == "identical" {
 			result = "skipped_identical"
@@ -186,21 +186,21 @@ func (db *DB) ApplyWorkflowPackageImport(ctx context.Context, req WorkflowPackag
 		resultingID = targetID
 	case "overwrite":
 		if inspection.LocalConflictState != "id_conflict" {
-			return nil, false, workflowPackageStoreError("WFPKG_ID_CONFLICT", "当前预检不允许覆盖")
+			return nil, false, workflowPackageStoreError("WFPKG_ID_CONFLICT", "the current pre-inspection does not allow overwriting")
 		}
 		if !req.ConfirmOverwrite {
-			return nil, false, workflowPackageStoreError("WFPKG_OVERWRITE_CONFIRMATION_REQUIRED", "覆盖需要确认")
+			return nil, false, workflowPackageStoreError("WFPKG_OVERWRITE_CONFIRMATION_REQUIRED", "the overwrite needs confirmation")
 		}
 		result = "overwritten"
 		resultingID = targetID
 	case "rename":
 		if inspection.LocalConflictState != "id_conflict" || current != nil {
-			return nil, false, workflowPackageStoreError("WFPKG_ID_CONFLICT", "当前预检不允许另存")
+			return nil, false, workflowPackageStoreError("WFPKG_ID_CONFLICT", "the current pre-inspection does not allow saving under the new ID")
 		}
 		result = "renamed"
 		resultingID = targetID
 	default:
-		return nil, false, workflowPackageStoreError("WFPKG_INVALID_ACTION", "导入动作无效")
+		return nil, false, workflowPackageStoreError("WFPKG_INVALID_ACTION", "the import action is invalid")
 	}
 	if result == "created" || result == "renamed" {
 		_, err = tx.ExecContext(ctx, `INSERT INTO workflow_definitions (id,name,description,version,graph_json,enabled,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)`, resultingID, payload.Name, payload.Description, 1, payload.GraphJSON, boolToInt(payload.Enabled), now, now)
@@ -227,16 +227,16 @@ func (db *DB) ApplyWorkflowPackageImport(ctx context.Context, req WorkflowPackag
 func checkWorkflowPackageSnapshot(i *WorkflowPackageInspection, current *WorkflowDefinition, targetID string) error {
 	if i.LocalConflictState == "none" {
 		if current != nil {
-			return workflowPackageStoreError("WFPKG_CONFLICT_CHANGED", "本地工作流已变化")
+			return workflowPackageStoreError("WFPKG_CONFLICT_CHANGED", "the local workflow has changed")
 		}
 		return nil
 	}
 	if current == nil || current.ID != i.LocalWorkflowID || current.ID != targetID {
-		return workflowPackageStoreError("WFPKG_CONFLICT_CHANGED", "本地工作流已变化")
+		return workflowPackageStoreError("WFPKG_CONFLICT_CHANGED", "the local workflow has changed")
 	}
 	content, graph := workflowDefinitionPackageHashes(current)
 	if content != i.LocalContentHash || graph != i.LocalGraphHash {
-		return workflowPackageStoreError("WFPKG_CONFLICT_CHANGED", "本地工作流已变化")
+		return workflowPackageStoreError("WFPKG_CONFLICT_CHANGED", "the local workflow has changed")
 	}
 	return nil
 }

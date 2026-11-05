@@ -1,51 +1,51 @@
 name: "dirsearch"
 command: "dirsearch"
 enabled: true
-short_description: "高级目录和文件发现工具"
+short_description: "Advanced directory and file discovery tool"
 description: |
-  Dirsearch是一个高级Web内容扫描器，用于发现目录和文件。
+  Dirsearch is an advanced web content scanner used to discover directories and files.
 
-  **主要功能：**
-  - 快速目录和文件发现
-  - 多线程支持
-  - 递归扫描
-  - 扩展名过滤
+  **Main features:**
+  - Fast directory and file discovery
+  - Multi-threading support
+  - Recursive scanning
+  - Extension filtering
 
-  **使用场景：**
-  - Web应用安全测试
-  - 目录枚举
-  - 文件发现
-  - 渗透测试
+  **Use cases:**
+  - Web application security testing
+  - Directory enumeration
+  - File discovery
+  - Penetration testing
 parameters:
   - name: "url"
     type: "string"
-    description: "目标URL"
+    description: "Target URL"
     required: true
     flag: "-u"
     format: "flag"
   - name: "extensions"
     type: "string"
-    description: "文件扩展名（逗号分隔）"
+    description: "File extensions (comma-separated)"
     required: false
     flag: "-e"
     format: "flag"
     default: "php,html,js,txt,xml,json"
   - name: "wordlist"
     type: "string"
-    description: "字典文件路径"
+    description: "Wordlist file path"
     required: false
     flag: "-w"
     format: "flag"
   - name: "threads"
     type: "int"
-    description: "线程数"
+    description: "Number of threads"
     required: false
     flag: "-t"
     format: "flag"
     default: 30
   - name: "recursive"
     type: "bool"
-    description: "启用递归扫描"
+    description: "Enable recursive scanning"
     required: false
     flag: "-r"
     format: "flag"
@@ -53,14 +53,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的dirsearch参数。用于传递未在参数列表中定义的dirsearch选项。
+      Additional dirsearch arguments. Used to pass dirsearch options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

@@ -156,7 +156,7 @@ type einoADKRunLoopArgs struct {
 
 func runEinoADKAgentLoop(ctx context.Context, args *einoADKRunLoopArgs, baseMsgs []adk.Message) (*RunResult, error) {
 	if args == nil || args.DA == nil {
-		return nil, fmt.Errorf("eino run loop: args 或 Agent 为空")
+		return nil, fmt.Errorf("eino run loop: args or Agent is nil")
 	}
 	if args.McpIDs == nil {
 		s := []string{}
@@ -208,7 +208,7 @@ func runEinoADKAgentLoop(ctx context.Context, args *einoADKRunLoopArgs, baseMsgs
 				logger.Error("eino runner panic recovered", zap.Any("recover", r), zap.Stack("stack"))
 			}
 			if progress != nil {
-				progress("error", fmt.Sprintf("Internal error: %v / 内部错误: %v", r, r), map[string]interface{}{
+				progress("error", fmt.Sprintf("Internal error: %v", r), map[string]interface{}{
 					"conversationId": conversationID,
 					"source":         "eino",
 				})
@@ -220,8 +220,11 @@ func runEinoADKAgentLoop(ctx context.Context, args *einoADKRunLoopArgs, baseMsgs
 
 	emptyHint := strings.TrimSpace(args.EmptyResponseMessage)
 	if emptyHint == "" {
+		// Legacy Chinese marker 未捕获到助手文本输出 stays byte-identical here:
+		// IsEinoEmptyResponseResult / agentfinalizer / monitor.js
+		// isEinoEmptyResponsePlaceholder match both markers (dual-accept).
 		emptyHint = "(Eino session completed but no assistant text was captured. Check process details or logs.) " +
-			"（Eino 会话已完成，但未捕获到助手文本输出。请查看过程详情或日志。）"
+			"（Eino session completed, but no assistant text output was captured. Please check the process details or logs.)"
 	}
 
 	if args.EinoCallbacks != nil {
@@ -363,7 +366,7 @@ func friendlyEinoExecuteInvokeTail(invokeErr error) string {
 	if strings.Contains(invokeErr.Error(), "shell inactivity timeout") {
 		return ""
 	}
-	return "[执行未正常结束] " + invokeErr.Error()
+	return "[abnormal execution termination] " + invokeErr.Error()
 }
 
 // einoToolResultIsError 统一判断 Eino 工具结果是否应标记为错误（与 MCP exec 的 IsError 对齐）。

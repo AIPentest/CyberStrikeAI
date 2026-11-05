@@ -1,30 +1,30 @@
 name: "one-gadget"
 command: "one_gadget"
 enabled: true
-short_description: "在libc中查找one-shot RCE gadget的工具"
+short_description: "Tool for finding one-shot RCE gadgets in libc"
 description: |
-  One-gadget是一个用于在libc中查找one-shot RCE gadget的工具。
+  One-gadget is a tool for finding one-shot RCE gadgets in libc.
 
-  **主要功能：**
-  - One-shot gadget搜索
-  - 约束级别检查
-  - 多种libc支持
+  **Main features:**
+  - One-shot gadget search
+  - Constraint level checking
+  - Multiple libc support
 
-  **使用场景：**
-  - CTF挑战
-  - 漏洞利用开发
-  - ROP链简化
-  - 安全研究
+  **Use cases:**
+  - CTF challenges
+  - Exploit development
+  - ROP chain simplification
+  - Security research
 parameters:
   - name: "libc_path"
     type: "string"
-    description: "libc二进制文件路径"
+    description: "Path of the libc binary file"
     required: true
     position: 0
     format: "positional"
   - name: "level"
     type: "int"
-    description: "约束级别（0, 1, 2）"
+    description: "Constraint level (0, 1, 2)"
     required: false
     flag: "-l"
     format: "flag"
@@ -32,14 +32,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的one-gadget参数。用于传递未在参数列表中定义的one-gadget选项。
+      Additional one-gadget arguments. Used to pass one-gadget options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

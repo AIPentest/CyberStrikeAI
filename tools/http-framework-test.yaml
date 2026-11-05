@@ -378,24 +378,24 @@ args:
                 "getaddrinfo failed",
             )
         ):
-            target_host = urllib.parse.urlsplit(url).hostname or "目标主机"
+            target_host = urllib.parse.urlsplit(url).hostname or "target host"
             if proxy:
-                proxy_host = urllib.parse.urlsplit(proxy).hostname or "代理服务器"
+                proxy_host = urllib.parse.urlsplit(proxy).hostname or "proxy server"
                 return (
                     text
-                    + f"\nHint: DNS 解析失败。当前请求经环境/显式代理 {proxy_host} 转发；"
-                    "请确认代理进程可达，并检查代理地址本身能否解析。"
+                    + f"\nHint: DNS resolution failed. The current request is forwarded via an environment/explicit proxy {proxy_host}; "
+                    "please confirm the proxy process is reachable, and check whether the proxy address itself can be resolved."
                 )
             return (
                 text
-                + f"\nHint: DNS 暂时无法解析 {target_host}。请检查域名、容器/主机 DNS 与网络；"
-                "若运行环境要求代理，请设置 HTTPS_PROXY/HTTP_PROXY，或通过 proxy 参数显式传入。"
+                + f"\nHint: DNS temporarily cannot resolve {target_host}. Please check the domain, container/host DNS, and network; "
+                "if the runtime environment requires a proxy, set HTTPS_PROXY/HTTP_PROXY, or pass it explicitly via the proxy parameter."
             )
         if "unexpected_eof" in lowered or "eof occurred in violation of protocol" in lowered:
             return (
                 text
-                + "\nHint: 服务器在 TLS 层直接断开（常见于 WAF/反代拒绝异常路径、URI 过长或敏感路径探测）。"
-                "可尝试：缩短 ../ 层数、改用 %2e%2e 编码、加 --allow-insecure、或经代理观察原始响应。"
+                + "\nHint: The server dropped the connection directly at the TLS layer (common when a WAF/re reverse proxy rejects unusual paths, overly long URIs, or sensitive path probing). "
+                "Things to try: shorten the ../ levels, use %2e%2e encoding, add --allow-insecure, or observe the raw response via a proxy."
             )
         return text
 
@@ -1032,28 +1032,28 @@ args:
         encoded_url = smart_encode_url(args.url) if args.auto_encode_url else args.url
         method = (args.method or "GET").upper()
         trust_env = True
-        # 处理 headers：支持字典（JSON字符串）和字符串格式
-        # 框架会将 object 类型序列化为 JSON 字符串传递
+        # Process headers; supports both dict (JSON string) and string formats
+        # The framework serializes the object type as a JSON string and passes it in
         headers_list = []
         if args.headers:
             headers_str = args.headers.strip()
-            # 优先尝试解析为 JSON（框架传递的字典会被序列化为 JSON）
+            # First try to parse it as JSON (framework-passed dicts are serialized as JSON)
             if headers_str.startswith("{") or headers_str.startswith("["):
                 try:
                     parsed = json.loads(headers_str)
                     if isinstance(parsed, dict):
-                        # 字典格式：直接转换为 (key, value) 元组列表
+                        # Dict format: directly convert to a list of (key, value) tuples
                         headers_list = [(str(k).strip(), str(v).strip()) for k, v in parsed.items()]
                     elif isinstance(parsed, list):
-                        # 数组格式：使用原有的 parse_headers 函数处理
+                        # Array format: process with the original parse_headers function
                         headers_list = parse_headers(headers_str)
                     else:
                         headers_list = parse_headers(headers_str)
                 except (json.JSONDecodeError, ValueError):
-                    # JSON 解析失败，回退到原有的字符串解析逻辑
+                    # JSON parsing failed; fall back to the original string parsing logic
                     headers_list = parse_headers(headers_str)
             else:
-                # 非 JSON 格式，使用原有的字符串解析逻辑（向后兼容）
+                # Not JSON format; use the original string parsing logic (backward compatible)
                 headers_list = parse_headers(headers_str)
         headers = httpx.Headers(headers_list)
         if args.user_agent:
@@ -1216,7 +1216,7 @@ args:
                         print(f"\n===== Response #{run_index + 1} =====")
                         download_target = (args.download or "").strip()
                         if download_target:
-                            # 支持多次请求时通过 {i} 占位符区分文件名
+                            # Support distinguishing filenames via the {i} placeholder when making multiple requests
                             if repeat > 1 and "{i}" in download_target:
                                 filename = download_target.format(i=run_index + 1)
                             else:
@@ -1344,211 +1344,211 @@ args:
             print("\nInterrupted.", file=sys.stderr)
             sys.exit(130)
 enabled: true
-short_description: "纯Python HTTP测试框架（httpx，会话复用+编码守护）"
+short_description: "Pure Python HTTP testing framework (httpx, session reuse + encoding guards)"
 description: |
-  纯 Python 构建的 HTTP 测试框架：基于 httpx 会话，结合 socket 探针补齐 DNS/TCP/TLS 观测，
-  提供全流程的请求体编码守护、重复播放与可观测能力，适配盲注延时、复杂 payload 调优等场景。
+  An HTTP testing framework built in pure Python: based on httpx sessions and complemented by a socket probe to fill in DNS/TCP/TLS observation,
+  it provides end-to-end request body encoding guards, repeated replay, and observability, and is suited to scenarios such as blind injection timing and complex payload tuning.
 
-  **亮点：**
-  - 纯 Python 实现：httpx 会话重用、HTTP/2/代理/certs 直接在脚本内配置，无外部二进制依赖
-  - 路径保真（curl --path-as-is）：自定义 Transport + 全请求/重定向链路保留字面量 `.`/`..`；HTTP 正向代理自动 absolute-form；兼容 httpx 0.28 `proxy=`
-  - 智能 Body 编码：支持 application/x-www-form-urlencoded 规范化编码、JSON/文本 charset 推断、
-    `@file`/`@-` 注入二进制、可视化调试
-  - 连接探针：在无代理场景下额外进行 DNS/TCP/TLS 探测，粗粒度复刻 curl -w 指标
-  - 可重复观测：repeat/delay + TTFB/total/speed_download 统计，便于盲注/时序测试
-  - 扩展开关：http2 / httpx_options 解析 http2、cert、verify、trust_env、max_redirects 等 httpx 选项
-  - 响应体瘦身：response_filter 按行/块正则提取，配合 max_lines/max_bytes 限制 stdout，降低 Agent token 消耗
+  **Highlights:**
+  - Pure Python implementation: httpx session reuse, HTTP/2/proxy/certs configured directly in the script, no external binary dependencies
+  - Path fidelity (curl --path-as-is): a custom Transport + the full request/redirect chain preserves literal `.`/`..`; HTTP forward proxies automatically use absolute-form; compatible with httpx 0.28 `proxy=`
+  - Smart body encoding: supports canonical encoding of application/x-www-form-urlencoded, JSON/text charset inference,
+    injecting binaries via `@file`/`@-`, and visual debugging
+  - Connection probe: in no-proxy scenarios it additionally performs DNS/TCP/TLS probing, coarsely replicating the curl -w metrics
+  - Repeatable observability: repeat/delay + TTFB/total/speed_download statistics, useful for blind injection/timing tests
+  - Extended toggles: http2 / httpx_options parse http2, cert, verify, trust_env, max_redirects and other httpx options
+  - Response body slimming: response_filter extracts lines/blocks by regex, combined with max_lines/max_bytes to limit stdout, reducing Agent token consumption
 
-  **响应过滤最佳实践：**
-  - 大页面/HTML：用 `response_filter` 抓 error|exception|password|token|uid 等关键字行
-  - 无 filter 时：设 `response_max_lines=80` 或 `response_max_bytes=8192` 防止整页灌入上下文
-  - 0 命中：自动预览前 `response_preview_lines` 行，避免误判「空响应」
-  - 完整留存：大 body 用 `download` 落盘，stdout 只保留摘要行
+  **Response filtering best practices:**
+  - Large pages/HTML: use `response_filter` to grab lines with keywords such as error|exception|password|token|uid
+  - Without a filter: set `response_max_lines=80` or `response_max_bytes=8192` to keep the full page from flooding the context
+  - Zero hits: automatically preview the first `response_preview_lines` lines, avoiding the misjudgment of an "empty response"
+  - Full retention: use `download` to save large bodies to disk, keeping only the summary lines in stdout
 parameters:
   - name: "url"
     type: "string"
-    description: "目标URL（默认 path-as-is，保留 ../ 等字面量路径；可开 auto_encode_url 编码特殊字符）"
+    description: "Target URL (path-as-is by default, preserving literal paths such as ../; enable auto_encode_url to encode special characters)"
     required: true
     flag: "--url"
   - name: "method"
     type: "string"
-    description: "HTTP方法（GET, POST, PUT, DELETE等）"
+    description: "HTTP method (GET, POST, PUT, DELETE, etc.)"
     required: false
     default: "GET"
     flag: "--method"
   - name: "data"
     type: "string"
-    description: "请求数据/参数（支持JSON、表单、原始payload，前缀@file或@-可加载文件/STDIN）"
+    description: "Request data/parameters (supports JSON, form data, and raw payloads; the @file or @- prefix can load a file/STDIN)"
     required: false
     flag: "--data"
   - name: "headers"
     type: "object"
-    description: "自定义请求头（字典格式，如 {\"X-Custom\": \"value\"}）"
+    description: "Custom request headers (dictionary format, e.g. {\"X-Custom\": \"value\"})"
     required: false
     flag: "--headers"
   - name: "cookies"
     type: "string"
-    description: "自定义Cookie（格式：name1=value1; name2=value2）"
+    description: "Custom cookies (format: name1=value1; name2=value2)"
     required: false
     flag: "--cookies"
   - name: "user_agent"
     type: "string"
-    description: "自定义User-Agent"
+    description: "Custom User-Agent"
     required: false
     flag: "--user-agent"
   - name: "proxy"
     type: "string"
-    description: "代理（http(s)://或socks5://地址，直接传递给httpx Client）"
+    description: "Proxy (http(s):// or socks5:// address, passed directly to the httpx Client)"
     required: false
     flag: "--proxy"
   - name: "timeout"
     type: "string"
-    description: "最大超时时间（秒，支持小数）"
+    description: "Maximum timeout in seconds (decimals supported)"
     required: false
     flag: "--timeout"
   - name: "repeat"
     type: "int"
-    description: "重复请求次数，用于盲注/稳定性观测（>=1）"
+    description: "Number of repeated requests, for blind injection/stability observation (>=1)"
     required: false
     default: 1
     flag: "--repeat"
   - name: "delay"
     type: "string"
-    description: "重复请求之间的延迟（秒，可为小数）"
+    description: "Delay between repeated requests in seconds (can be fractional)"
     required: false
     default: "0"
     flag: "--delay"
   - name: "include_headers"
     type: "bool"
-    description: "输出响应头（默认开启，可用 --no-include-headers 关闭）"
+    description: "Output response headers (on by default, can be turned off with --no-include-headers)"
     required: false
     default: true
     flag: "--include-headers"
   - name: "auto_encode_url"
     type: "bool"
-    description: "自动URL编码（默认开启，可通过 --no-auto-encode-url 关闭）"
+    description: "Automatic URL encoding (on by default, can be turned off with --no-auto-encode-url)"
     required: false
     default: true
     flag: "--auto-encode-url"
   - name: "follow_redirects"
     type: "bool"
-    description: "跟随重定向（httpx follow_redirects）"
+    description: "Follow redirects (httpx follow_redirects)"
     required: false
     default: false
     flag: "--follow-redirects"
   - name: "allow_insecure"
     type: "bool"
-    description: "忽略TLS证书错误（verify=False）"
+    description: "Ignore TLS certificate errors (verify=False)"
     required: false
     default: false
     flag: "--allow-insecure"
   - name: "verbose_output"
     type: "bool"
-    description: "输出额外调试信息（请求体字节数、探针延时、历史长度等）"
+    description: "Output extra debug information (body bytes, probe latencies, history length, etc.)"
     required: false
     default: false
     flag: "--verbose-output"
   - name: "show_command"
     type: "bool"
-    description: "打印请求概览（方法、URL、所有头、Body概况）"
+    description: "Print a request overview (method, URL, all headers, body summary)"
     required: false
     default: true
     flag: "--show-command"
   - name: "show_summary"
     type: "bool"
-    description: "打印指标摘要（默认开启，含DNS/TCP/TLS/TTFB/Total）"
+    description: "Print a metric summary (on by default, including DNS/TCP/TLS/TTFB/Total)"
     required: false
     default: true
     flag: "--show-summary"
   - name: "debug"
     type: "bool"
-    description: "调试模式：显示Body编码处理细节（模式/charset/长度）"
+    description: "Debug mode: shows body-encoding processing details (mode/charset/length)"
     required: false
     default: false
     flag: "--debug"
   - name: "response_encoding"
     type: "string"
-    description: "强制响应解码使用的编码（如GBK），覆盖自动探测"
+    description: "Force the encoding used for response decoding (e.g. GBK), overriding automatic detection"
     required: false
     flag: "--response-encoding"
   - name: "response_filter"
     type: "string"
     description: |
-      响应体正则过滤（仅影响 stdout，不影响 --download 与指标）。
-      默认 line 模式按行匹配；示例：'(error|exception|SQL|password|token|uid)'。
-      与 response_max_lines/response_max_bytes 配合可显著减少 token 消耗。
+      Regex filter for the response body (only affects stdout; does not affect --download or metrics).
+      Default mode is line, matching line by line; example: '(error|exception|SQL|password|token|uid)'.
+      Combined with response_max_lines/response_max_bytes it can significantly reduce token consumption.
     required: false
     flag: "--response-filter"
   - name: "response_filter_mode"
     type: "string"
-    description: "过滤模式：line（按行，默认）、multiline（跨行块）、full（整段 DOTALL 匹配）"
+    description: "Filter mode: line (per line, default), multiline (cross-line blocks), full (whole-segment DOTALL match)"
     required: false
     default: "line"
     flag: "--response-filter-mode"
   - name: "response_filter_invert"
     type: "bool"
-    description: "反向过滤：输出不匹配 regex 的行（用于剔除 HTML 噪音）"
+    description: "Inverted filter: output lines that do not match the regex (used to strip out HTML noise)"
     required: false
     default: false
     flag: "--response-filter-invert"
   - name: "response_filter_ignore_case"
     type: "bool"
-    description: "正则忽略大小写"
+    description: "Case-insensitive regex"
     required: false
     default: false
     flag: "--response-filter-ignore-case"
   - name: "response_max_lines"
     type: "int"
-    description: "stdout 最多输出行数（0=不限制）；有 filter 时限制命中行数，无 filter 时截断全文"
+    description: "Maximum number of lines output to stdout (0=unlimited); with a filter it limits matched lines, without one it truncates the whole text"
     required: false
     default: 0
     flag: "--response-max-lines"
   - name: "response_max_bytes"
     type: "int"
-    description: "stdout 响应体 UTF-8 字节上限（0=不限制），超出部分截断"
+    description: "UTF-8 byte limit for the response body on stdout (0=unlimited), truncated beyond it"
     required: false
     default: 0
     flag: "--response-max-bytes"
   - name: "response_preview_lines"
     type: "int"
-    description: "filter 零命中时预览的前 N 行（默认 5，0=不预览）"
+    description: "First N lines previewed when a filter has zero hits (default 5, 0=no preview)"
     required: false
     default: 5
     flag: "--response-preview-lines"
   - name: "response_context_lines"
     type: "int"
-    description: "line 模式下命中行上下各保留 N 行上下文（类似 grep -C）"
+    description: "In line mode, keep N context lines above and below each matched line (similar to grep -C)"
     required: false
     default: 0
     flag: "--response-context-lines"
   - name: "action"
     type: "string"
-    description: "保留字段：标识调用意图（request, spider等），脚本内部不使用"
+    description: "Reserved field: marks the call intent (request, spider, etc.); not used inside the script"
     required: false
     default: "request"
     flag: "--action"
   - name: "download"
     type: "string"
     description: |
-      将响应体保存到本地文件，写入原始字节数据：
-      - "output.bin"：单次请求直接保存到指定文件
-      - "outputs/run-{i}.bin"：repeat>1 时按序号区分文件（{i} 将被替换为 1,2,...）
+      Save the response body to a local file, writing the raw byte data:
+      - "output.bin": a single request is saved directly to the specified file
+      - "outputs/run-{i}.bin": with repeat>1, files are distinguished by sequence number ({i} will be replaced by 1,2,...)
     required: false
     flag: "--download"
   - name: "http2"
     type: "bool"
-    description: "启用 HTTP/2（需安装 h2：pip install 'httpx[http2]'）。也可写在 httpx_options：http2=true"
+    description: "Enable HTTP/2 (requires installing h2: pip install 'httpx[http2]'). Can also be set in httpx_options: http2=true"
     required: false
     default: false
     flag: "--http2"
   - name: "httpx_options"
     type: "string"
     description: |
-      额外的 httpx Client 选项（整段传给 --additional-args）。支持 "key=value" 或单词形式（等价于 key=true）：
+      Additional httpx Client options (passed through whole to --additional-args). Supports "key=value" or bare words (equivalent to key=true):
       - "http2=true"
       - "cert=/path/to/client.pem"
-      - "verify=/path/to/ca.pem" 或 "verify=false"
-      - "trust_env=false"、"max_redirects=5" 等
-      注意：不要用框架通用字段 additional_args（会被拆成裸 argv）。请用本字段或 http2。
+      - "verify=/path/to/ca.pem" or "verify=false"
+      - "trust_env=false", "max_redirects=5", etc.
+      Note: do not use the framework's generic additional_args field (it would be split into bare argv). Please use this field or http2.
     required: false
     flag: "--additional-args"

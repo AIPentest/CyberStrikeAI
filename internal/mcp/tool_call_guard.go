@@ -7,6 +7,13 @@ import (
 	"cyberstrike-ai/internal/toolguard"
 )
 
+// toolGuardBlockedPrefix is a legacy wire/DB protocol marker, not display text:
+// frontend monitor.js legacy parsing and the tool_guard_migration DB scanner both
+// pattern-match this exact byte sequence on historical rows, so it must stay
+// byte-identical even as user-visible strings are translated.
+// The "规则: ... / 匹配内容: ..." envelope below is likewise matched verbatim
+// by internal/database/tool_guard_migration.go on stored rows; keep it
+// byte-identical.
 const toolGuardBlockedPrefix = "工具调用已被安全规则拦截"
 const toolGuardBlockedMetaKey = "cyberstrike.ai/blocked"
 

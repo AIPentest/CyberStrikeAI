@@ -69,7 +69,7 @@ func TestNewEinoAgenticSummarizationMiddlewareCompactsWithNativeTypedMiddleware(
 	if strings.Contains(joined, "<analysis>") {
 		t.Fatalf("analysis block leaked into compacted context: %s", joined)
 	}
-	for _, want := range []string{"继续验证 SQL 注入路径", "原始用户输入与约束账本", "完整的对话记录位于"} {
+	for _, want := range []string{"继续验证 SQL 注入路径", "原始用户输入与约束账本", "full conversation record is located at"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("compacted context missing %q:\n%s", want, joined)
 		}
@@ -156,7 +156,7 @@ func TestEinoAgenticChatModelAgentCompactsContextBeforeBusinessModel(t *testing.
 	}
 	finalClassicInput := AgenticMessagesToEino(businessInputs[0])
 	joined := joinClassicMessageContent(finalClassicInput)
-	for _, want := range []string{"继续验证 SQL 注入路径", "原始用户输入与约束账本", "完整的对话记录位于"} {
+	for _, want := range []string{"继续验证 SQL 注入路径", "原始用户输入与约束账本", "full conversation record is located at"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("business model input missing %q:\n%s", want, joined)
 		}

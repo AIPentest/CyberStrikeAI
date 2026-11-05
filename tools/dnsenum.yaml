@@ -1,51 +1,51 @@
 name: "dnsenum"
 command: "dnsenum"
 enabled: true
-short_description: "DNS枚举工具"
+short_description: "DNS enumeration tool"
 description: |
-  DNSenum是一个DNS信息收集工具，用于枚举DNS信息。
+  DNSenum is a DNS information gathering tool used to enumerate DNS information.
 
-  **主要功能：**
-  - DNS信息收集
-  - 子域名枚举
-  - 区域传输测试
-  - 反向查找
+  **Main features:**
+  - DNS information gathering
+  - Subdomain enumeration
+  - Zone transfer testing
+  - Reverse lookup
 
-  **使用场景：**
-  - DNS枚举
-  - 子域名发现
-  - 网络侦察
-  - 渗透测试
+  **Use cases:**
+  - DNS enumeration
+  - Subdomain discovery
+  - Network reconnaissance
+  - Penetration testing
 parameters:
   - name: "domain"
     type: "string"
-    description: "目标域名"
+    description: "Target domain"
     required: true
     position: 0
     format: "positional"
   - name: "dns_server"
     type: "string"
-    description: "要使用的DNS服务器"
+    description: "DNS server to use"
     required: false
     flag: "-n"
     format: "flag"
   - name: "wordlist"
     type: "string"
-    description: "用于暴力破解的字典文件"
+    description: "Dictionary file for brute-forcing"
     required: false
     flag: "-f"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的dnsenum参数。用于传递未在参数列表中定义的dnsenum选项。
+      Extra dnsenum arguments. Used to pass dnsenum options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Make sure arguments are correctly formatted to avoid command injection
+      - This argument is appended directly to the end of the command
     required: false
     format: "positional"

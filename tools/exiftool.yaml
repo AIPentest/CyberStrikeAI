@@ -1,66 +1,66 @@
 name: "exiftool"
 command: "exiftool"
 enabled: true
-short_description: "元数据提取工具"
+short_description: "Metadata extraction tool"
 description: |
-  ExifTool用于读取、写入和编辑各种文件格式的元数据。
+  ExifTool reads, writes, and edits metadata in a wide variety of file formats.
 
-  **主要功能：**
-  - 元数据提取
-  - 多种文件格式支持
-  - 元数据编辑
-  - 批量处理
+  **Main features:**
+  - Metadata extraction
+  - Support for many file formats
+  - Metadata editing
+  - Batch processing
 
-  **使用场景：**
-  - 取证分析
-  - 元数据检查
-  - 隐私保护
-  - 文件分析
+  **Use cases:**
+  - Forensic analysis
+  - Metadata inspection
+  - Privacy protection
+  - File analysis
 parameters:
   - name: "file_path"
     type: "string"
-    description: "要分析的文件路径"
+    description: "Path to the file to analyze"
     required: true
     position: 0
     format: "positional"
   - name: "output_json"
     type: "bool"
-    description: "以JSON格式输出（等同于 -json）"
+    description: "Output in JSON format (equivalent to -json)"
     required: false
     flag: "-json"
     format: "flag"
     default: false
   - name: "output_xml"
     type: "bool"
-    description: "以XML格式输出（等同于 -X）"
+    description: "Output in XML format (equivalent to -X)"
     required: false
     flag: "-X"
     format: "flag"
     default: false
   - name: "output_csv"
     type: "bool"
-    description: "以CSV格式输出（等同于 -csv）"
+    description: "Output in CSV format (equivalent to -csv)"
     required: false
     flag: "-csv"
     format: "flag"
     default: false
   - name: "tags"
     type: "string"
-    description: "要提取的特定标签"
+    description: "Specific tags to extract"
     required: false
     format: "template"
     template: "-{value}"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的exiftool参数。用于传递未在参数列表中定义的exiftool选项。
+      Extra exiftool arguments. Used to pass exiftool options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Make sure arguments are correctly formatted to avoid command injection
+      - This argument is appended directly to the end of the command
     required: false
     format: "positional"

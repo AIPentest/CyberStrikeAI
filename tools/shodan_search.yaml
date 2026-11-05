@@ -9,19 +9,19 @@ args:
     import os
     import math
 
-    # ==================== Shodan配置 ====================
-    # 请在此处配置您的Shodan API Key
-    # 您也可以在环境变量中设置：SHODAN_API_KEY
-    # enable 默认为 false，需开启才能调用该MCP
-    SHODAN_API_KEY = ""  # 请替换为您自己的Shodan API Key
+    # ==================== Shodan configuration ====================
+    # Please configure your Shodan API Key here
+    # You can also set it in the environment variable: SHODAN_API_KEY
+    # enable defaults to false; it must be turned on to call this MCP
+    SHODAN_API_KEY = ""  # Please replace with your own Shodan API Key
     # ==================================================
 
-    # Shodan API基础URL
+    # Shodan API base URL
     base_url = "https://api.shodan.io"
 
-    # 解析参数（从JSON字符串或命令行参数）
+    # Parse arguments (from a JSON string or command-line arguments)
     def parse_args():
-        # 尝试从第一个参数读取JSON配置
+        # Try to read the JSON configuration from the first argument
         if len(sys.argv) > 1:
             try:
                 arg1 = str(sys.argv[1])
@@ -31,10 +31,10 @@ args:
             except (json.JSONDecodeError, TypeError, ValueError):
                 pass
 
-        # 传统位置参数方式（向后兼容）
-        # 兼容两种序列：
+        # Legacy positional argument style (backward compatibility)
+        # Two sequences are supported:
         # 1) query,page,facets,minify,fields,count_only,size
-        # 2) query,page,minify,fields,count_only,size   (facets省略时执行器会压缩参数)
+        # 2) query,page,minify,fields,count_only,size   (when facets is omitted the executor compresses the parameters)
         config = {}
         if len(sys.argv) > 1:
             config["query"] = str(sys.argv[1])
@@ -53,7 +53,7 @@ args:
 
         remaining = [str(x) for x in sys.argv[3:]]
         if remaining:
-            # facets 省略时，第一个剩余参数通常是 minify（布尔）
+            # When facets is omitted, the first remaining argument is usually minify (boolean)
             first_is_bool = is_bool_like(remaining[0])
             idx = 0
             if not first_is_bool:
@@ -99,7 +99,7 @@ args:
         if not isinstance(config, dict):
             error_result = {
                 "status": "error",
-                "message": f"参数解析错误: 期望字典类型，但得到 {type(config).__name__}",
+                "message": f"Parameter parsing error: expected dict type, but got {type(config).__name__}",
                 "type": "TypeError"
             }
             print(json.dumps(error_result, ensure_ascii=False, indent=2))
@@ -111,9 +111,9 @@ args:
         if not api_key:
             error_result = {
                 "status": "error",
-                "message": "缺少Shodan配置: api_key（Shodan API密钥）",
+                "message": "Missing Shodan configuration: api_key (Shodan API key)",
                 "required_config": ["api_key"],
-                "note": "请在YAML文件的SHODAN_API_KEY配置项中填写您的API密钥，或在环境变量SHODAN_API_KEY中设置。API密钥可在Shodan账户页面查看: https://account.shodan.io/"
+                "note": "Please fill in your API key in the SHODAN_API_KEY configuration item of the YAML file, or set it in the environment variable SHODAN_API_KEY. The API key can be viewed on the Shodan account page: https://account.shodan.io/"
             }
             print(json.dumps(error_result, ensure_ascii=False, indent=2))
             sys.exit(1)
@@ -121,7 +121,7 @@ args:
         if not query:
             error_result = {
                 "status": "error",
-                "message": "缺少必需参数: query（搜索查询语句）",
+                "message": "Missing required parameter: query (search query statement)",
                 "required_params": ["query"],
                 "examples": [
                     "product:nginx",
@@ -143,12 +143,12 @@ args:
                 if requested_size <= 0:
                     requested_size = None
                 else:
-                    # 防止单次请求过大导致额度和响应时间问题
+                    # Guard against a single overly large request causing quota and response-time problems
                     requested_size = min(requested_size, 1000)
             except (ValueError, TypeError):
                 requested_size = None
 
-        # 根据 count_only 选择搜索端点
+        # Choose the search endpoint based on count_only
         endpoint = "/shodan/host/count" if count_only else "/shodan/host/search"
         url = f"{base_url}{endpoint}"
 
@@ -157,13 +157,13 @@ args:
             "query": query
         }
 
-        # 可选参数 facets（search 和 count 都支持）
+        # Optional parameter facets (supported by both search and count)
         if "facets" in config and config["facets"]:
             facets_value = str(config["facets"]).strip()
             if facets_value:
                 params["facets"] = facets_value
 
-        # search 接口的可选参数
+        # Optional parameters of the search endpoint
         if not count_only:
             if "page" in config and config["page"] is not None:
                 try:
@@ -178,7 +178,7 @@ args:
                 fields_value = str(config["fields"]).strip()
                 if fields_value:
                     params["fields"] = fields_value
-                    # Shodan API约束：fields 与 minify=true 互斥
+                    # Shodan API constraint: fields and minify=true are mutually exclusive
                     minify_effective = False
 
             params["minify"] = "true" if minify_effective else "false"
@@ -192,8 +192,8 @@ args:
                 if isinstance(result_data, dict) and result_data.get("error"):
                     error_result = {
                         "status": "error",
-                        "message": f"Shodan API错误: {result_data.get('error', '未知错误')}",
-                        "suggestion": "请检查API密钥、查询语法和账户查询额度"
+                        "message": f"Shodan API error: {result_data.get('error', 'unknown error')}",
+                        "suggestion": "Please check the API key, query syntax, and account query quota"
                     }
                     print(json.dumps(error_result, ensure_ascii=False, indent=2))
                     sys.exit(1)
@@ -205,13 +205,13 @@ args:
                     "total": result_data.get("total", 0),
                     "facets": result_data.get("facets", {}),
                     "size": requested_size,
-                    "note": "count模式仅返回统计，不返回明细结果",
-                    "message": "统计查询完成（未返回资产明细）"
+                    "note": "count mode returns only statistics, not detailed results",
+                    "message": "Count query completed (no asset details returned)"
                 }
             else:
                 start_page = int(params.get("page", 1))
-                # Shodan search 每页固定最多100条
-                # 如果未指定 size，则保持原始行为（单页）
+                # Shodan search returns a fixed maximum of 100 records per page
+                # If size is not specified, keep the original behavior (single page)
                 target_size = requested_size if requested_size else 100
                 pages_needed = 1 if not requested_size else max(1, int(math.ceil(target_size / 100.0)))
 
@@ -233,8 +233,8 @@ args:
                     if isinstance(last_result_data, dict) and last_result_data.get("error"):
                         error_result = {
                             "status": "error",
-                            "message": f"Shodan API错误: {last_result_data.get('error', '未知错误')}",
-                            "suggestion": "请检查API密钥、查询语法和账户查询额度"
+                            "message": f"Shodan API error: {last_result_data.get('error', 'unknown error')}",
+                            "suggestion": "Please check the API key, query syntax, and account query quota"
                         }
                         print(json.dumps(error_result, ensure_ascii=False, indent=2))
                         sys.exit(1)
@@ -260,7 +260,7 @@ args:
                     "results_count": len(matches),
                     "facets": last_result_data.get("facets", {}),
                     "results": matches,
-                    "message": f"成功获取 {len(matches)} 条结果"
+                    "message": f"Successfully retrieved {len(matches)} results"
                 }
 
             print(json.dumps(output, ensure_ascii=False, indent=2))
@@ -277,10 +277,10 @@ args:
 
             error_result = {
                 "status": "error",
-                "message": f"请求失败: {str(e)}",
+                "message": f"Request failed: {str(e)}",
                 "status_code": status_code,
                 "response": response_body,
-                "suggestion": "请检查网络连接、Shodan API状态、API密钥与查询额度"
+                "suggestion": "Please check the network connection, Shodan API status, API key, and query quota"
             }
             print(json.dumps(error_result, ensure_ascii=False, indent=2))
             sys.exit(1)
@@ -288,50 +288,50 @@ args:
     except Exception as e:
         error_result = {
             "status": "error",
-            "message": f"执行出错: {str(e)}",
+            "message": f"Execution error: {str(e)}",
             "type": type(e).__name__
         }
         print(json.dumps(error_result, ensure_ascii=False, indent=2))
         sys.exit(1)
 enabled: false
-short_description: "Shodan网络空间搜索，支持search与count模式"
+short_description: "Shodan cyberspace search, supporting both search and count modes"
 description: |
-  Shodan 资产搜索工具，基于官方 Developer API 实现，支持快速检索和统计分析。
+  Shodan asset search tool, implemented on the official Developer API, supporting fast retrieval and statistical analysis.
 
-  **主要功能：**
-  - 使用 `/shodan/host/search` 进行资产搜索
-  - 使用 `/shodan/host/count` 进行无明细统计（节省查询信用）
-  - 支持按 `size` 控制返回条数（自动翻页聚合）
-  - 支持分页（page）
-  - 支持分面统计（facets）
-  - 支持结果字段裁剪（fields）
-  - 支持 `minify` 控制返回数据体积
+  **Main features:**
+  - Uses `/shodan/host/search` for asset search
+  - Uses `/shodan/host/count` for stats without details (saves query credits)
+  - Supports controlling the number of results returned via `size` (automatic paging aggregation)
+  - Supports pagination (page)
+  - Supports facet statistics (facets)
+  - Supports result field trimming (fields)
+  - Supports `minify` to control the size of returned data
 
-  **鉴权方式：**
-  - Query 参数使用 `key`
-  - 可在本文件中填写 `SHODAN_API_KEY`，或通过环境变量 `SHODAN_API_KEY` 注入
+  **Authentication method:**
+  - Query parameter uses `key`
+  - You can fill in `SHODAN_API_KEY` in this file, or inject it via the environment variable `SHODAN_API_KEY`
 
-  **查询语法示例：**
+  **Query syntax examples:**
   - `product:nginx`
   - `apache country:DE`
   - `port:22`
   - `org:"Amazon" port:443`
   - `ssl.cert.subject.cn:example.com`
 
-  **注意事项：**
-  - 带过滤器的查询通常会消耗 query credits
-  - 翻页（超过第1页）会额外消耗额度
-  - `size` 大于 100 时会自动请求更多页（每页最多 100）
-  - `size` 最大限制为 1000（防止过量请求）
-  - `count_only=true` 使用统计接口，不返回 matches 明细
+  **Notes:**
+  - Queries with filters usually consume query credits
+  - Paging (beyond page 1) consumes extra quota
+  - A `size` greater than 100 automatically requests more pages (at most 100 per page)
+  - The maximum `size` limit is 1000 (to prevent excessive requests)
+  - `count_only=true` uses the stats endpoint and returns no match details
 parameters:
   - name: "query"
     type: "string"
     description: |
-      Shodan 搜索语句（必需）。
+      Shodan search statement (required).
 
-      支持 Shodan filter 语法（`filter:value`）与关键字组合。
-      示例：
+      Supports Shodan filter syntax (`filter:value`) and keyword combinations.
+      Examples:
       - `product:nginx`
       - `apache country:DE`
       - `port:22`
@@ -342,7 +342,7 @@ parameters:
   - name: "page"
     type: "int"
     description: |
-      页码（可选，仅 search 模式生效），从 1 开始，默认 1。
+      Page number (optional, effective only in search mode), starts from 1, default 1.
     required: false
     position: 2
     format: "positional"
@@ -350,9 +350,9 @@ parameters:
   - name: "facets"
     type: "string"
     description: |
-      分面统计字段（可选）。
+      Facet statistic fields (optional).
 
-      多个字段用英文逗号分隔，也可指定数量：
+      Multiple fields are separated by English commas; you can also specify counts:
       - `org,os`
       - `country:20,org:10`
     required: false
@@ -361,8 +361,8 @@ parameters:
   - name: "minify"
     type: "bool"
     description: |
-      是否精简返回字段（可选，仅 search 模式生效）。
-      默认 `true`。
+      Whether to minify the returned fields (optional, effective only in search mode).
+      Default `true`.
     required: false
     position: 4
     format: "positional"
@@ -370,9 +370,9 @@ parameters:
   - name: "fields"
     type: "string"
     description: |
-      指定返回字段（可选，仅 search 模式生效）。
+      Specify the fields to return (optional, effective only in search mode).
 
-      多个字段用英文逗号分隔，例如：
+      Multiple fields are separated by English commas, e.g.:
       - `ip_str,port,org,hostnames,http.title`
       - `tags,http.title,http.favicon.hash`
     required: false
@@ -381,10 +381,10 @@ parameters:
   - name: "count_only"
     type: "bool"
     description: |
-      是否仅统计总数（可选）。
+      Whether to count only the total (optional).
 
-      - `false`（默认）：调用 `/shodan/host/search` 返回明细
-      - `true`：调用 `/shodan/host/count` 仅返回 total 和 facets
+      - `false` (default): calls `/shodan/host/search` and returns details
+      - `true`: calls `/shodan/host/count` and returns only total and facets
     required: false
     position: 6
     format: "positional"
@@ -392,12 +392,12 @@ parameters:
   - name: "size"
     type: "int"
     description: |
-      返回结果数量（可选，仅 search 模式生效）。
+      Number of results to return (optional, effective only in search mode).
 
-      - 支持 `10 / 20 / 100 / n`
-      - Shodan 单页最多 100，超过 100 时会自动翻页拼接
-      - 为避免额度和时延问题，最大值限制为 1000
-      - 未传时默认返回单页结果（最多 100 条）
+      - Supports `10 / 20 / 100 / n`
+      - Shodan returns at most 100 per page; beyond 100 it automatically pages through and combines
+      - To avoid quota and latency issues, the maximum value is limited to 1000
+      - When not passed, a single page of results is returned by default (at most 100 records)
     required: false
     position: 7
     format: "positional"

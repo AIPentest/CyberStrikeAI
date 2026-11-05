@@ -380,7 +380,7 @@ type UpdateConnectionRequest struct {
 // ListConnections 列出所有 WebShell 连接（GET /api/webshell/connections）
 func (h *WebShellHandler) ListConnections(c *gin.Context) {
 	if h.db == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
+		respondError(c, http.StatusServiceUnavailable, "数据库不可用", "database not available")
 		return
 	}
 	session, _ := security.CurrentSession(c)
@@ -403,7 +403,7 @@ func (h *WebShellHandler) ListConnections(c *gin.Context) {
 // CreateConnection 创建 WebShell 连接（POST /api/webshell/connections）
 func (h *WebShellHandler) CreateConnection(c *gin.Context) {
 	if h.db == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
+		respondError(c, http.StatusServiceUnavailable, "数据库不可用", "database not available")
 		return
 	}
 	var req CreateConnectionRequest
@@ -413,16 +413,16 @@ func (h *WebShellHandler) CreateConnection(c *gin.Context) {
 	}
 	req.URL = strings.TrimSpace(req.URL)
 	if req.URL == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "url is required"})
+		respondError(c, http.StatusBadRequest, "url 必填", "url is required")
 		return
 	}
 	if _, err := url.Parse(req.URL); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid url"})
+		respondError(c, http.StatusBadRequest, "无效的 url", "invalid url")
 		return
 	}
 	projectID := strings.TrimSpace(req.ProjectID)
 	if !h.canAccessProject(c, projectID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "project access denied"})
+		respondError(c, http.StatusForbidden, "无权访问该项目", "project access denied")
 		return
 	}
 	method := strings.ToLower(strings.TrimSpace(req.Method))
@@ -459,7 +459,7 @@ func (h *WebShellHandler) CreateConnection(c *gin.Context) {
 		if u, err := url.Parse(req.URL); err == nil {
 			host = u.Host
 		}
-		h.audit.RecordOK(c, "webshell", "connection_create", "创建 WebShell 连接", "webshell_connection", conn.ID, map[string]interface{}{
+		h.audit.RecordOK(c, "webshell", "connection_create", "WebShell connection created", "webshell_connection", conn.ID, map[string]interface{}{
 			"host": host, "type": shellType,
 		})
 	}
@@ -469,12 +469,12 @@ func (h *WebShellHandler) CreateConnection(c *gin.Context) {
 // UpdateConnection 更新 WebShell 连接（PUT /api/webshell/connections/:id）
 func (h *WebShellHandler) UpdateConnection(c *gin.Context) {
 	if h.db == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
+		respondError(c, http.StatusServiceUnavailable, "数据库不可用", "database not available")
 		return
 	}
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
+		respondError(c, http.StatusBadRequest, "id 必填", "id is required")
 		return
 	}
 	var req UpdateConnectionRequest
@@ -484,16 +484,16 @@ func (h *WebShellHandler) UpdateConnection(c *gin.Context) {
 	}
 	req.URL = strings.TrimSpace(req.URL)
 	if req.URL == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "url is required"})
+		respondError(c, http.StatusBadRequest, "url 必填", "url is required")
 		return
 	}
 	if _, err := url.Parse(req.URL); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid url"})
+		respondError(c, http.StatusBadRequest, "无效的 url", "invalid url")
 		return
 	}
 	projectID := strings.TrimSpace(req.ProjectID)
 	if !h.canAccessProject(c, projectID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "project access denied"})
+		respondError(c, http.StatusForbidden, "无权访问该项目", "project access denied")
 		return
 	}
 	method := strings.ToLower(strings.TrimSpace(req.Method))
@@ -508,7 +508,7 @@ func (h *WebShellHandler) UpdateConnection(c *gin.Context) {
 	if password == maskedSecret {
 		stored, ok := h.authorizedWebshellConnection(c, id, "")
 		if !ok {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该连接"})
+			respondError(c, http.StatusForbidden, "无权访问该连接", "no permission to access this connection")
 			return
 		}
 		password = stored.Password
@@ -527,7 +527,7 @@ func (h *WebShellHandler) UpdateConnection(c *gin.Context) {
 	}
 	if err := h.db.UpdateWebshellConnection(conn); err != nil {
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"error": "connection not found"})
+			respondError(c, http.StatusNotFound, "连接不存在", "connection not found")
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -544,24 +544,24 @@ func (h *WebShellHandler) UpdateConnection(c *gin.Context) {
 // DeleteConnection 删除 WebShell 连接（DELETE /api/webshell/connections/:id）
 func (h *WebShellHandler) DeleteConnection(c *gin.Context) {
 	if h.db == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
+		respondError(c, http.StatusServiceUnavailable, "数据库不可用", "database not available")
 		return
 	}
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
+		respondError(c, http.StatusBadRequest, "id 必填", "id is required")
 		return
 	}
 	if err := h.db.DeleteWebshellConnection(id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "connection not found"})
+			respondError(c, http.StatusNotFound, "连接不存在", "connection not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete connection"})
+		respondError(c, http.StatusInternalServerError, "删除连接失败", "failed to delete connection")
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "webshell", "connection_delete", "删除 WebShell 连接", "webshell_connection", id, nil)
+		h.audit.RecordOK(c, "webshell", "connection_delete", "WebShell connection deleted", "webshell_connection", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
@@ -569,12 +569,12 @@ func (h *WebShellHandler) DeleteConnection(c *gin.Context) {
 // GetConnectionState 获取 WebShell 连接关联的前端持久化状态（GET /api/webshell/connections/:id/state）
 func (h *WebShellHandler) GetConnectionState(c *gin.Context) {
 	if h.db == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
+		respondError(c, http.StatusServiceUnavailable, "数据库不可用", "database not available")
 		return
 	}
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
+		respondError(c, http.StatusBadRequest, "id 必填", "id is required")
 		return
 	}
 	conn, err := h.db.GetWebshellConnection(id)
@@ -583,7 +583,7 @@ func (h *WebShellHandler) GetConnectionState(c *gin.Context) {
 		return
 	}
 	if conn == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "connection not found"})
+		respondError(c, http.StatusNotFound, "连接不存在", "connection not found")
 		return
 	}
 	stateJSON, err := h.db.GetWebshellConnectionState(id)
@@ -601,12 +601,12 @@ func (h *WebShellHandler) GetConnectionState(c *gin.Context) {
 // SaveConnectionState 保存 WebShell 连接关联的前端持久化状态（PUT /api/webshell/connections/:id/state）
 func (h *WebShellHandler) SaveConnectionState(c *gin.Context) {
 	if h.db == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
+		respondError(c, http.StatusServiceUnavailable, "数据库不可用", "database not available")
 		return
 	}
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
+		respondError(c, http.StatusBadRequest, "id 必填", "id is required")
 		return
 	}
 	conn, err := h.db.GetWebshellConnection(id)
@@ -615,7 +615,7 @@ func (h *WebShellHandler) SaveConnectionState(c *gin.Context) {
 		return
 	}
 	if conn == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "connection not found"})
+		respondError(c, http.StatusNotFound, "连接不存在", "connection not found")
 		return
 	}
 	var req struct {
@@ -630,12 +630,12 @@ func (h *WebShellHandler) SaveConnectionState(c *gin.Context) {
 		raw = json.RawMessage(`{}`)
 	}
 	if len(raw) > 2*1024*1024 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "state payload too large (max 2MB)"})
+		respondError(c, http.StatusBadRequest, "state 数据过大（最大 2MB）", "state payload too large (max 2MB)")
 		return
 	}
 	var anyJSON interface{}
 	if err := json.Unmarshal(raw, &anyJSON); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "state must be valid json"})
+		respondError(c, http.StatusBadRequest, "state 必须是合法 JSON", "state must be valid json")
 		return
 	}
 	if err := h.db.UpsertWebshellConnectionState(id, string(raw)); err != nil {
@@ -648,17 +648,17 @@ func (h *WebShellHandler) SaveConnectionState(c *gin.Context) {
 // GetAIHistory 获取指定 WebShell 连接的 AI 助手对话历史（GET /api/webshell/connections/:id/ai-history）
 func (h *WebShellHandler) GetAIHistory(c *gin.Context) {
 	if h.db == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
+		respondError(c, http.StatusServiceUnavailable, "数据库不可用", "database not available")
 		return
 	}
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
+		respondError(c, http.StatusBadRequest, "id 必填", "id is required")
 		return
 	}
 	conv, err := h.db.GetConversationByWebshellConnectionID(id)
 	if err != nil {
-		h.logger.Warn("获取 WebShell AI 对话失败", zap.String("connectionId", id), zap.Error(err))
+		h.logger.Warn("failed to get the WebShell AI conversation", zap.String("connectionId", id), zap.Error(err))
 		c.JSON(http.StatusOK, gin.H{"conversationId": nil, "messages": []database.Message{}})
 		return
 	}
@@ -672,17 +672,17 @@ func (h *WebShellHandler) GetAIHistory(c *gin.Context) {
 // ListAIConversations 列出该 WebShell 连接下的所有 AI 对话（供侧边栏）
 func (h *WebShellHandler) ListAIConversations(c *gin.Context) {
 	if h.db == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
+		respondError(c, http.StatusServiceUnavailable, "数据库不可用", "database not available")
 		return
 	}
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
+		respondError(c, http.StatusBadRequest, "id 必填", "id is required")
 		return
 	}
 	list, err := h.db.ListConversationsByWebshellConnectionID(id)
 	if err != nil {
-		h.logger.Warn("列出 WebShell AI 对话失败", zap.String("connectionId", id), zap.Error(err))
+		h.logger.Warn("failed to list the WebShell AI conversations", zap.String("connectionId", id), zap.Error(err))
 		c.JSON(http.StatusOK, []database.WebShellConversationItem{})
 		return
 	}
@@ -747,7 +747,7 @@ func (h *WebShellHandler) Exec(c *gin.Context) {
 	req.URL = strings.TrimSpace(req.URL)
 	req.Command = strings.TrimSpace(req.Command)
 	if req.URL == "" || req.Command == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "url and command are required"})
+		respondError(c, http.StatusBadRequest, "url 与 command 必填", "url and command are required")
 		return
 	}
 	// Pre-save connectivity tests send form credentials without connection_id.
@@ -755,7 +755,7 @@ func (h *WebShellHandler) Exec(c *gin.Context) {
 	if cid := strings.TrimSpace(req.ConnectionID); cid != "" {
 		conn, allowed := h.authorizedWebshellConnection(c, cid, req.URL)
 		if !allowed {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+			respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 			return
 		}
 		// Never let a caller pair an authorized ID with attacker-controlled
@@ -763,17 +763,17 @@ func (h *WebShellHandler) Exec(c *gin.Context) {
 		req.URL, req.Password, req.Type = conn.URL, conn.Password, conn.Type
 		req.Method, req.CmdParam, req.Encoding = conn.Method, conn.CmdParam, conn.Encoding
 	} else if !security.SessionHasPermission(c, "webshell:write") {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	if req.Password == maskedSecret {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请使用已保存连接或填写新的连接口令"})
+		respondError(c, http.StatusBadRequest, "请使用已保存连接或填写新的连接口令", "use a saved connection or fill in the new connection password")
 		return
 	}
 
 	parsed, err := url.Parse(req.URL)
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid url: only http(s) allowed"})
+		respondError(c, http.StatusBadRequest, "无效的 url：只允许 http(s)", "invalid url: only http(s) allowed")
 		return
 	}
 
@@ -860,25 +860,25 @@ func (h *WebShellHandler) FileOp(c *gin.Context) {
 	req.URL = strings.TrimSpace(req.URL)
 	req.Action = strings.ToLower(strings.TrimSpace(req.Action))
 	if req.URL == "" || req.Action == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "url and action are required"})
+		respondError(c, http.StatusBadRequest, "url 与 action 必填", "url and action are required")
 		return
 	}
 	if cid := strings.TrimSpace(req.ConnectionID); cid != "" {
 		conn, allowed := h.authorizedWebshellConnection(c, cid, req.URL)
 		if !allowed {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+			respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 			return
 		}
 		req.URL, req.Password, req.Type = conn.URL, conn.Password, conn.Type
 		req.Method, req.CmdParam, req.Encoding, req.OS = conn.Method, conn.CmdParam, conn.Encoding, conn.OS
 	} else if !security.SessionHasPermission(c, "webshell:write") {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 
 	parsed, err := url.Parse(req.URL)
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid url: only http(s) allowed"})
+		respondError(c, http.StatusBadRequest, "无效的 url：只允许 http(s)", "invalid url: only http(s) allowed")
 		return
 	}
 

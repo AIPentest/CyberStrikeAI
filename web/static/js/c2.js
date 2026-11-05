@@ -1,10 +1,10 @@
-// C2 模块前端逻辑 - 完整实现
-// 支持: xterm 终端、文件管理、监听器/会话/任务/事件/Payload/Profile 管理
+// C2 module frontend logic - complete implementation
+// Supports: xterm terminal, file management, listener/session/task/event/Payload/Profile management
 
 (function() {
     'use strict';
 
-    // C2 模块命名空间
+    // C2 module namespace
     const C2 = {
         currentPage: '',
         listeners: [],
@@ -27,7 +27,7 @@
         selectedListenerId: null,
         sessionFilter: { status: '', listener_id: '', search: '', suspicious: false },
         eventSource: null,
-        // xterm 相关
+        // xterm related
         terminalInstance: null,
         terminalFitAddon: null,
         terminalResizeObserver: null,
@@ -37,16 +37,16 @@
         terminalLogs: {},
         terminalBusy: false,
         terminalQueue: [],
-        // 文件管理
+        // File Management
         currentPath: '.',
         implantPwd: null,
         fileList: [],
         fileUploadBusy: false,
-        // 任务轮询
+        // Task polling
         taskPollInterval: null,
     };
 
-    // API 基础路径
+    // API base path
     const API_BASE = '/api/c2';
 
     function activeC2ProjectId() {
@@ -75,7 +75,7 @@
         }
     }
 
-    /** 下拉展示用项目名：优先可读名称，绝不回退成 UUID */
+    /** Project name for dropdown display: prefer readable name, never fall back to UUID */
     function c2ProjectDisplayName(id, nameHint) {
         const idStr = String(id || '').trim();
         if (!idStr) return '';
@@ -91,14 +91,14 @@
             }
         }
         if (!name || name === idStr || c2LooksLikeUuid(name)) {
-            return c2t('batchManageModal.unknownProject') || '未知项目';
+            return c2t('batchManageModal.unknownProject') || 'Unknown project';
         }
         return name;
     }
 
     function c2ProjectOptionsHtml(selectedId, projectList) {
         const selected = String(selectedId || '').trim();
-        let html = `<option value="">${escapeHtml(c2t('assets.unboundProject') || '暂不绑定')}</option>`;
+        let html = `<option value="">${escapeHtml(c2t('assets.unboundProject') || 'Not bound for now')}</option>`;
         let entries = [];
         if (Array.isArray(projectList) && projectList.length) {
             entries = projectList
@@ -132,7 +132,7 @@
         return Promise.resolve([]);
     }
 
-    /** 确保当前选中项目有可读名称（孤儿 / 未进缓存的 ID） */
+    /** Ensure the currently selected item has a readable name (orphaned / not yet cached ID) */
     function ensureC2SelectedProjectNamed(projectId) {
         const id = String(projectId || '').trim();
         if (!id) return Promise.resolve();
@@ -147,7 +147,7 @@
     }
 
     function c2ProjectBindSelectHtml(listener) {
-        return `<select class="c2-project-bind-select" data-id="${escapeAttr(listener.id || '')}" title="${escapeAttr(c2t('assets.project') || '所属项目')}" onclick="event.stopPropagation()" onchange="C2.bindListenerProject(this.dataset.id, this.value)">${c2ProjectOptionsHtml(c2ResourceProjectId(listener))}</select>`;
+        return `<select class="c2-project-bind-select" data-id="${escapeAttr(listener.id || '')}" title="${escapeAttr(c2t('assets.project') || 'Associated project')}" onclick="event.stopPropagation()" onchange="C2.bindListenerProject(this.dataset.id, this.value)">${c2ProjectOptionsHtml(c2ResourceProjectId(listener))}</select>`;
     }
 
     function withC2ProjectQuery(url) {
@@ -561,7 +561,7 @@
     }
 
     // ============================================================================
-    // 工具函数
+    // utility function
     // ============================================================================
 
     function apiRequest(method, url, data) {
@@ -642,7 +642,7 @@
         return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
-    /** 任务列表操作按钮（查看/取消/删除）— 事件委托 */
+    /** Task list operation buttons (view/cancel/delete) — event delegation */
     function bindC2TaskActionDelegation() {
         if (document.documentElement.dataset.c2TaskActionsBound === '1') return;
         document.documentElement.dataset.c2TaskActionsBound = '1';
@@ -661,7 +661,7 @@
     }
     bindC2TaskActionDelegation();
 
-    /** C2 动态内容操作按钮 — 避免把用户可控值拼入 inline onclick */
+    /** C2 dynamic content action button — avoid concatenating user-controllable values into inline onclick */
     function bindC2SafeActionDelegation() {
         if (document.documentElement.dataset.c2SafeActionsBound === '1') return;
         document.documentElement.dataset.c2SafeActionsBound = '1';
@@ -730,7 +730,7 @@
         }
     }
 
-    /** 监听器表单：Malleable Profile 下拉选项 HTML（value / 文本已转义） */
+    /** Listener form: Malleable Profile dropdown option HTML (value / text is escaped) */
     function listenerProfileSelectHtml(selectedProfileId) {
         const sel = selectedProfileId ? String(selectedProfileId) : '';
         let opts = `<option value="">${escapeHtml(c2t('c2.listeners.malleableProfileNone'))}</option>`;
@@ -752,7 +752,7 @@
         return v != null ? String(v).trim() : '';
     }
 
-    /** 监听器卡片展示用 Profile 名称（依赖 C2.profiles，由 loadListeners 一并拉取） */
+    /** Profile name for the listener card display (depends on C2.profiles, fetched together by loadListeners) */
     function listenerProfileDisplayName(l) {
         const pid = listenerResolvedProfileId(l);
         if (!pid) return '';
@@ -790,7 +790,7 @@
         return c2t('c2.listeners.stopped');
     }
 
-    /** 避免 i18n 插值把日期里的「/」转成 &#x2F;，与 formatTime 拼接后整体转义 */
+    /** Avoid the i18n interpolation turning the '/' in the date into &#x2F;, and escape the whole thing after concatenating with formatTime */
     function formatListenerStartedHtml(dateStr) {
         if (!dateStr) return '';
         const prefix = c2t('c2.listeners.startedAtPrefix');
@@ -818,7 +818,7 @@
     };
 
     // ============================================================================
-    // 页面初始化
+    // Page initialization
     // ============================================================================
 
     C2.init = function() {
@@ -856,7 +856,7 @@
     };
 
     // ============================================================================
-    // 监听器管理
+    // Listener management
     // ============================================================================
 
     C2.ensureListenersLoaded = function() {
@@ -885,7 +885,7 @@
         });
     };
 
-    /** 拉取 Profile 列表（监听器表单用）；失败时置空列表不阻断弹窗 */
+    /** Fetch the Profile list (for the listener form); on failure, set an empty list so the popup isn't blocked */
     C2.ensureProfilesLoaded = function() {
         return apiRequest('GET', `${API_BASE}/profiles`).then(data => {
             if (data && data.error) {
@@ -932,7 +932,7 @@
                 ? '<div class="c2-listener-kv"><span class="c2-listener-kv-label">' + escapeHtml(c2t('c2.listeners.callbackShort')) + '</span><span class="c2-listener-kv-val c2-listener-mono">' + escapeHtml(cb) + '</span></div>'
                 : '';
             const remarkRow = l.remark ? '<div class="c2-listener-remark">' + escapeHtml(l.remark) + '</div>' : '';
-            const projectRow = '<div class="c2-listener-kv"><span class="c2-listener-kv-label">' + escapeHtml(c2t('assets.project') || '所属项目') + '</span><span class="c2-listener-kv-val">' + c2ProjectBindSelectHtml(l) + '</span></div>';
+            const projectRow = '<div class="c2-listener-kv"><span class="c2-listener-kv-label">' + escapeHtml(c2t('assets.project') || 'Associated project') + '</span><span class="c2-listener-kv-val">' + c2ProjectBindSelectHtml(l) + '</span></div>';
             const startedHtml = formatListenerStartedHtml(l.startedAt);
             const pillLabel = escapeHtml(listenerCardStatusPillLabel(st));
             const typeMark = escapeHtml(listenerTypeShortLabel(l.type));
@@ -1049,7 +1049,7 @@
                     </div>
                 </div>
                 <div class="c2-form-group">
-                    <label>${escapeHtml(c2t('assets.project') || '所属项目')}</label>
+                    <label>${escapeHtml(c2t('assets.project') || 'Associated project')}</label>
                     <select id="c2-listener-project-id" class="form-control c2-form-select-native">${projectOpts}</select>
                 </div>
                 <div class="c2-form-row">
@@ -1099,7 +1099,7 @@
         });
     };
 
-    /** 非 HTTP/HTTPS Beacon 时隐藏 Profile 行；tcp_reverse 时显示经典 shell 开关 */
+    /** Hide the Profile row when not an HTTP/HTTPS Beacon; show the classic shell toggle when tcp_reverse */
     C2.syncListenerProfileRowForType = function() {
         const typeEl = document.getElementById('c2-listener-type');
         const row = document.getElementById('c2-listener-profile-group');
@@ -1229,10 +1229,10 @@
                 C2.renderListeners();
                 return;
             }
-            showToast(c2t('projects.projectBound') || '已绑定项目', 'success');
+            showToast(c2t('projects.projectBound') || 'Already bound project', 'success');
             C2.loadListeners();
         }).catch(err => {
-            showToast(err && err.message ? err.message : '绑定项目失败', 'error');
+            showToast(err && err.message ? err.message : (c2t('c2.listeners.toastBindProjectFailed') || 'Failed to bind project'), 'error');
             C2.renderListeners();
         });
     };
@@ -1287,7 +1287,7 @@
                     <input type="text" id="c2-listener-name" class="form-control" value="${escapeAttr(l.name)}">
                 </div>
                 <div class="c2-form-group">
-                    <label>${escapeHtml(c2t('assets.project') || '所属项目')}</label>
+                    <label>${escapeHtml(c2t('assets.project') || 'Associated project')}</label>
                     <select id="c2-listener-project-id" class="form-control c2-form-select-native">${projectOpts}</select>
                 </div>
                 <div class="c2-form-row">
@@ -1371,7 +1371,7 @@
     };
 
     // ============================================================================
-    // 会话管理
+    // Session management
     // ============================================================================
 
     C2.loadSessions = function() {
@@ -2064,7 +2064,7 @@
     };
 
     // ============================================================================
-    // xterm 终端
+    // xterm terminal
     // ============================================================================
 
     C2.serializeTerminalBuffer = function(term) {
@@ -2598,7 +2598,7 @@
     };
 
     // ============================================================================
-    // 文件管理
+    // File Management
     // ============================================================================
 
     C2.normalizeFilePath = function(path) {
@@ -2616,7 +2616,7 @@
         return b + '/' + n;
     };
 
-    /** 将相对浏览路径解析为 implant 工作目录下的绝对路径 */
+    /** Resolve the relative browse path to an absolute path under the implant working directory */
     C2.resolvePathAgainstPwd = function(pwd, rel) {
         var base = String(pwd || '').trim().replace(/\\/g, '/').replace(/\/+$/, '');
         if (!base) base = '/';
@@ -2635,7 +2635,7 @@
         return '/' + stack.join('/');
     };
 
-    /** 将 /d:/path/file 转为 Windows 远程路径 d:\path\file */
+    /** Convert /d:/path/file to the Windows remote path d:\path\file */
     C2.toWindowsRemotePath = function(path) {
         var p = String(path || '').trim().replace(/\\/g, '/');
         if (/^\/[a-zA-Z]:\//.test(p)) {
@@ -2680,7 +2680,7 @@
         var trimmed = String(line || '').trim();
         if (!trimmed || /^total\s+\d+/i.test(trimmed)) return null;
 
-        // Beacon 结构化输出：type\tmode\tsize\tname
+        // Beacon structured output: type\tmode\tsize\tname
         var beaconParts = trimmed.split('\t');
         if (beaconParts.length >= 4) {
             var bName = beaconParts.slice(3).join('\t').trim();
@@ -2697,7 +2697,7 @@
             return null;
         }
 
-        // 原生 ls -l 输出
+        // native ls -l output
         var m = trimmed.match(/^(\S+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(.+)$/);
         if (!m) return null;
         var name = m[9].trim();
@@ -2790,7 +2790,7 @@
     };
 
     C2.loadFileList = function(sessionId, path) {
-        // 兼容误传：仅传路径时（如旧版 loadFileList('..')）自动纠正
+        // Compatibility for mistaken calls: automatically corrects when only a path is passed (e.g., old-style loadFileList('..'))
         if (sessionId && path == null && typeof sessionId === 'string' &&
             (sessionId === '..' || sessionId === '.' || sessionId.indexOf('/') >= 0)) {
             path = sessionId;
@@ -2911,11 +2911,11 @@
             return { supported: false, reasonKey: 'c2.files.uploadCurlBeacon' };
         }
         var transport = C2.sessionTransport(session);
-        // 编译 Beacon：HTTP/HTTPS/TCP(CSB1) 均走二进制/结构化协议，支持 upload
+        // Compile Beacon: HTTP/HTTPS/TCP(CSB1) all use binary/structured protocol, supports upload
         if (transport === 'tcp_beacon' || transport === 'http_beacon' || transport === 'https_beacon') {
             return { supported: true, reasonKey: '' };
         }
-        // 经典 TCP 反弹 Shell（bash/nc，metadata.transport=tcp_reverse）
+        // Classic TCP reverse shell (bash/nc, metadata.transport=tcp_reverse)
         if (transport === 'tcp_reverse' || (session.hostname && String(session.hostname).indexOf('tcp_') === 0)) {
             return { supported: false, reasonKey: 'c2.files.uploadTcpShell' };
         }
@@ -3193,7 +3193,7 @@
     };
 
     // ============================================================================
-    // 任务管理
+    // Task Management
     // ============================================================================
 
     C2.loadTasks = function(page) {
@@ -3734,7 +3734,7 @@
     };
 
     // ============================================================================
-    // Payload 生成
+    // Payload generation
     // ============================================================================
 
     C2.loadListenersForPayload = function() {
@@ -3947,7 +3947,7 @@
     };
 
     // ============================================================================
-    // 事件审计
+    // Event audit
     // ============================================================================
 
     function eventLevelLabel(level) {
@@ -4394,11 +4394,13 @@
 
         const msg = String(event.message || '');
         const sid = event.sessionId || (event.data && event.data.session_id) || '';
+        // Chinese markers ('online'/'new session'/'offline'/'in queue'/'enqueue') stay for historical
+        // c2_events rows and old backend regexes; new backend text is English.
         const sessionOnline = event.category === 'session' && event.level === 'critical' && (
-            msg.includes('上线') || msg.includes('新会话') || /new session/i.test(msg)
+            msg.includes('go online') || msg.includes('New chat') || /new session/i.test(msg)
         );
         const sessionOffline = event.category === 'session' && (
-            msg.includes('离线') || /offline/i.test(msg)
+            msg.includes('offline') || /offline/i.test(msg)
         );
 
         if (sessionOnline || sessionOffline) {
@@ -4431,7 +4433,8 @@
         if (event.category === 'task') {
             const taskSid = sid;
             if (window.currentPageId === 'c2-tasks') {
-                const page = msg.includes('入队') ? 1 : (C2.tasksPage || 1);
+                // '入queue' legacy marker kept: matches historical c2_events rows; new backend text is English.
+                const page = (msg.includes('enqueue') || msg.includes('enqueue') || /enqueued/i.test(msg)) ? 1 : (C2.tasksPage || 1);
                 C2.loadTasks(page);
             }
             if (window.currentPageId === 'c2-sessions' && taskSid && C2.selectedSessionId === taskSid) {
@@ -4444,7 +4447,7 @@
     };
 
     // ============================================================================
-    // Profile 管理
+    // Profile management
     // ============================================================================
 
     C2.loadProfiles = function() {
@@ -4580,7 +4583,7 @@
     };
 
     // ============================================================================
-    // 模态框
+    // modal box
     // ============================================================================
 
     C2.copyTaskBlock = function(elementId) {
@@ -4603,19 +4606,19 @@
     };
 
     // ============================================================================
-    // 暴露到全局
+    // Expose to global scope
     // ============================================================================
 
     window.C2 = C2;
 
-    // 页面切换监听
+    // Page switch listener
     window.addEventListener('pageChanged', function(e) {
         if (e.detail?.pageId?.startsWith('c2')) {
             C2.init();
         }
     });
 
-    // DOM 加载完成后初始化
+    // Initialize after DOM load completes
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
             if (window.currentPageId?.startsWith('c2')) C2.init();

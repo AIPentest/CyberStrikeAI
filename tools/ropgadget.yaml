@@ -1,39 +1,39 @@
 name: "ropgadget"
 command: "ROPgadget"
 enabled: true
-short_description: "ROP gadget搜索工具"
+short_description: "ROP gadget search tool"
 description: |
-  ROPgadget是一个用于在二进制文件中搜索ROP gadget的工具。
+  ROPgadget is a tool for searching for ROP gadgets in binary files.
 
-  **主要功能：**
-  - ROP gadget搜索
-  - 多种架构支持
-  - Gadget分类
-  - 利用链生成
+  **Main features:**
+  - ROP gadget search
+  - Support for multiple architectures
+  - Gadget classification
+  - Exploit chain generation
 
-  **使用场景：**
-  - 二进制分析
-  - 漏洞利用开发
-  - ROP链构建
-  - 安全研究
+  **Use cases:**
+  - Binary analysis
+  - Exploit development
+  - ROP chain construction
+  - Security research
 parameters:
   - name: "binary"
     type: "string"
-    description: "要分析的二进制文件路径"
+    description: "Binary file path to analyze"
     required: true
     position: 0
     format: "positional"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的ropgadget参数。用于传递未在参数列表中定义的ropgadget选项。
+      Additional ropgadget arguments. Used to pass ropgadget options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

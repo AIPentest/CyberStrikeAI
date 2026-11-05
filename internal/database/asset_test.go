@@ -59,7 +59,7 @@ func TestAssetValidationRejectsOversizedTags(t *testing.T) {
 	}
 	defer db.Close()
 	_, err = db.UpsertAssets([]*Asset{{Domain: "example.com", Tags: []string{strings.Repeat("x", 65)}}}, "")
-	if err == nil || !strings.Contains(err.Error(), "标签") {
+	if err == nil || !strings.Contains(err.Error(), "tag") {
 		t.Fatalf("expected tag validation error, got %v", err)
 	}
 }

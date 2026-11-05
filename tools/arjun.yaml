@@ -1,51 +1,51 @@
 name: "arjun"
 command: "arjun"
 enabled: true
-short_description: "HTTP参数发现工具"
+short_description: "HTTP parameter discovery tool"
 description: |
-  Arjun是一个HTTP参数发现工具，用于发现Web应用中的隐藏参数。
+  Arjun is an HTTP parameter discovery tool used to find hidden parameters in web applications.
 
-  **主要功能：**
-  - HTTP参数发现
-  - 多种HTTP方法支持
-  - 多线程支持
-  - 稳定模式
+  **Key features:**
+  - HTTP parameter discovery
+  - Support for multiple HTTP methods
+  - Multithreading support
+  - Stable mode
 
-  **使用场景：**
-  - 参数发现
-  - Web应用安全测试
-  - Bug bounty侦察
-  - 安全测试
+  **Use cases:**
+  - Parameter discovery
+  - Web application security testing
+  - Bug bounty reconnaissance
+  - Security testing
 parameters:
   - name: "url"
     type: "string"
-    description: "目标URL"
+    description: "Target URL"
     required: true
     flag: "-u"
     format: "flag"
   - name: "method"
     type: "string"
-    description: "HTTP方法（GET, POST等）"
+    description: "HTTP method (GET, POST, etc.)"
     required: false
     flag: "-m"
     format: "flag"
     default: "GET"
   - name: "wordlist"
     type: "string"
-    description: "自定义字典文件"
+    description: "Custom wordlist file"
     required: false
     flag: "-w"
     format: "flag"
   - name: "threads"
     type: "int"
-    description: "线程数"
+    description: "Number of threads"
     required: false
     flag: "-t"
     format: "flag"
     default: 25
   - name: "stable"
     type: "bool"
-    description: "使用稳定模式"
+    description: "Use stable mode"
     required: false
     flag: "--stable"
     format: "flag"
@@ -53,16 +53,16 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的Arjun参数。用于传递未在参数列表中定义的Arjun选项。
+      Additional Arjun arguments. Used to pass Arjun options not defined in the parameter list.
 
-      **示例值：**
-      - "-o output.txt": 输出到文件
-      - "-q": 安静模式
-      - "-i": 从文件读取URL
+      **Example values:**
+      - "-o output.txt": Output to a file
+      - "-q": Quiet mode
+      - "-i": Read URLs from a file
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Make sure the arguments are properly formatted to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

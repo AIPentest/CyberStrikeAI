@@ -84,7 +84,7 @@ func WireRetrieverPipeline(ctx context.Context, r *Retriever, openAI *config.Ope
 	r.pipeline = newKnowledgePipelineRetriever(mq, r)
 	if r.logger != nil {
 		provider := r.config.Rerank.ProviderEffective(strings.TrimSpace(openAI.BaseURL))
-		r.logger.Info("知识库检索流水线已启用",
+		r.logger.Info("knowledge retrieval pipeline enabled",
 			zap.String("pipeline", "MultiQuery→Vector→Rerank→PostRetrieve"),
 			zap.Int("multi_query_max", r.config.MultiQuery.MaxQueriesEffective()),
 			zap.String("rerank_provider", provider),

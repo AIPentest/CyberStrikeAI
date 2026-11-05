@@ -8,7 +8,7 @@ func validateBatchHITLPolicy(policy string) error {
 	case "", "off", "human", "audit_agent", "review_edit":
 		return nil
 	default:
-		return fmt.Errorf("不支持的队列审批设置: %s", policy)
+		return fmt.Errorf("unsupported queue approval setting: %s", policy)
 	}
 }
 

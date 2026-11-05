@@ -1,5 +1,5 @@
 /**
- * 统一弹窗：先显示遮罩、下一帧再填大段内容，避免与 backdrop 绘制抢主线程。
+ * Unify popup: show the mask first, then fill in the large content in the next frame, to avoid competing with backdrop rendering for the main thread.
  */
 (function () {
     const BODY_LOCK = 'app-modal-open';
@@ -81,7 +81,7 @@
         return isElVisible(resolveEl(idOrEl));
     }
 
-    /** 双 rAF：等遮罩绘制完成后再写入大段 DOM / 表单 */
+    /** Double rAF: wait for the mask to finish rendering before writing large DOM chunks / forms */
     function deferModalContent(fn) {
         requestAnimationFrame(function () {
             requestAnimationFrame(fn);

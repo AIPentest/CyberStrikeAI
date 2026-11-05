@@ -1,7 +1,7 @@
-// 页面路由管理
+// Page routing management
 let currentPage = null;
 
-/** 对话、漏洞管理和设置页切换时保留查询串（会话 ID 或设置分区）。 */
+/** Preserve the query string (session ID or settings section) when switching between the conversation, vulnerability management, and settings pages. */
 function buildHashForPage(pageId) {
     if (pageId !== 'chat' && pageId !== 'vulnerabilities' && pageId !== 'settings') {
         return pageId;
@@ -62,7 +62,7 @@ function scheduleChatConversationFromHash(delayMs) {
     if (!conversationId) {
         return;
     }
-    // 同一事件循环内先遮住默认新对话状态，避免网络请求返回前闪出“无项目”。
+    // Within the same event loop, first mask the default new conversation state to avoid "No project" flashing before the network request returns.
     setChatConversationRestorePending(conversationId, true);
     const token = ++chatConversationFromHashSeq;
     setTimeout(() => {
@@ -79,7 +79,7 @@ function scheduleChatConversationFromHash(delayMs) {
     }, delayMs);
 }
 
-/** 跳转到指定对话：单次切页 + 单次加载，避免 hashchange 与手动 load 重复触发导致闪烁 */
+/** Jump to the specified conversation: single page switch + single load, avoiding hashchange and manual load being triggered redundantly and causing flickering */
 function navigateToConversation(conversationId) {
     const cid = String(conversationId || '').trim();
     if (!cid) return;
@@ -102,15 +102,15 @@ function navigateToConversation(conversationId) {
 }
 window.navigateToConversation = navigateToConversation;
 
-// 初始化路由
+// Initialize routes
 function initRouter() {
-    // 从URL hash读取页面（如果有）
+    // Read page from URL hash (if any)
     const hash = window.location.hash.slice(1);
     if (hash) {
         const hashParts = hash.split('?');
         let pageId = hashParts[0].replace(/^#?\//, '');
         if (pageId === 'c2') pageId = 'c2-listeners';
-        // 一键更新已并进系统设置页的分区菜单：#system-update 这条老深链落到设置页的那一区。
+        // One-click update has been merged into the section menu of the system settings page: #system-update this old deep link lands on that section of the settings page.
         const settingsSection = pageId === 'system-update' ? 'update' : pageId === 'settings' && new URLSearchParams(hashParts.slice(1).join('?')).get('section') === 'token-usage' ? 'token-usage' : '';
         if (settingsSection) pageId = 'settings';
         if (pageId && ['dashboard', 'chat', 'hitl', 'tool-guard', 'asset-overview', 'asset-library', 'info-collect', 'projects', 'vulnerabilities', 'webshell', 'chat-files', 'mcp-monitor', 'mcp-management', 'knowledge-management', 'knowledge-retrieval-logs', 'roles-management', 'platform-rbac', 'workflows', 'skills-monitor', 'skills-management', 'agents-management', 'settings', 'tasks', 'c2-listeners', 'c2-sessions', 'c2-tasks', 'c2-payloads', 'c2-events', 'c2-profiles'].includes(pageId)) {
@@ -125,11 +125,11 @@ function initRouter() {
         }
     }
     
-    // 默认显示仪表盘
+    // Show dashboard by default
     switchPage('dashboard');
 }
 
-// 切换页面
+// Switch page
 function switchPage(pageId) {
     const targetPage = document.getElementById(`page-${pageId}`);
     if (!targetPage) return;
@@ -140,8 +140,8 @@ function switchPage(pageId) {
         }
     }
 
-    // 导航点击会修改 hash，随后浏览器还会触发 hashchange。
-    // 同一页面已经激活时不再重复初始化，避免接口重复请求和页面二次重绘。
+    // Navigation clicks modify the hash, and the browser then also triggers hashchange.
+    // When the same page is already active, skip duplicate initialization to avoid repeated API requests and a second page re-render.
     if (currentPage === pageId && targetPage.classList.contains('active')) {
         const currentHash = buildHashForPage(pageId);
         if (window.location.hash.slice(1) !== currentHash) {
@@ -153,12 +153,12 @@ function switchPage(pageId) {
     if (typeof window.syncC2NavOnceFromServer === 'function') {
         void window.syncC2NavOnceFromServer();
     }
-    // 隐藏所有页面
+    // Hide all pages
     document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active');
     });
     
-    // 显示目标页面
+    // Display target page
     targetPage.classList.add('active');
     currentPage = pageId;
         
@@ -167,10 +167,10 @@ function switchPage(pageId) {
         window.location.hash = newHash;
     }
         
-    // 更新导航状态
+    // Update navigation state
     updateNavState(pageId);
         
-    // 页面特定的初始化
+    // Page-specific initialization
     initPage(pageId);
 
     if (typeof applyRBACToUI === 'function') {
@@ -179,9 +179,9 @@ function switchPage(pageId) {
 }
 window.switchPage = switchPage;
 
-// 更新导航状态
+// Update navigation state
 function updateNavState(pageId) {
-    // 移除所有活动状态
+    // Remove all active states
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
         item.classList.remove('expanded');
@@ -191,7 +191,7 @@ function updateNavState(pageId) {
         item.classList.remove('active');
     });
     
-    // 设置活动状态
+    // Set activity status
     if (pageId === 'hitl' || pageId === 'tool-guard') {
         const securityItem = document.querySelector('.nav-item[data-page="security"]');
         if (securityItem) {
@@ -209,11 +209,11 @@ function updateNavState(pageId) {
         const submenuItem = document.querySelector(`.nav-submenu-item[data-page="${pageId}"]`);
         if (submenuItem) submenuItem.classList.add('active');
     } else if (pageId === 'mcp-monitor' || pageId === 'mcp-management') {
-        // MCP子菜单项
+        // MCP submenu item
         const mcpItem = document.querySelector('.nav-item[data-page="mcp"]');
         if (mcpItem) {
             mcpItem.classList.add('active');
-            // 展开MCP子菜单
+            // Expand MCP submenu
             mcpItem.classList.add('expanded');
         }
         
@@ -222,11 +222,11 @@ function updateNavState(pageId) {
             submenuItem.classList.add('active');
         }
     } else if (pageId === 'knowledge-management' || pageId === 'knowledge-retrieval-logs') {
-        // 知识子菜单项
+        // Knowledge submenu item
         const knowledgeItem = document.querySelector('.nav-item[data-page="knowledge"]');
         if (knowledgeItem) {
             knowledgeItem.classList.add('active');
-            // 展开知识子菜单
+            // Expand knowledge submenu
             knowledgeItem.classList.add('expanded');
         }
         
@@ -235,11 +235,11 @@ function updateNavState(pageId) {
             submenuItem.classList.add('active');
         }
     } else if (pageId === 'skills-monitor' || pageId === 'skills-management') {
-        // Skills子菜单项
+        // Skills submenu item
         const skillsItem = document.querySelector('.nav-item[data-page="skills"]');
         if (skillsItem) {
             skillsItem.classList.add('active');
-            // 展开Skills子菜单
+            // Expand Skills submenu
             skillsItem.classList.add('expanded');
         }
         
@@ -258,7 +258,7 @@ function updateNavState(pageId) {
             submenuItem.classList.add('active');
         }
     } else if (pageId.startsWith('c2') || pageId === 'c2-listeners' || pageId === 'c2-sessions' || pageId === 'c2-tasks' || pageId === 'c2-payloads' || pageId === 'c2-events' || pageId === 'c2-profiles') {
-        // C2 子菜单项
+        // C2 submenu item
         const c2Item = document.querySelector('.nav-item[data-page="c2"]');
         if (c2Item) {
             c2Item.classList.add('active');
@@ -269,11 +269,11 @@ function updateNavState(pageId) {
             submenuItem.classList.add('active');
         }
     } else if (pageId === 'roles-management') {
-        // 角色子菜单项
+        // Role submenu item
         const rolesItem = document.querySelector('.nav-item[data-page="roles"]');
         if (rolesItem) {
             rolesItem.classList.add('active');
-            // 展开角色子菜单
+            // Expand role submenu
             rolesItem.classList.add('expanded');
         }
         
@@ -282,7 +282,7 @@ function updateNavState(pageId) {
             submenuItem.classList.add('active');
         }
     } else {
-        // 主菜单项
+        // Main menu item
         const navItem = document.querySelector(`.nav-item[data-page="${pageId}"]`);
         if (navItem) {
             navItem.classList.add('active');
@@ -290,7 +290,7 @@ function updateNavState(pageId) {
     }
 }
 
-/** 读取侧栏子菜单项（仅 .nav-submenu 内，避免误匹配） */
+/** Read sidebar submenu items (only within .nav-submenu, to avoid false matches) */
 function getNavSubmenuItems(navItem) {
     if (!navItem) return [];
     const submenu = navItem.querySelector('.nav-submenu');
@@ -298,7 +298,7 @@ function getNavSubmenuItems(navItem) {
     return Array.from(submenu.querySelectorAll('.nav-submenu-item'));
 }
 
-// 切换子菜单
+// Switch submenu
 function toggleSubmenu(menuId) {
     const sidebar = document.getElementById('main-sidebar');
     const navItem = document.querySelector(`.nav-item[data-page="${menuId}"]`);
@@ -307,14 +307,14 @@ function toggleSubmenu(menuId) {
     
     const collapsed = sidebar && sidebar.classList.contains('collapsed');
 
-    // 检查侧边栏是否折叠
+    // Check whether the sidebar is collapsed
     if (collapsed) {
-        // 折叠状态下显示弹出菜单
+        // Show popup menu in collapsed state
         showSubmenuPopup(navItem, menuId);
         return;
     }
 
-    // 展开状态下切换子菜单，并滚入视口以便看到子项
+    // Toggle the submenu in the expanded state and scroll it into the viewport so the child items are visible
     const willExpand = !navItem.classList.contains('expanded');
     navItem.classList.toggle('expanded');
     if (willExpand) {
@@ -330,13 +330,13 @@ function toggleSubmenu(menuId) {
 }
 window.toggleSubmenu = toggleSubmenu;
 
-// 显示子菜单弹出框
+// Show submenu popup box
 function showSubmenuPopup(navItem, menuId) {
     const existingPopup = document.querySelector('.submenu-popup');
     if (existingPopup) {
         const sameMenu = existingPopup.dataset.menuId === menuId;
         existingPopup.remove();
-        // 再次点击同一项：仅关闭；点击另一项：继续打开新菜单
+        // Clicking the same item again: only closes; clicking a different item: continues to open a new menu
         if (sameMenu) {
             return;
         }
@@ -347,10 +347,10 @@ function showSubmenuPopup(navItem, menuId) {
     
     if (!submenu) return;
     
-    // 获取菜单位置
+    // Get menu position
     const rect = navItemContent.getBoundingClientRect();
     
-    // 创建弹出菜单
+    // Create popup menu
     const popup = document.createElement('div');
     popup.className = 'submenu-popup';
     popup.dataset.menuId = menuId;
@@ -359,7 +359,7 @@ function showSubmenuPopup(navItem, menuId) {
     popup.style.top = rect.top + 'px';
     popup.style.zIndex = '1000';
     
-    // 复制子菜单项到弹出菜单
+    // Copy submenu item to popup menu
     const submenuItems = submenu.querySelectorAll('.nav-submenu-item');
     submenuItems.forEach(item => {
         if (item.hidden || (typeof permissionAllowedForElement === 'function' && !permissionAllowedForElement(item))) return;
@@ -367,7 +367,7 @@ function showSubmenuPopup(navItem, menuId) {
         popupItem.className = 'submenu-popup-item';
         popupItem.textContent = item.textContent.trim();
         
-        // 检查是否是当前激活的页面
+        // Check if this is the currently active page
         const pageId = item.getAttribute('data-page');
         if (pageId && document.querySelector(`.nav-submenu-item[data-page="${pageId}"].active`)) {
             popupItem.classList.add('active');
@@ -377,13 +377,13 @@ function showSubmenuPopup(navItem, menuId) {
             e.stopPropagation();
             e.preventDefault();
             
-            // 获取页面ID并切换
+            // Get page ID and switch
             const pageId = item.getAttribute('data-page');
             if (pageId) {
                 switchPage(pageId);
             }
             
-            // 关闭弹出菜单
+            // Close popup menu
             popup.remove();
             document.removeEventListener('click', closePopup);
         };
@@ -392,7 +392,7 @@ function showSubmenuPopup(navItem, menuId) {
     
     document.body.appendChild(popup);
     
-    // 点击外部关闭弹出菜单
+    // Click outside to close popup menu
     const closePopup = function(e) {
         if (!popup.contains(e.target) && !navItem.contains(e.target)) {
             popup.remove();
@@ -400,15 +400,15 @@ function showSubmenuPopup(navItem, menuId) {
         }
     };
     
-    // 延迟添加事件监听，避免立即触发
+    // Delay adding the event listener to avoid triggering it immediately
     setTimeout(() => {
         document.addEventListener('click', closePopup);
     }, 0);
 }
 
-// 初始化页面
+// Initialize page
 async function initPage(pageId) {
-    // 等待 i18n 就绪，避免快速刷新时翻译函数未初始化导致页面显示原始占位符 key
+    // Wait for i18n to be ready, avoiding the page displaying raw placeholder keys when the translation function is not initialized during a fast refresh
     if (window.i18nReady) await window.i18nReady;
     if (typeof stopExternalMcpPoll === 'function') {
         stopExternalMcpPoll();
@@ -420,7 +420,7 @@ async function initPage(pageId) {
             }
             break;
         case 'chat':
-            // 恢复对话列表折叠状态（从其他页返回时保持用户选择）
+            // Restore conversation list collapsed state (preserve user selection when returning from other pages)
             initConversationSidebarState();
             if (typeof prefetchProjectsForChat === 'function') {
                 prefetchProjectsForChat();
@@ -440,7 +440,7 @@ async function initPage(pageId) {
             }
             break;
         case 'info-collect':
-            // 信息收集页面
+            // Information collection page
             if (typeof initInfoCollectPage === 'function') {
                 initInfoCollectPage();
             }
@@ -452,13 +452,13 @@ async function initPage(pageId) {
             if (typeof loadAssets === 'function') loadAssets();
             break;
         case 'tasks':
-            // 初始化任务管理页面
+            // Initialize task management page
             if (typeof initTasksPage === 'function') {
                 initTasksPage();
             }
             break;
         case 'mcp-monitor':
-            // 初始化监控面板
+            // Initialize monitoring dashboard
             if (typeof refreshMonitorPanel === 'function') {
                 refreshMonitorPanel();
             }
@@ -467,19 +467,19 @@ async function initPage(pageId) {
             }
             break;
         case 'mcp-management':
-            // 初始化MCP管理
+            // Initialize MCP management
             const startLoadMcpTools = () => {
-                // 加载工具列表（MCP工具配置已移到MCP管理页面）
-                // 使用异步加载，避免阻塞页面渲染
+                // Load tool list (MCP tool configuration has been moved to the MCP management page)
+                // Use async loading to avoid blocking page rendering
                 if (typeof loadToolsList === 'function') {
-                    // 确保工具分页设置已初始化
+                    // Ensure tool pagination settings are initialized
                     if (typeof getToolsPageSize === 'function' && typeof toolsPagination !== 'undefined') {
                         toolsPagination.pageSize = getToolsPageSize();
                     }
-                    // 延迟加载，让页面先渲染
+                    // Lazy loading, let the page render first
                     setTimeout(() => {
                         loadToolsList(1, '').catch(err => {
-                            console.error('加载工具列表失败:', err);
+                            console.error('Failed to load tool list:', err);
                         });
                     }, 100);
                 }
@@ -488,20 +488,20 @@ async function initPage(pageId) {
                 startLoadMcpTools();
                 if (typeof loadExternalMCPs === 'function') {
                     loadExternalMCPs().catch(err => {
-                        console.warn('加载外部MCP列表失败:', err);
+                        console.warn('Failed to load external MCP list:', err);
                     });
                 }
                 if (typeof startExternalMcpPoll === 'function') {
                     startExternalMcpPoll();
                 }
             };
-            // 先拉取配置（含 tool_search 常驻列表），再加载工具与外部 MCP。
-            // 仅有 mcp:read 的用户无需拉全量 /api/config（需 config:read）。
+            // First pull the configuration (including the tool_search resident list), then load tools and external MCP.
+            // Users with only mcp:read don't need to pull the full /api/config (requires config:read).
             const canLoadFullConfig = typeof hasPermission !== 'function' || hasPermission('config:read');
             if (typeof loadConfig === 'function' && canLoadFullConfig) {
                 loadConfig(false, { silent: true })
                     .catch(err => {
-                        console.warn('加载配置失败（将继续加载 MCP 列表）:', err);
+                        console.warn('Failed to load configuration (will continue to load MCP list):', err);
                     })
                     .finally(afterMcpConfigReady);
             } else {
@@ -514,13 +514,13 @@ async function initPage(pageId) {
             }
             break;
         case 'vulnerabilities':
-            // 初始化漏洞管理页面
+            // Initialize vulnerability management page
             if (typeof initVulnerabilityPage === 'function') {
                 initVulnerabilityPage();
             }
             break;
         case 'webshell':
-            // 初始化 WebShell 管理页面
+            // Initialize WebShell management page
             if (typeof initWebshellPage === 'function') {
                 initWebshellPage();
             }
@@ -531,12 +531,12 @@ async function initPage(pageId) {
             }
             break;
         case 'settings':
-            // 初始化设置页面（不需要加载工具列表）
+            // Initialize settings page (no need to load tool list)
             if (typeof loadConfig === 'function') {
                 loadConfig(false);
             }
-            // 回到设置页时若停在「一键更新」分区，重新读一遍安装状态并把进度轮询接上——
-            // 离开设置页时轮询已被停掉，不接的话画面上会留一份不再动的进度。
+            // When returning to the settings page, if stopped at the "one-click update" section, re-read the installation status and reconnect the progress polling—
+            // Polling has already been stopped when leaving the settings page; if we don't handle this, the screen will be left with a progress indicator that no longer updates.
             const updateSection = document.getElementById('settings-section-update');
             if (updateSection && updateSection.classList.contains('active') && typeof loadUpdateConsole === 'function') {
                 loadUpdateConsole();
@@ -549,8 +549,8 @@ async function initPage(pageId) {
             }
             break;
         case 'roles-management':
-            // 初始化角色管理页面
-            // 重置搜索UI（变量会在下次搜索时自动更新）
+            // Initialize role management page
+            // Reset search UI (variables will be automatically updated on the next search)
             const rolesSearchInput = document.getElementById('roles-search');
             if (rolesSearchInput) {
                 rolesSearchInput.value = '';
@@ -578,14 +578,14 @@ async function initPage(pageId) {
             }
             break;
         case 'skills-monitor':
-            // 初始化Skills状态监控页面
+            // Initialize Skills status monitoring page
             if (typeof loadSkillsMonitor === 'function') {
                 loadSkillsMonitor();
             }
             break;
         case 'skills-management':
-            // 初始化Skills管理页面
-            // 重置搜索UI（变量会在下次搜索时自动更新）
+            // Initialize Skills management page
+            // Reset search UI (variables will be automatically updated on the next search)
             const skillsSearchInput = document.getElementById('skills-search');
             if (skillsSearchInput) {
                 skillsSearchInput.value = '';
@@ -619,12 +619,12 @@ async function initPage(pageId) {
             break;
     }
     
-    // 清理其他页面的定时器
+    // Clear timers on other pages
     if (pageId !== 'tasks' && typeof cleanupTasksPage === 'function') {
         cleanupTasksPage();
     }
-    // 一键更新的进度轮询同理：它现在住在系统设置页里，离开设置页就没必要每 1.5 秒读一次任务了
-    // （同一页内切到别的分区由 settings.js 的 switchSettingsSection 负责停）。
+    // The one-click update progress polling follows the same logic: it now lives in the system settings page, so once you leave the settings page there's no need to read the task every 1.5 seconds
+    // (Switching to another section within the same page is stopped by switchSettingsSection in settings.js).
     if (pageId !== 'settings' && typeof stopUpdatePolling === 'function') {
         stopUpdatePolling();
     }
@@ -633,21 +633,21 @@ async function initPage(pageId) {
     }
 }
 
-// 页面加载完成后初始化路由
+// Initialize routes after page load completes
 document.addEventListener('DOMContentLoaded', function() {
     initRouter();
     document.documentElement.classList.remove('initial-route-pending');
     initSidebarState();
     
-    // 监听hash变化
+    // Listen for hash changes
     window.addEventListener('hashchange', function() {
         const hash = window.location.hash.slice(1);
-        // 处理带参数的hash（如 chat?conversation=xxx）
+        // Handle hash with parameters (e.g. chat?conversation=xxx)
         const hashParts = hash.split('?');
         let pageId = hashParts[0].replace(/^#?\//, '');
         
         if (pageId === 'c2') pageId = 'c2-listeners';
-        // 与首屏解析同一套别名：#system-update 落到系统设置页的「一键更新」分区。
+        // Parses the same set of aliases as the first screen: #system-update lands in the 'One-Click Update' section of the system settings page.
         const settingsSection = pageId === 'system-update' ? 'update' : pageId === 'settings' && new URLSearchParams(hashParts.slice(1).join('?')).get('section') === 'token-usage' ? 'token-usage' : '';
         if (settingsSection) pageId = 'settings';
         if (pageId && ['dashboard', 'chat', 'hitl', 'tool-guard', 'asset-overview', 'asset-library', 'info-collect', 'projects', 'tasks', 'workflows', 'vulnerabilities', 'webshell', 'chat-files', 'mcp-monitor', 'mcp-management', 'knowledge-management', 'knowledge-retrieval-logs', 'roles-management', 'platform-rbac', 'skills-monitor', 'skills-management', 'agents-management', 'settings', 'c2-listeners', 'c2-sessions', 'c2-tasks', 'c2-payloads', 'c2-events', 'c2-profiles'].includes(pageId)) {
@@ -662,19 +662,19 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// 切换侧边栏折叠/展开
+// Toggle sidebar collapse/expand
 function toggleSidebar() {
     const sidebar = document.getElementById('main-sidebar');
     if (sidebar) {
         sidebar.classList.toggle('collapsed');
-        // 保存折叠状态到localStorage
+        // Save collapse state to localStorage
         const isCollapsed = sidebar.classList.contains('collapsed');
         localStorage.setItem('sidebarCollapsed', isCollapsed ? 'true' : 'false');
     }
 }
 window.toggleSidebar = toggleSidebar;
 
-// 初始化侧边栏状态
+// Initialize sidebar state
 function initSidebarState() {
     const sidebar = document.getElementById('main-sidebar');
     if (sidebar) {
@@ -686,7 +686,7 @@ function initSidebarState() {
     initConversationSidebarState();
 }
 
-// 切换对话页左侧列表折叠/展开
+// Toggle collapse/expand of the left list on the conversation page
 function toggleConversationSidebar() {
     const sidebar = document.getElementById('conversation-sidebar');
     if (sidebar) {
@@ -697,7 +697,7 @@ function toggleConversationSidebar() {
 }
 window.toggleConversationSidebar = toggleConversationSidebar;
 
-// 恢复对话列表折叠状态（进入对话页时生效）
+// Restore conversation list collapsed state (takes effect when entering the conversation page)
 function initConversationSidebarState() {
     const sidebar = document.getElementById('conversation-sidebar');
     if (sidebar) {
@@ -710,5 +710,5 @@ function initConversationSidebarState() {
     }
 }
 
-// 导出函数供其他脚本使用（与上方尽早绑定保持一致，便于外部脚本探测）
+// Export the function for other scripts to use (consistent with the early binding above, making it easy for external scripts to detect)
 window.currentPage = function() { return currentPage; };

@@ -1,65 +1,65 @@
 name: "x8"
 command: "x8"
 enabled: true
-short_description: "隐藏参数发现工具"
+short_description: "Hidden parameter discovery tool"
 description: |
-  X8是一个用于发现Web应用中隐藏参数的工具。
+  X8 is a tool for discovering hidden parameters in web applications.
 
-  **主要功能：**
-  - 隐藏参数发现
-  - 多种HTTP方法支持
-  - 自定义字典
-  - 快速扫描
+  **Main features:**
+  - Hidden parameter discovery
+  - Support for multiple HTTP methods
+  - Custom wordlists
+  - Fast scanning
 
-  **使用场景：**
-  - 参数发现
-  - Web应用安全测试
-  - Bug bounty侦察
-  - 安全测试
+  **Use cases:**
+  - Parameter discovery
+  - Web application security testing
+  - Bug bounty reconnaissance
+  - Security testing
 parameters:
   - name: "url"
     type: "string"
-    description: "目标URL"
+    description: "Target URL"
     required: true
     flag: "--url"
     format: "flag"
   - name: "wordlist"
     type: "string"
-    description: "参数字典"
+    description: "Parameter wordlist"
     required: false
     flag: "--wordlist"
     format: "flag"
     default: "/usr/share/wordlists/x8/params.txt"
   - name: "method"
     type: "string"
-    description: "HTTP方法"
+    description: "HTTP method"
     required: false
     flag: "--method"
     format: "flag"
     default: "GET"
   - name: "body"
     type: "string"
-    description: "请求体"
+    description: "Request body"
     required: false
     flag: "--body"
     format: "flag"
   - name: "headers"
     type: "string"
-    description: "自定义请求头"
+    description: "Custom request headers"
     required: false
     flag: "--headers"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的x8参数。用于传递未在参数列表中定义的x8选项。
+      Additional x8 arguments. Used to pass x8 options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

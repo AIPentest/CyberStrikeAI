@@ -1,44 +1,44 @@
 name: "checkov"
 command: "checkov"
 enabled: true
-short_description: "基础设施即代码安全扫描工具"
+short_description: "Infrastructure-as-code security scanning tool"
 description: |
-  Checkov是一个静态代码分析工具，用于基础设施即代码（IaC）的安全扫描。
+  Checkov is a static code analysis tool for security scanning of infrastructure-as-code (IaC).
 
-  **主要功能：**
-  - 支持多种IaC框架（Terraform, CloudFormation, Kubernetes等）
-  - 数百个内置策略
-  - 自定义策略支持
-  - CI/CD集成
+  **Main features:**
+  - Support for multiple IaC frameworks (Terraform, CloudFormation, Kubernetes, etc.)
+  - Hundreds of built-in policies
+  - Custom policy support
+  - CI/CD integration
 
-  **使用场景：**
-  - IaC安全扫描
-  - 云配置审计
-  - 安全策略检查
-  - 合规性检查
+  **Use cases:**
+  - IaC security scanning
+  - Cloud configuration auditing
+  - Security policy checks
+  - Compliance checks
 parameters:
   - name: "directory"
     type: "string"
-    description: "要扫描的目录"
+    description: "Directory to scan"
     required: false
     flag: "-d"
     format: "flag"
     default: "."
   - name: "framework"
     type: "string"
-    description: "要扫描的框架（terraform, cloudformation, kubernetes等）"
+    description: "Framework to scan (terraform, cloudformation, kubernetes, etc.)"
     required: false
     flag: "--framework"
     format: "flag"
   - name: "check"
     type: "string"
-    description: "要运行的特定检查"
+    description: "Specific check to run"
     required: false
     flag: "--check"
     format: "flag"
   - name: "output_format"
     type: "string"
-    description: "输出格式（json, yaml, cli）"
+    description: "Output format (json, yaml, cli)"
     required: false
     flag: "--output"
     format: "flag"
@@ -46,14 +46,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的checkov参数。用于传递未在参数列表中定义的checkov选项。
+      Extra checkov arguments. Used to pass checkov options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Make sure arguments are correctly formatted to avoid command injection
+      - This argument is appended directly to the end of the command
     required: false
     format: "positional"

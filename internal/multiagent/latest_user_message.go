@@ -36,27 +36,27 @@ func prepareLatestUserMessageForModel(userMessage string, appCfg *config.Config,
 	head, tail := splitHeadTailRunes(userMessage, headRunes, tailRunes)
 	artifactPath, writeErr := persistLatestUserMessageArtifact(userMessage, appCfg, conversationID)
 	if writeErr != nil && logger != nil {
-		logger.Warn("latest user message artifact 写入失败，将仅使用预览",
+		logger.Warn("latest user message artifact write failed; falling back to preview only",
 			zap.String("conversationId", conversationID),
 			zap.Error(writeErr),
 		)
 	}
 
 	var sb strings.Builder
-	sb.WriteString("【系统提示：本轮用户输入过长，已为模型上下文生成裁剪预览。】\n")
-	sb.WriteString("用户原始输入已完整保存到数据库 messages.role=user；")
+	// Model-visible truncation notice; translated to English, XML-tag markers kept.
+	sb.WriteString("[System note: this turn's user input is long; a trimmed preview was generated for the model context.] \n")
 	if artifactPath != "" {
-		sb.WriteString("同时已落盘为 artifact，可在需要全文时读取：\n")
+		sb.WriteString("it is also persisted as an artifact, readable whenever the full text is needed: \n")
 		sb.WriteString("artifact_path: ")
 		sb.WriteString(artifactPath)
 		sb.WriteByte('\n')
 	} else {
-		sb.WriteString("artifact 写入失败时仍可从数据库原始消息恢复。\n")
+		sb.WriteString("If the artifact write failed, the raw message can still be recovered from the database.\n")
 	}
 	sb.WriteString(fmt.Sprintf("original_runes: %d\n", utf8RuneLen(userMessage)))
 	sb.WriteString(fmt.Sprintf("preview_head_runes: %d\n", utf8RuneLen(head)))
 	sb.WriteString(fmt.Sprintf("preview_tail_runes: %d\n\n", utf8RuneLen(tail)))
-	sb.WriteString("请优先基于以下预览理解用户目标；如必须查看全文，请读取 artifact 或数据库原始消息。\n\n")
+	sb.WriteString("Understand the user goal from the preview below first; read the artifact or the raw database message if the full text is required.\n\n")
 	sb.WriteString("<latest_user_message_preview_head>\n")
 	sb.WriteString(head)
 	sb.WriteString("\n</latest_user_message_preview_head>\n")

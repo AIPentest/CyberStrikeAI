@@ -1,155 +1,155 @@
 name: "radare2"
 command: "r2"
 enabled: true
-short_description: "二进制分析和逆向工程框架，支持反汇编、调试和脚本分析"
+short_description: "Binary analysis and reverse engineering framework supporting disassembly, debugging, and scripted analysis"
 description: |
-  Radare2是一个完整的二进制分析和逆向工程框架，支持多种架构和文件格式。
+  Radare2 is a complete binary analysis and reverse engineering framework supporting multiple architectures and file formats.
 
-  **主要功能：**
-  - 反汇编和反编译：支持多种架构（x86, ARM, MIPS等）
-  - 调试支持：本地和远程调试
-  - 脚本支持：支持r2pipe脚本和r2命令脚本
-  - 多种文件格式：ELF, PE, Mach-O, 固件等
-  - 交互式分析：命令行界面和可视化模式
-  - 自动化分析：批量分析和脚本化分析
+  **Main features:**
+  - Disassembly and decompilation: supports multiple architectures (x86, ARM, MIPS, etc.)
+  - Debugging support: local and remote debugging
+  - Scripting support: supports r2pipe scripts and r2 command scripts
+  - Multiple file formats: ELF, PE, Mach-O, firmware, etc.
+  - Interactive analysis: command-line interface and visualization mode
+  - Automated analysis: batch and scripted analysis
 
-  **使用场景：**
-  - 二进制文件分析
-  - 逆向工程和漏洞研究
-  - 恶意软件分析
-  - CTF竞赛中的逆向题目
-  - 固件分析
-  - 漏洞利用开发
+  **Use cases:**
+  - Binary file analysis
+  - Reverse engineering and vulnerability research
+  - Malware analysis
+  - Reverse challenges in CTF competitions
+  - Firmware analysis
+  - Exploit development
 
-  **注意事项：**
-  - 可以使用 -c 参数执行命令后退出（非交互模式）
-  - 可以使用 -i 参数执行脚本文件
-  - 可以使用 -q 参数静默模式（不显示启动信息）
-  - 可以使用 -A 参数自动分析二进制文件
-  - 可以使用 -d 参数附加到进程进行调试
+  **Notes:**
+  - Use the -c parameter to execute commands and exit (non-interactive mode)
+  - Use the -i parameter to execute a script file
+  - Use the -q parameter for quiet mode (no startup information displayed)
+  - Use the -A parameter to automatically analyze the binary file
+  - Use the -d parameter to attach to a process for debugging
 parameters:
   - name: "target"
     type: "string"
     description: |
-      目标文件、进程ID或特殊值。
+      Target file, process ID, or special value.
 
-      **格式：**
-      - 文件路径: "/path/to/binary"
-      - 进程ID: "1234" (需要配合 -d 参数)
-      - 特殊值: "-" (从stdin读取), "--" (交互模式), "=" (从环境变量读取)
+      **Format:**
+      - File path: "/path/to/binary"
+      - Process ID: "1234" (must be combined with the -d parameter)
+      - Special values: "-" (read from stdin), "--" (interactive mode), "=" (read from environment variables)
 
-      **示例值：**
-      - 二进制文件: "/tmp/vulnerable"
-      - 进程调试: "1234" (配合 -d)
-      - 从stdin: "-"
+      **Example values:**
+      - Binary file: "/tmp/vulnerable"
+      - Process debugging: "1234" (combined with -d)
+      - From stdin: "-"
 
-      **注意事项：**
-      - 必需参数，不能为空
-      - 如果指定进程ID，需要配合 -d 参数使用
-      - 注意：radare2 要求文件路径必须是最后一个参数，因此 target 使用 position 1
+      **Notes:**
+      - Required parameter; cannot be empty
+      - If a process ID is specified, it must be combined with the -d parameter
+      - Note: radare2 requires the file path to be the last argument, so target uses position 1
     required: true
     position: 1
     format: "positional"
   - name: "commands"
     type: "string"
     description: |
-      要执行的Radare2命令。可以是单个命令或多个命令（用分号分隔）。
+      Radare2 commands to execute. Can be a single command or multiple commands (semicolon-separated).
 
-      **格式：**
-      - 单个命令: "aaa" (自动分析)
-      - 多个命令: "aaa; pdf @main; VV" (分析、反汇编main函数、可视化)
+      **Format:**
+      - Single command: "aaa" (automatic analysis)
+      - Multiple commands: "aaa; pdf @main; VV" (analyze, disassemble main function, visualize)
 
-      **常用命令：**
-      - "aaa": 自动分析所有函数
-      - "afl": 列出所有函数
-      - "pdf @main": 反汇编main函数
-      - "px 64": 以十六进制显示64字节
-      - "VV": 进入可视化模式
-      - "i": 显示文件信息
-      - "iz": 显示字符串
+      **Common commands:**
+      - "aaa": automatically analyze all functions
+      - "afl": list all functions
+      - "pdf @main": disassemble the main function
+      - "px 64": display 64 bytes in hexadecimal
+      - "VV": enter visualization mode
+      - "i": display file information
+      - "iz": display strings
 
-      **示例值：**
-      - "aaa" (自动分析)
-      - "aaa; pdf @main" (分析并反汇编main函数)
-      - "i; iz" (显示信息和字符串)
+      **Example values:**
+      - "aaa" (automatic analysis)
+      - "aaa; pdf @main" (analyze and disassemble the main function)
+      - "i; iz" (display information and strings)
 
-      **注意事项：**
-      - 多个命令用分号(;)分隔
-      - 执行完命令后程序会退出（非交互模式）
+      **Notes:**
+      - Separate multiple commands with semicolons (;)
+      - The program exits after commands finish executing (non-interactive mode)
     required: false
     flag: "-c"
     format: "flag"
   - name: "script_file"
     type: "string"
     description: |
-      要执行的脚本文件路径。脚本文件包含Radare2命令，每行一个命令。
+      Path of the script file to execute. The script file contains Radare2 commands, one per line.
 
-      **格式：**
-      - 脚本文件路径: "/path/to/script.r2"
+      **Format:**
+      - Script file path: "/path/to/script.r2"
 
-      **示例值：**
+      **Example values:**
       - "/tmp/analyze.r2"
       - "./scripts/auto_analyze.r2"
 
-      **注意事项：**
-      - 脚本文件中的命令会按顺序执行
-      - 脚本执行完后程序会退出
+      **Notes:**
+      - Commands in the script file are executed in order
+      - The program exits after the script finishes executing
     required: false
     flag: "-i"
     format: "flag"
   - name: "arch"
     type: "string"
     description: |
-      指定目标架构。
+      Specify the target architecture.
 
-      **常用架构：**
-      - "x86": 32位x86
-      - "x86_64": 64位x86
-      - "arm": ARM架构
-      - "arm64": ARM64架构
-      - "mips": MIPS架构
-      - "ppc": PowerPC架构
+      **Common architectures:**
+      - "x86": 32-bit x86
+      - "x86_64": 64-bit x86
+      - "arm": ARM architecture
+      - "arm64": ARM64 architecture
+      - "mips": MIPS architecture
+      - "ppc": PowerPC architecture
 
-      **示例值：**
+      **Example values:**
       - "x86"
       - "x86_64"
       - "arm"
       - "arm64"
 
-      **注意事项：**
-      - 如果不指定，radare2会尝试自动检测
-      - 某些架构可能需要额外的配置
+      **Notes:**
+      - If not specified, radare2 will attempt automatic detection
+      - Some architectures may require additional configuration
     required: false
     flag: "-a"
     format: "flag"
   - name: "bits"
     type: "int"
     description: |
-      指定目标位数（16, 32, 64）。
+      Specify the target word size (16, 32, 64).
 
-      **示例值：**
-      - 16 (16位)
-      - 32 (32位)
-      - 64 (64位)
+      **Example values:**
+      - 16 (16-bit)
+      - 32 (32-bit)
+      - 64 (64-bit)
 
-      **注意事项：**
-      - 通常与 -a 参数配合使用
-      - 如果不指定，radare2会尝试自动检测
+      **Notes:**
+      - Usually used together with the -a parameter
+      - If not specified, radare2 will attempt automatic detection
     required: false
     flag: "-b"
     format: "flag"
   - name: "auto_analyze"
     type: "bool"
     description: |
-      自动分析二进制文件。相当于执行 "aaa" 命令。
+      Automatically analyze the binary file. Equivalent to executing the "aaa" command.
 
-      **使用场景：**
-      - 快速分析二进制文件
-      - 批量分析
+      **Use cases:**
+      - Quickly analyze a binary file
+      - Batch analysis
 
-      **注意事项：**
-      - 启用后会自动分析所有函数
-      - 可能需要较长时间
+      **Notes:**
+      - When enabled, all functions are analyzed automatically
+      - May take a long time
     required: false
     flag: "-A"
     format: "flag"
@@ -157,15 +157,15 @@ parameters:
   - name: "debug"
     type: "bool"
     description: |
-      调试模式。可以附加到进程或调试文件。
+      Debug mode. Can attach to a process or debug a file.
 
-      **使用场景：**
-      - 附加到运行中的进程
-      - 调试二进制文件
+      **Use cases:**
+      - Attach to a running process
+      - Debug a binary file
 
-      **注意事项：**
-      - 需要适当的权限
-      - 如果target是进程ID，必须启用此选项
+      **Notes:**
+      - Requires appropriate privileges
+      - If target is a process ID, this option must be enabled
     required: false
     flag: "-d"
     format: "flag"
@@ -173,16 +173,16 @@ parameters:
   - name: "quiet"
     type: "bool"
     description: |
-      静默模式。不显示启动信息和提示符。
+      Quiet mode. Does not display startup information or a prompt.
 
-      **使用场景：**
-      - 脚本化使用
-      - 批量分析
-      - 自动化工具调用
+      **Use cases:**
+      - Scripted use
+      - Batch analysis
+      - Automated tool invocation
 
-      **注意事项：**
-      - 适合非交互式使用
-      - 减少输出噪音
+      **Notes:**
+      - Suitable for non-interactive use
+      - Reduces output noise
     required: false
     flag: "-q"
     format: "flag"
@@ -190,110 +190,110 @@ parameters:
   - name: "seek"
     type: "string"
     description: |
-      设置起始地址。可以是十六进制地址或表达式。
+      Set the starting address. Can be a hexadecimal address or an expression.
 
-      **格式：**
-      - 十六进制: "0x400000"
-      - 表达式: "main+0x10"
+      **Format:**
+      - Hexadecimal: "0x400000"
+      - Expression: "main+0x10"
 
-      **示例值：**
+      **Example values:**
       - "0x400000"
       - "main"
       - "0x1000"
 
-      **注意事项：**
-      - 地址可以是十六进制或符号名
-      - 用于从特定位置开始分析
+      **Notes:**
+      - The address can be hexadecimal or a symbol name
+      - Used to start analysis from a specific location
     required: false
     flag: "-s"
     format: "flag"
   - name: "base_address"
     type: "string"
     description: |
-      设置基址（base address）。用于加载地址。
+      Set the base address. Used for loading addresses.
 
-      **格式：**
-      - 十六进制地址: "0x400000"
+      **Format:**
+      - Hexadecimal address: "0x400000"
 
-      **示例值：**
+      **Example values:**
       - "0x400000"
       - "0x1000000"
 
-      **注意事项：**
-      - 用于指定二进制文件的加载地址
-      - 通常用于分析固件或内存转储
+      **Notes:**
+      - Used to specify the load address of the binary file
+      - Usually used when analyzing firmware or memory dumps
     required: false
     flag: "-B"
     format: "flag"
   - name: "eval"
     type: "string"
     description: |
-      设置配置变量。格式为 key=value。
+      Set configuration variables. The format is key=value.
 
-      **格式：**
+      **Format:**
       - "key=value"
-      - 多个变量用空格分隔: "asm.arch=x86 asm.bits=32"
+      - Multiple variables separated by spaces: "asm.arch=x86 asm.bits=32"
 
-      **示例值：**
+      **Example values:**
       - "asm.arch=x86"
       - "asm.bits=32"
       - "scr.color=false"
 
-      **注意事项：**
-      - 用于设置radare2的配置变量
-      - 多个变量用空格分隔
+      **Notes:**
+      - Used to set radare2 configuration variables
+      - Separate multiple variables with spaces
     required: false
     flag: "-e"
     format: "flag"
   - name: "project"
     type: "string"
     description: |
-      加载或保存项目文件。
+      Load or save a project file.
 
-      **格式：**
-      - 项目文件路径: "/path/to/project.r2"
+      **Format:**
+      - Project file path: "/path/to/project.r2"
 
-      **示例值：**
+      **Example values:**
       - "./project.r2"
       - "/tmp/analysis.r2"
 
-      **注意事项：**
-      - 项目文件保存分析状态和配置
-      - 可以用于恢复之前的分析
+      **Notes:**
+      - The project file saves analysis state and configuration
+      - Can be used to resume a previous analysis
     required: false
     flag: "-p"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的radare2参数。用于传递未在参数列表中定义的radare2选项。
+      Additional radare2 arguments. Used to pass radare2 options not defined in the parameter list.
 
-      **可用选项：**
-      - "-C": 强制使用颜色输出
-      - "-f": 强制打开文件（即使格式不匹配）
-      - "-L": 列出支持的插件
-      - "-M": 启用写模式
-      - "-n": 不加载配置文件
-      - "-N": 不执行脚本
-      - "-S": 在调试模式下启动
-      - "-t": 使用线程模式
-      - "-u": 使用unicorn引擎
-      - "-v": 显示版本信息
-      - "-w": 写模式
-      - "-z": 扫描字符串
-      - "-X": 执行r2pipe脚本
-      - "-P patch": 应用补丁
-      - "-m maddr": 映射地址
+      **Available options:**
+      - "-C": force colored output
+      - "-f": force open file (even if the format does not match)
+      - "-L": list supported plugins
+      - "-M": enable write mode
+      - "-n": do not load the configuration file
+      - "-N": do not execute scripts
+      - "-S": start in debug mode
+      - "-t": use thread mode
+      - "-u": use the unicorn engine
+      - "-v": display version information
+      - "-w": write mode
+      - "-z": scan strings
+      - "-X": execute an r2pipe script
+      - "-P patch": apply a patch
+      - "-m maddr": map address
 
-      **示例值：**
-      - "-w" (写模式)
-      - "-n" (不加载配置文件)
-      - "-M" (启用写模式)
-      - "-z" (扫描字符串)
+      **Example values:**
+      - "-w" (write mode)
+      - "-n" (do not load the configuration file)
+      - "-M" (enable write mode)
+      - "-z" (scan strings)
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

@@ -7,7 +7,7 @@ args:
     import sys
 
     if len(sys.argv) < 2:
-        sys.stderr.write("缺少脚本内容\n")
+        sys.stderr.write("Missing script content\n")
         sys.exit(1)
 
     script_content = sys.argv[1]
@@ -27,41 +27,41 @@ args:
 
     exec(script_content, {})
 enabled: true
-short_description: "CTF和漏洞利用开发框架"
+short_description: "CTF and exploit development framework"
 description: |
-  执行自定义pwntools脚本，并通过环境变量注入常用目标信息：
+  Execute a custom pwntools script, injecting common target information via environment variables:
   - `PWN_BINARY`, `PWN_HOST`, `PWN_PORT`, `PWN_EXPLOIT_TYPE`
 parameters:
   - name: "script_content"
     type: "string"
-    description: "Python脚本内容（使用pwntools）"
+    description: "Python script content (using pwntools)"
     required: true
     position: 0
     format: "positional"
   - name: "target_binary"
     type: "string"
-    description: "本地二进制文件路径（注入PWN_BINARY）"
+    description: "Local binary file path (injected as PWN_BINARY)"
     required: false
     default: ""
     position: 1
     format: "positional"
   - name: "target_host"
     type: "string"
-    description: "远程主机地址（PWN_HOST）"
+    description: "Remote host address (PWN_HOST)"
     required: false
     default: ""
     position: 2
     format: "positional"
   - name: "target_port"
     type: "string"
-    description: "远程端口（PWN_PORT）"
+    description: "Remote port (PWN_PORT)"
     required: false
     default: ""
     position: 3
     format: "positional"
   - name: "exploit_type"
     type: "string"
-    description: "漏洞利用类型标签（PWN_EXPLOIT_TYPE）"
+    description: "Exploit type tag (PWN_EXPLOIT_TYPE)"
     required: false
     default: "local"
     position: 4

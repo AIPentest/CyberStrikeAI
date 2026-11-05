@@ -197,13 +197,13 @@ func (m *BatchTaskManager) CreateBatchQueue(
 	}
 	// 输入校验
 	if utf8.RuneCountInString(title) > MaxBatchQueueTitleLen {
-		return nil, fmt.Errorf("标题不能超过 %d 个字符", MaxBatchQueueTitleLen)
+		return nil, fmt.Errorf("title cannot exceed %d characters", MaxBatchQueueTitleLen)
 	}
 	if utf8.RuneCountInString(role) > MaxBatchQueueRoleLen {
-		return nil, fmt.Errorf("角色名不能超过 %d 个字符", MaxBatchQueueRoleLen)
+		return nil, fmt.Errorf("role name cannot exceed %d characters", MaxBatchQueueRoleLen)
 	}
 	if len(tasks) > MaxBatchTasksPerQueue {
-		return nil, fmt.Errorf("单个队列最多 %d 条任务", MaxBatchTasksPerQueue)
+		return nil, fmt.Errorf("a single queue can hold at most %d tasks", MaxBatchTasksPerQueue)
 	}
 
 	m.mu.Lock()
@@ -267,7 +267,7 @@ func (m *BatchTaskManager) CreateBatchQueue(
 			dbTasks,
 			policy,
 		); err != nil {
-			return nil, fmt.Errorf("保存任务队列失败: %w", err)
+			return nil, fmt.Errorf("failed to save task queue: %w", err)
 		}
 	}
 
@@ -450,14 +450,14 @@ func (m *BatchTaskManager) ListQueuesForAccess(limit, offset int, status, keywor
 		// 获取总数
 		count, err := m.db.CountBatchQueuesForAccess(status, keyword, userID, scope)
 		if err != nil {
-			return nil, 0, fmt.Errorf("统计队列总数失败: %w", err)
+			return nil, 0, fmt.Errorf("failed to count total queues: %w", err)
 		}
 		total = count
 
 		// 获取队列列表（只获取ID）
 		queueRows, err := m.db.ListBatchQueuesForAccess(limit, offset, status, keyword, userID, scope)
 		if err != nil {
-			return nil, 0, fmt.Errorf("查询队列列表失败: %w", err)
+			return nil, 0, fmt.Errorf("failed to query queue list: %w", err)
 		}
 
 		// 加载完整的队列信息（从内存或数据库）
@@ -758,29 +758,29 @@ func batchQueueConcurrencyFromRow(row *database.BatchTaskQueueRow) int {
 // UpdateQueueMetadata 更新队列标题、角色、代理模式和并发数（非 running 时可用）
 func (m *BatchTaskManager) UpdateQueueMetadata(queueID, title, role, agentMode string, concurrency *int, hitlPolicies ...string) error {
 	if concurrency != nil && (*concurrency < 1 || *concurrency > MaxBatchQueueConcurrency) {
-		return fmt.Errorf("并发数必须为 1–%d", MaxBatchQueueConcurrency)
+		return fmt.Errorf("concurrency must be 1–%d", MaxBatchQueueConcurrency)
 	}
 	if utf8.RuneCountInString(title) > MaxBatchQueueTitleLen {
-		return fmt.Errorf("标题不能超过 %d 个字符", MaxBatchQueueTitleLen)
+		return fmt.Errorf("title cannot exceed %d characters", MaxBatchQueueTitleLen)
 	}
 	if utf8.RuneCountInString(role) > MaxBatchQueueRoleLen {
-		return fmt.Errorf("角色名不能超过 %d 个字符", MaxBatchQueueRoleLen)
+		return fmt.Errorf("role name cannot exceed %d characters", MaxBatchQueueRoleLen)
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	queue, exists := m.queues[queueID]
 	if !exists {
-		return fmt.Errorf("队列不存在")
+		return fmt.Errorf("queue not found")
 	}
 	if queue.Status == BatchQueueStatusRunning {
-		return fmt.Errorf("队列正在运行中，无法修改")
+		return fmt.Errorf("the queue is currently running; cannot modify")
 	}
 
 	policy := queue.HITLPolicy
 	if len(hitlPolicies) > 0 {
 		if !queueAllowsTaskListMutationLocked(queue) {
-			return fmt.Errorf("队列有正在执行的任务，无法修改审批设置")
+			return fmt.Errorf("the queue has tasks still executing; cannot modify approval settings")
 		}
 		policy = hitlPolicies[0]
 		if err := validateBatchHITLPolicy(policy); err != nil {
@@ -801,7 +801,7 @@ func (m *BatchTaskManager) UpdateQueueMetadata(queueID, title, role, agentMode s
 
 	if m.db != nil {
 		if err := m.db.UpdateBatchQueueMetadata(queueID, title, role, agentMode, nextConcurrency, policy); err != nil {
-			return fmt.Errorf("保存任务队列失败: %w", err)
+			return fmt.Errorf("failed to save task queue: %w", err)
 		}
 	}
 	queue.Title = title
@@ -920,32 +920,32 @@ func (m *BatchTaskManager) UpdateTaskMessage(queueID, taskID, message string) er
 
 	queue, exists := m.queues[queueID]
 	if !exists {
-		return fmt.Errorf("队列不存在")
+		return fmt.Errorf("queue not found")
 	}
 
 	if !queueAllowsTaskListMutationLocked(queue) {
-		return fmt.Errorf("队列正在执行或未就绪，无法编辑任务")
+		return fmt.Errorf("the queue is executing or not ready; cannot edit the task")
 	}
 
 	// 查找并更新任务
 	for _, task := range queue.Tasks {
 		if task.ID == taskID {
 			if task.Status == BatchTaskStatusRunning {
-				return fmt.Errorf("执行中的任务不能编辑")
+				return fmt.Errorf("a running task cannot be edited")
 			}
 			task.Message = message
 
 			// 同步到数据库
 			if m.db != nil {
 				if err := m.db.UpdateBatchTaskMessage(queueID, taskID, message); err != nil {
-					return fmt.Errorf("更新任务消息失败: %w", err)
+					return fmt.Errorf("failed to update task message: %w", err)
 				}
 			}
 			return nil
 		}
 	}
 
-	return fmt.Errorf("任务不存在")
+	return fmt.Errorf("task not found")
 }
 
 // AddTaskToQueue 添加任务到队列（队列空闲时可添加：含 cron 本轮 completed、手动暂停后等）
@@ -955,15 +955,15 @@ func (m *BatchTaskManager) AddTaskToQueue(queueID, message string) (*BatchTask, 
 
 	queue, exists := m.queues[queueID]
 	if !exists {
-		return nil, fmt.Errorf("队列不存在")
+		return nil, fmt.Errorf("queue not found")
 	}
 
 	if !queueAllowsTaskListMutationLocked(queue) {
-		return nil, fmt.Errorf("队列正在执行或未就绪，无法添加任务")
+		return nil, fmt.Errorf("the queue is executing or not ready; cannot add the task")
 	}
 
 	if message == "" {
-		return nil, fmt.Errorf("任务消息不能为空")
+		return nil, fmt.Errorf("task message cannot be empty")
 	}
 
 	// 生成任务ID
@@ -982,7 +982,7 @@ func (m *BatchTaskManager) AddTaskToQueue(queueID, message string) (*BatchTask, 
 		if err := m.db.AddBatchTask(queueID, taskID, message); err != nil {
 			// 如果数据库保存失败，从内存中移除
 			queue.Tasks = queue.Tasks[:len(queue.Tasks)-1]
-			return nil, fmt.Errorf("添加任务失败: %w", err)
+			return nil, fmt.Errorf("failed to add task: %w", err)
 		}
 	}
 
@@ -997,7 +997,7 @@ func (m *BatchTaskManager) PrepareSingleTaskRun(queueID, taskID string) error {
 	queue, exists := m.queues[queueID]
 	if !exists {
 		m.mu.Unlock()
-		return fmt.Errorf("队列不存在")
+		return fmt.Errorf("queue not found")
 	}
 
 	var task *BatchTask
@@ -1011,12 +1011,12 @@ func (m *BatchTaskManager) PrepareSingleTaskRun(queueID, taskID string) error {
 	}
 	if task == nil {
 		m.mu.Unlock()
-		return fmt.Errorf("任务不存在")
+		return fmt.Errorf("task not found")
 	}
 
 	if !queueAllowsSingleTaskRunLocked(queue, task) {
 		m.mu.Unlock()
-		return fmt.Errorf("队列正在执行或未就绪，无法单条执行")
+		return fmt.Errorf("the queue is executing or not ready; cannot run a single task")
 	}
 
 	// 暂停态：中止在途子任务并收口仍标记 running 的其它子任务，以便单条执行非冲突项
@@ -1039,7 +1039,7 @@ func (m *BatchTaskManager) PrepareSingleTaskRun(queueID, taskID string) error {
 			c()
 		}
 	}
-	const staleRunMsg = "为单条执行其它任务，已中止"
+	const staleRunMsg = "aborted so that another task could be run on its own"
 	for _, sid := range siblingRunningIDs {
 		m.UpdateTaskStatus(queueID, sid, BatchTaskStatusCancelled, "", staleRunMsg)
 	}
@@ -1049,7 +1049,7 @@ func (m *BatchTaskManager) PrepareSingleTaskRun(queueID, taskID string) error {
 
 	queue, exists = m.queues[queueID]
 	if !exists {
-		return fmt.Errorf("队列不存在")
+		return fmt.Errorf("queue not found")
 	}
 
 	task = nil
@@ -1062,12 +1062,12 @@ func (m *BatchTaskManager) PrepareSingleTaskRun(queueID, taskID string) error {
 		}
 	}
 	if task == nil {
-		return fmt.Errorf("任务不存在")
+		return fmt.Errorf("task not found")
 	}
 
 	if m.db != nil {
 		if err := m.db.PrepareBatchSingleTaskRun(queueID, taskID, taskIndex, needsReset, resumeQueue); err != nil {
-			return fmt.Errorf("准备单条执行失败: %w", err)
+			return fmt.Errorf("failed to prepare single-task run: %w", err)
 		}
 	}
 
@@ -1127,11 +1127,11 @@ func (m *BatchTaskManager) DeleteTask(queueID, taskID string) error {
 
 	queue, exists := m.queues[queueID]
 	if !exists {
-		return fmt.Errorf("队列不存在")
+		return fmt.Errorf("queue not found")
 	}
 
 	if !queueAllowsTaskListMutationLocked(queue) {
-		return fmt.Errorf("队列正在执行或未就绪，无法删除任务")
+		return fmt.Errorf("the queue is executing or not ready; cannot delete the task")
 	}
 
 	// 查找任务
@@ -1139,7 +1139,7 @@ func (m *BatchTaskManager) DeleteTask(queueID, taskID string) error {
 	for i, task := range queue.Tasks {
 		if task.ID == taskID {
 			if task.Status == BatchTaskStatusRunning {
-				return fmt.Errorf("执行中的任务不能删除")
+				return fmt.Errorf("a running task cannot be deleted")
 			}
 			taskIndex = i
 			break
@@ -1147,13 +1147,13 @@ func (m *BatchTaskManager) DeleteTask(queueID, taskID string) error {
 	}
 
 	if taskIndex == -1 {
-		return fmt.Errorf("任务不存在")
+		return fmt.Errorf("task not found")
 	}
 
 	// DB 优先：先从数据库删除，成功后再从内存移除
 	if m.db != nil {
 		if err := m.db.DeleteBatchTask(queueID, taskID); err != nil {
-			return fmt.Errorf("删除任务失败: %w", err)
+			return fmt.Errorf("failed to delete task: %w", err)
 		}
 	}
 

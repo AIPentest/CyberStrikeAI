@@ -101,7 +101,7 @@ func (s *Service) Record(c *gin.Context, e Entry) {
 		Detail:       detail,
 	}
 	if err := s.db.AppendAuditLog(row); err != nil && s.logger != nil {
-		s.logger.Warn("写入审计日志失败",
+		s.logger.Warn("Failed to write the audit log",
 			zap.String("action", e.Action),
 			zap.Error(err),
 		)
@@ -126,12 +126,12 @@ func (s *Service) PurgeExpired() {
 	n, err := s.db.DeleteAuditLogsBefore(cutoff)
 	if err != nil {
 		if s.logger != nil {
-			s.logger.Warn("清理过期审计日志失败", zap.Error(err))
+			s.logger.Warn("Failed to clean up expired audit logs", zap.Error(err))
 		}
 		return
 	}
 	if n > 0 && s.logger != nil {
-		s.logger.Info("已清理过期审计日志", zap.Int64("deleted", n))
+		s.logger.Info("Expired audit logs cleaned up", zap.Int64("deleted", n))
 	}
 }
 

@@ -145,22 +145,22 @@ func (c *Client) Analyze(ctx context.Context, img ImagePayload, question string)
 func buildVisionPrompt(question string) string {
 	q := strings.TrimSpace(question)
 	if q == "" {
-		q = "请对图片做通用描述，侧重授权安全测试场景（可见文本、表单、按钮、验证码、错误信息、技术栈线索）。"
+		q = "Give a general description of the image focused on authorized security testing context (visible text, forms, buttons, captchas, error messages, technology stack clues)."
 	}
 	extra := ""
 	if looksLikeCaptchaQuestion(q) {
-		extra = "\n若为验证码：仅输出你辨认出的字符序列，不要空格、标点、解释；看不清则明确说无法识别。"
+		extra = "\nIf it is a captcha: output only the character sequence you recognize, with no spaces, punctuation, or explanation; if you cannot read it, say clearly that it is not recognizable."
 	}
-	return `你是授权安全测试助手。请根据图片回答用户问题，只描述你能从图中确认的内容，不要编造。
-用户问题：` + q + extra
+	return `You are an authorized security testing assistant. Answer the user's question based on the image, describing only what you can confirm from it; do not fabricate.
+User question: ` + q + extra
 }
 
 func looksLikeCaptchaQuestion(q string) bool {
 	s := strings.ToLower(q)
-	for _, kw := range []string{"验证码", "captcha", "verification code", "verify code", "vcode", "图形码"} {
+	for _, kw := range []string{"验证码", "图形码", "captcha", "verification code", "verify code", "vcode"} {
 		if strings.Contains(s, kw) {
 			return true
 		}
 	}
-	return strings.Contains(s, "只输出") && (strings.Contains(s, "字符") || strings.Contains(s, "character"))
+	return (strings.Contains(s, "只输出") || strings.Contains(s, "output only")) && (strings.Contains(s, "字符") || strings.Contains(s, "character"))
 }

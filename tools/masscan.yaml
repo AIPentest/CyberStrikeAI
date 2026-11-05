@@ -1,50 +1,50 @@
 name: "masscan"
 command: "masscan"
 enabled: true
-short_description: "高速互联网级端口扫描工具"
+short_description: "High-speed internet-scale port scanning tool"
 description: |
-  Masscan是一个高速端口扫描工具，可以在几分钟内扫描整个互联网。
+  Masscan is a high-speed port scanning tool that can scan the entire internet in minutes.
 
-  **主要功能：**
-  - 极高的扫描速度
-  - 支持大规模网络扫描
-  - Banner抓取
-  - 可配置扫描速率
+  **Main features:**
+  - Extremely high scanning speed
+  - Support for large-scale network scanning
+  - Banner grabbing
+  - Configurable scan rate
 
-  **使用场景：**
-  - 大规模网络扫描
-  - 互联网级扫描
-  - 快速端口发现
+  **Use cases:**
+  - Large-scale network scanning
+  - Internet-scale scanning
+  - Fast port discovery
 parameters:
   - name: "target"
     type: "string"
-    description: "目标IP地址或CIDR范围"
+    description: "Target IP address or CIDR range"
     required: true
     position: 0
     format: "positional"
   - name: "ports"
     type: "string"
-    description: "端口范围（如：1-65535）"
+    description: "Port range (e.g. 1-65535)"
     required: false
     flag: "-p"
     format: "flag"
     default: "1-65535"
   - name: "rate"
     type: "int"
-    description: "每秒数据包数"
+    description: "Packets per second"
     required: false
     flag: "--rate"
     format: "flag"
     default: 1000
   - name: "interface"
     type: "string"
-    description: "网络接口"
+    description: "Network interface"
     required: false
     flag: "-e"
     format: "flag"
   - name: "banners"
     type: "bool"
-    description: "启用Banner抓取"
+    description: "Enable banner grabbing"
     required: false
     flag: "--banners"
     format: "flag"
@@ -52,14 +52,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的masscan参数。用于传递未在参数列表中定义的masscan选项。
+      Additional masscan arguments. Used to pass masscan options that are not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples based on tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

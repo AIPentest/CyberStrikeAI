@@ -11,8 +11,12 @@ import (
 var (
 	bodyDepFactLine   = regexp.MustCompile(`(?im)^[\s\-*]*依赖事实\s*[:：]\s*([a-zA-Z0-9][a-zA-Z0-9._/-]*)`)
 	bodyRelFactLine   = regexp.MustCompile(`(?im)^[\s\-*]*相关\s*fact_key\s*[:：]\s*([a-zA-Z0-9][a-zA-Z0-9._/-]*)`)
-	bodyAssocSection  = regexp.MustCompile(`(?im)^##\s*关联\s*$`)
-	bodySyncLinksHead = "结构化关系边（自动同步）"
+	// bodyAssocSection / bodySyncLinksHead match markers stored verbatim inside
+	// existing fact bodies (legacy Chinese). Keep them byte-identical; the English
+	// aliases below are also accepted so newly written English bodies parse too.
+	bodyAssocSection      = regexp.MustCompile(`(?im)^##\s*(关联|Related links)\s*$`)
+	bodySyncLinksHead     = "结构化关系边（自动同步）"
+	bodySyncLinksHeadEn   = "structured relation edges (auto-sync)"
 )
 
 // ParseLinksFromBody 从 body「关联」段落解析 from 语义的关系边（无显式 links 时的兜底）。
@@ -84,10 +88,10 @@ func extractBodySyncLinksBlock(body string) string {
 			inSync = false
 			continue
 		}
-		if inAssoc && strings.HasPrefix(trim, "## ") && !strings.HasPrefix(trim, "## 关联") {
+		if inAssoc && strings.HasPrefix(trim, "## ") && !bodyAssocSection.MatchString(trim) {
 			break
 		}
-		if inAssoc && strings.Contains(trim, bodySyncLinksHead) {
+		if inAssoc && (strings.Contains(trim, bodySyncLinksHead) || strings.Contains(trim, bodySyncLinksHeadEn)) {
 			inSync = true
 			continue
 		}
@@ -187,7 +191,7 @@ func formatBodySyncLinksBlock(edges []*database.ProjectFactEdge) string {
 		written++
 	}
 	if written == 0 {
-		b.WriteString("\n  （暂无）")
+		b.WriteString("\n  (none)")
 	}
 	return b.String()
 }

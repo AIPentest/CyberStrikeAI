@@ -1,52 +1,52 @@
 name: "xxd"
 command: "xxd"
 enabled: true
-short_description: "十六进制转储工具"
+short_description: "Hexadecimal dump tool"
 description: |
-  Xxd是一个十六进制转储工具，用于以十六进制格式显示文件内容。
+  Xxd is a hexadecimal dump tool used to display file contents in hexadecimal format.
 
-  **主要功能：**
-  - 十六进制转储
-  - 可配置偏移和长度
-  - 反向转换
-  - 多种输出格式
+  **Main features:**
+  - Hexadecimal dump
+  - Configurable offset and length
+  - Reverse conversion
+  - Multiple output formats
 
-  **使用场景：**
-  - 二进制分析
-  - 文件检查
-  - 数据提取
-  - 取证分析
+  **Use cases:**
+  - Binary analysis
+  - File inspection
+  - Data extraction
+  - Forensic analysis
 parameters:
   - name: "file_path"
     type: "string"
-    description: "要转储的文件路径"
+    description: "Path of the file to dump"
     required: true
     position: 0
     format: "positional"
   - name: "offset"
     type: "string"
-    description: "开始读取的偏移量"
+    description: "Offset to start reading from"
     required: false
     flag: "-s"
     format: "flag"
     default: "0"
   - name: "length"
     type: "string"
-    description: "要读取的字节数"
+    description: "Number of bytes to read"
     required: false
     flag: "-l"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的xxd参数。用于传递未在参数列表中定义的xxd选项。
+      Additional xxd arguments. Used to pass xxd options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

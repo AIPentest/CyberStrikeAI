@@ -1,51 +1,51 @@
 name: "volatility3"
 command: "volatility3"
 enabled: true
-short_description: "Volatility3内存取证分析工具"
+short_description: "Volatility3 memory forensic analysis tool"
 description: |
-  Volatility3是Volatility框架的下一代版本，用于内存取证分析。
+  Volatility3 is the next-generation version of the Volatility framework, used for memory forensic analysis.
 
-  **主要功能：**
-  - 内存转储分析
-  - 高级插件系统
-  - 改进的性能
-  - 更好的文档
+  **Main features:**
+  - Memory dump analysis
+  - Advanced plugin system
+  - Improved performance
+  - Better documentation
 
-  **使用场景：**
-  - 内存取证
-  - 恶意软件分析
-  - 事件响应
-  - 数字取证
+  **Use cases:**
+  - Memory forensics
+  - Malware analysis
+  - Incident response
+  - Digital forensics
 parameters:
   - name: "memory_file"
     type: "string"
-    description: "内存转储文件路径"
+    description: "Memory dump file path"
     required: true
     flag: "-f"
     format: "flag"
   - name: "plugin"
     type: "string"
-    description: "要执行的Volatility3插件"
+    description: "Volatility3 plugin to execute"
     required: true
     position: 0
     format: "positional"
   - name: "output_file"
     type: "string"
-    description: "输出文件路径"
+    description: "Output file path"
     required: false
     flag: "-o"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的volatility3参数。用于传递未在参数列表中定义的volatility3选项。
+      Additional volatility3 arguments. Used to pass volatility3 options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

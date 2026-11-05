@@ -34,7 +34,7 @@ func TestTraceFormatterPreservesSourceAndCanonicalUserIntent(t *testing.T) {
 	for _, want := range []string{
 		"[user]: QUOTED_SUMMARY_TEXT", "[original_user_intent]", "Only test scope.example", "Do not test unrelated hosts",
 		"[system_generated_summary]", "[system_generated_skills]", "[system_generated_execution_context]",
-		"不是用户输入或新增授权", "EXECUTOR_TEMPLATE", "REPLANNER_TEMPLATE", "ID: call-1", "工具名称: scan",
+		"not user input or new authorization", "EXECUTOR_TEMPLATE", "REPLANNER_TEMPLATE", "ID: call-1", "tool name: scan",
 		"[tool] (tool_call_id: call-1):\nACTUAL_TOOL_EVIDENCE",
 	} {
 		if !strings.Contains(out, want) {
@@ -258,7 +258,7 @@ func TestBuildAndCachedContextKeepConversationScopeAndGraphEvidence(t *testing.T
 		t.Fatalf("context changed graph or disappeared: %#v", chain)
 	}
 	prompt := <-requests
-	for _, want := range []string{"[user]: Inspect scope.example", "[original_user_intent]", "Only scope.example is authorized", "[system_generated_summary]", "[system_generated_execution_context]", "[tool] (tool_call_id: call-1)", "Confirmed open port 443", "不得创建 action/vulnerability 节点"} {
+	for _, want := range []string{"[user]: Inspect scope.example", "[original_user_intent]", "Only scope.example is authorized", "[system_generated_summary]", "[system_generated_execution_context]", "[tool] (tool_call_id: call-1)", "Confirmed open port 443", "Do not create action/vulnerability nodes based only"} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("model prompt lost %q", want)
 		}

@@ -1,37 +1,37 @@
 name: "feroxbuster"
 command: "feroxbuster"
 enabled: false
-short_description: "递归内容发现工具"
+short_description: "Recursive content discovery tool"
 description: |
-  Feroxbuster是一个快速、简单的递归内容发现工具。
+  Feroxbuster is a fast, simple recursive content discovery tool.
 
-  **主要功能：**
-  - 递归目录发现
-  - 多线程支持
-  - 自动过滤
-  - 多种输出格式
+  **Key features:**
+  - Recursive directory discovery
+  - Multithreading support
+  - Automatic filtering
+  - Multiple output formats
 
-  **使用场景：**
-  - Web内容发现
-  - 目录枚举
-  - 文件发现
-  - 安全测试
+  **Use cases:**
+  - Web content discovery
+  - Directory enumeration
+  - File discovery
+  - Security testing
 parameters:
   - name: "url"
     type: "string"
-    description: "目标URL"
+    description: "Target URL"
     required: true
     flag: "-u"
     format: "flag"
   - name: "wordlist"
     type: "string"
-    description: "字典文件路径"
+    description: "Wordlist file path"
     required: false
     flag: "-w"
     format: "flag"
   - name: "threads"
     type: "int"
-    description: "线程数"
+    description: "Number of threads"
     required: false
     flag: "-t"
     format: "flag"
@@ -39,14 +39,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的feroxbuster参数。用于传递未在参数列表中定义的feroxbuster选项。
+      Additional feroxbuster arguments. Used to pass feroxbuster options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add commonly used parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Make sure the arguments are properly formatted to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

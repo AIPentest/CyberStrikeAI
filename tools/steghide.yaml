@@ -1,63 +1,63 @@
 name: "steghide"
 command: "steghide"
 enabled: true
-short_description: "隐写术分析工具"
+short_description: "Steganography analysis tool"
 description: |
-  Steghide是一个隐写术工具，用于在图像和音频文件中隐藏数据。
+  Steghide is a steganography tool used to hide data in image and audio files.
 
-  **主要功能：**
-  - 数据隐藏
-  - 数据提取
-  - 信息查看
-  - 密码保护
+  **Main features:**
+  - Data hiding
+  - Data extraction
+  - Information viewing
+  - Password protection
 
-  **使用场景：**
-  - 隐写术分析
-  - 数据隐藏检测
-  - 取证分析
-  - CTF挑战
+  **Use cases:**
+  - Steganography analysis
+  - Hidden data detection
+  - Forensic analysis
+  - CTF challenges
 parameters:
   - name: "action"
     type: "string"
-    description: "操作类型（extract, embed, info）"
+    description: "Action type (extract, embed, info)"
     required: true
     position: 0
     format: "positional"
   - name: "cover_file"
     type: "string"
-    description: "载体文件路径（embed/info操作使用 -cf）"
+    description: "Cover file path (used with -cf for embed/info operations)"
     required: false
     flag: "-cf"
     format: "flag"
   - name: "embed_file"
     type: "string"
-    description: "要嵌入的文件（embed操作时）"
+    description: "File to embed (during the embed operation)"
     required: false
     flag: "-ef"
     format: "flag"
   - name: "passphrase"
     type: "string"
-    description: "密码"
+    description: "Password"
     required: false
     flag: "-p"
     format: "flag"
   - name: "stego_file"
     type: "string"
-    description: "隐写文件路径（embed时输出，extract时输入）"
+    description: "Steganography file path (output for embed, input for extract)"
     required: false
     flag: "-sf"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的steghide参数。用于传递未在参数列表中定义的steghide选项。
+      Additional steghide arguments. Used to pass steghide options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

@@ -39,7 +39,7 @@ func (db *DB) SaveSkillStats(skillName string, stats *SkillStats) error {
 	)
 
 	if err != nil {
-		db.logger.Error("保存Skills统计信息失败", zap.Error(err), zap.String("skillName", skillName))
+		db.logger.Error("failed to save skill stats", zap.Error(err), zap.String("skillName", skillName))
 		return err
 	}
 
@@ -72,7 +72,7 @@ func (db *DB) LoadSkillStats() (map[string]*SkillStats, error) {
 			&lastCallTime,
 		)
 		if err != nil {
-			db.logger.Warn("加载Skills统计信息失败", zap.Error(err))
+			db.logger.Warn("failed to load skill stats", zap.Error(err))
 			continue
 		}
 
@@ -110,7 +110,7 @@ func (db *DB) UpdateSkillStats(skillName string, totalCalls, successCalls, faile
 	)
 
 	if err != nil {
-		db.logger.Error("更新Skills统计信息失败", zap.Error(err), zap.String("skillName", skillName))
+		db.logger.Error("failed to update skill stats", zap.Error(err), zap.String("skillName", skillName))
 		return err
 	}
 
@@ -122,10 +122,10 @@ func (db *DB) ClearSkillStats() error {
 	query := `DELETE FROM skill_stats`
 	_, err := db.Exec(query)
 	if err != nil {
-		db.logger.Error("清空Skills统计信息失败", zap.Error(err))
+		db.logger.Error("failed to clear skill stats", zap.Error(err))
 		return err
 	}
-	db.logger.Info("已清空所有Skills统计信息")
+	db.logger.Info("cleared all skill stats")
 	return nil
 }
 
@@ -134,9 +134,9 @@ func (db *DB) ClearSkillStatsByName(skillName string) error {
 	query := `DELETE FROM skill_stats WHERE skill_name = ?`
 	_, err := db.Exec(query, skillName)
 	if err != nil {
-		db.logger.Error("清空指定skill统计信息失败", zap.Error(err), zap.String("skillName", skillName))
+		db.logger.Error("failed to clear skill stats by name", zap.Error(err), zap.String("skillName", skillName))
 		return err
 	}
-	db.logger.Info("已清空指定skill统计信息", zap.String("skillName", skillName))
+	db.logger.Info("cleared skill stats by name", zap.String("skillName", skillName))
 	return nil
 }

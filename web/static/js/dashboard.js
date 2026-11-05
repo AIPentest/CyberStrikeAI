@@ -1,14 +1,14 @@
-// 仪表盘页面：拉取运行中对话、漏洞统计、批量任务、工具与 Skills 统计并渲染。
+// Dashboard page: fetches running conversations, vulnerability statistics, batch tasks, tools and Skills statistics, and renders them.
 //
-// 工程基础设施：
-//   - dashboardState 集中保存运行时状态（in-flight controller / 自动轮询 timer / 上次更新时间 /
-//     已被本会话忽略的告警条 reasons）；
-//   - 每次 refreshDashboard 入口 abort 上一个 controller，把 signal 传给所有 apiFetch，
-//     避免快速连点 / 自动轮询触发 race condition；
-//   - 自动轮询：startDashboardAutoRefresh() 每 60 秒拉一次；页面切走 / tab 隐藏时自动暂停，
-//     再切回时立即补一次刷新（基于 lastUpdatedAt 避免无效请求）；
-//   - 过期检测：updateLastUpdatedNow 记录时间戳；checkDashboardStale 每 30 秒检查，
-//     超过 5 分钟未刷新则在「上次更新」徽章上加 .is-stale 类（变灰 + 显示 ⚠️）。
+// Engineering infrastructure:
+//   - dashboardState centrally stores runtime state (in-flight controller / auto polling timer / last update time /
+//     Alarm entries ignored by this session reasons）；
+//   Each time refreshDashboard is entered, abort the previous controller, pass the signal to all apiFetch,
+//     Avoid rapid consecutive clicks / automatic polling triggering race conditions;
+//   - Automatic polling: startDashboardAutoRefresh() pulls once every 60 seconds; automatically pauses when navigating away / the tab is hidden,
+//     When switching back again, immediately do one more refresh (based on lastUpdatedAt to avoid invalid requests);
+//   - Staleness detection: updateLastUpdatedNow records the timestamp；checkDashboardStale checks every 30 seconds,
+//     If not refreshed for more than 5 minutes, add the .is-stale class to the 'Last updated' badge (grayed out + shows ⚠️).
 
 var DASHBOARD_POLL_INTERVAL_MS = 60 * 1000;
 var DASHBOARD_STALE_THRESHOLD_MS = 5 * 60 * 1000;
@@ -17,16 +17,16 @@ var DASHBOARD_SEVERITY_STATUS_FILTER_STORAGE_KEY = 'cyberstrike.dashboard.severi
 var DASHBOARD_SEVERITY_STATUS_FILTER_VALUES = ['', 'open', 'confirmed', 'fixed', 'ignored', 'false_positive'];
 
 var dashboardState = {
-    currentController: null,    // 当前正在进行的 fetch 的 AbortController
-    pollTimer: null,            // 自动轮询的 setInterval id
-    staleTimer: null,           // 过期检查的 setInterval id
-    lastUpdatedAt: 0,           // 上次成功刷新的时间戳（ms）
-    dismissedAlertKey: null,    // 当前会话中被用户「×」掉的告警内容指纹（同样的 reasons 不再弹）
-    lastResources: null,        // 上一轮关键资源快照，用于判断是否首次有数据 / 智能 CTA
-    recentFeedTab: 'vulns',     // 最近漏洞 / 近期事实 Tab
-    accessTab: 'c2',            // 接入概览 Tab：c2 | webshell
-    severityStatusFilter: null,  // 严重程度分布当前状态筛选：'' | open | confirmed | fixed | false_positive | ignored
-    lastProjectSummary: null,   // 最近一次项目仪表盘摘要（供 Tab 切换时重绘）
+    currentController: null,    // The AbortController of the currently in-progress fetch
+    pollTimer: null,            // setInterval id for automatic polling
+    staleTimer: null,           // setInterval id for expiry check
+    lastUpdatedAt: 0,           // Timestamp of the last successful refresh (ms)
+    dismissedAlertKey: null,    // Fingerprint of alert content dismissed with '×' by the user in the current session (same reasons no longer pop up)
+    lastResources: null,        // Previous round key resource snapshot, used to determine whether it's the first time with data / smart CTA
+    recentFeedTab: 'vulns',     // Recent Vulnerabilities / Recent Facts Tab
+    accessTab: 'c2',            // Access Overview Tab: c2 | webshell
+    severityStatusFilter: null,  // Severity distribution current status filter: '' | open | confirmed | fixed | false_positive | ignored
+    lastProjectSummary: null,   // Most recent project dashboard summary (for redraw when switching tabs)
 };
 
 function dashboardProjectScopedUrl(url) {
@@ -44,11 +44,11 @@ async function refreshDashboard() {
     const vulnTotalEl = document.getElementById('dashboard-vuln-total');
     const severityIds = ['critical', 'high', 'medium', 'low', 'info'];
 
-    // severityTotalEl 在后续渲染逻辑中也被引用，必须在 loading 分支外声明
+    // severityTotalEl is also referenced in the subsequent rendering logic, so it must be declared outside the loading branch
     const severityTotalEl = document.getElementById('dashboard-severity-total');
 
-    // 体验优化：自动轮询 / 已经有数据时，不再把界面闪成「…」占位，
-    // 直接在后台拉新数据并平滑替换；只有首次加载时才显示 loading 状态。
+    // Experience optimization: auto polling / when data already exists, no longer flash the UI into a 「…」 placeholder,
+    // Directly pull new data in the background and smoothly replace it; only show the loading state on the first load.
     var isInitialLoad = !dashboardState.lastUpdatedAt;
     if (isInitialLoad) {
         if (runningEl) runningEl.textContent = '…';
@@ -84,7 +84,7 @@ async function refreshDashboard() {
         setEl('dashboard-c2-sessions-online', '…');
         setEl('dashboard-c2-tasks-pending', '…');
         var chartPlaceholder = document.getElementById('dashboard-tools-pie-placeholder');
-        if (chartPlaceholder) { chartPlaceholder.style.removeProperty('display'); chartPlaceholder.textContent = (typeof window.t === 'function' ? window.t('common.loading') : '加载中…'); }
+        if (chartPlaceholder) { chartPlaceholder.style.removeProperty('display'); chartPlaceholder.textContent = (typeof window.t === 'function' ? window.t('common.loading') : 'Loading...'); }
         var barChartEl = document.getElementById('dashboard-tools-bar-chart');
         if (barChartEl) { barChartEl.style.display = 'none'; barChartEl.innerHTML = ''; }
     }
@@ -97,7 +97,7 @@ async function refreshDashboard() {
         return;
     }
 
-    // 防 race：abort 上一个仍在进行中的请求，再创建新 controller
+    // Prevent race: abort the previous request still in progress, then create a new controller
     if (dashboardState.currentController) {
         try { dashboardState.currentController.abort(); } catch (_) { /* ignore */ }
     }
@@ -105,8 +105,8 @@ async function refreshDashboard() {
     dashboardState.currentController = controller;
     var signal = controller ? controller.signal : undefined;
 
-    // 统一封装：apiFetch + abort signal + 失败/取消都返回 null（不抛错），
-    // 让上层可以用解构赋值平铺读取所有结果，避免一处失败导致整个 Promise.all reject
+    // Unified wrapper: apiFetch + abort signal + both failure/cancellation return null (no errors thrown),
+    // Let the upper layer use destructuring assignment to read all results in a flat manner, avoiding a single failure causing the entire Promise.all to reject
     var fetchJson = function (url) {
         return apiFetch(url, { signal: signal })
             .then(function (r) { return r && r.ok ? r.json() : null; })
@@ -115,10 +115,10 @@ async function refreshDashboard() {
 
     try {
         var selectedSeverityStatus = getDashboardSeverityStatusFilter();
-        // /api/vulnerabilities/stats 只给出 by_severity 与 by_status 两个独立维度，
-        // 无法得到「严重 × 待处理」的交叉计数。这里按四档各拉一次（limit=1，仅取 total），
-        // 用真实的「待处理 × 各严重度」数量驱动告警条 / KPI 副标 / 风险概览卡的加权分，
-        // 避免「全部修复后风险等级仍显示极高」这类语义冲突。
+        // /api/vulnerabilities/stats only provides the two independent dimensions by_severity and by_status,
+        // Cannot get the cross-count of 「Critical × Pending」. Here we pull once for each of the four levels (limit=1, only getting the total),
+        // Use the real "pending × each severity" counts to drive the weighted scores of the alert bar / KPI sub-label / risk overview card,
+        // Avoid semantic conflicts like "risk level still shows as extremely high even after all fixes are applied".
         var openVulnQuery = function (sev) {
             return fetchJson('/api/vulnerabilities?severity=' + sev + '&status=open&limit=1');
         };
@@ -142,21 +142,21 @@ async function refreshDashboard() {
             fetchJson('/api/multi-agent/markdown-agents'),
             openVulnQuery('critical'),
             openVulnQuery('high'),
-            // 中/低危的「待处理」计数：用于风险概览卡的加权风险分，使其反映"当前未处理风险"
+            // Medium/low severity "pending" count: used for the weighted risk score of the risk overview card, making it reflect "currently unprocessed risks"
             openVulnQuery('medium'),
             openVulnQuery('low'),
-            // 拉取 MCP 工具的「配置总数」用于「能力总览」（区别于 monitor/stats 的「有调用记录」）。
-            // 仅取 total 字段，page_size=1 减少传输；total 已涵盖内部 + 外部 MCP + 直接注册的工具。
+            // Pull the 「total configured count」 of MCP tools for the 「capability overview」 (distinct from monitor/stats' 「has call records»).
+            // Only fetch the total field, page_size=1 to reduce data transfer; total already covers internal + external MCP + directly registered tools.
             fetchJson('/api/config/tools?page=1&page_size=1&include_external=false'),
-            // HITL 待审批：用于「需要立即处理」告警条 + 推荐操作
+            // HITL pending approval: used for the "requires immediate action" alert banner + recommended actions
             fetchJson('/api/hitl/pending'),
-            // 通知摘要：since=0 拿最新一批，limit 控制大小；用于「最近事件」内联展示
+            // Notification summary: since=0 fetches the latest batch, limit controls the size; used for inline display of "recent events"
             fetchJson('/api/notifications/summary?since=0&limit=20&lang=' + encodeURIComponent((window.__locale || 'zh-CN'))),
-            // External MCP 健康度
+            // External MCP health
             fetchJson('/api/external-mcp/stats'),
-            // WebShell 已建立的连接（pentest 落地后的 foothold，对运营场景非常关键）
+            // WebShell established connections (the foothold after the pentest lands, very critical for operational scenarios)
             fetchJson(dashboardProjectScopedUrl('/api/webshell/connections')),
-            // C2 仪表盘条：监听器 / 会话 / 待处理任务（任务接口含 pending_queued_count）
+            // C2 dashboard bar: listener / session / pending tasks (task interface includes pending_queued_count)
             fetchJson(dashboardProjectScopedUrl('/api/c2/listeners')),
             fetchJson(dashboardProjectScopedUrl('/api/c2/sessions?limit=500')),
             fetchJson(dashboardProjectScopedUrl('/api/c2/tasks?page=1&page_size=1')),
@@ -165,10 +165,10 @@ async function refreshDashboard() {
             fetchJson(dashboardProjectScopedUrl('/api/usage/tokens?days=7&limit=20'))
         ]);
 
-        // 如果在 await 期间 controller 已被 abort，说明又有新刷新启动了，丢弃本次结果
+        // If the controller has been aborted during the await, it means a new refresh has been started, so discard this result
         if (signal && signal.aborted) return;
 
-        // 运行中对话：仅统计 Agent 循环任务；批量队列见右侧「批量任务队列」
+        // Running conversations: only counts Agent loop tasks; for the batch queue, see "Batch Task Queue" on the right
         let agentRunningCount = null;
         if (tasksRes && Array.isArray(tasksRes.tasks)) {
             agentRunningCount = tasksRes.tasks.length;
@@ -184,14 +184,14 @@ async function refreshDashboard() {
         if (runningEl) {
             runningEl.textContent = agentRunningCount !== null ? String(agentRunningCount) : '-';
         }
-        // KPI 副标：全部空闲 / 正在执行
+        // KPI subtitle: all idle / executing
         if (runningConversations === 0) {
-            setKpiSubBadge('dashboard-kpi-tasks-sub-text', dt('dashboard.allIdle', null, '系统空闲'), 'idle');
+            setKpiSubBadge('dashboard-kpi-tasks-sub-text', dt('dashboard.allIdle', null, 'System idle'), 'idle');
         } else {
-            setKpiSubBadge('dashboard-kpi-tasks-sub-text', dt('dashboard.executingNow', null, '正在执行'), 'running');
+            setKpiSubBadge('dashboard-kpi-tasks-sub-text', dt('dashboard.executingNow', null, 'Executing'), 'running');
         }
 
-        // 解析「待处理」口径的真实计数（专门拉的接口）；若该接口失败则退回 by_severity
+        // Parse the true count of the "pending" scope (a dedicated API for pulling this); if that API fails, fall back to by_severity
         const pickOpenCount = function (res, fallback) {
             if (res && typeof res.total === 'number') return res.total;
             return fallback;
@@ -216,7 +216,7 @@ async function refreshDashboard() {
             highCount = bySeverity.high || 0;
             mediumCount = bySeverity.medium || 0;
             lowCount = bySeverity.low || 0;
-            // 优先用专门拉的「待处理」计数；若专项接口失败，则退回 by_severity（宁可误报，不可漏报）
+            // Prefer using the dedicated "pending" count; if the specialized endpoint fails, fall back to by_severity (better a false positive than a false negative)
             openCriticalCount = pickOpenCount(openCriticalRes, criticalCount);
             openHighCount = pickOpenCount(openHighRes, highCount);
             openMediumCount = pickOpenCount(openMediumRes, mediumCount);
@@ -229,7 +229,7 @@ async function refreshDashboard() {
                 recentVulnsRes
             );
 
-            // 漏洞 KPI 副标：徽章/文案均使用「待处理」口径
+            // Vulnerability KPI subtitle: both the badge and copy use the "pending" wording
             const critBadge = document.getElementById('dashboard-kpi-vuln-critical-badge');
             const critCountEl = document.getElementById('dashboard-kpi-vuln-critical-count');
             if (critCountEl) critCountEl.textContent = String(openCriticalCount);
@@ -237,14 +237,14 @@ async function refreshDashboard() {
             const subTextEl = document.getElementById('dashboard-kpi-vuln-sub-text');
             if (subTextEl) {
                 if (total === 0) {
-                    subTextEl.textContent = dt('dashboard.allClear', null, '暂无新增风险');
+                    subTextEl.textContent = dt('dashboard.allClear', null, 'No new risks at present');
                 } else if (openCriticalCount === 0 && openHighCount === 0) {
-                    // 高严重度全部已处置 → 给正反馈
-                    subTextEl.textContent = dt('dashboard.allHandled', null, '高严重度已全部处置');
+                    // All high severity issues have been resolved → give positive feedback
+                    subTextEl.textContent = dt('dashboard.allHandled', null, 'All high-severity issues have been handled');
                 } else if (openHighCount > 0) {
-                    subTextEl.textContent = dt('dashboard.openHighCountLabel', { count: openHighCount }, '待处理高危 ' + openHighCount);
+                    subTextEl.textContent = dt('dashboard.openHighCountLabel', { count: openHighCount }, 'Pending High Risk' + openHighCount);
                 } else {
-                    subTextEl.textContent = dt('dashboard.totalCount', { count: total }, '共 ' + total + ' 个');
+                    subTextEl.textContent = dt('dashboard.totalCount', { count: total }, 'together' + total + 'measure word');
                 }
             }
         } else {
@@ -261,7 +261,7 @@ async function refreshDashboard() {
             setKpiSubText('dashboard-kpi-vuln-sub-text', '-');
         }
 
-        // 批量任务队列：按状态统计（优化版；running 与上方 batchRunningCount 一致）
+        // Batch task queue: stats by status (optimized version; running matches the batchRunningCount above)
         if (batchRes && Array.isArray(batchRes.queues)) {
             const queues = batchRes.queues;
             let pending = 0, running = batchRunningCount, done = 0;
@@ -275,9 +275,9 @@ async function refreshDashboard() {
             setEl('dashboard-batch-pending', String(pending));
             setEl('dashboard-batch-running', String(running));
             setEl('dashboard-batch-done', String(done));
-            setEl('dashboard-batch-total', total > 0 ? (typeof window.t === 'function' ? window.t('dashboard.totalCount', { count: total }) : `共 ${total} 个`) : (typeof window.t === 'function' ? window.t('dashboard.noTasks') : '暂无任务'));
+            setEl('dashboard-batch-total', total > 0 ? (typeof window.t === 'function' ? window.t('dashboard.totalCount', { count: total }) : `A total of \${total}`) : (typeof window.t === 'function' ? window.t('dashboard.noTasks') : 'No tasks available'));
             
-            // 更新进度条
+            // Update progress bar
             if (total > 0) {
                 const pendingPct = (pending / total * 100).toFixed(1);
                 const runningPct = (running / total * 100).toFixed(1);
@@ -300,7 +300,7 @@ async function refreshDashboard() {
             updateProgressBar('dashboard-batch-progress-done', '0');
         }
 
-        // 工具调用：monitor/stats 为 { summary, topTools }
+        // Tool call: monitor/stats is { summary, topTools }
         let toolsCount = 0, toolsTotalCalls = 0, toolsSuccessRate = -1, toolsFailedCount = 0;
         if (monitorRes && monitorRes.summary) {
             const s = monitorRes.summary;
@@ -311,7 +311,7 @@ async function refreshDashboard() {
             const effectiveToolCalls = totalSuccess + toolsFailedCount;
             setEl('dashboard-kpi-tools-calls', formatNumber(toolsTotalCalls));
             setKpiSubText('dashboard-kpi-tools-sub-text',
-                dt('dashboard.toolsCountLabel', { count: toolsCount }, toolsCount + ' 个工具'));
+                dt('dashboard.toolsCountLabel', { count: toolsCount }, toolsCount + 'a tool'));
             if (effectiveToolCalls > 0) {
                 toolsSuccessRate = (totalSuccess / effectiveToolCalls) * 100;
                 const rateStr = toolsSuccessRate.toFixed(1) + '%';
@@ -319,10 +319,10 @@ async function refreshDashboard() {
                 setKpiRateBadge('dashboard-kpi-rate-sub-text', toolsSuccessRate, toolsFailedCount);
             } else if (toolsTotalCalls > 0) {
                 setEl('dashboard-kpi-success-rate', '-');
-                setKpiSubText('dashboard-kpi-rate-sub-text', dt('dashboard.noCompletedYet', null, '暂无有效完成'));
+                setKpiSubText('dashboard-kpi-rate-sub-text', dt('dashboard.noCompletedYet', null, 'No valid completion yet'));
             } else {
                 setEl('dashboard-kpi-success-rate', '-');
-                setKpiSubText('dashboard-kpi-rate-sub-text', dt('dashboard.noCallYet', null, '暂无调用'));
+                setKpiSubText('dashboard-kpi-rate-sub-text', dt('dashboard.noCallYet', null, 'No calls yet'));
             }
             renderDashboardToolsBar(monitorRes.topTools);
         } else {
@@ -335,7 +335,7 @@ async function refreshDashboard() {
 
         renderDashboardTokenUsage(tokenUsageRes);
 
-        // 「能力总览 → MCP 工具」用配置总数（包含未被调用过的工具）；专项接口失败时回落到 monitor 的 names.length
+        // 「Capability overview → MCP tools」 uses the total configuration count (including tools that have never been called); falls back to monitor's names.length if the dedicated interface fails
         if (toolsConfigRes && typeof toolsConfigRes.total === 'number') {
             setEl('dashboard-resource-tools', formatNumber(toolsConfigRes.total));
         } else if (toolsCount > 0) {
@@ -344,10 +344,10 @@ async function refreshDashboard() {
             setEl('dashboard-resource-tools', '-');
         }
 
-        // 知识：填充能力总览中的「知识」一行
+        // Knowledge: fills the "Knowledge" row in the capability overview
         if (knowledgeRes && typeof knowledgeRes === 'object') {
             if (knowledgeRes.enabled === false) {
-                setEl('dashboard-resource-knowledge', dt('dashboard.notEnabled', null, '未启用'));
+                setEl('dashboard-resource-knowledge', dt('dashboard.notEnabled', null, 'Not enabled'));
             } else {
                 const items = knowledgeRes.total_items ?? 0;
                 setEl('dashboard-resource-knowledge', formatNumber(items));
@@ -356,7 +356,7 @@ async function refreshDashboard() {
             setEl('dashboard-resource-knowledge', '-');
         }
 
-        // Skills：填充能力总览中的「Skills」一行
+        // Skills：fill in the 「Skills」 row in the capability overview
         if (skillsRes && typeof skillsRes === 'object') {
             const totalSkills = skillsRes.total_skills ?? 0;
             setEl('dashboard-resource-skills', formatNumber(totalSkills));
@@ -364,39 +364,39 @@ async function refreshDashboard() {
             setEl('dashboard-resource-skills', '-');
         }
 
-        // 角色 / Agents
+        // Role / Agents
         if (rolesRes) {
-            // /api/roles 返回 { roles: [...] } 或者数组本身
+            // /api/roles returns { roles: [...] } or the array itself
             const roles = Array.isArray(rolesRes) ? rolesRes : (rolesRes.roles || []);
             setEl('dashboard-resource-roles', formatNumber(Array.isArray(roles) ? roles.length : 0));
         } else {
             setEl('dashboard-resource-roles', '-');
         }
         if (agentsRes) {
-            // /api/multi-agent/markdown-agents 返回 { agents: [...] }
+            // /api/multi-agent/markdown-agents returns { agents: [...] }
             const agents = Array.isArray(agentsRes) ? agentsRes : (agentsRes.agents || []);
             setEl('dashboard-resource-agents', formatNumber(Array.isArray(agents) ? agents.length : 0));
         } else {
             setEl('dashboard-resource-agents', '-');
         }
-        // 最近漏洞列表
+        // Recent vulnerability list
         renderRecentVulns(recentVulnsRes);
         dashboardState.lastProjectSummary = projectSummaryRes;
         renderRecentFacts(projectSummaryRes);
 
-        // External MCP 健康度（同时拿到 down 数喂给 alert banner / 推荐操作）
+        // External MCP health (also fetch the down count to feed the alert banner / recommended actions)
         var externalMcpDown = renderExternalMcpHealth(externalMcpStatsRes);
 
-        // HITL 待审批数量（喂给 alert banner / 推荐操作）
+        // HITL pending approval count (fed to alert banner / recommended actions)
         var hitlPending = getHitlPendingCount(hitlPendingRes);
 
-        // 「最近事件」内联展示（来自通知摘要，过滤掉已经被仪表盘其他位置覆盖的类型）
+        // 「Recent events」 inline display (from notification summary, filter out types already covered elsewhere in the dashboard)
         renderRecentEvents(notificationsRes);
 
-        // 接入概览（C2 + WebShell）
+        // Access overview（C2 + WebShell）
         renderDashboardAccessOverview(c2ListenersRes, c2SessionsRes, c2TasksRes, webshellRes);
 
-        // 关键提醒条：把所有可能的告警源（漏洞/HITL/失败率/MCP健康）合并展示
+        // Key alert bar: merge and display all possible alert sources (vulnerabilities/HITL/failure rate/MCP health)
         renderDashboardAlertBanner({
             criticalCount: openCriticalCount,
             hitlPending: hitlPending,
@@ -405,7 +405,7 @@ async function refreshDashboard() {
             externalMcpDown: externalMcpDown
         });
 
-        // 智能 CTA：有数据时隐藏「开始你的安全之旅」
+        // Smart CTA: hide 「Start your security journey」 when data exists
         var batchTotalCount = (batchRes && Array.isArray(batchRes.queues)) ? batchRes.queues.length : 0;
         var toolsConfiguredCount = (toolsConfigRes && typeof toolsConfigRes.total === 'number')
             ? toolsConfigRes.total : 0;
@@ -417,7 +417,7 @@ async function refreshDashboard() {
             batchTotal: batchTotalCount
         });
 
-        // 「推荐操作」：基于全量当前状态智能生成
+        // 「Recommended action」: intelligently generated based on the full current state
         renderRecommendedActions({
             openCriticalCount: openCriticalCount,
             hitlPending: hitlPending,
@@ -429,12 +429,12 @@ async function refreshDashboard() {
             totalRunning: runningConversations + batchRunningCount
         });
 
-        // 更新「上次更新」时间
+        // Update "last updated" time
         updateLastUpdatedNow();
     } catch (e) {
-        // AbortError 是预期内（被新一次刷新主动取消），不视为错误
+        // AbortError is expected (proactively cancelled by a newer refresh), not treated as an error
         if (e && (e.name === 'AbortError' || (signal && signal.aborted))) return;
-        console.warn('仪表盘拉取统计失败', e);
+        console.warn('Failed to fetch dashboard statistics', e);
         if (runningEl) runningEl.textContent = '-';
         if (vulnTotalEl) vulnTotalEl.textContent = '-';
         setDashboardOverviewPlaceholder('-');
@@ -456,18 +456,18 @@ async function refreshDashboard() {
         setRecentFactsError();
         renderDashboardToolsBar(null);
         var ph = document.getElementById('dashboard-tools-pie-placeholder');
-        if (ph) { ph.style.removeProperty('display'); ph.textContent = (typeof window.t === 'function' ? window.t('dashboard.noCallData') : '暂无调用数据'); }
+        if (ph) { ph.style.removeProperty('display'); ph.textContent = (typeof window.t === 'function' ? window.t('dashboard.noCallData') : 'No call data available'); }
     } finally {
         if (dashboardState.currentController === controller) {
             dashboardState.currentController = null;
         }
-        // 第一次 refreshDashboard（无论成功与否）完成后即开启自动轮询 + 过期检查；
-        // 重复调用是幂等的（内部判断 timer 是否已存在）。
+        // Once the first refreshDashboard completes (whether it succeeds or fails), automatic polling + expiration check starts;
+        // Repeated calls are idempotent (internally checks whether the timer already exists).
         startDashboardAutoRefresh();
     }
 }
 
-/** 接入概览：C2 / WebShell Tab 切换；C2 禁用时仅保留 WebShell Tab */
+/** Access overview: C2 / WebShell Tab switching; when C2 is disabled, only keep the WebShell Tab */
 function renderDashboardAccessOverview(listenersRes, sessionsRes, tasksRes, webshellRes) {
     var section = document.getElementById('dashboard-section-access');
     if (!section) return;
@@ -538,7 +538,7 @@ function renderDashboardAccessOverview(listenersRes, sessionsRes, tasksRes, webs
     }
 }
 
-/** C2 / WebShell Tab 切换（样式与「最近漏洞 / 近期事实」一致） */
+/** C2 / WebShell Tab switching (style consistent with 「Recent Vulnerabilities / Recent Facts」) */
 function switchDashboardAccessTab(tab) {
     tab = tab === 'webshell' ? 'webshell' : 'c2';
     dashboardState.accessTab = tab;
@@ -569,15 +569,15 @@ function updateDashboardAccessViewAll(tab) {
     if (tab === 'webshell') {
         link.onclick = function () { try { switchPage('webshell'); } catch (_) {} };
         link.setAttribute('data-i18n', 'dashboard.webshellGoManage');
-        link.textContent = dt('dashboard.webshellGoManage', null, '进入 WebShell →');
+        link.textContent = dt('dashboard.webshellGoManage', null, 'Enter WebShell →');
     } else {
         link.onclick = function () { try { switchPage('c2-listeners'); } catch (_) {} };
         link.setAttribute('data-i18n', 'dashboard.c2GoManage');
-        link.textContent = dt('dashboard.c2GoManage', null, '进入 C2 →');
+        link.textContent = dt('dashboard.c2GoManage', null, 'Enter C2 →');
     }
 }
 
-/** 根据可用模块同步 Tab 可见性与默认选中项 */
+/** Sync Tab visibility and default selected item based on available modules */
 function syncDashboardAccessTabs() {
     var section = document.getElementById('dashboard-section-access');
     if (!section || section.hidden) return;
@@ -601,7 +601,7 @@ function syncDashboardAccessTabs() {
     applyDashboardAccessTabUI(tab);
 }
 
-/** WebShell 接入概览：最近 3 条连接摘要 */
+/** WebShell access overview: latest 3 connection summaries */
 function renderDashboardWebshellRecent(list) {
     var container = document.getElementById('dashboard-webshell-recent');
     if (!container) return;
@@ -664,8 +664,8 @@ function setDashboardOverviewPlaceholder(text) {
     updateProgressBar('dashboard-batch-progress-done', '0');
 }
 
-// 翻译辅助；找不到时回退到 fallback 字符串。
-// 命名为 dt 而非 t，避免覆盖 i18n.js 暴露的 window.t（同名函数声明在脚本顶层会写入 window）
+// Translation helper; falls back to the fallback string when not found.
+// Named dt rather than t, to avoid overwriting the window.t exposed by i18n.js (a top-level function declaration with the same name will write to window)
 function dt(key, opts, fallback) {
     if (typeof window.t === 'function') {
         const v = window.t(key, opts);
@@ -674,7 +674,7 @@ function dt(key, opts, fallback) {
     return fallback != null ? fallback : key;
 }
 
-// KPI 卡片副标：纯文本
+// KPI card subtitle: plain text
 function setKpiSubText(id, text) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -682,7 +682,7 @@ function setKpiSubText(id, text) {
     el.classList.remove('is-pending', 'is-running', 'is-idle', 'is-warning', 'is-success', 'is-danger');
 }
 
-// KPI 卡片副标：带状态色（pending / running / idle / warning / success / danger）
+// KPI card subtitle: with status color（pending / running / idle / warning / success / danger）
 function setKpiSubBadge(id, text, kind) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -691,19 +691,19 @@ function setKpiSubBadge(id, text, kind) {
     if (kind) el.classList.add('is-' + kind);
 }
 
-// 工具成功率徽章着色
+// Tool success rate badge coloring
 function setKpiRateBadge(id, rate, failedCount) {
     const el = document.getElementById(id);
     if (!el) return;
     el.classList.remove('is-pending', 'is-running', 'is-idle', 'is-warning', 'is-success', 'is-danger');
     if (rate >= 95) {
-        el.textContent = dt('dashboard.healthyStatus', null, '运行平稳');
+        el.textContent = dt('dashboard.healthyStatus', null, 'runs smoothly');
         el.classList.add('is-success');
     } else if (rate >= 80) {
-        el.textContent = dt('dashboard.normalStatus', null, '基本正常') + (failedCount > 0 ? ' · ' + dt('dashboard.failedNCalls', { count: failedCount }, failedCount + ' 失败') : '');
+        el.textContent = dt('dashboard.normalStatus', null, 'basically normal') + (failedCount > 0 ? ' · ' + dt('dashboard.failedNCalls', { count: failedCount }, failedCount + 'Failure') : '');
         el.classList.add('is-warning');
     } else {
-        el.textContent = dt('dashboard.degradedStatus', null, '需要关注') + (failedCount > 0 ? ' · ' + dt('dashboard.failedNCalls', { count: failedCount }, failedCount + ' 失败') : '');
+        el.textContent = dt('dashboard.degradedStatus', null, 'needs attention') + (failedCount > 0 ? ' · ' + dt('dashboard.failedNCalls', { count: failedCount }, failedCount + 'Failure') : '');
         el.classList.add('is-danger');
     }
 }
@@ -719,14 +719,14 @@ function renderDashboardTokenUsage(res) {
     const total = Number(summary.totalTokens || 0);
     if (!Number.isFinite(total) || total <= 0) {
         setEl('dashboard-kpi-token-usage', '0');
-        setKpiSubText('dashboard-kpi-token-sub-text', dt('dashboard.noTokenUsageYet', null, '暂无用量'));
+        setKpiSubText('dashboard-kpi-token-sub-text', dt('dashboard.noTokenUsageYet', null, 'No usage yet'));
         return;
     }
     setEl('dashboard-kpi-token-usage', formatTokenUsageCompact(total));
     setKpiSubText('dashboard-kpi-token-sub-text',
         dt('dashboard.tokenUsageSub', {
             rate: cacheRate
-        }, '缓存命中 ' + cacheRate));
+        }, 'cache hit' + cacheRate));
 }
 
 function formatTokenUsageCompact(num) {
@@ -741,8 +741,8 @@ function formatTokenUsageCompact(num) {
     return String(Math.trunc(n));
 }
 
-// sessionStorage：告警条「×」忽略记录 + 最近一次**实际展示过**的 reason 片段（不含 level），
-// 用于在「问题从多变少」（如审完 HITL 后只剩严重漏洞）时，避免误用更早对「仅子集」的忽略。
+// sessionStorage: alert bar 「×」 dismissal record + the most recently **actually displayed** reason fragment (excluding level),
+// Used to avoid mistakenly reusing an earlier "only a subset" ignore when the problems go from many to few (e.g., after finishing the HITL review, only severe vulnerabilities remain).
 var DASH_SESSION_ALERT_DISMISSED = 'dashboard.dismissedAlert';
 var DASH_SESSION_ALERT_LAST_REASONS = 'dashboard.alertLastReasons';
 
@@ -751,7 +751,7 @@ function dashboardAlertReasonKeySetFromJoined(s) {
     return new Set(s.split(',').map(function (x) { return x.trim(); }).filter(Boolean));
 }
 
-/** 当前 reason 片段相对上次展示的片段是否为真子集（用于清除过时的忽略） */
+/** Whether the current reason fragment is a proper subset of the last displayed fragment (used to clear stale ignores) */
 function dashboardAlertCurrentIsStrictSubsetOfLastShown(currentReasonJoined, lastReasonJoined) {
     var cur = dashboardAlertReasonKeySetFromJoined(currentReasonJoined);
     var last = dashboardAlertReasonKeySetFromJoined(lastReasonJoined);
@@ -764,11 +764,11 @@ function dashboardAlertCurrentIsStrictSubsetOfLastShown(currentReasonJoined, las
     return ok;
 }
 
-// 关键提醒条：根据严重情况渲染或隐藏。
-//   - level: danger（红） > warning（橙） > info（蓝），按 reasons 自动取最高级
-//   - 用户点 × 后，把当前 reasons 指纹存入 sessionStorage，本会话内再出现完全相同的内容会自动跳过
-//   - 当 reasons 集合发生变化（如又新增一类问题），指纹失效，banner 重新弹出，避免「忽略后永远不再提醒」
-//   - 若曾展示过「更多类问题」的组合，之后仅部分问题消失，即使指纹与早年忽略相同，也会清除忽略并继续提醒（见 dashboard.alertLastReasons）
+// Critical reminder bar: rendered or hidden based on severity.
+//   - level: danger (red) > warning (orange) > info (blue), automatically takes the highest level based on reasons
+//   - After the user clicks ×, store the current reasons fingerprint in sessionStorage; if the exact same content appears again within this session, it will be automatically skipped
+//   - When the reasons collection changes (e.g., another category of problem is added), the fingerprint becomes invalid and the banner pops up again, avoiding the "dismiss once and never be reminded again" issue
+//   - If the "more categories of problems" combination had been shown before and later only some of the problems disappear, then even if the fingerprint is the same as the earlier ignore, the ignore is cleared and the reminder continues (see dashboard.alertLastReasons)
 function renderDashboardAlertBanner(stats) {
     const banner = document.getElementById('dashboard-alert-banner');
     const titleEl = document.getElementById('dashboard-alert-title');
@@ -777,33 +777,33 @@ function renderDashboardAlertBanner(stats) {
     if (!banner || !titleEl || !descEl || !actsEl) return;
 
     const reasons = [];
-    // 用 reasonKeys 算指纹（不含本地化字符串，切语言后不会让用户重新看到）
+    // Compute the fingerprint using reasonKeys (excluding localized strings, so switching the language won't cause the user to see it again)
     const reasonKeys = [];
     let level = 'info'; // info | warning | danger
 
     if (stats.criticalCount > 0) {
         reasons.push(dt('dashboard.alertCriticalReason', { count: stats.criticalCount },
-            '存在 ' + stats.criticalCount + ' 个待处理的严重漏洞，建议立即处置'));
+            'exist' + stats.criticalCount + 'critical vulnerabilities pending processing, immediate remediation recommended'));
         reasonKeys.push('crit:' + stats.criticalCount);
         level = 'danger';
     }
     if (stats.hitlPending > 0) {
-        // HITL 待审批是阻塞 Agent 流程的，独立成一条；不影响 level（除非已经是 info 升 warning）
+        // HITL pending approval blocks the Agent flow, so it stands as a separate entry; does not affect level (unless it's already info, upgrade to warning)
         reasons.push(dt('dashboard.alertHitlReason', { count: stats.hitlPending },
-            '有 ' + stats.hitlPending + ' 个待审批的人机协同请求，Agent 正在等待你的决策'));
+            'have' + stats.hitlPending + 'human-machine collaboration request(s) pending approval, Agent is awaiting your decision'));
         reasonKeys.push('hitl:' + stats.hitlPending);
         if (level === 'info') level = 'warning';
     }
     if (stats.successRate >= 0 && stats.successRate < 80 && stats.failedTools > 0) {
         reasons.push(dt('dashboard.alertFailedReason', { count: stats.failedTools },
-            '工具调用成功率偏低（' + stats.failedTools + ' 次失败），请检查 MCP 监控'));
+            'Tool call success rate is relatively low (' + stats.failedTools + 'failures), please check MCP monitoring'));
         reasonKeys.push('rate:' + Math.round(stats.successRate) + ':' + stats.failedTools);
         if (level === 'info') level = 'warning';
     }
     if (stats.externalMcpDown > 0) {
-        // External MCP 异常服务器数 > 0：影响工具可用性
+        // External MCP abnormal server count > 0: affects tool availability
         reasons.push(dt('dashboard.alertMcpDownReason', { count: stats.externalMcpDown },
-            'External MCP 服务器有 ' + stats.externalMcpDown + ' 个未运行，相关工具不可用'));
+            'External MCP servers have' + stats.externalMcpDown + 'not running, related tools unavailable'));
         reasonKeys.push('mcp:' + stats.externalMcpDown);
         if (level === 'info') level = 'warning';
     }
@@ -819,7 +819,7 @@ function renderDashboardAlertBanner(stats) {
     var fingerprint = level + '|' + reasonKeys.join(',');
     var reasonPartJoined = reasonKeys.join(',');
 
-    // 检查是否被本会话忽略过同样的内容；若当前仅为「上次曾展示组合」的真子集，则清除忽略（最佳实践：部分处置后仍提醒剩余项）
+    // Check whether the same content has been ignored in this session; if the current is only a proper subset of the "last shown combination", clear the ignore (best practice: still remind of remaining items after partial handling)
     var dismissed = null;
     try { dismissed = sessionStorage.getItem(DASH_SESSION_ALERT_DISMISSED); } catch (_) {}
     var lastShownReasons = '';
@@ -844,41 +844,41 @@ function renderDashboardAlertBanner(stats) {
     banner.classList.add('is-' + level);
 
     if (level === 'danger') {
-        titleEl.textContent = dt('dashboard.alertDangerTitle', null, '需要立即处理');
+        titleEl.textContent = dt('dashboard.alertDangerTitle', null, 'Requires immediate handling');
     } else if (level === 'warning') {
-        titleEl.textContent = dt('dashboard.alertWarningTitle', null, '需要关注');
+        titleEl.textContent = dt('dashboard.alertWarningTitle', null, 'needs attention');
     } else {
-        titleEl.textContent = dt('dashboard.alertTitle', null, '提醒');
+        titleEl.textContent = dt('dashboard.alertTitle', null, 'remind');
     }
 
-    descEl.textContent = reasons.join('；');
+    descEl.textContent = reasons.join(dt('dashboard.alertReasonSeparator', null, '；'));
 
     actsEl.innerHTML = '';
     if (stats.criticalCount > 0) {
         const btn = document.createElement('button');
         btn.className = 'dashboard-alert-btn';
-        btn.textContent = dt('dashboard.viewVulns', null, '查看漏洞');
+        btn.textContent = dt('dashboard.viewVulns', null, 'View vulnerabilities');
         btn.onclick = function () { try { switchPage('vulnerabilities'); } catch (e) {} };
         actsEl.appendChild(btn);
     }
     if (stats.hitlPending > 0) {
         const btn = document.createElement('button');
         btn.className = 'dashboard-alert-btn dashboard-alert-btn-secondary';
-        btn.textContent = dt('dashboard.viewHitl', null, '前往审批');
+        btn.textContent = dt('dashboard.viewHitl', null, 'Go to Approval');
         btn.onclick = function () { try { switchPage('hitl'); } catch (e) {} };
         actsEl.appendChild(btn);
     }
     if (stats.successRate >= 0 && stats.successRate < 80) {
         const btn = document.createElement('button');
         btn.className = 'dashboard-alert-btn dashboard-alert-btn-secondary';
-        btn.textContent = dt('dashboard.viewMonitor', null, '查看监控');
+        btn.textContent = dt('dashboard.viewMonitor', null, 'View monitoring');
         btn.onclick = function () { try { switchPage('mcp-monitor'); } catch (e) {} };
         actsEl.appendChild(btn);
     }
     if (stats.externalMcpDown > 0) {
         const btn = document.createElement('button');
         btn.className = 'dashboard-alert-btn dashboard-alert-btn-secondary';
-        btn.textContent = dt('dashboard.viewMcpManagement', null, '管理 MCP');
+        btn.textContent = dt('dashboard.viewMcpManagement', null, 'Manage MCP');
         btn.onclick = function () { try { switchPage('mcp-management'); } catch (e) {} };
         actsEl.appendChild(btn);
     }
@@ -886,8 +886,8 @@ function renderDashboardAlertBanner(stats) {
     try { sessionStorage.setItem(DASH_SESSION_ALERT_LAST_REASONS, reasonPartJoined); } catch (_) {}
 }
 
-// External MCP 健康度：从 /api/external-mcp/stats 解析（后端字段为 total/enabled/disabled/connected），
-// 决定是否在「能力总览」第 6 行显示，并把「已启用但未连接」的数量返回给 alert banner。
+// External MCP health: parsed from /api/external-mcp/stats (backend fields are total/enabled/disabled/connected),
+// Decide whether to display in line 6 of 「Capability Overview」, and return the count of 「enabled but not connected」 to the alert banner.
 function renderExternalMcpHealth(stats) {
     var row = document.getElementById('dashboard-resource-external-mcp-row');
     var textEl = document.getElementById('dashboard-resource-external-mcp-text');
@@ -900,14 +900,14 @@ function renderExternalMcpHealth(stats) {
     }
     var total = Number(stats.total ?? stats.Total ?? 0) || 0;
     var enabled = Number(stats.enabled ?? stats.Enabled ?? 0) || 0;
-    // 后端用 connected 表示已连接数；兼容旧字段 running
+    // The backend uses connected to represent the connected count; compatible with the old field running
     var connected = Number(stats.connected ?? stats.Connected ??
         stats.running ?? stats.Running ?? 0) || 0;
     if (total === 0) {
         row.hidden = true;
         return 0;
     }
-    // 未配置任何「已启用」的外部 MCP 时不展示健康行，也不告警（与 MCP 管理页口径一致）
+    // When no "enabled" external MCP is configured, don't display the health row and don't alert either (consistent with the MCP management page)
     if (enabled === 0) {
         row.hidden = true;
         return 0;
@@ -919,21 +919,21 @@ function renderExternalMcpHealth(stats) {
         healthEl.classList.remove('is-ok', 'is-warning', 'is-danger');
         if (down === 0) {
             healthEl.classList.add('is-ok');
-            healthEl.textContent = dt('dashboard.mcpAllRunning', null, '全部运行');
+            healthEl.textContent = dt('dashboard.mcpAllRunning', null, 'Run all');
         } else if (down < enabled) {
             healthEl.classList.add('is-warning');
             healthEl.textContent = dt('dashboard.mcpPartialDown', { count: down },
-                down + ' 个未运行');
+                down + 'not running');
         } else {
             healthEl.classList.add('is-danger');
-            healthEl.textContent = dt('dashboard.mcpAllDown', null, '全部未运行');
+            healthEl.textContent = dt('dashboard.mcpAllDown', null, 'All not running');
         }
         healthEl.hidden = false;
     }
     return down;
 }
 
-// HITL 待审批数量：返回 pending 项数；同时可在能力总览或 KPI 副标里使用
+// HITL pending approval count: returns the number of pending items; can also be used in the capability overview or KPI subtitle
 function getHitlPendingCount(res) {
     if (!res) return 0;
     if (Array.isArray(res.items)) return res.items.length;
@@ -942,18 +942,18 @@ function getHitlPendingCount(res) {
     return 0;
 }
 
-// 「最近事件」内联展示：取通知摘要里最重要的前 N 条
-// 设计原则：
-//   - 不重复 alert banner / KPI 已表达的「新漏洞」通知（vulnerability_created 仍过滤）
-//   - HITL 待审批在推荐操作等处也会提示，但仍在此展示时间线，便于与任务完成等并列查看
-//   - 整个 section 在没有可显示内容时整个隐藏，避免空模块占地方
+// 「Recent Events」 inline display: take the top N most important items from the notification summary
+// Design principles:
+//   - Don't duplicate the "new vulnerability" notification already shown by the alert banner / KPI (vulnerability_created is still filtered)
+//   - HITL pending approvals are also prompted in recommended actions and other places, but the timeline is still displayed here, making it convenient to view side by side with task completion and other items
+//   - The entire section is hidden when there is no displayable content, to avoid empty modules taking up space
 function renderRecentEvents(notifRes) {
     var section = document.getElementById('dashboard-section-events');
     var listEl = document.getElementById('dashboard-events-list');
     if (!section || !listEl) return;
 
     var items = (notifRes && Array.isArray(notifRes.items)) ? notifRes.items : [];
-    // 过滤：去掉新漏洞类型（与「最近漏洞」等板块避免重复）；HITL 不再过滤
+    // Filter: remove new vulnerability types (avoid duplication with sections like "Recent Vulnerabilities"); HITL no longer filters
     var coveredTypes = { 'vulnerability_created': true };
     var filtered = items.filter(function (it) {
         if (!it || !it.type) return false;
@@ -961,7 +961,7 @@ function renderRecentEvents(notifRes) {
         return true;
     });
 
-    // 按 level 排序：p0 > p1 > p2，再按时间倒序
+    // Sort by level: p0 > p1 > p2, then by time in descending order
     var levelOrder = { p0: 0, p1: 1, p2: 2 };
     filtered.sort(function (a, b) {
         var la = levelOrder[a.level] != null ? levelOrder[a.level] : 9;
@@ -982,7 +982,7 @@ function renderRecentEvents(notifRes) {
 
     listEl.innerHTML = top.map(function (it) {
         var level = it.level || 'p2';
-        var title = esc(it.title || it.message || dt('dashboard.eventUntitled', null, '事件'));
+        var title = esc(it.title || it.message || dt('dashboard.eventUntitled', null, 'event'));
         var msg = esc(it.message || it.summary || it.desc || '');
         var whenRaw = timeAgoStr(it.ts || it.createdAt || it.created_at);
         var when = esc(whenRaw || '—');
@@ -999,9 +999,9 @@ function renderRecentEvents(notifRes) {
     }).join('');
 }
 
-// 推荐操作：基于当前数据状态智能生成「下一步该做什么」。
-// 设计原则：每条都必须可点击直达对应页面，按优先级（紧急 > 维护 > 配置）排序，
-// 同一时间只显示最重要的 3-5 条；没有可推荐时整个 section 隐藏。
+// Recommended actions: Intelligently generate "what to do next" based on the current data state.
+// Design principle: each entry must be clickable to go directly to the corresponding page, sorted by priority (urgent > maintenance > configuration),
+// Only show the 3-5 most important items at any given time; hide the entire section when there's nothing to recommend.
 function renderRecommendedActions(state) {
     var section = document.getElementById('dashboard-section-recommend');
     var listEl = document.getElementById('dashboard-recommend-list');
@@ -1009,57 +1009,57 @@ function renderRecommendedActions(state) {
 
     var actions = [];
 
-    // 紧急类：未处理严重漏洞
+    // Urgent class: unhandled critical vulnerabilities
     if (state.openCriticalCount > 0) {
         actions.push({
             level: 'urgent',
             icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg>',
             title: dt('dashboard.recoFixCritical', { count: state.openCriticalCount },
-                '修复 ' + state.openCriticalCount + ' 个待处理严重漏洞'),
-            desc: dt('dashboard.recoFixCriticalDesc', null, '严重等级的漏洞应优先处置'),
+                'Fix' + state.openCriticalCount + 'pending critical vulnerabilities'),
+            desc: dt('dashboard.recoFixCriticalDesc', null, 'Critical-severity vulnerabilities should be addressed as a priority'),
             page: 'vulnerabilities'
         });
     }
-    // 紧急类：HITL 待审批
+    // Urgent class: HITL pending approval
     if (state.hitlPending > 0) {
         actions.push({
             level: 'urgent',
             icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
             title: dt('dashboard.recoApproveHitl', { count: state.hitlPending },
-                '审批 ' + state.hitlPending + ' 个 HITL 请求'),
-            desc: dt('dashboard.recoApproveHitlDesc', null, 'Agent 正在等待你的决策才能继续'),
+                'approval' + state.hitlPending + 'HITL request'),
+            desc: dt('dashboard.recoApproveHitlDesc', null, 'Agent is waiting for your decision to continue'),
             page: 'hitl'
         });
     }
-    // 维护类：External MCP 异常
+    // Maintenance category: External MCP exception
     if (state.externalMcpDown > 0) {
         actions.push({
             level: 'warning',
             icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
             title: dt('dashboard.recoRestartMcp', { count: state.externalMcpDown },
-                '检查 ' + state.externalMcpDown + ' 个未运行的 External MCP'),
-            desc: dt('dashboard.recoRestartMcpDesc', null, '相关工具在 MCP 服务恢复前不可用'),
+                'check' + state.externalMcpDown + 'a non-running External MCP'),
+            desc: dt('dashboard.recoRestartMcpDesc', null, 'Related tools are unavailable until the MCP service recovers.'),
             page: 'mcp-management'
         });
     }
-    // 维护类：高失败率
+    // Maintenance class: high failure rate
     if (state.successRate >= 0 && state.successRate < 80 && state.failedTools > 0) {
         actions.push({
             level: 'warning',
             icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
             title: dt('dashboard.recoCheckMonitor', { count: state.failedTools },
-                '排查 ' + state.failedTools + ' 次工具调用失败'),
-            desc: dt('dashboard.recoCheckMonitorDesc', null, '在 MCP 监控中查看失败的请求详情'),
+                'troubleshoot' + state.failedTools + 'tool call failed'),
+            desc: dt('dashboard.recoCheckMonitorDesc', null, 'View failed request details in MCP monitoring'),
             page: 'mcp-monitor'
         });
     }
-    // 配置类：第一次运行场景
+    // Configuration class: first run scenario
     if (state.toolsConfigured === 0) {
         actions.push({
             level: 'setup',
             icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
-            title: dt('dashboard.recoSetupMcp', null, '配置首个 MCP 工具'),
-            desc: dt('dashboard.recoSetupMcpDesc', null, '安装 MCP 服务后 Agent 才能调用具体能力'),
+            title: dt('dashboard.recoSetupMcp', null, 'Configure your first MCP tool'),
+            desc: dt('dashboard.recoSetupMcpDesc', null, 'Only after installing the MCP service can the Agent invoke specific capabilities.'),
             page: 'mcp-management'
         });
     }
@@ -1067,8 +1067,8 @@ function renderRecommendedActions(state) {
         actions.push({
             level: 'setup',
             icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
-            title: dt('dashboard.recoStartScan', null, '在对话中发起扫描'),
-            desc: dt('dashboard.recoStartScanDesc', null, '在对话中描述目标，让 AI 协助执行'),
+            title: dt('dashboard.recoStartScan', null, 'Initiate scan in conversation'),
+            desc: dt('dashboard.recoStartScanDesc', null, 'Describe the goal in the conversation, and let AI assist with execution'),
             page: 'chat'
         });
     }
@@ -1092,7 +1092,7 @@ function renderRecommendedActions(state) {
         );
     }).join('');
 
-    // 委托点击/键盘到推荐项 → switchPage
+    // Delegate click/keyboard to recommended item → switchPage
     Array.from(listEl.querySelectorAll('.dashboard-recommend-item')).forEach(function (el) {
         var page = el.getAttribute('data-page');
         el.onclick = function () { try { switchPage(page); } catch (_) {} };
@@ -1102,8 +1102,8 @@ function renderRecommendedActions(state) {
     });
 }
 
-// 智能 CTA：用户已经有任何数据（任务运行 / 漏洞 / 工具调用 / 配置过 MCP）就把
-// 「开始你的安全之旅」的 CTA 隐藏，只在真正空白的全新环境保留它当引导
+// Smart CTA: if the user already has any data (task runs / vulnerabilities / tool calls / has configured MCP), then take
+// Hide the "Start your security journey" CTA, only keep it as onboarding in a truly blank fresh environment
 function updateSmartCTA(state) {
     var cta = document.getElementById('dashboard-cta-block');
     if (!cta) return;
@@ -1117,7 +1117,7 @@ function updateSmartCTA(state) {
     cta.hidden = hasData;
 }
 
-// 「上次更新」时间显示；同时记录 lastUpdatedAt 给 stale 检查使用，并清掉 stale 状态
+// 「Last updated」 time display; also record lastUpdatedAt for use in the stale check, and clear the stale state
 function updateLastUpdatedNow() {
     dashboardState.lastUpdatedAt = Date.now();
     const el = document.getElementById('dashboard-last-updated-time');
@@ -1137,8 +1137,8 @@ function updateLastUpdatedNow() {
     if (stale) stale.hidden = true;
 }
 
-// 数据过期检查：超过 DASHBOARD_STALE_THRESHOLD_MS 未刷新，给徽章加 .is-stale 类，
-// 显示 ⚠️ 图标提示用户「这块数据可能已经过期，请手动刷新或检查网络」
+// Data staleness check: not refreshed for more than DASHBOARD_STALE_THRESHOLD_MS, add the .is-stale class to the badge,
+// Display a ⚠️ icon to prompt the user: "This data may be stale, please refresh manually or check the network"
 function checkDashboardStale() {
     if (!dashboardState.lastUpdatedAt) return;
     var ageMs = Date.now() - dashboardState.lastUpdatedAt;
@@ -1154,9 +1154,9 @@ function checkDashboardStale() {
     }
 }
 
-// 自动轮询：仪表盘活跃 + tab 可见时每 60 秒静默刷新一次。
-// 切走 / tab 隐藏时 setInterval 仍在跑，但 tick 内会检查并跳过实际刷新；
-// 重新可见时基于 lastUpdatedAt 判断是否需要立即补刷一次（>= 间隔的一半就刷）。
+// Automatic polling: silently refresh once every 60 seconds when the dashboard is active + the tab is visible.
+// When switched away / the tab is hidden, setInterval is still running, but inside tick it checks and skips the actual refresh;
+// When becoming visible again, use lastUpdatedAt to determine whether an immediate extra refresh is needed (refresh if elapsed >= half of the interval).
 function startDashboardAutoRefresh() {
     if (dashboardState.pollTimer) return;
     dashboardState.pollTimer = setInterval(function () {
@@ -1186,9 +1186,9 @@ function stopDashboardAutoRefresh() {
     }
 }
 
-// 严重度配色及中文标签
+// Severity color scheme and Chinese labels
 var SEVERITY_LABELS_FALLBACK = {
-    critical: '严重', high: '高危', medium: '中危', low: '低危', info: '信息'
+    critical: 'serious', high: 'high risk', medium: 'medium risk', low: 'low risk', info: 'information'
 };
 
 function severityShortLabel(id) {
@@ -1196,24 +1196,24 @@ function severityShortLabel(id) {
     return t(key, null, SEVERITY_LABELS_FALLBACK[id] || id);
 }
 
-// 友好的相对时间："5 分钟前" / "2 小时前" / "昨天" / "3 天前"
+// friendly relative time: "5 minutes ago" / "2 hours ago" / "yesterday" / "3 days ago"
 function timeAgoStr(iso) {
     if (!iso) return '';
     const d = new Date(iso);
     if (isNaN(d.getTime())) return '';
     const diffSec = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
-    if (diffSec < 60) return dt('common.justNow', null, '刚刚');
+    if (diffSec < 60) return dt('common.justNow', null, 'just now');
     const min = Math.floor(diffSec / 60);
-    if (min < 60) return dt('common.minutesAgo', { n: min }, min + ' 分钟前');
+    if (min < 60) return dt('common.minutesAgo', { n: min }, min + 'minutes ago');
     const hr = Math.floor(min / 60);
-    if (hr < 24) return dt('common.hoursAgo', { n: hr }, hr + ' 小时前');
+    if (hr < 24) return dt('common.hoursAgo', { n: hr }, hr + 'hours ago');
     const day = Math.floor(hr / 24);
-    if (day < 7) return dt('common.daysAgo', { n: day }, day + ' 天前');
-    // 超过一周显示日期
+    if (day < 7) return dt('common.daysAgo', { n: day }, day + 'days ago');
+    // If more than a week, display the date
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
-// 最近漏洞列表
+// Recent vulnerability list
 function setRecentVulnsLoading() {
     const wrap = document.getElementById('dashboard-recent-vulns');
     const empty = document.getElementById('dashboard-recent-vulns-empty');
@@ -1222,7 +1222,7 @@ function setRecentVulnsLoading() {
     if (empty) {
         empty.hidden = false;
         empty.classList.remove('is-rich');
-        empty.textContent = dt('common.loading', null, '加载中…');
+        empty.textContent = dt('common.loading', null, 'Loading...');
     }
 }
 
@@ -1234,7 +1234,7 @@ function setRecentVulnsError() {
     if (empty) {
         empty.hidden = false;
         empty.classList.remove('is-rich');
-        empty.textContent = dt('common.loadFailed', null, '加载失败');
+        empty.textContent = dt('common.loadFailed', null, 'Load failed');
     }
 }
 
@@ -1249,13 +1249,13 @@ function renderRecentVulns(res) {
     if (list.length === 0) {
         if (empty) {
             empty.hidden = false;
-            // 升级版空状态：标题 + 描述 + 行动按钮，比纯文本更易引导用户下一步
+            // Enhanced empty state: title + description + action button, easier to guide users to the next step than plain text
             empty.classList.add('is-rich');
             empty.innerHTML = (
-                '<div class="dashboard-empty-title">' + esc(dt('dashboard.noVulnYet', null, '暂无最近漏洞')) + '</div>' +
-                '<div class="dashboard-empty-desc">' + esc(dt('dashboard.noVulnDesc', null, '此处展示近期漏洞记录；在对话中完成检测后，新结果会出现在这里')) + '</div>' +
+                '<div class="dashboard-empty-title">' + esc(dt('dashboard.noVulnYet', null, 'No recent vulnerabilities')) + '</div>' +
+                '<div class="dashboard-empty-desc">' + esc(dt('dashboard.noVulnDesc', null, 'Recent vulnerability records are shown here; new results will appear here after detection is completed in the conversation')) + '</div>' +
                 '<button type="button" class="dashboard-empty-action" data-action="scan">' +
-                esc(dt('dashboard.startScanBtn', null, '前往对话发起扫描')) + ' →</button>'
+                esc(dt('dashboard.startScanBtn', null, 'Go to chat to initiate scan')) + ' →</button>'
             );
             var btn = empty.querySelector('[data-action="scan"]');
             if (btn) btn.onclick = function () { try { switchPage('chat'); } catch (_) {} };
@@ -1278,7 +1278,7 @@ function renderRecentVulns(res) {
         item.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.click(); } };
 
         const severityBadge = '<span class="dashboard-recent-vuln-sev sev-' + sev + '">' + esc(severityShortLabel(sev)) + '</span>';
-        const title = '<span class="dashboard-recent-vuln-title" title="' + esc(v.title || '') + '">' + esc(v.title || dt('common.untitled', null, '无标题')) + '</span>';
+        const title = '<span class="dashboard-recent-vuln-title" title="' + esc(v.title || '') + '">' + esc(v.title || dt('common.untitled', null, 'Untitled')) + '</span>';
         const target = v.target ? ('<span class="dashboard-recent-vuln-target" title="' + esc(v.target) + '">' + esc(v.target) + '</span>') : '<span class="dashboard-recent-vuln-target"></span>';
         const statusPill = '<span class="dashboard-recent-vuln-status st-' + esc(statusKey(status)) + '"><span class="dashboard-recent-vuln-status-dot"></span>' + esc(statusShortLabel(status)) + '</span>';
         const time = '<span class="dashboard-recent-vuln-time">' + esc(timeAgoStr(v.created_at)) + '</span>';
@@ -1288,7 +1288,7 @@ function renderRecentVulns(res) {
     });
 }
 
-// 最近漏洞 / 近期事实 Tab 切换（共用列表区域，查看全部链接随 Tab 变化）
+// Recent Vulnerabilities / Recent Facts tab switching (shared list area, "View All" link changes with the tab)
 function switchDashboardFeedTab(tab) {
     tab = tab === 'facts' ? 'facts' : 'vulns';
     dashboardState.recentFeedTab = tab;
@@ -1328,7 +1328,7 @@ function setRecentFactsLoading() {
     if (empty) {
         empty.hidden = false;
         empty.classList.remove('is-rich');
-        empty.textContent = dt('common.loading', null, '加载中…');
+        empty.textContent = dt('common.loading', null, 'Loading...');
     }
 }
 
@@ -1345,14 +1345,14 @@ function setRecentFactsError() {
     if (empty) {
         empty.hidden = false;
         empty.classList.remove('is-rich');
-        empty.textContent = dt('common.loadFailed', null, '加载失败');
+        empty.textContent = dt('common.loadFailed', null, 'Load failed');
     }
 }
 
 function factConfidenceShortLabel(confidence) {
     var c = String(confidence || '').toLowerCase();
-    if (c === 'confirmed') return dt('projects.confidenceConfirmed', null, '已确认');
-    if (c === 'tentative') return dt('projects.confidenceTentative', null, '待确认');
+    if (c === 'confirmed') return dt('projects.confidenceConfirmed', null, 'Confirmed');
+    if (c === 'tentative') return dt('projects.confidenceTentative', null, 'To be confirmed');
     return c || '—';
 }
 
@@ -1361,7 +1361,7 @@ function factCategoryShortLabel(category) {
     return raw || 'note';
 }
 
-// 按 project_id（回退 project_name）稳定映射 8 种配色，同一项目跨刷新颜色一致
+// Map 8 color schemes deterministically by project_id (falling back to project_name), so the same project keeps consistent colors across refreshes
 function projectFactProjectTone(projectId, projectName) {
     var key = String(projectId || projectName || '').trim();
     if (!key) return 0;
@@ -1411,14 +1411,14 @@ function renderRecentFacts(res) {
             empty.hidden = false;
             empty.classList.add('is-rich');
             var desc = activeProjects > 0
-                ? dt('dashboard.noFactsDesc', null, '在绑定项目的对话中，Agent 会自动记录目标、漏洞、攻击链等事实')
-                : dt('projects.selectOrCreateHint', null, '项目用于跨对话共享「事实黑板」：目标、环境、认证等信息会在绑定项目的对话中自动注入。');
+                ? dt('dashboard.noFactsDesc', null, 'In conversations within the bound project, the Agent automatically records facts such as targets, vulnerabilities, and attack chains')
+                : dt('projects.selectOrCreateHint', null, 'The project is');
             var ctaLabel = activeProjects > 0
-                ? dt('dashboard.goToChat', null, '前往对话')
-                : dt('dashboard.createFirstProjectBtn', null, '创建第一个项目');
+                ? dt('dashboard.goToChat', null, 'Go to conversation')
+                : dt('dashboard.createFirstProjectBtn', null, 'Create your first project');
             var ctaAction = activeProjects > 0 ? 'chat' : 'project';
             empty.innerHTML = (
-                '<div class="dashboard-empty-title">' + esc(dt('dashboard.noFactsYet', null, '暂无近期事实')) + '</div>' +
+                '<div class="dashboard-empty-title">' + esc(dt('dashboard.noFactsYet', null, 'No recent facts available')) + '</div>' +
                 '<div class="dashboard-empty-desc">' + esc(desc) + '</div>' +
                 '<button type="button" class="dashboard-empty-action" data-action="' + esc(ctaAction) + '">' +
                 esc(ctaLabel) + ' →</button>'
@@ -1466,17 +1466,17 @@ function renderRecentFacts(res) {
             }
         };
 
-        // 置顶列始终占位，避免有/无图钉时后续列错位
+        // Pinned column always occupies a slot, preventing subsequent columns from misaligning with/without pins
         var pinMark = '<span class="dashboard-recent-fact-pin' + (f.pinned ? ' is-pinned' : '') + '"' +
-            (f.pinned ? (' title="' + esc(dt('projects.pinned', null, '置顶')) + '"') : '') +
+            (f.pinned ? (' title="' + esc(dt('projects.pinned', null, 'Pinned')) + '"') : '') +
             ' aria-hidden="true">' + (f.pinned ? '📌' : '') + '</span>';
-        var projectLabel = (f.project_name || '').trim() || dt('projects.defaultProjectName', null, '项目');
+        var projectLabel = (f.project_name || '').trim() || dt('projects.defaultProjectName', null, 'project');
         var factKeyLabel = (f.fact_key || '').trim() || '—';
         var projectTone = projectFactProjectTone(pid, projectLabel);
         var projectCol = '<span class="dashboard-recent-fact-project proj-tone-' + projectTone + '" title="' + esc(projectLabel) + '">' + esc(projectLabel) + '</span>';
         var categoryBadge = '<span class="dashboard-recent-fact-cat cat-' + esc(category.toLowerCase().replace(/[^a-z0-9_-]/g, '')) + '">' + esc(category) + '</span>';
         var confBadge = '<span class="dashboard-recent-fact-conf conf-' + esc(confidence) + '">' + esc(factConfidenceShortLabel(confidence)) + '</span>';
-        var summary = '<span class="dashboard-recent-fact-summary" title="' + esc(f.summary || '') + '">' + esc(f.summary || dt('common.untitled', null, '无标题')) + '</span>';
+        var summary = '<span class="dashboard-recent-fact-summary" title="' + esc(f.summary || '') + '">' + esc(f.summary || dt('common.untitled', null, 'Untitled')) + '</span>';
         var factKeyCol = '<span class="dashboard-recent-fact-key" title="' + esc(factKeyLabel) + '">' + esc(factKeyLabel) + '</span>';
         var time = '<span class="dashboard-recent-fact-time">' + esc(timeAgoStr(f.updated_at)) + '</span>';
 
@@ -1485,7 +1485,7 @@ function renderRecentFacts(res) {
     });
 }
 
-// 漏洞状态映射：把 status 字符串规整到 4 类（避免脏数据）
+// Vulnerability status mapping: normalize the status string into 4 categories (avoid dirty data)
 function statusKey(s) {
     s = String(s || '').toLowerCase();
     if (s === 'fixed' || s === 'closed' || s === 'resolved') return 'fixed';
@@ -1497,21 +1497,21 @@ function statusKey(s) {
 
 function statusShortLabel(s) {
     const k = statusKey(s);
-    if (k === 'fixed') return dt('dashboard.statusFixed', null, '已修复');
-    if (k === 'confirmed') return dt('dashboard.statusConfirmed', null, '已确认');
-    if (k === 'fp') return dt('dashboard.statusFalsePositive', null, '误报');
-    if (k === 'ignored') return dt('dashboard.statusIgnored', null, '已忽略');
-    return dt('dashboard.statusOpen', null, '待处理');
+    if (k === 'fixed') return dt('dashboard.statusFixed', null, 'Fixed');
+    if (k === 'confirmed') return dt('dashboard.statusConfirmed', null, 'Confirmed');
+    if (k === 'fp') return dt('dashboard.statusFalsePositive', null, 'false report');
+    if (k === 'ignored') return dt('dashboard.statusIgnored', null, 'Ignored');
+    return dt('dashboard.statusOpen', null, 'Pending');
 }
 
-// 格式化数字，添加千位分隔符
+// Format number, add thousands separator
 function formatNumber(num) {
     if (typeof num !== 'number' || isNaN(num)) return '-';
     if (num === 0) return '0';
     return num.toLocaleString('zh-CN');
 }
 
-// 更新进度条宽度
+// Update progress bar width
 function updateProgressBar(id, percentage) {
     const el = document.getElementById(id);
     if (el) {
@@ -1520,7 +1520,7 @@ function updateProgressBar(id, percentage) {
     }
 }
 
-// Top 30 工具执行次数柱状图颜色（30 色不重复，柔和、易区分）
+// Top 30 tool execution count bar chart colors (30 non-repeating colors, soft and easy to distinguish)
 var DASHBOARD_BAR_COLORS = [
     '#93c5fd', '#a78bfa', '#6ee7b7', '#fde047', '#fda4af',
     '#7dd3fc', '#a5b4fc', '#5eead4', '#fdba74', '#e9d5ff',
@@ -1535,9 +1535,9 @@ function esc(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 }
 
-// 漏洞处置状态 + 修复进度面板
-// byStatus: { open, confirmed, fixed, false_positive, ignored }（任一字段缺失视作 0）
-// total: 漏洞总数（来自 stats.total）
+// Vulnerability handling status + fix progress panel
+// byStatus: { open, confirmed, fixed, false_positive, ignored } (any missing field is treated as 0)
+// total: total number of vulnerabilities (from stats.total)
 function renderVulnStatusPanel(byStatus, total) {
     var get = function (k) {
         if (!byStatus || typeof byStatus !== 'object') return 0;
@@ -1555,7 +1555,7 @@ function renderVulnStatusPanel(byStatus, total) {
     setEl('dashboard-status-fp', formatNumber(fp));
     setEl('dashboard-status-ignored', formatNumber(ignored));
 
-    // 修复率只按需要处置的有效漏洞计算；误报/已忽略属于中性闭环，不拉低修复率。
+    // The fix rate is calculated only for valid vulnerabilities that require remediation; false positives/ignored findings are neutral closures and do not lower the fix rate.
     var actionableTotal = open + confirmed + fixed;
     var rate = actionableTotal > 0 ? (fixed / actionableTotal) * 100 : 0;
     var rateStr = actionableTotal > 0 ? rate.toFixed(rate >= 100 ? 0 : 1) + '%' : '-';
@@ -1574,16 +1574,16 @@ function renderVulnStatusPanel(byStatus, total) {
     if (confirmedBar) confirmedBar.style.width = confirmedPct.toFixed(2) + '%';
 }
 
-// 风险概览卡：基于「待处理(open)」口径的严重度分布计算加权风险分 + 紧急徽章
+// Risk overview card: weighted risk score calculated from the severity distribution under the "open" (pending) scope + urgent badge
 //
-// 为什么用 open 口径而不是全量：
-//   如果用全量，全部漏洞修复后 by_severity 不变，风险分仍然居高，
-//   但紧急徽章（待严重/待高危）已经归零——视觉上会出现「极高 + 0 待处理」的语义冲突。
-//   改成 open 口径后，修复即卸掉风险，风险等级与紧急计数完全同步。
+// Why use the open scope instead of the full volume:
+//   If using the full set, after all vulnerabilities are fixed, by_severity remains unchanged, and the risk score still stays high,
+//   But the urgent badge (pending critical / pending high) has already gone to zero —— visually this creates a 「critical + 0 pending」 semantic conflict.
+//   After changing to the open scope, a fix immediately removes the risk, and the risk level and urgent count are fully synchronized.
 //
-// bySeverityOpen: { critical, high, medium, low }（只统计 status=open 的漏洞；info 不计入）
-// totalOpen:      待处理漏洞总数（= critical + high + medium + low），仅用于"全无待处理 → safe"判断
-// recentVulnsRes: /api/vulnerabilities?limit=10 响应（用于"最近发现"时间，口径是全量，与处置状态无关）
+// bySeverityOpen: { critical, high, medium, low } (only counts vulnerabilities with status=open; info is not counted)
+// totalOpen:      total number of pending vulnerabilities (= critical + high + medium + low), only used for the "none pending → safe" judgment
+// recentVulnsRes: /api/vulnerabilities?limit=10 response (used for the "recently found" time; the scope is the full dataset, independent of remediation status)
 function renderSeverityInsights(bySeverityOpen, totalOpen, recentVulnsRes) {
     var riskBox = document.querySelector('.dashboard-severity-insight-risk');
     var levelEl = document.getElementById('dashboard-severity-risk-level');
@@ -1601,35 +1601,35 @@ function renderSeverityInsights(bySeverityOpen, totalOpen, recentVulnsRes) {
     var m = Number(sev.medium || 0) || 0;
     var l = Number(sev.low || 0) || 0;
 
-    // 加权分：严重 ×10、高危 ×5、中危 ×2、低危 ×0.5；信息忽略
-    // 阈值设计偏"保守"：1 个待处理严重就进"中"，2 个进"高"，≥4 个进"极高"
+    // Weighted score: Critical ×10, High ×5, Medium ×2, Low ×0.5; Info ignored
+    // Threshold design leans "conservative": just 1 pending critical enters "Medium", 2 enter "High", ≥4 enter "Critical"
     var score = c * 10 + h * 5 + m * 2 + l * 0.5;
     var level, levelKey, levelFallback;
     var t = Number(totalOpen || 0) || 0;
     if (t === 0 || score === 0) {
-        level = 'safe'; levelKey = 'dashboard.riskSafe'; levelFallback = '安全';
+        level = 'safe'; levelKey = 'dashboard.riskSafe'; levelFallback = 'safe';
     } else if (score <= 3) {
-        level = 'low'; levelKey = 'dashboard.riskLow'; levelFallback = '低';
+        level = 'low'; levelKey = 'dashboard.riskLow'; levelFallback = 'low';
     } else if (score <= 10) {
-        level = 'medium'; levelKey = 'dashboard.riskMedium'; levelFallback = '中';
+        level = 'medium'; levelKey = 'dashboard.riskMedium'; levelFallback = 'middle';
     } else if (score <= 30) {
-        level = 'high'; levelKey = 'dashboard.riskHigh'; levelFallback = '高';
+        level = 'high'; levelKey = 'dashboard.riskHigh'; levelFallback = 'high';
     } else {
-        level = 'severe'; levelKey = 'dashboard.riskSevere'; levelFallback = '极高';
+        level = 'severe'; levelKey = 'dashboard.riskSevere'; levelFallback = 'extremely high';
     }
 
     if (riskBox) riskBox.setAttribute('data-level', level);
     if (levelEl) levelEl.textContent = dt(levelKey, null, levelFallback);
-    // 进度条用 0-100 线性映射：>=100 直接满格
+    // Progress bar uses 0-100 linear mapping: >=100 is directly full
     var pct = Math.max(0, Math.min(100, score));
     if (fillEl) fillEl.style.width = pct.toFixed(1) + '%';
     if (scoreEl) {
-        // 分数保留一位小数（低危 0.5 权重可能出现非整数）；整数直接显示
+        // Score retains one decimal place (low severity 0.5 weight may produce non-integer values); integers are displayed directly
         var displayScore = Math.round(score) === score ? String(score) : score.toFixed(1);
         scoreEl.textContent = score >= 100 ? displayScore + '+' : displayScore;
     }
 
-    // 紧急徽章直接复用 open 口径的 critical / high（与加权分完全同源，不会出现"风险极高 + 0 待处理"的矛盾）
+    // The urgent badge directly reuses the critical / high counts under the open criteria (exactly the same source as the weighted score, so the "extremely high risk + 0 pending" contradiction won't occur)
     if (urgentCriticalEl) urgentCriticalEl.textContent = formatNumber(c);
     if (urgentHighEl) urgentHighEl.textContent = formatNumber(h);
     if (urgentCriticalCell) urgentCriticalCell.classList.toggle('is-zero', c === 0);
@@ -1643,7 +1643,7 @@ function renderSeverityInsights(bySeverityOpen, totalOpen, recentVulnsRes) {
             latestEl.textContent = timeStr;
             latestEl.classList.remove('is-empty');
         } else {
-            latestEl.textContent = dt('dashboard.noneYet', null, '暂无');
+            latestEl.textContent = dt('dashboard.noneYet', null, 'None yet');
             latestEl.classList.add('is-empty');
         }
     }
@@ -1656,7 +1656,7 @@ function renderDashboardToolsBar(topTools) {
 
     if (!Array.isArray(topTools) || topTools.length === 0) {
         placeholder.style.removeProperty('display');
-        placeholder.textContent = (typeof window.t === 'function' ? window.t('dashboard.noCallData') : '暂无调用数据');
+        placeholder.textContent = (typeof window.t === 'function' ? window.t('dashboard.noCallData') : 'No call data available');
         barChartEl.style.display = 'none';
         barChartEl.innerHTML = '';
         return;
@@ -1673,7 +1673,7 @@ function renderDashboardToolsBar(topTools) {
 
     if (entries.length === 0) {
         placeholder.style.removeProperty('display');
-        placeholder.textContent = (typeof window.t === 'function' ? window.t('dashboard.noCallData') : '暂无调用数据');
+        placeholder.textContent = (typeof window.t === 'function' ? window.t('dashboard.noCallData') : 'No call data available');
         barChartEl.style.display = 'none';
         barChartEl.innerHTML = '';
         return;
@@ -1749,7 +1749,7 @@ function dashboardBarTooltipOnOut(ev) {
     if (dashboardBarTooltipEl) dashboardBarTooltipEl.style.display = 'none';
 }
 
-// 仪表盘 → 漏洞管理：带严重程度/状态筛选跳转
+// Dashboard → Vulnerability Management: jump with severity/status filters
 function navigateToVulnerabilitiesWithFilter(opts) {
     opts = opts || {};
     var params = new URLSearchParams();
@@ -1781,13 +1781,13 @@ function writeDashboardSeverityStatusFilterToStorage(status) {
             window.localStorage.removeItem(DASHBOARD_SEVERITY_STATUS_FILTER_STORAGE_KEY);
         }
     } catch (_) {
-        // localStorage 可能被浏览器隐私设置禁用，筛选本身仍可在当前页面生效。
+        // localStorage may be disabled by the browser's privacy settings, but the filtering itself can still take effect on the current page.
     }
 }
 
 function dashboardSeverityStatusFilterLabel(status) {
     status = normalizeDashboardSeverityStatusFilter(status);
-    if (!status) return dt('dashboard.allStatuses', null, '全部状态');
+    if (!status) return dt('dashboard.allStatuses', null, 'All states');
     return statusShortLabel(status);
 }
 
@@ -1903,22 +1903,22 @@ function renderDashboardSeveritySummary(bySeverity, total, severityIds) {
     renderSeverityDonut(bySeverity, total);
 }
 
-// 漏洞严重程度分布：半环形（donut）渲染
-// 几何参数固定，便于配合 viewBox 0 0 560 320 的 SVG 容器
-// 段间分隔由 gapRad 几何间隙完成，不使用描边，避免浅色/暗色下白边或黑边过重
+// Vulnerability severity distribution: semi-ring (donut) rendering
+// Geometric parameters are fixed, making it easy to work with an SVG container with viewBox 0 0 560 320
+// Separation between segments is achieved by the gapRad geometric gap, without using an outline stroke, to avoid the white/black edge being too heavy under light/dark colors
 var SEVERITY_DONUT_CFG = {
-    // viewBox 0 0 480 260：整体保持紧凑，但环厚回到「黄金比例」附近，
-    // 让弧带本身有视觉分量，又不像最早那版那样占太多空间。
-    // 原则：rInner / rOuter ≈ 0.70，ring thickness ≈ rOuter * 0.30。
+    // viewBox 0 0 480 260：overall stays compact, but the ring thickness returns to near the 「golden ratio」，
+    // Let the arc band itself have visual weight, without taking up as much space as the earliest version did.
+    // Principle: rInner / rOuter ≈ 0.70, ring thickness ≈ rOuter * 0.30.
     cx: 240,
     cy: 215,
     rOuter: 165,
-    rInner: 115,    // 环厚 = 50（介于原 90 和上一版 35 之间，自然且有质感）
+    rInner: 115,    // ring thickness = 50 (between the original 90 and the previous version's 35, natural and textured)
     labelOffset: 14,
     gapRad: 0.022
 };
 
-// 三段渐变：[高光浅调, 中段饱和色, 深色边缘] —— 做出类似 3D 釉面的层次
+// Three-stage gradient: [light highlight tone, mid-section saturated color, dark edge] —— create a layered effect like a 3D glazed surface
 var SEVERITY_DONUT_GRADIENTS = {
     critical: ['#fecaca', '#f87171', '#dc2626'],
     high: ['#fed7aa', '#fb923c', '#ea580c'],
@@ -1941,11 +1941,11 @@ var severityDonutTooltipTimer = null;
 var severityDonutHoverClearTimer = null;
 
 var SEVERITY_DEFAULT_LABELS = {
-    critical: '严重',
-    high: '高危',
-    medium: '中危',
-    low: '低危',
-    info: '信息'
+    critical: 'serious',
+    high: 'high risk',
+    medium: 'medium risk',
+    low: 'low risk',
+    info: 'information'
 };
 
 function severityLabel(id) {
@@ -2049,7 +2049,7 @@ function renderSeverityDonut(bySeverity, total) {
     var cfg = SEVERITY_DONUT_CFG;
     ensureSeverityDonutDefs();
 
-    // 背景轨迹（完整半环）：双层填充营造凹槽 + 高光
+    // Background trajectory (complete half-ring): double-layer fill creates a groove + highlight
     var trackPath = halfRingPath(cfg.cx, cfg.cy, cfg.rOuter, cfg.rInner);
     trackEl.innerHTML =
         '<path class="donut-track-shadow" d="' + trackPath + '"/>' +
@@ -2080,12 +2080,12 @@ function renderSeverityDonut(bySeverity, total) {
 
     resetSeverityDonutCenter(true);
 
-    // 弧长按 value/total 计算；若严重度求和 < total（存在未分级），右侧会保留背景轨迹的空白
+    // Arc length is computed as value/total; if the sum of severities < total (some are ungraded), the right side will retain the blank background track
     var sumVisible = visible.reduce(function (s, seg) { return s + seg.value; }, 0);
-    var coverage = sumVisible / total; // 半环被实际段覆盖的比例
+    var coverage = sumVisible / total; // The ratio of the half-ring covered by the actual segment
     var visibleCount = visible.length;
     var totalGapRad = cfg.gapRad * Math.max(0, visibleCount - 1);
-    // 半环可用的总弧度 = π * coverage（按比例填充），再扣除段间间隙
+    // Total available arc of the half-ring = π * coverage (filled proportionally), then subtract the gaps between segments
     var arcsTotalRad = Math.max(0, Math.PI * coverage - totalGapRad);
 
     var segmentsHtml = '';
@@ -2110,7 +2110,7 @@ function renderSeverityDonut(bySeverity, total) {
         hitsHtml += '<path class="donut-segment-hit seg-' + seg.id + '" data-severity="' + seg.id + '" fill="transparent" d="' + path + '" tabindex="0" role="button" aria-label="' + ariaLabel + '"/>';
         glossHtml += '<path class="donut-segment-gloss seg-' + seg.id + '" data-severity="' + seg.id + '" fill="url(#donut-inner-gloss)" d="' + arcSegmentPath(cfg.cx, cfg.cy, cfg.rOuter - 2, cfg.rInner + 6, angleStart, angleEnd) + '" pointer-events="none"/>';
 
-        // 仅当占比 >= 5% 时显示外置标签，避免小段标签互相重叠
+        // Only display outer labels when proportion >= 5%, to avoid small segment labels overlapping each other
         if (pctOfTotal >= 5) {
             var midAngle = (angleStart + angleEnd) / 2;
             var labelR = cfg.rOuter + cfg.labelOffset + 6;
@@ -2200,7 +2200,7 @@ function resetSeverityDonutCenter(skipTotalSnapshot) {
     if (!skipTotalSnapshot) severityDonutCenterDisplayed.total = n;
     severityDonutCenterDisplayed.hoverCount = null;
     if (labelEl) {
-        labelEl.textContent = (typeof window.t === 'function' ? window.t('dashboard.totalVulns') : '总漏洞数');
+        labelEl.textContent = (typeof window.t === 'function' ? window.t('dashboard.totalVulns') : 'Total number of vulnerabilities');
         labelEl.classList.remove('is-severity');
         labelEl.removeAttribute('data-severity');
     }
@@ -2287,7 +2287,7 @@ function clearSeverityDonutLegendHighlight() {
 function severityDonutTooltipText(severityId) {
     var count = (severityDonutState.bySeverity && severityDonutState.bySeverity[severityId]) || 0;
     var pct = severityDonutState.total > 0 ? Math.round((count / severityDonutState.total) * 100) : 0;
-    var hint = (typeof window.t === 'function' ? window.t('dashboard.severityClickHint') : '点击查看');
+    var hint = (typeof window.t === 'function' ? window.t('dashboard.severityClickHint') : 'Click to view');
     return severityLabel(severityId) + ' · ' + count + ' (' + pct + '%) — ' + hint;
 }
 
@@ -2446,7 +2446,7 @@ function severityLegendKeydown(ev) {
     if (id) navigateToSeverityWithDashboardStatus(id);
 }
 
-// SVG 半环（背景轨迹）路径
+// SVG half-ring (background trajectory) path
 function halfRingPath(cx, cy, rOuter, rInner) {
     var x1Outer = cx - rOuter;
     var y1Outer = cy;
@@ -2462,7 +2462,7 @@ function halfRingPath(cx, cy, rOuter, rInner) {
         ' A ' + rInner + ' ' + rInner + ' 0 0 0 ' + x1Inner + ' ' + y1Inner + ' Z';
 }
 
-// 单段弧形（angleStart > angleEnd，逆时针角度递减，视觉上沿半环顶部顺时针推进）
+// Single-segment arc (angleStart > angleEnd, angle decreases counterclockwise, visually advancing clockwise along the top of the half-ring)
 function arcSegmentPath(cx, cy, rOuter, rInner, angleStart, angleEnd) {
     var x1Outer = cx + rOuter * Math.cos(angleStart);
     var y1Outer = cy - rOuter * Math.sin(angleStart);
@@ -2481,9 +2481,9 @@ function arcSegmentPath(cx, cy, rOuter, rInner, angleStart, angleEnd) {
         ' A ' + rInner + ' ' + rInner + ' 0 ' + largeArc + ' 0 ' + x1Inner.toFixed(2) + ' ' + y1Inner.toFixed(2) + ' Z';
 }
 
-// 语言切换后，仪表盘上由 JS 动态渲染的部分（KPI 副标、告警条、半环图标签、
-// 状态卡、最近漏洞列表、能力总览徽章等）不会被 applyTranslations 自动重绘，
-// 需要主动重新拉取数据并以新语言重新渲染；与 tasks/vulnerability 等其他页面保持一致。
+// After the language switch, the parts of the dashboard that are dynamically rendered by JS (KPI sub-labels, alert bars, semi-ring chart labels,
+// status card, recent vulnerability list, capability overview badges, etc.) will not be automatically re-rendered by applyTranslations,
+// Need to proactively re-fetch the data and re-render in the new language; consistent with other pages such as tasks/vulnerability.
 document.addEventListener('languagechange', function () {
     try {
         var dashboardPage = document.getElementById('page-dashboard');
@@ -2498,8 +2498,8 @@ document.addEventListener('languagechange', function () {
     }
 });
 
-// 页面可见性：从其他 tab 切回时，如果距离上次刷新已经过半个轮询周期，立刻补刷一次；
-// 避免后台标签页停留几小时回来时数据还是旧的，又不至于每次切回都打接口。
+// Page visibility: when switching back from another tab, if half a polling period has already elapsed since the last refresh, immediately perform an extra refresh;
+// Avoid the case where a tab left in the background for hours still shows stale data when you come back, without hitting the API every time you switch back to it.
 document.addEventListener('visibilitychange', function () {
     if (document.hidden) return;
     var page = document.getElementById('page-dashboard');
@@ -2508,12 +2508,12 @@ document.addEventListener('visibilitychange', function () {
     if (ageMs >= DASHBOARD_POLL_INTERVAL_MS / 2) {
         try { refreshDashboard(); } catch (_) { /* ignore */ }
     } else {
-        // 不需要重新拉数据，但也跑一次 stale 检查更新徽章状态
+        // No need to re-fetch data, but also run a stale check to update badge status
         checkDashboardStale();
     }
 });
 
-// 关闭告警条按钮：把当前 reasons 指纹存入 sessionStorage，本会话不再弹同样的内容
+// Close alert bar button: store the current reasons fingerprint in sessionStorage so the same content won't pop up again in this session
 document.addEventListener('click', function (ev) {
     var btn = ev.target && ev.target.closest && ev.target.closest('#dashboard-alert-close');
     if (!btn) return;

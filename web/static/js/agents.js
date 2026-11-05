@@ -1,6 +1,106 @@
-// 多代理子 Agent Markdown（agents/*.md）管理
+// Multi-agent sub-agent Markdown (agents/*.md) management
 function _agentsT(key, opts) {
     return typeof window.t === 'function' ? window.t(key, opts) : key;
+}
+
+// Seed agent frontmatter (built-in .md names/descriptions in agents/*.md). Only when the value
+// exactly matches the repo seed is it translated for display by id; names/descriptions the user
+// edited themselves are shown at their original values.
+const SEED_AGENTS = {
+    'cyberstrike-deep': {
+        name: 'Orchestrator / Coordinator Main Agent',
+        description: 'The Deep orchestrator in multi-agent mode: collaborates with MCP tools and `task` sub-agents in already-authorized security scenarios, responsible for planning, delegation, consolidation, and delivery to the user; before dispatching, it must provide the complete target and scope to the sub-agent.'
+    },
+    'cyberstrike-plan-execute': {
+        name: 'Plan-Execute Planning Main Agent',
+        description: 'The planning/replanning-side main agent in plan_execute mode: decomposes the target and revises the plan, while the executor calls MCP tools to land it (does not use the Deep `task` sub-agent); each step in the plan must carry the complete target and scope, and the executor is forbidden from filling in URL/IP by guessing.'
+    },
+    'cyberstrike-supervisor': {
+        name: 'Supervisor Overseer Main Agent',
+        description: 'The coordinator in supervisor mode: delegates to specialist sub-agents via transfer, calling MCP itself where necessary; ends with exit when the goal is met (the runtime appends the specialist list and exit explanation at the end); before transfer, the complete target and scope must be provided.'
+    },
+    'recon': {
+        name: 'Reconnaissance Specialist',
+        description: 'Responsible for information gathering, asset mapping, and initial attack-surface analysis; requires the main agent to provide the complete target (URL/IP:Port/domain+path) and scope when delegating.'
+    },
+    'penetration': {
+        name: 'Penetration Testing Specialist',
+        description: 'Vulnerability verification within the authorized scope, exploit-chain construction, privilege escalation, and impact proof; performs deep exploitation and reproduction given reconnaissance/intelligence input, and requires the main agent to provide the complete target and scope.'
+    },
+    'attack-surface-enumeration': {
+        name: 'Attack Surface Enumeration Specialist',
+        description: 'Based on reconnaissance/intelligence input, organizes services, technology stacks, dependencies, and potential entry points; outputs a structured attack-surface map with verification priorities, and requires the main agent to provide the complete target and scope.'
+    },
+    'cleanup-rollback': {
+        name: 'Cleanup and Rollback Specialist',
+        description: 'Designs cleanup/rollback verification checklists for authorized tests, ensuring minimal residue that is auditable and reviewable, and requires the main agent to provide the complete target and change context.'
+    },
+    'engagement-planning': {
+        name: 'Engagement Planning Specialist',
+        description: 'Defines the engagement scope, rules of engagement (ROE), and success criteria; produces an iterative test blueprint and an evidence checklist (does not execute intrusion), and requires the main agent to provide the complete target and constraint information.'
+    },
+    'impact-exfiltration': {
+        name: 'Impact and Data Exfiltration Proof Specialist',
+        description: 'Designs "business impact / data reachability" proof schemes in a minimal-impact way; emphasizes data masking, minimal data exposure, and rollback, and requires the main agent to provide the complete target and scope.'
+    },
+    'intel-collection': {
+        name: 'Intelligence Collection Specialist',
+        description: 'Public intelligence, asset fingerprinting, leak leads, directory and interface discovery, and third-party exposure mapping; suited to broad-range intelligence consolidation within the authorized scope, and requires the main agent to provide the complete target and scope.'
+    },
+    'lateral-movement': {
+        name: 'Internal Network Lateral Movement Specialist',
+        description: 'Internal network discovery, credential and session exploitation, lateral movement, and access-maintenance ideas after an initial foothold is obtained (authorized exercises/pentest environments only), and requires the main agent to provide the complete target and network-segment scope.'
+    },
+    'opsec-evasion': {
+        name: 'Operational Security and Interference Minimization Specialist',
+        description: 'Designs "low-interference verification strategies" and evidence-collection methods from the angles of test noise, observability, blue-team alerting, and rollback risk (does not provide bypass means), and requires the main agent to provide the complete target and scope.'
+    },
+    'persistence-maintenance': {
+        name: 'Persistence and Access Maintenance Specialist',
+        description: 'Assesses persistence/access-maintenance ideas in the authorized environment, risk weighing, and rollback verification; proves feasibility in a minimal-impact way, and requires the main agent to provide the complete target and boundaries.'
+    },
+    'privilege-escalation': {
+        name: 'Privilege Escalation Specialist',
+        description: 'Given initial access/restricted privileges already obtained, assesses privilege-escalation possibilities, evidence needs, and safe verification methods (authorized environments only), and requires the main agent to provide the complete target and current-privilege context.'
+    },
+    'reporting-remediation': {
+        name: 'Report Writing and Remediation Specialist',
+        description: 'Consolidates the collected evidence into a deliverable report structure, and gives remediation-oriented recommendations and regression-verification essentials; requires the main agent to provide the complete target and evidence context.'
+    },
+    'vulnerability-triage': {
+        name: 'Vulnerability Triage Specialist',
+        description: 'Based on the attack surface and evidence leads, performs vulnerability candidate filtering, priority ranking, and "verification path" design (evidence-centered, not directly weaponizing), and requires the main Agent to provide the complete target and input evidence.'
+    }
+};
+
+function seedAgentField(id, field, raw) {
+    const seedId = String(id || '').trim();
+    const seed = SEED_AGENTS[seedId];
+    if (!seed) return null;
+    const value = String(raw || '').trim();
+    if (value !== seed[field]) return null;
+    const key = `agentsPage.seed.${seedId.replace(/-(.)/g, (_, c) => c.toUpperCase())}.${field}`;
+    if (typeof window.t === 'function') {
+        const translated = window.t(key);
+        if (translated && translated !== key) return translated;
+    }
+    return null;
+}
+
+function agentDisplayName(agent, fallback) {
+    if (!agent) return fallback || '';
+    const seedTranslated = seedAgentField(agent.id, 'name', agent.name);
+    if (seedTranslated) return seedTranslated;
+    return String(agent.name || '').trim() || fallback || '';
+}
+
+function agentDisplayDescription(agent, fallback) {
+    if (!agent) return fallback || '';
+    const raw = String(agent.description || '').trim();
+    if (!raw) return fallback || '';
+    const seedTranslated = seedAgentField(agent.id, 'description', agent.description);
+    if (seedTranslated) return seedTranslated;
+    return raw;
 }
 
 let markdownAgentsEditingFilename = null;
@@ -61,8 +161,8 @@ async function loadMarkdownAgents() {
             const rawFn = a.filename || '';
             const fn = escapeHtml(rawFn);
             const id = escapeHtml(a.id || '');
-            const name = escapeHtml(a.name || '');
-            const desc = escapeHtml(a.description || _agentsT('agentsPage.noDesc'));
+            const name = escapeHtml(agentDisplayName(a, a.name || '') || _agentsT('agentsPage.noName'));
+            const desc = escapeHtml(agentDisplayDescription(a, _agentsT('agentsPage.noDesc')));
             const orch = !!a.is_orchestrator;
             const badgeLabel = orch ? _agentsT('agentsPage.badgeOrchestrator') : _agentsT('agentsPage.badgeSub');
             const badgeClass = orch ? 'agent-role-badge agent-role-badge--orchestrator' : 'agent-role-badge agent-role-badge--sub';
@@ -84,6 +184,14 @@ async function loadMarkdownAgents() {
         showNotification(_agentsT('agentsPage.loadFailed') + ': ' + e.message, 'error');
     }
 }
+
+document.addEventListener('languagechange', () => {
+    // After a language switch, re-render the Agent list so seed frontmatter names/descriptions display in the current language.
+    const currentPage = typeof window.currentPage === 'function' ? window.currentPage() : (window.currentPage || '');
+    if (currentPage === 'agents-management') {
+        loadMarkdownAgents();
+    }
+});
 
 function showAddMarkdownAgentModal() {
     if (typeof requirePermission === 'function' && !requirePermission('agents:write')) return;

@@ -80,7 +80,7 @@ func emitEinoContextOverflowRetryProgress(
 	if progress == nil {
 		return false
 	}
-	progress("eino_context_overflow_retry", "上下文超限，正在激进压缩后重试…", map[string]interface{}{
+	progress("eino_context_overflow_retry", "Context overflow detected; retrying after aggressive compaction…", map[string]interface{}{
 		"conversationId": conversationID,
 		"source":         "eino",
 		"orchestration":  orchMode,

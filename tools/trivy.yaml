@@ -1,44 +1,44 @@
 name: "trivy"
 command: "trivy"
 enabled: true
-short_description: "容器和文件系统漏洞扫描器"
+short_description: "Container and file system vulnerability scanner"
 description: |
-  Trivy是一个简单而全面的容器和文件系统漏洞扫描器。
+  Trivy is a simple yet comprehensive container and file system vulnerability scanner.
 
-  **主要功能：**
-  - 容器镜像扫描
-  - 文件系统扫描
-  - 代码仓库扫描
-  - 配置文件扫描
+  **Main features:**
+  - Container image scanning
+  - File system scanning
+  - Code repository scanning
+  - Configuration file scanning
 
-  **使用场景：**
-  - 容器安全扫描
-  - CI/CD集成
-  - 漏洞检测
-  - 安全审计
+  **Use cases:**
+  - Container security scanning
+  - CI/CD integration
+  - Vulnerability detection
+  - Security auditing
 parameters:
   - name: "scan_type"
     type: "string"
-    description: "扫描类型（image, fs, repo, config）"
+    description: "Scan type (image, fs, repo, config)"
     required: false
     default: "image"
     position: 0
     format: "positional"
   - name: "target"
     type: "string"
-    description: "扫描目标（镜像名、目录、仓库）"
+    description: "Scan target (image name, directory, repository)"
     required: true
     position: 1
     format: "positional"
   - name: "severity"
     type: "string"
-    description: "严重程度过滤（UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL）"
+    description: "Severity filter (UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL)"
     required: false
     flag: "--severity"
     format: "flag"
   - name: "output_format"
     type: "string"
-    description: "输出格式（json, table, sarif）"
+    description: "Output format (json, table, sarif)"
     required: false
     flag: "--format"
     format: "flag"
@@ -46,17 +46,17 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的Trivy参数。用于传递未在参数列表中定义的Trivy选项。
+      Additional Trivy arguments. Used to pass Trivy options not defined in the parameter list.
 
-      **示例值：**
-      - "--exit-code 1": 发现漏洞时退出码为1
-      - "--skip-dirs": 跳过目录
-      - "--skip-files": 跳过文件
-      - "--no-progress": 不显示进度条
+      **Example values:**
+      - "--exit-code 1": exit code 1 when vulnerabilities are found
+      - "--skip-dirs": skip directories
+      - "--skip-files": skip files
+      - "--no-progress": do not show the progress bar
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

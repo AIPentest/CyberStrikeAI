@@ -44,7 +44,7 @@ func (h *AuditHandler) Meta(c *gin.Context) {
 // Summary GET /api/audit/summary
 func (h *AuditHandler) Summary(c *gin.Context) {
 	if h.db == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "database unavailable"})
+		respondError(c, http.StatusInternalServerError, "数据库不可用", "database unavailable")
 		return
 	}
 	base := auditFilterForAccess(c, auditFilterFromQuery(c))
@@ -80,7 +80,7 @@ func (h *AuditHandler) Summary(c *gin.Context) {
 // ListLogs GET /api/audit/logs
 func (h *AuditHandler) ListLogs(c *gin.Context) {
 	if h.db == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "database unavailable"})
+		respondError(c, http.StatusInternalServerError, "数据库不可用", "database unavailable")
 		return
 	}
 	filter := auditFilterForAccess(c, auditFilterFromQuery(c))
@@ -109,16 +109,16 @@ func (h *AuditHandler) ListLogs(c *gin.Context) {
 // GetLog GET /api/audit/logs/:id
 func (h *AuditHandler) GetLog(c *gin.Context) {
 	if h.db == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "database unavailable"})
+		respondError(c, http.StatusInternalServerError, "数据库不可用", "database unavailable")
 		return
 	}
 	row, err := h.db.GetAuditLogByID(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "审计记录不存在"})
+		respondError(c, http.StatusNotFound, "审计记录不存在", "audit record not found")
 		return
 	}
 	if session, ok := security.CurrentSession(c); !ok || (session.Scope != database.RBACScopeAll && row.Actor != session.Username) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	audit.ApplyResourceAvailability(h.db, row)
@@ -128,7 +128,7 @@ func (h *AuditHandler) GetLog(c *gin.Context) {
 // ExportLogs GET /api/audit/logs/export — JSON or CSV (?format=csv), max 5000 rows.
 func (h *AuditHandler) ExportLogs(c *gin.Context) {
 	if h.db == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "database unavailable"})
+		respondError(c, http.StatusInternalServerError, "数据库不可用", "database unavailable")
 		return
 	}
 	filter := auditFilterForAccess(c, auditFilterFromQuery(c))

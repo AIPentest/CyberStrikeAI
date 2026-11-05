@@ -1,51 +1,51 @@
 name: "gdb"
 command: "gdb"
 enabled: true
-short_description: "GNU调试器，用于二进制分析和调试"
+short_description: "GNU debugger for binary analysis and debugging"
 description: |
-  GDB是GNU调试器，用于调试和分析二进制程序。
+  GDB is the GNU debugger, used for debugging and analyzing binary programs.
 
-  **主要功能：**
-  - 程序调试
-  - 内存分析
-  - 反汇编
-  - 断点设置
+  **Main features:**
+  - Program debugging
+  - Memory analysis
+  - Disassembly
+  - Breakpoint setting
 
-  **使用场景：**
-  - 二进制分析
-  - 漏洞研究
-  - 逆向工程
-  - 程序调试
+  **Use cases:**
+  - Binary analysis
+  - Vulnerability research
+  - Reverse engineering
+  - Program debugging
 parameters:
   - name: "binary"
     type: "string"
-    description: "要分析的二进制文件路径"
+    description: "Path of the binary file to analyze"
     required: true
     position: 0
     format: "positional"
   - name: "commands"
     type: "string"
-    description: "要执行的GDB命令（分号分隔）"
+    description: "GDB commands to execute (semicolon-separated)"
     required: false
     flag: "-ex"
     format: "flag"
   - name: "script_file"
     type: "string"
-    description: "GDB脚本文件路径"
+    description: "GDB script file path"
     required: false
     flag: "-x"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的gdb参数。用于传递未在参数列表中定义的gdb选项。
+      Additional gdb arguments. Used to pass gdb options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

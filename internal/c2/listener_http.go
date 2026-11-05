@@ -487,12 +487,12 @@ func (l *HTTPBeaconListener) loadProfile() {
 	}
 	profile, err := l.manager.GetProfile(l.rec.ProfileID)
 	if err != nil || profile == nil {
-		l.logger.Warn("加载 Malleable Profile 失败，使用默认配置",
+		l.logger.Warn("Failed to load the Malleable Profile; using the default configuration",
 			zap.String("profile_id", l.rec.ProfileID), zap.Error(err))
 		return
 	}
 	l.profile = profile
-	l.logger.Info("Malleable Profile 已加载",
+	l.logger.Info("Malleable Profile loaded",
 		zap.String("profile_id", profile.ID),
 		zap.String("profile_name", profile.Name),
 		zap.String("user_agent", profile.UserAgent))
@@ -521,7 +521,7 @@ func (l *HTTPBeaconListener) buildTLSConfig() (*tls.Config, error) {
 		if err == nil {
 			return &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}, nil
 		}
-		l.logger.Warn("加载 TLS 证书失败，回退自签", zap.Error(err))
+		l.logger.Warn("Failed to load the TLS certificate; falling back to a self-signed one", zap.Error(err))
 	}
 	// 自签证书：CN 用 listener 名，避免重复
 	cert, err := generateSelfSignedCert(l.rec.Name)

@@ -104,5 +104,5 @@ func truncateForLog(s string, maxBytes int) string {
 	if maxBytes <= 0 || len(s) <= maxBytes {
 		return s
 	}
-	return s[:maxBytes] + "…(truncated)"
+	return s[:maxBytes] + "...(truncated)"
 }

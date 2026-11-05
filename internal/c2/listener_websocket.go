@@ -141,7 +141,7 @@ func (l *WebSocketListener) handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 	ws, err := l.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		l.logger.Warn("websocket 升级失败", zap.Error(err))
+		l.logger.Warn("websocket upgrade failed", zap.Error(err))
 		return
 	}
 	go l.handleConn(ws)

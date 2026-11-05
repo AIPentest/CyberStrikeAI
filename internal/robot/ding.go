@@ -43,14 +43,14 @@ func runDingLoop(ctx context.Context, cfg config.RobotDingtalkConfig, strictUser
 					return nil, nil
 				}).OnEventReceived),
 		)
-		logger.Info("钉钉 Stream 正在连接…", zap.String("client_id", cfg.ClientID))
+		logger.Info("DingTalk Stream connecting…", zap.String("client_id", cfg.ClientID))
 		err := streamClient.Start(ctx)
 		if ctx.Err() != nil {
-			logger.Info("钉钉 Stream 已按配置重启关闭")
+			logger.Info("DingTalk Stream closed by configuration restart")
 			return
 		}
 		if err != nil {
-			logger.Warn("钉钉 Stream 长连接断开（如睡眠/断网），将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
+			logger.Warn("DingTalk Stream long connection dropped (e.g. sleep/network outage); reconnecting automatically", zap.Error(err), zap.Duration("retry_after", backoff))
 		}
 		select {
 		case <-ctx.Done():
@@ -90,10 +90,10 @@ func handleDingMessage(ctx context.Context, msg *chatbot.BotCallbackDataModel, c
 		}
 	}
 	if content == "" {
-		logger.Debug("钉钉消息内容为空，已忽略", zap.String("msgtype", msg.Msgtype))
+		logger.Debug("DingTalk message content is empty; ignored", zap.String("msgtype", msg.Msgtype))
 		return
 	}
-	logger.Info("钉钉收到消息", zap.String("sender", msg.SenderId), zap.String("content", content))
+	logger.Info("DingTalk received message", zap.String("sender", msg.SenderId), zap.String("content", content))
 	tenantKey := strings.TrimSpace(cfg.ClientID)
 	if tenantKey == "" {
 		tenantKey = "default"
@@ -108,7 +108,7 @@ func handleDingMessage(ctx context.Context, msg *chatbot.BotCallbackDataModel, c
 		}
 	}
 	if userID == "" {
-		logger.Warn("钉钉消息缺少可用用户标识，已忽略")
+		logger.Warn("DingTalk message has no usable user identifier; ignored")
 		return
 	}
 	reply := h.HandleMessage("dingtalk", userID, content)
@@ -121,7 +121,7 @@ func handleDingMessage(ctx context.Context, msg *chatbot.BotCallbackDataModel, c
 		title = title[:50] + "…"
 	}
 	if title == "" {
-		title = "回复"
+		title = "Reply"
 	}
 	body := map[string]interface{}{
 		"msgtype": "markdown",
@@ -133,19 +133,19 @@ func handleDingMessage(ctx context.Context, msg *chatbot.BotCallbackDataModel, c
 	bodyBytes, _ := json.Marshal(body)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, msg.SessionWebhook, bytes.NewReader(bodyBytes))
 	if err != nil {
-		logger.Warn("钉钉构造回复请求失败", zap.Error(err))
+		logger.Warn("failed to build the DingTalk reply request", zap.Error(err))
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		logger.Warn("钉钉回复请求失败", zap.Error(err))
+		logger.Warn("DingTalk reply request failed", zap.Error(err))
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		logger.Warn("钉钉回复非 200", zap.Int("status", resp.StatusCode))
+		logger.Warn("DingTalk reply was not 200", zap.Int("status", resp.StatusCode))
 		return
 	}
-	logger.Debug("钉钉回复成功", zap.String("content_preview", reply))
+	logger.Debug("DingTalk reply delivered", zap.String("content_preview", reply))
 }

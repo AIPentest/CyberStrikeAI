@@ -27,31 +27,27 @@ func injectToolNamesOnlyInstruction(ctx context.Context, instruction string, too
 	}
 
 	var sb strings.Builder
-	sb.WriteString("以下是当前会话绑定的工具名称索引（仅名称，无参数 JSON Schema）。\n")
-	sb.WriteString("说明：若启用了 tool_search，则列表里可能含「非常驻」工具——它们不一定出现在当前轮次下发给模型的工具定义中；在未看到该工具的完整 schema 前，禁止凭名称臆测参数。\n")
+	// Model-visible tool-name index prompt; translated to English.
+	// transcriptToolIndexStartMarker / transcriptToolIndexStartMarkerEnglish in
+	// eino_summarize_transcript.go dual-accept this heading when stripping.
+	sb.WriteString("The following is the tool-name index bound to this session (names only, no parameter JSON Schema).\n")
+		sb.WriteString("Note: if tool_search is enabled the list may contain non-resident tools - they are not necessarily among the tool definitions sent to the model for the current turn; do not guess parameters from the name alone before the full schema is seen.\n")
 	for _, name := range names {
 		sb.WriteString("- ")
 		sb.WriteString(name)
 		sb.WriteByte('\n')
 	}
-	sb.WriteString("\n使用规则：\n")
-	sb.WriteString("1) 上表仅为名称索引，不含参数定义。禁止猜测参数名、类型、枚举取值或是否必填。\n")
+	sb.WriteString("\n\nUsage rules:\n")
+	sb.WriteString("1) The table above is a name index only, without parameter definitions. Do not guess parameter names, types, enum values, or whether they are required.\n")
 	if hasToolSearch {
-		sb.WriteString("【强制 / 最高优先级】本会话已启用 tool_search（动态工具池）。凡名称索引里出现、但你在「当前请求所附 tools 定义」中看不到其完整参数 schema 的工具，一律必须先调用 tool_search；为省 token 或赶进度而跳过 tool_search、直接调用业务工具，属于明确禁止的错误流程。\n")
-		sb.WriteString("2) 默认策略：只要对目标工具的参数定义有任何不确定，就先 tool_search；宁可多一次 tool_search，也不要在未见 schema 时盲调业务工具。\n")
-		sb.WriteString("3) 调用顺序：先 tool_search（唯一必填参数 regex_pattern：按工具名匹配的正则，如子串 nuclei 或 ^exact_tool_name$）→ 在后续轮次确认目标工具已出现在 tools 列表且已阅读其 schema → 再发起对该工具的真实调用。\n")
-		sb.WriteString("4) tool_search 的返回仅为匹配到的工具名列表；schema 在解锁后的下一轮才会下发。禁止在 schema 未出现时编造 JSON 参数。\n")
-		sb.WriteString("5) 不要臆造不存在的工具名。\n\n")
+		sb.WriteString("[MANDATORY / HIGHEST PRIORITY] This session has tool_search enabled (a dynamic tool pool). Any tool that appears in the name index but whose full parameter schema you do not see in the attached tools definition of the current request must be resolved via tool_search first; skipping tool_search to save tokens or speed and calling a business tool directly is an explicitly forbidden error path.\n")
+		sb.WriteString("2) Default strategy: whenever there is any uncertainty about the target tool's parameter definition, call tool_search first; prefer an extra tool_search over blindly calling a business tool whose schema you have not seen.\n")
+		sb.WriteString("3) Call order: first tool_search (its only required parameter regex_pattern is a regex matched against tool names, e.g. the substring nuclei or ^exact_tool_name$) then confirm in a later turn that the target tool appears in the tools list and its schema has been read, then make the real call to that tool.\n")
+		sb.WriteString("4) tool_search returns only the matched tool-name list; the schema is delivered only in the turn after unlocking. Never fabricate JSON parameters before the schema appears.\n")
+		sb.WriteString("5) Do not invent tool names that do not exist.\n\n")
 	} else {
-		sb.WriteString("2) 调用具体工具前，请先确认该工具的参数要求（以当前请求中的工具定义为准）；不确定时先澄清再调用。\n")
-		sb.WriteString("3) 不要臆造不存在的工具名。\n\n")
-	}
-	if s := strings.TrimSpace(injectShellToolGuidance("", names)); s != "" {
-		sb.WriteString(s)
-		sb.WriteString("\n\n")
-	}
-	if s := strings.TrimSpace(instruction); s != "" {
-		sb.WriteString(s)
+		sb.WriteString("2) Before calling a specific tool, confirm its parameter requirements (per the tool definitions in the current request); clarify first when uncertain, then call.\n")
+		sb.WriteString("3) Do not invent tool names that do not exist.\n\n")
 	}
 	return sb.String()
 }

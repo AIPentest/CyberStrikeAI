@@ -16,10 +16,10 @@ import (
 )
 
 // ErrCleanupInProgress 表示已有一轮清理在执行；handler 应映射为 409。
-var ErrCleanupInProgress = errors.New("已有一轮存储清理正在执行")
+var ErrCleanupInProgress = errors.New("a storage cleanup run is already in progress")
 
 // ErrUnknownCategory 表示请求里带了未注册的类别键。
-var ErrUnknownCategory = errors.New("未知的清理类别")
+var ErrUnknownCategory = errors.New("unknown cleanup category")
 
 // 判定结果原因，用于报表与日志可解释性。
 const (
@@ -474,7 +474,7 @@ func (c *Cleaner) filesystem() Filesystem {
 	}
 	fs, err := FilesystemUsage(probe)
 	if err != nil && c.logger != nil {
-		c.logger.Debug("查询文件系统容量失败", zap.String("path", probe), zap.Error(err))
+		c.logger.Debug("Failed to query filesystem capacity", zap.String("path", probe), zap.Error(err))
 	}
 	return fs
 }
@@ -511,15 +511,15 @@ func (c *Cleaner) logClean(rep *Report, req CleanRequest) {
 		zap.Int("errors", rep.Totals.Errors),
 	}
 	if rep.Totals.RemovedUnits == 0 && rep.Totals.Errors == 0 {
-		c.logger.Debug("运行空间清理完成，无可回收内容", summary...)
+		c.logger.Debug("Runtime-space cleanup complete, nothing reclaimable", summary...)
 		return
 	}
-	c.logger.Info("运行空间清理完成", summary...)
+	c.logger.Info("Runtime-space cleanup complete", summary...)
 	for _, cr := range rep.Categories {
 		if cr.RemovedUnits == 0 && len(cr.Errors) == 0 {
 			continue
 		}
-		c.logger.Info("清理类别明细",
+		c.logger.Info("Cleanup category details",
 			zap.String("category", cr.Key),
 			zap.Int("removed", cr.RemovedUnits),
 			zap.Int64("freed_bytes", cr.FreedBytes),

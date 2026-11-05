@@ -537,8 +537,8 @@ func TestSanitizeSystemContentForTranscript_BestPractice(t *testing.T) {
 		"高强度扫描要求：全力出击",
 		"",
 		project.FactIndexSectionStartMarker,
-		"## 项目黑板索引（project: 123, id: abc）",
-		"（暂无事实）",
+		"## Project blackboard index (project: 123, id: abc)",
+		"(no facts yet)",
 		"需要写入请使用 upsert_project_fact。",
 		project.FactIndexSectionEndMarker,
 		"",
@@ -551,6 +551,17 @@ func TestSanitizeSystemContentForTranscript_BestPractice(t *testing.T) {
 	if strings.Contains(out, "以下是当前会话绑定的工具名称索引") {
 		t.Fatalf("tool index should be stripped: %q", out)
 	}
+	// English twin: the injected tool index heading is translated now.
+	english := strings.Join([]string{
+		"The following is the tool-name index bound to this session (names only, no parameter JSON Schema).",
+		"- nmap",
+		"",
+		"你是CyberStrikeAI，是一个专业的网络安全渗透测试专家.",
+	}, "\n")
+	outEn := sanitizeSystemContentForTranscript(english)
+	if strings.Contains(outEn, "- nmap") {
+		t.Fatalf("english tool index should be stripped: %q", outEn)
+	}
 	if strings.Contains(out, "- nmap") || strings.Contains(out, "高强度扫描要求") {
 		t.Fatalf("static persona should be stripped: %q", out)
 	}
@@ -560,7 +571,7 @@ func TestSanitizeSystemContentForTranscript_BestPractice(t *testing.T) {
 	if !strings.Contains(out, transcriptStaticSystemOmitNote) {
 		t.Fatalf("missing omission note: %q", out)
 	}
-	if !strings.Contains(out, "## 项目黑板索引（project: 123, id: abc）") {
+	if !strings.Contains(out, "## Project blackboard index (project: 123, id: abc)") {
 		t.Fatalf("project blackboard should be kept: %q", out)
 	}
 }
@@ -568,7 +579,7 @@ func TestSanitizeSystemContentForTranscript_BestPractice(t *testing.T) {
 func TestFormatSummarizationTranscript_OmitsBloatedSystem(t *testing.T) {
 	t.Parallel()
 	msgs := []adk.Message{
-		schema.SystemMessage("以下是当前会话绑定的工具名称索引\n- nmap\n\n你是CyberStrikeAI\n" + project.FactIndexSectionStartMarker + "\n## 项目黑板索引（project: p1, id: x）\n（暂无事实）\n" + project.FactIndexSectionEndMarker + "\n" + transcriptSkillsSystemMarker + "\nboiler"),
+		schema.SystemMessage("以下是当前会话绑定的工具名称索引\n- nmap\n\n你是CyberStrikeAI\n" + project.FactIndexSectionStartMarker + "\n## Project blackboard index (project: p1, id: x)\n(no facts yet)\n" + project.FactIndexSectionEndMarker + "\n" + transcriptSkillsSystemMarker + "\nboiler"),
 		schema.UserMessage("hello"),
 		schema.AssistantMessage("reply", nil),
 	}
@@ -579,7 +590,7 @@ func TestFormatSummarizationTranscript_OmitsBloatedSystem(t *testing.T) {
 	if !strings.Contains(out, "hello") || !strings.Contains(out, "reply") {
 		t.Fatalf("conversation turns missing: %q", out)
 	}
-	if !strings.Contains(out, "## 项目黑板索引（project: p1, id: x）") {
+	if !strings.Contains(out, "## Project blackboard index (project: p1, id: x)") {
 		t.Fatalf("dynamic blackboard missing: %q", out)
 	}
 }
@@ -621,7 +632,7 @@ func TestRefreshFactIndexInMessages(t *testing.T) {
 
 	out := refreshFactIndexInMessages(msgs, db, proj.ID, cfg, nil)
 	sys := out[0].Content
-	if strings.Contains(sys, "（暂无事实）") {
+	if strings.Contains(sys, "(no facts yet)") {
 		t.Fatalf("expected refreshed index, got: %q", sys)
 	}
 	if !strings.Contains(sys, "fresh host fact") {

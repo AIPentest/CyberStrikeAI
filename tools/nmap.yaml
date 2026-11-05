@@ -1,61 +1,61 @@
 name: "nmap"
 command: "nmap"
-# 默认：TCP 连接扫描 + 版本检测 + 默认 NSE 脚本（无 root 也可用）
+# Defaults: TCP connect scan + version detection + default NSE scripts (usable even without root)
 args: ["-sT", "-sV", "-sC"]
 enabled: true
-short_description: "网络扫描：端口/服务/脚本；可选时序、自定义 NSE、OS 检测（需 root）"
+short_description: "Network scanning: ports/services/scripts; optional timing, custom NSE, OS detection (requires root)"
 description: |
-  网络映射与端口扫描。
+  Network mapping and port scanning.
 
-  **默认行为（只传 target/ports 即可）：**
-  - `-sT` TCP 连接扫描（无需 root）
-  - `-sV` 版本检测
-  - `-sC` 默认 NSE 脚本
+  **Default behavior (just pass target/ports):**
+  - `-sT` TCP connect scan (no root needed)
+  - `-sV` version detection
+  - `-sC` default NSE scripts
 
-  **可选增强：**
-  - `timing`：`-T0`～`-T5` 时序
-  - `nse_scripts`：`--script` 自定义脚本（如 `vuln`、`http-*`）
-  - `os_detection`：`-O` **必须 root**，否则 nmap 会 QUITTING
-  - `aggressive`：`-A` **必须 root**（含 OS 检测）
-  - `scan_type`：若传入则**整段替换**上述默认 `-sT -sV -sC`，需自行写上需要的选项（如 `-sT -sV`）
+  **Optional enhancements:**
+  - `timing`: `-T0` through `-T5` timing templates
+  - `nse_scripts`: `--script` custom scripts (e.g. `vuln`, `http-*`)
+  - `os_detection`: `-O` **requires root**, otherwise nmap will QUITTING
+  - `aggressive`: `-A` **requires root** (includes OS detection)
+  - `scan_type`: if passed, it **entirely replaces** the default `-sT -sV -sC` above; you must write in the options you need yourself (e.g. `-sT -sV`)
 
-  **注意事项：**
-  - `-sS` SYN 扫描需要 root；无 root 请用默认或 `-sT`
-  - 扫描全端口 `1-65535` 非常慢，建议先常用端口
-  - 请确保有权限扫描目标
+  **Notes:**
+  - `-sS` SYN scan requires root; without root use the defaults or `-sT`
+  - Scanning all ports `1-65535` is very slow; common ports first is recommended
+  - Please ensure you are authorized to scan the target
 parameters:
   - name: "target"
     type: "string"
     description: |
-      目标 IP、主机名、CIDR 或域名；URL 会自动提取主机部分。
+      Target IP, hostname, CIDR, or domain; URLs are automatically reduced to the host part.
 
-      **示例：** `192.168.1.1`、`10.0.0.0/24`、`example.com`
+      **Examples:** `192.168.1.1`, `10.0.0.0/24`, `example.com`
     required: true
     position: 1
     format: "positional"
   - name: "ports"
     type: "string"
     description: |
-      端口范围。示例：`80`、`1-1000`、`80,443,8080`、`1-65535`（全端口很慢）
+      Port range. Examples: `80`, `1-1000`, `80,443,8080`, `1-65535` (all ports is very slow)
     required: false
     flag: "-p"
     format: "flag"
   - name: "timing"
     type: "string"
-    description: "时序模板 T0–T5，数字越大越快。示例：`4` 生成 `-T4`"
+    description: "Timing template T0–T5; the higher the number, the faster. Example: `4` yields `-T4`"
     required: false
     format: "template"
     template: "-T{value}"
   - name: "nse_scripts"
     type: "string"
-    description: "NSE 脚本，传给 `--script`。示例：`vuln`、`http-title,http-headers`"
+    description: "NSE scripts, passed to `--script`. Examples: `vuln`, `http-title,http-headers`"
     required: false
     flag: "--script"
     format: "flag"
   - name: "os_detection"
     type: "bool"
     description: |
-      启用 `-O` OS 检测。**必须 root**；无 root 请保持 false。
+      Enable `-O` OS detection. **Requires root**; without root please keep false.
     required: false
     flag: "-O"
     format: "flag"
@@ -63,7 +63,7 @@ parameters:
   - name: "aggressive"
     type: "bool"
     description: |
-      启用 `-A` 激进扫描（含 OS 检测）。**必须 root**；无 root 请保持 false。
+      Enable `-A` aggressive scanning (includes OS detection). **Requires root**; without root please keep false.
     required: false
     flag: "-A"
     format: "flag"
@@ -71,15 +71,15 @@ parameters:
   - name: "scan_type"
     type: "string"
     description: |
-      扫描类型选项；**若填写则替换默认的 `-sT -sV -sC`**，只保留你写的选项。
-      多选项用空格分隔，例如：`-sT -sV`、`-sU`（UDP）。
+      Scan type options; **if filled in, they replace the default `-sT -sV -sC`**, keeping only the options you write.
+      Multiple options are separated by spaces, e.g.: `-sT -sV`, `-sU` (UDP).
     required: false
     format: "template"
     template: "{value}"
   - name: "additional_args"
     type: "string"
     description: |
-      额外参数，按空格追加到命令末尾。
-      示例：`--max-retries 3`、`-v`、`-Pn`
+      Additional arguments, appended to the end of the command separated by spaces.
+      Examples: `--max-retries 3`, `-v`, `-Pn`
     required: false
     format: "positional"
