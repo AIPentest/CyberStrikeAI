@@ -4,7 +4,7 @@
 
 ### What it does
 
-- Configure **Host / Port / HTTPS / Password** and choose an agent mode
+- Configure **Host / Port / HTTPS / Username / Password** and choose an agent mode
 - Click **Validate** to login (`POST /api/auth/login`) and verify token (`GET /api/auth/validate`)
 - Right-click any HTTP message in Burp and send it to CyberStrikeAI for **streaming web pentest** (agent modes: **Eino Single**, Deep, Plan-Execute, Supervisor — maps to `/api/eino-agent/stream` or `/api/multi-agent/stream`)
 - Keep a **test history sidebar** (searchable) so you can revisit previous runs
@@ -67,3 +67,13 @@ If you already have Gradle available, you can still use `build.gradle` to build.
 - Uncheck **HTTPS** only if your server runs plain HTTP.
 - It uses **Bearer Token** authentication obtained from the configured password.
 
+
+### RBAC login
+
+Use the same username and password as the web UI. Username defaults to `admin`; enter your own username for a custom account. Changing connection settings or credentials clears the cached token and requires Validate again. Passwords are not persisted.
+
+If the server reports a missing username and the plugin only has Password, rebuild and reload the JAR with the Username field. Entering `username:password` in Password does not work.
+
+### Authentication regression tests
+
+From the repository root, run `bash scripts/test-plugin-auth.sh` (Node.js and JDK 11+). This tests both clients against local HTTP fixtures, username validation, credential escaping, settings migration, and Burp account-switch invalidation. The script downloads the compile-only Burp API; set `BURP_API_JAR` to an existing JAR for offline use.

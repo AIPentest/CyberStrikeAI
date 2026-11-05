@@ -29,10 +29,12 @@ final class CyberStrikeAIClient {
 
     static final class Config {
         final String baseUrl; // e.g. http://127.0.0.1:8080
+        final String username;
         final String password;
 
-        Config(String baseUrl, String password) {
+        Config(String baseUrl, String username, String password) {
             this.baseUrl = baseUrl;
+            this.username = username.trim();
             this.password = password;
         }
     }
@@ -119,7 +121,7 @@ final class CyberStrikeAIClient {
             }
         }, AUTH_OVERALL_TIMEOUT_MS);
         try {
-            String token = login(cfg.baseUrl, cfg.password);
+            String token = login(cfg.baseUrl, cfg.username, cfg.password);
             if (Thread.interrupted()) {
                 throw timeoutIOException();
             }
@@ -176,7 +178,10 @@ final class CyberStrikeAIClient {
         );
     }
 
-    private String login(String baseUrl, String password) throws IOException {
+    private String login(String baseUrl, String username, String password) throws IOException {
+        if (username.isEmpty() || username.codePointCount(0, username.length()) > 64) {
+            throw new IOException("Username is required and must not exceed 64 characters");
+        }
         URL url = new URL(baseUrl + "/api/auth/login");
         HttpURLConnection conn = SslTrustAll.open(url, AUTH_CONNECT_TIMEOUT_MS, AUTH_READ_TIMEOUT_MS);
         trackConnection(conn);
@@ -185,7 +190,8 @@ final class CyberStrikeAIClient {
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json");
         conn.setRequestProperty("Accept", "application/json");
-        String body = "{\"password\":\"" + escapeJson(password) + "\"}";
+        String body = "{\"username\":\"" + escapeJson(username)
+                + "\",\"password\":\"" + escapeJson(password) + "\"}";
         try (OutputStream os = conn.getOutputStream()) {
             os.write(body.getBytes(StandardCharsets.UTF_8));
         }

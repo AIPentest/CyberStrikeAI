@@ -39,11 +39,15 @@ async function apiFetch(baseUrl, path, options = {}) {
   return json;
 }
 
-async function loginAndValidate(baseUrl, password, signal) {
+async function loginAndValidate(baseUrl, username, password, signal) {
+  username = username.trim();
+  if (!username || [...username].length > 64) {
+    throw new Error('Username is required and must not exceed 64 characters');
+  }
   const login = await apiFetch(baseUrl, '/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ password }),
+    body: JSON.stringify({ username, password }),
     signal,
   });
   const token = login && login.token;

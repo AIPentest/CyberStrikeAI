@@ -1,6 +1,7 @@
 /* global chrome */
 
 const STORAGE_KEYS = {
+  username: 'csai_username',
   host: 'csai_host',
   port: 'csai_port',
   https: 'csai_https',
@@ -17,6 +18,7 @@ const STORAGE_KEYS = {
 const SESSION_TOKEN_KEY = 'csai_token';
 
 const DEFAULTS = {
+  username: 'admin',
   host: '127.0.0.1',
   port: '8080',
   https: true,
@@ -134,6 +136,7 @@ async function loadConfig() {
   const data = await localGet(Object.values(STORAGE_KEYS));
   const sess = await sessionGet([SESSION_TOKEN_KEY, SESSION_TOKEN_EXPIRY_KEY]);
   return {
+    username: data[STORAGE_KEYS.username] ?? DEFAULTS.username,
     host: data[STORAGE_KEYS.host] || DEFAULTS.host,
     port: data[STORAGE_KEYS.port] || DEFAULTS.port,
     https: data[STORAGE_KEYS.https] !== false,
@@ -152,6 +155,7 @@ async function loadConfig() {
 
 async function saveConfig(partial) {
   const localMap = {};
+  if (partial.username != null) localMap[STORAGE_KEYS.username] = partial.username;
   if (partial.host != null) localMap[STORAGE_KEYS.host] = partial.host;
   if (partial.port != null) localMap[STORAGE_KEYS.port] = partial.port;
   if (partial.https != null) localMap[STORAGE_KEYS.https] = partial.https;

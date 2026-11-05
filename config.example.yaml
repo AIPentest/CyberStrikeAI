@@ -108,7 +108,19 @@ ai:
       model: qwen3-max
       max_total_tokens: 120000
       max_completion_tokens: 32768
-      # Eino path model reasoning: DeepSeek/OpenAI is thinking / reasoning_effort; Claude 4.6+ is adaptive + output_config.effort (only sent when effort is explicitly configured); 3.7 is enabled+budget_tokens:10000 (document example), effort does not map, custom budget goes via extra_request_fields
+      # headers: 可选。追加或覆盖发给模型网关的 HTTP 请求头，值支持 ${ENV_VAR} 与 ${ENV_VAR:-默认值}。
+      # 用于兼容要求私有鉴权头、版本头或组织头的第三方 OpenAI 兼容供应商（如 opencode 等聚合网关）。
+      # 配置后会覆盖同名的内置头（Authorization、User-Agent 等），空值项会被忽略。
+      # headers:
+      #   X-Api-Key: ${OPENCODE_API_KEY}
+      #   x-opencode-session: "%session_id%" # 自动替换为当前对话 ID
+      #   X-Client-Name: cyberstrike-ai
+      #   HTTP-Referer: https://example.com
+      # 配置自定义头时，仅允许同源重定向，跨主机、端口或协议的重定向会被拒绝。
+      # HITL 审计仅在未显式配置 provider/base_url/api_key 时继承主渠道 headers；
+      # 独立审计身份如需请求头，请在 hitl.audit_model.headers 中单独配置。
+      # 空 headers 与未配置等价；所有自定义头值在设置接口中均按敏感值脱敏。
+      # Eino 路径模型推理：DeepSeek/OpenAI 为 thinking / reasoning_effort；Claude 4.6+ 为 adaptive + output_config.effort（仅显式配置 effort 时下发）；3.7 为 enabled+budget_tokens:10000（文档示例），effort 不映射，自定义预算用 extra_request_fields
       reasoning:
         mode: on # auto | on | off; off: OpenAI/Claude attach no reasoning field, DeepSeek sends thinking.type=disabled (it defaults to thinking enabled)
         effort: high # low | medium | high | max | xhigh (highest tier: OpenAI commonly xhigh, some gateways use max, sent as-is); blank means not specified

@@ -1,6 +1,6 @@
 ## CyberStrikeAI 浏览器扩展
 
-**当前版本：0.3.10**（UI 为英文；中文说明见下文）
+**当前版本：0.3.11**（UI 为英文；中文说明见下文）
 
 Chrome / Edge（Chromium）DevTools 扩展：在开发者工具中捕获 **Network** 流量，发送到 CyberStrikeAI 进行 AI 辅助安全测试。能力与 Burp Suite 插件对齐，并按生产场景做了性能与体验优化。
 
@@ -11,7 +11,7 @@ Chrome / Edge（Chromium）DevTools 扩展：在开发者工具中捕获 **Netwo
 1. `chrome://extensions/` → 开发者模式 → **加载已解压的扩展程序**
 2. 选择目录：`plugins/browser-extension/cyberstrikeai-browser-extension/`
 3. 打开目标页面 → **F12** → 顶部 Tab **CyberStrikeAI**
-4. 填写 Host / Port / Password → **Validate**（首次会请求访问服务器地址权限）
+4. 填写 Host / Port / Username / Password → **Validate**（首次会请求访问服务器地址权限）
 5. 左侧选中捕获请求 → **Send** → 在 **Output** 查看 AI 结果
 
 点击浏览器工具栏图标可查看 **只读连接状态**；完整配置与操作均在 DevTools 面板内完成。
@@ -34,7 +34,7 @@ Chrome / Edge（Chromium）DevTools 扩展：在开发者工具中捕获 **Netwo
 
 | 区域 | 说明 |
 |------|------|
-| **连接栏** | Host、Port、HTTPS、Password、Validate；成功后收起为 `https://host:port` 摘要 |
+| **连接栏** | Host、Port、HTTPS、Username、Password、Validate；成功后收起为 `https://host:port` 摘要 |
 | **Test History** | 最多 50 次 Send 记录，可回看 Progress / Final |
 | **Captured Requests** | 当前 Tab 捕获列表，最多 200 条，支持搜索 |
 | **Output** | 默认 Tab：流式 Progress + Final Response |
@@ -97,7 +97,7 @@ Cookie: ...
 | 控件 | 作用 |
 |------|------|
 | **Validate** | 登录并校验 Token；进行中再次点击为 Cancel |
-| **连接设置 / 收起** | 展开或折叠 Host/Port/Password 表单 |
+| **连接设置 / 收起** | 展开或折叠 Host/Port/Username/Password 表单 |
 | **Send** | 对选中捕获发起到 CyberStrikeAI |
 | **Latest XHR** | 选中最近 XHR/Fetch 并 Send |
 | **Stop** | 停止当前 AI 流（本地 + 服务端） |
@@ -251,3 +251,9 @@ package.sh
 | 项目/角色/模式 | Send 弹窗 | Send 弹窗 |
 | SSE 输出 | Progress + Final | Progress + Final |
 | 捕获开关 | — | ● 捕获中 / ○ 已暂停 |
+
+### RBAC 用户名与密码
+
+Username 填网页登录用户名（默认 `admin`，自建账号填写自己的用户名），Password 填该账号密码，不要拼接成 `用户名:密码`。用户名保存在本地，密码不持久化。修改连接信息或账号密码后，旧 Token 会清除，需要重新 Validate。
+
+若提示“用户名不能为空”且界面只有 Password，请在 `chrome://extensions/` 重新加载更新后的插件，再完全关闭并重新打开 DevTools。

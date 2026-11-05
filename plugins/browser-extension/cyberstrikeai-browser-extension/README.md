@@ -1,6 +1,6 @@
 ## CyberStrikeAI Browser Extension
 
-**Version 0.3.10** — Full docs: **README.zh-CN.md**
+**Version 0.3.11** — Full docs: **README.zh-CN.md**
 
 Chromium DevTools extension: capture Network traffic and send it to CyberStrikeAI for AI-assisted security testing. Aligned with the Burp Suite plugin.
 
@@ -10,6 +10,12 @@ Chromium DevTools extension: capture Network traffic and send it to CyberStrikeA
 2. Select `plugins/browser-extension/cyberstrikeai-browser-extension/`
 3. Open target page → **F12** → **CyberStrikeAI** tab → **Validate**
 4. Select a captured request → **Send** → view **Output**
+
+### RBAC login
+
+Fill in Host / Port / HTTPS and the same Username / Password used in the web UI, then click Validate. Username defaults to `admin`; custom accounts use their own username. The username is saved locally; the password is not persisted. Changing connection settings or credentials clears the cached token and requires Validate again.
+
+If the server reports a missing username and the panel only has Password, reload the updated extension at `chrome://extensions/`, then close and reopen DevTools. Do not enter `username:password` in Password.
 
 ### Popup vs DevTools panel
 
@@ -72,3 +78,7 @@ lib/            # api, storage, capture, http-normalize, markdown, …
 icons/
 package.sh
 ```
+
+### Authentication regression tests
+
+From the repository root, run `bash scripts/test-plugin-auth.sh` (Node.js and JDK 11+). This tests both clients against local HTTP fixtures, username validation, credential escaping, settings migration, and Burp account-switch invalidation. The script downloads the compile-only Burp API; set `BURP_API_JAR` to an existing JAR for offline use.
