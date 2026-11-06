@@ -267,6 +267,48 @@ If server logs show `client sent an HTTP request to an HTTPS server`, a client i
 
 **Note:** The Python virtual environment (`venv/`) is automatically created and managed by `run.sh`. Tools that require Python (like `api-fuzzer`, `http-framework-test`, etc.) will automatically use this environment.
 
+### Prebuilt Binaries and Fork Releases
+
+The **Release binaries** GitHub Actions workflow builds the server and the optional
+MCP stdio binary for Windows x64, Linux x64/ARM64, and macOS Intel/Apple Silicon.
+Archives include the web UI, example configuration, tools/roles/skills/agents,
+knowledge base, integrations, and documentation. No frontend build is needed.
+
+1. Download the matching archive from **your fork's Releases page** and extract it.
+2. Open a terminal **in the extracted directory**; the application loads its web UI
+  and other resources relative to the working directory.
+3. Launch `./cyberstrike-ai --https` on Linux/macOS or
+  `.\cyberstrike-ai.exe --https` in Windows PowerShell. The server creates a local
+  configuration from the included template on first startup.
+4. Follow the first-time configuration steps above. The MCP stdio binary needs the
+  server-created configuration (or an explicit `-config` path).
+
+These archives do not install Python packages or external security tools. Go and a
+C compiler are **not required to run** the prebuilt binaries. Linux builds target
+Ubuntu 24.04 (glibc 2.39 or newer; not Alpine/musl); macOS builds target macOS 15 or
+newer. Windows builds statically link the MinGW runtime. Platform-specific terminal
+features and external tools may still have their own OS requirements. Archives are
+not code-signed or notarized.
+
+**Publishing from a fork:** enable Actions if GitHub has disabled them for the fork,
+then push a new version tag such as `v1.7.25`. Once all five builds and SQLite tests
+pass, the workflow creates a release in **the repository where it runs**, uploads
+the archives and a SHA-256 checksum manifest, and generates release notes. Tags
+containing a hyphen (for example, `v1.7.25-rc.1`) are marked as prereleases. Only the
+built-in GitHub token is used; no personal access token or upstream credentials are
+needed. Repository or organization policies must permit the release job's
+`contents: write` permission.
+
+For a test build without publishing, open **Actions → Release binaries → Run
+workflow** and select a branch. Download the five build artifacts from the finished
+run (retained for 14 days). Selecting an existing `v` tag manually rebuilds and
+publishes that tag, allowing failed releases to be retried.
+
+The release workflow is in [.github/workflows/release.yml](.github/workflows/release.yml),
+with native build/packaging logic in [scripts/package-release.ps1](scripts/package-release.ps1).
+Prebuilt archives do not include a Git checkout or Go toolchain; the source-based
+one-click updater described below needs those installed separately.
+
 ### Upgrade and Compatibility
 
 **Prefer the platform's own one-click update** (console System settings -> One-click update, or

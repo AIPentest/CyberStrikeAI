@@ -1,0 +1,148 @@
+name: Release binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            goos: linux
+            goarch: amd64
+          - runner: ubuntu-24.04-arm
+            goos: linux
+            goarch: arm64
+          - runner: macos-15-intel
+            goos: darwin
+            goarch: amd64
+          - runner: macos-15
+            goos: darwin
+            goarch: arm64
+          - runner: windows-2022
+            goos: windows
+            goarch: amd64
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      # mattn/go-sqlite3 builds a nonfunctional stub if CGO is disabled.
+      CGO_ENABLED: '1'
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Windows C compiler
+        if: runner.os == 'Windows'
+        id: msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          install: mingw-w64-ucrt-x86_64-gcc
+          path-type: minimal
+
+      - name: Configure Windows CGO
+        if: runner.os == 'Windows'
+        env:
+          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
+        run: |
+          "$env:MSYS2_LOCATION/ucrt64/bin" >> $env:GITHUB_PATH
+          'CC=gcc' >> $env:GITHUB_ENV
+          # Do not require MinGW runtime DLLs on the destination machine.
+          'CGO_LDFLAGS=-static' >> $env:GITHUB_ENV
+
+      - name: Verify dependencies
+        run: |
+          go mod download
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go mod verify
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Test SQLite on the target platform
+        run: |
+          go test ./internal/database
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build and package
+        env:
+          BUILD_REF: ${{ github.ref_name }}
+          BUILD_REF_TYPE: ${{ github.ref_type }}
+          BUILD_SHA: ${{ github.sha }}
+        run: |
+          $version = "snapshot-$($env:BUILD_SHA.Substring(0, 12))"
+          if ($env:BUILD_REF_TYPE -eq 'tag') { $version = $env:BUILD_REF }
+          ./scripts/package-release.ps1 -Version $version -TargetOS $env:GOOS -TargetArch $env:GOARCH
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+  publish:
+    name: Publish GitHub Release
+    # Manual branch runs only build artifacts. Manual tag runs can retry a release.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download all release archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Generate SHA-256 checksums
+        working-directory: dist
+        run: sha256sum *.tar.gz *.zip > SHA256SUMS.txt
+
+      - name: Create release and upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Retry uploads without duplicating an existing release.
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            args=(--verify-tag --generate-notes --draft --title "$RELEASE_TAG")
+            if [[ "$RELEASE_TAG" == *-* ]]; then
+              args+=(--prerelease --latest=false)
+            fi
+            gh release create "$RELEASE_TAG" "${args[@]}"
+          fi
+          gh release upload "$RELEASE_TAG" dist/* --clobber
+          # New releases stay private drafts until every asset has uploaded.
+          gh release edit "$RELEASE_TAG" --draft=false
