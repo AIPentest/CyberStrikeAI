@@ -131,15 +131,23 @@ func buildReductionMiddleware(ctx context.Context, mw config.MultiAgentEinoMiddl
 	defaultExcl := []string{
 		"task", "transfer_to_agent", "exit", "write_todos", "skill", "tool_search",
 		"TaskCreate", "TaskGet", "TaskUpdate", "TaskList",
+		"read_file", "ls", "glob", "grep", "record_vulnerability", "update_vulnerability",
 	}
 	excl = append(excl, defaultExcl...)
+	retentionLimit, clearAtLeast := 0, 0
+	if mw.ReductionMaxTokensForClearEffective() >= 20000 {
+		retentionLimit, clearAtLeast = 12, 12000
+	}
 	redMW, err := reduction.New(ctx, &reduction.Config{
-		Backend:           loc,
-		RootDir:           root,
-		ReadFileToolName:  "read_file",
-		ClearExcludeTools: excl,
-		MaxLengthForTrunc: mw.ReductionMaxLengthForTruncEffective(),
-		MaxTokensForClear: int64(mw.ReductionMaxTokensForClearEffective()),
+		Backend:                   loc,
+		RootDir:                   root,
+		ReadFileToolName:          "read_file",
+		TruncExcludeTools:         []string{"read_file", "ls", "glob"},
+		ClearExcludeTools:         excl,
+		MaxLengthForTrunc:         mw.ReductionMaxLengthForTruncEffective(),
+		MaxTokensForClear:         int64(mw.ReductionMaxTokensForClearEffective()),
+		ClearRetentionSuffixLimit: retentionLimit,
+		ClearAtLeastTokens:        int64(clearAtLeast),
 	})
 	if err != nil {
 		return nil, err
@@ -168,15 +176,23 @@ func buildAgenticReductionMiddleware(
 	defaultExcl := []string{
 		"task", "transfer_to_agent", "exit", "write_todos", "skill", "tool_search",
 		"TaskCreate", "TaskGet", "TaskUpdate", "TaskList",
+		"read_file", "ls", "glob", "grep", "record_vulnerability", "update_vulnerability",
 	}
 	excl = append(excl, defaultExcl...)
+	retentionLimit, clearAtLeast := 0, 0
+	if mw.ReductionMaxTokensForClearEffective() >= 20000 {
+		retentionLimit, clearAtLeast = 12, 12000
+	}
 	redMW, err := reduction.NewTyped[*schema.AgenticMessage](ctx, &reduction.TypedConfig[*schema.AgenticMessage]{
-		Backend:           loc,
-		RootDir:           root,
-		ReadFileToolName:  "read_file",
-		ClearExcludeTools: excl,
-		MaxLengthForTrunc: mw.ReductionMaxLengthForTruncEffective(),
-		MaxTokensForClear: int64(mw.ReductionMaxTokensForClearEffective()),
+		Backend:                   loc,
+		RootDir:                   root,
+		ReadFileToolName:          "read_file",
+		TruncExcludeTools:         []string{"read_file", "ls", "glob"},
+		ClearExcludeTools:         excl,
+		MaxLengthForTrunc:         mw.ReductionMaxLengthForTruncEffective(),
+		MaxTokensForClear:         int64(mw.ReductionMaxTokensForClearEffective()),
+		ClearRetentionSuffixLimit: retentionLimit,
+		ClearAtLeastTokens:        int64(clearAtLeast),
 	})
 	if err != nil {
 		return nil, err

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/einomcp"
@@ -28,6 +29,7 @@ func prepareEinoAgenticSkills(
 	ma *config.MultiAgentConfig,
 	logger *zap.Logger,
 ) (loc *localbk.Local, skillMW adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage], fsTools bool, skillsRoot string, err error) {
+	resetSessionReadFiles()
 	if ma == nil {
 		return nil, nil, false, "", nil
 	}
@@ -122,7 +124,7 @@ func subAgentAgenticFilesystemMiddleware(
 		return nil, nil
 	}
 	mw, err := filesystem.NewTyped[*schema.AgenticMessage](ctx, &filesystem.MiddlewareConfig{
-		Backend: loc,
+		Backend:                          loc,
 		StreamingShell: &einoStreamingShellWrap{
 			inner:                   security.NewEinoStreamingShell(),
 			invokeNotify:            invokeNotify,
@@ -169,6 +171,9 @@ func (m *einoAgenticFilesystemToolMiddleware) WrapInvokableToolCall(ctx context.
 		return wrapped, nil
 	}
 	return func(ctx context.Context, argumentsInJSON string, opts ...tool.Option) (string, error) {
+		if strings.EqualFold(strings.TrimSpace(tCtx.Name), "read_file") {
+			argumentsInJSON = normalizeReadFileArguments(argumentsInJSON)
+		}
 		args := parseToolArgumentsObject(argumentsInJSON)
 		if len(args) > 0 && m.binder != nil {
 			m.binder.BindArguments(tCtx.CallID, args)
@@ -177,6 +182,7 @@ func (m *einoAgenticFilesystemToolMiddleware) WrapInvokableToolCall(ctx context.
 		if runErr != nil {
 			return result, runErr
 		}
+		result = enrichReadFileToolResult(tCtx.Name, argumentsInJSON, result)
 		return m.boundToolResult(tCtx.CallID, result), nil
 	}, nil
 }
@@ -233,4 +239,195 @@ func agentShellNoOutputTimeoutSeconds(cfg *config.Config) int {
 		return 300
 	}
 	return v
+}
+
+
+var (
+	sessionReadFilesMu sync.Mutex
+	sessionReadRanges  = make(map[string][][2]int)
+)
+
+func resetSessionReadFiles() {
+	sessionReadFilesMu.Lock()
+	sessionReadRanges = make(map[string][][2]int)
+	sessionReadFilesMu.Unlock()
+}
+
+func mergeLineRanges(ranges [][2]int, start, end int) [][2]int {
+	ranges = append(ranges, [2]int{start, end})
+	for i := 1; i < len(ranges); i++ {
+		for j := i; j > 0 && ranges[j][0] < ranges[j-1][0]; j-- {
+			ranges[j], ranges[j-1] = ranges[j-1], ranges[j]
+		}
+	}
+	merged := make([][2]int, 0, len(ranges))
+	for _, r := range ranges {
+		if len(merged) == 0 || merged[len(merged)-1][1]+1 < r[0] {
+			merged = append(merged, r)
+		} else if r[1] > merged[len(merged)-1][1] {
+			merged[len(merged)-1][1] = r[1]
+		}
+	}
+	return merged
+}
+
+func isRangeAlreadyCovered(ranges [][2]int, start, end int) bool {
+	if end < start {
+		return false
+	}
+	for _, r := range ranges {
+		if r[0] <= start && r[1] >= end {
+			return true
+		}
+	}
+	return false
+}
+
+func formatReadRanges(ranges [][2]int) string {
+	parts := make([]string, 0, len(ranges))
+	for _, r := range ranges {
+		parts = append(parts, fmt.Sprintf("%d..%d", r[0], r[1]))
+	}
+	return strings.Join(parts, ", ")
+}
+
+// enrichReadFileToolResult adds total line count metadata, an explicit [EOF REACHED]
+// loop-breaker message, and session-level range & full-file deduplication so the model
+// never loops past EOF or repeatedly re-reads the same chunks or files in the same session.
+func enrichReadFileToolResult(toolName, argumentsInJSON, result string) string {
+	if !strings.EqualFold(strings.TrimSpace(toolName), "read_file") {
+		return result
+	}
+	if strings.HasPrefix(result, "[File: ") || strings.HasPrefix(result, "[EOF REACHED]") || strings.HasPrefix(result, "[ALREADY READ IN THIS SESSION]") {
+		return result
+	}
+	args := parseToolArgumentsObject(argumentsInJSON)
+	if len(args) == 0 {
+		return result
+	}
+	fp, _ := args["file_path"].(string)
+	fp = strings.TrimSpace(fp)
+	if fp == "" {
+		return result
+	}
+	if absFp, err := filepath.Abs(fp); err == nil {
+		fp = absFp
+	}
+	offset := 1
+	if v, ok := args["offset"].(float64); ok && int(v) > 0 {
+		offset = int(v)
+	}
+	limit := 200
+	if v, ok := args["limit"].(float64); ok && int(v) > 0 {
+		limit = int(v)
+	}
+	data, err := os.ReadFile(fp)
+	if err != nil {
+		return result
+	}
+	contentStr := string(data)
+	totalLines := 0
+	if len(contentStr) > 0 {
+		totalLines = strings.Count(contentStr, "\n") + 1
+		if strings.HasSuffix(contentStr, "\n") && totalLines > 1 {
+			totalLines--
+		}
+	}
+	if strings.Contains(result, "past its last line") || strings.Contains(result, "No content read from") {
+		return fmt.Sprintf(
+			"[EOF REACHED] File %s has ONLY %d lines in total. Your requested offset (%d) is past the last line (%d). You have ALREADY read to the end of this file. DO NOT call read_file on %s with a larger offset!",
+			fp, totalLines, offset, totalLines, fp,
+		)
+	}
+	endLine := offset + limit - 1
+	actualEnd := endLine
+	if totalLines > 0 && actualEnd > totalLines {
+		actualEnd = totalLines
+	}
+
+	sessionReadFilesMu.Lock()
+	existing := sessionReadRanges[fp]
+	if totalLines > 0 && isRangeAlreadyCovered(existing, offset, actualEnd) {
+		coveredStr := formatReadRanges(existing)
+		sessionReadFilesMu.Unlock()
+		return fmt.Sprintf(
+			"[ALREADY READ IN THIS SESSION] File %s (%d total lines): requested lines %d..%d were ALREADY read earlier in this session (already read ranges for this file: [%s]). DO NOT re-read the same lines! If you need unread lines of %s, specify an offset outside [%s]; if you have already inspected the relevant functions, STOP calling read_file and output your final white-hat security audit report immediately.",
+			fp, totalLines, offset, actualEnd, coveredStr, fp, coveredStr,
+		)
+	}
+	sessionReadRanges[fp] = mergeLineRanges(existing, offset, actualEnd)
+	sessionReadFilesMu.Unlock()
+
+	if endLine >= totalLines {
+		return fmt.Sprintf(
+			"[File: %s | Total lines: %d | Showing lines %d..%d (END OF FILE)]\n%s\n[EOF REACHED: End of file (%d total lines). Do not call read_file on these lines again.]",
+			fp, totalLines, offset, totalLines, result, totalLines,
+		)
+	}
+	return fmt.Sprintf(
+		"[File: %s | Total lines: %d | Showing lines %d..%d (%d lines remaining)]\n%s",
+		fp, totalLines, offset, endLine, totalLines-endLine, result,
+	)
+}
+
+// normalizeReadFileArguments coalesces tiny pagination limits on source files:
+// if a file has <= 800 lines remaining, read to EOF in one call; if > 800 lines remaining
+// and limit < 600, bump limit to 600 to avoid micro-pagination loops on large files.
+func normalizeReadFileArguments(argumentsInJSON string) string {
+	args := parseToolArgumentsObject(argumentsInJSON)
+	if len(args) == 0 {
+		return argumentsInJSON
+	}
+	fp, _ := args["file_path"].(string)
+	fp = strings.TrimSpace(fp)
+	if fp == "" {
+		return argumentsInJSON
+	}
+	data, err := os.ReadFile(fp)
+	if err != nil {
+		return argumentsInJSON
+	}
+	contentStr := string(data)
+	totalLines := 0
+	if len(contentStr) > 0 {
+		totalLines = strings.Count(contentStr, "\n") + 1
+		if strings.HasSuffix(contentStr, "\n") && totalLines > 1 {
+			totalLines--
+		}
+	}
+	if totalLines <= 0 {
+		return argumentsInJSON
+	}
+	offset := 1
+	if v, ok := args["offset"].(float64); ok && int(v) > 0 {
+		offset = int(v)
+	}
+	limit := 200
+	if v, ok := args["limit"].(float64); ok && int(v) > 0 {
+		limit = int(v)
+	}
+	if offset > totalLines {
+		return argumentsInJSON
+	}
+	remaining := totalLines - offset + 1
+	changed := false
+	if v, ok := args["offset"].(float64); !ok || int(v) <= 0 {
+		args["offset"] = 1
+		changed = true
+	}
+	if remaining <= 800 && limit < remaining {
+		args["limit"] = remaining
+		changed = true
+	} else if remaining > 800 && limit < 600 {
+		args["limit"] = 600
+		changed = true
+	}
+	if !changed {
+		return argumentsInJSON
+	}
+	b, err := json.Marshal(args)
+	if err != nil {
+		return argumentsInJSON
+	}
+	return string(b)
 }
