@@ -414,7 +414,7 @@ func TestExternalMCPHandler_StartStopExternalMCP(t *testing.T) {
 		}
 	}
 
-	// 测试停止
+	// Test stop
 	req2 := httptest.NewRequest("POST", "/api/external-mcp/test-start-stop/stop", nil)
 	w2 := httptest.NewRecorder()
 	router.ServeHTTP(w2, req2)

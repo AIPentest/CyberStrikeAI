@@ -160,13 +160,13 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	mcpServer.ConfigureToolResultMaxBytes(cfg.MultiAgent.EinoMiddleware.ReductionMaxLengthForTruncEffective())
 	mcpServer.ConfigureToolResultSpillRoot(cfg.MultiAgent.EinoMiddleware.ReductionRootDir)
 
-	// 创建安全工具执行器
+	// Create the security tool executor
 	executor := security.NewExecutor(&cfg.Security, mcpServer, log.Logger)
 	executor.SetShellNoOutputTimeoutSeconds(cfg.Agent.ShellNoOutputTimeoutSeconds)
 	executor.SetToolOutputMaxBytes(cfg.MultiAgent.EinoMiddleware.ReductionMaxLengthForTruncEffective())
 	executor.SetToolOutputSpillRoot(cfg.MultiAgent.EinoMiddleware.ReductionRootDir)
 
-	// 注册工具
+	// Register tools
 	executor.RegisterTools(mcpServer)
 
 	// 注册漏洞记录工具

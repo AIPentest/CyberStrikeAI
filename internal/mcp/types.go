@@ -127,20 +127,20 @@ type Content struct {
 	Text string `json:"text"`
 }
 
-// InitializeRequest 初始化请求
+// InitializeRequest: an initialization request
 type InitializeRequest struct {
 	ProtocolVersion string                 `json:"protocolVersion"`
 	Capabilities    map[string]interface{} `json:"capabilities"`
 	ClientInfo      ClientInfo             `json:"clientInfo"`
 }
 
-// ClientInfo 客户端信息
+// ClientInfo: client information
 type ClientInfo struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
 }
 
-// InitializeResponse 初始化响应
+// InitializeResponse: an initialization response
 type InitializeResponse struct {
 	ProtocolVersion string             `json:"protocolVersion"`
 	Capabilities    ServerCapabilities `json:"capabilities"`

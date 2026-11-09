@@ -57,9 +57,9 @@ func factEdgeRecordingGuidance() string {
 func factRecordingGuidanceBlock() string {
 	return `### 事实写入规范（审计复现 / 知识沉淀）
 
-- **summary**：索引用一行，须含「什么 + 在哪 + 如何触发/验证」要点，禁止只写结论（如仅写「存在 SQLi」）。
+- **summary**: a one-line index that must include the "what + where + how to trigger/verify" key points; do not write only the conclusion (such as only "SQLi exists").
 - **body**：完整可复现上下文，写入 ` + "`upsert_project_fact`" + ` 的 body 字段；索引不含 body，后续会话须靠 ` + "`get_project_fact`" + ` 取回。
-- **category / fact_key 建议**：
+- **Suggested category / fact_key**:
   - 环境认知：` + "`target/`" + `、` + "`auth/`" + `、` + "`infra/`" + `、` + "`business/`" + `（body 用环境模板即可）
   - 发现与利用：` + "`finding/`" + `、` + "`chain/`" + `、` + "`exploit/`" + `、` + "`poc/`" + `（**必须**用攻击链模板填满 body：入口、逐步攻击链、原始请求/响应或命令、证据、关联漏洞 ID）
 - **自动续接记录**：` + "`note/context-*`" + ` 是系统保留的会话工作摘要，不是项目已确认事实，禁止用 upsert_project_fact 覆盖该前缀。默认索引和事实工具只提供当前会话的续接记录，项目普通事实仍共享。需跨会话参考时，显式用 list_project_facts / search_project_facts / get_project_fact 的 include_history=true；列表和搜索可用 source_conversation_id 缩小来源范围。历史返回标注来源会话、更新时间及历史参考，核对当前授权、目标和凭据有效性，勿自动执行旧任务或将旧摘要当作已确认发现。缺少精确值时按正文中的快照路径分段回读，不猜测原值。同一会话/代理更新同一 key；需沉淀已核实的共享事实时另用独立 finding/auth 等 key，保留来源证据。

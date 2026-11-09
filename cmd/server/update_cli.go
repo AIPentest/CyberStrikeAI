@@ -24,7 +24,7 @@ func updateCommandIfNeeded(configPath string, check, apply, rollback bool) (bool
 	root := filepath.Dir(configPath)
 	repo, err := config.LoadUpdateRepo(configPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "读取更新源失败: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Failed to read update source: %v\n", err)
 		return true, 1
 	}
 	opts := update.Options{Root: root, Repo: repo}
@@ -33,15 +33,15 @@ func updateCommandIfNeeded(configPath string, check, apply, rollback bool) (bool
 
 	source := strings.TrimSpace(repo)
 	if source == "" {
-		source = update.DefaultRepoURL + "（官方仓库默认）"
+		source = update.DefaultRepoURL + " (official repository default)"
 	}
-	fmt.Printf("安装目录：%s\n", root)
-	fmt.Printf("更新源：%s\n", source)
+	fmt.Printf("Install directory: %s\n", root)
+	fmt.Printf("Update source: %s\n", source)
 	switch {
 	case check:
 		snap, err := update.Check(ctx, opts)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "检查更新失败: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Failed to check for updates: %v\n", err)
 			return true, 1
 		}
 		printSnapshot(snap)
@@ -57,15 +57,15 @@ func updateCommandIfNeeded(configPath string, check, apply, rollback bool) (bool
 			printResult(res)
 		}
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "更新未完成: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Update not completed: %v\n", err)
 			return true, 1
 		}
-		fmt.Println("源码与二进制已就位；重启服务后新代码生效。")
+		fmt.Println("Source and binary are in place; the new code takes effect after restarting the service.")
 		return true, 0
 	case rollback:
 		res, err := update.Rollback(ctx, opts)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "回滚未完成: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Rollback not completed: %v\n", err)
 			return true, 1
 		}
 		printResult(res)
@@ -76,63 +76,63 @@ func updateCommandIfNeeded(configPath string, check, apply, rollback bool) (bool
 
 func printSnapshot(s *update.Snapshot) {
 	if !s.Installed {
-		fmt.Printf("这个目录不是 git 工作树（%s），无法自动更新\n", s.Root)
+		fmt.Printf("This directory is not a git work tree (%s); cannot auto-update\n", s.Root)
 		return
 	}
 	target := s.TargetBranch
 	if target == "" {
 		target = "?"
 	}
-	fmt.Printf("本机分支 %s / 提交 %s (%s)，更新源默认分支 %s\n", s.Branch, s.Commit, s.Subject, target)
+	fmt.Printf("Local branch %s / commit %s (%s), update source default branch %s\n", s.Branch, s.Commit, s.Subject, target)
 	if s.CheckError != "" {
-		fmt.Printf("检查失败：%s\n", s.CheckError)
+		fmt.Printf("Check failed: %s\n", s.CheckError)
 		return
 	}
-	fmt.Printf("更新源最新 %s (%s)，落后 %d 个提交，本地领先 %d 个提交\n", s.RemoteCommit, s.RemoteSubject, s.Behind, s.Ahead)
+	fmt.Printf("Update source latest %s (%s), behind by %d commits, local ahead by %d commits\n", s.RemoteCommit, s.RemoteSubject, s.Behind, s.Ahead)
 	for _, c := range s.Incoming {
 		fmt.Printf("  ○ %s %s\n", c.Commit, c.Subject)
 	}
 	if s.Behind > len(s.Incoming) {
-		fmt.Printf("  …（共 %d 个，只列出 %d 个）\n", s.Behind, len(s.Incoming))
+		fmt.Printf("  … (%d total, only %d listed)\n", s.Behind, len(s.Incoming))
 	}
 	if len(s.BlockingChanges) > 0 {
-		fmt.Printf("本机改过 %d 个源码文件，更新会拒绝执行：\n", len(s.BlockingChanges))
+		fmt.Printf("%d source files have been modified locally; the update will refuse to run:\n", len(s.BlockingChanges))
 		for _, c := range s.BlockingChanges {
 			fmt.Printf("  ! %s (%s)\n", c.Path, c.Status)
 		}
 	}
 	if !s.CanBuild {
-		fmt.Println("本机没有 Go 工具链：更新只搬源码，不会重编译")
+		fmt.Println("No Go toolchain on this machine: the update only moves source, it will not recompile")
 	}
 	if s.BuildPending {
-		fmt.Println("上一次更新留下了未完成的编译（源码已就位、二进制还是旧的）：装好工具链后重跑更新即可补上")
+		fmt.Println("The last update left an incomplete build (source is in place, the binary is still old): after installing the toolchain, re-run the update to finish it")
 	}
 	if s.HasRollback {
-		fmt.Printf("可回滚到 %s\n", s.RollbackTo)
+		fmt.Printf("Can roll back to %s\n", s.RollbackTo)
 	}
 }
 
 func printResult(r *update.Result) {
 	moved := r.Commits > 0 || r.ToCommit != r.FromCommit
 	if !moved && !r.BinaryBuilt {
-		fmt.Println("已经是最新，没有改动")
+		fmt.Println("Already up to date, no changes")
 		return
 	}
 	if moved {
-		fmt.Printf("%s → %s（%d 个提交，涉及 %d 个文件，用时 %s）\n", r.FromCommit, r.ToCommit, r.Commits, r.FilesTouched, r.Duration)
+		fmt.Printf("%s → %s (%d commits, touching %d files, took %s)\n", r.FromCommit, r.ToCommit, r.Commits, r.FilesTouched, r.Duration)
 	} else {
 		// commits == 0 but a binary was built: a retry that finished a build the previous
-		// attempt could not. Saying "已经是最新，没有改动" here would bury the one thing
+			// attempt could not. Saying "Already up to date, no changes" here would bury the one thing
 		// that did happen.
-		fmt.Printf("源码已经是最新（%s），本次补上了二进制\n", r.ToCommit)
+		fmt.Printf("Source is already up to date (%s); this run supplied the binary\n", r.ToCommit)
 	}
 	if len(r.KeptContent) > 0 {
-		fmt.Printf("保留了 %d 个本机内容文件（roles/skills/tools 等，没有被上游覆盖）：\n", len(r.KeptContent))
+		fmt.Printf("Kept %d local content files (roles/skills/tools, etc., not overwritten by upstream):\n", len(r.KeptContent))
 		for _, p := range r.KeptContent {
 			fmt.Printf("  = %s\n", p)
 		}
 	}
 	if r.BinaryBuilt {
-		fmt.Printf("二进制已换新：%s（旧版本留在 %s 以便回滚）\n", r.BinaryPath, r.PrevBinary)
+		fmt.Printf("Binary swapped in: %s (the old version is kept at %s for rollback)\n", r.BinaryPath, r.PrevBinary)
 	}
 }
