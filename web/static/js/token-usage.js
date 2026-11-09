@@ -33,13 +33,13 @@ async function refreshTokenUsage() {
     const controller = new AbortController();
     tokenUsageState.controller = controller;
     host.setAttribute('aria-busy', 'true');
-    host.textContent = tokenUsageText('common.loading', null, '加载中…');
+    host.textContent = tokenUsageText('common.loading', null, 'Loading...');
     const select = document.getElementById('settings-token-days');
     if (select) select.value = String(tokenUsageState.days);
     let url = '/api/usage/tokens?days=' + tokenUsageState.days + '&limit=20';
     const projectId = typeof getActiveProjectId === 'function' ? getActiveProjectId() : '';
     const scope = document.getElementById('settings-token-scope');
-    if (scope) scope.textContent = tokenUsageText('tokenUsageUI.' + (projectId ? 'scopeProject' : 'scopeAccessible'), null, projectId ? '当前项目' : '可访问会话');
+    if (scope) scope.textContent = tokenUsageText('tokenUsageUI.' + (projectId ? 'scopeProject' : 'scopeAccessible'), null, projectId ? 'Current project' : 'Accessible session');
     if (projectId) url += '&project_id=' + encodeURIComponent(projectId);
     try {
         const response = await apiFetch(url, { signal: controller.signal });

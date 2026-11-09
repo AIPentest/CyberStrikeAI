@@ -1,21 +1,21 @@
 /* ==========================================================================
    CyberStrikeAI — Mobile UI Runtime
    --------------------------------------------------------------------------
-   与 mobile.css 配套的移动端交互层。设计语言参考 QuantumNous/new-api：
-     - 768px 断点（matchMedia('(max-width: 767.98px)')）
-     - 左侧抽屉导航（rounded + backdrop-blur 遮罩 + spring 过渡）
-     - 底部滑出式面板（更多 / 快捷操作）
-     - 底部标签栏 + 待审批角标
-     - visualViewport 键盘避让
+   Mobile interaction layer paired with mobile.css. Design language references QuantumNous/new-api:
+     - 768px breakpoint (matchMedia('(max-width: 767.98px)'))
+     - Left-side drawer navigation (rounded + backdrop-blur mask + spring transition)
+     - Bottom slide-out panel (More / Quick actions)
+     - Bottom tab bar + pending approval badge
+     - visualViewport keyboard avoidance
 
-   本文件是"纯增量"层：不修改任何既有 JS 的行为，只在其上挂钩。
-   桌面端（≥768px）不注入任何 DOM，也不改变既有逻辑。
+   This file is a "pure increment" layer: it does not modify the behavior of any existing JS, it only hooks on top of it.
+   Desktop (≥768px) injects no DOM and does not change existing logic.
    ========================================================================== */
 (function () {
     'use strict';
 
     /* ---------------------------------------------------------------------
-       0. 常量与状态
+       0. Constants and state
        --------------------------------------------------------------------- */
     var MOBILE_QUERY = '(max-width: 767.98px)';
     var mq = window.matchMedia ? window.matchMedia(MOBILE_QUERY) : null;
@@ -35,7 +35,7 @@
     }
 
     /* ---------------------------------------------------------------------
-       1. 图标
+       1. Icon
        --------------------------------------------------------------------- */
     var ICON = {
         menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>',
@@ -55,15 +55,15 @@
         plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>'
     };
 
-    /* 底部标签栏定义。label 只在 i18next 未就绪时兜底，正式文案走 labelKey。 */
+    /* Bottom tab bar definition. label is only a fallback for when i18next is not ready; the proper text comes from labelKey. */
     var TABS = [
-        { id: 'dashboard', label: '仪表盘', labelKey: 'nav.dashboard', icon: 'dashboard' },
-        { id: 'chat', label: '对话', labelKey: 'nav.chat', icon: 'chat' },
-        { id: 'hitl', label: '协同', labelKey: 'nav.hitl', icon: 'hitl', badge: 'hitl' },
-        { id: 'tasks', label: '任务', labelKey: 'nav.tasks', icon: 'tasks' }
+        { id: 'dashboard', label: 'dashboard', labelKey: 'nav.dashboard', icon: 'dashboard' },
+        { id: 'chat', label: 'dialogue', labelKey: 'nav.chat', icon: 'chat' },
+        { id: 'hitl', label: 'collaborate', labelKey: 'nav.hitl', icon: 'hitl', badge: 'hitl' },
+        { id: 'tasks', label: 'task', labelKey: 'nav.tasks', icon: 'tasks' }
     ];
 
-    /* 每个标签对应的"归属页"集合，用于点亮高亮 */
+    /* The set of "attribution pages" corresponding to each tag, used to turn on highlighting */
     var TAB_GROUP = {
         dashboard: ['dashboard'],
         chat: ['chat'],
@@ -72,7 +72,7 @@
     };
 
     /* ---------------------------------------------------------------------
-       2. 工具函数
+       2. Utility functions
        --------------------------------------------------------------------- */
     function $(sel, root) {
         return (root || document).querySelector(sel);
@@ -89,11 +89,11 @@
         return node;
     }
 
-    /* 注入节点的文案：挂 data-i18n 后交给 i18n.js 的 applyTranslations 处理，
-       语言切换时会自动重译，不必在本层再存一份字典。
-       节点先写中文兜底——i18next 可能整体加载失败（离线/vendor 被拦）。
-       所有"中文兜底 + 键"的写入都必须经过下面这三个函数，本层其余位置不许再出现
-       裸的 setAttribute('aria-label', '中文')，否则防回潮测试无法区分兜底与绕过。 */
+    /* Inject the node's text: attach data-i18n and let applyTranslations in i18n.js handle it,
+       When the language is switched, re-translation happens automatically, so there's no need to store another copy of the dictionary in this layer.
+       The node writes the Chinese fallback first — i18next may fail to load entirely (offline/vendor blocked).
+       All writes of "Chinese fallback + key" must go through these three functions; nowhere else in this layer may a bare
+       setAttribute('aria-label', 'Chinese') appear, otherwise the anti-regression test cannot tell a fallback from a bypass. */
     function translate(key, fallback, opts) {
         if (typeof window.t === 'function') {
             var s = window.t(key, opts);
@@ -121,7 +121,7 @@
         return node;
     }
 
-    /* 带子节点（图标）的元素只能翻属性，不能翻 textContent，否则图标会被覆盖 */
+    /* Elements with child nodes (icons) can only have their attributes translated, not textContent, otherwise the icon will be overwritten */
     function ariaLabel(node, key, fallback) {
         node.setAttribute('data-i18n-skip-text', 'true');
         return setAttrI18n(node, 'aria-label', key, fallback);
@@ -147,7 +147,7 @@
     }
 
     /* ---------------------------------------------------------------------
-       3. 视口高度与键盘避让
+       3. Viewport height and keyboard avoidance
        --------------------------------------------------------------------- */
     var baseViewportHeight = window.innerHeight || 0;
 
@@ -180,8 +180,8 @@
             setTimeout(syncKeyboard, 260);
         });
         if (window.visualViewport) {
-            /* scroll 在页面滚动时逐帧触发，而 syncKeyboard 要读 vv.height 触发强制布局，
-               必须用 rAF 合帧，否则滚动明显掉帧 */
+            /* scroll is triggered frame by frame as the page scrolls, whereas syncKeyboard needs to read vv.height, triggering a forced layout,
+               Must use rAF to coalesce frames, otherwise scrolling visibly drops frames */
             var raf = 0;
             var onViewportChange = function () {
                 if (raf) return;
@@ -196,7 +196,7 @@
     }
 
     /* ---------------------------------------------------------------------
-       4. 遮罩 / 抽屉 / 面板
+       4. Mask / Drawer / Panel
        --------------------------------------------------------------------- */
     function ensureScrim() {
         var s = $('#m-scrim');
@@ -227,9 +227,9 @@
         document.body.classList.remove('m-locked');
     }
 
-    /* 对话页三个选择面板（项目 / 角色 / 对话模式）都是贴底的白色抽屉，正下方就是
-       同为白色的输入框。没有遮罩时两层白盒子直接叠在一起，用户读到的是「布局重叠」。
-       补一层遮罩把抽屉与输入框分开，点遮罩即关闭，也让「点空白退出」有明确落点。 */
+    /* The three selection panels on the conversation page (project / role / conversation mode) are all white drawers attached to the bottom, and directly below is
+       Also a white input box. Without a mask, the two layers of white boxes are stacked directly on top of each other, and the user reads this as "layout overlap".
+       Add a mask layer to separate the drawer from the input box; clicking the mask closes it, and also gives "click blank space to exit" a clear landing point. */
     var SELECTION_PANELS = ['#chat-project-panel', '#role-selection-panel', '#agent-mode-panel'];
 
     function selectionPanelOpen() {
@@ -241,25 +241,25 @@
     }
 
     function closeSelectionPanels() {
-        /* 下拉关闭过程中面板带着 translateY，关闭时一并清掉，下次打开不会残留位移 */
+        /* During the dropdown closing process, the panel carries a translateY; clear it upon closing as well, so the next open won't have residual displacement. */
         SELECTION_PANELS.forEach(function (sel) {
             var p = $(sel);
             if (p) { p.style.transform = ''; p.style.transition = ''; }
         });
         ['closeChatProjectPanel', 'closeRoleSelectionPanel', 'closeAgentModePanel'].forEach(function (fn) {
             if (typeof window[fn] === 'function') {
-                try { window[fn](); } catch (e) { /* 面板可能未初始化，忽略 */ }
+                try { window[fn](); } catch (e) { /* Panel may not be initialized, ignoring */ }
             }
         });
     }
 
     var lastPanelOpen = null;
 
-    /* 面板打开前按输入条实际位置校准两件事：
-       --m-panel-offset = 输入条顶部到视口底 + 8px 间距 → 面板 bottom 停在输入条上方；
-       --m-panel-maxh   = 面板最高 45vh（且不超过输入条顶-16px）→ 面板顶部留出遮罩区，
-       点面板外（聊天区/遮罩）仍能关闭，小屏上不会顶到视口顶让遮罩无处可点。
-       这样点开项目/角色/模式面板时输入框全程可见（微信输入面板行为），不再重叠。 */
+    /* Before the panel opens, calibrate two things based on the actual position of the input bar:
+       --m-panel-offset = distance from input bar top to viewport bottom + 8px gap → panel bottom stops above the input bar;
+       --m-panel-maxh   = panel max 45vh (and not exceeding input bar top - 16px) → leave masking area at panel top,
+       Clicking outside the panel (chat area/overlay) can still close it; on small screens it won't be pushed to the viewport top, leaving the overlay with nowhere to click.
+       This way, when you click to open the project/role/mode panel, the input box is fully visible throughout (WeChat input panel behavior), no longer overlapping. */
     function updatePanelOffset() {
         var c = document.querySelector('.chat-input-container');
         if (!c) return;
@@ -272,8 +272,8 @@
 
     function syncSelectionScrim() {
         var open = selectionPanelOpen();
-        /* 下拉关闭时会逐帧改 transform，MutationObserver 每帧回调一次；
-           开合状态没变就直接返回，避免每帧重算遮罩 */
+        /* When the dropdown closes, transform is changed frame by frame, and MutationObserver fires a callback once per frame；
+           If the open/closed state hasn't changed, return directly to avoid recomputing the mask every frame */
         if (open === lastPanelOpen) return;
         lastPanelOpen = open;
         if (open) {
@@ -286,8 +286,8 @@
         }
     }
 
-    /* 三个选择面板是贴底抽屉，按移动端习惯支持向下拖动关闭。
-       面板内部可能是滚动列表，只有滚到顶才接管下拉手势。 */
+    /* The three selection panels are bottom-attached drawers; following mobile conventions, they support closing by dragging downward.
+       The inside of the panel may be a scrolling list; it only takes over the pull-down gesture when scrolled to the top. */
     function enableSelectionPanelSwipe() {
         SELECTION_PANELS.forEach(function (sel) {
             var panel = $(sel);
@@ -329,7 +329,7 @@
                 tracking = false;
                 panel.style.transition = '';
                 if (!dragging) return;
-                /* 部分环境下 touchend 的 changedTouches 为空，回退到最后一帧的坐标 */
+                /* In some environments, touchend's changedTouches is empty, fall back to the last frame's coordinates */
                 var endY = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientY : lastY;
                 var dy = endY - startY;
                 dragging = false;
@@ -375,7 +375,7 @@
         if (!isMobile()) return;
         var sidebar = $('#conversation-sidebar');
         if (!sidebar) return;
-        /* 已打开则关闭：工具条「会话」按钮必须能反悔，否则只能点空白 */
+        /* Close if already open: the toolbar "Session" button must be able to go back, otherwise you can only click on blank space. */
         if (state.chatDrawerOpen) {
             closeChatDrawer();
             return;
@@ -420,12 +420,12 @@
     }
 
     /* ---------------------------------------------------------------------
-       5. 顶部应用栏注入
+       5. Top app bar injection
        --------------------------------------------------------------------- */
     function buildMenuButton() {
         var btn = el('button', 'm-menu-btn m-mobile-only', ICON.menu);
         btn.type = 'button';
-        ariaLabel(btn, 'mobile.openNav', '打开导航菜单');
+        ariaLabel(btn, 'mobile.openNav', 'Open navigation menu');
         btn.addEventListener('click', function () {
             if (state.drawerOpen) closeDrawer();
             else openDrawer();
@@ -436,7 +436,7 @@
     function buildMoreButton() {
         var btn = el('button', 'm-more-btn m-mobile-only', ICON.more);
         btn.type = 'button';
-        ariaLabel(btn, 'mobile.moreActions', '更多操作');
+        ariaLabel(btn, 'mobile.moreActions', 'More actions');
         btn.addEventListener('click', function () {
             if (state.sheetOpen) closeSheet();
             else openSheet();
@@ -457,7 +457,7 @@
     }
 
     /* ---------------------------------------------------------------------
-       6. 抽屉头部 / 搜索 / 页脚
+       6. Drawer header / Search / Footer
        --------------------------------------------------------------------- */
     function injectDrawerChrome() {
         var sidebar = $('#main-sidebar');
@@ -470,7 +470,7 @@
             '<span class="brand-wordmark"><span class="brand-wordmark__core">CyberStrike</span><span class="brand-wordmark__ai">AI</span></span>');
         var close = el('button', 'm-close-btn', ICON.close);
         close.type = 'button';
-        ariaLabel(close, 'mobile.closeNav', '关闭导航菜单');
+        ariaLabel(close, 'mobile.closeNav', 'Close navigation menu');
         close.addEventListener('click', closeDrawer);
         head.appendChild(brand);
         head.appendChild(close);
@@ -478,14 +478,14 @@
         var search = el('div', 'm-drawer-search m-mobile-only');
         var input = el('input');
         input.type = 'search';
-        setAttrI18n(input, 'placeholder', 'mobile.searchMenu', '搜索菜单…');
-        setAttrI18n(input, 'aria-label', 'mobile.searchMenu', '搜索菜单');
+        setAttrI18n(input, 'placeholder', 'mobile.searchMenu', 'Search menu…');
+        setAttrI18n(input, 'aria-label', 'mobile.searchMenu', 'Search menu');
         input.setAttribute('autocomplete', 'off');
         input.addEventListener('input', function () {
             filterNav(input.value);
         });
         var empty = el('div', 'm-nav-empty m-mobile-only');
-        label(empty, 'mobile.noMatch', '没有匹配的菜单');
+        label(empty, 'mobile.noMatch', 'No matching menu');
         empty.hidden = true;
         search.appendChild(input);
         search.appendChild(empty);
@@ -494,7 +494,7 @@
         sidebar.insertBefore(head, sidebar.firstChild);
     }
 
-    /* 会话抽屉（对话页左侧列表）：移动端关闭按钮 + 选中后自动收起 */
+    /* Conversation drawer (left-side list on conversation page): mobile close button + auto collapse when selected */
     function injectChatDrawerChrome() {
         var sidebar = $('#conversation-sidebar');
         if (!sidebar) return;
@@ -502,28 +502,28 @@
 
         var close = el('button', 'm-close-btn m-chat-drawer-close', ICON.close);
         close.type = 'button';
-        ariaLabel(close, 'mobile.closeChatList', '关闭会话列表');
+        ariaLabel(close, 'mobile.closeChatList', 'Close session list');
         close.addEventListener('click', closeChatDrawer);
 
-        /* 顶掉桌面端「折叠」按钮的位置，避免额外占一行 */
+        /* Takes the place of the desktop "Collapse" button, avoiding taking up an extra line */
         var header = $('.conversation-sidebar-header', sidebar);
         if (header) {
             header.appendChild(close);
         } else {
             var head = el('div', 'm-chat-drawer-head m-mobile-only');
             var title = el('span', 'm-chat-drawer-title');
-            label(title, 'mobile.chatList', '会话列表');
+            label(title, 'mobile.chatList', 'Conversation list');
             head.appendChild(title);
             head.appendChild(close);
             sidebar.insertBefore(head, sidebar.firstChild);
         }
 
-        /* 点会话项 / 新建对话后自动收起，否则列表一直盖在对话上 */
+        /* Click session item / auto-collapse after new conversation, otherwise the list keeps covering the conversation */
         sidebar.addEventListener('click', function (e) {
             if (!state.chatDrawerOpen) return;
             var target = e.target;
             if (!target || !target.closest) return;
-            /* 项目分组只做筛选、分区标题只做展开，都不关闭抽屉 */
+            /* Project grouping only does filtering, section titles only do expanding, neither closes the drawer */
             if (target.closest('.project-folder-item, .section-header, .recent-conversations-toggle, .m-close-btn')) return;
             var hit = target.closest('.conversation-item, .project-conversation-item, .new-chat-btn, .project-folder-new-conversation');
             if (!hit) return;
@@ -531,7 +531,7 @@
         });
     }
 
-    /* 菜单搜索：按文本过滤 nav-item / nav-submenu-item */
+    /* Menu search: filter nav-item / nav-submenu-item by text */
     function filterNav(keyword) {
         var sidebar = $('#main-sidebar');
         if (!sidebar) return;
@@ -541,7 +541,7 @@
         items.forEach(function (item) {
             item.classList.remove('m-nav-hidden');
             var subs = $$('.nav-submenu-item', item);
-            /* 父项只按自身标题匹配，避免子项文本把父项误判为命中 */
+            /* Parent items match only by their own title, preventing child item text from falsely marking the parent as a hit */
             var content = item.querySelector('.nav-item-content');
             var selfText = ((content ? content.textContent : item.textContent) || '').toLowerCase();
             var selfHit = !q || selfText.indexOf(q) >= 0;
@@ -550,7 +550,7 @@
             subs.forEach(function (sub) {
                 var hit = !q || (sub.textContent || '').toLowerCase().indexOf(q) >= 0;
                 sub.classList.toggle('m-nav-hit', !!q && hit);
-                /* 父项自身命中时整组保留，避免展开后是空组 */
+                /* Keep the whole group when the parent item itself matches, avoiding an empty group after expansion */
                 sub.classList.toggle('m-nav-hidden', !!q && !hit && !selfHit);
                 if (hit && q) subHit = true;
             });
@@ -563,7 +563,7 @@
             if (selfHit || subHit) {
                 item.classList.remove('m-nav-hidden');
                 item.classList.toggle('m-nav-hit', selfHit && !subHit);
-                /* 命中子项时自动展开分组 */
+                /* Automatically expand group when a sub-item matches */
                 if (subHit) item.classList.add('expanded');
             } else {
                 item.classList.add('m-nav-hidden');
@@ -579,7 +579,7 @@
             empty.hidden = !q || visibleCount > 0;
         }
 
-        /* 分区标题：整组都被隐藏时一并隐藏 */
+        /* Section title: also hide when the entire group is hidden */
         $$('.nav-section-label', sidebar).forEach(function (label) {
             var next = label.nextElementSibling;
             var anyVisible = false;
@@ -595,12 +595,12 @@
     }
 
     /* ---------------------------------------------------------------------
-       7. 底部标签栏
+       7. Bottom tab bar
        --------------------------------------------------------------------- */
     function buildTabbar() {
         var bar = el('nav');
         bar.id = 'm-tabbar';
-        ariaLabel(bar, 'mobile.mainNav', '主导航');
+        ariaLabel(bar, 'mobile.mainNav', 'Main navigation');
 
         TABS.forEach(function (tab) {
             var btn = el('button', 'm-tab', ICON[tab.icon]);
@@ -642,8 +642,8 @@
         Object.keys(TAB_GROUP).forEach(function (key) {
             if (TAB_GROUP[key].indexOf(pageId) >= 0) target = key;
         });
-        /* 落在四个标签之外的页面（C2 / 资产 / 设置…）不高亮任何标签：
-           "更多"入口只在顶栏，标签栏里不再放第二枚重复按钮 */
+        /* Pages that fall outside the four tabs (C2 / Assets / Settings…) do not highlight any tab:
+           the "more" entry lives only in the top bar; no second duplicate button is placed in the tab bar */
         $$('.m-tab', bar).forEach(function (btn) {
             var id = btn.dataset.tab;
             var active = id === target;
@@ -654,7 +654,7 @@
     }
 
     /* ---------------------------------------------------------------------
-       8. 底部滑出面板
+       8. Bottom slide-out panel
        --------------------------------------------------------------------- */
     function buildSheetItem(key, fallbackLabel, icon, onClick, opts) {
         opts = opts || {};
@@ -671,8 +671,8 @@
         return btn;
     }
 
-    /* 次要操作在桌面端本来就有按钮，移动端只是把它们收进面板。
-       直接触发桌面控件，避免在本层再抄一份 URL 或行为（上游的仓库地址变过）。 */
+    /* Secondary operations already have buttons on desktop; mobile just consolidates them into a panel.
+       Directly trigger the desktop widget, avoiding copying yet another copy of the URL or behavior in this layer (the upstream repository address has changed before). */
     function clickDesktopControl(matcher) {
         var nodes = $$('.header-actions button, .header-actions a');
         for (var i = 0; i < nodes.length; i++) {
@@ -690,7 +690,7 @@
         return typeof window.t === 'function' ? (window.t('theme.' + resolved) || resolved) : resolved;
     }
 
-    /* 面板里可选的语言：以桌面端下拉里真实存在的选项为准，上游加语言不必改本层 */
+    /* Languages selectable in the panel: go by the options that actually exist in the desktop dropdown; upstream adding a language doesn't require changes to this layer */
     function availableLocales() {
         var seen = [];
         $$('#lang-dropdown .lang-option').forEach(function (o) {
@@ -699,7 +699,7 @@
             if (seen.some(function (x) { return x.lang === lang; })) return;
             seen.push({ lang: lang, name: (o.textContent || '').trim() });
         });
-        if (!seen.length) seen = [{ lang: 'zh-CN', name: '中文' }, { lang: 'en-US', name: 'English' }];
+        if (!seen.length) seen = [{ lang: 'zh-CN', name: 'Chinese' }, { lang: 'en-US', name: 'English' }];
         return seen;
     }
 
@@ -719,22 +719,22 @@
         var root = document.documentElement;
         if (document.fullscreenElement || document.webkitFullscreenElement) {
             var exit = document.exitFullscreen || document.webkitExitFullscreen;
-            if (exit) { try { exit.call(document); } catch (e) { /* 已退出 */ } }
+            if (exit) { try { exit.call(document); } catch (e) { /* Logged out */ } }
             return;
         }
         var req = root.requestFullscreen || root.webkitRequestFullscreen;
         if (!req) {
-            /* iOS Safari 没有全屏 API：过去这里走一个空函数分支，按钮点了没有任何反馈 */
-            toast(translate('mobile.fullscreenUnsupported', '当前浏览器不支持全屏'));
+            /* iOS Safari has no fullscreen API: previously this went through an empty function branch, clicking the button gave no feedback */
+            toast(translate('mobile.fullscreenUnsupported', 'The current browser does not support fullscreen'));
             return;
         }
         try {
             var r = req.call(root);
             if (r && typeof r.catch === 'function') {
-                r.catch(function () { toast(translate('mobile.fullscreenUnsupported', '当前浏览器不支持全屏')); });
+                r.catch(function () { toast(translate('mobile.fullscreenUnsupported', 'The current browser does not support fullscreen')); });
             }
         } catch (e) {
-            toast(translate('mobile.fullscreenUnsupported', '当前浏览器不支持全屏'));
+            toast(translate('mobile.fullscreenUnsupported', 'The current browser does not support fullscreen'));
         }
     }
 
@@ -744,46 +744,46 @@
         sheet.id = 'm-sheet';
         sheet.setAttribute('role', 'dialog');
         sheet.setAttribute('aria-modal', 'true');
-        ariaLabel(sheet, 'mobile.moreActions', '更多操作');
+        ariaLabel(sheet, 'mobile.moreActions', 'More actions');
         sheet.classList.add('m-mobile-only');
 
         var grip = el('div', 'm-sheet-grip');
         var head = el('div', 'm-sheet-head');
         var title = el('span', 'm-sheet-title');
-        label(title, 'mobile.moreActions', '更多操作');
+        label(title, 'mobile.moreActions', 'More actions');
         head.appendChild(title);
         var close = el('button', 'm-close-btn', ICON.close);
         close.type = 'button';
-        ariaLabel(close, 'common.close', '关闭');
+        ariaLabel(close, 'common.close', 'Close');
         close.addEventListener('click', closeSheet);
         head.appendChild(close);
 
         var body = el('div', 'm-sheet-body');
 
-        body.appendChild(buildSheetItem('header.apiDocs', 'API 文档', 'doc', function () {
+        body.appendChild(buildSheetItem('header.apiDocs', 'API documentation', 'doc', function () {
             if (!clickDesktopControl(/\/api-docs/)) window.location.href = '/api-docs';
         }));
         body.appendChild(buildSheetItem('header.github', 'GitHub', 'github', function () {
             clickDesktopControl(/github\.com/i);
         }));
-        body.appendChild(buildSheetItem('mobile.switchTheme', '切换主题', 'theme', function () {
+        body.appendChild(buildSheetItem('mobile.switchTheme', 'Switch Theme', 'theme', function () {
             if (typeof window.cycleThemePreference === 'function') {
                 window.cycleThemePreference();
             } else {
                 var t = document.getElementById('theme-toggle-btn');
                 if (t) t.click();
             }
-            toast(translate('mobile.themeNow', '当前主题：{{name}}', { name: currentThemeLabel() }));
+            toast(translate('mobile.themeNow', 'Current theme: {{name}}', { name: currentThemeLabel() }));
         }, { keepOpen: true }));
-        body.appendChild(buildSheetItem('mobile.switchLanguage', '切换语言', 'lang', cycleLanguage, { keepOpen: true }));
+        body.appendChild(buildSheetItem('mobile.switchLanguage', 'Switch language', 'lang', cycleLanguage, { keepOpen: true }));
 
         body.appendChild(el('div', 'm-sheet-sep'));
 
-        body.appendChild(buildSheetItem('mobile.backToTop', '返回顶部', 'top', scrollActiveToTop, { keepOpen: true }));
-        body.appendChild(buildSheetItem('mobile.refreshPage', '刷新页面', 'refresh', function () {
+        body.appendChild(buildSheetItem('mobile.backToTop', 'Return to top', 'top', scrollActiveToTop, { keepOpen: true }));
+        body.appendChild(buildSheetItem('mobile.refreshPage', 'Refresh the page', 'refresh', function () {
             location.reload();
         }));
-        body.appendChild(buildSheetItem('mobile.fullscreen', '全屏', 'full', requestFullscreenSafe, { keepOpen: true }));
+        body.appendChild(buildSheetItem('mobile.fullscreen', 'full screen', 'full', requestFullscreenSafe, { keepOpen: true }));
         sheet.appendChild(grip);
         sheet.appendChild(head);
         sheet.appendChild(body);
@@ -802,7 +802,7 @@
     }
 
     /* ---------------------------------------------------------------------
-       9. 对话页移动端工具条
+       9. Mobile toolbar for the conversation page
        --------------------------------------------------------------------- */
     function injectChatBar() {
         var container = $('.chat-container');
@@ -814,7 +814,7 @@
 
         var listBtn = el('button', 'm-chat-bar-btn', ICON.list);
         var listSpan = el('span');
-        label(listSpan, 'mobile.conversations', '会话');
+        label(listSpan, 'mobile.conversations', 'conversation');
         listBtn.appendChild(listSpan);
         listBtn.type = 'button';
         listBtn.addEventListener('click', openChatDrawer);
@@ -823,7 +823,7 @@
 
         var newBtn = el('button', 'm-chat-bar-btn m-primary', ICON.plus);
         var newSpan = el('span');
-        label(newSpan, 'mobile.newChat', '新对话');
+        label(newSpan, 'mobile.newChat', 'New conversation');
         newBtn.appendChild(newSpan);
         newBtn.type = 'button';
         newBtn.setAttribute('data-require-permission', 'chat:write');
@@ -831,7 +831,7 @@
             if (typeof window.startNewConversation === 'function') {
                 window.startNewConversation();
             } else {
-                toast(translate('mobile.chatModuleMissing', '对话模块尚未加载'));
+                toast(translate('mobile.chatModuleMissing', 'The dialogue module has not yet been loaded'));
             }
         });
 
@@ -842,7 +842,7 @@
     }
 
     /* ---------------------------------------------------------------------
-       10. 表格横向滚动包装
+       10. Table horizontal scroll wrapping
        --------------------------------------------------------------------- */
     function wrapTables(root) {
         if (!isMobile()) return;
@@ -862,7 +862,7 @@
     }
 
     /* ---------------------------------------------------------------------
-       11. 路由挂钩
+       11. Routing hooks
        --------------------------------------------------------------------- */
     function patchRouter() {
         if (typeof window.switchPage !== 'function' || window.switchPage.__mPatched) return;
@@ -872,7 +872,7 @@
             try {
                 onPageChanged(pageId);
             } catch (e) {
-                /* 移动层异常不影响主流程 */
+                /* Mobile layer exceptions do not affect the main flow */
                 console.warn('[mobile-ui] onPageChanged failed', e);
             }
             return result;
@@ -889,9 +889,9 @@
         if (pageId !== 'chat') closeChatDrawer();
         try {
             localStorage.setItem(STORAGE_TAB, pageId);
-        } catch (e) { /* 隐私模式下忽略 */ }
+        } catch (e) { /* Ignored in incognito mode */ }
 
-        /* 页面渲染是异步的，稍后再做表格包装 */
+        /* Page rendering is asynchronous, do the table wrapping later */
         [80, 400, 1200].forEach(function (delay) {
             setTimeout(function () {
                 var page = document.getElementById('page-' + pageId);
@@ -901,7 +901,7 @@
     }
 
     /* ---------------------------------------------------------------------
-       12. 待审批角标（HITL）
+       12. Pending approval badge (HITL)
        --------------------------------------------------------------------- */
     function setHitlBadge(count) {
         state.hitlPending = count;
@@ -946,7 +946,7 @@
     }
 
     /* ---------------------------------------------------------------------
-       13. 登录态与底部栏可见性
+       13. Login state and bottom bar visibility
        --------------------------------------------------------------------- */
     function syncAuthChrome() {
         var overlay = $('#login-overlay');
@@ -970,7 +970,7 @@
     }
 
     /* ---------------------------------------------------------------------
-       14. 手势
+       14. Gesture
        --------------------------------------------------------------------- */
     function enableDrawerSwipe(sidebar, closer) {
         if (!sidebar) return;
@@ -1028,7 +1028,7 @@
 
         sheet.addEventListener('touchstart', function (e) {
             if (!isMobile() || e.touches.length !== 1) return;
-            /* body 已滚动时优先滚列表；滚到顶或按在把手/头部时允许下拉关闭 */
+            /* When the body has already been scrolled, prefer scrolling the list; when scrolled to the top or pressed on the handle/head, allow pull-down to close */
             var body = e.target.closest('.m-sheet-body');
             if (body && body.scrollTop > 0) return;
             startY = e.touches[0].clientY;
@@ -1053,7 +1053,7 @@
             tracking = false;
             sheet.style.transition = '';
             if (!dragging) return;
-            /* 部分环境下 touchend 的 changedTouches 为空，回退到最后一帧的坐标 */
+            /* In some environments, touchend's changedTouches is empty, fall back to the last frame's coordinates */
             var endY = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientY : lastY;
             var dy = endY - startY;
             dragging = false;
@@ -1062,7 +1062,7 @@
         }, { passive: true });
     }
 
-    /* 从屏幕左缘右滑打开抽屉 */
+    /* Swipe right from the left edge of the screen to open the drawer */
     function enableEdgeSwipe() {
         var startX = 0;
         var startY = 0;
@@ -1101,11 +1101,11 @@
         }, { passive: true });
     }
 
-    /* 双击缩放由 CSS touch-action: manipulation 抑制（见 mobile.css），
-       原先的全局非 passive touchend 监听会阻塞滚动，已移除 */
+    /* Double-tap zoom is suppressed by CSS touch-action: manipulation (see mobile.css),
+       The original global non-passive touchend listener would block scrolling, has been removed */
 
     /* ---------------------------------------------------------------------
-       15. 导航点击后自动收起抽屉
+       15. Automatically collapse drawer after navigation click
        --------------------------------------------------------------------- */
     function bindNavAutoClose() {
         var sidebar = $('#main-sidebar');
@@ -1125,15 +1125,15 @@
     }
 
     /* ---------------------------------------------------------------------
-       16. 表格 MutationObserver
+       16. Table MutationObserver
        --------------------------------------------------------------------- */
     function watchDom() {
         var area = $('.content-area');
         if (!area) return;
         var timer = null;
         var observer = new MutationObserver(function (records) {
-            /* 只关心可能引入表格的变更：聊天流式输出会持续改动 DOM，
-               若每次变动都全页扫表，长会话下会明显掉帧 */
+            /* Only care about changes that might introduce tables: chat streaming output continuously modifies the DOM,
+               If every change triggers a full-page table scan, long sessions will see noticeable frame drops */
             var relevant = records.some(function (r) {
                 if (!r.addedNodes || !r.addedNodes.length) return false;
                 for (var i = 0; i < r.addedNodes.length; i++) {
@@ -1155,7 +1155,7 @@
     }
 
     /* ---------------------------------------------------------------------
-       17. 断点切换
+       17. Breakpoint toggle
        --------------------------------------------------------------------- */
     function onBreakpointChange() {
         if (isMobile()) {
@@ -1173,7 +1173,7 @@
     }
 
     /* ---------------------------------------------------------------------
-       18. 启动
+       18. Start
        --------------------------------------------------------------------- */
     function boot() {
         if (!isMobile()) return;
@@ -1188,7 +1188,7 @@
         syncAuthChrome();
         patchRouter();
 
-        /* 恢复上次所在页面高亮 */
+        /* Restore the highlight of the last visited page */
         var hashPage = (window.location.hash || '').replace(/^#/, '').split('?')[0];
         setActiveTab(hashPage || 'dashboard');
 
@@ -1201,7 +1201,7 @@
             watchDom();
             watchSelectionPanels();
 
-            /* 待审批角标：首次 + 每 45s + 回到前台时刷新 */
+            /* Pending approval badge: first fetch + every 45s + refresh when returning to foreground */
             refreshHitlBadge();
             setInterval(refreshHitlBadge, 45000);
             document.addEventListener('visibilitychange', function () {
@@ -1210,19 +1210,19 @@
         }
 
         wrapTables($('.page.active') || document);
-        /* 注入节点晚于 i18n 首帧时不会被自动翻译，这里补一次；语言切换由
-           i18n.js 的 applyTranslations(document) 覆盖（这些节点带着 data-i18n）。 */
+        /* Nodes injected later than the i18n first frame are not automatically translated, so we patch it once here; language switching is handled by
+           The applyTranslations(document) in i18n.js covers (these nodes carry data-i18n). */
         relabelAll();
-        /* 新对话按钮带 data-require-permission：RBAC 的点击守卫是文档级委托，
-           但"无权限就隐藏"依赖一次显式刷新，否则低权限账号会看到点不动的按钮 */
+        /* The new conversation button carries data-require-permission: the RBAC click guard is document-level delegation,
+           but "hide when permission is missing" depends on one explicit refresh, otherwise a low-permission account sees an unclickable button */
         if (typeof window.applyRBACToUI === 'function') {
-            try { window.applyRBACToUI(); } catch (e) { /* 未初始化时忽略 */ }
+            try { window.applyRBACToUI(); } catch (e) { /* Ignore if not initialized */ }
         }
     }
 
-    /* 手机端有遮罩兜底，平板竖屏没有移动端外壳（boot 在非移动端直接返回），
-       三个选择面板同样是贴底抽屉，这里用 document 级委托补上「点面板外关闭」，
-       让 768–1023.98px 也有一条不依赖 × 按钮的退路。 */
+    /* Mobile has a mask fallback, tablet portrait has no mobile shell (boot returns directly on non-mobile),
+       The three selection panels are likewise bottom-docked drawers; here we use document-level delegation to fill in 'click outside the panel to close',
+       Let 768–1023.98px also have an escape route that doesn't depend on the × button. */
     function bindSelectionOutsideClose() {
         document.addEventListener('click', function (e) {
             if (!selectionPanelOpen()) return;
@@ -1241,13 +1241,13 @@
         if (isMobile()) {
             boot();
         } else {
-            /* 平板竖屏：面板仍贴底（mobile.css 区块 22），但 watchSelectionPanels 只在 boot 内注册 */
+            /* Tablet portrait mode: panel still sticks to the bottom (mobile.css block 22), but watchSelectionPanels is only registered inside boot */
             watchSelectionPanels();
         }
         bindSelectionOutsideClose();
     }
 
-    /* 对外暴露，便于调试与后续扩展 */
+    /* Exposed externally, to facilitate debugging and future extension */
     window.CSAMobile = {
         isMobile: isMobile,
         openDrawer: openDrawer,

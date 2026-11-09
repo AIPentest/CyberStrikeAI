@@ -1,65 +1,65 @@
 name: "ropper"
 command: "ropper"
 enabled: true
-short_description: "高级ROP/JOP gadget搜索工具"
+short_description: "Advanced ROP/JOP gadget search tool"
 description: |
-  Ropper是一个高级ROP/JOP gadget搜索工具，用于漏洞利用开发。
+  Ropper is an advanced ROP/JOP gadget search tool used for exploit development.
 
-  **主要功能：**
-  - ROP/JOP gadget搜索
-  - Gadget质量评估
-  - 多种架构支持
-  - 利用链生成
+  **Main features:**
+  - ROP/JOP gadget search
+  - Gadget quality assessment
+  - Support for multiple architectures
+  - Exploit chain generation
 
-  **使用场景：**
-  - 漏洞利用开发
-  - ROP链构建
-  - 二进制分析
-  - 安全研究
+  **Use cases:**
+  - Exploit development
+  - ROP chain construction
+  - Binary analysis
+  - Security research
 parameters:
   - name: "binary"
     type: "string"
-    description: "要分析的二进制文件路径"
+    description: "Path to the binary file to analyze"
     required: true
     flag: "--file"
     format: "flag"
   - name: "gadget_type"
     type: "string"
-    description: "Gadget类型（rop, jop, sys, all）"
+    description: "Gadget type (rop, jop, sys, all)"
     required: false
     flag: "--type"
     format: "flag"
     default: "rop"
   - name: "quality"
     type: "int"
-    description: "Gadget质量级别（1-5）"
+    description: "Gadget quality level (1-5)"
     required: false
     flag: "--quality"
     format: "flag"
     default: 1
   - name: "arch"
     type: "string"
-    description: "目标架构（x86, x86_64, arm等）"
+    description: "Target architecture (x86, x86_64, arm, etc.)"
     required: false
     flag: "--arch"
     format: "flag"
   - name: "search_string"
     type: "string"
-    description: "要搜索的特定gadget模式"
+    description: "Specific gadget pattern to search for"
     required: false
     flag: "--search"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的ropper参数。用于传递未在参数列表中定义的ropper选项。
+      Extra ropper arguments. Used to pass ropper options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Make sure arguments are correctly formatted to avoid command injection
+      - This argument is appended directly to the end of the command
     required: false
     format: "positional"

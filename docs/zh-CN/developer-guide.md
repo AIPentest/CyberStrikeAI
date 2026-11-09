@@ -1,4 +1,4 @@
-# 开发者指南
+﻿# 开发者指南
 
 本文面向二次开发者，说明项目结构、启动方式、主要扩展点和开发习惯。
 
@@ -174,7 +174,7 @@ update:
 - 处理超时、错误、审计和 HITL 上下文。
 - 避免把高风险操作默认免审批。
 
-工具 YAML 规则见 `tools/README.md`。
+工具 YAML 规则见 `tools/README_CN.md`（English: `tools/README.md`）。
 
 ## 新增角色
 

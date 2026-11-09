@@ -1,39 +1,39 @@
 name: "checksec"
 command: "checksec"
 enabled: true
-short_description: "二进制安全特性检查工具"
+short_description: "Binary security feature checking tool"
 description: |
-  Checksec是一个用于检查二进制文件安全特性的工具。
+  Checksec is a tool for checking the security features of binary files.
 
-  **主要功能：**
-  - 安全特性检查
-  - 保护机制检测
-  - 多种架构支持
-  - 详细报告
+  **Main features:**
+  - Security feature checking
+  - Protection mechanism detection
+  - Multiple architecture support
+  - Detailed reports
 
-  **使用场景：**
-  - 二进制安全分析
-  - 保护机制检查
-  - 漏洞研究
-  - 安全评估
+  **Use cases:**
+  - Binary security analysis
+  - Protection mechanism checking
+  - Vulnerability research
+  - Security assessment
 parameters:
   - name: "binary"
     type: "string"
-    description: "要检查的二进制文件路径"
+    description: "Path of the binary file to check"
     required: true
     position: 0
     format: "positional"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的checksec参数。用于传递未在参数列表中定义的checksec选项。
+      Additional checksec arguments. Used to pass checksec options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

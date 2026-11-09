@@ -59,7 +59,7 @@ func resourceStillExists(db *database.DB, resourceType, resourceID string) (bool
 	case "vulnerability":
 		_, err := db.GetVulnerability(resourceID)
 		if err != nil {
-			return false, strings.Contains(err.Error(), "不存在")
+			return false, strings.Contains(err.Error(), "not found")
 		}
 		return true, true
 	case "batch_queue":

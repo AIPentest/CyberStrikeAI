@@ -175,7 +175,7 @@ func (db *DB) CreateC2Listener(l *C2Listener) error {
 		l.ImplantToken, l.Status, l.ConfigJSON, l.Remark, l.OwnerUserID, l.CreatedAt, l.StartedAt, l.LastError,
 	)
 	if err != nil {
-		db.logger.Error("创建 C2 监听器失败", zap.Error(err), zap.String("id", l.ID))
+		db.logger.Error("failed to create the C2 listener", zap.Error(err), zap.String("id", l.ID))
 		return err
 	}
 	return nil
@@ -200,7 +200,7 @@ func (db *DB) UpdateC2Listener(l *C2Listener) error {
 		l.ImplantToken, l.Status, l.ConfigJSON, l.Remark, l.OwnerUserID, l.StartedAt, l.LastError, l.ID,
 	)
 	if err != nil {
-		db.logger.Error("更新 C2 监听器失败", zap.Error(err), zap.String("id", l.ID))
+		db.logger.Error("failed to update the C2 listener", zap.Error(err), zap.String("id", l.ID))
 		return err
 	}
 	affected, _ := res.RowsAffected()
@@ -281,7 +281,7 @@ func (db *DB) ListC2Listeners() ([]*C2Listener, error) {
 			&l.ConfigJSON, &l.Remark,
 			&l.OwnerUserID, &l.CreatedAt, &startedAt, &l.LastError,
 		); err != nil {
-			db.logger.Warn("扫描 c2_listeners 行失败", zap.Error(err))
+			db.logger.Warn("failed to scan a c2_listeners row", zap.Error(err))
 			continue
 		}
 		if startedAt.Valid {
@@ -328,7 +328,7 @@ func (db *DB) ListC2ListenersForAccess(access RBACListAccess, projectID string) 
 			&l.ConfigJSON, &l.Remark, &l.OwnerUserID,
 			&l.CreatedAt, &startedAt, &l.LastError,
 		); err != nil {
-			db.logger.Warn("扫描 c2_listeners 行失败", zap.Error(err))
+			db.logger.Warn("failed to scan a c2_listeners row", zap.Error(err))
 			continue
 		}
 		if startedAt.Valid {
@@ -431,7 +431,7 @@ func (db *DB) UpsertC2Session(s *C2Session) error {
 		metadataJSON, s.Note,
 	)
 	if err != nil {
-		db.logger.Error("upsert C2 会话失败", zap.Error(err), zap.String("implant_uuid", s.ImplantUUID))
+		db.logger.Error("failed to upsert the C2 session", zap.Error(err), zap.String("implant_uuid", s.ImplantUUID))
 		return err
 	}
 	return nil
@@ -620,7 +620,7 @@ func (db *DB) ListC2Sessions(filter ListC2SessionsFilter) ([]*C2Session, error) 
 			&s.Status, &s.FirstSeenAt, &s.LastCheckIn, &metadataJSON,
 			&s.Note,
 		); err != nil {
-			db.logger.Warn("扫描 c2_sessions 行失败", zap.Error(err))
+			db.logger.Warn("failed to scan a c2_sessions row", zap.Error(err))
 			continue
 		}
 		s.IsAdmin = isAdminInt != 0
@@ -712,7 +712,7 @@ func (db *DB) scanC2SessionRows(rows *sql.Rows) ([]*C2Session, error) {
 			&s.Status, &s.FirstSeenAt, &s.LastCheckIn, &metadataJSON,
 			&s.Note,
 		); err != nil {
-			db.logger.Warn("扫描 c2_sessions 行失败", zap.Error(err))
+			db.logger.Warn("failed to scan a c2_sessions row", zap.Error(err))
 			continue
 		}
 		s.IsAdmin = isAdminInt != 0
@@ -857,7 +857,7 @@ func (db *DB) CreateC2Task(t *C2Task) error {
 		t.CreatedAt, t.SentAt, t.StartedAt, t.CompletedAt, t.DurationMS,
 	)
 	if err != nil {
-		db.logger.Error("创建 C2 任务失败", zap.Error(err), zap.String("id", t.ID))
+		db.logger.Error("failed to create the C2 task", zap.Error(err), zap.String("id", t.ID))
 		return err
 	}
 	return nil
@@ -1180,7 +1180,7 @@ func (db *DB) ListC2Tasks(filter ListC2TasksFilter) ([]*C2Task, error) {
 			&t.ConversationID, &t.ApprovalStatus,
 			&t.CreatedAt, &sentAt, &startedAt, &completedAt, &t.DurationMS,
 		); err != nil {
-			db.logger.Warn("扫描 c2_tasks 行失败", zap.Error(err))
+			db.logger.Warn("failed to scan a c2_tasks row", zap.Error(err))
 			continue
 		}
 		if payloadJSON != "" && payloadJSON != "{}" {
@@ -1248,7 +1248,7 @@ func (db *DB) scanC2TaskRows(rows *sql.Rows) ([]*C2Task, error) {
 			&t.ConversationID, &t.ApprovalStatus,
 			&t.CreatedAt, &sentAt, &startedAt, &completedAt, &t.DurationMS,
 		); err != nil {
-			db.logger.Warn("扫描 c2_tasks 行失败", zap.Error(err))
+			db.logger.Warn("failed to scan a c2_tasks row", zap.Error(err))
 			continue
 		}
 		if payloadJSON != "" && payloadJSON != "{}" {

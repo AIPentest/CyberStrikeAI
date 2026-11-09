@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -135,6 +136,7 @@ SELECT msg.id, msg.conversation_id,
        ), msg.updated_at, msg.created_at) AS interrupted_at
 FROM messages msg
 WHERE msg.role = 'assistant'
+  -- '处理中...' is the legacy Chinese placeholder stored in old rows; keep byte-identical (dual-accept with 'Processing...')
   AND TRIM(msg.content) IN ('处理中...', 'Processing...')
   AND (
       EXISTS (
@@ -201,27 +203,28 @@ WHERE msg.role = 'assistant'
 			}
 		}
 
-		notice := "任务因服务重启已中断。"
+		notice := "The task was interrupted by a service restart."
 		reason := "process_restarted"
 		switch eventType {
 		case "timeout":
-			notice = "任务等待审批超时，已自动拒绝。"
+			notice = "The task timed out waiting for approval and was auto-rejected."
 			reason = "hitl_timeout"
 		case "error":
-			notice = "任务执行失败，已停止。"
+			notice = "The task run failed and was stopped."
 			reason = "execution_error"
 		case "cancelled":
 			if decision == "reject" && comment != "process restarted" {
-				notice = "任务审批已拒绝，执行已停止。"
+				notice = "The task approval was rejected and execution stopped."
 				reason = "hitl_rejected"
 			} else if comment == "process restarted" {
-				notice = "任务因服务重启已中断，审批已取消。"
+				notice = "The task was interrupted by a service restart; the approval was cancelled."
 			}
 		default:
 			eventType = "cancelled"
 		}
 		detailData, _ := json.Marshal(map[string]string{"reason": reason, "status": eventType})
 		result, err := tx.Exec(`
+-- legacy Chinese placeholder '处理中...' kept byte-identical (dual-accept with 'Processing...')
 UPDATE messages
 SET content = ?, updated_at = ?
 WHERE id = ? AND TRIM(content) IN ('处理中...', 'Processing...')`,
@@ -645,7 +648,7 @@ func (h *AgentHandler) waitHITLApproval(runCtx context.Context, cancelRun contex
 	payloadRaw, _ := json.Marshal(payload)
 	p, err := h.hitlManager.CreatePendingInterrupt(conversationID, assistantMessageID, cfg.Mode, toolName, toolCallID, string(payloadRaw), cfg.Reviewer)
 	if err != nil {
-		h.logger.Warn("创建 HITL 中断失败", zap.Error(err))
+		h.logger.Warn("failed to create the HITL interrupt", zap.Error(err))
 		return nil, err
 	}
 	emitHITL := func(eventType, message string, eventData map[string]interface{}) {
@@ -655,13 +658,13 @@ func (h *AgentHandler) waitHITLApproval(runCtx context.Context, cancelRun contex
 		}
 		if strings.TrimSpace(assistantMessageID) != "" && h.db != nil {
 			if err := h.db.AddProcessDetail(assistantMessageID, conversationID, eventType, message, clientData); err != nil {
-				h.logger.Warn("保存 HITL 过程详情失败", zap.Error(err), zap.String("eventType", eventType))
+				h.logger.Warn("failed to save the HITL process detail", zap.Error(err), zap.String("eventType", eventType))
 			}
 		}
 	}
 
 	if cfg.Reviewer == "audit_agent" {
-		emitHITL("hitl_audit_agent_started", "审计 Agent 正在审查此请求", map[string]interface{}{
+		emitHITL("hitl_audit_agent_started", "The audit agent is reviewing this request", map[string]interface{}{
 			"conversationId": conversationID,
 			"interruptId":    p.InterruptID,
 			"toolName":       toolName,
@@ -675,7 +678,7 @@ func (h *AgentHandler) waitHITLApproval(runCtx context.Context, cancelRun contex
 		now := time.Now()
 		_, _ = h.db.Exec(`UPDATE hitl_interrupts SET status='decided', decision=?, decision_comment=?, decided_at=?, decided_by='audit_agent' WHERE id=?`,
 			ad.Decision, ad.Comment, now, p.InterruptID)
-		emitHITL("hitl_audit_agent", "审计 Agent 已裁决", map[string]interface{}{
+		emitHITL("hitl_audit_agent", "The audit agent has decided", map[string]interface{}{
 			"conversationId": conversationID,
 			"interruptId":    p.InterruptID,
 			"toolName":       toolName,
@@ -689,7 +692,7 @@ func (h *AgentHandler) waitHITLApproval(runCtx context.Context, cancelRun contex
 			"reviewer":       "audit_agent",
 		})
 		if ad.Decision == "reject" {
-			emitHITL("hitl_rejected", "审计 Agent 拒绝本次工具调用", map[string]interface{}{
+			emitHITL("hitl_rejected", "The audit agent rejected this tool call", map[string]interface{}{
 				"conversationId": conversationID,
 				"interruptId":    p.InterruptID,
 				"toolName":       toolName,
@@ -702,7 +705,7 @@ func (h *AgentHandler) waitHITLApproval(runCtx context.Context, cancelRun contex
 			})
 			return &ad, nil
 		}
-		emitHITL("hitl_resumed", "审计 Agent 已通过，继续执行", map[string]interface{}{
+		emitHITL("hitl_resumed", "The audit agent approved; execution continues", map[string]interface{}{
 			"conversationId": conversationID,
 			"interruptId":    p.InterruptID,
 			"toolName":       toolName,
@@ -718,7 +721,7 @@ func (h *AgentHandler) waitHITLApproval(runCtx context.Context, cancelRun contex
 		return &ad, nil
 	}
 
-	emitHITL("hitl_interrupt", "命中人机协同审批", map[string]interface{}{
+	emitHITL("hitl_interrupt", "Human-in-the-loop approval required", map[string]interface{}{
 		"conversationId": conversationID,
 		"interruptId":    p.InterruptID,
 		"mode":           cfg.Mode,
@@ -749,10 +752,10 @@ func (h *AgentHandler) waitHITLApproval(runCtx context.Context, cancelRun contex
 		return nil, waitErr
 	}
 	if d.Decision == "reject" {
-		rejectMsg := "人工拒绝本次工具调用，模型将基于反馈继续迭代"
+		rejectMsg := "A human rejected this tool call; the model will keep iterating based on the feedback"
 		timedOut := strings.Contains(strings.ToLower(strings.TrimSpace(d.Comment)), "timeout")
 		if timedOut {
-			rejectMsg = "审批超时，安全起见已自动拒绝，模型将基于反馈继续迭代"
+			rejectMsg = "The approval timed out and was auto-rejected for safety; the model will keep iterating based on the feedback"
 		}
 		status := "decided"
 		decidedBy := "human"
@@ -774,7 +777,7 @@ func (h *AgentHandler) waitHITLApproval(runCtx context.Context, cancelRun contex
 		})
 		return &d, nil
 	}
-	emitHITL("hitl_resumed", "人工确认通过，继续执行", map[string]interface{}{
+	emitHITL("hitl_resumed", "Human approval passed; execution continues", map[string]interface{}{
 		"conversationId": conversationID,
 		"interruptId":    p.InterruptID,
 		"toolName":       toolName,
@@ -860,11 +863,11 @@ func (h *AgentHandler) DecideHITLInterrupt(c *gin.Context) {
 		return
 	}
 	if h.hitlManager == nil {
-		c.JSON(500, gin.H{"error": "hitl manager unavailable"})
+		respondError(c, http.StatusInternalServerError, "HITL 管理器不可用", "hitl manager unavailable")
 		return
 	}
 	if !h.hitlInterruptAllowed(c, req.InterruptID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	if err := h.hitlManager.ResolveInterrupt(req.InterruptID, req.Decision, req.Comment, req.EditedArguments); err != nil {
@@ -872,7 +875,7 @@ func (h *AgentHandler) DecideHITLInterrupt(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "hitl", "decision", "HITL 审批决策", "hitl_interrupt", req.InterruptID, map[string]interface{}{
+		h.audit.RecordOK(c, "hitl", "decision", "HITL approval decision", "hitl_interrupt", req.InterruptID, map[string]interface{}{
 			"decision": req.Decision,
 		})
 	}
@@ -888,11 +891,11 @@ func (h *AgentHandler) DismissHITLInterrupt(c *gin.Context) {
 		return
 	}
 	if h.hitlManager == nil {
-		c.JSON(500, gin.H{"error": "hitl manager unavailable"})
+		respondError(c, http.StatusInternalServerError, "HITL 管理器不可用", "hitl manager unavailable")
 		return
 	}
 	if !h.hitlInterruptAllowed(c, req.InterruptID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	res, err := h.db.Exec(`UPDATE hitl_interrupts SET status='cancelled', decision='reject',
@@ -904,7 +907,7 @@ func (h *AgentHandler) DismissHITLInterrupt(c *gin.Context) {
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		c.JSON(404, gin.H{"error": "interrupt not found or already resolved"})
+		respondError(c, http.StatusNotFound, "审批中断不存在或已处理", "interrupt not found or already resolved")
 		return
 	}
 	// Also drain from in-memory map if present
@@ -958,11 +961,11 @@ type hitlConfigReq struct {
 func (h *AgentHandler) GetHITLConversationConfig(c *gin.Context) {
 	conversationID := strings.TrimSpace(c.Param("conversationId"))
 	if conversationID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "conversationId is required"})
+		respondError(c, http.StatusBadRequest, "conversationId 必填", "conversationId is required")
 		return
 	}
 	if !h.hitlConversationAllowed(c, conversationID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	cfg, err := h.loadHITLConversationConfig(conversationID)
@@ -998,7 +1001,7 @@ func (h *AgentHandler) UpsertHITLConversationConfig(c *gin.Context) {
 		return
 	}
 	if !h.hitlConversationAllowed(c, req.ConversationID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		respondError(c, http.StatusForbidden, "无权访问该资源", "no permission to access this resource")
 		return
 	}
 	req.Mode = normalizeHitlMode(req.Mode)
@@ -1012,9 +1015,9 @@ func (h *AgentHandler) UpsertHITLConversationConfig(c *gin.Context) {
 	}
 	if h.hitlWhitelistSaver != nil && len(req.SensitiveTools) > 0 {
 		if err := h.hitlWhitelistSaver.MergeHitlToolWhitelistIntoConfig(req.SensitiveTools); err != nil {
-			h.logger.Warn("HITL 会话配置已保存，但合并工具白名单到 config.yaml 失败", zap.Error(err))
+			h.logger.Warn("the HITL conversation config was saved, but merging the tool whitelist into config.yaml failed", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "会话配置已保存，但写入 config.yaml 失败: " + err.Error(),
+				"error": fmt.Sprintf(i18nText(requestWantsEnglish(c), "会话配置已保存，但写入 config.yaml 失败: %s", "session config saved, but writing config.yaml failed: %s"), err.Error()),
 			})
 			return
 		}
@@ -1069,7 +1072,7 @@ func (h *AgentHandler) GetHITLDefaultConfig(c *gin.Context) {
 // UpdateHITLDefaultConfig 将全局默认人机协同配置写入 config.yaml。
 func (h *AgentHandler) UpdateHITLDefaultConfig(c *gin.Context) {
 	if h.hitlDefaultReviewerSaver == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "HITL 配置持久化不可用"})
+		respondError(c, http.StatusInternalServerError, "HITL 配置持久化不可用", "HITL config persistence unavailable")
 		return
 	}
 	var req setHitlDefaultConfigReq
@@ -1084,7 +1087,7 @@ func (h *AgentHandler) UpdateHITLDefaultConfig(c *gin.Context) {
 		timeoutSeconds = 0
 	}
 	if err := h.hitlDefaultReviewerSaver.UpdateHitlDefaultConfig(mode, reviewer, timeoutSeconds); err != nil {
-		h.logger.Warn("写入 HITL 默认配置到 config.yaml 失败", zap.Error(err))
+		h.logger.Warn("failed to write the HITL default config to config.yaml", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -1094,7 +1097,7 @@ func (h *AgentHandler) UpdateHITLDefaultConfig(c *gin.Context) {
 		h.config.Hitl.DefaultTimeoutSeconds = &timeoutSeconds
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "hitl", "default_config_update", "HITL 全局默认配置更新", "hitl_config", "default", nil)
+		h.audit.RecordOK(c, "hitl", "default_config_update", "HITL global default config updated", "hitl_config", "default", nil)
 	}
 	out := h.hitlDefaultConfigResponse()
 	out["ok"] = true
@@ -1109,7 +1112,7 @@ func (h *AgentHandler) GetHITLDefaultReviewer(c *gin.Context) {
 // UpdateHITLDefaultReviewer 将全局默认审批方写入 config.yaml（未选会话时切换审批方）。
 func (h *AgentHandler) UpdateHITLDefaultReviewer(c *gin.Context) {
 	if h.hitlDefaultReviewerSaver == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "HITL 配置持久化不可用"})
+		respondError(c, http.StatusInternalServerError, "HITL 配置持久化不可用", "HITL config persistence unavailable")
 		return
 	}
 	var req setHitlDefaultReviewerReq
@@ -1119,7 +1122,7 @@ func (h *AgentHandler) UpdateHITLDefaultReviewer(c *gin.Context) {
 	}
 	reviewer := normalizeHitlReviewer(req.Reviewer)
 	if err := h.hitlDefaultReviewerSaver.UpdateHitlDefaultReviewer(reviewer); err != nil {
-		h.logger.Warn("写入 HITL 默认审批方到 config.yaml 失败", zap.Error(err))
+		h.logger.Warn("failed to write the HITL default reviewer to config.yaml", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -1127,7 +1130,7 @@ func (h *AgentHandler) UpdateHITLDefaultReviewer(c *gin.Context) {
 		h.config.Hitl.DefaultReviewer = reviewer
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "hitl", "default_reviewer_update", "HITL 全局默认审批方更新", "hitl_config", "default_reviewer", nil)
+		h.audit.RecordOK(c, "hitl", "default_reviewer_update", "HITL global default reviewer updated", "hitl_config", "default_reviewer", nil)
 	}
 	out := h.hitlDefaultConfigResponse()
 	out["ok"] = true
@@ -1137,7 +1140,7 @@ func (h *AgentHandler) UpdateHITLDefaultReviewer(c *gin.Context) {
 // SetHITLGlobalToolWhitelist 整表替换 config.yaml 中的全局免审批工具白名单。
 func (h *AgentHandler) SetHITLGlobalToolWhitelist(c *gin.Context) {
 	if h.hitlWhitelistSaver == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "HITL 配置持久化不可用"})
+		respondError(c, http.StatusInternalServerError, "HITL 配置持久化不可用", "HITL config persistence unavailable")
 		return
 	}
 	var req setHitlGlobalWhitelistReq
@@ -1146,12 +1149,12 @@ func (h *AgentHandler) SetHITLGlobalToolWhitelist(c *gin.Context) {
 		return
 	}
 	if err := h.hitlWhitelistSaver.SetHitlToolWhitelist(req.ToolWhitelist); err != nil {
-		h.logger.Warn("写入 HITL 工具白名单到 config.yaml 失败", zap.Error(err))
+		h.logger.Warn("failed to write the HITL tool whitelist to config.yaml", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "hitl", "tool_whitelist_update", "HITL 全局白名单更新", "hitl_config", "tool_whitelist", nil)
+		h.audit.RecordOK(c, "hitl", "tool_whitelist_update", "HITL global whitelist updated", "hitl_config", "tool_whitelist", nil)
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"ok":                        true,
@@ -1164,7 +1167,7 @@ func (h *AgentHandler) SetHITLGlobalToolWhitelist(c *gin.Context) {
 // MergeHITLGlobalToolWhitelist 无会话 ID 时将侧栏提交的免审批工具合并进 config.yaml（与 PUT /hitl/config 中白名单落盘规则一致）。
 func (h *AgentHandler) MergeHITLGlobalToolWhitelist(c *gin.Context) {
 	if h.hitlWhitelistSaver == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "HITL 配置持久化不可用"})
+		respondError(c, http.StatusInternalServerError, "HITL 配置持久化不可用", "HITL config persistence unavailable")
 		return
 	}
 	var req mergeHitlGlobalWhitelistReq
@@ -1181,7 +1184,7 @@ func (h *AgentHandler) MergeHITLGlobalToolWhitelist(c *gin.Context) {
 		return
 	}
 	if err := h.hitlWhitelistSaver.MergeHitlToolWhitelistIntoConfig(req.SensitiveTools); err != nil {
-		h.logger.Warn("合并 HITL 工具白名单到 config.yaml 失败", zap.Error(err))
+		h.logger.Warn("failed to merge the HITL tool whitelist into config.yaml", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

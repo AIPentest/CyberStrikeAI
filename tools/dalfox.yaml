@@ -1,56 +1,56 @@
 name: "dalfox"
 command: "dalfox"
-# dalfox v2+ 使用子命令，单目标模式为 `dalfox url <target>`，不再支持根级的 -u
+# dalfox v2+ uses subcommands; single-target mode is `dalfox url <target>`, root-level -u is no longer supported
 args:
   - "url"
 enabled: true
-short_description: "高级XSS漏洞扫描器"
+short_description: "Advanced XSS vulnerability scanner"
 description: |
-  Dalfox是一个高级XSS漏洞扫描器，支持多种XSS检测技术。
+  Dalfox is an advanced XSS vulnerability scanner supporting multiple XSS detection techniques.
 
-  **主要功能：**
-  - XSS漏洞检测
-  - 盲XSS测试
-  - DOM挖掘
-  - 字典挖掘
+  **Main features:**
+  - XSS vulnerability detection
+  - Blind XSS testing
+  - DOM mining
+  - Dictionary mining
 
-  **使用场景：**
-  - XSS漏洞测试
-  - Web应用安全测试
-  - Bug bounty侦察
-  - 安全测试
+  **Use cases:**
+  - XSS vulnerability testing
+  - Web application security testing
+  - Bug bounty reconnaissance
+  - Security testing
 parameters:
   - name: "url"
     type: "string"
     description: |
-      目标URL。dalfox 单目标模式为子命令 url，此处作为 url 后的第一个位置参数传入。
-      示例等价 CLI：dalfox url "http://target/page?q=test"
+      Target URL. dalfox single-target mode uses the url subcommand; here it is passed as the first positional argument after url.
+      Equivalent CLI example: dalfox url "http://target/page?q=test"
     required: true
     position: 0
     format: "positional"
   - name: "pipe_mode"
     type: "bool"
-    description: "使用管道模式输入"
+    description: "Use pipe mode input"
     required: false
     flag: "--pipe"
     format: "flag"
     default: false
   - name: "blind"
     type: "string"
-    description: "盲XSS回调地址（例如Burp Collaborator URL）"
+    description: "Blind XSS callback address (e.g. a Burp Collaborator URL)"
     required: false
     flag: "--blind"
     format: "flag"
   - name: "mining_dom"
     type: "bool"
-    description: "启用DOM挖掘"
+    description: "Enable DOM mining"
     required: false
     flag: "--mining-dom"
     format: "flag"
     default: true
   - name: "mining_dict"
     type: "bool"
-    description: "启用字典挖掘"
+    description: "Enable dictionary mining"
     required: false
     flag: "--mining-dict"
     format: "flag"
@@ -58,14 +58,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的dalfox参数。用于传递未在参数列表中定义的dalfox选项。
+      Additional dalfox arguments. Used to pass dalfox options that are not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples based on tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

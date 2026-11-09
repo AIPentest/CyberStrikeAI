@@ -4,14 +4,14 @@
     const STORAGE_KEY = 'cyberstrike-theme';
     const THEMES = ['system', 'light', 'dark'];
     const FALLBACK_LABELS = {
-        system: '跟随系统',
-        light: '浅色',
-        dark: '暗色'
+        system: 'Follow system',
+        light: 'light color',
+        dark: 'dark color'
     };
     const FALLBACK_TITLES = {
-        system: '当前：跟随系统主题。点击切换为浅色。',
-        light: '当前：浅色主题。点击切换为暗色。',
-        dark: '当前：暗色主题。点击切换为跟随系统。'
+        system: 'Current: Follow system theme. Click to switch to light.',
+        light: 'Current: light theme. Click to switch to dark.',
+        dark: 'Current: Dark theme. Click to switch to Follow System.'
     };
     const TITLE_KEYS = {
         system: 'titleSystem',

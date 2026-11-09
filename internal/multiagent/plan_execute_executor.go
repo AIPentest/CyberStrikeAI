@@ -21,10 +21,10 @@ func newPlanExecuteAgenticExecutor(
 	modelFailoverCfg *adk.ModelFailoverConfig[*schema.AgenticMessage],
 ) (adk.Agent, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("plan_execute: ExecutorConfig 为空")
+		return nil, fmt.Errorf("plan_execute: ExecutorConfig is nil")
 	}
 	if agenticModel == nil {
-		return nil, fmt.Errorf("plan_execute: Executor AgenticModel 为空")
+		return nil, fmt.Errorf("plan_execute: Executor AgenticModel is nil")
 	}
 	genInputFn := cfg.GenInputFn
 	if genInputFn == nil {

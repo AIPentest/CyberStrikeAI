@@ -22,9 +22,9 @@ func AppendSystemPromptBlock(base, block string) string {
 }
 
 const (
-	factIndexFooterGetDetail = "需要完整内容（攻击链、POC、请求响应等）时必须调用 get_project_fact(fact_key)，禁止凭摘要臆造细节。"
-	factIndexFooterWriteHint = "写入事实 links 时用 from（来源 fact_key → 当前 fact），如 finding 上 {from:target/*, type:discovered_on}；body 写可复现全流程（发现/利用类 fact_key 建议 finding|chain|exploit|poc/ 前缀）。"
-	factIndexFooterEmpty     = "需要写入请使用 upsert_project_fact；需要详情请调用 get_project_fact(fact_key)。"
+	factIndexFooterGetDetail = "When full content is needed (attack chain, POC, request/response etc.) you must call get_project_fact(fact_key); do not fabricate details from the summary."
+	factIndexFooterWriteHint = "When writing fact links use from (source fact_key → current fact), e.g. on a finding {from:target/*, type:discovered_on}; the body records the reproducible end-to-end flow (for discovery/exploit-type fact_keys prefer the finding|chain|exploit|poc/ prefixes)."
+	factIndexFooterEmpty     = "To write, use upsert_project_fact; for detail, call get_project_fact(fact_key)."
 )
 
 // BuildFactIndexBlock 为 Agent 系统提示生成项目黑板索引（key + summary + 关系边 + 攻击路径，不含 body）。
@@ -56,9 +56,9 @@ func BuildFactIndexBlock(db *database.DB, projectID string, cfg config.ProjectCo
 	resume := buildResumeSection(db, projectID, facts)
 
 	maxRunes := cfg.FactIndexMaxRunesEffective()
-	header := fmt.Sprintf("## 项目黑板索引（project: %s, id: %s）\n", indexField(proj.Name), proj.ID)
+	header := fmt.Sprintf("## Project blackboard index (project: %s, id: %s)\n", indexField(proj.Name), proj.ID)
 	if len(facts) == 0 {
-		content := header + "（暂无事实）\n" + factIndexFooterEmpty
+		content := header + "(no facts yet)\n" + factIndexFooterEmpty
 		if len([]rune(wrapFactIndexBlock(content+"\n\n"+resume))) <= maxRunes {
 			return wrapFactIndexBlock(content + "\n\n" + resume), nil
 		}
@@ -108,7 +108,7 @@ func BuildFactIndexBlock(db *database.DB, projectID string, cfg config.ProjectCo
 			truncateIndexSummary(indexField(f.Summary), cfg.FactSummaryMaxRunesEffective()),
 			indexField(f.Confidence))
 		if database.IsContextCheckpointKey(f.FactKey) {
-			line += " [当前会话工作记录]"
+			line += " [current-session working record]"
 		}
 		line += FormatFactIndexLinksHint(f.FactKey, incomingByTarget[f.FactKey])
 		line += "\n"
@@ -166,11 +166,11 @@ func truncateIndexSummary(s string, maxRunes int) string {
 }
 
 func factIndexOmissionNotice(count int) string {
-	return fmt.Sprintf("\n（另有 %d 条未列入索引，请使用 list_project_facts 或 search_project_facts 查询。）\n", count)
+	return fmt.Sprintf("\n(There are %d more facts not listed in the index; query them with list_project_facts or search_project_facts.)\n", count)
 }
 
 func minimalFactIndexBlock(maxRunes int) string {
-	block := wrapFactIndexBlock("## 项目黑板索引\n索引预算不足；使用 list_project_facts 或 search_project_facts 按需查询。")
+	block := wrapFactIndexBlock("## Project blackboard index\nIndex budget too small; query list_project_facts or search_project_facts as needed.")
 	if len([]rune(block)) > maxRunes {
 		return ""
 	}

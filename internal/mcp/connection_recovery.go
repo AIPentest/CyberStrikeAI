@@ -41,7 +41,7 @@ func (m *ExternalMCPManager) handleConnectionDead(name string, client ExternalMC
 	if !isConnectionDeadError(err) {
 		return
 	}
-	m.logger.Warn("检测到外部MCP连接已断开，将尝试自动重连",
+	m.logger.Warn("Detected that the external MCP connection dropped; automatic reconnection will be attempted",
 		zap.String("name", name),
 		zap.Error(err),
 	)
@@ -55,7 +55,7 @@ func (m *ExternalMCPManager) markClientDisconnected(name string, client External
 	}
 	m.mu.Lock()
 	if err != nil {
-		m.errors[name] = "连接已断开: " + err.Error()
+		m.errors[name] = "connection dropped: " + err.Error()
 	}
 	m.mu.Unlock()
 	m.toolCountsMu.Lock()
@@ -134,11 +134,11 @@ func (m *ExternalMCPManager) tryReconnect(name string) {
 	m.mu.RUnlock()
 
 	if !enabled {
-		m.logger.Debug("跳过自动重连（外部MCP已停用）", zap.String("name", name))
+		m.logger.Debug("Skipping automatic reconnection (the external MCP is disabled)", zap.String("name", name))
 		return
 	}
 	if connecting {
-		m.logger.Debug("跳过自动重连（连接正在进行中）", zap.String("name", name))
+		m.logger.Debug("Skipping automatic reconnection (a connection attempt is in progress)", zap.String("name", name))
 		return
 	}
 
@@ -148,13 +148,13 @@ func (m *ExternalMCPManager) tryReconnect(name string) {
 	attemptNum := m.reconnectAttempts[name]
 	m.reconnectMu.Unlock()
 
-	m.logger.Info("正在自动重连外部MCP",
+	m.logger.Info("Automatically reconnecting the external MCP",
 		zap.String("name", name),
 		zap.Int("attempt", attemptNum),
 	)
 
 	if err := m.startClient(name, true); err != nil {
-		m.logger.Warn("自动重连外部MCP失败",
+		m.logger.Warn("Automatic reconnection of the external MCP failed",
 			zap.String("name", name),
 			zap.Error(err),
 		)
@@ -173,7 +173,7 @@ func (m *ExternalMCPManager) scheduleReconnectAfterFailure(name string) {
 	m.reconnectMu.Lock()
 	wait := m.reconnectBackoff(m.reconnectAttempts[name])
 	m.reconnectMu.Unlock()
-	m.logger.Info("自动重连失败，将按退避间隔再次尝试",
+	m.logger.Info("Automatic reconnection failed; another attempt will follow after the backoff interval",
 		zap.String("name", name),
 		zap.Duration("after", wait),
 	)

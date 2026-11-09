@@ -33,7 +33,7 @@ func (h *AgentHandler) buildWorkspaceBlock(conversationID string) string {
 	abs, err := project.EnsureWorkspace(rel)
 	if err != nil {
 		if h.logger != nil {
-			h.logger.Warn("创建会话工作目录失败",
+			h.logger.Warn("failed to create session workspace directory",
 				zap.String("conversationId", conversationID),
 				zap.String("projectId", projectID),
 				zap.String("path", rel),
@@ -62,7 +62,7 @@ func (h *AgentHandler) projectBlackboardBlock(conversationID string) string {
 	}
 	block, err := project.BuildProjectBlackboardBlock(h.db, projectID, h.config.Project, conversationID)
 	if err != nil {
-		h.logger.Warn("构建项目黑板索引失败", zap.String("conversationId", conversationID), zap.Error(err))
+		h.logger.Warn("failed to build project blackboard index", zap.String("conversationId", conversationID), zap.Error(err))
 		return ""
 	}
 	return strings.TrimSpace(block)

@@ -81,7 +81,7 @@ func RunDeepAgent(
 	systemPromptExtra string,
 ) (*RunResult, error) {
 	if appCfg == nil || ma == nil || ag == nil {
-		return nil, fmt.Errorf("multiagent: 配置或 Agent 为空")
+		return nil, fmt.Errorf("multiagent: config or Agent is nil")
 	}
 
 	runtimeUserMessage := prepareLatestUserMessageForModel(userMessage, appCfg, &ma.EinoMiddleware, conversationID, logger)
@@ -93,7 +93,7 @@ func RunDeepAgent(
 		load, merr := agents.LoadMarkdownAgentsDir(agentsMarkdownDir)
 		if merr != nil {
 			if logger != nil {
-				logger.Warn("加载 agents 目录 Markdown 失败，沿用 config 中的 sub_agents", zap.Error(merr))
+				logger.Warn("loading agents directory Markdown failed; keeping sub_agents from config", zap.Error(merr))
 			}
 		} else {
 			markdownLoad = load
@@ -106,13 +106,13 @@ func RunDeepAgent(
 		orchMode = config.NormalizeMultiAgentOrchestration(o)
 	}
 	if orchMode != "plan_execute" && ma.WithoutGeneralSubAgent && len(effectiveSubs) == 0 {
-		return nil, fmt.Errorf("multi_agent.without_general_sub_agent 为 true 时，必须在 multi_agent.sub_agents 或 agents 目录 Markdown 中配置至少一个子代理")
+		return nil, fmt.Errorf("multi_agent.without_general_sub_agent is true, so at least one sub-agent must be configured in multi_agent.sub_agents or an agents directory Markdown")
 	}
 	if orchMode == "supervisor" && len(effectiveSubs) == 0 {
-		return nil, fmt.Errorf("multi_agent.orchestration=supervisor 时需至少配置一个子代理（sub_agents 或 agents 目录 Markdown）")
+		return nil, fmt.Errorf("multi_agent.orchestration=supervisor requires at least one sub-agent configured (sub_agents or an agents directory Markdown)")
 	}
 	if orchMode == "supervisor" && len(effectiveSubs) == 1 && progress != nil {
-		progress("progress", "Supervisor 是专家路由模式；当前仅 1 个子代理，专家路由空间有限，仍会继续执行。", map[string]interface{}{
+		progress("progress", "Supervisor is a specialist-routing mode; only 1 sub-agent is configured, so specialist routing space is limited; execution will continue.", map[string]interface{}{
 			"conversationId": conversationID,
 			"source":         "eino",
 			"orchestration":  orchMode,
@@ -179,7 +179,7 @@ func RunDeepAgent(
 		for _, sub := range effectiveSubs {
 			id := strings.TrimSpace(sub.ID)
 			if id == "" {
-				return nil, fmt.Errorf("multi_agent.sub_agents 中存在空的 id")
+				return nil, fmt.Errorf("multi_agent.sub_agents contains an empty id")
 			}
 			name := strings.TrimSpace(sub.Name)
 			if name == "" {
@@ -191,7 +191,7 @@ func RunDeepAgent(
 			}
 			instr := strings.TrimSpace(sub.Instruction)
 			if instr == "" {
-				instr = "你是 CyberStrikeAI 中的专业子代理，在授权渗透测试场景下协助完成用户委托的子任务。优先使用可用工具获取证据，回答简洁专业。"
+				instr = "You are a specialist sub-agent in CyberStrikeAI, helping complete the user-delegated subtask within an authorized penetration testing engagement. Prefer the available tools to gather evidence; answer concisely and professionally."
 			}
 
 			roleTools := sub.RoleTools
@@ -206,25 +206,25 @@ func RunDeepAgent(
 
 			subModel, err := agenticModelFactory(ctx, appCfg.OpenAI, einoModelModeNormal)
 			if err != nil {
-				return nil, fmt.Errorf("子代理 %q AgenticModel: %w", id, err)
+				return nil, fmt.Errorf("sub-agent %q AgenticModel: %w", id, err)
 			}
 
 			subDefs := ag.ToolsForRole(roleTools)
 			subTools, err := einomcp.ToolsFromDefinitions(ag, holder, subDefs, recorder, nil, toolInvokeNotify, id)
 			if err != nil {
-				return nil, fmt.Errorf("子代理 %q 工具: %w", id, err)
+				return nil, fmt.Errorf("sub-agent %q tools: %w", id, err)
 			}
 
 			subToolsForCfg, subPre, subToolSearchActive, err := prependEinoAgenticMiddlewares(ctx, &ma.EinoMiddleware, einoMWSub, subTools, agenticLoc, agenticSkillsRoot, conversationID, projectID, logger)
 			if err != nil {
-				return nil, fmt.Errorf("子代理 %q eino 中间件: %w", id, err)
+				return nil, fmt.Errorf("sub-agent %q eino middlewares: %w", id, err)
 			}
 
 			subMax := resolveMaxIterations(appCfg, sub.MaxIterations)
 
 			subSumMw, err := newEinoAgenticSummarizationMiddleware(ctx, subModel, appCfg, &ma.EinoMiddleware, conversationID, db, projectID, logger, "sub/"+id)
 			if err != nil {
-				return nil, fmt.Errorf("子代理 %q agentic summarization 中间件: %w", id, err)
+				return nil, fmt.Errorf("sub-agent %q agentic summarization middleware: %w", id, err)
 			}
 
 			var subHandlers []adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage]
@@ -235,7 +235,7 @@ func RunDeepAgent(
 				if agenticFSTools && agenticLoc != nil {
 					subFs, fsErr := subAgentAgenticFilesystemMiddleware(ctx, agenticLoc, toolInvokeNotify, id, conversationID, projectID, ma.EinoMiddleware.ReductionRootDir, toolMaxBytesFromMW(&ma.EinoMiddleware), mcpExecBinder, einoExecBegin, einoExecAppendPartial, einoExecRegisterCancel, einoExecUnregisterCancel, einoExecFinish, agentToolTimeoutMinutes(appCfg), agentToolWaitTimeoutSeconds(appCfg), agentShellNoOutputTimeoutSeconds(appCfg), nil)
 					if fsErr != nil {
-						return nil, fmt.Errorf("子代理 %q filesystem 中间件: %w", id, fsErr)
+						return nil, fmt.Errorf("sub-agent %q filesystem middleware: %w", id, fsErr)
 					}
 					subHandlers = append(subHandlers, subFs)
 				}
@@ -290,7 +290,7 @@ func RunDeepAgent(
 				ModelFailoverConfig: agenticModelFailoverCfg,
 			})
 			if err != nil {
-				return nil, fmt.Errorf("子代理 %q: %w", id, err)
+				return nil, fmt.Errorf("sub-agent %q: %w", id, err)
 			}
 			subAgents = append(subAgents, sa)
 			if adapted := newEinoAgenticMessageAgentAdapter(sa); adapted != nil {
@@ -355,7 +355,7 @@ func RunDeepAgent(
 			sb.WriteString(supInstr)
 			sb.WriteString("\n\n")
 		}
-		sb.WriteString("你是监督协调者：可将任务通过 transfer 工具委派给下列专家子代理（使用其在系统中的 Agent 名称）。专家列表：")
+		sb.WriteString("You are the supervising coordinator: you may delegate tasks to the following specialist sub-agents via the transfer tool (use their in-system Agent names). Specialist list:")
 		for _, sa := range subAgents {
 			if sa == nil {
 				continue
@@ -363,8 +363,8 @@ func RunDeepAgent(
 			sb.WriteString("\n- ")
 			sb.WriteString(sa.Name(ctx))
 		}
-		sb.WriteString("\n\nSupervisor 是专家路由模式：仅当任务确实需要不同专家分工时才 transfer；简单查询、单步工具调用或无需专业分流的任务由你直接完成。避免在同一子代理之间反复 transfer；除非有新的、具体的补充目标。专家返回后，你必须自行汇总、裁剪、校验证据，再用 exit 交付最终答案。")
-		sb.WriteString("\n\n当你已完成用户目标或需要将最终结论交付用户时，使用 exit 工具结束。")
+		sb.WriteString("\n\nSupervisor is a specialist-routing mode: transfer only when the task genuinely needs division across different specialists; complete simple queries, single-step tool calls, or tasks that need no specialist routing yourself. Avoid back-and-forth transfers between the same sub-agent unless there is a new, specific supplementary goal. Once specialists return, you must yourself summarize, trim, and verify the evidence, then deliver the final answer with exit.")
+		sb.WriteString("\n\nWhen you have completed the user's goal or need to deliver the final conclusion to the user, use the exit tool to finish.")
 		supInstr = sb.String()
 	}
 
@@ -393,11 +393,11 @@ func RunDeepAgent(
 	if orchMode != "plan_execute" {
 		mainModel, err = agenticModelFactory(ctx, appCfg.OpenAI, einoModelModeNormal)
 		if err != nil {
-			return nil, fmt.Errorf("多代理主 AgenticModel: %w", err)
+			return nil, fmt.Errorf("multi-agent main AgenticModel: %w", err)
 		}
 		mainSumMw, err = newEinoAgenticSummarizationMiddleware(ctx, mainModel, appCfg, &ma.EinoMiddleware, conversationID, db, projectID, logger)
 		if err != nil {
-			return nil, fmt.Errorf("多代理主 agentic summarization 中间件: %w", err)
+			return nil, fmt.Errorf("multi-agent main agentic summarization middleware: %w", err)
 		}
 	}
 
@@ -473,20 +473,20 @@ func RunDeepAgent(
 	case "plan_execute":
 		peMainModel, perr := modelFactory(ctx, appCfg.OpenAI, einoModelModePlanner)
 		if perr != nil {
-			return nil, fmt.Errorf("plan_execute 规划模型: %w", perr)
+			return nil, fmt.Errorf("plan_execute planner model: %w", perr)
 		}
 		if logger != nil {
-			logger.Info("plan_execute: planner/replanner 使用无 reasoning 的独立 ChatModel（ToolChoiceForced 兼容）",
+			logger.Info("plan_execute: planner/replanner uses a separate ChatModel without reasoning (ToolChoiceForced compatible)",
 				zap.String("model", appCfg.OpenAI.Model),
 			)
 		}
 		execModel, perr := modelFactory(ctx, appCfg.OpenAI, einoModelModeNormal)
 		if perr != nil {
-			return nil, fmt.Errorf("plan_execute 执行器模型: %w", perr)
+			return nil, fmt.Errorf("plan_execute executor model: %w", perr)
 		}
 		agenticExecModel, perr := agenticModelFactory(ctx, appCfg.OpenAI, einoModelModeNormal)
 		if perr != nil {
-			return nil, fmt.Errorf("plan_execute 执行器 AgenticModel: %w", perr)
+			return nil, fmt.Errorf("plan_execute executor AgenticModel: %w", perr)
 		}
 		planRewriteSumMw, perr := newEinoSummarizationMiddleware(ctx, execModel, appCfg, &ma.EinoMiddleware, conversationID, db, projectID, logger, "plan_execute/planning")
 		if perr != nil {
@@ -496,7 +496,7 @@ func RunDeepAgent(
 		if agenticSkillMW != nil && agenticFSTools && agenticLoc != nil {
 			peFsMw, err = subAgentAgenticFilesystemMiddleware(ctx, agenticLoc, toolInvokeNotify, "executor", conversationID, projectID, ma.EinoMiddleware.ReductionRootDir, toolMaxBytesFromMW(&ma.EinoMiddleware), mcpExecBinder, einoExecBegin, einoExecAppendPartial, einoExecRegisterCancel, einoExecUnregisterCancel, einoExecFinish, agentToolTimeoutMinutes(appCfg), agentToolWaitTimeoutSeconds(appCfg), agentShellNoOutputTimeoutSeconds(appCfg), nil)
 			if err != nil {
-				return nil, fmt.Errorf("plan_execute agentic filesystem 中间件: %w", err)
+				return nil, fmt.Errorf("plan_execute agentic filesystem middleware: %w", err)
 			}
 		}
 		peRoot, perr := NewPlanExecuteRoot(ctx, &PlanExecuteRootArgs{
@@ -555,7 +555,7 @@ func RunDeepAgent(
 		}
 		superChat, serr := newEinoAgenticChatModelAgentAdapter(ctx, supCfg)
 		if serr != nil {
-			return nil, fmt.Errorf("supervisor agentic 主代理: %w", serr)
+			return nil, fmt.Errorf("supervisor agentic main agent: %w", serr)
 		}
 		supRoot, serr := supervisor.New(ctx, &supervisor.Config{
 			Supervisor: superChat,
@@ -642,8 +642,11 @@ func RunDeepAgent(
 		ToolMaxBytes:            toolMaxBytesFromMW(&ma.EinoMiddleware),
 		ModelName:               appCfg.OpenAI.Model,
 		MiddlewareConfig:        &ma.EinoMiddleware,
+		// EmptyResponseMessage: legacy Chinese marker 未捕获到助手文本输出 stays
+		// matched byte-identically (dual-accept) by isEinoEmptyResponseText and
+		// frontend isEinoEmptyResponsePlaceholder; the new text is English.
 		EmptyResponseMessage: "(Eino multi-agent orchestration completed but no assistant text was captured. Check process details or logs.) " +
-			"（Eino 多代理编排已完成，但未捕获到助手文本输出。请查看过程详情或日志。）",
+			"（Eino multi-agent orchestration completed, but no assistant text output was captured. Please check the process details or logs.)",
 	}, baseMsgs)
 }
 
@@ -1021,7 +1024,7 @@ func emitToolCallsFromMessage(
 	if isSubToolRound {
 		role = "sub"
 	}
-	progress("tool_calls_detected", fmt.Sprintf("检测到 %d 个工具调用", len(visibleToolCalls)), map[string]interface{}{
+	progress("tool_calls_detected", fmt.Sprintf("Detected %d tool calls", len(visibleToolCalls)), map[string]interface{}{
 		"count":          len(visibleToolCalls),
 		"conversationId": conversationID,
 		"source":         "eino",
@@ -1059,7 +1062,7 @@ func emitToolCallsFromMessage(
 				EinoRole:   role,
 			})
 		}
-		progress("tool_call", fmt.Sprintf("正在调用工具: %s", display), map[string]interface{}{
+		progress("tool_call", fmt.Sprintf("Calling tool: %s", display), map[string]interface{}{
 			"toolName":       display,
 			"arguments":      argStr,
 			"argumentsObj":   argsObj,

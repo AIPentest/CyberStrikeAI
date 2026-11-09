@@ -11,17 +11,17 @@ import (
 
 func validateRoleName(name string) error {
 	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("角色名称不能为空")
+		return fmt.Errorf("role name must not be empty")
 	}
 	if name != strings.TrimSpace(name) || utf8.RuneCountInString(name) > 64 {
-		return fmt.Errorf("角色名称不能包含首尾空格，长度不能超过 64 个字符")
+		return fmt.Errorf("role name must not begin or end with a space and must be at most 64 characters")
 	}
 	if strings.Contains(name, "..") || strings.ContainsAny(name, `/\:*?"<>|`) {
-		return fmt.Errorf("角色名称不能包含路径或文件名特殊字符")
+		return fmt.Errorf("role name must not contain path or filename special characters")
 	}
 	for _, r := range name {
 		if unicode.IsControl(r) {
-			return fmt.Errorf("角色名称不能包含控制字符")
+			return fmt.Errorf("role name must not contain control characters")
 		}
 	}
 	return nil
@@ -38,19 +38,19 @@ func (h *RoleHandler) validateRole(role config.RoleConfig) error {
 			name = key
 		}
 		if name != role.Name && strings.EqualFold(sanitizeFileName(name), sanitizeFileName(role.Name)) {
-			return fmt.Errorf("角色名称与已有角色的文件名冲突")
+			return fmt.Errorf("role name conflicts with an existing role filename")
 		}
 	}
 	if strings.TrimSpace(role.WorkflowID) != "" {
 		if h.db == nil {
-			return fmt.Errorf("工作流存储不可用，无法验证绑定")
+			return fmt.Errorf("workflow store unavailable; cannot validate the binding")
 		}
 		wf, err := h.db.GetWorkflowDefinition(role.WorkflowID)
 		if err != nil {
-			return fmt.Errorf("无法验证工作流绑定: %w", err)
+			return fmt.Errorf("cannot validate workflow binding: %w", err)
 		}
 		if wf == nil {
-			return fmt.Errorf("角色绑定的工作流不存在")
+			return fmt.Errorf("the workflow bound to the role does not exist")
 		}
 	}
 	return nil

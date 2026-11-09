@@ -24,64 +24,64 @@ import (
 
 // einoSummarizeUserInstruction：压缩历史时保留渗透测试与用户约束关键信息。
 // 结构对齐 Eino 最佳实践（禁止工具、<analysis>+<summary>、<all_user_messages>），章节为安全测试领域化。
-const einoSummarizeUserInstruction = `关键：仅以纯文本响应。禁止调用任何工具（read_file、exec、grep、glob、write、edit 等）。
-上述对话中已包含全部待压缩上下文；不要要求用户粘贴历史，不要输出「请提供待压缩的对话历史」等占位/meta 回复。
-工具调用将被拒绝并浪费唯一一次摘要机会。
+const einoSummarizeUserInstruction = `Critical: respond with plain text only. Do not call any tool (read_file, exec, grep, glob, write, edit, etc.).
+The conversation above already contains all context to compact; do not ask the user to paste history, and do not output placeholder/meta replies such as "please provide the conversation history to compact".
+Tool calls will be rejected and would waste the single summarization opportunity.
 
-你的任务：在保持所有关键安全测试信息完整的前提下压缩对话历史，使后续代理能无缝继续同一授权测试任务。
+Your task: compact the conversation history while keeping all key security-testing information intact, so the following agent can seamlessly continue the same authorized testing task.
 
-压缩原则：
-- 必须保留：已确认漏洞与攻击路径、工具输出核心发现、凭证与认证细节、架构与薄弱点、当前进度、失败尝试与死路、策略决策
-- 保留精确技术细节（URL、路径、参数、Payload、版本号；报错原文可摘要但要点不丢）
-- 冗长扫描输出概括为结论；重复发现合并表述
-- 已枚举资产须保留可继承摘要：主域、关键子域/主机短表（或数量+代表样例）、高价值目标、已识别服务/端口要点
+Compaction principles:
+- Must retain: confirmed vulnerabilities and attack paths, core tool-output findings, credentials and authentication details, architecture and weak points, current progress, failed attempts and dead ends, strategy decisions
+- Keep exact technical details (URLs, paths, parameters, payloads, version numbers; raw error text may be summarized but no key point may be lost)
+- Summarize verbose scan output into conclusions; merge duplicate findings into one statement
+- Enumerated assets must retain an inheritable summary: primary domain, key subdomain/host short list (or count + representative samples), high-value targets, identified service/port highlights
 
-输出格式（严格遵循，仅一轮回复）：
-1. 先输出 <analysis> 块：按时间顺序梳理对话，检查是否涵盖下方各章节要点；analysis 仅供自检，保持简洁（建议 ≤400 字）
-2. 再输出 <summary> 块：按以下章节写入可继承的压缩报告（无信息处写「无」，禁止留空模板占位符）
+Output format (strictly follow, one reply only):
+1. First output an <analysis> block: walk through the conversation in chronological order and check that it covers the section points below; analysis is for self-check only, keep it short (recommended <=400 characters)
+2. Then output a <summary> block: write the inheritable compacted report into the following sections (write "None" where there is no information; empty template placeholders are forbidden)
 
 <summary>
-## 1. 授权范围与约束
-- 目标/范围/禁止项（域名、路径、IP、环境）
-- 凭证/认证信息（账号、Token、Cookie；敏感值原文保留）
-- 用户指定的方法、工具、优先级与待办
-- 否定约束（不测什么、不用什么手法）
+## 1. Authorization scope and constraints
+- Target/scope/exclusions (domains, paths, IPs, environment)
+- Credentials/authentication info (accounts, tokens, cookies; keep sensitive values verbatim)
+- User-specified methods, tools, priorities and pending tasks
+- Negative constraints (what not to test, which techniques not to use)
 
-## 2. 资产与服务枚举摘要
-- 主域/核心资产、关键子域或主机短表（或数量+代表样例）
-- 高价值目标、已识别服务/端口要点
-- 资产状态（存活/可攻/已排除/待验证）
+## 2. Asset and service enumeration summary
+- Primary domain/core assets, key subdomains or host short list (or count + representative samples)
+- High-value targets, identified service/port highlights
+- Asset status (alive/attackable/excluded/to-verify)
 
-## 3. 架构与已知薄弱点
-- 技术栈/部署拓扑/信任边界
-- 已识别薄弱点列表
+## 3. Architecture and known weak points
+- Technology stack/deployment topology/trust boundaries
+- List of identified weak points
 
-## 4. 已确认漏洞与攻击路径
-- 漏洞名/CVE、URL/路径、参数/Payload、PoC 要点、影响等级
-- 攻击链/利用路径（步骤化）
+## 4. Confirmed vulnerabilities and attack paths
+- Vulnerability name/CVE, URL/path, parameters/payload, PoC highlights, impact level
+- Attack chains/exploitation paths (step by step)
 
-## 5. 工具核心发现与扫描结论
-- 各工具结论（概括核心输出，非冗长日志）
-- 重复发现合并表述
+## 5. Core tool findings and scan conclusions
+- Each tool's conclusion (summarize core output, not verbose logs)
+- Merge duplicate findings into one statement
 
-## 6. 所有用户消息
+## 6. All user messages
 <all_user_messages>
-- [逐条列出非 tool 结果的用户消息要点；敏感约束与原文措辞尽量保留]
+- [List the key points of each user message that is not a tool result; keep sensitive constraints and original wording as much as possible]
 </all_user_messages>
 
-## 7. 当前进度、策略决策与下一步
-- 当前位置（已完成/进行中/卡点）
-- 失败尝试与死路（方法、现象/报错摘要、结论）
-- 策略决策与下一步具体操作（须与最近用户请求及未完成任务一致）
+## 7. Current progress, strategy decisions and next steps
+- Current position (completed/in progress/stuck)
+- Failed attempts and dead ends (method, phenomenon/error summary, conclusion)
+- Strategy decisions and concrete next steps (must stay consistent with the most recent user request and unfinished tasks)
 
-## 8. 原始证据检索线索（追加）
-- 只追加工具结果、关键发现与关键进展的简短检索线索，不再归纳用户输入，不改写前面各章节
-- 已取得的认证信息、重要请求、错误或其他证据：注明来源目标、工具/操作与可搜索关键词，便于缺少精确值时回读原始快照
-- 仅记录已有证据，不猜测；不重复长日志或完整凭据值；无信息写「无」
-- 不自行生成文件名、行号或复述旧快照路径，系统会附上本次实际保存的快照读取入口
+## 8. Original evidence retrieval clues (append)
+- Append only short retrieval clues for tool results, key findings and key progress; do not re-digest user input, do not rewrite the sections above
+- For authentication info, important requests, errors or other evidence obtained: note the source target, tool/operation and searchable keywords, so the original snapshot can be read back when an exact value is missing
+- Record only evidence already obtained, do not guess; do not duplicate long logs or full credential values; write "None" when there is no information
+- Do not generate file names, line numbers or restate old snapshot paths yourself; the system appends the actual saved snapshot read entry for this round
 </summary>
 
-提醒：不要调用任何工具；必须基于上文已有对话直接输出 <analysis> 与 <summary>，勿输出 analysis 以外的正文。`
+Reminder: do not call any tool; base the <analysis> and <summary> directly on the conversation above, and output no body text outside analysis.`
 
 // newEinoSummarizationMiddleware 使用 Eino ADK Summarization 中间件（见 https://www.cloudwego.io/zh/docs/eino/core_modules/eino_adk/eino_adk_chatmodelagentmiddleware/middleware_summarization/）。
 // 触发阈值：估算 token 超过 openai.max_total_tokens * summarization_trigger_ratio（默认 0.8）时摘要。
@@ -97,7 +97,7 @@ func newEinoSummarizationMiddleware(
 	memoryScopes ...string,
 ) (adk.ChatModelAgentMiddleware, error) {
 	if summaryModel == nil || appCfg == nil {
-		return nil, fmt.Errorf("multiagent: summarization 需要 model 与配置")
+		return nil, fmt.Errorf("multiagent: summarization requires model and config")
 	}
 	maxTotal := appCfg.OpenAI.MaxTotalTokens
 	if maxTotal <= 0 {
@@ -183,7 +183,7 @@ func newEinoSummarizationMiddleware(
 		GenModelInput: func(ctx context.Context, sysInstruction, userInstruction adk.Message, originalMsgs []adk.Message) ([]adk.Message, error) {
 			if transcriptPath != "" && len(originalMsgs) > 0 {
 				if werr := writeSummarizationTranscript(transcriptPath, originalMsgs); werr != nil && logger != nil {
-					logger.Warn("eino summarization transcript preflight 写入失败",
+					logger.Warn("eino summarization transcript preflight write failed",
 						zap.String("path", transcriptPath), zap.Error(werr))
 				}
 			}
@@ -275,7 +275,7 @@ func newEinoSummarizationMiddleware(
 		Callback: func(ctx context.Context, before, after adk.ChatModelAgentState) error {
 			if transcriptPath != "" && len(before.Messages) > 0 {
 				if werr := writeSummarizationTranscript(transcriptPath, before.Messages); werr != nil && logger != nil {
-					logger.Warn("eino summarization transcript 写入失败",
+					logger.Warn("eino summarization transcript write failed",
 						zap.String("path", transcriptPath),
 						zap.Error(werr),
 					)
@@ -284,7 +284,7 @@ func newEinoSummarizationMiddleware(
 			if logger != nil {
 				beforeTokens, _ := tokenCounter(ctx, &summarization.TokenCounterInput{Messages: before.Messages})
 				afterTokens, _ := tokenCounter(ctx, &summarization.TokenCounterInput{Messages: after.Messages})
-				logger.Info("eino summarization 已压缩上下文",
+				logger.Info("eino summarization compacted context",
 					zap.Int("messages_before", len(before.Messages)),
 					zap.Int("messages_after", len(after.Messages)),
 					zap.Int("tokens_before_estimated", beforeTokens),
@@ -484,7 +484,7 @@ func refreshFactIndexInMessages(msgs []adk.Message, db *database.DB, projectID s
 	freshIndex, err := project.BuildFactIndexBlock(db, projectID, cfg, conversationIDs...)
 	if err != nil {
 		if logger != nil {
-			logger.Warn("summarization: 刷新项目黑板索引失败", zap.String("projectId", projectID), zap.Error(err))
+			logger.Warn("summarization: refreshing project blackboard index failed", zap.String("projectId", projectID), zap.Error(err))
 		}
 		return msgs
 	}
@@ -515,7 +515,7 @@ func refreshFactIndexInMessages(msgs []adk.Message, db *database.DB, projectID s
 		changed = true
 	}
 	if changed && logger != nil {
-		logger.Info("summarization: 已刷新项目黑板索引", zap.String("projectId", projectID))
+		logger.Info("summarization: refreshed project blackboard index", zap.String("projectId", projectID))
 	}
 	return out
 }

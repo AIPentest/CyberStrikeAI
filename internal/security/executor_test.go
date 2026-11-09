@@ -38,15 +38,15 @@ func TestExecutor_ExecuteInternalTool_UnknownTool(t *testing.T) {
 	// 测试未知的内部工具类型
 	toolResult, err := executor.executeInternalTool(ctx, "unknown_tool", "internal:unknown_tool", args)
 	if err != nil {
-		t.Fatalf("执行内部工具失败: %v", err)
+		t.Fatalf("internal tool execution failed: %v", err)
 	}
 
 	if !toolResult.IsError {
-		t.Fatal("未知的工具类型应该返回错误")
+		t.Fatal("an unknown tool type should return an error")
 	}
 
-	if !strings.Contains(toolResult.Content[0].Text, "未知的内部工具类型") {
-		t.Errorf("错误消息应该包含'未知的内部工具类型'")
+	if !strings.Contains(toolResult.Content[0].Text, "unknown internal tool type") {
+		t.Errorf("the error message should contain 'unknown internal tool type'")
 	}
 }
 
@@ -74,7 +74,7 @@ func TestExecuteSystemCommand_BackgroundDoesNotBlockOnChildStdout(t *testing.T) 
 		t.Fatalf("expected success, got %+v", res)
 	}
 	txt := res.Content[0].Text
-	if !strings.Contains(txt, "后台命令已启动") {
+	if !strings.Contains(txt, "Background command started") {
 		t.Fatalf("unexpected body: %q", txt)
 	}
 }

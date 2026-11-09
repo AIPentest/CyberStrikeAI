@@ -397,7 +397,7 @@ func deepExtrasFromConfig(ma *config.MultiAgentConfig) (outputKey string, taskDe
 			if len(names) == 0 {
 				return prefix, nil
 			}
-			return prefix + "\n可用子代理（按名称 transfer / task 调用）：" + strings.Join(names, "、"), nil
+			return prefix + "\nAvailable sub-agents (call by name via transfer / task): " + strings.Join(names, ", "), nil
 		}
 	}
 	return outputKey, taskDesc
@@ -428,7 +428,7 @@ func deepAgenticExtrasFromConfig(ma *config.MultiAgentConfig) (outputKey string,
 			if len(names) == 0 {
 				return prefix, nil
 			}
-			return prefix + "\n可用子代理（按名称 transfer / task 调用）：" + strings.Join(names, "、"), nil
+			return prefix + "\nAvailable sub-agents (call by name via transfer / task): " + strings.Join(names, ", "), nil
 		}
 	}
 	return outputKey, taskDesc

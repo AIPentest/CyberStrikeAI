@@ -1,4 +1,4 @@
-package database
+﻿package database
 
 import (
 	"database/sql"
@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// RobotSessionBinding 机器人会话绑定信息。
+// RobotSessionBinding is one robot session binding row.
 type RobotSessionBinding struct {
 	SessionKey     string
 	ConversationID string
@@ -16,7 +16,7 @@ type RobotSessionBinding struct {
 	UpdatedAt      time.Time
 }
 
-// GetRobotSessionBinding 按 session_key 获取机器人会话绑定。
+// GetRobotSessionBinding loads one robot session binding by session_key.
 func (db *DB) GetRobotSessionBinding(sessionKey string) (*RobotSessionBinding, error) {
 	sessionKey = strings.TrimSpace(sessionKey)
 	if sessionKey == "" {
@@ -32,7 +32,7 @@ func (db *DB) GetRobotSessionBinding(sessionKey string) (*RobotSessionBinding, e
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("查询机器人会话绑定失败: %w", err)
+		return nil, fmt.Errorf("query robot session binding: %w", err)
 	}
 	if t, e := time.Parse("2006-01-02 15:04:05.999999999-07:00", updatedAt); e == nil {
 		b.UpdatedAt = t
@@ -42,7 +42,7 @@ func (db *DB) GetRobotSessionBinding(sessionKey string) (*RobotSessionBinding, e
 		b.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
 	}
 	if strings.TrimSpace(b.RoleName) == "" {
-		b.RoleName = "默认"
+		b.RoleName = "Default"
 	}
 	if strings.TrimSpace(b.AgentMode) == "" {
 		b.AgentMode = "eino_single"
@@ -50,7 +50,7 @@ func (db *DB) GetRobotSessionBinding(sessionKey string) (*RobotSessionBinding, e
 	return &b, nil
 }
 
-// UpsertRobotSessionBinding 写入或更新机器人会话绑定（包含角色）。
+// UpsertRobotSessionBinding writes or updates one robot session binding (including role).
 func (db *DB) UpsertRobotSessionBinding(sessionKey, conversationID, roleName, agentMode string) error {
 	sessionKey = strings.TrimSpace(sessionKey)
 	conversationID = strings.TrimSpace(conversationID)
@@ -60,7 +60,7 @@ func (db *DB) UpsertRobotSessionBinding(sessionKey, conversationID, roleName, ag
 		return nil
 	}
 	if roleName == "" {
-		roleName = "默认"
+		roleName = "Default"
 	}
 	if agentMode == "" {
 		agentMode = "eino_single"
@@ -75,19 +75,19 @@ func (db *DB) UpsertRobotSessionBinding(sessionKey, conversationID, roleName, ag
 			updated_at = excluded.updated_at
 	`, sessionKey, conversationID, roleName, agentMode, time.Now())
 	if err != nil {
-		return fmt.Errorf("写入机器人会话绑定失败: %w", err)
+		return fmt.Errorf("write robot session binding: %w", err)
 	}
 	return nil
 }
 
-// DeleteRobotSessionBinding 删除机器人会话绑定。
+// DeleteRobotSessionBinding deletes one robot session binding.
 func (db *DB) DeleteRobotSessionBinding(sessionKey string) error {
 	sessionKey = strings.TrimSpace(sessionKey)
 	if sessionKey == "" {
 		return nil
 	}
 	if _, err := db.Exec("DELETE FROM robot_user_sessions WHERE session_key = ?", sessionKey); err != nil {
-		return fmt.Errorf("删除机器人会话绑定失败: %w", err)
+		return fmt.Errorf("delete robot session binding: %w", err)
 	}
 	return nil
 }

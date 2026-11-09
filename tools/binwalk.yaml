@@ -1,31 +1,31 @@
 name: "binwalk"
 command: "binwalk"
 enabled: true
-short_description: "固件和文件分析工具"
+short_description: "Firmware and file analysis tool"
 description: |
-  Binwalk是一个固件分析工具，用于分析、提取和逆向工程固件镜像。
+  Binwalk is a firmware analysis tool used to analyze, extract, and reverse-engineer firmware images.
 
-  **主要功能：**
-  - 文件签名识别
-  - 文件提取
-  - 熵分析
-  - 固件分析
+  **Main features:**
+  - File signature identification
+  - File extraction
+  - Entropy analysis
+  - Firmware analysis
 
-  **使用场景：**
-  - 固件分析
-  - 文件格式识别
-  - 数据提取
-  - 逆向工程
+  **Use cases:**
+  - Firmware analysis
+  - File format identification
+  - Data extraction
+  - Reverse engineering
 parameters:
   - name: "file_path"
     type: "string"
-    description: "要分析的文件路径"
+    description: "Path of the file to analyze"
     required: true
     position: 0
     format: "positional"
   - name: "extract"
     type: "bool"
-    description: "提取发现的文件"
+    description: "Extract discovered files"
     required: false
     flag: "-e"
     format: "flag"
@@ -33,14 +33,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的binwalk参数。用于传递未在参数列表中定义的binwalk选项。
+      Additional binwalk arguments. Used to pass binwalk options that are not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples based on tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

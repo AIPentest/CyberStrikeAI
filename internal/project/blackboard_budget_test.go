@@ -79,7 +79,7 @@ func TestFactIndexPathOverviewExcludesOmittedFact(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(block, "target/visible") || !strings.Contains(block, "另有 1 条") || strings.Contains(block, "target/visible → finding/omitted") {
+	if !strings.Contains(block, "target/visible") || !strings.Contains(block, "There are 1 more facts") || strings.Contains(block, "target/visible → finding/omitted") {
 		t.Fatalf("omitted fact entered path overview: %s", block)
 	}
 }

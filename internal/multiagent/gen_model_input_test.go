@@ -11,7 +11,7 @@ import (
 
 func TestLiteralInstructionGenModelInput_PreservesLiteralCurlyBraces(t *testing.T) {
 	t.Parallel()
-	instruction := "- [finding/x] summary {关系边: discovered_on←target/dev}\n" +
+	instruction := "- [finding/x] summary {links: discovered_on←target/dev}\n" +
 		"如 finding 上 {from:target/*, type:discovered_on}"
 	msgs, err := literalInstructionGenModelInput(context.Background(), instruction, &adk.AgentInput{
 		Messages: []adk.Message{schema.UserMessage("继续")},
@@ -25,7 +25,7 @@ func TestLiteralInstructionGenModelInput_PreservesLiteralCurlyBraces(t *testing.
 	if msgs[0].Role != schema.System {
 		t.Fatalf("first message must be system, got %s", msgs[0].Role)
 	}
-	for _, want := range []string{"{关系边:", "{from:target/*, type:discovered_on}"} {
+	for _, want := range []string{"{links:", "{from:target/*, type:discovered_on}"} {
 		if !strings.Contains(msgs[0].Content, want) {
 			t.Fatalf("system content missing %q: %q", want, msgs[0].Content)
 		}

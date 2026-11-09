@@ -1,51 +1,51 @@
 name: "prowler"
 command: "prowler"
 enabled: true
-short_description: "云安全评估工具（AWS, Azure, GCP）"
+short_description: "Cloud security assessment tool (AWS, Azure, GCP)"
 description: |
-  Prowler是一个全面的云安全评估工具，支持AWS、Azure和GCP。
+  Prowler is a comprehensive cloud security assessment tool supporting AWS, Azure, and GCP.
 
-  **主要功能：**
-  - 云安全评估
-  - 合规性检查
-  - 安全最佳实践检查
-  - 多种输出格式
+  **Main features:**
+  - Cloud security assessment
+  - Compliance checks
+  - Security best-practice checks
+  - Multiple output formats
 
-  **使用场景：**
-  - 云安全审计
-  - 合规性检查
-  - 安全评估
-  - 云配置审计
+  **Use cases:**
+  - Cloud security auditing
+  - Compliance checks
+  - Security assessment
+  - Cloud configuration auditing
 parameters:
   - name: "provider"
     type: "string"
-    description: "云提供商（aws, azure, gcp）"
+    description: "Cloud provider (aws, azure, gcp)"
     required: false
     default: "aws"
     position: 0
     format: "positional"
   - name: "profile"
     type: "string"
-    description: "AWS配置文件"
+    description: "AWS configuration profile"
     required: false
     flag: "-p"
     format: "flag"
     default: "default"
   - name: "region"
     type: "string"
-    description: "要扫描的特定区域"
+    description: "Specific region to scan"
     required: false
     flag: "-r"
     format: "flag"
   - name: "checks"
     type: "string"
-    description: "要运行的特定检查"
+    description: "Specific checks to run"
     required: false
     flag: "-c"
     format: "flag"
   - name: "output_format"
     type: "string"
-    description: "输出格式（json, csv, html）"
+    description: "Output format (json, csv, html)"
     required: false
     flag: "-M"
     format: "flag"
@@ -53,14 +53,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的prowler参数。用于传递未在参数列表中定义的prowler选项。
+      Additional prowler arguments. Used to pass prowler options that are not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples based on tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

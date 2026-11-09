@@ -1,60 +1,60 @@
 name: "query_execution_result"
-# 注意：这是一个内部工具，不执行外部命令
-# command 字段设置为特殊值，实际功能需要在代码中实现
-# 实现位置：internal/mcp/server.go 或 internal/handler/agent.go
+# Note: This is an internal tool and does not execute external commands
+# The command field is set to a special value; the actual functionality must be implemented in code
+# Implementation location: internal/mcp/server.go or internal/handler/agent.go
 command: "internal:query_execution_result"
 enabled: true
-# 简短描述（用于工具列表，减少token消耗）
-short_description: "查询工具执行结果，支持分页、搜索和过滤大结果集"
-# 工具详细描述
+# Short description (used in the tool list to reduce token consumption)
+short_description: "Query tool execution results, supporting pagination, search, and filtering of large result sets"
+# Detailed tool description
 description: |
-  查询工具执行结果工具，用于查询已保存的工具执行结果。当工具返回的结果过大时，系统会自动保存完整结果，此工具用于按需查询这些结果。
+  The query tool execution results tool is used to query saved tool execution results. When a tool returns a result that is too large, the system automatically saves the full result; this tool is used to query those results on demand.
 
-  **主要功能：**
-  - 分页查询：支持分页浏览大结果集，避免一次性加载过多数据
-  - 全文搜索：在结果中搜索特定关键词
-  - 条件过滤：根据条件过滤结果（如只显示包含"error"的行）
-  - 元信息查询：获取结果的基本信息（总行数、总页数等）
+  **Key features:**
+  - Paginated queries: supports paginated browsing of large result sets, avoiding loading too much data at once
+  - Full-text search: search for specific keywords within the results
+  - Conditional filtering: filter results based on conditions (e.g., only show lines containing "error")
+  - Metadata queries: get basic information about the result (total lines, total pages, etc.)
 
-  **使用场景：**
-  - 当工具返回的结果超过阈值（如50KB）时，系统会自动保存结果
-  - 需要查看完整结果时，使用此工具按需查询
-  - 需要搜索特定信息时，使用搜索功能
-  - 需要过滤特定类型的内容时，使用过滤功能
+  **Use cases:**
+  - When a tool returns a result exceeding a threshold (e.g., 50KB), the system automatically saves the result
+  - Use this tool to query on demand when you need to see the full result
+  - Use the search function when you need to find specific information
+  - Use the filter function when you need to filter specific types of content
 
-  **工作流程：**
-  1. 工具执行完成后，如果结果过大，系统会保存完整结果并返回执行ID
-  2. 使用此工具，通过 execution_id 查询结果
-  3. 可以分页浏览、搜索关键词或过滤条件
+  **Workflow:**
+  1. After a tool execution completes, if the result is too large, the system saves the full result and returns an execution ID
+  2. Use this tool to query the result via the execution_id
+  3. You can browse pages, search keywords, or filter by conditions
 
-  **注意事项：**
-  - execution_id 是必需参数，从工具执行的返回消息中获取
-  - 默认每页返回100行，可以通过 limit 参数调整
-  - 搜索和过滤功能可以组合使用
-  - 结果会保留一段时间（默认7天），之后可能被清理
+  **Notes:**
+  - execution_id is a required parameter, obtained from the return message of the tool execution
+  - By default, 100 lines are returned per page, adjustable via the limit parameter
+  - The search and filter functions can be used in combination
+  - Results are retained for a period of time (7 days by default), after which they may be cleaned up
 
-# 参数定义
+# Parameter definitions
 parameters:
   - name: "execution_id"
     type: "string"
     description: |
-      工具执行的ID。从工具执行完成后的返回消息中获取。
+      The ID of the tool execution. Obtained from the return message after the tool execution completes.
 
-      **格式要求：**
-      - 执行ID字符串，格式通常为 "exec_xxxxx" 或 UUID
-      - 必需参数，不能为空
+      **Format requirements:**
+      - Execution ID string, typically in the format "exec_xxxxx" or a UUID
+      - Required parameter, cannot be empty
 
-      **示例值：**
+      **Example values:**
       - "exec_12345"
       - "550e8400-e29b-41d4-a716-446655440000"
 
-      **如何获取：**
-      - 当工具返回大结果时，系统会在消息中提供 execution_id
-      - 格式示例：`工具执行完成。结果已保存（ID: exec_12345）`
+      **How to obtain it:**
+      - When a tool returns a large result, the system provides the execution_id in the message
+      - Format example: `Tool execution complete. Result saved (ID: exec_12345)`
 
-      **注意事项：**
-      - 确保 execution_id 正确，否则查询会失败
-      - execution_id 区分大小写
+      **Notes:**
+      - Make sure the execution_id is correct, otherwise the query will fail
+      - execution_id is case-sensitive
     required: true
     format: "positional"
     position: 0
@@ -62,98 +62,97 @@ parameters:
   - name: "page"
     type: "integer"
     description: |
-      要查询的页码。从1开始计数。
+      The page number to query. Counting starts from 1.
 
-      **格式要求：**
-      - 正整数，从1开始
-      - 如果不指定，默认为1（第一页）
+      **Format requirements:**
+      - Positive integer, starting from 1
+      - If not specified, defaults to 1 (the first page)
 
-      **示例值：**
-      - 1 (第一页，默认)
-      - 2 (第二页)
-      - 10 (第十页)
+      **Example values:**
+      - 1 (first page, default)
+      - 2 (second page)
+      - 10 (tenth page)
 
-      **注意事项：**
-      - 页码不能小于1
-      - 如果指定的页码超过总页数，会返回空结果
-      - 建议先查询第一页了解结果结构，再决定是否需要查看其他页
+      **Notes:**
+      - The page number cannot be less than 1
+      - If the specified page number exceeds the total number of pages, an empty result is returned
+      - It is recommended to query the first page first to understand the result structure, then decide whether to view other pages
     required: false
     default: 1
 
   - name: "limit"
     type: "integer"
     description: |
-      每页返回的行数。控制单次查询返回的数据量。
+      Number of rows returned per page. Controls the amount of data returned by a single query.
 
-      **格式要求：**
-      - 正整数，建议范围：10-500
-      - 如果不指定，默认为100行
+      **Format requirements:**
+      - Positive integer, recommended range: 10-500
+      - If not specified, defaults to 100 rows
 
-      **示例值：**
-      - 50 (每页50行)
-      - 100 (每页100行，默认)
-      - 200 (每页200行)
+      **Example values:**
+      - 50 (50 rows per page)
+      - 100 (100 rows per page, default)
+      - 200 (200 rows per page)
 
-      **注意事项：**
-      - 较小的 limit 可以减少单次查询的token消耗
-      - 较大的 limit 可以减少查询次数，但会增加单次返回的数据量
-      - 建议根据实际需要调整，平衡查询次数和数据量
+      **Notes:**
+      - A smaller limit reduces the token consumption of a single query
+      - A larger limit reduces the number of queries, but increases the amount of data returned per query
+      - It is recommended to adjust based on actual needs, balancing the number of queries and the amount of data
     required: false
     default: 100
 
   - name: "search"
     type: "string"
     description: |
-      搜索关键词。在结果中搜索包含此关键词的行。
+      Search keyword. Searches the results for lines containing this keyword.
 
-      **格式要求：**
-      - 任意字符串
-      - 搜索是大小写敏感的
-      - 支持部分匹配
+      **Format requirements:**
+      - Any string
+      - Search is case-sensitive
+      - Partial matching is supported
 
-      **示例值：**
-      - "open" (搜索包含"open"的行，如开放端口)
-      - "error" (搜索包含"error"的行)
-      - "CVE-2023" (搜索包含CVE编号的行)
-      - "80/tcp" (搜索特定端口)
+      **Example values:**
+      - "open" (search for lines containing "open", such as open ports)
+      - "error" (search for lines containing "error")
+      - "CVE-2023" (search for lines containing CVE numbers)
+      - "80/tcp" (search for a specific port)
 
-      **使用场景：**
-      - 快速定位关键信息
-      - 查找特定类型的条目
-      - 过滤感兴趣的内容
+      **Use cases:**
+      - Quickly locate key information
+      - Find specific types of entries
+      - Filter for content of interest
 
-      **注意事项：**
-      - 搜索会在所有行中进行，可能返回多页结果
-      - 搜索结果也会分页返回
-      - 可以结合 page 和 limit 参数控制返回结果
-      - 如果同时指定 search 和 filter，会先应用 filter，再在结果中搜索
+      **Notes:**
+      - The search is performed across all lines and may return multiple pages of results
+      - Search results are also returned paginated
+      - You can combine the page and limit parameters to control the returned results
+      - If both search and filter are specified, filter is applied first, then the search is performed within the results
     required: false
 
   - name: "filter"
     type: "string"
     description: |
-      过滤条件。只返回包含此关键词的行。
+      Filter condition. Only returns lines containing this keyword.
 
-      **格式要求：**
-      - 任意字符串
-      - 过滤是大小写敏感的
-      - 支持部分匹配
+      **Format requirements:**
+      - Any string
+      - Filtering is case-sensitive
+      - Partial matching is supported
 
-      **示例值：**
-      - "error" (只返回包含"error"的行)
-      - "warning" (只返回包含"warning"的行)
-      - "open" (只返回包含"open"的行)
-      - "200" (只返回包含"200"的行，如HTTP状态码)
+      **Example values:**
+      - "error" (only return lines containing "error")
+      - "warning" (only return lines containing "warning")
+      - "open" (only return lines containing "open")
+      - "200" (only return lines containing "200", such as HTTP status codes)
 
-      **使用场景：**
-      - 只查看错误信息
-      - 只查看特定状态的结果
-      - 过滤掉不感兴趣的内容
+      **Use cases:**
+      - Only view error messages
+      - Only view results with a specific status
+      - Filter out content that is not of interest
 
-      **注意事项：**
-      - 过滤会在所有行中进行，可能返回多页结果
-      - 过滤结果也会分页返回
-      - 可以结合 page 和 limit 参数控制返回结果
-      - 如果同时指定 search 和 filter，会先应用 filter，再在结果中搜索
+      **Notes:**
+      - The filter is applied across all lines and may return multiple pages of results
+      - Filter results are also returned paginated
+      - You can combine the page and limit parameters to control the returned results
+      - If both search and filter are specified, filter is applied first, then the search is performed within the results
     required: false
-

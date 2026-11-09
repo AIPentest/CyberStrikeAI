@@ -19,7 +19,7 @@ function functionSource(source, name, nextName) {
 test('全局置顶检查接口结果并即时通知项目文件夹', () => {
     const source = functionSource(chat, 'pinConversation');
 
-    assert.match(source, /assertConversationActionResponse\(updateResponse, '更新置顶状态失败'\)/);
+    assert.match(source, /assertConversationActionResponse\(updateResponse, (?:typeof window\.t === 'function' \? window\.t\('chat\.updatePinFailed'\) : )?'更新置顶状态失败'\)/);
     assert.match(source, /notifyConversationPinnedChanged\(convId, newPinned\)/);
     assert.match(source, /loadConversations\(\)/);
 });

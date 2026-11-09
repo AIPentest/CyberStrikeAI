@@ -67,7 +67,7 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 	}
 	created, err := h.db.CreateProject(p)
 	if err != nil {
-		h.logger.Error("创建项目失败", zap.Error(err))
+		h.logger.Error("failed to create project", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -90,7 +90,7 @@ func (h *ProjectHandler) GetDashboardSummary(c *gin.Context) {
 	session, _ := security.CurrentSession(c)
 	summary, err := h.db.GetProjectDashboardSummaryForAccess(limit, session.UserID, session.Scope)
 	if err != nil {
-		h.logger.Error("获取项目仪表盘摘要失败", zap.Error(err))
+		h.logger.Error("failed to get project dashboard summary", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -139,7 +139,7 @@ func (h *ProjectHandler) GetProjectStats(c *gin.Context) {
 	stats, err := project.GetProjectStats(h.db, c.Param("id"))
 	if err != nil {
 		if strings.Contains(err.Error(), "不存在") {
-			c.JSON(http.StatusNotFound, gin.H{"error": "项目不存在"})
+			respondError(c, http.StatusNotFound, "项目不存在", "project not found")
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -152,7 +152,7 @@ func (h *ProjectHandler) GetProjectStats(c *gin.Context) {
 func (h *ProjectHandler) ListProjectConversations(c *gin.Context) {
 	projectID := c.Param("id")
 	if _, err := h.db.GetProject(projectID); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "项目不存在"})
+		respondError(c, http.StatusNotFound, "项目不存在", "project not found")
 		return
 	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
@@ -178,7 +178,7 @@ func (h *ProjectHandler) ListProjectConversations(c *gin.Context) {
 func (h *ProjectHandler) GetProject(c *gin.Context) {
 	p, err := h.db.GetProject(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "项目不存在"})
+		respondError(c, http.StatusNotFound, "项目不存在", "project not found")
 		return
 	}
 	c.JSON(http.StatusOK, p)
@@ -189,7 +189,7 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 	id := c.Param("id")
 	p, err := h.db.GetProject(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "项目不存在"})
+		respondError(c, http.StatusNotFound, "项目不存在", "project not found")
 		return
 	}
 	var req updateProjectRequest
@@ -200,7 +200,7 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 	if req.Name != nil {
 		s := strings.TrimSpace(*req.Name)
 		if s == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "项目名称不能为空"})
+			respondError(c, http.StatusBadRequest, "项目名称不能为空", "project name must not be empty")
 			return
 		}
 		p.Name = s
@@ -274,10 +274,10 @@ func factLinksFromRequest(links []factLinkRequest, linksText *string) (*project.
 			from := strings.TrimSpace(l.From)
 			edgeType := strings.TrimSpace(l.Type)
 			if from == "" {
-				return nil, fmt.Errorf("links[%d] 须含 from", i)
+				return nil, fmt.Errorf("links[%d] must include from", i)
 			}
 			if edgeType == "" {
-				return nil, fmt.Errorf("links[%d] 须含 type", i)
+				return nil, fmt.Errorf("links[%d] must include type", i)
 			}
 			parsed.Incoming = append(parsed.Incoming, database.ProjectFactEdgeFromInput{
 				From: from, Type: edgeType, Confidence: strings.TrimSpace(l.Confidence),
@@ -400,7 +400,7 @@ func (h *ProjectHandler) ListFacts(c *gin.Context) {
 func (h *ProjectHandler) GetFactGraph(c *gin.Context) {
 	projectID := c.Param("id")
 	if _, err := h.db.GetProject(projectID); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "项目不存在"})
+		respondError(c, http.StatusNotFound, "项目不存在", "project not found")
 		return
 	}
 	view := c.DefaultQuery("view", "path")
@@ -433,7 +433,7 @@ func (h *ProjectHandler) CreateFact(c *gin.Context) {
 		return
 	}
 	if database.IsContextCheckpointKey(req.FactKey) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": reservedContextCheckpointError})
+		c.JSON(http.StatusBadRequest, gin.H{"error": i18nText(requestWantsEnglish(c), reservedContextCheckpointError, "note/context-* entries are system continuation records and cannot be created or edited from the console; use a standalone fact_key for shared project facts")})
 		return
 	}
 	projectID := c.Param("id")
@@ -466,12 +466,12 @@ func (h *ProjectHandler) UpdateFact(c *gin.Context) {
 	projectID := c.Param("id")
 	existing, err := h.db.GetProjectFact(c.Param("factId"))
 	if err != nil || existing.ProjectID != projectID {
-		c.JSON(http.StatusNotFound, gin.H{"error": "事实不存在"})
+		respondError(c, http.StatusNotFound, "事实不存在", "fact not found")
 		return
 	}
 	oldFactKey := existing.FactKey
 	if database.IsContextCheckpointKey(oldFactKey) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": reservedContextCheckpointError})
+		c.JSON(http.StatusBadRequest, gin.H{"error": i18nText(requestWantsEnglish(c), reservedContextCheckpointError, "note/context-* entries are system continuation records and cannot be created or edited from the console; use a standalone fact_key for shared project facts")})
 		return
 	}
 	var req updateFactRequest
@@ -482,7 +482,7 @@ func (h *ProjectHandler) UpdateFact(c *gin.Context) {
 	if req.FactKey != nil {
 		if k := strings.TrimSpace(*req.FactKey); k != "" {
 			if database.IsContextCheckpointKey(k) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": reservedContextCheckpointError})
+				c.JSON(http.StatusBadRequest, gin.H{"error": i18nText(requestWantsEnglish(c), reservedContextCheckpointError, "note/context-* entries are system continuation records and cannot be created or edited from the console; use a standalone fact_key for shared project facts")})
 				return
 			}
 			existing.FactKey = k
@@ -542,7 +542,7 @@ func (h *ProjectHandler) UpdateFact(c *gin.Context) {
 func (h *ProjectHandler) DeleteFact(c *gin.Context) {
 	existing, err := h.db.GetProjectFact(c.Param("factId"))
 	if err != nil || existing.ProjectID != c.Param("id") {
-		c.JSON(http.StatusNotFound, gin.H{"error": "事实不存在"})
+		respondError(c, http.StatusNotFound, "事实不存在", "fact not found")
 		return
 	}
 	if err := h.db.DeleteProjectFact(existing.ID); err != nil {
@@ -641,7 +641,7 @@ func (h *ProjectHandler) DeleteFactEdge(c *gin.Context) {
 	edgeID := c.Param("edgeId")
 	edge, err := h.db.GetProjectFactEdge(edgeID)
 	if err != nil || edge.ProjectID != projectID {
-		c.JSON(http.StatusNotFound, gin.H{"error": "边不存在"})
+		respondError(c, http.StatusNotFound, "边不存在", "edge not found")
 		return
 	}
 	if err := h.db.DeleteProjectFactEdge(edgeID); err != nil {
@@ -663,7 +663,7 @@ func (h *ProjectHandler) PromoteAttackChain(c *gin.Context) {
 	session, ok := security.CurrentSession(c)
 	if !ok || !h.db.UserCanAccessResource(session.UserID, session.Scope, "project", projectID) ||
 		!h.db.UserCanAccessResource(session.UserID, session.Scope, "conversation", conversationID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问目标项目或来源对话"})
+		respondError(c, http.StatusForbidden, "无权访问目标项目或来源对话", "no permission to access the target project or source conversation")
 		return
 	}
 	result, err := attackchain.PromoteToProject(h.db, projectID, conversationID)

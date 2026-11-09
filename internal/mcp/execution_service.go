@@ -193,7 +193,7 @@ func (s *ExecutionService) Submit(ctx context.Context, req ExecutionRequest) (*E
 
 	if s.storage != nil {
 		if err := s.storage.SaveToolExecution(exec); err != nil {
-			s.logger.Warn("保存执行记录到数据库失败", zap.Error(err), zap.String("executionId", id))
+			s.logger.Warn("Failed to save the execution record to the database", zap.Error(err), zap.String("executionId", id))
 		}
 	}
 	notifyToolRunBegin(ctx, id)
@@ -258,7 +258,7 @@ func (s *ExecutionService) markEntryRunning(entry *executionEntry) {
 	s.mu.Unlock()
 	if s.storage != nil {
 		if err := s.storage.SaveToolExecution(runningExec); err != nil {
-			s.logger.Warn("保存执行记录到数据库失败", zap.Error(err), zap.String("executionId", runningExec.ID))
+			s.logger.Warn("Failed to save the execution record to the database", zap.Error(err), zap.String("executionId", runningExec.ID))
 		}
 	}
 }
@@ -306,17 +306,17 @@ func (s *ExecutionService) finishEntry(ctx context.Context, entry *executionEntr
 		switch {
 		case errors.Is(err, context.DeadlineExceeded):
 			entry.exec.Status = ToolExecutionStatusHardTimeout
-			entry.exec.Error = "工具执行超过硬超时限制"
+			entry.exec.Error = "The tool execution exceeded the hard timeout limit"
 		case errors.Is(err, context.Canceled):
 			entry.exec.Status = ToolExecutionStatusCancelled
-			entry.exec.Error = "已手动终止或任务已取消"
+			entry.exec.Error = "Manually terminated or the task was cancelled"
 		default:
 			entry.exec.Status = ToolExecutionStatusFailed
 			entry.exec.Error = err.Error()
 		}
 	} else if result != nil && result.Blocked {
 		entry.exec.Status = ToolExecutionStatusBlocked
-		entry.exec.Error = firstToolResultText(result, "工具调用已被安全规则拦截")
+		entry.exec.Error = firstToolResultText(result, "The tool call was blocked by a security rule")
 		entry.exec.Result = result
 	} else if result != nil && result.IsError {
 		if cancelledWithUserNote {
@@ -327,20 +327,20 @@ func (s *ExecutionService) finishEntry(ctx context.Context, entry *executionEntr
 			entry.exec.Error = ""
 		} else {
 			entry.exec.Status = ToolExecutionStatusFailed
-			entry.exec.Error = firstToolResultText(result, "工具执行返回错误结果")
+			entry.exec.Error = firstToolResultText(result, "The tool execution returned an error result")
 		}
 		entry.exec.Result = result
 	} else {
 		entry.exec.Status = ToolExecutionStatusCompleted
 		if result == nil {
-			result = &ToolResult{Content: []Content{{Type: "text", Text: "工具执行完成，但未返回结果"}}}
+			result = &ToolResult{Content: []Content{{Type: "text", Text: "The tool execution completed but returned no result"}}}
 			entry.result = result
 		}
 		entry.exec.Result = result
 	}
 	if cancellationUnconfirmed {
 		entry.exec.Status = ToolExecutionStatusOrphaned
-		entry.exec.Error = "取消已请求，但远端 MCP 未确认执行已停止"
+		entry.exec.Error = "Cancellation was requested but the remote MCP did not confirm the execution stopped"
 		runlease.FromContext(ctx).MarkUnconfirmed(id, entry.exec.Error)
 	}
 	finalExec := cloneToolExecution(entry.exec)
@@ -348,7 +348,7 @@ func (s *ExecutionService) finishEntry(ctx context.Context, entry *executionEntr
 
 	if s.storage != nil {
 		if saveErr := s.storage.SaveToolExecution(finalExec); saveErr != nil {
-			s.logger.Warn("保存执行记录到数据库失败", zap.Error(saveErr), zap.String("executionId", id))
+			s.logger.Warn("Failed to save the execution record to the database", zap.Error(saveErr), zap.String("executionId", id))
 		}
 	}
 	if onDone != nil {

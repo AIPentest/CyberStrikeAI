@@ -22,7 +22,7 @@ func emitEinoNativeModelRetryProgress(
 		if willRetry.RejectReason() != nil {
 			reason = fmt.Sprint(willRetry.RejectReason())
 		}
-		progress("eino_model_retry", "模型调用遇到临时问题，Eino 正在原生重试…", map[string]interface{}{
+		progress("eino_model_retry", "Model call hit a transient issue; Eino is retrying natively…", map[string]interface{}{
 			"conversationId": conversationID,
 			"source":         "eino",
 			"orchestration":  orchMode,

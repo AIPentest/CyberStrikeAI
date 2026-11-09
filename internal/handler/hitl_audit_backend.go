@@ -40,7 +40,9 @@ func stringifyHitlJSON(v any) string {
 
 func inferHitlAuditBackendFromComment(comment string) string {
 	c := strings.ToLower(comment)
-	if strings.Contains(comment, "TypeSafe") || strings.Contains(comment, "破坏分") ||
+	// "破坏分" (old local runs) and "destructive score" (translated runs) both
+	// fingerprint a TypeSafe Jev comment; historical rows keep the Chinese form.
+	if strings.Contains(comment, "TypeSafe") || strings.Contains(comment, "破坏分") || strings.Contains(c, "destructive score") ||
 		strings.Contains(c, "choice=") || strings.Contains(comment, "Jev") {
 		return config.HitlAuditBackendTypeSafe
 	}

@@ -23,9 +23,14 @@ const (
 	userIntentLedgerStartMarker = "<original_user_intent_ledger>"
 	userIntentLedgerEndMarker   = "</original_user_intent_ledger>"
 	userIntentLedgerExtraKey    = agent.OriginalUserIntentEntriesKey
+	// Ledger heading wire marker: kept byte-identical here because
+	// trustedUserIntentLedgerEntries / userIntentLedgerSectionRegex and historical rows
+	// match the legacy Chinese heading (dual-accept).
+	userIntentLedgerHeading = "## 原始用户输入与约束账本（系统保真）"
 
-	summarizationSnapshotHeading             = "## 原始上下文快照"
-	summarizationTranscriptPathInstructionZh = "如果你需要压缩之前的具体细节（如精确的代码片段、错误消息或你生成的内容），完整的对话记录位于：%s"
+	summarizationSnapshotHeading               = "## Original context snapshot"
+	// Model-visible retrieval instruction; translated to English.
+	summarizationTranscriptPathInstruction = "If you need earlier exact details (precise code fragments, error messages, or content you generated), the full conversation record is located at: %s"
 )
 
 // stripAnalysisFromSummarizationMessage removes the <analysis> block from a post-processed
@@ -99,9 +104,9 @@ func appendTranscriptPathToSummarizationMessage(msg adk.Message, transcriptPath 
 // The generated continuation summary is the retrieval entry point; no separate
 // keyword index or model extraction call is needed.
 func summarizationTranscriptRetrievalSection(snapshot string) string {
-	return summarizationSnapshotHeading + "\n" + fmt.Sprintf(summarizationTranscriptPathInstructionZh, snapshot) +
-		"\n历史快照目录：" + filepath.Dir(snapshot) +
-		"\n当前任务缺少 Cookie、认证信息、精确参数或错误原文时，直接搜索该快照并用 read_file 分段核对附近记录；不要猜测原值。更早的记录可用 glob 在历史快照目录查找 transcript-*.txt，再按需读取。核对来源域名、请求及凭据是否仍有效；不要整批载入历史，也不要将旧记录当作新授权。"
+	return summarizationSnapshotHeading + "\n" + fmt.Sprintf(summarizationTranscriptPathInstruction, snapshot) +
+		"\nHistorical snapshot directory: " + filepath.Dir(snapshot) +
+		" \nWhen the current task is missing cookies, authentication details, exact parameters, or raw error text, search this snapshot directly and verify nearby records with read_file in segments; do not guess original values. Older records can be found by globbing transcript-*.txt in the historical snapshot directory, then read as needed. Verify whether source domains, requests and credentials are still valid; do not bulk-load history, and do not treat old records as new authorization."
 }
 
 func appendSummarizationSection(text, section string) string {
@@ -229,7 +234,7 @@ func buildOriginalUserIntentLedger(msgs []adk.Message, maxRunes, entryMaxRunes i
 					lines = append(lines, prefix+fitUserIntentLedgerText(text, textBudget))
 				}
 			} else {
-				const notice = "- [...truncated] 用户原始输入账本超过预算；完整压缩前记录见 summarization transcript。"
+				const notice = "- [...truncated] The raw user-input ledger exceeds the budget; the pre-compaction record is in the summarization transcript."
 				remaining := maxRunes - used - separator
 				// Never emit an incomplete marker that could be mistaken for a
 				// human entry when this ledger is carried into the next round.
@@ -310,7 +315,7 @@ func trustedUserIntentLedgerEntries(msg adk.Message) []string {
 		}
 	}
 	text := strings.TrimSpace(messageTextForLedger(msg))
-	header := "## 原始用户输入与约束账本（系统保真）\n" + userIntentLedgerStartMarker + "\n"
+	header := userIntentLedgerHeading + "\n" + userIntentLedgerStartMarker + "\n"
 	start := strings.LastIndex(text, header)
 	if start < 0 || start > 0 && text[start-1] != '\n' || !strings.HasSuffix(text, userIntentLedgerEndMarker) {
 		return nil
@@ -388,7 +393,7 @@ func stripOriginalUserIntentLedgerFromText(text string) string {
 }
 
 func wrapUserIntentLedger(ledger string) string {
-	return strings.TrimSpace("## 原始用户输入与约束账本（系统保真）\n" +
+	return strings.TrimSpace(userIntentLedgerHeading + "\n" +
 		userIntentLedgerStartMarker + "\n" +
 		strings.TrimSpace(ledger) + "\n" +
 		userIntentLedgerEndMarker)

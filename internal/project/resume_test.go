@@ -65,7 +65,7 @@ func TestProjectResumeSurvivesRestartAndStaysProjectScoped(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, want := range []string{"artifacts/parser.py", "python parser.py", "POST /login", "版本变化再测", "known finding", "fixed", conv.ID, "先恢复成果", "默认跳过"} {
+		for _, want := range []string{"artifacts/parser.py", "python parser.py", "POST /login", "版本变化再测", "known finding", "fixed", conv.ID, "first restore prior results", "skip them by default"} {
 			if !strings.Contains(block, want) {
 				t.Errorf("missing %q in %s", want, block)
 			}
@@ -100,7 +100,7 @@ func TestResumeSupplementBudgetAndIndependentResultQuotas(t *testing.T) {
 	if n := len([]rune(block)); n > resumeSupplementMaxRunes {
 		t.Fatalf("budget exceeded: %d", n)
 	}
-	if !strings.Contains(block, "test/negative") || (!strings.Contains(block, "/ 25") || strings.Contains(block, "artifact: 展示 0")) || !strings.Contains(block, "get_vulnerability") {
+	if !strings.Contains(block, "test/negative") || (!strings.Contains(block, "/ 25") || strings.Contains(block, "artifact: showing 0")) || !strings.Contains(block, "get_vulnerability") {
 		t.Fatalf("missing independent result quota or retrieval: %s", block)
 	}
 }

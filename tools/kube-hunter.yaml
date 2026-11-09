@@ -1,50 +1,50 @@
 name: "kube-hunter"
 command: "kube-hunter"
 enabled: true
-short_description: "Kubernetes渗透测试工具"
+short_description: "Kubernetes penetration testing tool"
 description: |
-  Kube-hunter是一个Kubernetes渗透测试工具，用于发现Kubernetes集群中的安全问题。
+  Kube-hunter is a Kubernetes penetration testing tool used to discover security issues in Kubernetes clusters.
 
-  **主要功能：**
-  - Kubernetes安全扫描
-  - 漏洞发现
-  - 配置问题检测
-  - 主动和被动模式
+  **Main features:**
+  - Kubernetes security scanning
+  - Vulnerability discovery
+  - Configuration issue detection
+  - Active and passive modes
 
-  **使用场景：**
-  - Kubernetes安全测试
-  - 集群安全评估
-  - 渗透测试
-  - 安全审计
+  **Use cases:**
+  - Kubernetes security testing
+  - Cluster security assessment
+  - Penetration testing
+  - Security auditing
 parameters:
   - name: "target"
     type: "string"
-    description: "特定目标扫描"
+    description: "Scan a specific target"
     required: false
     flag: "--remote"
     format: "flag"
   - name: "cidr"
     type: "string"
-    description: "CIDR范围扫描"
+    description: "Scan a CIDR range"
     required: false
     flag: "--cidr"
     format: "flag"
   - name: "interface"
     type: "string"
-    description: "网络接口扫描"
+    description: "Scan a network interface"
     required: false
     flag: "--interface"
     format: "flag"
   - name: "active"
     type: "bool"
-    description: "启用主动扫描（可能有风险）"
+    description: "Enable active scanning (may be risky)"
     required: false
     flag: "--active"
     format: "flag"
     default: false
   - name: "report"
     type: "string"
-    description: "报告格式（json, yaml）"
+    description: "Report format (json, yaml)"
     required: false
     flag: "--report"
     format: "flag"
@@ -52,14 +52,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的kube-hunter参数。用于传递未在参数列表中定义的kube-hunter选项。
+      Extra kube-hunter arguments. Used to pass kube-hunter options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Make sure arguments are correctly formatted to avoid command injection
+      - This argument is appended directly to the end of the command
     required: false
     format: "positional"

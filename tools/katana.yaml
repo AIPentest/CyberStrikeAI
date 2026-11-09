@@ -1,45 +1,45 @@
 name: "katana"
 command: "katana"
 enabled: true
-short_description: "下一代Web爬虫和蜘蛛工具"
+short_description: "Next-generation web crawler and spider tool"
 description: |
-  Katana是一个快速、智能的Web爬虫工具，用于发现Web应用中的端点和资源。
+  Katana is a fast, intelligent web crawler tool used to discover endpoints and resources in web applications.
 
-  **主要功能：**
-  - 智能Web爬虫
-  - JavaScript渲染支持
-  - 表单提取
-  - 端点发现
+  **Main features:**
+  - Intelligent web crawling
+  - JavaScript rendering support
+  - Form extraction
+  - Endpoint discovery
 
-  **使用场景：**
-  - Web应用侦察
-  - 端点发现
-  - 内容爬取
-  - 安全测试
+  **Use cases:**
+  - Web application reconnaissance
+  - Endpoint discovery
+  - Content crawling
+  - Security testing
 parameters:
   - name: "url"
     type: "string"
-    description: "目标URL"
+    description: "Target URL"
     required: true
     flag: "-u"
     format: "flag"
   - name: "depth"
     type: "int"
-    description: "爬取深度"
+    description: "Crawl depth"
     required: false
     flag: "-d"
     format: "flag"
     default: 3
   - name: "js_crawl"
     type: "bool"
-    description: "启用JavaScript爬取"
+    description: "Enable JavaScript crawling"
     required: false
     flag: "-jc"
     format: "flag"
     default: true
   - name: "form_extraction"
     type: "bool"
-    description: "启用表单提取（-fx / -form-extraction）"
+    description: "Enable form extraction (-fx / -form-extraction)"
     required: false
     flag: "-fx"
     format: "flag"
@@ -47,17 +47,17 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的Katana参数。用于传递未在参数列表中定义的Katana选项。
+      Additional Katana arguments. Used to pass Katana options that are not defined in the parameter list.
 
-      **示例值：**
-      - "-headless": 使用无头浏览器
-      - "-output-template '{{url}}'": 自定义输出格式
-      - "-output output.txt": 输出到文件
-      - "-c 20": 并发数
+      **Example values:**
+      - "-headless": use a headless browser
+      - "-output-template '{{url}}'": custom output format
+      - "-output output.txt": output to a file
+      - "-c 20": concurrency count
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

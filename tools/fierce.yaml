@@ -1,45 +1,45 @@
 name: "fierce"
 command: "fierce"
 enabled: true
-short_description: "DNS侦察工具"
+short_description: "DNS reconnaissance tool"
 description: |
-  Fierce是一个DNS侦察工具，用于发现目标域名的子域名。
+  Fierce is a DNS reconnaissance tool used to discover subdomains of a target domain.
 
-  **主要功能：**
-  - 子域名发现
-  - DNS暴力破解
-  - 区域传输测试
-  - 网络映射
+  **Main features:**
+  - Subdomain discovery
+  - DNS brute-forcing
+  - Zone transfer testing
+  - Network mapping
 
-  **使用场景：**
-  - DNS侦察
-  - 子域名枚举
-  - 网络映射
-  - 渗透测试
+  **Use cases:**
+  - DNS reconnaissance
+  - Subdomain enumeration
+  - Network mapping
+  - Penetration testing
 parameters:
   - name: "domain"
     type: "string"
-    description: "目标域名"
+    description: "Target domain"
     required: true
     flag: "-dns"
     format: "flag"
   - name: "dns_server"
     type: "string"
-    description: "要使用的DNS服务器"
+    description: "DNS server to use"
     required: false
     flag: "-dnsserver"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的fierce参数。用于传递未在参数列表中定义的fierce选项。
+      Additional fierce arguments. Used to pass fierce options that are not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples based on tool characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

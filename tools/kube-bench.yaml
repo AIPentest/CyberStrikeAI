@@ -1,43 +1,43 @@
 name: "kube-bench"
 command: "kube-bench"
 enabled: true
-short_description: "CIS Kubernetes基准检查工具"
+short_description: "CIS Kubernetes benchmark checking tool"
 description: |
-  Kube-bench是一个CIS Kubernetes基准检查工具，用于检查Kubernetes集群是否符合CIS基准。
+  Kube-bench is a CIS Kubernetes benchmark checking tool used to check whether a Kubernetes cluster complies with the CIS benchmark.
 
-  **主要功能：**
-  - CIS基准检查
-  - 多种目标支持（master, node, etcd, policies）
-  - 详细报告
-  - 配置验证
+  **Main features:**
+  - CIS benchmark checks
+  - Supports multiple targets (master, node, etcd, policies)
+  - Detailed reports
+  - Configuration validation
 
-  **使用场景：**
-  - Kubernetes合规性检查
-  - 安全配置审计
-  - CIS基准验证
-  - 安全评估
+  **Use cases:**
+  - Kubernetes compliance checks
+  - Security configuration auditing
+  - CIS benchmark validation
+  - Security assessment
 parameters:
   - name: "targets"
     type: "string"
-    description: "要检查的目标（master, node, etcd, policies）"
+    description: "Targets to check (master, node, etcd, policies)"
     required: false
     flag: "--targets"
     format: "flag"
   - name: "version"
     type: "string"
-    description: "Kubernetes版本"
+    description: "Kubernetes version"
     required: false
     flag: "--version"
     format: "flag"
   - name: "config_dir"
     type: "string"
-    description: "配置目录"
+    description: "Configuration directory"
     required: false
     flag: "--config-dir"
     format: "flag"
   - name: "output_format"
     type: "string"
-    description: "输出格式（json, yaml）"
+    description: "Output format (json, yaml)"
     required: false
     flag: "--output"
     format: "flag"
@@ -45,14 +45,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的kube-bench参数。用于传递未在参数列表中定义的kube-bench选项。
+      Additional kube-bench arguments. Used to pass kube-bench options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

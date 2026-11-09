@@ -1,39 +1,39 @@
 name: "wafw00f"
 command: "wafw00f"
 enabled: true
-short_description: "WAF识别和指纹识别工具"
+short_description: "WAF identification and fingerprinting tool"
 description: |
-  Wafw00f是一个Web应用防火墙（WAF）识别和指纹识别工具。
+  Wafw00f is a Web Application Firewall (WAF) identification and fingerprinting tool.
 
-  **主要功能：**
-  - WAF检测
-  - WAF指纹识别
-  - 多种WAF支持
-  - 绕过技术检测
+  **Key features:**
+  - WAF detection
+  - WAF fingerprinting
+  - Support for multiple WAFs
+  - Bypass technique detection
 
-  **使用场景：**
-  - WAF识别
-  - 安全测试
-  - 渗透测试
-  - 安全评估
+  **Use cases:**
+  - WAF identification
+  - Security testing
+  - Penetration testing
+  - Security assessments
 parameters:
   - name: "target"
     type: "string"
-    description: "目标URL或IP"
+    description: "Target URL or IP"
     required: true
     position: 0
     format: "positional"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的wafw00f参数。用于传递未在参数列表中定义的wafw00f选项。
+      Additional wafw00f arguments. Used to pass wafw00f options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add commonly used parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Make sure the arguments are properly formatted to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

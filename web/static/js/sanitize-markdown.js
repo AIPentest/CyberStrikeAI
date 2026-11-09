@@ -1,6 +1,6 @@
 /**
- * 统一的 Markdown → 安全 HTML 渲染（DOMPurify + marked）。
- * 时间线/过程详情使用 stricter profile，整页 HTML 回退为转义 <pre>。
+ * Unified Markdown → safe HTML rendering (DOMPurify + marked).
+ * Timeline/process details use stricter profile, full-page HTML falls back to escaped <pre>.
  */
 (function (global) {
     'use strict';
@@ -13,7 +13,7 @@
         ALLOW_DATA_ATTR: false,
     };
 
-    /** 过程详情时间线：禁止 img，减少外连与恶意资源 */
+    /** Process details timeline: prohibit img, reduce external connections and malicious resources */
     const TIMELINE_SANITIZE_CONFIG = {
         ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 's', 'code', 'pre', 'blockquote',
             'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a',
@@ -68,7 +68,7 @@
         domPurifyHooksInstalled = true;
     }
 
-    /** 明显 Markdown 结构时，不应因零散 HTML 标签误判为整页 HTML */
+    /** When Markdown structure is obvious, it should not be misjudged as full-page HTML due to scattered HTML tags */
     function looksLikeMarkdown(src) {
         const s = String(src);
         return /^#{1,6}\s/m.test(s)
@@ -81,7 +81,7 @@
             || /^\s*>\s/m.test(s);
     }
 
-    /** 探测工具返回的整页 HTML，不宜当作富文本渲染 */
+    /** The full-page HTML returned by the probing tool should not be rendered as rich text */
     function isHeavyRawHtml(src) {
         const s = String(src);
         if (looksLikeMarkdown(s)) {
@@ -121,7 +121,7 @@
             marked.setOptions({ breaks: true, gfm: true });
             return marked.parse(src, { async: false });
         } catch (e) {
-            console.error('Markdown 解析失败:', e);
+            console.error('Failed to parse Markdown:', e);
             return null;
         }
     }
@@ -133,7 +133,7 @@
     /**
      * @param {string|null|undefined} text
      * @param {{ profile?: 'chat'|'timeline' }} [options]
-     * @returns {string} 安全 HTML
+     * @returns {string} safe HTML
      */
     function buildRichHtmlFromSource(src) {
         const hasHtmlTags = /<[a-z][\s\S]*>/i.test(src);
@@ -161,7 +161,7 @@
         }
 
         if (typeof DOMPurify === 'undefined') {
-            console.warn('DOMPurify 未加载，Markdown 已降级为纯文本渲染（已转义，防 XSS）');
+            console.warn('DOMPurify not loaded, Markdown has been degraded to plain text rendering (escaped, to prevent XSS)');
             return escapePlainTextAsHtml(src);
         }
 

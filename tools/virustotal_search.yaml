@@ -2,73 +2,73 @@ name: "virustotal_search"
 command: "python3"
 args:
   - "-c"
-  - "import sys\nimport json\nimport requests\nimport os\nimport time\n\n# ==================== VirusTotal 配置 ====================\n# 请在此处配置您的 VirusTotal API 密钥\n# 您也可以在环境变量中设置：VT_API_KEY\n# enable 默认为 false，需开启才能调用该MCP\nVT_API_KEY = \"\"  # 请填写您的 VirusTotal API 密钥\n# =======================================================\n\n# VirusTotal API 基础 URL\nBASE_URL = \"https://www.virustotal.com/api/v3\"\n\ndef parse_args():\n    \"\"\"解析命令行参数\"\"\"\n    # 尝试从第一个参数读取 JSON 配置\n    if len(sys.argv) > 1:\n        try:\n            arg1 = str(sys.argv[1])\n            config = json.loads(arg1)\n            if isinstance(config, dict):\n                return config\n        except (json.JSONDecodeError, TypeError, ValueError):\n            pass\n\n    # 传统位置参数方式\n    config = {}\n    if len(sys.argv) > 1:\n        config['domain'] = str(sys.argv[1])\n    if len(sys.argv) > 2:\n        try:\n            config['limit'] = int(sys.argv[2])\n        except (ValueError, TypeError):\n            pass\n    if len(sys.argv) > 3:\n        config['include_ips'] = sys.argv[3].lower() in ('true', '1', 'yes')\n    return config\n\ndef query_virustotal_subdomains(domain, api_key, limit=100, include_ips=False):\n    \"\"\"\n    查询 VirusTotal 的子域名信息\n    \n    Args:\n        domain: 要查询的域名\n        api_key: VirusTotal API 密钥\n        limit: 返回结果数量限制\n        include_ips: 是否包含 IP 地址信息\n    \n    Returns:\n        dict: 包含查询结果的字典\n    \"\"\"\n    # 构建 API 请求 URL\n    url = f\"{BASE_URL}/domains/{domain}/subdomains\"\n    \n    headers = {\n        \"x-apikey\": api_key,\n        \"accept\": \"application/json\"\n    }\n    \n    params = {\n        \"limit\": min(limit, 40)  # API 限制最大 40\n    }\n    \n    all_results = []\n    next_url = None\n    \n    try:\n        # 处理分页\n        while True:\n            if next_url:\n                response = requests.get(next_url, headers=headers, timeout=30)\n            else:\n                response = requests.get(url, headers=headers, params=params, timeout=30)\n            \n            response.raise_for_status()\n            data = response.json()\n            \n            # 提取子域名数据\n            if 'data' in data and data['data']:\n                for item in data['data']:\n                    if 'id' in item:\n                        subdomain_info = {\n                            'subdomain': item['id'],\n                            'type': item.get('type', 'domain'),\n                        }\n                        \n                        # 如果 include_ips 为 True，尝试获取解析 IP\n                        if include_ips and 'attributes' in item:\n                            attributes = item.get('attributes', {})\n                            # 这里简化处理，实际可能需要额外的 API 调用\n                            subdomain_info['last_dns_records'] = attributes.get('last_dns_records', [])\n                        \n                        all_results.append(subdomain_info)\n                \n                # 检查是否有下一页\n                if 'links' in data and 'next' in data['links'] and len(all_results) < limit:\n                    next_url = data['links']['next']\n                    # 避免请求过快\n                    time.sleep(0.5)\n                else:\n                    break\n            else:\n                break\n            \n            # 如果已达到限制，停止获取\n            if len(all_results) >= limit:\n                break\n        \n        # 处理返回结果\n        if all_results:\n            return {\n                \"status\": \"success\",\n                \"domain\": domain,\n                \"total_found\": len(all_results),\n                \"results\": all_results[:limit],\n                \"message\": f\"成功获取 {len(all_results[:limit])} 个子域名\"\n            }\n        else:\n            return {\n                \"status\": \"success\",\n                \"domain\": domain,\n                \"total_found\": 0,\n                \"results\": [],\n                \"message\": f\"未找到 {domain} 的子域名\"\n            }\n            \n    except requests.exceptions.RequestException as e:\n        error_msg = str(e)\n        error_result = {\n            \"status\": \"error\",\n            \"message\": f\"API 请求失败: {error_msg}\",\n            \"suggestion\": \"请检查网络连接、API 密钥是否正确，或 VirusTotal API 服务是否可用\"\n        }\n        \n        # 处理特定 HTTP 状态码\n        if hasattr(e, 'response') and e.response:\n            status_code = e.response.status_code\n            if status_code == 401:\n                error_result[\"message\"] = \"API 密钥无效或未授权\"\n                error_result[\"suggestion\"] = \"请检查 VirusTotal API 密钥是否正确，或在 https://www.virustotal.com/ 获取有效密钥\"\n            elif status_code == 429:\n                error_result[\"message\"] = \"API 请求频率超限\"\n                error_result[\"suggestion\"] = \"请稍后再试，VirusTotal API 有严格的速率限制（免费版每分钟4次）\"\n            elif status_code == 404:\n                error_result[\"message\"] = f\"域名 '{domain}' 不存在或未找到\"\n        \n        return error_result\n\ntry:\n    config = parse_args()\n    \n    if not isinstance(config, dict):\n        error_result = {\n            \"status\": \"error\",\n            \"message\": f\"参数解析错误: 期望字典类型，但得到 {type(config).__name__}\",\n            \"type\": \"TypeError\"\n        }\n        print(json.dumps(error_result, ensure_ascii=False, indent=2))\n        sys.exit(1)\n    \n    # 获取 API 密钥（从配置或环境变量）\n    api_key = os.getenv('VT_API_KEY', VT_API_KEY).strip()\n    \n    if not api_key:\n        error_result = {\n            \"status\": \"error\",\n            \"message\": \"缺少 VirusTotal API 密钥\",\n            \"required_config\": [\"VT_API_KEY\"],\n            \"note\": \"请在 YAML 文件的 VT_API_KEY 配置项中填写您的 VirusTotal API 密钥，或在环境变量 VT_API_KEY 中设置。API 密钥可在 https://www.virustotal.com/ 注册获取\"\n        }\n        print(json.dumps(error_result, ensure_ascii=False, indent=2))\n        sys.exit(1)\n    \n    # 获取必需参数\n    domain = config.get('domain', '').strip()\n    if not domain:\n        error_result = {\n            \"status\": \"error\",\n            \"message\": \"缺少必需参数: domain（要查询的域名）\",\n            \"required_params\": [\"domain\"],\n            \"examples\": [\n                \"example.com\",\n                \"google.com\",\n                \"baidu.com\"\n            ]\n        }\n        print(json.dumps(error_result, ensure_ascii=False, indent=2))\n        sys.exit(1)\n    \n    # 获取可选参数\n    limit = config.get('limit', 100)\n    try:\n        limit = int(limit)\n        if limit < 1:\n            limit = 100\n        elif limit > 1000:\n            limit = 1000  # 限制最大 1000\n    except (ValueError, TypeError):\n        limit = 100\n    \n    include_ips = config.get('include_ips', False)\n    if isinstance(include_ips, str):\n        include_ips = include_ips.lower() in ('true', '1', 'yes')\n    \n    # 执行查询\n    result = query_virustotal_subdomains(domain, api_key, limit, include_ips)\n    \n    # 输出结果\n    print(json.dumps(result, ensure_ascii=False, indent=2))\n    \nexcept Exception as e:\n    error_result = {\n        \"status\": \"error\",\n        \"message\": f\"执行出错: {str(e)}\",\n        \"type\": type(e).__name__\n    }\n    print(json.dumps(error_result, ensure_ascii=False, indent=2))\n    sys.exit(1)\n"
+  - "import sys\nimport json\nimport requests\nimport os\nimport time\n\n# ==================== VirusTotal configuration ====================\n# Please configure your VirusTotal API key here\n# You can also set it in the environment variable: VT_API_KEY\n# enable defaults to false; it must be turned on to call this MCP\nVT_API_KEY = \"\"  # Please fill in your VirusTotal API key\n# =======================================================\n\n# VirusTotal API base URL\nBASE_URL = \"https://www.virustotal.com/api/v3\"\n\ndef parse_args():\n    \"\"\"Parse command-line arguments\"\"\"\n    # Try to read the JSON configuration from the first argument\n    if len(sys.argv) > 1:\n        try:\n            arg1 = str(sys.argv[1])\n            config = json.loads(arg1)\n            if isinstance(config, dict):\n                return config\n        except (json.JSONDecodeError, TypeError, ValueError):\n            pass\n\n    # Traditional positional-argument approach\n    config = {}\n    if len(sys.argv) > 1:\n        config['domain'] = str(sys.argv[1])\n    if len(sys.argv) > 2:\n        try:\n            config['limit'] = int(sys.argv[2])\n        except (ValueError, TypeError):\n            pass\n    if len(sys.argv) > 3:\n        config['include_ips'] = sys.argv[3].lower() in ('true', '1', 'yes')\n    return config\n\ndef query_virustotal_subdomains(domain, api_key, limit=100, include_ips=False):\n    \"\"\"\n    Query VirusTotal's subdomain information\n    \n    Args:\n        domain: the domain to query\n        api_key: the VirusTotal API key\n        limit: limit on the number of results returned\n        include_ips: whether to include IP address information\n    \n    Returns:\n        dict: a dictionary containing the query results\n    \"\"\"\n    # Build the API request URL\n    url = f\"{BASE_URL}/domains/{domain}/subdomains\"\n    \n    headers = {\n        \"x-apikey\": api_key,\n        \"accept\": \"application/json\"\n    }\n    \n    params = {\n        \"limit\": min(limit, 40)  # the API is limited to a maximum of 40\n    }\n    \n    all_results = []\n    next_url = None\n    \n    try:\n        # Handle pagination\n        while True:\n            if next_url:\n                response = requests.get(next_url, headers=headers, timeout=30)\n            else:\n                response = requests.get(url, headers=headers, params=params, timeout=30)\n            \n            response.raise_for_status()\n            data = response.json()\n            \n            # Extract subdomain data\n            if 'data' in data and data['data']:\n                for item in data['data']:\n                    if 'id' in item:\n                        subdomain_info = {\n                            'subdomain': item['id'],\n                            'type': item.get('type', 'domain'),\n                        }\n                        \n                        # If include_ips is True, try to fetch resolved IPs\n                        if include_ips and 'attributes' in item:\n                            attributes = item.get('attributes', {})\n                            # Simplified handling here; additional API calls may be needed in practice\n                            subdomain_info['last_dns_records'] = attributes.get('last_dns_records', [])\n                        \n                        all_results.append(subdomain_info)\n                \n                # Check whether there is a next page\n                if 'links' in data and 'next' in data['links'] and len(all_results) < limit:\n                    next_url = data['links']['next']\n                    # Avoid making requests too quickly\n                    time.sleep(0.5)\n                else:\n                    break\n            else:\n                break\n            \n            # If the limit has been reached, stop fetching\n            if len(all_results) >= limit:\n                break\n        \n        # Process the returned results\n        if all_results:\n            return {\n                \"status\": \"success\",\n                \"domain\": domain,\n                \"total_found\": len(all_results),\n                \"results\": all_results[:limit],\n                \"message\": f\"Successfully retrieved {len(all_results[:limit])} subdomains\"\n            }\n        else:\n            return {\n                \"status\": \"success\",\n                \"domain\": domain,\n                \"total_found\": 0,\n                \"results\": [],\n                \"message\": f\"No subdomains found for {domain}\"\n            }\n            \n    except requests.exceptions.RequestException as e:\n        error_msg = str(e)\n        error_result = {\n            \"status\": \"error\",\n            \"message\": f\"API request failed: {error_msg}\",\n            \"suggestion\": \"Please check the network connection, whether the API key is correct, and whether the VirusTotal API service is available\"\n        }\n        \n        # Handle specific HTTP status codes\n        if hasattr(e, 'response') and e.response:\n            status_code = e.response.status_code\n            if status_code == 401:\n                error_result[\"message\"] = \"API key invalid or unauthorized\"\n                error_result[\"suggestion\"] = \"Please check that the VirusTotal API key is correct, or obtain a valid key by registering at https://www.virustotal.com/\"\n            elif status_code == 429:\n                error_result[\"message\"] = \"API request rate exceeded\"\n                error_result[\"suggestion\"] = \"Please try again later; the VirusTotal API has strict rate limits (4 requests per minute on the free tier)\"\n            elif status_code == 404:\n                error_result[\"message\"] = f\"Domain ‘{domain}’ does not exist or was not found\"\n        \n        return error_result\n\ntry:\n    config = parse_args()\n    \n    if not isinstance(config, dict):\n        error_result = {\n            \"status\": \"error\",\n            \"message\": f\"Parameter parsing error: expected a dict but got {type(config).__name__}\",\n            \"type\": \"TypeError\"\n        }\n        print(json.dumps(error_result, ensure_ascii=False, indent=2))\n        sys.exit(1)\n    \n    # Get the API key (from the configuration or from the environment variable)\n    api_key = os.getenv('VT_API_KEY', VT_API_KEY).strip()\n    \n    if not api_key:\n        error_result = {\n            \"status\": \"error\",\n            \"message\": \"Missing VirusTotal API key\",\n            \"required_config\": [\"VT_API_KEY\"],\n            \"note\": \"Please fill in your VirusTotal API key in the VT_API_KEY configuration item in the YAML file, or set it in the VT_API_KEY environment variable. You can obtain an API key by registering at https://www.virustotal.com/\"\n        }\n        print(json.dumps(error_result, ensure_ascii=False, indent=2))\n        sys.exit(1)\n    \n    # Get the required parameters\n    domain = config.get('domain', '').strip()\n    if not domain:\n        error_result = {\n            \"status\": \"error\",\n            \"message\": \"Missing required parameter: domain (the domain to query)\",\n            \"required_params\": [\"domain\"],\n            \"examples\": [\n                \"example.com\",\n                \"google.com\",\n                \"baidu.com\"\n            ]\n        }\n        print(json.dumps(error_result, ensure_ascii=False, indent=2))\n        sys.exit(1)\n    \n    # Get the optional parameters\n    limit = config.get('limit', 100)\n    try:\n        limit = int(limit)\n        if limit < 1:\n            limit = 100\n        elif limit > 1000:\n            limit = 1000  # capped at a maximum of 1000\n    except (ValueError, TypeError):\n        limit = 100\n    \n    include_ips = config.get('include_ips', False)\n    if isinstance(include_ips, str):\n        include_ips = include_ips.lower() in ('true', '1', 'yes')\n    \n    # Execute the query\n    result = query_virustotal_subdomains(domain, api_key, limit, include_ips)\n    \n    # Output the results\n    print(json.dumps(result, ensure_ascii=False, indent=2))\n    \nexcept Exception as e:\n    error_result = {\n        \"status\": \"error\",\n        \"message\": f\"Execution error: {str(e)}\",\n        \"type\": type(e).__name__\n    }\n    print(json.dumps(error_result, ensure_ascii=False, indent=2))\n    sys.exit(1)\n"
 enabled: false
-short_description: "VirusTotal 子域名查询工具，通过 VirusTotal API 被动收集域名子域名"
+short_description: "VirusTotal subdomain query tool, passively collecting a domain's subdomains via the VirusTotal API"
 description: |
-  VirusTotal 子域名查询工具，利用 VirusTotal 聚合的历史 DNS 数据来发现目标域名的子域名。
+  A VirusTotal subdomain query tool that leverages VirusTotal's aggregated historical DNS data to discover subdomains of a target domain.
 
-  **主要功能：**
-  - 被动子域名收集：从 VirusTotal 历史 DNS 数据中检索子域名
-  - 分页查询：支持大量子域名的获取
-  - IP 关联：可选包含 DNS 解析记录
-  - 去重处理：自动去重返回结果
+  **Main features:**
+  - Passive subdomain gathering: retrieves subdomains from VirusTotal's historical DNS data
+  - Paginated queries: supports retrieving large numbers of subdomains
+  - IP association: optionally includes DNS resolution records
+  - Deduplication: automatically deduplicates the returned results
 
-  **使用场景：**
-  - 安全测试前期信息收集
-  - 企业网络资产发现
-  - 攻击面分析
-  - 威胁情报收集
-  - 渗透测试信息收集
+  **Use cases:**
+  - Pre-security-testing information gathering
+  - Enterprise network asset discovery
+  - Attack surface analysis
+  - Threat intelligence gathering
+  - Penetration testing information gathering
 
-  **数据来源：**
-  VirusTotal 聚合了来自多个来源的 DNS 数据，包括：
-  - 历史 DNS 解析记录
-  - 被动 DNS 数据库
-  - 证书透明度日志
-  - 安全扫描数据
+  **Data sources:**
+  VirusTotal aggregates DNS data from multiple sources, including:
+  - Historical DNS resolution records
+  - Passive DNS databases
+  - Certificate transparency logs
+  - Security scanning data
 
-  **注意事项：**
-  - **API 密钥必需**：需要在 VirusTotal 注册账号并获取 API 密钥
-  - **速率限制**：免费版 API 每分钟限制 4 次请求
-  - **数据时效性**：数据基于历史扫描记录，可能不是实时的
-  - **使用授权**：仅允许对您拥有合法授权的目标进行查询
-  - **配额限制**：免费版每月有查询配额限制
+  **Notes:**
+  - **API key required**: you need to register a VirusTotal account and obtain an API key
+  - **Rate limits**: the free-tier API is limited to 4 requests per minute
+  - **Data timeliness**: the data is based on historical scanning records and may not be up-to-date
+  - **Authorization of use**: queries are only permitted against targets you are legally authorized to test
+  - **Quota limits**: the free tier has a monthly query quota limit
 parameters:
   - name: "domain"
     type: "string"
     description: |
-      要查询的目标域名（必需）。
+      Target domain to query (required).
 
-      **格式要求：**
-      - 仅输入主域名，不要包含协议头（http://）或路径
-      - 支持二级域名查询
+      **Format requirements:**
+      - Enter only the main domain; do not include the protocol header (http://) or a path
+      - Second-level domain queries are supported
 
-      **示例值：**
+      **Example values:**
       - "example.com"
       - "google.com"
       - "baidu.com"
       - "github.com"
 
-      **注意事项：**
-      - 域名格式必须正确
-      - 查询结果可能包含跨域子域名
+      **Notes:**
+      - The domain format must be correct
+      - Query results may include subdomains across domains
     required: true
     position: 2
     format: "positional"
   - name: "limit"
     type: "int"
     description: |
-      返回结果数量限制（可选）。
+      Limit on the number of returned results (optional).
 
-      **说明：**
-      - 默认值：40
-      - 最大值：1000（API 限制）
-      - 建议值：100-500
+      **Explanation:**
+      - Default value: 40
+      - Maximum value: 1000 (API limit)
+      - Recommended value: 100-500
 
-      **注意事项：**
-      - 设置过大的值可能导致请求超时
-      - API 单次返回限制为 40 条，超过会自动分页
+      **Notes:**
+      - Setting a too-large value may cause the request to time out
+      - The API returns at most 40 entries per request; more will be automatically paginated
     required: false
     position: 3
     format: "positional"
@@ -76,15 +76,15 @@ parameters:
   - name: "include_ips"
     type: "bool"
     description: |
-      是否包含 IP 地址信息（可选）。
+      Whether to include IP address information (optional).
 
-      **说明：**
-      - true：在结果中包含 DNS 解析记录
-      - false：仅返回子域名列表
+      **Explanation:**
+      - true: include DNS resolution records in the results
+      - false: return only the subdomain list
 
-      **注意事项：**
-      - 包含 IP 信息会增加 API 调用次数
-      - 可能包含历史解析 IP，不一定准确
+      **Notes:**
+      - Including IP information increases the number of API calls
+      - May include historical resolved IPs, which are not necessarily accurate
     required: false
     position: 4
     format: "positional"

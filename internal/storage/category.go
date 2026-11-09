@@ -102,36 +102,36 @@ func categories() []category {
 	return []category{
 		{
 			key:   config.StorageCategoryWorkspace,
-			label: "Agent 工作区",
-			hint:  "Agent 下载与扫描产物的工作目录（tmp/workspace），按项目/会话分目录。",
+			label: "Agent workspace",
+			hint:  "Working directory for agent downloads and scan products (tmp/workspace), split per project/conversation.",
 			root:  func(p Paths) string { return p.Workspace },
 			scan:  scanScopedDirs,
 		},
 		{
 			key:   config.StorageCategoryReduction,
-			label: "工具输出缓存",
-			hint:  "超长工具输出落盘的截断文件（tmp/reduction），每条执行一个文件，属纯派生数据。",
+			label: "Tool output cache",
+			hint:  "Truncated files where over-long tool output is persisted (tmp/reduction); one file per execution, purely derived data.",
 			root:  func(p Paths) string { return p.Reduction },
 			scan:  scanScopedDirs,
 		},
 		{
 			key:   config.StorageCategoryConversationArtifact,
-			label: "会话产物",
-			hint:  "摘要记录与超长用户输入台账（data/conversation_artifacts）。",
+			label: "Conversation artifacts",
+			hint:  "Summary records and the over-long user input ledger (data/conversation_artifacts).",
 			root:  func(p Paths) string { return p.ConversationArtifact },
 			scan:  func(root string) ([]Unit, error) { return scanSessionDirs(root, ScopeConversation) },
 		},
 		{
 			key:   config.StorageCategoryPlantask,
-			label: "计划任务看板",
-			hint:  "Eino 多代理计划看板 JSON（skills/.eino/plantask），属纯派生数据。",
+			label: "Plan-task board",
+			hint:  "Eino multi-agent plan-board JSON (skills/.eino/plantask), purely derived data.",
 			root:  func(p Paths) string { return p.Plantask },
 			scan:  func(root string) ([]Unit, error) { return scanSessionDirs(root, ScopeConversation) },
 		},
 		{
 			key:   config.StorageCategoryC2Artifacts,
-			label: "C2 产物",
-			hint:  "C2 回传截图、上传件、下发文件与已生成的 payload 二进制（tmp/c2）。清理后对应 payload 下载链接会失效。",
+			label: "C2 artifacts",
+			hint:  "C2 retrieved screenshots, uploads, delivered files and generated payload binaries (tmp/c2). After cleanup the corresponding payload download links become invalid.",
 			root:  func(p Paths) string { return p.C2 },
 			scan: func(root string) ([]Unit, error) {
 				return scanSubdirFiles(root, "results", "uploads", "downstream", "payloads")
@@ -139,16 +139,16 @@ func categories() []category {
 		},
 		{
 			key:        config.StorageCategoryChatUploads,
-			label:      "对话上传文件",
-			hint:       "用户在对话中上传的附件（chat_uploads/日期/会话）。",
+			label:      "Conversation uploaded files",
+			hint:       "Attachments the user uploaded in a conversation (chat_uploads/date/conversation).",
 			root:       func(p Paths) string { return p.ChatUploads },
 			scan:       scanDatedSessionDirs,
 			pruneEmpty: true,
 		},
 		{
 			key:   config.StorageCategoryWorkflowCheckpoints,
-			label: "工作流检查点",
-			hint:  "工作流运行断点文件（data/workflow-checkpoints），仅用于恢复中断的运行。",
+			label: "Workflow checkpoints",
+			hint:  "Workflow run breakpoint files (data/workflow-checkpoints); used only to resume interrupted runs.",
 			root:  func(p Paths) string { return p.WorkflowCheckpoints },
 			scan: func(root string) ([]Unit, error) {
 				return scanPatternFiles(root, "*.ckpt", "*.ckpt.tmp")
@@ -156,8 +156,8 @@ func categories() []category {
 		},
 		{
 			key:   config.StorageCategoryDiagnosticLogs,
-			label: "诊断日志",
-			hint:  "按天轮转的诊断日志（log/diagnostic-*.log）。",
+			label: "Diagnostic logs",
+			hint:  "Diagnostic logs rotated by day (log/diagnostic-*.log).",
 			root:  func(p Paths) string { return p.DiagnosticLogs },
 			scan: func(root string) ([]Unit, error) {
 				return scanPatternFiles(root, "diagnostic-*.log")

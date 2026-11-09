@@ -8,19 +8,19 @@ args:
     import requests
     import os
 
-    # ==================== Quake配置 ====================
-    # 请在此处配置您的Quake API Token
-    # 您也可以在环境变量中设置：QUAKE_API_KEY
-    # enable 默认为 false，需开启才能调用该MCP
-    QUAKE_API_KEY = ""  # 请填写您的Quake API Token
+    # ==================== Quake configuration ====================
+    # Please configure your Quake API Token here
+    # You can also set it in the environment variable: QUAKE_API_KEY
+    # enable is false by default; it must be enabled to call this MCP
+    QUAKE_API_KEY = ""  # Please fill in your Quake API Token
     # ==================================================
 
-    # Quake API基础URL
+    # Quake API base URL
     base_url = "https://quake.360.net/api/v3/search/quake_service"
 
-    # 解析参数（从JSON字符串或命令行参数）
+    # Parse arguments (from a JSON string or command-line arguments)
     def parse_args():
-        # 尝试从第一个参数读取JSON配置
+        # Try to read the JSON configuration from the first argument
         if len(sys.argv) > 1:
             try:
                 arg1 = str(sys.argv[1])
@@ -30,8 +30,8 @@ args:
             except (json.JSONDecodeError, TypeError, ValueError):
                 pass
 
-        # 传统位置参数方式（向后兼容）
-        # 参数位置：query=1, size=2, start=3, fields=4, latest=5
+        # Traditional positional argument style (backward compatible)
+        # Argument positions: query=1, size=2, start=3, fields=4, latest=5
         config = {}
         if len(sys.argv) > 1:
             config["query"] = str(sys.argv[1])
@@ -55,7 +55,7 @@ args:
                 config["latest"] = bool(val)
         return config
 
-    # 标准化 fields 参数：支持字符串和数组
+    # Normalize the fields parameter: supports both string and array
     def normalize_fields(fields_value):
         if fields_value is None:
             return None
@@ -82,7 +82,7 @@ args:
         if not isinstance(config, dict):
             error_result = {
                 "status": "error",
-                "message": f"参数解析错误: 期望字典类型，但得到 {type(config).__name__}",
+                "message": f"Parameter parsing error: expected dict type, but got {type(config).__name__}",
                 "type": "TypeError"
             }
             print(json.dumps(error_result, ensure_ascii=False, indent=2))
@@ -94,9 +94,9 @@ args:
         if not api_key:
             error_result = {
                 "status": "error",
-                "message": "缺少Quake配置: api_key（Quake API Token）",
+                "message": "Missing Quake configuration: api_key (Quake API Token)",
                 "required_config": ["api_key"],
-                "note": "请在YAML文件的QUAKE_API_KEY配置项中填写Token，或在环境变量QUAKE_API_KEY中设置。Token可在Quake用户中心获取。"
+                "note": "Please fill in the Token in the QUAKE_API_KEY configuration item of the YAML file, or set it in the environment variable QUAKE_API_KEY. The Token can be obtained from the Quake user center."
             }
             print(json.dumps(error_result, ensure_ascii=False, indent=2))
             sys.exit(1)
@@ -104,7 +104,7 @@ args:
         if not query:
             error_result = {
                 "status": "error",
-                "message": "缺少必需参数: query（搜索查询语句）",
+                "message": "Missing required parameter: query (search query statement)",
                 "required_params": ["query"],
                 "examples": [
                     'domain:"example.com"',
@@ -117,12 +117,12 @@ args:
             print(json.dumps(error_result, ensure_ascii=False, indent=2))
             sys.exit(1)
 
-        # 构建请求体
+        # Build the request body
         data = {
             "query": query
         }
 
-        # 可选参数 size（通常最大100）
+        # Optional parameter size (usually max 100)
         if "size" in config and config["size"] is not None:
             try:
                 size = int(config["size"])
@@ -131,7 +131,7 @@ args:
             except (ValueError, TypeError):
                 pass
 
-        # 可选参数 start（分页偏移，默认0）
+        # Optional parameter start (pagination offset, default 0)
         if "start" in config and config["start"] is not None:
             try:
                 start = int(config["start"])
@@ -140,12 +140,12 @@ args:
             except (ValueError, TypeError):
                 pass
 
-        # fields 映射到 Quake 的 include 字段
+        # Map fields to Quake's include field
         include_fields = normalize_fields(config.get("fields"))
         if include_fields:
             data["include"] = include_fields
 
-        # latest 参数，默认 true（取最新索引结果）
+        # latest parameter, default true (fetch latest index results)
         latest_value = config.get("latest", True)
         if isinstance(latest_value, bool):
             data["latest"] = latest_value
@@ -166,13 +166,13 @@ args:
             response.raise_for_status()
             result_data = response.json()
 
-            # Quake API code==0 表示成功
+            # Quake API code==0 indicates success
             if result_data.get("code") != 0:
                 error_result = {
                     "status": "error",
-                    "message": f"Quake API错误: {result_data.get('message', '未知错误')}",
+                    "message": f"Quake API error: {result_data.get('message', 'unknown error')}",
                     "error_code": result_data.get("code", "unknown"),
-                    "suggestion": "请检查API Token、查询语法和账户积分是否正常"
+                    "suggestion": "Please check the API Token, query syntax and account quota"
                 }
                 print(json.dumps(error_result, ensure_ascii=False, indent=2))
                 sys.exit(1)
@@ -200,7 +200,7 @@ args:
                 "results_count": len(results),
                 "fields": include_fields or "all",
                 "results": results,
-                "message": f"成功获取 {len(results)} 条结果"
+                "message": f"Successfully retrieved {len(results)} results"
             }
 
             print(json.dumps(output, ensure_ascii=False, indent=2))
@@ -208,8 +208,8 @@ args:
         except requests.exceptions.RequestException as e:
             error_result = {
                 "status": "error",
-                "message": f"请求失败: {str(e)}",
-                "suggestion": "请检查网络连通性或Quake API服务状态"
+                "message": f"Request failed: {str(e)}",
+                "suggestion": "Please check network connectivity or the Quake API service status"
             }
             print(json.dumps(error_result, ensure_ascii=False, indent=2))
             sys.exit(1)
@@ -217,43 +217,43 @@ args:
     except Exception as e:
         error_result = {
             "status": "error",
-            "message": f"执行出错: {str(e)}",
+            "message": f"Execution error: {str(e)}",
             "type": type(e).__name__
         }
         print(json.dumps(error_result, ensure_ascii=False, indent=2))
         sys.exit(1)
 enabled: false
-short_description: "Quake网络空间搜索接口，支持自定义query、size、fields"
+short_description: "Quake cyberspace search interface, supports custom query, size, fields"
 description: |
-  Quake（360 网络空间测绘）资产搜索工具，调用 Quake API v3 实时检索互联网资产。
+  Quake (360 cyberspace mapping) asset search tool, calling the Quake API v3 to retrieve internet assets in real time.
 
-  **主要功能：**
-  - 支持 Quake DSL 查询语法（query）
-  - 支持返回数量控制（size）
-  - 支持字段裁剪（fields，对应 Quake include）
-  - 支持分页偏移（start）
+  **Main features:**
+  - Supports Quake DSL query syntax (query)
+  - Supports controlling the number of results returned (size)
+  - Supports field trimming (fields, maps to Quake include)
+  - Supports pagination offset (start)
 
-  **鉴权方式：**
-  - Header 使用 `X-QuakeToken`
-  - 可在本文件中填写 `QUAKE_API_KEY`，或通过环境变量 `QUAKE_API_KEY` 注入
+  **Authentication:**
+  - Uses the `X-QuakeToken` header
+  - You can fill in `QUAKE_API_KEY` in this file, or inject it via the `QUAKE_API_KEY` environment variable
 
-  **常见查询示例：**
+  **Common query examples:**
   - `domain:"example.com"`
   - `ip:"1.1.1.1"`
   - `port:443`
   - `service.name:"http" AND country_cn:"中国"`
 
-  **注意事项：**
-  - API 调用会消耗积分，请按需控制 `size`
-  - `fields` 会映射到请求体 `include` 字段，多个字段用英文逗号分隔
-  - 如遇语法报错，请先在 Quake 控制台验证 DSL
+  **Notes:**
+  - API calls consume credits; control `size` according to your needs
+  - `fields` maps to the request body's `include` field; separate multiple fields with commas
+  - If you get a syntax error, first validate the DSL in the Quake console
 parameters:
   - name: "query"
     type: "string"
     description: |
-      Quake DSL 查询语句（必需）。
+      Quake DSL query statement (required).
 
-      **示例：**
+      **Examples:**
       - `domain:"example.com"`
       - `ip:"1.1.1.1"`
       - `port:443`
@@ -264,9 +264,9 @@ parameters:
   - name: "size"
     type: "int"
     description: |
-      返回结果数量（可选）。
+      Number of results to return (optional).
 
-      建议范围：1-100（具体受账户权限/接口限制影响）。
+      Suggested range: 1-100 (subject to account permissions/API limits).
     required: false
     position: 2
     format: "positional"
@@ -274,7 +274,7 @@ parameters:
   - name: "start"
     type: "int"
     description: |
-      分页起始偏移（可选），从 0 开始。
+      Pagination start offset (optional), starting from 0.
     required: false
     position: 3
     format: "positional"
@@ -282,10 +282,10 @@ parameters:
   - name: "fields"
     type: "string"
     description: |
-      返回字段（可选），多个字段用英文逗号分隔。
+      Fields to return (optional), multiple fields separated by commas.
 
-      该参数会映射到 Quake 请求体中的 `include` 字段。
-      **示例：**
+      This parameter maps to the `include` field of the Quake request body.
+      **Examples:**
       - `ip,port`
       - `ip,port,service.name,service.http.title,location.country_cn`
     required: false
@@ -295,8 +295,8 @@ parameters:
   - name: "latest"
     type: "bool"
     description: |
-      是否优先返回最新索引结果（可选）。
-      默认 `true`。
+      Whether to prefer returning the latest index results (optional).
+      Default `true`.
     required: false
     position: 5
     format: "positional"

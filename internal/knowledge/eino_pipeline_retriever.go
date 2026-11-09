@@ -37,7 +37,7 @@ func (p *knowledgePipelineRetriever) Retrieve(ctx context.Context, query string,
 	}
 	q := strings.TrimSpace(query)
 	if q == "" {
-		return nil, fmt.Errorf("查询不能为空")
+		return nil, fmt.Errorf("query must not be empty")
 	}
 
 	ro := retriever.GetCommonOptions(nil, opts...)
@@ -71,7 +71,7 @@ func (p *knowledgePipelineRetriever) Retrieve(ctx context.Context, query string,
 		reranked, rerr := rr.Rerank(ctx, q, out)
 		if rerr != nil {
 			if p.base.logger != nil {
-				p.base.logger.Warn("知识检索重排失败，已使用融合序", zap.Error(rerr))
+				p.base.logger.Warn("knowledge retrieval rerank failed, using fused order", zap.Error(rerr))
 			}
 		} else if len(reranked) > 0 {
 			out = reranked

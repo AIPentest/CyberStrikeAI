@@ -125,12 +125,7 @@ func buildSoftRecoveryMessage(toolName, arguments string, err error) string {
 				"Error: %s\n"+
 				"Arguments received: %s\n\n"+
 				"Please fix the JSON (ensure double-quoted keys, matched braces/brackets, no trailing commas, "+
-				"no truncation) and call the tool again.\n\n"+
-				"[工具错误] 工具 '%s' 的参数不是合法 JSON，无法解析。\n"+
-				"错误：%s\n"+
-				"收到的参数：%s\n\n"+
-				"请修正 JSON（确保双引号键名、括号配对、无尾部逗号、无截断），然后重新调用工具。",
-			toolName, errStr, argPreview,
+				"no truncation) and call the tool again.",
 			toolName, errStr, argPreview,
 		)
 	}
@@ -138,11 +133,7 @@ func buildSoftRecoveryMessage(toolName, arguments string, err error) string {
 	return fmt.Sprintf(
 		"[Tool Error] Tool '%s' execution failed: %s\n"+
 			"Arguments: %s\n\n"+
-			"Please review the available tools and their expected arguments, then retry.\n\n"+
-			"[工具错误] 工具 '%s' 执行失败：%s\n"+
-			"参数：%s\n\n"+
-			"请检查可用工具及其参数要求，然后重试。",
-		toolName, errStr, argPreview,
+			"Please review the available tools and their expected arguments, then retry.",
 		toolName, errStr, argPreview,
 	)
 }

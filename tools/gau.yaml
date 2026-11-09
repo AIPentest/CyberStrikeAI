@@ -1,37 +1,37 @@
 name: "gau"
 command: "gau"
 enabled: true
-short_description: "从多个数据源获取所有URL"
+short_description: "Fetch all URLs from multiple data sources"
 description: |
-  Gau (Get All URLs) 从多个数据源获取目标域名的所有URL。
+  Gau (Get All URLs) fetches all URLs for a target domain from multiple data sources.
 
-  **主要功能：**
-  - 从Wayback Machine获取URL
-  - 从CommonCrawl获取URL
-  - 从OTX获取URL
-  - 从URLScan获取URL
+  **Key features:**
+  - Fetch URLs from the Wayback Machine
+  - Fetch URLs from CommonCrawl
+  - Fetch URLs from OTX
+  - Fetch URLs from URLScan
 
-  **使用场景：**
-  - URL发现
-  - 历史URL收集
-  - Bug bounty侦察
-  - 安全测试
+  **Use cases:**
+  - URL discovery
+  - Historical URL collection
+  - Bug bounty reconnaissance
+  - Security testing
 parameters:
   - name: "domain"
     type: "string"
-    description: "目标域名"
+    description: "Target domain"
     required: true
     position: 0
     format: "positional"
   - name: "providers"
     type: "string"
-    description: "数据源（wayback,commoncrawl,otx,urlscan）"
+    description: "Data sources (wayback, commoncrawl, otx, urlscan)"
     required: false
     flag: "--providers"
     format: "flag"
   - name: "include_subs"
     type: "bool"
-    description: "包含子域名"
+    description: "Include subdomains"
     required: false
     flag: "--subs"
     format: "flag"
@@ -39,16 +39,16 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的Gau参数。用于传递未在参数列表中定义的Gau选项。
+      Additional Gau arguments. Used to pass Gau options not defined in the parameter list.
 
-      **示例值：**
-      - "--o output.txt": 输出到文件
-      - "--threads 4": 线程数
-      - "--blacklist ttf,woff,svg,png": 黑名单扩展
+      **Example values:**
+      - "--o output.txt": Output to a file
+      - "--threads 4": Number of threads
+      - "--blacklist ttf,woff,svg,png": Blacklisted extensions
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Make sure the arguments are properly formatted to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

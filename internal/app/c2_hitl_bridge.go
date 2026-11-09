@@ -75,11 +75,11 @@ func (b *C2HITLBridge) RequestApproval(ctx context.Context, req c2.HITLApprovalR
 		string(payload), now,
 	)
 	if err != nil {
-		b.logger.Error("C2 HITL: 创建审批记录失败，拒绝执行", zap.Error(err))
-		return fmt.Errorf("C2 HITL 审批记录创建失败，安全起见拒绝执行: %w", err)
+		b.logger.Error("C2 HITL: failed to create the approval record; refusing execution", zap.Error(err))
+		return fmt.Errorf("C2 HITL approval record creation failed; refusing execution for safety: %w", err)
 	}
 
-	b.logger.Info("C2 HITL: 等待人工审批",
+	b.logger.Info("C2 HITL: waiting for human approval",
 		zap.String("interrupt_id", interruptID),
 		zap.String("task_id", req.TaskID),
 		zap.String("task_type", req.TaskType),
@@ -108,8 +108,8 @@ func (b *C2HITLBridge) RequestApproval(ctx context.Context, req c2.HITLApprovalR
 			_, _ = b.db.Exec(`UPDATE hitl_interrupts SET status='timeout', decision='reject',
 				decision_comment='C2 HITL timeout auto-reject for safety', decided_at=? WHERE id=? AND status='pending'`,
 				time.Now(), interruptID)
-			b.logger.Warn("C2 HITL: 审批超时，安全起见拒绝执行", zap.String("interrupt_id", interruptID))
-			return fmt.Errorf("C2 HITL 审批超时，危险任务已被自动拒绝")
+			b.logger.Warn("C2 HITL: approval timed out; refusing execution for safety", zap.String("interrupt_id", interruptID))
+			return fmt.Errorf("C2 HITL approval timed out; the dangerous task was automatically rejected")
 
 		case <-ticker.C:
 			var status, decision string
@@ -124,11 +124,11 @@ func (b *C2HITLBridge) RequestApproval(ctx context.Context, req c2.HITLApprovalR
 			switch status {
 			case "decided", "timeout":
 				if decision == "reject" {
-					return fmt.Errorf("C2 危险任务被人工拒绝")
+					return fmt.Errorf("the C2 dangerous task was rejected by a human")
 				}
 				return nil
 			case "cancelled":
-				return fmt.Errorf("C2 审批已取消")
+				return fmt.Errorf("the C2 approval was cancelled")
 			case "pending":
 				continue
 			default:

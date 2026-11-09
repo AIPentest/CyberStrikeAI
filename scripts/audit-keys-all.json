@@ -1,0 +1,108 @@
+{
+  "c2": {
+    "session_note": [
+      "C2 session note updated",
+      "更新 C2 会话备注"
+    ]
+  },
+  "config": {
+    "tool_guard_update": [
+      "Tool-guard rules updated",
+      "更新调用拦截规则"
+    ]
+  },
+  "file": {
+    "export": [
+      "Chat attachment exported",
+      "导出对话附件"
+    ]
+  },
+  "hitl": {
+    "audit_strategy_update": [
+      "HITL audit strategy updated",
+      "HITL 审计策略更新"
+    ],
+    "default_config_update": [
+      "HITL global default config updated",
+      "HITL 全局默认配置更新"
+    ],
+    "default_reviewer_update": [
+      "HITL global default reviewer updated",
+      "HITL 全局默认审批方更新"
+    ],
+    "logs_clear": [
+      "HITL audit logs cleared",
+      "清空人机协同审计日志"
+    ],
+    "logs_delete_batch": [
+      "HITL audit logs deleted (batch)",
+      "批量删除人机协同审计日志"
+    ],
+    "tool_whitelist_update": [
+      "HITL global whitelist updated",
+      "HITL 全局白名单更新"
+    ]
+  },
+  "rbac": {
+    "assign_resource": [
+      "Resource access granted",
+      "授权资源访问"
+    ],
+    "create_role": [
+      "Platform role created",
+      "创建平台角色"
+    ],
+    "create_user": [
+      "Platform user created",
+      "创建平台用户"
+    ],
+    "delete_resource_assignment": [
+      "Resource access revoked",
+      "撤销资源授权"
+    ],
+    "delete_role": [
+      "Platform role deleted",
+      "删除平台角色"
+    ],
+    "delete_user": [
+      "Platform user deleted",
+      "删除平台用户"
+    ],
+    "update_role": [
+      "Platform role updated",
+      "更新平台角色"
+    ],
+    "update_user": [
+      "Platform user updated",
+      "更新平台用户"
+    ]
+  },
+  "storage": {
+    "cleanup": [
+      "Runtime storage garbage cleaned",
+      "清理运行空间垃圾"
+    ]
+  },
+  "task": {
+    "run_single_batch_task": [
+      "Single batch subtask executed",
+      "单条执行批量子任务"
+    ]
+  },
+  "vulnerability": {
+    "alert_subscription_update": [
+      "Vulnerability alert subscription updated",
+      "更新漏洞提醒订阅"
+    ]
+  },
+  "workflow": {
+    "delete": [
+      "Workflow deleted",
+      "删除工作流"
+    ],
+    "generate_draft": [
+      "Workflow draft generated from natural language",
+      "自然语言生成工作流草稿"
+    ]
+  }
+}

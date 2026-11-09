@@ -148,7 +148,7 @@ func (e *Engine) compile(ctx context.Context, g *graphDef) (*compiledArtifact, e
 		if strings.EqualFold(n.Type, "agent") {
 			sub, err := compileAgentSubgraph(ctx, n)
 			if err != nil {
-				return nil, fmt.Errorf("编译 Agent 子图 %s 失败: %w", id, err)
+				return nil, fmt.Errorf("failed to compile Agent subgraph %s: %w", id, err)
 			}
 			nodeRefs[id] = wf.AddGraphNode(id, sub)
 			continue
@@ -231,9 +231,9 @@ func runWorkflowNodeLambda(runCtx context.Context, n graphNode) (WorkflowNodeOut
 	if !proceed && !strings.EqualFold(n.Type, "end") {
 		label := firstNonEmpty(n.Label, n.ID)
 		if errText := cfgString(result, "error"); errText != "" {
-			return result, fmt.Errorf("节点「%s」失败: %s", label, errText)
+			return result, fmt.Errorf("node %q failed: %s", label, errText)
 		}
-		return result, fmt.Errorf("节点「%s」未继续执行", label)
+			return result, fmt.Errorf("node %q did not proceed", label)
 	}
 	return result, nil
 }

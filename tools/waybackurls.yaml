@@ -1,37 +1,37 @@
 name: "waybackurls"
 command: "waybackurls"
 enabled: true
-short_description: "从Wayback Machine获取历史URL"
+short_description: "Fetches historical URLs from the Wayback Machine"
 description: |
-  Waybackurls从Wayback Machine获取目标域名的历史URL。
+  Waybackurls fetches historical URLs for a target domain from the Wayback Machine.
 
-  **主要功能：**
-  - 历史URL发现
-  - 版本获取
-  - 子域名支持
+  **Main features:**
+  - Historical URL discovery
+  - Version retrieval
+  - Subdomain support
 
-  **使用场景：**
-  - 历史URL收集
-  - Bug bounty侦察
-  - 安全测试
-  - 内容发现
+  **Use cases:**
+  - Historical URL collection
+  - Bug bounty reconnaissance
+  - Security testing
+  - Content discovery
 parameters:
   - name: "domain"
     type: "string"
-    description: "目标域名"
+    description: "Target domain"
     required: true
     position: 0
     format: "positional"
   - name: "get_versions"
     type: "bool"
-    description: "获取所有版本的URL"
+    description: "Get all versions of the URLs"
     required: false
     flag: "-get-versions"
     format: "flag"
     default: false
   - name: "no_subs"
     type: "bool"
-    description: "不包含子域名"
+    description: "Do not include subdomains"
     required: false
     flag: "-no-subs"
     format: "flag"
@@ -39,14 +39,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的waybackurls参数。用于传递未在参数列表中定义的waybackurls选项。
+      Additional waybackurls arguments. Used to pass waybackurls options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple arguments with spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

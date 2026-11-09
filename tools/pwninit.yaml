@@ -1,43 +1,43 @@
 name: "pwninit"
 command: "pwninit"
 enabled: true
-short_description: "CTF二进制漏洞利用设置工具"
+short_description: "CTF binary exploitation setup tool"
 description: |
-  Pwninit是一个用于CTF二进制漏洞利用设置的工具，自动配置libc和loader。
+  Pwninit is a tool for setting up CTF binary exploitation, automatically configuring libc and the loader.
 
-  **主要功能：**
-  - 自动libc识别
-  - Loader配置
-  - 模板生成
-  - 环境设置
+  **Main features:**
+  - Automatic libc identification
+  - Loader configuration
+  - Template generation
+  - Environment setup
 
-  **使用场景：**
-  - CTF挑战
-  - 漏洞利用开发
-  - 环境配置
-  - 安全研究
+  **Use cases:**
+  - CTF challenges
+  - Exploit development
+  - Environment configuration
+  - Security research
 parameters:
   - name: "binary"
     type: "string"
-    description: "二进制文件路径"
+    description: "Binary file path"
     required: true
     position: 0
     format: "positional"
   - name: "libc"
     type: "string"
-    description: "libc文件路径"
+    description: "libc file path"
     required: false
     flag: "--libc"
     format: "flag"
   - name: "ld"
     type: "string"
-    description: "Loader文件路径"
+    description: "Loader file path"
     required: false
     flag: "--ld"
     format: "flag"
   - name: "template_type"
     type: "string"
-    description: "模板类型（python, c）"
+    description: "Template type (python, c)"
     required: false
     flag: "--template"
     format: "flag"
@@ -45,14 +45,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的pwninit参数。用于传递未在参数列表中定义的pwninit选项。
+      Additional pwninit arguments. Used to pass pwninit options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example values:**
+      - Add common parameter examples according to the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Multiple arguments are separated by spaces
+      - Ensure the argument format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

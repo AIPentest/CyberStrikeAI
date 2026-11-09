@@ -65,7 +65,7 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
         String prompt = HttpMessageFormatter.toPrompt(helpers, msg, options.instruction);
         String title = HttpMessageFormatter.getRequestTitle(helpers, msg);
         String agentModeStr = options.agentMode.displayName;
-        String roleLabel = options.role.isEmpty() ? "默认" : options.role;
+        String roleLabel = options.role.isEmpty() ? "default" : options.role;
         String runId = tab.startNewRun(title, agentModeStr + " · " + roleLabel, msg);
         tab.appendProgressToRun(runId, "\n[server] " + cfg.baseUrl);
         if (!options.projectId.isEmpty()) {
@@ -80,7 +80,7 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
                 if (type == null) type = "";
                 switch (type) {
                     case "response_start":
-                        tab.appendProgressToRun(runId, "\n\n[主回复]\n");
+                        tab.appendProgressToRun(runId, "\n\n[main reply]\n");
                         break;
                     case "response_delta":
                         if (message != null && !message.isEmpty()) {
@@ -92,7 +92,7 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
                         tab.setFinalResponse(runId, message);
                         break;
                     case "eino_agent_reply_stream_start":
-                        tab.appendProgressToRun(runId, "\n\n[子代理回复]\n");
+                        tab.appendProgressToRun(runId, "\n\n[sub-agent reply]\n");
                         break;
                     case "eino_agent_reply_stream_delta":
                         if (message != null && !message.isEmpty()) {
@@ -104,7 +104,7 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
                         break;
                     case "eino_agent_reply":
                         if (message != null && !message.isEmpty()) {
-                            tab.appendProgressToRun(runId, "\n\n[子代理回复]\n" + message + "\n");
+                            tab.appendProgressToRun(runId, "\n\n[sub-agent reply]\n" + message + "\n");
                         }
                         break;
                     case "progress":
@@ -120,7 +120,7 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
                         tab.setRunStatus(runId, "error");
                         break;
                     case "reasoning_chain_stream_start":
-                        tab.appendProgressToRun(runId, "\n\n[推理过程]\n");
+                        tab.appendProgressToRun(runId, "\n\n[reasoning process]\n");
                         break;
                     case "reasoning_chain_stream_delta":
                         if (message != null && !message.isEmpty()) {
@@ -134,7 +134,7 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
                         if (message != null && !message.isEmpty()) {
                             String streamId = rawJson != null ? SimpleJson.extractStringField(rawJson, "streamId") : "";
                             if (streamId == null || streamId.isEmpty()) {
-                                tab.appendProgressToRun(runId, "\n\n[推理过程]\n" + message + "\n");
+                                tab.appendProgressToRun(runId, "\n\n[reasoning process]\n" + message + "\n");
                             }
                         }
                         break;
