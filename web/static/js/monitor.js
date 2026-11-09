@@ -358,7 +358,7 @@ function translateProgressMessage(message, data) {
     if (typeof window.t !== 'function') return message;
     const trim = message.trim();
     const map = {
-        // 中文
+        // Chinese
         '正在调用AI模型...': 'progress.callingAI',
         '最后一次迭代：正在生成总结和下一步计划...': 'progress.lastIterSummary',
         '总结生成完成': 'progress.summaryDone',

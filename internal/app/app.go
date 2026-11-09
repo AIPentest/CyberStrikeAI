@@ -42,7 +42,7 @@ import (
 	"golang.org/x/net/http2"
 )
 
-// App 应用
+// App: the application
 type App struct {
 	config             *config.Config
 	logger             *logger.Logger
@@ -52,74 +52,74 @@ type App struct {
 	agent              *agent.Agent
 	executor           *security.Executor
 	db                 *database.DB
-	knowledgeDB        *database.DB // 知识库数据库连接（如果使用独立数据库）
+	knowledgeDB        *database.DB // knowledge base database connection (if a separate database is used)
 	auth               *security.AuthManager
-	knowledgeManager   *knowledge.Manager        // 知识库管理器（用于动态初始化）
-	knowledgeRetriever *knowledge.Retriever      // 知识库检索器（用于动态初始化）
-	knowledgeIndexer   *knowledge.Indexer        // 知识库索引器（用于动态初始化）
-	knowledgeHandler   *handler.KnowledgeHandler // 知识库处理器（用于动态初始化）
-	agentHandler       *handler.AgentHandler     // Agent处理器（用于更新知识库管理器）
-	robotHandler       *handler.RobotHandler     // 机器人处理器（钉钉/飞书/企业微信等）
-	robotMu            sync.Mutex                // 保护机器人长连接的 cancel
-	dingCancel         context.CancelFunc        // 钉钉 Stream 取消函数，用于配置变更时重启
-	larkCancel         context.CancelFunc        // 飞书长连接取消函数，用于配置变更时重启
-	wechatCancel       context.CancelFunc        // 微信 iLink 长轮询取消函数
-	telegramCancel     context.CancelFunc        // Telegram 长轮询取消函数
-	slackCancel        context.CancelFunc        // Slack Socket Mode 取消函数
-	discordCancel      context.CancelFunc        // Discord Gateway 取消函数
-	qqCancel           context.CancelFunc        // QQ WebSocket 取消函数
-	alertCancel        context.CancelFunc        // 漏洞提醒持久化投递 worker
-	c2Manager          *c2.Manager               // C2 管理器（未启用 C2 时为 nil）
-	c2Watchdog         *c2.SessionWatchdog       // C2 会话看门狗
-	c2WatchdogCancel   context.CancelFunc        // 看门狗取消函数
-	c2Handler          *handler.C2Handler        // C2 REST（与 Manager 生命周期同步）
-	storageHandler     *handler.StorageHandler   // 运行空间占用统计与垃圾清理
+	knowledgeManager   *knowledge.Manager        // knowledge base manager (for dynamic initialization)
+	knowledgeRetriever *knowledge.Retriever      // knowledge base retriever (for dynamic initialization)
+	knowledgeIndexer   *knowledge.Indexer        // knowledge base indexer (for dynamic initialization)
+	knowledgeHandler   *handler.KnowledgeHandler // knowledge base handler (for dynamic initialization)
+	agentHandler       *handler.AgentHandler     // Agent handler (for updating the knowledge base manager)
+	robotHandler       *handler.RobotHandler     // robot handler (DingTalk/Lark/WeCom, etc.)
+	robotMu            sync.Mutex                // protects the cancel of the robot long-lived connections
+	dingCancel         context.CancelFunc        // DingTalk Stream cancel function, used to restart on config changes
+	larkCancel         context.CancelFunc        // Lark long-lived connection cancel function, used to restart on config changes
+	wechatCancel       context.CancelFunc        // WeChat iLink long-polling cancel function
+	telegramCancel     context.CancelFunc        // Telegram long-polling cancel function
+	slackCancel        context.CancelFunc        // Slack Socket Mode cancel function
+	discordCancel      context.CancelFunc        // Discord Gateway cancel function
+	qqCancel           context.CancelFunc        // QQ WebSocket cancel function
+	alertCancel        context.CancelFunc        // vulnerability-alert persistence delivery worker
+	c2Manager          *c2.Manager               // C2 manager (nil when C2 is not enabled)
+	c2Watchdog         *c2.SessionWatchdog       // C2 session watchdog
+	c2WatchdogCancel   context.CancelFunc        // watchdog cancel function
+	c2Handler          *handler.C2Handler        // C2 REST (synchronized with the Manager lifecycle)
+	storageHandler     *handler.StorageHandler   // runtime-workspace usage statistics and garbage cleanup
 	auditSvc           *audit.Service
 }
 
-// New 创建新应用
+// New creates a new application
 func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error) {
 	toolGuard, err := toolguard.NewManager(cfg.EffectiveToolGuard())
 	if err != nil {
-		return nil, fmt.Errorf("初始化调用拦截规则: %w", err)
+		return nil, fmt.Errorf("initialize call-blocking rules: %w", err)
 	}
 	if err := multiagent.InitADK(); err != nil {
-		return nil, fmt.Errorf("初始化 Eino ADK: %w", err)
+		return nil, fmt.Errorf("initialize Eino ADK: %w", err)
 	}
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 
-	// CORS中间件
+	// CORS middleware
 	router.Use(corsMiddleware(cfg.Server.CORSAllowedOrigins))
 
-	// 初始化数据库
+	// Initialize the database
 	dbPath := cfg.Database.Path
 	if dbPath == "" {
 		dbPath = "data/conversations.db"
 	}
 
-	// 确保目录存在
+	// Ensure the directory exists
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
-		return nil, fmt.Errorf("创建数据库目录失败: %w", err)
+		return nil, fmt.Errorf("failed to create the database directory: %w", err)
 	}
 
 	db, err := database.NewDB(dbPath, log.Logger)
 	if err != nil {
-		return nil, fmt.Errorf("初始化数据库失败: %w", err)
+		return nil, fmt.Errorf("failed to initialize the database: %w", err)
 	}
 
-	// 认证管理器（数据库初始化后挂载 RBAC）
+	// Authentication manager (mount RBAC after database initialization)
 	authManager := security.NewAuthManager(cfg.Auth.SessionDurationHours)
 	if generatedPassword, err := authManager.AttachRBACStore(db); err != nil {
-		return nil, fmt.Errorf("初始化RBAC失败: %w", err)
+		return nil, fmt.Errorf("failed to initialize RBAC: %w", err)
 	} else if generatedPassword != "" {
 		config.PrintBootstrapAdminPassword(generatedPassword)
 	}
 	for platform, userID := range cfg.Robots.ServiceAccountUserIDs() {
 		user, userErr := db.GetRBACUserByID(userID)
 		if userErr != nil || !user.Enabled {
-			return nil, fmt.Errorf("robots.%s.auth.service_user_id 必须指向已启用的 RBAC 用户", platform)
+			return nil, fmt.Errorf("robots.%s.auth.service_user_id must point to an enabled RBAC user", platform)
 		}
 	}
 
@@ -128,14 +128,14 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	auditSvc.PurgeExpired()
 	audit.StartRetentionLoop(auditSvc, log.Logger)
 	if err := db.PurgeWorkflowPackageLifecycle(time.Now().UTC()); err != nil {
-		log.Logger.Warn("清理过期工作流包记录失败", zap.Error(err))
+		log.Logger.Warn("failed to clean up expired workflow package records", zap.Error(err))
 	}
 	go func() {
 		ticker := time.NewTicker(time.Hour)
 		defer ticker.Stop()
 		for range ticker.C {
 			if err := db.PurgeWorkflowPackageLifecycle(time.Now().UTC()); err != nil {
-				log.Logger.Warn("清理过期工作流包记录失败", zap.Error(err))
+				log.Logger.Warn("failed to clean up expired workflow package records", zap.Error(err))
 			}
 		}
 	}()
@@ -145,13 +145,13 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	monitor.StartRetentionLoop(monitorRetention, log.Logger)
 
 	if err := handler.NewHITLManager(db, log.Logger).EnsureSchema(); err != nil {
-		log.Logger.Warn("初始化 HITL 表失败", zap.Error(err))
+		log.Logger.Warn("failed to initialize the HITL table", zap.Error(err))
 	}
 	hitlRetention := hitl.NewService(db, cfg, log.Logger)
 	hitlRetention.PurgeExpired()
 	hitl.StartRetentionLoop(hitlRetention, log.Logger)
 
-	// 创建MCP服务器（带数据库持久化）
+	// Create the MCP server (with database persistence)
 	mcpServer := mcp.NewServerWithStorage(log.Logger, db)
 	mcpServer.SetToolAuthorizer(mcpToolAuthorizer(db))
 	mcpServer.SetToolGuard(toolGuard)
@@ -169,13 +169,13 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	// Register tools
 	executor.RegisterTools(mcpServer)
 
-	// 注册漏洞记录工具
+	// Register the vulnerability-record tool
 	registerVulnerabilityTools(mcpServer, db, log.Logger)
 	registerAssetTools(mcpServer, db, log.Logger)
 	registerProjectFactTools(mcpServer, db, cfg, log.Logger)
 	registerVisionTools(mcpServer, cfg, log.Logger)
 
-	// 创建外部MCP管理器（使用与内部MCP服务器相同的存储）
+	// Create the external MCP manager (using the same storage as the internal MCP server)
 	externalMCPMgr := mcp.NewExternalMCPManagerWithStorage(log.Logger, db)
 	externalMCPMgr.SetToolAuthorizer(externalMCPToolAuthorizer())
 	externalMCPMgr.SetToolGuard(toolGuard)
@@ -191,7 +191,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	mcp.RegisterExecutionControlTools(mcpServer, externalMCPMgr)
 	if cfg.ExternalMCP.Servers != nil {
 		externalMCPMgr.LoadConfigs(&cfg.ExternalMCP)
-		// 启动所有启用的外部MCP客户端
+		// Start all enabled external MCP clients
 		externalMCPMgr.StartAllEnabled()
 	}
 
@@ -199,52 +199,52 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	execReconciler.ReconcileOnStartup()
 	monitor.StartStaleRunningReconcileLoop(execReconciler, log.Logger)
 
-	// 创建Agent
+	// Create the Agent
 	maxIterations := cfg.Agent.MaxIterations
 	if maxIterations <= 0 {
-		maxIterations = 30 // 默认值
+		maxIterations = 30 // default value
 	}
 	agent := agent.NewAgent(&cfg.OpenAI, &cfg.Agent, mcpServer, externalMCPMgr, log.Logger, maxIterations)
 	agent.UpdateToolDescriptionMode(cfg.Security.ToolDescriptionMode)
 
-	// 初始化知识库模块（如果启用）
+	// Initialize the knowledge base module (if enabled)
 	var knowledgeManager *knowledge.Manager
 	var knowledgeRetriever *knowledge.Retriever
 	var knowledgeIndexer *knowledge.Indexer
 	var knowledgeHandler *handler.KnowledgeHandler
 
 	var knowledgeDBConn *database.DB
-	log.Logger.Debug("检查知识库配置", zap.Bool("enabled", cfg.Knowledge.Enabled))
+	log.Logger.Debug("Checking knowledge base configuration", zap.Bool("enabled", cfg.Knowledge.Enabled))
 	if cfg.Knowledge.Enabled {
-		// 确定知识库数据库路径
+		// Determine the knowledge base database path
 		knowledgeDBPath := cfg.Database.KnowledgeDBPath
 		var knowledgeDB *sql.DB
 
 		if knowledgeDBPath != "" {
-			// 使用独立的知识库数据库
-			// 确保目录存在
+			// Use a separate knowledge base database
+			// Ensure the directory exists
 			if err := os.MkdirAll(filepath.Dir(knowledgeDBPath), 0755); err != nil {
-				return nil, fmt.Errorf("创建知识库数据库目录失败: %w", err)
+				return nil, fmt.Errorf("failed to create the knowledge base database directory: %w", err)
 			}
 
 			var err error
 			knowledgeDBConn, err = database.NewKnowledgeDB(knowledgeDBPath, log.Logger)
 			if err != nil {
-				return nil, fmt.Errorf("初始化知识库数据库失败: %w", err)
+				return nil, fmt.Errorf("failed to initialize the knowledge base database: %w", err)
 			}
 			knowledgeDB = knowledgeDBConn.DB
-			log.Logger.Info("使用独立的知识库数据库", zap.String("path", knowledgeDBPath))
+			log.Logger.Info("Using a separate knowledge base database", zap.String("path", knowledgeDBPath))
 		} else {
-			// 向后兼容：使用会话数据库
+			// Backward compatible: use the session database
 			knowledgeDB = db.DB
-			log.Logger.Info("使用会话数据库存储知识库数据（建议配置knowledge_db_path以分离数据）")
+			log.Logger.Info("Using the session database to store knowledge base data (configuring knowledge_db_path to separate the data is recommended)")
 		}
 
-		// 创建知识库管理器
+		// Create the knowledge base manager
 		knowledgeManager = knowledge.NewManager(knowledgeDB, cfg.Knowledge.BasePath, log.Logger)
 
-		// 创建嵌入器
-		// 使用OpenAI配置的API Key（如果知识库配置中没有指定）
+		// Create the embedder
+		// Use the API Key configured for OpenAI (if not specified in the knowledge base configuration)
 		if cfg.Knowledge.Embedding.APIKey == "" {
 			cfg.Knowledge.Embedding.APIKey = cfg.OpenAI.APIKey
 		}
@@ -254,42 +254,42 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 
 		embedder, err := knowledge.NewEmbedder(context.Background(), &cfg.Knowledge, &cfg.OpenAI, log.Logger)
 		if err != nil {
-			return nil, fmt.Errorf("初始化知识库嵌入器失败: %w", err)
+			return nil, fmt.Errorf("failed to initialize the knowledge base embedder: %w", err)
 		}
 
-		// 创建检索器（Eino MultiQuery + 重排流水线）
+		// Create the retriever (Eino MultiQuery + rerank pipeline)
 		retrievalConfig := knowledge.RetrievalConfigFromYAML(cfg.Knowledge.Retrieval)
 		knowledgeRetriever = knowledge.NewRetriever(knowledgeDB, embedder, retrievalConfig, log.Logger)
 		if err := knowledge.WireRetrieverPipeline(context.Background(), knowledgeRetriever, &cfg.OpenAI); err != nil {
-			return nil, fmt.Errorf("初始化知识库检索流水线失败: %w", err)
+			return nil, fmt.Errorf("failed to initialize the knowledge base retrieval pipeline: %w", err)
 		}
 
-		// 创建索引器（Eino Compose 链）
+		// Create the indexer (Eino Compose chain)
 		knowledgeIndexer, err = knowledge.NewIndexer(context.Background(), knowledgeDB, embedder, log.Logger, &cfg.Knowledge)
 		if err != nil {
-			return nil, fmt.Errorf("初始化知识库索引器失败: %w", err)
+			return nil, fmt.Errorf("failed to initialize the knowledge base indexer: %w", err)
 		}
 
-		// 注册知识检索工具到MCP服务器
+		// Register the knowledge-retrieval tool to the MCP server
 		knowledge.RegisterKnowledgeTool(mcpServer, knowledgeRetriever, knowledgeManager, log.Logger)
 
-		// 创建知识库API处理器
+		// Create the knowledge base API handler
 		knowledgeHandler = handler.NewKnowledgeHandler(knowledgeManager, knowledgeRetriever, knowledgeIndexer, db, log.Logger)
 		knowledgeHandler.SetAudit(auditSvc)
-		log.Logger.Info("知识库模块初始化完成", zap.Bool("handler_created", knowledgeHandler != nil))
+		log.Logger.Info("Knowledge base module initialization complete", zap.Bool("handler_created", knowledgeHandler != nil))
 
-		// 扫描知识库并建立索引（异步）
+		// Scan the knowledge base and build the index (asynchronously)
 		go func() {
 			itemsToIndex, err := knowledgeManager.ScanKnowledgeBase()
 			if err != nil {
-				log.Logger.Warn("扫描知识库失败", zap.Error(err))
+				log.Logger.Warn("Failed to scan the knowledge base", zap.Error(err))
 				return
 			}
 
-			// 检查是否已有索引
+			// Check whether an index already exists
 			hasIndex, err := knowledgeIndexer.HasIndex()
 			if err != nil {
-				log.Logger.Warn("检查索引状态失败", zap.Error(err))
+				log.Logger.Warn("Failed to check the index status", zap.Error(err))
 				return
 			}
 

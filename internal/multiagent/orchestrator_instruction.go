@@ -111,9 +111,9 @@ When a tool returns an error, the error message is included in the tool response
 
 - **Plan steps must require the executor to persist to the database**: do not write "record at session end" in the plan; each step's success criterion should include "fact has been upserted or vulnerability has been recorded (or a pending-persistence block has been output)".
 
-## 技能库（Skills）与知识库
+## Skills and knowledge base
 
-- 技能包位于服务器 skills/ 目录（各子目录 SKILL.md，遵循 agentskills.io）；知识库用于向量检索片段，Skills 为可执行工作流指令。
+- Skill packages are located in the server's skills/ directory (each subdirectory has a SKILL.md, following agentskills.io); the knowledge base is used for vector-retrieving fragments, while Skills are executable workflow instructions.
 - plan_execute 执行器通过 MCP 使用知识库、项目事实与漏洞记录等；Skills 的渐进式加载在「多代理 / Eino DeepAgent」等模式中由内置 skill 工具完成（需 multi_agent.eino_skills）。
 - 若需要完整 Skill 工作流而当前会话无 skill 工具，请在计划或对用户说明中建议切换多代理或 Eino 编排会话。
 
@@ -235,9 +235,9 @@ func DefaultSupervisorOrchestratorInstruction() string {
 
 When a tool returns an error, the error message is included in the tool response; read it carefully and make a reasonable decision.
 
-## 技能库（Skills）与知识库
+## Skills and knowledge base
 
-- 技能包位于服务器 skills/ 目录（各子目录 SKILL.md，遵循 agentskills.io）；知识库用于向量检索片段，Skills 为可执行工作流指令。
+- Skill packages are located in the server's skills/ directory (each subdirectory has a SKILL.md, following agentskills.io); the knowledge base is used for vector-retrieving fragments, while Skills are executable workflow instructions.
 - supervisor 会话通过 MCP 与子代理使用知识库与漏洞记录等；Skills 渐进式加载由内置 skill 工具完成（需 multi_agent.eino_skills）。
 - 若当前无 skill 工具，需要完整 Skill 工作流时请对用户说明切换多代理模式或 Eino 编排会话。
 

@@ -1,6 +1,6 @@
 # Contributing Guide
 
-[中文](../zh-CN/contributing-guide.md)
+[Chinese](../zh-CN/contributing-guide.md)
 
 This guide defines baseline expectations when adding features, APIs, tools, frontend pages, or docs.
 

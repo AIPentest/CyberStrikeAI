@@ -1,6 +1,6 @@
 # Skills Guide
 
-[中文](../zh-CN/skills-guide.md)
+[Chinese](../zh-CN/skills-guide.md)
 
 Skills provide reusable procedures, checklists, templates, and references that Agents can load when needed. A Skill should be an executable procedure, not an encyclopedia page.
 

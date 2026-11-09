@@ -147,7 +147,7 @@ type InitializeResponse struct {
 	ServerInfo      ServerInfo         `json:"serverInfo"`
 }
 
-// ServerCapabilities 服务器能力
+// ServerCapabilities: server capabilities
 type ServerCapabilities struct {
 	Tools     map[string]interface{} `json:"tools,omitempty"`
 	Prompts   map[string]interface{} `json:"prompts,omitempty"`
@@ -155,7 +155,7 @@ type ServerCapabilities struct {
 	Sampling  map[string]interface{} `json:"sampling,omitempty"`
 }
 
-// ServerInfo 服务器信息
+// ServerInfo: server information
 type ServerInfo struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
@@ -164,7 +164,7 @@ type ServerInfo struct {
 // ListToolsRequest 列出工具请求
 type ListToolsRequest struct{}
 
-// ListToolsResponse 列出工具响应
+// ListToolsResponse: list-tools response
 type ListToolsResponse struct {
 	Tools []Tool `json:"tools"`
 }
@@ -179,13 +179,13 @@ type ListResourcesResponse struct {
 	Resources []Resource `json:"resources"`
 }
 
-// CallToolRequest 调用工具请求
+// CallToolRequest: call-tool request
 type CallToolRequest struct {
 	Name      string                 `json:"name"`
 	Arguments map[string]interface{} `json:"arguments"`
 }
 
-// CallToolResponse 调用工具响应
+// CallToolResponse: call-tool response
 type CallToolResponse struct {
 	Content []Content              `json:"content"`
 	IsError bool                   `json:"isError,omitempty"`

@@ -1,6 +1,6 @@
 # Asset Management
 
-[中文](../zh-CN/asset-management.md)
+[Chinese](../zh-CN/asset-management.md)
 
 Asset management consolidates domains, IP addresses, ports, and services discovered through manual entry, network-space search engines, HTTP APIs, and Agent tasks into a maintainable baseline. It answers three questions: what assets exist, which assets have been assessed, and where risk is concentrated.
 

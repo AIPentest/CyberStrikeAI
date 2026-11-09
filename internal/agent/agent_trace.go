@@ -32,7 +32,7 @@ func IsModelFacingTraceJSON(traceInputJSON string) bool {
 	return false
 }
 
-// ParseTraceMessages 解析落库的 last_react_input（OpenAI 风格 messages JSON 数组）。
+// ParseTraceMessages parses the persisted last_react_input (OpenAI-style messages JSON array).
 func ParseTraceMessages(traceInputJSON string) ([]ChatMessage, error) {
 	traceInputJSON = strings.TrimSpace(traceInputJSON)
 	if traceInputJSON == "" {
@@ -233,7 +233,7 @@ func ExtractLastUserTurnTraceJSON(traceInputJSON string) string {
 	return string(b)
 }
 
-// MergeAssistantTraceOutput 将 last_react_output 合并进轨迹最后一条 assistant（与 loadHistoryFromAgentTrace 一致）。
+// MergeAssistantTraceOutput merges last_react_output into the last assistant entry of the trace (consistent with loadHistoryFromAgentTrace).
 func MergeAssistantTraceOutput(msgs []ChatMessage, assistantOut string) []ChatMessage {
 	assistantOut = strings.TrimSpace(assistantOut)
 	if assistantOut == "" || len(msgs) == 0 {

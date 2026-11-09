@@ -1,6 +1,6 @@
 # CyberStrikeAI Workflows Guide
 
-[中文](../zh-CN/workflow-graph.md)
+[Chinese](../zh-CN/workflow-graph.md)
 
 This document explains how to use **Workflows**: building workflows on the canvas, configuring node types, passing data between nodes, and binding a workflow to a role for automatic execution.
 
@@ -298,7 +298,7 @@ Evaluates an expression and outputs `matched` (`true` / `false`).
 
 - The **first outgoing edge** defaults to the **“yes”** branch (`matched == true`)
 - The **second outgoing edge** defaults to the **“no”** branch (`matched == false`)
-- Edge labels such as `是` / `否` (or `yes` / `no`, `true` / `false`) help identify branches
+- Edge labels such as `yes` / `no` (or `true` / `false`) help identify branches
 - A third or later edge needs a custom **edge condition**
 
 Edge condition examples (select an edge, configure in the right panel):

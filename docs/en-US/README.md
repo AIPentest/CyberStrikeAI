@@ -1,6 +1,6 @@
 # English Documentation
 
-[Documentation home](../README.md) | [中文](../zh-CN/README.md)
+[Documentation home](../README.md) | [Chinese](../zh-CN/README.md)
 
 ## Choose a path
 

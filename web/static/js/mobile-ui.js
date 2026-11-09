@@ -699,7 +699,7 @@
             if (seen.some(function (x) { return x.lang === lang; })) return;
             seen.push({ lang: lang, name: (o.textContent || '').trim() });
         });
-        if (!seen.length) seen = [{ lang: 'zh-CN', name: '中文' }, { lang: 'en-US', name: 'English' }];
+        if (!seen.length) seen = [{ lang: 'zh-CN', name: 'Chinese' }, { lang: 'en-US', name: 'English' }];
         return seen;
     }
 

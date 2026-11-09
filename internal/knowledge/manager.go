@@ -37,7 +37,7 @@ func (m *Manager) ScanKnowledgeBase() ([]string, error) {
 		return nil, fmt.Errorf("知识库路径未配置")
 	}
 
-	// 确保目录存在
+	// Ensure the directory exists
 	if err := os.MkdirAll(m.basePath, 0755); err != nil {
 		return nil, fmt.Errorf("创建知识库目录失败: %w", err)
 	}
@@ -602,7 +602,7 @@ func (m *Manager) CreateItem(category, title, content string) (*KnowledgeItem, e
 	// 构建文件路径
 	filePath := filepath.Join(m.basePath, category, title+".md")
 
-	// 确保目录存在
+	// Ensure the directory exists
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 		return nil, fmt.Errorf("创建目录失败: %w", err)
 	}

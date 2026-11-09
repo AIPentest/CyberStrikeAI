@@ -847,7 +847,7 @@ function wsT(key) {
         'webshell.encoding': '响应编码',
         'webshell.encodingAuto': '自动检测',
         'webshell.encodingUtf8': 'UTF-8',
-        'webshell.encodingGbk': 'GBK（中文 Windows）',
+        'webshell.encodingGbk': 'GBK（Chinese Windows）',
         'webshell.encodingGb18030': 'GB18030',
         'webshell.encodingHint': '中文 Windows 目标若出现乱码，请切换为 GBK 或 GB18030',
         'webshell.os': '目标系统',

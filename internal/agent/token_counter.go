@@ -6,7 +6,7 @@ import (
 	"github.com/pkoukk/tiktoken-go"
 )
 
-// TokenCounter 估算文本 token 数（tiktoken；模型未知时回退 cl100k_base）。
+// TokenCounter estimates the token count of text (tiktoken; falls back to cl100k_base when the model is unknown).
 type TokenCounter interface {
 	Count(model, text string) (int, error)
 }
@@ -16,7 +16,7 @@ type tikTokenCounter struct {
 	cache map[string]*tiktoken.Tiktoken
 }
 
-// NewTikTokenCounter 创建基于 tiktoken 的 TokenCounter。
+// NewTikTokenCounter creates a tiktoken-based TokenCounter.
 func NewTikTokenCounter() TokenCounter {
 	return &tikTokenCounter{cache: make(map[string]*tiktoken.Tiktoken)}
 }

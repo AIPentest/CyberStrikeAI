@@ -42,7 +42,7 @@ func TestDecideBlocksPendingToolExecutions(t *testing.T) {
 	saveDecisionTestExecution(t, db, "run-completed", mcp.ToolExecutionStatusCompleted)
 
 	d := Decide(db, Input{
-		Response:        "工具还没全部结束时，这只是一段候选输出。",
+		Response:        "When the tools have not all finished, this is just a piece of candidate output.",
 		MCPExecutionIDs: []string{"run-queued", "run-running", "run-completed"},
 	})
 
@@ -58,12 +58,12 @@ func TestDecideBlocksPendingToolExecutions(t *testing.T) {
 }
 
 func TestDecideBlocksAwaitingHITLAndEmptyCandidate(t *testing.T) {
-	hitl := Decide(nil, Input{Response: "等待人工审批", AwaitingHITL: true})
+	hitl := Decide(nil, Input{Response: "Waiting for human approval", AwaitingHITL: true})
 	if hitl.Finalizable || hitl.Status != StatusAwaitingHITL || hitl.CompletionReason != ReasonAwaitingHITL {
 		t.Fatalf("HITL decision mismatch: %+v", hitl)
 	}
 
-	empty := Decide(nil, Input{Response: "⚠️ Eino 执行完成，但未捕获到助手文本输出。"})
+	empty := Decide(nil, Input{Response: "⚠️ Eino execution completed, but no assistant text output was captured."})
 	if empty.Finalizable || empty.Status != StatusBlocked || empty.CompletionReason != ReasonEmptyResponse {
 		t.Fatalf("empty candidate decision mismatch: %+v", empty)
 	}
@@ -71,7 +71,7 @@ func TestDecideBlocksAwaitingHITLAndEmptyCandidate(t *testing.T) {
 
 func TestDecideBlocksWhenExecutionEvidenceIsRequiredButMissing(t *testing.T) {
 	d := Decide(nil, Input{
-		Response:                 "任务已处理完成。",
+		Response:                 "The task has been processed.",
 		RequireExecutionEvidence: true,
 	})
 	if d.Finalizable || d.Finalized {
@@ -94,7 +94,7 @@ func TestDecideBlocksWhenOnlyFailedEvidenceIsRecorded(t *testing.T) {
 	saveDecisionTestExecution(t, db, "run-cancelled", mcp.ToolExecutionStatusCancelled)
 
 	d := Decide(db, Input{
-		Response:                 "任务已处理完成。",
+		Response:                 "The task has been processed.",
 		MCPExecutionIDs:          []string{"run-failed", "run-cancelled"},
 		RequireExecutionEvidence: true,
 	})
@@ -112,7 +112,7 @@ func TestDecideFinalizesCompletedEvidence(t *testing.T) {
 	saveDecisionTestExecution(t, db, "run-ok", mcp.ToolExecutionStatusCompleted)
 
 	d := Decide(db, Input{
-		Response:                 "任务已处理完成，见工具执行记录。",
+		Response:                 "The task has been processed; see the tool execution records.",
 		MCPExecutionIDs:          []string{"run-ok"},
 		RequireExecutionEvidence: true,
 	})
@@ -126,7 +126,7 @@ func TestDecideFinalizesCompletedEvidence(t *testing.T) {
 }
 
 func TestDecideAllowsInformationalAnswerWhenExecutionEvidenceIsNotRequired(t *testing.T) {
-	d := Decide(nil, Input{Response: "这是一个概念解释，不需要执行工具。"})
+	d := Decide(nil, Input{Response: "This is a conceptual explanation; no tool execution is needed."})
 	if !d.Finalizable || !d.Finalized || d.Status != StatusCompleted {
 		t.Fatalf("informational response should finalize when execution evidence is not required: %+v", d)
 	}
@@ -136,7 +136,7 @@ func TestFromRunResultDoesNotReusePreviousFinalizationStatusAsRunStatus(t *testi
 	db := newDecisionTestDB(t)
 	saveDecisionTestExecution(t, db, "run-slow", mcp.ToolExecutionStatusRunning)
 	result := &multiagent.RunResult{
-		Response:        "工具已触发，按用户要求直接总结。",
+		Response:        "The tool has been triggered; summarizing directly as requested by the user.",
 		MCPExecutionIDs: []string{"run-slow"},
 	}
 

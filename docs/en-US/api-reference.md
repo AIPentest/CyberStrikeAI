@@ -1,6 +1,6 @@
 # API Reference
 
-[中文](../zh-CN/api-reference.md)
+[Chinese](../zh-CN/api-reference.md)
 
 CyberStrikeAI exposes built-in OpenAPI docs:
 
