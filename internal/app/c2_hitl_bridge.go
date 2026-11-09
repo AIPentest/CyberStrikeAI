@@ -15,8 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// C2HITLBridge 实现 C2 Manager 的 HITLBridge 接口，将危险任务桥接到现有 HITL 审批流。
-// 审批记录写入 hitl_interrupts 表，与现有 HITL 系统共享前端审批 UI。
+// C2HITLBridge implements the C2 Manager's HITLBridge interface, bridging dangerous tasks to the existing HITL approval flow.
+// Approval records are written to the hitl_interrupts table, sharing the frontend approval UI with the existing HITL system.
 type C2HITLBridge struct {
 	db        *database.DB
 	logger    *zap.Logger
@@ -24,7 +24,7 @@ type C2HITLBridge struct {
 	getConvID func() string
 }
 
-// NewC2HITLBridge 创建 C2 HITL 桥
+// NewC2HITLBridge creates a C2 HITL bridge
 func NewC2HITLBridge(db *database.DB, logger *zap.Logger) *C2HITLBridge {
 	return &C2HITLBridge{
 		db:        db,
@@ -34,17 +34,17 @@ func NewC2HITLBridge(db *database.DB, logger *zap.Logger) *C2HITLBridge {
 	}
 }
 
-// SetConversationIDGetter 设置获取当前对话 ID 的函数
+// SetConversationIDGetter sets the function to get the current conversation ID
 func (b *C2HITLBridge) SetConversationIDGetter(fn func() string) {
 	b.getConvID = fn
 }
 
-// SetTimeout 设置审批超时（0 表示不超时）
+// SetTimeout sets the approval timeout (0 means no timeout)
 func (b *C2HITLBridge) SetTimeout(d time.Duration) {
 	b.timeout = d
 }
 
-// RequestApproval 实现 HITLBridge 接口：写入 hitl_interrupts 表并轮询等待审批结果
+// RequestApproval implements the HITLBridge interface: writes to the hitl_interrupts table and polls while waiting for the approval result
 func (b *C2HITLBridge) RequestApproval(ctx context.Context, req c2.HITLApprovalRequest) error {
 	interruptID := "hitl_c2_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:14]
 	now := time.Now()
@@ -75,11 +75,11 @@ func (b *C2HITLBridge) RequestApproval(ctx context.Context, req c2.HITLApprovalR
 		string(payload), now,
 	)
 	if err != nil {
-		b.logger.Error("C2 HITL: 创建审批记录失败，拒绝执行", zap.Error(err))
-		return fmt.Errorf("C2 HITL 审批记录创建失败，安全起见拒绝执行: %w", err)
+		b.logger.Error("C2 HITL: failed to create the approval record, refusing to execute", zap.Error(err))
+		return fmt.Errorf("C2 HITL approval record creation failed; refusing to execute for safety: %w", err)
 	}
 
-	b.logger.Info("C2 HITL: 等待人工审批",
+	b.logger.Info("C2 HITL: waiting for human approval",
 		zap.String("interrupt_id", interruptID),
 		zap.String("task_id", req.TaskID),
 		zap.String("task_type", req.TaskType),
@@ -108,8 +108,8 @@ func (b *C2HITLBridge) RequestApproval(ctx context.Context, req c2.HITLApprovalR
 			_, _ = b.db.Exec(`UPDATE hitl_interrupts SET status='timeout', decision='reject',
 				decision_comment='C2 HITL timeout auto-reject for safety', decided_at=? WHERE id=? AND status='pending'`,
 				time.Now(), interruptID)
-			b.logger.Warn("C2 HITL: 审批超时，安全起见拒绝执行", zap.String("interrupt_id", interruptID))
-			return fmt.Errorf("C2 HITL 审批超时，危险任务已被自动拒绝")
+			b.logger.Warn("C2 HITL: approval timed out, refusing to execute for safety", zap.String("interrupt_id", interruptID))
+			return fmt.Errorf("C2 HITL approval timed out; the dangerous task has been automatically rejected")
 
 		case <-ticker.C:
 			var status, decision string
@@ -124,11 +124,11 @@ func (b *C2HITLBridge) RequestApproval(ctx context.Context, req c2.HITLApprovalR
 			switch status {
 			case "decided", "timeout":
 				if decision == "reject" {
-					return fmt.Errorf("C2 危险任务被人工拒绝")
+					return fmt.Errorf("C2 dangerous task was manually rejected")
 				}
 				return nil
 			case "cancelled":
-				return fmt.Errorf("C2 审批已取消")
+				return fmt.Errorf("C2 approval was canceled")
 			case "pending":
 				continue
 			default:
@@ -138,7 +138,7 @@ func (b *C2HITLBridge) RequestApproval(ctx context.Context, req c2.HITLApprovalR
 	}
 }
 
-// C2HooksConfig 配置 C2 Manager 的 Hooks
+// C2HooksConfig configures the Hooks of the C2 Manager
 type C2HooksConfig struct {
 	DB                *database.DB
 	Logger            *zap.Logger
@@ -146,11 +146,11 @@ type C2HooksConfig struct {
 	VulnRecord        func(session *database.C2Session, title string, severity string)
 }
 
-// SetupC2Hooks 设置 C2 Manager 的业务钩子
+// SetupC2Hooks sets up the business hooks of the C2 Manager
 func SetupC2Hooks(cfg *C2HooksConfig) c2.Hooks {
 	return c2.Hooks{
 		OnSessionFirstSeen: func(session *database.C2Session) {
-			// 新会话上线
+			// New session comes online
 			cfg.Logger.Info("C2 Session first seen",
 				zap.String("session_id", session.ID),
 				zap.String("hostname", session.Hostname),
@@ -158,25 +158,25 @@ func SetupC2Hooks(cfg *C2HooksConfig) c2.Hooks {
 				zap.String("arch", session.Arch),
 			)
 
-			// 记录漏洞（初始访问点）
+			// Record the vulnerability (initial access point)
 			if cfg.VulnRecord != nil {
 				cfg.VulnRecord(session, fmt.Sprintf("C2 Session Established: %s@%s", session.Username, session.Hostname), "high")
 			}
 
-			// 记录攻击链（Initial Access）
+			// Record the attack chain (Initial Access)
 			if cfg.AttackChainRecord != nil {
 				cfg.AttackChainRecord(session, "initial-access", fmt.Sprintf("Implant beacon from %s/%s", session.Hostname, session.InternalIP))
 			}
 		},
 		OnTaskCompleted: func(task *database.C2Task, sessionID string) {
-			// 任务完成
+			// Task complete
 			cfg.Logger.Debug("C2 Task completed",
 				zap.String("task_id", task.ID),
 				zap.String("task_type", task.TaskType),
 				zap.String("status", task.Status),
 			)
 
-			// 根据任务类型记录攻击链
+			// Record the attack chain based on the task type
 			if cfg.AttackChainRecord != nil {
 				session, _ := cfg.DB.GetC2Session(sessionID)
 				if session != nil {
@@ -190,7 +190,7 @@ func SetupC2Hooks(cfg *C2HooksConfig) c2.Hooks {
 	}
 }
 
-// taskToAttackPhase 将任务类型映射到 ATT&CK 阶段
+// taskToAttackPhase maps the task type to an ATT&CK phase
 func taskToAttackPhase(taskType string) string {
 	switch taskType {
 	case "exec", "shell":
@@ -216,8 +216,8 @@ func taskToAttackPhase(taskType string) string {
 	}
 }
 
-// SetupC2HITLBridgeWithAgent 设置 HITL 桥接器
-// 这个函数将由 App 调用，注入必要的依赖
+// SetupC2HITLBridgeWithAgent sets up the HITL bridge
+// This function is called by App to inject the necessary dependencies
 func SetupC2HITLBridgeWithAgent(db *database.DB, logger *zap.Logger) c2.HITLBridge {
 	return &C2HITLBridge{
 		db:        db,

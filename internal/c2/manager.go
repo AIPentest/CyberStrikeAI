@@ -909,7 +909,7 @@ func (m *Manager) PublishCustomEvent(level, category, sessionID, taskID, message
 }
 
 // ----------------------------------------------------------------------------
-// 工具函数
+// Utility functions
 // ----------------------------------------------------------------------------
 
 func strOr(s, def string) string {

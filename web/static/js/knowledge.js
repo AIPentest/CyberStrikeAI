@@ -2009,7 +2009,7 @@ window.addEventListener('beforeunload', function() {
     }
 });
 
-// 工具函数
+// Utility functions
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;

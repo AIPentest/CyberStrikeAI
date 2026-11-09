@@ -119,7 +119,7 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 	mcpServer.RegisterTool(upsertTool, func(ctx context.Context, args map[string]interface{}) (*mcp.ToolResult, error) {
 		projectID, err := projectIDFromConversation(db, ctx)
 		if err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		factKey, _ := args["fact_key"].(string)
 		summary, _ := args["summary"].(string)
@@ -147,7 +147,7 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 		}
 		created, err := db.UpsertProjectFact(f)
 		if err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		if _, hasLinks := args["links"]; hasLinks {
 			linkInputs, err := project.ParseFactLinkInputs(args["links"])
@@ -194,7 +194,7 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 	mcpServer.RegisterTool(getTool, func(ctx context.Context, args map[string]interface{}) (*mcp.ToolResult, error) {
 		projectID, err := projectIDFromConversation(db, ctx)
 		if err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		key := strings.TrimSpace(strArg(args, "fact_key"))
 		if key == "" {
@@ -202,7 +202,7 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 		}
 		f, err := db.GetProjectFactByKey(projectID, key)
 		if err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		conversationID := mcpAuthorizationConversationID(ctx)
 		includeHistory := boolArg(args, "include_history")
@@ -258,7 +258,7 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 	mcpServer.RegisterTool(listTool, func(ctx context.Context, args map[string]interface{}) (*mcp.ToolResult, error) {
 		projectID, err := projectIDFromConversation(db, ctx)
 		if err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		limit := intArg(args, "limit", 50)
 		offset := intArg(args, "offset", 0)
@@ -271,7 +271,7 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 		}
 		list, err := db.ListProjectFacts(projectID, filter, limit, offset)
 		if err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		var b strings.Builder
 		b.WriteString(fmt.Sprintf("共 %d 条（limit=%d offset=%d）:\n", len(list), limit, offset))
@@ -301,7 +301,7 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 	mcpServer.RegisterTool(searchTool, func(ctx context.Context, args map[string]interface{}) (*mcp.ToolResult, error) {
 		projectID, err := projectIDFromConversation(db, ctx)
 		if err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		q := strings.TrimSpace(strArg(args, "query"))
 		if q == "" {
@@ -309,7 +309,7 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 		}
 		list, err := db.ListProjectFacts(projectID, database.ProjectFactListFilter{Search: q, RestrictContextCheckpoints: !boolArg(args, "include_history"), ContextConversationID: mcpAuthorizationConversationID(ctx), SourceConversationID: strArg(args, "source_conversation_id")}, intArg(args, "limit", 30), intArg(args, "offset", 0))
 		if err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		var b strings.Builder
 		b.WriteString(fmt.Sprintf("搜索 \"%s\" 命中 %d 条:\n", q, len(list)))
@@ -335,7 +335,7 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 	mcpServer.RegisterTool(deprecateTool, func(ctx context.Context, args map[string]interface{}) (*mcp.ToolResult, error) {
 		projectID, err := projectIDFromConversation(db, ctx)
 		if err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		key := strings.TrimSpace(strArg(args, "fact_key"))
 		if database.IsContextCheckpointKey(key) {
@@ -345,7 +345,7 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 			}
 		}
 		if err := db.DeprecateProjectFact(projectID, key); err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		return textResult("事实已标记为 deprecated: "+key, false), nil
 	})
@@ -370,7 +370,7 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 	mcpServer.RegisterTool(restoreTool, func(ctx context.Context, args map[string]interface{}) (*mcp.ToolResult, error) {
 		projectID, err := projectIDFromConversation(db, ctx)
 		if err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		key := strings.TrimSpace(strArg(args, "fact_key"))
 		if database.IsContextCheckpointKey(key) {
@@ -384,7 +384,7 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 		}
 		conf := strArg(args, "confidence")
 		if err := db.RestoreProjectFact(projectID, key, conf); err != nil {
-			return textResult("错误: "+err.Error(), true), nil
+			return textResult("Error: "+err.Error(), true), nil
 		}
 		if conf == "" {
 			conf = "tentative"

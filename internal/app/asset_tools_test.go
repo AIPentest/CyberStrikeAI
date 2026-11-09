@@ -87,7 +87,7 @@ func TestAssetToolsCRUDQueryAndPageLimit(t *testing.T) {
 	result, _, err = server.CallTool(ctx, builtin.ToolQueryAssets, map[string]interface{}{
 		"sort_by": "last_scan_at", "sort_order": "asc", "page": 1, "page_size": 1,
 	})
-	if err != nil || result == nil || result.IsError || !strings.Contains(toolResultText(result), "第 1/1 页") || !strings.Contains(toolResultText(result), "last_scan_at=never") {
+	if err != nil || result == nil || result.IsError || !strings.Contains(toolResultText(result), "page 1/1") || !strings.Contains(toolResultText(result), "last_scan_at=never") {
 		t.Fatalf("query asset result=%#v err=%v", result, err)
 	}
 	result, _, err = server.CallTool(ctx, builtin.ToolQueryAssets, map[string]interface{}{"page_size": agentAssetPageSizeMax + 1})
