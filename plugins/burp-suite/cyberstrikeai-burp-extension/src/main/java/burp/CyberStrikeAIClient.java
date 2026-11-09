@@ -77,7 +77,7 @@ final class CyberStrikeAIClient {
 
         RoleOption(String name, String label) {
             this.name = name == null ? "" : name;
-            this.label = label == null || label.isEmpty() ? (this.name.isEmpty() ? "默认" : this.name) : label;
+            this.label = label == null || label.isEmpty() ? (this.name.isEmpty() ? "Default" : this.name) : label;
         }
 
         @Override
@@ -264,7 +264,7 @@ final class CyberStrikeAIClient {
     List<RoleOption> fetchRoles(Config cfg, String token) throws IOException {
         String resp = authorizedGet(cfg.baseUrl, token, "/api/roles");
         List<RoleOption> out = new ArrayList<>();
-        out.add(new RoleOption("", "默认"));
+        out.add(new RoleOption("", "Default"));
         for (String obj : SimpleJson.extractObjectArray(resp, "roles")) {
             if (!SimpleJson.extractBooleanField(obj, "enabled", true)) {
                 continue;

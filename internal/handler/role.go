@@ -270,8 +270,8 @@ func (h *RoleHandler) DeleteRole(c *gin.Context) {
 		return
 	}
 
-	// 不允许删除"默认"角色
-	if roleName == "默认" {
+	// 不允许删除"Default"角色
+	if roleName == "Default" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "不能删除默认角色"})
 		return
 	}

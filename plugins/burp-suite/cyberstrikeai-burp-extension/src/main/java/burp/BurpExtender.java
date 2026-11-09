@@ -65,7 +65,7 @@ public class BurpExtender implements IBurpExtender, IContextMenuFactory {
         String prompt = HttpMessageFormatter.toPrompt(helpers, msg, options.instruction);
         String title = HttpMessageFormatter.getRequestTitle(helpers, msg);
         String agentModeStr = options.agentMode.displayName;
-        String roleLabel = options.role.isEmpty() ? "默认" : options.role;
+        String roleLabel = options.role.isEmpty() ? "Default" : options.role;
         String runId = tab.startNewRun(title, agentModeStr + " · " + roleLabel, msg);
         tab.appendProgressToRun(runId, "\n[server] " + cfg.baseUrl);
         if (!options.projectId.isEmpty()) {

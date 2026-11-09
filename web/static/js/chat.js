@@ -2878,7 +2878,7 @@ async function fetchMentionTools() {
         while (page <= totalPages && page <= 20) {
             // 构建API URL，如果指定了角色，添加role查询参数
             let url = `/api/config/tools?page=${page}&page_size=${pageSize}`;
-            if (roleName && roleName !== '默认') {
+            if (roleName && roleName !== 'Default') {
                 url += `&role=${encodeURIComponent(roleName)}`;
             }
 
@@ -6452,7 +6452,7 @@ async function loadConversation(conversationId) {
         window._loadedConversationProjectId = conversation.projectId || conversation.project_id || '';
         const conversationRoleName = conversation.roleName || conversation.role_name || '';
         if (typeof window.setCurrentRole === 'function') {
-            window.setCurrentRole(conversationRoleName || '默认');
+            window.setCurrentRole(conversationRoleName || 'Default');
         }
         applyConversationAgentMode(conversationId, conversation);
         try {

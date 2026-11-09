@@ -282,9 +282,9 @@ let roleConfiguredTools = new Set(); // 角色配置的工具列表（用于确�
 // 对角色列表进行排序：默认角色排在第一个，其他按名称排序
 function sortRoles(rolesArray) {
     const sortedRoles = [...rolesArray];
-    // 将"默认"角色分离出来
-    const defaultRole = sortedRoles.find(r => r.name === '默认');
-    const otherRoles = sortedRoles.filter(r => r.name !== '默认');
+    // 将"Default"角色分离出来
+    const defaultRole = sortedRoles.find(r => r.name === 'Default');
+    const otherRoles = sortedRoles.filter(r => r.name !== 'Default');
     
     // 其他角色按名称排序，保持固定顺序
     otherRoles.sort((a, b) => {
@@ -293,7 +293,7 @@ function sortRoles(rolesArray) {
         return nameA.localeCompare(nameB, 'zh-CN');
     });
     
-    // 将"默认"角色放在第一个，其他角色按排序后的顺序跟在后面
+    // 将"Default"角色放在第一个，其他角色按排序后的顺序跟在后面
     const result = defaultRole ? [defaultRole, ...otherRoles] : otherRoles;
     return result;
 }
@@ -351,10 +351,10 @@ function updateRoleSelectorDisplay() {
     if (!roleSelectorBtn || !roleSelectorIcon || !roleSelectorText) return;
 
     let selectedRole;
-    if (currentRole && currentRole !== '默认') {
+    if (currentRole && currentRole !== 'Default') {
         selectedRole = roles.find(r => r.name === currentRole);
     } else {
-        selectedRole = roles.find(r => r.name === '默认');
+        selectedRole = roles.find(r => r.name === 'Default');
     }
 
     if (selectedRole) {
@@ -375,9 +375,9 @@ function updateRoleSelectorDisplay() {
             }
         }
         roleSelectorIcon.textContent = icon;
-        const isDefaultRole = selectedRole.name === '默认' || !selectedRole.name;
+        const isDefaultRole = selectedRole.name === 'Default' || !selectedRole.name;
         const displayName = isDefaultRole && typeof window.t === 'function'
-            ? window.t('chat.defaultRole') : (selectedRole.name || (typeof window.t === 'function' ? window.t('chat.defaultRole') : '默认'));
+            ? window.t('chat.defaultRole') : (selectedRole.name || (typeof window.t === 'function' ? window.t('chat.defaultRole') : 'Default'));
         // 非默认角色时避免被 i18n 的 data-i18n 覆盖成“默认”
         roleSelectorText.setAttribute('data-i18n-skip-text', isDefaultRole ? 'false' : 'true');
         roleSelectorText.textContent = displayName;
@@ -385,7 +385,7 @@ function updateRoleSelectorDisplay() {
         // 默认角色
         roleSelectorText.setAttribute('data-i18n-skip-text', 'false');
         roleSelectorIcon.textContent = '🔵';
-        roleSelectorText.textContent = typeof window.t === 'function' ? window.t('chat.defaultRole') : '默认';
+        roleSelectorText.textContent = typeof window.t === 'function' ? window.t('chat.defaultRole') : 'Default';
     }
 }
 
@@ -427,8 +427,8 @@ function renderRoleSelectionSidebar() {
     const enabledSortedRoles = sortedRoles.filter(r => r.enabled !== false);
     
     enabledSortedRoles.forEach(role => {
-        const isDefaultRole = role.name === '默认';
-        const isSelected = isDefaultRole ? (currentRole === '' || currentRole === '默认') : (currentRole === role.name);
+        const isDefaultRole = role.name === 'Default';
+        const isSelected = isDefaultRole ? (currentRole === '' || currentRole === 'Default') : (currentRole === role.name);
         const roleItem = document.createElement('div');
         roleItem.className = 'role-selection-item-main' + (isSelected ? ' selected' : '');
         roleItem.setAttribute('role', 'option');
@@ -467,8 +467,8 @@ function renderRoleSelectionSidebar() {
 
 // 选择角色
 function selectRole(roleName) {
-    // 将"默认"映射为空字符串（表示默认角色）
-    if (roleName === '默认') {
+    // 将"Default"映射为空字符串（表示默认角色）
+    if (roleName === 'Default') {
         roleName = '';
     }
     handleRoleChange(roleName);
@@ -624,7 +624,7 @@ function renderRolesList() {
         // 获取工具列表显示
         let toolsDisplay = '';
         let toolsCount = 0;
-        if (role.name === '默认') {
+        if (role.name === 'Default') {
             toolsDisplay = _t('roleModal.usingAllTools');
         } else if (role.tools && role.tools.length > 0) {
             toolsCount = role.tools.length;
@@ -664,7 +664,7 @@ function renderRolesList() {
             </div>
             <div class="role-card-actions">
                 <button class="btn-secondary btn-small" onclick="editRole(${escapeJsStringAttr(role.name)})">${_t('common.edit')}</button>
-                ${role.name !== '默认' ? `<button class="btn-secondary btn-small btn-danger" onclick="deleteRole(${escapeJsStringAttr(role.name)})">${_t('common.delete')}</button>` : ''}
+                ${role.name !== 'Default' ? `<button class="btn-secondary btn-small btn-danger" onclick="deleteRole(${escapeJsStringAttr(role.name)})">${_t('common.delete')}</button>` : ''}
             </div>
         </div>
     `;
@@ -1406,7 +1406,7 @@ async function editRole(roleName) {
     }
 
     // 检查是否为默认角色
-    const isDefaultRole = roleName === '默认';
+    const isDefaultRole = roleName === 'Default';
     const toolsSection = document.getElementById('role-tools-section');
     const defaultHint = document.getElementById('role-tools-default-hint');
     const toolsControls = document.querySelector('.role-tools-controls');
@@ -1669,10 +1669,10 @@ async function saveRole() {
     const isEdit = document.getElementById('role-name').disabled;
     
     // 检查是否为默认角色
-    const isDefaultRole = name === '默认';
+    const isDefaultRole = name === 'Default';
     
     // 检查是否是首次添加角色（排除默认角色后，没有任何用户创建的角色）
-    const isFirstUserRole = !isEdit && !isDefaultRole && roles.filter(r => r.name !== '默认').length === 0;
+    const isFirstUserRole = !isEdit && !isDefaultRole && roles.filter(r => r.name !== 'Default').length === 0;
     
     // 默认角色不保存tools字段（使用所有工具）
     // 非默认角色：如果使用所有工具（roleUsesAllTools为true），也不保存tools字段
@@ -1818,7 +1818,7 @@ async function saveRole() {
 
 // 删除角色
 async function deleteRole(roleName) {
-    if (roleName === '默认') {
+    if (roleName === 'Default') {
         showNotification(_t('roleModal.cannotDeleteDefaultRole'), 'error');
         return;
     }

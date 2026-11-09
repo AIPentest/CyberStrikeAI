@@ -159,7 +159,7 @@
                     reclaimParts.push(st('settingsStorage.skippedActive', '跳过活跃') + ' ' + s.skipped_active);
                 }
             }
-            var retentionTitle = st('settingsStorage.defaultRetention', '默认') + ' '
+            var retentionTitle = st('settingsStorage.defaultRetention', 'Default') + ' '
                 + (m.default_retention != null ? m.default_retention : '-') + ' '
                 + st('settingsStorage.daysUnit', '天');
             return '<tr class="' + (m.enabled ? '' : 'storage-row--disabled') + '">'

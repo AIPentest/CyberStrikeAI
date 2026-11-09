@@ -245,7 +245,7 @@ CREATE TABLE conversations (
     title TEXT NOT NULL,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
-    role_name TEXT NOT NULL DEFAULT '默认',
+    role_name TEXT NOT NULL DEFAULT 'Default',
     agent_mode TEXT NOT NULL DEFAULT 'eino_single',
     last_react_input TEXT,
     last_react_output TEXT,
@@ -473,7 +473,7 @@ CREATE TABLE robot_user_bindings (
 CREATE TABLE robot_user_sessions (
     session_key TEXT PRIMARY KEY,
     conversation_id TEXT NOT NULL,
-    role_name TEXT NOT NULL DEFAULT '默认',
+    role_name TEXT NOT NULL DEFAULT 'Default',
     agent_mode TEXT NOT NULL DEFAULT 'eino_single',
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE

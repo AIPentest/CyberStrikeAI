@@ -874,7 +874,7 @@ func (h *AgentHandler) ProcessMessageForRobot(ctx context.Context, platform stri
 
 	finalMessage := message
 	var roleTools []string
-	if role != "" && role != "默认" && h.config.Roles != nil {
+	if role != "" && role != "Default" && h.config.Roles != nil {
 		if r, exists := h.config.Roles[role]; exists && r.Enabled {
 			if r.UserPrompt != "" {
 				finalMessage = r.UserPrompt + "\n\n" + message

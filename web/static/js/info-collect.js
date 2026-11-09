@@ -1620,7 +1620,7 @@ async function batchScanSelectedFofaRows() {
         if (typeof getCurrentRole === 'function') {
             try { role = getCurrentRole() || ''; } catch (e) { /* ignore */ }
         }
-        if (role === '默认') role = '';
+        if (role === 'Default') role = '';
 
         const resp = await apiFetch('/api/batch-tasks', {
             method: 'POST',

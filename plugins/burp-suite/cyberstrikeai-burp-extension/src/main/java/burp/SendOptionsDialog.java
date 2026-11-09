@@ -120,7 +120,7 @@ final class SendOptionsDialog {
                     projectBox.addItem(new CyberStrikeAIClient.ProjectOption("", "(加载失败)"));
                     projectBox.setEnabled(true);
                     roleBox.removeAllItems();
-                    roleBox.addItem(new CyberStrikeAIClient.RoleOption("", "默认"));
+                    roleBox.addItem(new CyberStrikeAIClient.RoleOption("", "Default"));
                     roleBox.setEnabled(true);
                     JOptionPane.showMessageDialog(parent,
                             "加载项目/角色失败: " + ex.getMessage(),

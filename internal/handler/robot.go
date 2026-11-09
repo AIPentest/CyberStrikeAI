@@ -83,7 +83,7 @@ type RobotHandler struct {
 	logger               *zap.Logger
 	mu                   sync.RWMutex
 	sessions             map[string]string             // key: "platform_userID", value: conversationID
-	sessionRoles         map[string]string             // key: "platform_userID", value: roleName（默认"默认"）
+	sessionRoles         map[string]string             // key: "platform_userID", value: roleName（默认"Default"）
 	sessionModes         map[string]string             // key: "platform_userID", value: agent mode
 	cancelMu             sync.Mutex                    // 保护 runningCancels
 	runningCancels       map[string]context.CancelFunc // key: "platform_userID", 用于停止命令中断任务
@@ -302,7 +302,7 @@ func (h *RobotHandler) setConversation(platform, userID, convID string) {
 	h.persistSessionBinding(sk, convID, role, agentMode)
 }
 
-// getRole 获取当前用户使用的角色，未设置时返回"默认"
+// getRole 获取当前用户使用的角色，未设置时返回"Default"
 func (h *RobotHandler) getRole(platform, userID string) string {
 	sk := h.sessionKey(platform, userID)
 	h.mu.RLock()
@@ -317,7 +317,7 @@ func (h *RobotHandler) getRole(platform, userID string) string {
 		h.mu.Unlock()
 		return persistedRole
 	}
-	return "默认"
+	return "Default"
 }
 
 // setRole 设置当前用户使用的角色
@@ -903,10 +903,10 @@ func (h *RobotHandler) cmdRoles() string {
 		return "暂无可用角色。"
 	}
 	sort.Slice(names, func(i, j int) bool {
-		if names[i] == "默认" {
+		if names[i] == "Default" {
 			return true
 		}
-		if names[j] == "默认" {
+		if names[j] == "Default" {
 			return false
 		}
 		return names[i] < names[j]

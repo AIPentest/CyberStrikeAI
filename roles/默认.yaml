@@ -1,5 +1,0 @@
-name: 默认
-description: 默认角色，不额外携带用户提示词，使用默认MCP
-user_prompt: ""
-icon: "\U0001F535"
-enabled: true

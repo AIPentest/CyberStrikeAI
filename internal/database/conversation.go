@@ -391,7 +391,7 @@ func (db *DB) GetConversationLite(id string) (*Conversation, error) {
 func normalizeConversationRoleName(roleName string) string {
 	roleName = strings.TrimSpace(roleName)
 	if roleName == "" {
-		return "默认"
+		return "Default"
 	}
 	return roleName
 }

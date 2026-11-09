@@ -42,7 +42,7 @@ func (db *DB) GetRobotSessionBinding(sessionKey string) (*RobotSessionBinding, e
 		b.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
 	}
 	if strings.TrimSpace(b.RoleName) == "" {
-		b.RoleName = "默认"
+		b.RoleName = "Default"
 	}
 	if strings.TrimSpace(b.AgentMode) == "" {
 		b.AgentMode = "eino_single"
@@ -60,7 +60,7 @@ func (db *DB) UpsertRobotSessionBinding(sessionKey, conversationID, roleName, ag
 		return nil
 	}
 	if roleName == "" {
-		roleName = "默认"
+		roleName = "Default"
 	}
 	if agentMode == "" {
 		agentMode = "eino_single"

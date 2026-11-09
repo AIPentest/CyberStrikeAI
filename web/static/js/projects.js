@@ -3068,7 +3068,7 @@ function getProjectConversationModeLabel(conversation) {
     };
     if (labels[mode]) return tpFmt(labels[mode][0], labels[mode][1]);
     return clampProjectPreviewText(
-        conversation?.roleName || conversation?.role_name || pickerMessage(tp, 'chat.conversationPreviewDefaultMode', '默认'),
+        conversation?.roleName || conversation?.role_name || pickerMessage(tp, 'chat.conversationPreviewDefaultMode', 'Default'),
         80
     );
 }
