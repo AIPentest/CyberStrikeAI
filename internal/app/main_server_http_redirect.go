@@ -170,13 +170,13 @@ func (m *mainServerMux) handleConn(raw net.Conn) {
 }
 
 // serveHTTPS completes the handshake on a connection already sniffed as TLS, then routes to HTTP/2 or HTTP/1.1 by ALPN.
-// 不能对同一 http.Server 并发调用 Serve(TLSConfig!=nil)，否则握手/ALPN 会异常（浏览器 ERR_SSL_PROTOCOL_ERROR）。
+// You cannot call Serve(TLSConfig!=nil) concurrently on the same http.Server, otherwise the handshake/ALPN will fail (browser ERR_SSL_PROTOCOL_ERROR).
 func (m *mainServerMux) serveHTTPS(pc *peekedConn, localAddr net.Addr) {
 	tlsConn := tls.Server(pc, m.httpsSrv.TLSConfig)
 	handCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	if err := tlsConn.HandshakeContext(handCtx); err != nil {
-		m.logger.Debug("TLS 握手失败", zap.Error(err))
+		m.logger.Debug("TLS handshake failed", zap.Error(err))
 		_ = pc.Close()
 		return
 	}
@@ -193,7 +193,7 @@ func (m *mainServerMux) serveHTTPS(pc *peekedConn, localAddr net.Addr) {
 	plain := httpServerForTLSConn(srv)
 	ocl := &oneConnListener{conn: tlsConn, addr: localAddr}
 	if err := plain.Serve(ocl); err != nil && !errors.Is(err, net.ErrClosed) && !errors.Is(err, http.ErrServerClosed) {
-		m.logger.Debug("HTTPS 连接处理结束", zap.Error(err))
+		m.logger.Debug("HTTPS connection handling finished", zap.Error(err))
 	}
 }
 

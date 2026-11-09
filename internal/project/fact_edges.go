@@ -87,7 +87,7 @@ func truncateGraphLabel(summary string, maxRunes int) string {
 // BuildProjectFactGraph 构建项目事实图（nodes + edges）。
 func BuildProjectFactGraph(db *database.DB, projectID string, view string, excludeDeprecated bool) (*database.ProjectFactGraph, error) {
 	if db == nil {
-		return nil, fmt.Errorf("database 未初始化")
+		return nil, fmt.Errorf("database is not initialized")
 	}
 	projectID = strings.TrimSpace(projectID)
 	if projectID == "" {

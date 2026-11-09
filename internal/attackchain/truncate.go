@@ -8,12 +8,12 @@ import (
 )
 
 const (
-	attackChainTruncationMarker = "\n\n...[攻击链输入已截断 / attack chain input truncated]...\n\n"
+	attackChainTruncationMarker = "\n\n...[attack chain input truncated]...\n\n"
 	attackChainSystemReserve    = 256
 	attackChainSafetyReserve    = 2048
 )
 
-// attackChainMaxCompletionTokens 为攻击链 JSON 输出预留的 completion token 上限。
+// attackChainMaxCompletionTokens is the completion-token upper limit reserved for the attack-chain JSON output.
 func attackChainMaxCompletionTokens(maxTotal int) int {
 	const capTokens = 16384
 	if maxTotal <= 0 {
@@ -47,7 +47,7 @@ func (b *Builder) countTokens(text string) int {
 	return n
 }
 
-// attackChainPayloadTokenBudget 计算 reactInput + modelOutput 可用的 token 预算。
+// attackChainPayloadTokenBudget computes the token budget available for reactInput + modelOutput.
 func (b *Builder) attackChainPayloadTokenBudget() int {
 	maxTotal := b.maxTokens
 	if maxTotal <= 0 {
@@ -67,7 +67,7 @@ func (b *Builder) attackChainPayloadTokenBudget() int {
 	return budget
 }
 
-// fitAttackChainPayload 在构建最终 prompt 前压缩 ReAct 轨迹与模型输出，避免超出模型上下文。
+// fitAttackChainPayload compresses the ReAct trace and model output before building the final prompt, to avoid exceeding the model context.
 func (b *Builder) fitAttackChainPayload(reactInput, modelOutput string) (string, string, bool) {
 	budget := b.attackChainPayloadTokenBudget()
 	modelBudget := budget * 15 / 100
@@ -105,7 +105,7 @@ func (b *Builder) fitAttackChainPayload(reactInput, modelOutput string) (string,
 	}
 
 	if truncated {
-		b.logger.Info("攻击链输入已按 token 预算截断",
+		b.logger.Info("Attack-chain input truncated by token budget",
 			zap.Int("maxTotalTokens", b.maxTokens),
 			zap.Int("payloadBudget", budget),
 			zap.Int("reactBudget", reactBudget),
