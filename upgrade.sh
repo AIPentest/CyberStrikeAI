@@ -518,7 +518,7 @@ tag = sys.argv[2]
 # Same value rule as the Go writer (internal/config.versionValuePattern): what lands here
 # is a live config, and a tag with a quote or newline in it must never reach it.
 if not re.match(r"^[A-Za-z0-9][A-Za-z0-9._+-]*$", tag):
-    sys.stderr.write("版本号 %r 不合法（只允许字母、数字与 . _ + -），未写入 config.yaml\n" % tag)
+    sys.stderr.write("Version %r is invalid (only letters, digits, and . _ + - are allowed); not written to config.yaml\n" % tag)
     sys.exit(0)
 with open(path, "r", encoding="utf-8") as f:
     lines = f.readlines()
@@ -537,7 +537,7 @@ for i, line in enumerate(lines):
             # line. An open quote or flow/anchor value may continue below.
             simple_value = re.fullmatch(r"(?:[A-Za-z0-9._+-]+|'[^'\n]*'|\"[^\"\\\n]*\")?(?:[ \t]+#.*)?", value)
             if simple_value is None or (value == "" and nxt[:1] in (" ", "\t")):
-                sys.stderr.write("版本号未写入：config.yaml 的 version 是多行/块标量写法，无法就地替换（原文件未改动）\n")
+                sys.stderr.write("Version not written: config.yaml's version uses a multi-line/block scalar form that cannot be replaced in place (original file unchanged)\n")
                 refused = True
                 break
             out.append('version: "%s"\n' % tag)
@@ -560,7 +560,7 @@ if not refused:
             if trimmed and not trimmed.startswith("#") and not first.startswith("%"):
                 # Only a block mapping at column zero can accept a new key.
                 if not re.match(r"^[A-Za-z_][A-Za-z0-9_-]*[ \t]*:", first):
-                    sys.stderr.write("版本号未写入：无法安全地在此 YAML 文档插入字段，原文件未改动\n")
+                    sys.stderr.write("Version not written: cannot safely insert a field into this YAML document; original file unchanged\n")
                     sys.exit(0)
                 break
         out.insert(insert_at, 'version: "%s"\n' % tag)
