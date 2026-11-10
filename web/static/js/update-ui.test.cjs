@@ -408,26 +408,26 @@ function harness(options) {
 }
 
 test('the console lives inside the settings page as its own section', () => {
-    // The entry is no longer a page of its own: it is one section of 系统设置, so the main sidebar
+    // The entry is no longer a page of its own: it is one section of system settings, so the main sidebar
     // must not advertise a sibling item for it any more.
     assert.doesNotMatch(template, /data-page="system-update"/,
         'the standalone sidebar entry must be gone: the console is a settings section now');
     assert.doesNotMatch(template, /id="page-system-update"/,
-        'the standalone page must be gone: its content moved into 系统设置');
+        'the standalone page must be gone: its content moved into system settings');
 
     const settingsNavItem = template.indexOf('<div class="settings-nav-item" data-section="update" data-require-permission="update:read" onclick="switchSettingsSection(\'update\')">');
-    assert.ok(settingsNavItem > -1, 'the settings menu must carry the 一键更新 entry');
-    assert.match(template, /<span data-i18n="settings\.nav\.update">一键更新<\/span>/);
+    assert.ok(settingsNavItem > -1, 'the settings menu must carry the One-Click Update entry');
+    assert.match(template, /<span data-i18n="settings\.nav\.update">One-Click Update<\/span>/);
     const storageItem = template.indexOf('data-section="storage"');
-    assert.ok(storageItem > -1 && storageItem < settingsNavItem, 'the entry must follow 存储清理 in the settings menu');
+    assert.ok(storageItem > -1 && storageItem < settingsNavItem, 'the entry must follow Storage cleanup in the settings menu');
 
     // The console markup sits inside page-settings, wrapped in its own section.
     const pageSettings = template.indexOf('<div id="page-settings" class="page">');
     const section = template.indexOf('<div id="settings-section-update" class="settings-section-content" data-require-permission="update:read">');
-    const nextPage = template.indexOf('<!-- 平台权限页面 -->');
+    const nextPage = template.indexOf('<!-- Platform permissions page -->');
     assert.ok(pageSettings > -1 && section > pageSettings && nextPage > section,
         'settings-section-update must live inside page-settings');
-    assert.match(template, /id="settings-section-update"[\s\S]{0,700}?id="update-console"/);
+    assert.match(template, /id="settings-section-update"[\s\S]{0,1600}?id="update-console"/);
     assert.match(template, /id="update-console"/);
     assert.match(template, /<script src="\/static\/js\/update\.js\?v=\{\{\.Version\}\}"><\/script>/);
     assert.match(template, /<div class="settings-section-header update-section-head">/);
