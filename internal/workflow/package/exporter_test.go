@@ -11,11 +11,11 @@ import (
 func testDocument() Document {
 	return Document{
 		ID:          "web-src-hunting",
-		Name:        "Web SRC 猎洞",
-		Description: "面向 SRC Web 资产的侦察与漏洞候选流程",
+		Name:        "Web SRC Bug hunting",
+		Description: "A reconnaissance and vulnerability-candidate flow for SRC web assets",
 		Version:     18,
 		Enabled:     true,
-		GraphJSON:   `{"nodes":[{"id":"start-1","type":"start","label":"开始","position":{"x":0,"y":0},"config":{}},{"id":"out-1","type":"output","label":"输出","position":{"x":0,"y":120},"config":{"output_key":"result","source_binding":{"from":"inputs","field":"message"}}}],"edges":[{"id":"e1","source":"start-1","target":"out-1"}],"config":{"schema_version":1}}`,
+		GraphJSON:   `{"nodes":[{"id":"start-1","type":"start","label":"Start","position":{"x":0,"y":0},"config":{}},{"id":"out-1","type":"output","label":"Output","position":{"x":0,"y":120},"config":{"output_key":"result","source_binding":{"from":"inputs","field":"message"}}}],"edges":[{"id":"e1","source":"start-1","target":"out-1"}],"config":{"schema_version":1}}`,
 		UpdatedAt:   time.Date(2026, 7, 13, 10, 0, 0, 0, time.UTC),
 	}
 }
