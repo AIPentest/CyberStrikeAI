@@ -699,13 +699,13 @@
             if (seen.some(function (x) { return x.lang === lang; })) return;
             seen.push({ lang: lang, name: (o.textContent || '').trim() });
         });
-        if (!seen.length) seen = [{ lang: 'zh-CN', name: 'Chinese' }, { lang: 'en-US', name: 'English' }];
+        if (!seen.length) seen = [{ lang: 'en-US', name: 'English' }];
         return seen;
     }
 
     function cycleLanguage() {
         var opts = availableLocales();
-        var cur = String(window.uiLocale ? window.uiLocale() : (document.documentElement.getAttribute('lang') || 'zh-CN'));
+        var cur = String(window.uiLocale ? window.uiLocale() : (document.documentElement.getAttribute('lang') || 'en-US'));
         var idx = 0;
         opts.forEach(function (o, i) { if (o.lang === cur) idx = i; });
         var next = opts[(idx + 1) % opts.length];

@@ -139,7 +139,7 @@ function renderTokenUsageAnalysis(res) {
     host.replaceChildren();
     const label = key => tokenUsageText('dashboard.' + key, null, key);
     const ui = key => tokenUsageText('tokenUsageUI.' + key, null, key);
-    const exact = value => tokenUsageCount(value).toLocaleString(window.__locale || 'zh-CN');
+    const exact = value => tokenUsageCount(value).toLocaleString(window.__locale || 'en-US');
     if (!res || !res.summary) {
         const empty = tokenUsageNode('div', 'token-usage-empty', label('usageUnavailable'));
         host.append(empty);
@@ -286,6 +286,6 @@ function renderTokenUsageAnalysis(res) {
         const time = new Date(row.createdAt);
         const status = tokenUsageNode('span', 'token-usage-status', row.reason === 'final' ? label('usageFinal') : row.reason === 'partial' ? label('usagePartial') : (row.reason || '—'));
         if (row.reason === 'final' || row.reason === 'partial') status.classList.add('is-' + row.reason);
-        return [Number.isFinite(time.getTime()) ? time.toLocaleString(window.__locale || 'zh-CN') : '—', row.model || '—', status, exact(row.totalTokens), exact(row.modelCalls)];
+        return [Number.isFinite(time.getTime()) ? time.toLocaleString(window.__locale || 'en-US') : '—', row.model || '—', status, exact(row.totalTokens), exact(row.modelCalls)];
     }));
 }

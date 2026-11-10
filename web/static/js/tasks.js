@@ -523,7 +523,7 @@ function renderTaskItem(task, statusMap, isHistory = false) {
     const completedTime = task.completedAt ? new Date(task.completedAt) : null;
     
     const timeText = startedTime && !isNaN(startedTime.getTime())
-        ? startedTime.toLocaleString('zh-CN', { 
+        ? startedTime.toLocaleString('en-US', { 
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -534,7 +534,7 @@ function renderTaskItem(task, statusMap, isHistory = false) {
         : _t('tasks.unknownTime');
     
     const completedText = completedTime && !isNaN(completedTime.getTime())
-        ? completedTime.toLocaleString('zh-CN', { 
+        ? completedTime.toLocaleString('en-US', { 
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -945,7 +945,7 @@ async function showBatchImportModal() {
                 const sortedRoles = loadedRoles.sort((a, b) => {
                     if (a.name === 'Default') return -1;
                     if (b.name === 'Default') return 1;
-                    return (a.name || '').localeCompare(b.name || '', 'zh-CN');
+                    return (a.name || '').localeCompare(b.name || '', 'en-US');
                 });
                 
                 sortedRoles.forEach(role => {
@@ -2583,7 +2583,7 @@ function startInlineEditRole() {
     apiFetch(`/api/batch-tasks/${queueId}`).then(r => r.json()).then(detail => {
         const queue = detail.queue;
         const currentRole = queue.role || '';
-        const roles = (Array.isArray(batchQueuesState.loadedRoles) ? batchQueuesState.loadedRoles : []).filter(r => r.name !== 'Default' && r.enabled !== false).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh-CN'));
+        const roles = (Array.isArray(batchQueuesState.loadedRoles) ? batchQueuesState.loadedRoles : []).filter(r => r.name !== 'Default' && r.enabled !== false).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'en-US'));
         const currentInList = !currentRole || roles.some(r => r.name === currentRole);
         const orphanOpt = !currentInList ? `<option value="${escapeAttr(currentRole)}" selected>${escapeHtml(currentRole)} (${escapeHtml(_t('batchQueueDetailModal.roleNotFound') || '已移除')})</option>` : '';
         const opts = roles.map(r => `<option value="${escapeAttr(r.name)}" ${r.name === currentRole ? 'selected' : ''}>${escapeHtml(r.name)}</option>`).join('');

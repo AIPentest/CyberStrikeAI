@@ -48,7 +48,7 @@
                 return window.currentLang;
             }
         }
-        return 'zh-CN';
+        return 'en-US';
     }
 
     function formatTime(value) {

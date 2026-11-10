@@ -151,7 +151,7 @@ async function refreshDashboard() {
             // HITL 待审批：用于「需要立即处理」告警条 + 推荐操作
             fetchJson('/api/hitl/pending'),
             // 通知摘要：since=0 拿最新一批，limit 控制大小；用于「最近事件」内联展示
-            fetchJson('/api/notifications/summary?since=0&limit=20&lang=' + encodeURIComponent((window.__locale || 'zh-CN'))),
+            fetchJson('/api/notifications/summary?since=0&limit=20&lang=' + encodeURIComponent((window.__locale || 'en-US'))),
             // External MCP 健康度
             fetchJson('/api/external-mcp/stats'),
             // WebShell 已建立的连接（pentest 落地后的 foothold，对运营场景非常关键）
@@ -1508,7 +1508,7 @@ function statusShortLabel(s) {
 function formatNumber(num) {
     if (typeof num !== 'number' || isNaN(num)) return '-';
     if (num === 0) return '0';
-    return num.toLocaleString('zh-CN');
+    return num.toLocaleString('en-US');
 }
 
 // 更新进度条宽度

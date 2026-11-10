@@ -18,7 +18,7 @@
     function pickerLocale() {
         if (typeof auditLocale === 'function') return auditLocale();
         if (typeof window.uiLocale === 'function') return window.uiLocale();
-        if (typeof window.__locale === 'string' && window.__locale.startsWith('zh')) return 'zh-CN';
+        if (typeof window.__locale === 'string' && window.__locale.startsWith('zh')) return 'en-US';
         if (typeof window.__locale === 'string' && window.__locale.startsWith('ru')) return 'ru-RU';
         return 'en-US';
     }

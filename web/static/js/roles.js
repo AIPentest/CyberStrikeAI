@@ -290,7 +290,7 @@ function sortRoles(rolesArray) {
     otherRoles.sort((a, b) => {
         const nameA = a.name || '';
         const nameB = b.name || '';
-        return nameA.localeCompare(nameB, 'zh-CN');
+        return nameA.localeCompare(nameB, 'en-US');
     });
     
     // 将"Default"角色放在第一个，其他角色按排序后的顺序跟在后面

@@ -93,7 +93,7 @@ function auditResultLabel(result) {
 function auditLocale() {
     if (typeof window.uiLocale === 'function') return window.uiLocale();
     if (typeof window.__locale === 'string' && window.__locale.length) {
-        if (window.__locale.startsWith('zh')) return 'zh-CN';
+        if (window.__locale.startsWith('zh')) return 'en-US';
         if (window.__locale.startsWith('ru')) return 'ru-RU';
         return 'en-US';
     }

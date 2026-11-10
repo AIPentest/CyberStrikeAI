@@ -3111,7 +3111,7 @@ function updateMentionCandidates() {
         if (aEnabled !== bEnabled) {
             return aEnabled ? -1 : 1;
         }
-        return a.name.localeCompare(b.name, 'zh-CN');
+        return a.name.localeCompare(b.name, 'en-US');
     });
 
     mentionFilteredTools = filtered;
@@ -11023,7 +11023,7 @@ function renderBatchConversations(filtered = null) {
         const time = document.createElement('div');
         time.className = 'batch-table-col-time';
         const dateObj = conv.updatedAt ? new Date(conv.updatedAt) : new Date();
-        const locale = (typeof i18next !== 'undefined' && i18next.language) ? i18next.language : 'zh-CN';
+        const locale = (typeof i18next !== 'undefined' && i18next.language) ? i18next.language : 'en-US';
         time.textContent = dateObj.toLocaleString(locale, {
             year: 'numeric',
             month: '2-digit',

@@ -79,17 +79,17 @@ if (typeof window !== 'undefined') {
 function getCurrentTimeLocale() {
     if (typeof window.uiLocale === 'function') return window.uiLocale();
     if (typeof window.__locale === 'string' && window.__locale.length) {
-        if (window.__locale.startsWith('zh')) return 'zh-CN';
+        if (window.__locale.startsWith('zh')) return 'en-US';
         if (window.__locale.startsWith('ru')) return 'ru-RU';
         return 'en-US';
     }
     if (typeof i18next !== 'undefined' && i18next.language) {
         const lang = String(i18next.language || '');
-        if (lang.startsWith('zh')) return 'zh-CN';
+        if (lang.startsWith('zh')) return 'en-US';
         if (lang.startsWith('ru')) return 'ru-RU';
         return 'en-US';
     }
-    return 'zh-CN';
+    return 'en-US';
 }
 
 // toLocaleTimeString 选项：中文用 24 小时制，避免仍显示 AM/PM

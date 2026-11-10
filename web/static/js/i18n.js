@@ -1,12 +1,12 @@
-// 前端国际化初始化（基于 i18next 浏览器版本）
+// Frontend internationalization init (based on the i18next browser build)
 (function () {
-    const DEFAULT_LANG = 'zh-CN';
+    const DEFAULT_LANG = 'en-US';
     const STORAGE_KEY = 'csai_lang';
     const RESOURCES_PREFIX = '/static/i18n';
 
     const loadedLangs = {};
 
-    // 供 bootstrap 等逻辑等待：避免 chat 在 t() 未就绪时用中文硬编码渲染，导致与语言标签不一致
+    // Lets logic such as bootstrap wait, so chat does not render hardcoded text before t() is ready and end up inconsistent with the language label
     let i18nReadyResolve;
     window.i18nReady = new Promise(function (resolve) {
         i18nReadyResolve = resolve;
@@ -19,13 +19,10 @@
                 return stored;
             }
         } catch (e) {
-            console.warn('无法读取语言设置:', e);
+            console.warn('Unable to read the language setting:', e);
         }
 
         const navLang = (navigator.language || navigator.userLanguage || '').toLowerCase();
-        if (navLang.startsWith('zh')) {
-            return 'zh-CN';
-        }
         if (navLang.startsWith('ru')) {
             return 'ru-RU';
         }
@@ -38,7 +35,7 @@
         return DEFAULT_LANG;
     }
 
-    // 根据语言设置文档方向（阿拉伯语为从右到左 RTL）
+    // Set the document direction based on the language (Arabic is right-to-left, RTL)
     function applyDirection(lang) {
         try {
             if (document && document.documentElement) {
@@ -59,7 +56,7 @@
                 cache: 'no-cache'
             });
             if (!resp.ok) {
-                console.warn('加载语言包失败:', lang, resp.status);
+                console.warn('Failed to load language pack:', lang, resp.status);
                 return;
             }
             const data = await resp.json();
@@ -68,7 +65,7 @@
             }
             loadedLangs[lang] = true;
         } catch (e) {
-            console.error('加载语言包异常:', lang, e);
+            console.error('Error loading language pack:', lang, e);
         }
     }
 
@@ -85,9 +82,9 @@
             const isFormControl = (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
             const attrList = el.getAttribute('data-i18n-attr');
             const translated = i18next.t(key);
-            // 缺键时保留模板中的后备文案，避免页面直接显示 assets.project 一类内部键名。
+            // On a missing key, keep the template's fallback text, to avoid the page directly showing internal key names like assets.project.
             const text = translated && translated !== key ? translated : '';
-            // 仅当元素无子元素（仅文本或空）时才替换文本，避免覆盖卡片内的数字、子节点等；input/textarea 永不设置 textContent
+            // Only replace text when the element has no child elements (text-only or empty), to avoid overwriting numbers, child nodes, etc. inside a card; input/textarea never has textContent set
             const hasNoElementChildren = !el.querySelector('*');
             if (!skipText && !isFormControl && hasNoElementChildren && text && typeof text === 'string') {
                 el.textContent = text;
@@ -109,7 +106,7 @@
             }
         });
 
-        // 对话输入框：若 value 与 placeholder 相同，清空 value 以便正确显示占位提示
+        // Conversation input: if value equals placeholder, clear value so the placeholder hint displays correctly
         try {
             const chatInput = document.getElementById('chat-input');
             if (chatInput && chatInput.tagName === 'TEXTAREA') {
@@ -120,7 +117,7 @@
             }
         } catch (e) { /* ignore */ }
 
-        // 更新 html lang 属性
+        // Update the html lang attribute
         try {
             if (document && document.documentElement) {
                 document.documentElement.lang = i18next.language || DEFAULT_LANG;
@@ -129,7 +126,7 @@
             // ignore
         }
 
-        // 更新文档方向（RTL/LTR）
+        // Update the document direction (RTL/LTR)
         applyDirection(i18next.language || DEFAULT_LANG);
 
         try {
@@ -143,9 +140,7 @@
         const label = document.getElementById('current-lang-label');
         if (!label || typeof i18next === 'undefined') return;
         const lang = (i18next.language || DEFAULT_LANG).toLowerCase();
-        if (lang.indexOf('zh') === 0) {
-            label.textContent = i18next.t('lang.zhCN');
-        } else if (lang.indexOf('ru') === 0) {
+        if (lang.indexOf('ru') === 0) {
             label.textContent = i18next.t('lang.ruRU');
         } else if (lang.indexOf('ar') === 0) {
             label.textContent = i18next.t('lang.arSA');
@@ -186,7 +181,7 @@
         try {
             localStorage.setItem(STORAGE_KEY, lang);
         } catch (e) {
-            console.warn('无法保存语言设置:', e);
+            console.warn('Unable to save the language setting:', e);
         }
         applyTranslations(document);
         updateLangLabel();
@@ -203,7 +198,7 @@
 
     async function initI18n() {
         if (typeof i18next === 'undefined') {
-            console.warn('i18next 未加载，跳过前端国际化初始化');
+            console.warn('i18next is not loaded; skipping frontend i18n init');
             if (typeof i18nReadyResolve === 'function') i18nReadyResolve();
             return;
         }
@@ -212,8 +207,8 @@
         await i18next.init({
             lng: initialLang,
             fallbackLng: {
-                'ru-RU': ['en-US', 'zh-CN'],
-                'ar-SA': ['en-US', 'zh-CN'],
+                'ru-RU': ['en-US'],
+                'ar-SA': ['en-US'],
                 'default': [DEFAULT_LANG]
             },
             debug: false,
@@ -233,14 +228,13 @@
             window.__locale = i18next.language || initialLang;
         } catch (e) { /* ignore */ }
 
-        // 导出全局函数供其他脚本调用（支持插值参数，如 _t('key', { count: 2 })）
+        // Export a global function for other scripts to call (supports interpolation params, e.g. _t('key', { count: 2 }))
         window.t = function (key, opts) {
             if (typeof i18next === 'undefined') return key;
             return i18next.t(key, opts);
         };
         window.uiLocale = function () {
             const lang = String((window.__locale || (typeof i18next !== 'undefined' && i18next.language) || '')).toLowerCase();
-            if (lang.indexOf('zh') === 0) return 'zh-CN';
             if (lang.indexOf('ru') === 0) return 'ru-RU';
             if (lang.indexOf('ar') === 0) return 'ar-SA';
             return 'en-US';
@@ -248,7 +242,7 @@
         window.changeLanguage = changeLanguage;
         window.applyTranslations = applyTranslations;
 
-        // 语言切换下拉支持
+        // Language-switcher dropdown support
         window.toggleLangDropdown = function () {
             const dropdown = document.getElementById('lang-dropdown');
             if (!dropdown) return;
@@ -265,7 +259,7 @@
 
         document.addEventListener('click', handleGlobalClickForLangDropdown);
 
-        // 若 chat 已在 i18n 完成前用后备中文渲染了系统就绪消息，这里按当前语言纠正一次
+        // If chat rendered the system-ready message with fallback text before i18n finished, correct it once for the current language here
         try {
             if (typeof refreshSystemReadyMessageBubbles === 'function') {
                 refreshSystemReadyMessageBubbles();
@@ -276,9 +270,9 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        // i18n 初始化在 DOM Ready 后执行
+        // i18n init runs after DOM Ready
         initI18n().catch(function (e) {
-            console.error('初始化国际化失败:', e);
+            console.error('Failed to initialize i18n:', e);
             if (typeof i18nReadyResolve === 'function') i18nReadyResolve();
         });
     });
