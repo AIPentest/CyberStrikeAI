@@ -61,31 +61,31 @@ func joinEdgeHintParts(edges []*database.ProjectFactEdge, formatter func(*databa
 	return strings.Join(parts, ", ")
 }
 
-// FormatOutgoingLinksHint 黑板索引用出边摘要（全部有效边类型，不截断）。
+// FormatOutgoingLinksHint The outgoing-edge summary used by the blackboard index (all valid edge types, not truncated).
 func FormatOutgoingLinksHint(edges []*database.ProjectFactEdge) string {
 	edges = filterIndexEdges(edges)
 	if len(edges) == 0 {
 		return ""
 	}
-	return " {出边: " + joinEdgeHintParts(edges, formatOutgoingHintPart) + "}"
+	return " {Outgoing edges: " + joinEdgeHintParts(edges, formatOutgoingHintPart) + "}"
 }
 
-// FormatIncomingLinksHint 黑板索引用入边摘要（全部有效边类型，不截断）。
+// FormatIncomingLinksHint The incoming-edge summary used by the blackboard index (all valid edge types, not truncated).
 func FormatIncomingLinksHint(edges []*database.ProjectFactEdge) string {
 	edges = filterIndexEdges(edges)
 	if len(edges) == 0 {
 		return ""
 	}
-	return " {入边: " + joinEdgeHintParts(edges, formatIncomingHintPart) + "}"
+	return " {Incoming edges: " + joinEdgeHintParts(edges, formatIncomingHintPart) + "}"
 }
 
-// FormatFactIndexLinksHint 黑板索引行内关系边（from → 当前 fact，与 upsert links 一致）。
+// FormatFactIndexLinksHint Inline relationship edges in blackboard index lines (from → the current fact, consistent with upsert links).
 func FormatFactIndexLinksHint(_ string, incoming []*database.ProjectFactEdge) string {
 	in := filterIndexEdges(incoming)
 	if len(in) == 0 {
 		return ""
 	}
-	return " {关系边: " + joinEdgeHintParts(in, formatRelationHintPart) + "}"
+	return " {Relationship edges: " + joinEdgeHintParts(in, formatRelationHintPart) + "}"
 }
 
 func indexEdgeGroupMaps(edges []*database.ProjectFactEdge) (outgoing, incoming map[string][]*database.ProjectFactEdge) {
@@ -99,7 +99,7 @@ func indexEdgeGroupMaps(edges []*database.ProjectFactEdge) (outgoing, incoming m
 }
 
 func relationOverviewLine(e *database.ProjectFactEdge) string {
-	return fmt.Sprintf("- %s → %s%s · %s", e.SourceFactKey, e.TargetFactKey, edgeConfidenceSuffix(e.Confidence), e.EdgeType)
+	return fmt.Sprintf("- %s → %s%s - %s", e.SourceFactKey, e.TargetFactKey, edgeConfidenceSuffix(e.Confidence), e.EdgeType)
 }
 
 func indexEdgeSortKey(e *database.ProjectFactEdge) (int, int, string) {
@@ -131,7 +131,7 @@ func sortIndexOverviewEdges(edges []*database.ProjectFactEdge) {
 	})
 }
 
-// BuildFactPathOverviewSection 生成事实关系速览（全部有效边类型，不含 body）。
+// BuildFactPathOverviewSection Generates a quick overview of fact relationships (all valid edge types, excluding body).
 func BuildFactPathOverviewSection(edges []*database.ProjectFactEdge, indexedKeys map[string]struct{}, maxRunes int) string {
 	if maxRunes <= 0 {
 		return ""
@@ -156,8 +156,8 @@ func BuildFactPathOverviewSection(edges []*database.ProjectFactEdge, indexedKeys
 	}
 	sortIndexOverviewEdges(filtered)
 
-	header := "### 攻击路径（事实关系）\n"
-	header += "source → target · type（与攻击路径图/库中方向一致；写入时在目标 fact 的 links 用 from 声明来源）\n"
+	header := "### Attack path (fact relationships)\n"
+	header += "source → target  -  type (consistent with the direction in the attack-path graph/store; when writing, declare the source with from in the target fact's links)\n"
 	var b strings.Builder
 	b.WriteString(header)
 	used := len([]rune(header))
@@ -174,7 +174,7 @@ func BuildFactPathOverviewSection(edges []*database.ProjectFactEdge, indexedKeys
 		used += lineRunes
 	}
 	if omitted > 0 {
-		extra := fmt.Sprintf("（另有 %d 条关系边未列入，请 get_project_fact 查看完整关系。）\n", omitted)
+		extra := fmt.Sprintf(" (Another %d relationship edges are not listed; use get_project_fact to see the full relationships.)\n", omitted)
 		if used+len([]rune(extra)) <= maxRunes {
 			b.WriteString(extra)
 		}

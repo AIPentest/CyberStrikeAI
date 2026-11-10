@@ -32,7 +32,7 @@ func TestIsSparseFactBody(t *testing.T) {
 	if !IsSparseFactBody("finding", "finding/x", long) {
 		t.Error("body without repro clues should be sparse")
 	}
-	body := "## 攻击链\n1. step\n## Exploit\n```http\nGET / HTTP/1.1\n```\n"
+	body := "## Attack chain\n1. step\n## Exploit\n```http\nGET / HTTP/1.1\n```\n"
 	if IsSparseFactBody("finding", "finding/x", body) {
 		t.Error("structured body should not be sparse")
 	}

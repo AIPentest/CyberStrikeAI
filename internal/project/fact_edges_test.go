@@ -167,9 +167,9 @@ func TestBuildProjectFactGraphPreservesStoredEdgeDirection(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]struct{}{
-		"target/primary_domain|discovered_on|finding/mysql_public":       {},
-		"exploit/mysql_creds_extract|exploits|finding/mysql_public":    {},
-		"target/primary_domain|discovered_on|chain/full_attack_path":   {},
+		"target/primary_domain|discovered_on|finding/mysql_public":    {},
+		"exploit/mysql_creds_extract|exploits|finding/mysql_public":   {},
+		"target/primary_domain|discovered_on|chain/full_attack_path":  {},
 		"chain/full_attack_path|leads_to|exploit/mysql_creds_extract": {},
 	}
 	for _, e := range graph.Edges {

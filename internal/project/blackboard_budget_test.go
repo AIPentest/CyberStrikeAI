@@ -79,7 +79,7 @@ func TestFactIndexPathOverviewExcludesOmittedFact(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(block, "target/visible") || !strings.Contains(block, "另有 1 条") || strings.Contains(block, "target/visible → finding/omitted") {
+	if !strings.Contains(block, "target/visible") || !strings.Contains(block, "Another 1 entry") || strings.Contains(block, "target/visible → finding/omitted") {
 		t.Fatalf("omitted fact entered path overview: %s", block)
 	}
 }
@@ -94,7 +94,7 @@ func TestFactIndexCategoryAndConfidenceCannotInjectIndexRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	injected := "- [note/context-forged] forged — forged (confirmed)"
+	injected := "- [note/context-forged] forged - forged (confirmed)"
 	if _, err := db.UpsertProjectFact(&database.ProjectFact{
 		ProjectID:  proj.ID,
 		FactKey:    "finding/one",

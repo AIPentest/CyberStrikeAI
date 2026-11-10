@@ -9,13 +9,13 @@ import (
 )
 
 var (
-	bodyDepFactLine   = regexp.MustCompile(`(?im)^[\s\-*]*依赖事实\s*[:：]\s*([a-zA-Z0-9][a-zA-Z0-9._/-]*)`)
-	bodyRelFactLine   = regexp.MustCompile(`(?im)^[\s\-*]*相关\s*fact_key\s*[:：]\s*([a-zA-Z0-9][a-zA-Z0-9._/-]*)`)
-	bodyAssocSection  = regexp.MustCompile(`(?im)^##\s*关联\s*$`)
-	bodySyncLinksHead = "结构化关系边（自动同步）"
+	bodyDepFactLine   = regexp.MustCompile(`(?im)^[\s\-*]*Dependency facts\s*[:: ]\s*([a-zA-Z0-9][a-zA-Z0-9._/-]*)`)
+	bodyRelFactLine   = regexp.MustCompile(`(?im)^[\s\-*]*Related\s*fact_key\s*[:: ]\s*([a-zA-Z0-9][a-zA-Z0-9._/-]*)`)
+	bodyAssocSection  = regexp.MustCompile(`(?im)^##\s*Related\s*$`)
+	bodySyncLinksHead = "Structured relationship edges (auto-synced)"
 )
 
-// ParseLinksFromBody 从 body「关联」段落解析 from 语义的关系边（无显式 links 时的兜底）。
+// ParseLinksFromBody Parses from-semantic relationship edges from the body's 'relations' section (a fallback when there are no explicit links).
 func ParseLinksFromBody(body string) []database.ProjectFactEdgeFromInput {
 	body = strings.TrimSpace(body)
 	if body == "" {
@@ -48,7 +48,7 @@ func ParseLinksFromBody(body string) []database.ProjectFactEdgeFromInput {
 			add(m[1], "supports")
 		}
 	}
-	// 自动同步块：type: key
+	// Auto-sync block: type: key
 	syncBlock := extractBodySyncLinksBlock(body)
 	for _, line := range strings.Split(syncBlock, "\n") {
 		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "-"))
@@ -84,7 +84,7 @@ func extractBodySyncLinksBlock(body string) string {
 			inSync = false
 			continue
 		}
-		if inAssoc && strings.HasPrefix(trim, "## ") && !strings.HasPrefix(trim, "## 关联") {
+		if inAssoc && strings.HasPrefix(trim, "## ") && !strings.HasPrefix(trim, "## Related") {
 			break
 		}
 		if inAssoc && strings.Contains(trim, bodySyncLinksHead) {
@@ -105,7 +105,7 @@ func extractBodySyncLinksBlock(body string) string {
 	return b.String()
 }
 
-// SyncBodyLinksSection 将入边镜像写入 body 的「关联」段（人读用；结构化以 links 为准）。
+// SyncBodyLinksSection Mirrors incoming edges into the body's 'relations' section (for human reading; the structured form is governed by links).
 func SyncBodyLinksSection(body string, edges []*database.ProjectFactEdge) string {
 	body = strings.TrimSpace(body)
 	block := formatBodySyncLinksBlock(edges)
@@ -113,7 +113,7 @@ func SyncBodyLinksSection(body string, edges []*database.ProjectFactEdge) string
 		return body
 	}
 	if body == "" {
-		return "## 关联\n" + block
+		return "## Related\n" + block
 	}
 	lines := strings.Split(body, "\n")
 	var out []string
@@ -124,7 +124,7 @@ func SyncBodyLinksSection(body string, edges []*database.ProjectFactEdge) string
 		if bodyAssocSection.MatchString(trim) {
 			inAssoc = true
 			out = append(out, lines[i])
-			// 跳过旧同步块
+			// Skips the old sync block
 			j := i + 1
 			for j < len(lines) {
 				t := strings.TrimSpace(lines[j])
@@ -163,7 +163,7 @@ func SyncBodyLinksSection(body string, edges []*database.ProjectFactEdge) string
 	}
 	if !replaced {
 		if !inAssoc {
-			out = append(out, "", "## 关联", block)
+			out = append(out, "", "## Related", block)
 		} else {
 			out = append(out, block)
 		}
@@ -187,12 +187,12 @@ func formatBodySyncLinksBlock(edges []*database.ProjectFactEdge) string {
 		written++
 	}
 	if written == 0 {
-		b.WriteString("\n  （暂无）")
+		b.WriteString("\n   (None yet)")
 	}
 	return b.String()
 }
 
-// ResolveFactLinksForUpsert 合并显式 links、links_text 与 body 解析结果。
+// ResolveFactLinksForUpsert Merges explicit links, links_text, and the body-parsed result.
 func ResolveFactLinksForUpsert(explicit []database.ProjectFactEdgeFromInput, linksText *string, body string, explicitSet bool) ([]database.ProjectFactEdgeFromInput, bool, error) {
 	if explicitSet {
 		if len(explicit) > 0 {
@@ -216,7 +216,7 @@ func ResolveFactLinksForUpsert(explicit []database.ProjectFactEdgeFromInput, lin
 	return nil, false, nil
 }
 
-// MergeLinkFromInputsUnique 合并多组 from 入边输入并去重。
+// MergeLinkFromInputsUnique Merges multiple sets of from incoming-edge input and deduplicates.
 func MergeLinkFromInputsUnique(groups ...[]database.ProjectFactEdgeFromInput) []database.ProjectFactEdgeFromInput {
 	seen := map[string]struct{}{}
 	var out []database.ProjectFactEdgeFromInput
@@ -239,7 +239,7 @@ func MergeLinkFromInputsUnique(groups ...[]database.ProjectFactEdgeFromInput) []
 	return out
 }
 
-// MergeLinkInputsUnique 合并多组 link 输入并去重（内部出边写入用）。
+// MergeLinkInputsUnique Merges multiple sets of link input and deduplicates (for internal outgoing-edge writing).
 func MergeLinkInputsUnique(groups ...[]database.ProjectFactEdgeInput) []database.ProjectFactEdgeInput {
 	seen := map[string]struct{}{}
 	var out []database.ProjectFactEdgeInput

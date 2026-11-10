@@ -12,7 +12,7 @@ import (
 
 func TestParseLinksFromBodyDependsOn(t *testing.T) {
 	t.Parallel()
-	body := "## 关联\n- 依赖事实: target/api\n- 相关 fact_key: auth/session"
+	body := "## Related\n- Dependency facts: target/api\n- Related fact_key: auth/session"
 	links := ParseLinksFromBody(body)
 	if len(links) != 2 {
 		t.Fatalf("want 2 links, got %d", len(links))
@@ -21,7 +21,7 @@ func TestParseLinksFromBodyDependsOn(t *testing.T) {
 
 func TestSyncBodyLinksSection(t *testing.T) {
 	t.Parallel()
-	body := "## 结论\nx\n\n## 关联\n- 依赖事实: old/key"
+	body := "## Conclusion\nx\n\n## Related\n- Dependency facts: old/key"
 	edges := []*database.ProjectFactEdge{{EdgeType: "discovered_on", SourceFactKey: "target/a"}}
 	out := SyncBodyLinksSection(body, edges)
 	if !strings.Contains(out, "discovered_on: target/a") {

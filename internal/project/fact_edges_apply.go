@@ -4,7 +4,7 @@ import (
 	"cyberstrike-ai/internal/database"
 )
 
-// ApplyFactOutgoingLinks 替换某事实的出边（links 为 nil 时不修改）。
+// ApplyFactOutgoingLinks Replaces a fact's outgoing edges (no modification when links is nil).
 func ApplyFactOutgoingLinks(db *database.DB, projectID, sourceFactKey, sourceConversationID string, links []database.ProjectFactEdgeInput) error {
 	if links == nil {
 		return nil
@@ -12,7 +12,7 @@ func ApplyFactOutgoingLinks(db *database.DB, projectID, sourceFactKey, sourceCon
 	return db.ReplaceOutgoingProjectFactEdges(projectID, sourceFactKey, sourceConversationID, links)
 }
 
-// ResolveFactLinkInputs 合并 links 数组与 links_text 文本（数组优先）。
+// ResolveFactLinkInputs Merges the links array and the links_text text (the array takes precedence).
 func ResolveFactLinkInputs(links []database.ProjectFactEdgeFromInput, linksText string) ([]database.ProjectFactEdgeFromInput, error) {
 	if len(links) > 0 {
 		return links, nil
@@ -20,7 +20,7 @@ func ResolveFactLinkInputs(links []database.ProjectFactEdgeFromInput, linksText 
 	return ParseFactLinksText(linksText)
 }
 
-// ApplyFactIncomingLinks 替换某事实的入边（links 为 nil 时不修改）。
+// ApplyFactIncomingLinks Replaces a fact's incoming edges (no modification when links is nil).
 func ApplyFactIncomingLinks(db *database.DB, projectID, targetFactKey string, links []database.ProjectFactEdgeFromInput) error {
 	if links == nil {
 		return nil
@@ -28,7 +28,7 @@ func ApplyFactIncomingLinks(db *database.DB, projectID, targetFactKey string, li
 	return db.ReplaceIncomingProjectFactEdges(projectID, targetFactKey, links)
 }
 
-// PersistFactIncomingLinks 写入入边并可选同步当前事实 body「关联」段。
+// PersistFactIncomingLinks Writes incoming edges and optionally syncs the current fact's body 'relations' section.
 func PersistFactIncomingLinks(db *database.DB, projectID, targetFactKey string, links []database.ProjectFactEdgeFromInput, syncBody bool) error {
 	if links == nil {
 		return nil
@@ -52,7 +52,7 @@ func PersistFactIncomingLinks(db *database.DB, projectID, targetFactKey string, 
 	return err
 }
 
-// PersistFactLinksFromParsed 写入解析后的 links（parsed 为 nil 表示不修改）。
+// PersistFactLinksFromParsed Writes the parsed links (parsed being nil means no modification).
 func PersistFactLinksFromParsed(db *database.DB, projectID, factKey, sourceConversationID string, parsed *ParsedFactLinks, syncBody bool) error {
 	if parsed == nil || parsed.Incoming == nil {
 		return nil
@@ -60,7 +60,7 @@ func PersistFactLinksFromParsed(db *database.DB, projectID, factKey, sourceConve
 	return PersistFactIncomingLinks(db, projectID, factKey, parsed.Incoming, syncBody)
 }
 
-// PersistFactOutgoingLinks 写入出边（图连线等低层 API；body 同步请用 PersistFactIncomingLinks）。
+// PersistFactOutgoingLinks Writes outgoing edges (a low-level API for graph connections; for body sync use PersistFactIncomingLinks).
 func PersistFactOutgoingLinks(db *database.DB, projectID, sourceFactKey, sourceConversationID string, links []database.ProjectFactEdgeInput, syncBody bool) error {
 	if links == nil {
 		return nil
@@ -68,16 +68,16 @@ func PersistFactOutgoingLinks(db *database.DB, projectID, sourceFactKey, sourceC
 	return ApplyFactOutgoingLinks(db, projectID, sourceFactKey, sourceConversationID, links)
 }
 
-// LinkCountMap 项目内各 fact 的入/出边计数。
+// LinkCountMap The incoming/outgoing edge counts of each fact in the project.
 type LinkCountMap map[string]LinkCounts
 
-// LinkCounts 单 fact 的入/出边数。
+// LinkCounts The incoming/outgoing edge count of a single fact.
 type LinkCounts struct {
 	Outgoing int `json:"outgoing"`
 	Incoming int `json:"incoming"`
 }
 
-// LoadProjectFactLinkCounts 批量加载边计数。
+// LoadProjectFactLinkCounts Batch-loads edge counts.
 func LoadProjectFactLinkCounts(db *database.DB, projectID string) (LinkCountMap, error) {
 	edges, err := db.ListProjectFactEdgesByProject(projectID)
 	if err != nil {

@@ -31,9 +31,9 @@ func TestProjectResumeSurvivesRestartAndStaysProjectScoped(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range []*database.ProjectFact{
-		{ProjectID: p.ID, FactKey: "artifact/parser", Category: "note", Summary: "已验证解析脚本", Body: "路径 artifacts/parser.py；调用 python parser.py --input capture.txt；验证输出 PASS", Confidence: "confirmed", SourceConversationID: conv.ID},
-		{ProjectID: p.ID, FactKey: "test/login-query", Category: "note", Summary: "已测参数未发现异常", Body: "POST /login 参数 q 匿名：重复三次响应相同；仅在该入口有效；版本变化再测", Confidence: "confirmed"},
-		{ProjectID: p.ID, FactKey: "artifact/obsolete", Category: "note", Summary: "废弃旧脚本", Body: "obsolete-body", Confidence: "deprecated"},
+		{ProjectID: p.ID, FactKey: "artifact/parser", Category: "note", Summary: "Verified parsing script", Body: "path artifacts/parser.py; invoke python parser.py --input capture.txt; verify the output PASS", Confidence: "confirmed", SourceConversationID: conv.ID},
+		{ProjectID: p.ID, FactKey: "test/login-query", Category: "note", Summary: "The tested parameters showed no anomaly", Body: "POST /login Parameter q anonymous: three repeats give the same response; valid only at this entry point; retest on a version change", Confidence: "confirmed"},
+		{ProjectID: p.ID, FactKey: "artifact/obsolete", Category: "note", Summary: "Deprecate the old script", Body: "obsolete-body", Confidence: "deprecated"},
 		{ProjectID: other.ID, FactKey: "artifact/private", Category: "note", Summary: "other-project-secret", Body: "private-body", Confidence: "confirmed"},
 	} {
 		if _, err := db.UpsertProjectFact(f); err != nil {
@@ -65,7 +65,7 @@ func TestProjectResumeSurvivesRestartAndStaysProjectScoped(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, want := range []string{"artifacts/parser.py", "python parser.py", "POST /login", "版本变化再测", "known finding", "fixed", conv.ID, "先恢复成果", "默认跳过"} {
+		for _, want := range []string{"artifacts/parser.py", "python parser.py", "POST /login", "retest on a version change", "known finding", "fixed", conv.ID, "Restore prior work first", "Skip by default"} {
 			if !strings.Contains(block, want) {
 				t.Errorf("missing %q in %s", want, block)
 			}
@@ -90,17 +90,17 @@ func TestResumeSupplementBudgetAndIndependentResultQuotas(t *testing.T) {
 	}
 	var facts []*database.ProjectFact
 	for i := 0; i < 25; i++ {
-		facts = append(facts, &database.ProjectFact{FactKey: fmt.Sprintf("artifact/%d", i), Summary: strings.Repeat("大", 2000), Body: strings.Repeat("文", 10000), Confidence: "confirmed"})
-		if _, err := db.CreateVulnerability(&database.Vulnerability{ProjectID: p.ID, Title: strings.Repeat("漏洞", 500), Severity: "high"}); err != nil {
+		facts = append(facts, &database.ProjectFact{FactKey: fmt.Sprintf("artifact/%d", i), Summary: strings.Repeat("large", 2000), Body: strings.Repeat("text", 10000), Confidence: "confirmed"})
+		if _, err := db.CreateVulnerability(&database.Vulnerability{ProjectID: p.ID, Title: strings.Repeat("Vulnerability", 500), Severity: "high"}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	facts = append(facts, &database.ProjectFact{FactKey: "test/negative", Summary: "bounded-negative", Body: "已测条件下未发现", Confidence: "confirmed"})
+	facts = append(facts, &database.ProjectFact{FactKey: "test/negative", Summary: "bounded-negative", Body: "not found under the tested conditions", Confidence: "confirmed"})
 	block := buildResumeSection(db, p.ID, facts)
 	if n := len([]rune(block)); n > resumeSupplementMaxRunes {
 		t.Fatalf("budget exceeded: %d", n)
 	}
-	if !strings.Contains(block, "test/negative") || (!strings.Contains(block, "/ 25") || strings.Contains(block, "artifact: 展示 0")) || !strings.Contains(block, "get_vulnerability") {
+	if !strings.Contains(block, "test/negative") || (!strings.Contains(block, "/ 25") || strings.Contains(block, "artifact: Showing 0")) || !strings.Contains(block, "get_vulnerability") {
 		t.Fatalf("missing independent result quota or retrieval: %s", block)
 	}
 }
