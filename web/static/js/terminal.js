@@ -1,5 +1,5 @@
 /**
- * 系统设置 - 终端：多标签、流式输出、命令历史、Ctrl+L 清屏、长时间可取消
+ * 系统设置 - Terminal: 多标签, 流式输出, 命令历史, Ctrl+L Clear screen, 长时间可取消
  */
 (function () {
     var getContext = HTMLCanvasElement.prototype.getContext;
@@ -15,7 +15,7 @@
     var currentTabId = 1;
     var inited = false;
     var tabIdCounter = 1;
-    var PROMPT = ''; // 真实 Shell 自己输出提示符，这里不再自定义
+    var PROMPT = ''; // 真实 Shell 自己输出提示符, 这里不再自定义
     var HISTORY_MAX = 100;
     var CANCEL_AFTER_MS = 125000;
 
@@ -30,16 +30,16 @@
         if (typeof window !== 'undefined' && typeof window.t === 'function') {
             return window.t(key, opts);
         }
-        // i18n 未就绪时的后备（与 zh-CN 一致）
+        // i18n 未就绪时的后备 (与 zh-CN 一致)
         var fallbacks = {
-            'settingsTerminal.welcomeLine': 'CyberStrikeAI 终端 - 真实 Shell 会话，直接输入命令；Ctrl+L 清屏',
-            'settingsTerminal.sessionClosed': '[会话已关闭]',
-            'settingsTerminal.connectionError': '[终端连接出错]',
-            'settingsTerminal.connectFailed': '[无法连接终端服务: {{msg}}]',
-            'settingsTerminal.closeTabTitle': '关闭',
-            'settingsTerminal.containerClickTitle': '点击此处后输入命令',
-            'settingsTerminal.xtermNotLoaded': '未加载 xterm.js，请刷新页面或检查网络。',
-            'settingsTerminal.terminalTab': '终端 {{n}}'
+            'settingsTerminal.welcomeLine': 'CyberStrikeAI Terminal - a real shell session; type commands directly; Ctrl+L Clear screen',
+            'settingsTerminal.sessionClosed': '[Session closed]',
+            'settingsTerminal.connectionError': '[Terminal connection error]',
+            'settingsTerminal.connectFailed': '[Unable to connect to the terminal service: {{msg}}]',
+            'settingsTerminal.closeTabTitle': 'Close',
+            'settingsTerminal.containerClickTitle': 'Click here, then type a command',
+            'settingsTerminal.xtermNotLoaded': 'xterm.js not loaded; please refresh the page or check the network.',
+            'settingsTerminal.terminalTab': 'Terminal {{n}}'
         };
         var s = fallbacks[key] || key;
         if (opts && typeof opts === 'object') {
@@ -55,7 +55,7 @@
     }
 
     function writePrompt(tab) {
-        // 提示符交由后端 Shell 自行输出，这里仅保留占位函数，避免旧代码报错
+        // 提示符交由后端 Shell 自行输出, 这里仅保留占位函数, 避免旧代码报错
     }
 
     function redrawTabDisplay(t) {
@@ -98,7 +98,7 @@
         t.term.write(suffix);
     }
 
-    // 从本地存储中获取当前登录 token（与 auth.js 使用的结构保持一致）
+    // 从本地存储中获取当前登录 token (与 auth.js 使用的结构保持一致)
     function getStoredAuthToken() {
         try {
             var raw = localStorage.getItem('cyberstrike-auth');
@@ -109,7 +109,7 @@
         return null;
     }
 
-    // WebSocket 地址构造（兼容 http/https，并通过 query 传递 token 以通过后端鉴权）
+    // WebSocket 地址构造 (兼容 http/https, 并通过 query 传递 token 以通过后端鉴权)
     function buildTerminalWSURL() {
         var proto = (window.location.protocol === 'https:') ? 'wss://' : 'ws://';
         var url = proto + window.location.host + '/api/terminal/ws';
@@ -149,7 +149,7 @@
                     var decoder = new TextDecoder('utf-8');
                     writeTermData(tab, decoder.decode(ev.data));
                 } else if (ev.data instanceof Blob) {
-                    // Blob 类型，需要异步读取
+                    // Blob 类型, 需要异step读取
                     var reader = new FileReader();
                     reader.onload = function () {
                         var decoder = new TextDecoder('utf-8');
@@ -255,7 +255,7 @@
         }
 
         term.onData(function (data) {
-            // Ctrl+L：本地清屏，同时把 ^L 也发给后端
+            // Ctrl+L: 本地Clear screen, 同时把 ^L 也发给后端
             if (data === '\x0c') {
                 term.clear();
                 sendToWS(data);
@@ -285,8 +285,8 @@
             });
             tab.resizeObserver.observe(container);
         }
-        // 立即建立 WebSocket，让后端 PTY/Shell 马上启动并输出提示符；
-        // 若等到首次按键才 connect，用户会感觉必须先按回车才能输入（实为连接尚未建立）。
+        // 立即建立 WebSocket, 让后端 PTY/Shell 马上启动并输出提示符; 
+        // 若等到首次按键才 connect, 用户会感觉必须先按回车才能输入 (实为连接尚未建立).
         ensureTerminalWS(tab);
         return term;
     }
@@ -462,7 +462,7 @@
     }
 
     function refreshTerminalI18n() {
-        // 语言切换后更新标签与容器 title；已打开的终端内容不强制清屏，以免丢失会话输出
+        // 语言切换后更新标签与容器 title; 已打开的Terminal内容不强制Clear screen, 以免丢失会话输出
         try {
             var tabsEl = document.querySelector('.terminal-tabs');
             if (tabsEl) {

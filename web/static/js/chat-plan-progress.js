@@ -147,7 +147,7 @@
 
     function taskLabel(task) {
         if (task.status === 'in_progress' && task.activeForm) return task.activeForm;
-        return task.subject || translate('chat.taskProgressUnnamed', '未命名任务');
+        return task.subject || translate('chat.taskProgressUnnamed', 'Untitled task');
     }
 
     function render(force) {
@@ -168,7 +168,7 @@
         panel.className = 'agent-plan-progress-panel';
         panel.id = 'agent-plan-progress-panel';
         panel.setAttribute('role', 'status');
-        panel.setAttribute('aria-label', translate('chat.taskProgressDetails', '任务进度详情'));
+        panel.setAttribute('aria-label', translate('chat.taskProgressDetails', 'Task progress details'));
         progress.tasks.forEach((task) => {
             const row = root.document.createElement('div');
             row.className = 'agent-plan-task agent-plan-task--' + task.status;
@@ -186,11 +186,11 @@
         trigger.className = 'agent-plan-progress-trigger';
         trigger.setAttribute('aria-controls', panel.id);
         trigger.setAttribute('aria-expanded', state.expanded ? 'true' : 'false');
-        trigger.setAttribute('aria-label', translate('chat.taskProgressOpen', '查看任务进度'));
+        trigger.setAttribute('aria-label', translate('chat.taskProgressOpen', 'View task progress'));
         trigger.appendChild(statusIcon(progress.allCompleted ? 'completed' : 'in_progress'));
         const count = root.document.createElement('span');
         count.className = 'agent-plan-progress-count';
-        count.textContent = translate('chat.taskProgressStep', '第 {{current}} / {{total}} 步', {
+        count.textContent = translate('chat.taskProgressStep', 'Page {{current}} / {{total}} step', {
             current: progress.activeStep,
             total: progress.total
         });

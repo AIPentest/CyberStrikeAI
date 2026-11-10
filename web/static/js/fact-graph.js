@@ -1,6 +1,6 @@
 /**
- * 项目事实图渲染（Cytoscape + ELK），供项目管理页使用。
- * 节点采用 SVG 卡片背景（左上角图标 + 多行文字），避免 Cytoscape 原生 label 定位问题。
+ * 项目事实图渲染 (Cytoscape + ELK), 供项目管理pages使用.
+ * 节点采用 SVG 卡片背景 (左上角图标 + 多行文字), 避免 Cytoscape 原生 label 定位问题.
  */
 (function (global) {
     'use strict';
@@ -46,49 +46,49 @@
 
     const NODE_TYPE_STYLES = {
         target: {
-            typeLabel: '目标',
+            typeLabel: 'Target',
             typeEn: 'TARGET',
             accent: { light: '#4F46E5', dark: '#818cf8' },
             bgEnd: { light: '#F5F3FF', dark: '#1e1b4b' },
             icon: 'target',
         },
         finding: {
-            typeLabel: '发现',
+            typeLabel: 'Discovery',
             typeEn: 'FINDING',
             accent: { light: '#E11D48', dark: '#fb7185' },
             bgEnd: { light: '#FFF1F2', dark: '#3f1219' },
             icon: 'finding',
         },
         exploit: {
-            typeLabel: '利用',
+            typeLabel: 'Exploitation',
             typeEn: 'EXPLOIT',
             accent: { light: '#B45309', dark: '#fbbf24' },
             bgEnd: { light: '#FFFBEB', dark: '#3b2712' },
             icon: 'vulnerability',
         },
         vulnerability: {
-            typeLabel: '漏洞',
+            typeLabel: 'Vulnerability',
             typeEn: 'VULN',
             accent: { light: '#9333EA', dark: '#c084fc' },
             bgEnd: { light: '#F5F3FF', dark: '#2e1065' },
             icon: 'vuln',
         },
         auth: {
-            typeLabel: '认证',
+            typeLabel: 'Auth',
             typeEn: 'AUTH',
             accent: { light: '#0D9488', dark: '#2dd4bf' },
             bgEnd: { light: '#F0FDFA', dark: '#0f2926' },
             icon: 'default',
         },
         infra: {
-            typeLabel: '基础设施',
+            typeLabel: 'Infrastructure',
             typeEn: 'INFRA',
             accent: { light: '#64748B', dark: '#94a3b8' },
             bgEnd: { light: '#F8FAFC', dark: '#1e293b' },
             icon: 'default',
         },
         chain: {
-            typeLabel: '攻击链',
+            typeLabel: 'Attack chain',
             typeEn: 'CHAIN',
             accent: { light: '#7C3AED', dark: '#a78bfa' },
             bgEnd: { light: '#F5F3FF', dark: '#2e1065' },
@@ -102,21 +102,21 @@
             icon: 'vulnerability',
         },
         business: {
-            typeLabel: '业务',
+            typeLabel: 'Business',
             typeEn: 'BUSINESS',
             accent: { light: '#0369A1', dark: '#38bdf8' },
             bgEnd: { light: '#F0F9FF', dark: '#0c2540' },
             icon: 'default',
         },
         missing: {
-            typeLabel: '缺失',
+            typeLabel: 'Missing',
             typeEn: 'MISSING',
             accent: { light: '#CBD5E1', dark: '#64748b' },
             bgEnd: { light: '#F1F5F9', dark: '#1e293b' },
             icon: 'default',
         },
         note: {
-            typeLabel: '备注',
+            typeLabel: 'Notes',
             typeEn: 'NOTE',
             accent: { light: '#94A3B8', dark: '#94a3b8' },
             bgEnd: { light: '#F8FAFC', dark: '#1e293b' },
@@ -170,14 +170,14 @@
 
     function buildStatusBadge(confidence) {
         const conf = (confidence || '').toLowerCase();
-        if (conf === 'tentative') return '待确认';
-        if (conf === 'deprecated') return '已废弃';
+        if (conf === 'tentative') return 'Pending';
+        if (conf === 'deprecated') return 'Deprecated';
         return '';
     }
 
     function buildHeaderText(theme, statusBadge) {
-        const line = (theme.typeEn || '') + ' · ' + (theme.typeLabel || '');
-        return statusBadge ? line + ' · ' + statusBadge : line;
+        const line = (theme.typeEn || '') + '  -  ' + (theme.typeLabel || '');
+        return statusBadge ? line + '  -  ' + statusBadge : line;
     }
 
     function isWideChar(ch) {
@@ -186,7 +186,7 @@
         if (code >= 0x3400 && code <= 0x4dbf) return true;
         if (code >= 0xf900 && code <= 0xfaff) return true;
         if (code >= 0xff00 && code <= 0xffef) return true;
-        return /[·：，。；！？【】（）《》、「」]/.test(ch);
+        return /[ - : , .; !?[] ()<>, '']/.test(ch);
     }
 
     function charWidth(ch, fontSize, bold) {
@@ -467,7 +467,7 @@
         }
     }
 
-    // ELK 分层（仅影响节点纵向位置，不修改边的 source/target）
+    // ELK 分层 (仅影响节点纵向位置, 不修改边的 source/target)
     function pathGraphNodeLayer(type, factKey) {
         const key = (factKey || '').toLowerCase();
         if (key.startsWith('vuln:')) return '4';
@@ -550,7 +550,7 @@
     function render(container, graphData, options) {
         if (!container || typeof cytoscape === 'undefined') {
             if (container) {
-                container.innerHTML = '<div class="error-message">Cytoscape 未加载</div>';
+                container.innerHTML = '<div class="error-message">Cytoscape Not loaded</div>';
             }
             return null;
         }
@@ -563,7 +563,7 @@
         const edges = _graphData.edges || [];
         if (!nodes.length) {
             const title = (options && options.emptyTitle) || '';
-            const hint = (options && options.emptyText) || '暂无事实关系';
+            const hint = (options && options.emptyText) || 'No fact relationships yet';
             const steps = (options && options.emptySteps) || [];
             const actionLabel = options && options.emptyActionLabel;
             const stepsHtml = steps.length
@@ -777,7 +777,7 @@
         }
     }
 
-    /** 与后端 GraphNodeType 一致：优先 category，vuln: 合成节点例外；无 category 时回退 type/key。 */
+    /** 与后端 GraphNodeType 一致: 优先 category, vuln: 合成节点例外; 无 category 时回退 type/key. */
     function resolveGraphNodeType(node) {
         if (!node) return 'note';
         const key = String(node.fact_key || node.id || '').toLowerCase();

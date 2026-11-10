@@ -1,4 +1,4 @@
-// API文档页面JavaScript
+// API 文档pages面JavaScript
 
 let apiSpec = null;
 let currentToken = null;
@@ -19,7 +19,7 @@ function waitForI18n() {
     });
 }
 
-// 从 OpenAPI spec 的 x-i18n-tags 构建 tag -> i18n key 映射（方案 A：后端提供键）
+// 从 OpenAPI spec 的 x-i18n-tags 构建 tag -> i18n key 映射 (方案 A: 后端提供键)
 var apiSpecTagToKey = {};
 function buildApiSpecTagToKey() {
     apiSpecTagToKey = {};
@@ -92,7 +92,7 @@ async function loadToken() {
         }
         currentToken = localStorage.getItem('swagger_auth_token');
     } catch (e) {
-        console.error('加载token失败:', e);
+        console.error('Failed to load the token:', e);
     }
 }
 
@@ -113,12 +113,12 @@ async function loadAPISpec() {
         apiSpec = await response.json();
         buildApiSpecTagToKey();
     } catch (error) {
-        console.error('加载API规范失败:', error);
+        console.error('Failed to load the API spec:', error);
         showError(_t('apiDocs.errorLoadFailed') + error.message);
     }
 }
 
-// 显示错误
+// Show错误
 function showError(message) {
     const main = document.getElementById('api-docs-main');
     const loadFailed = _t('apiDocs.loadFailed');
@@ -146,7 +146,7 @@ function renderAPIDocs() {
         return;
     }
     
-    // 显示认证说明
+    // ShowAuth说明
     renderAuthInfo();
     
     // 渲染侧边栏分组
@@ -156,12 +156,12 @@ function renderAPIDocs() {
     renderEndpoints();
 }
 
-// 渲染认证说明
+// 渲染Auth说明
 function renderAuthInfo() {
     const authSection = document.getElementById('auth-info-section');
     if (!authSection) return;
     
-    // 显示认证说明部分
+    // ShowAuth说明部分
     authSection.style.display = 'block';
     
     // 检查是否有token
@@ -169,7 +169,7 @@ function renderAuthInfo() {
     if (currentToken && tokenStatus) {
         tokenStatus.style.display = 'block';
     } else if (tokenStatus) {
-        // 如果没有token，显示提示
+        // 如果没有token, Show提示
         tokenStatus.style.display = 'block';
         tokenStatus.style.background = 'rgba(255, 152, 0, 0.1)';
         tokenStatus.style.borderLeftColor = '#ff9800';
@@ -307,7 +307,7 @@ function renderParameters(endpoint) {
     const optionalLabel = escapeHtml(_t('apiDocs.optional'));
     const rows = params.map(param => {
             const required = param.required ? '<span class="api-param-required">' + requiredLabel + '</span>' : '<span class="api-param-optional">' + optionalLabel + '</span>';
-        // 处理描述文本，将换行符转换为<br>
+        // 处理描述文本, 将换行符转换为<br>
         let descriptionHtml = '-';
         if (param.description) {
             const escapedDesc = escapeHtml(param.description);
@@ -391,12 +391,12 @@ function renderRequestBody(endpoint) {
                 typeDisplay += ` (${prop.enum.join(', ')})`;
             }
             
-            // 处理描述文本，将换行符转换为<br>，但保持其他格式
+            // 处理描述文本, 将换行符转换为<br>, 但保持其他格式
             let descriptionHtml = '-';
             if (prop.description) {
-                // 转义HTML，然后处理换行
+                // 转义HTML, 然后处理换行
                 const escapedDesc = escapeHtml(prop.description);
-                // 将 \n 转换为 <br>，但不要转换已经转义的换行
+                // 将 \n 转换为 <br>, 但不要转换已经转义的换行
                 descriptionHtml = escapedDesc.replace(/\n/g, '<br>');
             }
             
@@ -650,7 +650,7 @@ async function testAPI(method, path, operationId) {
             }
         });
         
-        // 确保路径以/api开头（如果OpenAPI规范中的路径不包含/api）
+        // 确保路径以/api开头 (如果OpenAPI规范中的路径不包含/api)
         if (!actualPath.startsWith('/api') && !actualPath.startsWith('http')) {
             actualPath = '/api' + actualPath;
         }
@@ -714,9 +714,9 @@ async function testAPI(method, path, operationId) {
             responseData = responseText;
         }
         
-        // 显示结果
+        // Show结果
         resultDiv.className = response.ok ? 'api-test-result success' : 'api-test-result error';
-        resultDiv.textContent = `状态码: ${response.status} ${response.statusText}\n\n${typeof responseData === 'string' ? responseData : JSON.stringify(responseData, null, 2)}`;
+        resultDiv.textContent = `Status code: ${response.status} ${response.statusText}\n\n${typeof responseData === 'string' ? responseData : JSON.stringify(responseData, null, 2)}`;
         
     } catch (error) {
         resultDiv.className = 'api-test-result error';
@@ -788,7 +788,7 @@ function copyCurlCommand(event, method, path) {
             curlCommand += ` \\\n  -H "Authorization: Bearer YOUR_TOKEN_HERE"`;
         }
         
-        // 添加请求体（如果有）
+        // 添加请求体 (如果有)
         if (['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
             const bodyInputId = `test-body-${escapeId(path)}-${method}`;
             const bodyInput = document.getElementById(bodyInputId);
@@ -797,11 +797,11 @@ function copyCurlCommand(event, method, path) {
                     // 验证JSON格式并格式化
                     const jsonBody = JSON.parse(bodyInput.value.trim());
                     const jsonString = JSON.stringify(jsonBody);
-                    // 在单引号内，只需要转义单引号本身
+                    // 在单引号内, 只需要转义单引号本身
                     const escapedJson = jsonString.replace(/'/g, "'\\''");
                     curlCommand += ` \\\n  -d '${escapedJson}'`;
                 } catch (e) {
-                    // 如果不是有效JSON，直接使用原始值
+                    // 如果不是有效JSON, 直接使用原始值
                     const escapedBody = bodyInput.value.trim().replace(/'/g, "'\\''");
                     curlCommand += ` \\\n  -d '${escapedBody}'`;
                 }
@@ -824,8 +824,8 @@ function copyCurlCommand(event, method, path) {
                 alert(_t('apiDocs.curlCopied'));
             }
         }).catch(err => {
-            console.error('复制失败:', err);
-            // 如果clipboard API失败，使用fallback方法
+            console.error('Copy failed:', err);
+            // 如果clipboard API失败, 使用fallback方法
             const textarea = document.createElement('textarea');
             textarea.value = curlCommand;
             textarea.style.position = 'fixed';
@@ -853,21 +853,21 @@ function copyCurlCommand(event, method, path) {
         });
         
     } catch (error) {
-        console.error('生成curl命令失败:', error);
+        console.error('Failed to generate the curl command:', error);
         alert(_t('apiDocs.curlGenFailed') + error.message);
     }
 }
 
-// 格式化描述文本（处理markdown格式）
+// 格式化描述文本 (处理markdown格式)
 function formatDescription(text) {
     if (!text) return '';
     
-    // 先提取代码块（避免代码块内的markdown被处理）
+    // 先提取代码块 (避免代码块内的markdown被处理)
     let formatted = text;
     const codeBlocks = [];
     let codeBlockIndex = 0;
     
-    // 提取代码块（支持语言标识符，如 ```json 或 ```javascript）
+    // 提取代码块 (支持语言标识符, 如 ```json 或 ```javascript)
     formatted = formatted.replace(/```(\w+)?\s*\n?([\s\S]*?)```/g, (match, lang, code) => {
         const placeholder = `__CODE_BLOCK_${codeBlockIndex}__`;
         codeBlocks[codeBlockIndex] = {
@@ -878,7 +878,7 @@ function formatDescription(text) {
         return placeholder;
     });
     
-    // 提取行内代码（避免行内代码内的markdown被处理）
+    // 提取行内代码 (避免行内代码内的markdown被处理)
     const inlineCodes = [];
     let inlineCodeIndex = 0;
     formatted = formatted.replace(/`([^`\n]+)`/g, (match, code) => {
@@ -888,10 +888,10 @@ function formatDescription(text) {
         return placeholder;
     });
     
-    // 转义HTML（但保留占位符）
+    // 转义HTML (但保留占位符)
     formatted = escapeHtml(formatted);
     
-    // 恢复行内代码（需要转义，因为占位符已经被转义了）
+    // 恢复行内代码 (需要转义, 因为占位符已经被转义了)
     inlineCodes.forEach((code, index) => {
         formatted = formatted.replace(
             `__INLINE_CODE_${index}__`,
@@ -899,33 +899,33 @@ function formatDescription(text) {
         );
     });
     
-    // 恢复代码块（代码块内容已经转义过，直接使用）
+    // 恢复代码块 (代码块内容已经转义过, 直接使用)
     codeBlocks.forEach((block, index) => {
         const langLabel = block.lang ? `<span class="code-lang">${escapeHtml(block.lang)}</span>` : '';
-        // 代码块内容已经在提取时保存，不需要再次转义
+        // 代码块内容已经在提取时保存, 不需要再次转义
         formatted = formatted.replace(
             `__CODE_BLOCK_${index}__`,
             `<pre class="code-block">${langLabel}<code>${escapeHtml(block.code)}</code></pre>`
         );
     });
     
-    // 处理标题（### 标题）
+    // 处理标题 (### 标题)
     formatted = formatted.replace(/^###\s+(.+)$/gm, '<h3 class="md-h3">$1</h3>');
     formatted = formatted.replace(/^##\s+(.+)$/gm, '<h2 class="md-h2">$1</h2>');
     formatted = formatted.replace(/^#\s+(.+)$/gm, '<h1 class="md-h1">$1</h1>');
     
-    // 处理加粗文本（**text** 或 __text__）
+    // 处理加粗文本 (**text** 或 __text__)
     formatted = formatted.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
     formatted = formatted.replace(/__([^_]+?)__/g, '<strong>$1</strong>');
     
-    // 处理斜体（*text* 或 _text_，但不与加粗冲突）
+    // 处理斜体 (*text* 或 _text_, 但不与加粗冲突)
     formatted = formatted.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>');
     formatted = formatted.replace(/(?<!_)_([^_\n]+?)_(?!_)/g, '<em>$1</em>');
     
     // 处理链接 [text](url)
     formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="md-link">$1</a>');
     
-    // 处理列表项（有序和无序）
+    // 处理列表项 (有序和无序)
     const lines = formatted.split('\n');
     const result = [];
     let inUnorderedList = false;
@@ -985,21 +985,21 @@ function formatDescription(text) {
     
     formatted = result.join('\n');
     
-    // 处理段落（连续的空行分隔段落）
+    // 处理段落 (连续的空行分隔段落)
     formatted = formatted.replace(/(<br>\s*){2,}/g, '</p><p class="md-paragraph">');
     formatted = '<p class="md-paragraph">' + formatted + '</p>';
     
-    // 清理多余的<br>标签（在块级元素前后）
+    // 清理多余的<br> 标签 (在块级元素前后)
     formatted = formatted.replace(/(<\/?(h[1-6]|ul|ol|li|pre|p)[^>]*>)\s*<br>/gi, '$1');
     formatted = formatted.replace(/<br>\s*(<\/?(h[1-6]|ul|ol|li|pre|p)[^>]*>)/gi, '$1');
     
-    // 将剩余的单个换行符转换为<br>（但避免在块级元素内）
+    // 将剩余的单个换行符转换为<br> (但避免在块级元素内)
     formatted = formatted.replace(/\n(?!<\/?(h[1-6]|ul|ol|li|pre|p|code))/g, '<br>');
     
     return formatted;
 }
 
-// HTML转义
+// HTML 转义
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -1018,12 +1018,12 @@ function escapeJsStringAttr(text) {
     return escapeAttr(escapeJsString(text));
 }
 
-// ID转义（用于HTML ID属性）
+// ID 转义 (用于HTML ID属性)
 function escapeId(text) {
     return text.replace(/[{}]/g, '').replace(/\//g, '-');
 }
 
-// 切换描述显示/隐藏
+// 切换描述Show/隐藏
 function toggleDescription(button) {
     const icon = button.querySelector('.description-toggle-icon');
     const detail = button.parentElement.querySelector('.api-description-detail');
@@ -1032,10 +1032,10 @@ function toggleDescription(button) {
     if (detail.style.display === 'none') {
         detail.style.display = 'block';
         icon.style.transform = 'rotate(180deg)';
-        span.textContent = typeof window.t === 'function' ? window.t('apiDocs.hideDetailDesc') : '隐藏详细说明';
+        span.textContent = typeof window.t === 'function' ? window.t('apiDocs.hideDetailDesc') : 'Hide details';
     } else {
         detail.style.display = 'none';
         icon.style.transform = 'rotate(0deg)';
-        span.textContent = typeof window.t === 'function' ? window.t('apiDocs.viewDetailDesc') : '查看详细说明';
+        span.textContent = typeof window.t === 'function' ? window.t('apiDocs.viewDetailDesc') : 'View details';
     }
 }

@@ -7,12 +7,12 @@
     function translate(key, values) {
         if (typeof window.t === 'function') return window.t('attackChainModal.' + key, values);
         const fallback = {
-            contextTitle: '压缩摘要与证据线索 ({{count}})',
-            contextNotice: '当前会话轨迹中的系统生成摘要，可能晚于图的生成时间。仅供回溯与检索，不代表用户的新授权或已核实工具证据。可按摘要内的快照路径读取原始证据。',
-            contextSummary: '压缩摘要 {{number}}',
-            contextCopy: '复制完整摘要',
-            contextCopied: '已复制',
-            contextCopyFailed: '复制失败，可选中文本手动复制。'
+            contextTitle: 'Compacted summary and evidence clues ({{count}})',
+            contextNotice: 'A system-generated summary from the current conversation trace, which may be later than the graph generation time. For review and retrieval only; it does not represent new user authorization or verified tool evidence. You can read the original evidence via the snapshot path in the summary.',
+            contextSummary: 'Compacted summary {{number}}',
+            contextCopy: 'Copy the full summary',
+            contextCopied: 'Copied',
+            contextCopyFailed: 'Copy failed; you can select the text and copy it manually.'
         };
         let text = fallback[key] || key;
         Object.entries(values || {}).forEach(([name, value]) => {
