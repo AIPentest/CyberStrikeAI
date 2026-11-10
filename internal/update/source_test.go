@@ -22,7 +22,7 @@ func TestValidRemoteURL(t *testing.T) {
 		"ssh://git@example.com/x.git",
 		"git://example.com/x.git",
 		"file:///srv/repos/x.git",
-		"/Volumes/code/CyberStrikeAI/开发版-CyberStrikeAI",
+		"/Volumes/code/CyberStrikeAI/Development build-CyberStrikeAI",
 	}
 	no := []string{
 		"",
@@ -158,7 +158,7 @@ func TestInvalidRemoteURLIsAReadableStateNotAnError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a bad configured source is a state the page can show, not a fault: %v", err)
 	}
-	if !strings.Contains(snap.CheckError, "不合法") {
+	if !strings.Contains(snap.CheckError, "invalid") {
 		t.Fatalf("checkError = %q, want the illegality named", snap.CheckError)
 	}
 }

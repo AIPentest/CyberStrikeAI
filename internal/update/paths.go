@@ -14,7 +14,7 @@ func validateFilePath(root, rel string) error {
 	path := root
 	for i, part := range parts {
 		if part == "" || part == "." || part == ".." {
-			return &Error{Reason: "content_path_conflict", Message: "文件路径不合法：" + rel}
+			return &Error{Reason: "content_path_conflict", Message: "The file path is invalid: " + rel}
 		}
 		path = filepath.Join(path, part)
 		info, err := os.Lstat(path)
@@ -26,7 +26,7 @@ func validateFilePath(root, rel string) error {
 		}
 		leaf := i == len(parts)-1
 		if (leaf && !info.Mode().IsRegular()) || (!leaf && !info.IsDir()) {
-			return &Error{Reason: "content_path_conflict", Message: fmt.Sprintf("%s 存在符号链接或目录/文件冲突，已保留本地内容，请先人工处理", rel), Items: []string{rel}}
+			return &Error{Reason: "content_path_conflict", Message: fmt.Sprintf("%s A symlink or directory/file conflict exists; the local content has been kept, please handle it manually first", rel), Items: []string{rel}}
 		}
 	}
 	return nil

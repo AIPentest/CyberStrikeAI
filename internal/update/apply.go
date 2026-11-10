@@ -80,7 +80,7 @@ func readBuildPending(root string) (buildPendingState, bool, error) {
 			}
 			return buildPendingState{Legacy: true}, true, nil
 		}
-		return buildPendingState{}, true, fmt.Errorf("待编译状态格式损坏: %w", err)
+		return buildPendingState{}, true, fmt.Errorf("The pending-compile state format is corrupted: %w", err)
 	}
 	if err := validateBuildEvidence(root, st); err != nil {
 		return st, true, err
@@ -123,7 +123,7 @@ func readState(root string) (State, bool) {
 
 func writeState(root string, st State) error {
 	st.UpdatedAt = time.Now().Format(time.RFC3339)
-	data, err := json.MarshalIndent(st, "", "  ")
+	data, err := json.MarshalIndent(st, "", " ")
 	if err != nil {
 		return err
 	}
@@ -199,7 +199,7 @@ func Apply(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 		return nil, rootErr
 	}
 	if pending, err := readRollbackPending(root); err != nil || pending != nil {
-		return nil, &Error{Reason: "rollback_pending", Message: "上一次回滚尚未完成，请先重试回滚，再执行更新"}
+		return nil, &Error{Reason: "rollback_pending", Message: "The last rollback has not completed yet; retry the rollback first, then run the update"}
 	}
 	if err := recoverAdoption(ctx, opts); err != nil {
 		return nil, err
@@ -212,13 +212,13 @@ func Apply(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 
 	// A refusal is not the end of the timeline: the page renders these lines, so the first
 	// one says what was looked at even when the answer is "nothing to do".
-	step("preflight", fmt.Sprintf("检查安装目录 %s（本机分支 %s / 更新源 %s / 提交 %s）", snap.Root, snap.Branch, snap.sourceLabel(), snap.Commit))
+	step("preflight", fmt.Sprintf("Checking install directory %s (local branch %s / update source %s / commit %s)", snap.Root, snap.Branch, snap.sourceLabel(), snap.Commit))
 
 	if !snap.Installed {
-		return nil, &Error{Reason: "not_a_repo", Message: "这个目录不是 git 工作树，无法自动更新"}
+		return nil, &Error{Reason: "not_a_repo", Message: "This directory is not a git worktree and cannot be auto-updated"}
 	}
 	if snap.CheckError != "" {
-		return nil, &Error{Reason: "check_failed", Message: "检查更新失败：" + snap.CheckError}
+		return nil, &Error{Reason: "check_failed", Message: "Failed to check for updates: " + snap.CheckError}
 	}
 	if len(snap.BlockingChanges) > 0 {
 		items := make([]string, 0, len(snap.BlockingChanges))
@@ -227,14 +227,14 @@ func Apply(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 		}
 		return nil, &Error{
 			Reason:  "local_source_edits",
-			Message: fmt.Sprintf("有 %d 个源码文件被本地改过，自动更新不会覆盖它们。先提交或还原这些文件再更新。", len(items)),
+			Message: fmt.Sprintf("%d source files have been modified locally; the auto-update will not overwrite them. Commit or revert these files before updating.", len(items)),
 			Items:   items,
 		}
 	}
 	if snap.Diverged {
 		return nil, &Error{
 			Reason:  "diverged",
-			Message: fmt.Sprintf("本地领先 %d 个提交、落后 %d 个提交：这是合并而不是下载，请手工处理后重试。", snap.Ahead, snap.Behind),
+			Message: fmt.Sprintf("Local is %d commits ahead and %d commits behind: this is a merge rather than a download, please handle it manually and retry.", snap.Ahead, snap.Behind),
 		}
 	}
 
@@ -261,7 +261,7 @@ func Apply(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 		return res, nil
 	}
 
-	step("fetch", fmt.Sprintf("%s（默认分支 %s）有 %d 个新提交：%s → %s", snap.sourceLabel(), snap.TargetBranch, snap.Behind, snap.Commit, snap.RemoteCommit))
+	step("fetch", fmt.Sprintf("%s (The default branch %s) has %d new commits: %s → %s", snap.sourceLabel(), snap.TargetBranch, snap.Behind, snap.Commit, snap.RemoteCommit))
 
 	// Put operator-owned content aside, and clear the paths the incoming change would
 	// write to, so the fast-forward cannot be refused by "your local changes would be
@@ -273,7 +273,7 @@ func Apply(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 	if err != nil {
 		return nil, err
 	}
-	step("protect", fmt.Sprintf("已暂存 %d 个本地内容文件（roles/skills/tools/数据/配置），更新完成后放回", len(kept)))
+	step("protect", fmt.Sprintf("Stashed %d local content files (roles/skills/tools/data/config), to be restored after the update completes", len(kept)))
 
 	previousCommit, err := gitCmd(ctx, root, "rev-parse", "HEAD")
 	if err != nil {
@@ -303,12 +303,12 @@ func Apply(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 	}
 	if opts.binaryName() != "none" {
 		if err := writeBuildPending(root, pending); err != nil {
-			return nil, &Error{Reason: "state_unwritable", Message: "无法写入待编译状态：" + err.Error()}
+			return nil, &Error{Reason: "state_unwritable", Message: "Could not write the pending-compile state: " + err.Error()}
 		}
 	}
 	if err := removeProtected(root, kept); err != nil {
 		if restoreErr := restoreProtected(backupDir, kept); restoreErr != nil {
-			return nil, &Error{Reason: "backup_failed", Message: fmt.Sprintf("%v；恢复本地内容又失败：%v", err, restoreErr)}
+			return nil, &Error{Reason: "backup_failed", Message: fmt.Sprintf("%v; and restoring the local content also failed: %v", err, restoreErr)}
 		}
 		_ = clearBuildPending(root)
 		return nil, err
@@ -316,10 +316,10 @@ func Apply(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 
 	if out, err := gitCmd(ctx, root, "merge", "--ff-only", "--no-verify", ref); err != nil {
 		if restoreErr := restoreProtected(backupDir, kept); restoreErr != nil {
-			return nil, &Error{Reason: "backup_failed", Message: fmt.Sprintf("快进合并失败，恢复本地内容又失败：%v", restoreErr)}
+			return nil, &Error{Reason: "backup_failed", Message: fmt.Sprintf("Fast-forward merge failed, and restoring the local content also failed: %v", restoreErr)}
 		}
 		_ = clearBuildPending(root)
-		return nil, &Error{Reason: "merge_failed", Message: fmt.Sprintf("快进合并失败：%v\n%s", err, strings.TrimSpace(out))}
+		return nil, &Error{Reason: "merge_failed", Message: fmt.Sprintf("Fast-forward merge failed: %v\n%s", err, strings.TrimSpace(out))}
 	}
 	// The merge wrote upstream's version of the content paths; the operator's copies win
 	// them back, which is what "update the code, keep my work" means.
@@ -347,7 +347,7 @@ func Apply(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 	pending.VersionBefore, pending.VersionAfter = plannedVersionChange(root)
 	if opts.binaryName() != "none" {
 		if err := writeBuildPending(root, pending); err != nil {
-			return res, &Error{Reason: "state_unwritable", Message: "无法更新待编译状态：" + err.Error()}
+			return res, &Error{Reason: "state_unwritable", Message: "Could not update the pending-compile state: " + err.Error()}
 		}
 	}
 	versionBefore, versionAfter, versionErr := syncVersionToConfig(root)
@@ -367,11 +367,11 @@ func Apply(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 		state.PreviousBinaryAbsent = pending.PreviousBinaryAbsent
 	}
 	if err := writeState(root, state); err != nil {
-		return res, &Error{Reason: "state_unwritable", Message: "无法写入更新状态文件，回滚将不可用：" + err.Error()}
+		return res, &Error{Reason: "state_unwritable", Message: "Could not write the update state file; rollback will be unavailable: " + err.Error()}
 	}
 
 	if opts.binaryName() == "none" {
-		step("build", "按请求跳过重新编译；源码已更新，重启后由外部构建流程产出二进制")
+		step("build", "Skipping recompilation as requested; the source has been updated, and the binary will be produced by an external build process after restart")
 		res.NeedsRestart = true
 		res.Duration = time.Since(start).Round(time.Millisecond).String()
 		return res, nil
@@ -381,14 +381,14 @@ func Apply(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 		res.Duration = time.Since(start).Round(time.Millisecond).String()
 		return res, &Error{
 			Reason:  "no_toolchain",
-			Message: "源码已更新，但本机没有 Go 工具链，无法自动编译。装好 go 后再点一次更新即可补上二进制。",
+			Message: "The source has been updated, but this machine has no Go toolchain and cannot compile automatically. Install go, then click update once more to build the binary.",
 		}
 	}
 	if err := buildAndSwap(ctx, root, opts, res, step, updatedCommit, &state, pending); err != nil {
 		res.Duration = time.Since(start).Round(time.Millisecond).String()
 		return res, err
 	}
-	step("done", fmt.Sprintf("已更新 %d 个提交并换好二进制：%s → %s", res.Commits, res.FromCommit, res.ToCommit))
+	step("done", fmt.Sprintf("Updated %d commits and swapped in the binary: %s → %s", res.Commits, res.FromCommit, res.ToCommit))
 	res.Duration = time.Since(start).Round(time.Millisecond).String()
 	return res, nil
 }
@@ -399,7 +399,7 @@ func Apply(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 func finishPendingBuild(ctx context.Context, snap *Snapshot, opts Options, res *Result, step func(string, string)) error {
 	pending, present, err := readBuildPending(snap.Root)
 	if err != nil {
-		return &Error{Reason: "state_unreadable", Message: "无法读取待编译状态：" + err.Error()}
+		return &Error{Reason: "state_unreadable", Message: "Could not read the pending-compile state: " + err.Error()}
 	}
 	if !present {
 		return nil
@@ -413,10 +413,10 @@ func finishPendingBuild(ctx context.Context, snap *Snapshot, opts Options, res *
 	if pending.Legacy && hasState {
 		updated, resolveErr := gitCmd(ctx, snap.Root, "rev-parse", state.UpdatedCommit)
 		if resolveErr != nil {
-			return &Error{Reason: "bad_state", Message: "旧待编译标记对应的更新提交不存在：" + state.UpdatedCommit}
+			return &Error{Reason: "bad_state", Message: "The update commit corresponding to the old pending-compile marker does not exist: " + state.UpdatedCommit}
 		}
 		if updated != head {
-			return &Error{Reason: "build_state_mismatch", Message: fmt.Sprintf("旧待编译标记属于 %s，但当前源码已经是 %s，拒绝重解释回滚记录", shortHash(updated), shortHash(head))}
+			return &Error{Reason: "build_state_mismatch", Message: fmt.Sprintf("The old pending-compile marker belongs to %s, but the current source is already %s, so reinterpreting the rollback record is refused", shortHash(updated), shortHash(head))}
 		}
 		pending.Commit = updated
 		pending.PreviousCommit = state.PreviousCommit
@@ -429,12 +429,12 @@ func finishPendingBuild(ctx context.Context, snap *Snapshot, opts Options, res *
 			binaryCommit, resolveErr := gitCmd(ctx, snap.Root, "rev-parse", state.BinaryCommit)
 			previous, previousErr := gitCmd(ctx, snap.Root, "rev-parse", state.PreviousCommit)
 			if resolveErr != nil || previousErr != nil || (binaryCommit != updated && binaryCommit != previous) {
-				return &Error{Reason: "bad_state", Message: "旧恢复记录的二进制提交不属于这次更新，已保留现场"}
+				return &Error{Reason: "bad_state", Message: "The old restore record's binary commit does not belong to this update; the state has been kept"}
 			}
 			if state.BinarySHA256 != "" {
 				currentHash, hashErr := fileSHA256(bin)
 				if hashErr != nil || currentHash != state.BinarySHA256 {
-					return &Error{Reason: "binary_changed", Message: "当前二进制与旧恢复记录不一致，已保留现场"}
+					return &Error{Reason: "binary_changed", Message: "The current binary is inconsistent with the old restore record; the state has been kept"}
 				}
 			}
 			if binaryCommit == updated {
@@ -451,7 +451,7 @@ func finishPendingBuild(ctx context.Context, snap *Snapshot, opts Options, res *
 			binaryHash, hashErr := fileSHA256(bin)
 			if commitErr == nil && hashErr == nil && binaryCommit == head && binaryHash == state.BinarySHA256 {
 				if err := clearBuildPending(snap.Root); err != nil {
-					return &Error{Reason: "state_unwritable", Message: "二进制已经是当前版本，但无法清除待编译标记：" + err.Error()}
+					return &Error{Reason: "state_unwritable", Message: "The binary is already the current version, but the pending-compile marker could not be cleared: " + err.Error()}
 				}
 				res.BinaryBuilt = true
 				if fileExists(bin + ".prev") {
@@ -465,7 +465,7 @@ func finishPendingBuild(ctx context.Context, snap *Snapshot, opts Options, res *
 			resolved, resolveErr := gitCmd(ctx, snap.Root, "rev-parse", revision)
 			if resolveErr == nil && resolved == head {
 				if err := clearBuildPending(snap.Root); err != nil {
-					return &Error{Reason: "state_unwritable", Message: "二进制已经是当前版本，但无法清除旧待编译标记：" + err.Error()}
+					return &Error{Reason: "state_unwritable", Message: "The binary is already the current version, but the old pending-compile marker could not be cleared: " + err.Error()}
 				}
 				res.BinaryBuilt = true
 				if fileExists(bin + ".prev") {
@@ -480,7 +480,7 @@ func finishPendingBuild(ctx context.Context, snap *Snapshot, opts Options, res *
 
 	target, err := gitCmd(ctx, snap.Root, "rev-parse", pending.Commit)
 	if err != nil {
-		return &Error{Reason: "bad_state", Message: "待编译状态里的提交不存在：" + pending.Commit}
+		return &Error{Reason: "bad_state", Message: "The commit in the pending-compile state does not exist: " + pending.Commit}
 	}
 	fileEvidence := pending
 	if target != head {
@@ -488,7 +488,7 @@ func finishPendingBuild(ctx context.Context, snap *Snapshot, opts Options, res *
 		fileEvidence.BinarySHA256 = ""
 	}
 	if err := validateBuildFiles(bin, fileEvidence); err != nil {
-		return &Error{Reason: "bad_state", Message: "恢复证据不足，已保留二进制和记录：" + err.Error()}
+		return &Error{Reason: "bad_state", Message: "Insufficient restore evidence; the binary and record have been kept: " + err.Error()}
 	}
 	if target != head {
 		if pending.PreviousCommit != "" {
@@ -498,12 +498,12 @@ func finishPendingBuild(ctx context.Context, snap *Snapshot, opts Options, res *
 					return err
 				}
 				if err := clearBuildPending(snap.Root); err != nil {
-					return &Error{Reason: "state_unwritable", Message: "本地内容已恢复，但无法清除待编译标记：" + err.Error()}
+					return &Error{Reason: "state_unwritable", Message: "The local content has been restored, but the pending-compile marker could not be cleared: " + err.Error()}
 				}
 				return nil
 			}
 		}
-		return &Error{Reason: "build_state_mismatch", Message: fmt.Sprintf("待编译目标是 %s，但当前源码是 %s，拒绝用错版本覆盖二进制", shortHash(target), shortHash(head))}
+		return &Error{Reason: "build_state_mismatch", Message: fmt.Sprintf("The pending-compile target is %s, but the current source is %s, so overwriting the binary with the wrong version is refused", shortHash(target), shortHash(head))}
 	}
 	if err := restoreInterruptedProtected(ctx, snap.Root, pending, true); err != nil {
 		return err
@@ -528,11 +528,11 @@ func finishPendingBuild(ctx context.Context, snap *Snapshot, opts Options, res *
 					VersionAfter:         pending.VersionAfter,
 				}
 				if err := writeState(snap.Root, state); err != nil {
-					return &Error{Reason: "state_unwritable", Message: "二进制已换入，但无法补写回滚状态：" + err.Error()}
+					return &Error{Reason: "state_unwritable", Message: "The binary was swapped in, but the rollback state could not be written: " + err.Error()}
 				}
 			}
 			if err := clearBuildPending(snap.Root); err != nil {
-				return &Error{Reason: "state_unwritable", Message: "二进制已换入，但无法清除待编译标记：" + err.Error()}
+				return &Error{Reason: "state_unwritable", Message: "The binary was swapped in, but the pending-compile marker could not be cleared: " + err.Error()}
 			}
 			res.BinaryBuilt = true
 			if fileExists(bin + ".prev") {
@@ -546,7 +546,7 @@ func finishPendingBuild(ctx context.Context, snap *Snapshot, opts Options, res *
 	if !snap.CanBuild {
 		return &Error{
 			Reason:  "no_toolchain",
-			Message: fmt.Sprintf("源码已经就位（%s），但二进制还是旧的：本机没有 Go 工具链，无法补编译。装好 go 后再点一次更新即可补上二进制。", shortHash(head)),
+			Message: fmt.Sprintf("The source is in place (%s), but the binary is still old: this machine has no Go toolchain and cannot compile it. Install go, then click update once more to build the binary.", shortHash(head)),
 		}
 	}
 	var targetState *State
@@ -569,7 +569,7 @@ func finishPendingBuild(ctx context.Context, snap *Snapshot, opts Options, res *
 	if err := buildAndSwap(ctx, snap.Root, opts, res, step, target, targetState, pending); err != nil {
 		return err
 	}
-	step("done", fmt.Sprintf("源码已经就位（%s），本次补上了二进制", shortHash(head)))
+	step("done", fmt.Sprintf("The source is in place (%s), and the binary has been built this time", shortHash(head)))
 	return nil
 }
 
@@ -577,7 +577,7 @@ func finishPendingBuild(ctx context.Context, snap *Snapshot, opts Options, res *
 // one as .prev. The marker records the compiled file's hash before the rename; after a crash
 // a retry can prove whether the swap happened instead of doing it twice.
 func buildAndSwap(ctx context.Context, root string, opts Options, res *Result, step func(string, string), commit string, state *State, pending buildPendingState) error {
-	step("build", "开始编译二进制（首次会下载依赖，可能需要几分钟）")
+	step("build", "Starting to compile the binary (the first run downloads dependencies and may take a few minutes)")
 	if err := verifyBuildSource(ctx, root, commit); err != nil {
 		return err
 	}
@@ -589,25 +589,25 @@ func buildAndSwap(ctx context.Context, root string, opts Options, res *Result, s
 
 	newBin := filepath.Join(staging, opts.binaryName())
 	if err := build(ctx, root, newBin); err != nil {
-		return &Error{Reason: "build_failed", Message: "编译失败，二进制保持原版本：\n" + err.Error()}
+		return &Error{Reason: "build_failed", Message: "Compilation failed; the binary stays at its original version: \n" + err.Error()}
 	}
 	if err := verifyBuildSource(ctx, root, commit); err != nil {
 		return err
 	}
 	newHash, err := fileSHA256(newBin)
 	if err != nil {
-		return &Error{Reason: "build_failed", Message: "无法校验新二进制：" + err.Error()}
+		return &Error{Reason: "build_failed", Message: "Could not verify the new binary: " + err.Error()}
 	}
 	bin := filepath.Join(root, opts.binaryName())
 	if err := validateBuildFiles(bin, pending); err != nil {
-		return &Error{Reason: "binary_changed", Message: "编译后恢复证据不再匹配，已保留现场：" + err.Error()}
+		return &Error{Reason: "binary_changed", Message: "The restore evidence no longer matches after compilation; the state has been kept: " + err.Error()}
 	}
 	if pending.Legacy && fileExists(bin) && fileExists(bin+".prev") {
 		currentHash, currentErr := fileSHA256(bin)
 		previousHash, previousErr := fileSHA256(bin + ".prev")
 		if currentErr == nil && previousErr == nil && currentHash == newHash {
 			if pending.PreviousBinarySHA256 != "" && previousHash != pending.PreviousBinarySHA256 {
-				return &Error{Reason: "binary_changed", Message: "旧二进制备份与恢复记录不一致，已保留现场，拒绝改写回滚记录"}
+				return &Error{Reason: "binary_changed", Message: "The old binary backup is inconsistent with the restore record; the state has been kept and rewriting the rollback record is refused"}
 			}
 			res.BinaryBuilt = true
 			res.PrevBinary = bin + ".prev"
@@ -617,11 +617,11 @@ func buildAndSwap(ctx context.Context, root string, opts Options, res *Result, s
 				state.BinarySHA256 = currentHash
 				state.PreviousBinarySHA256 = previousHash
 				if err := writeState(root, *state); err != nil {
-					return &Error{Reason: "state_unwritable", Message: "二进制已经是当前版本，但无法更新回滚状态：" + err.Error()}
+					return &Error{Reason: "state_unwritable", Message: "The binary is already the current version, but the rollback state could not be updated: " + err.Error()}
 				}
 			}
 			if err := clearBuildPending(root); err != nil {
-				return &Error{Reason: "state_unwritable", Message: "二进制已经是当前版本，但无法清除旧待编译标记：" + err.Error()}
+				return &Error{Reason: "state_unwritable", Message: "The binary is already the current version, but the old pending-compile marker could not be cleared: " + err.Error()}
 			}
 			return nil
 		}
@@ -633,24 +633,24 @@ func buildAndSwap(ctx context.Context, root string, opts Options, res *Result, s
 		revision := binaryRevision(bin)
 		previous, resolveErr := gitCmd(ctx, root, "rev-parse", pending.PreviousCommit)
 		if revision == "" || resolveErr != nil || revision != previous {
-			return &Error{Reason: "binary_state_unknown", Message: "旧恢复记录缺少二进制哈希，无法确认当前二进制属于更新前版本；已保留当前二进制和 .prev，请人工核对后恢复"}
+			return &Error{Reason: "binary_state_unknown", Message: "The old restore record lacks a binary hash, so it cannot confirm the current binary is the pre-update version; the current binary and .prev have been kept, please verify manually before restoring"}
 		}
 		hash, err := fileSHA256(bin)
 		if err != nil {
-			return &Error{Reason: "binary_state_unknown", Message: "无法校验更新前二进制：" + err.Error()}
+			return &Error{Reason: "binary_state_unknown", Message: "Could not verify the pre-update binary: " + err.Error()}
 		}
 		pending.PreviousBinarySHA256 = hash
 	}
 	if pending.PreviousBinarySHA256 != "" && fileExists(bin) {
 		currentHash, hashErr := fileSHA256(bin)
 		if hashErr != nil || currentHash != pending.PreviousBinarySHA256 {
-			return &Error{Reason: "binary_changed", Message: "编译期间现有二进制发生变化，拒绝覆盖；请确认没有另一场更新在运行"}
+			return &Error{Reason: "binary_changed", Message: "The existing binary changed during compilation, so overwriting is refused; please make sure no other update is running"}
 		}
 	}
 	pending.Commit = commit
 	pending.BinarySHA256 = newHash
 	if err := writeBuildPending(root, pending); err != nil {
-		return &Error{Reason: "state_unwritable", Message: "无法记录待换入二进制：" + err.Error()}
+		return &Error{Reason: "state_unwritable", Message: "Could not record the binary to swap in: " + err.Error()}
 	}
 	prev, err := installBinary(newBin, bin)
 	if err != nil {
@@ -665,11 +665,11 @@ func buildAndSwap(ctx context.Context, root string, opts Options, res *Result, s
 		state.PreviousBinarySHA256 = pending.PreviousBinarySHA256
 		state.PreviousBinaryAbsent = pending.PreviousBinaryAbsent
 		if err := writeState(root, *state); err != nil {
-			return &Error{Reason: "state_unwritable", Message: "二进制已换入，但无法更新回滚状态：" + err.Error()}
+			return &Error{Reason: "state_unwritable", Message: "The binary was swapped in, but the rollback state could not be updated: " + err.Error()}
 		}
 	}
 	if err := clearBuildPending(root); err != nil {
-		return &Error{Reason: "state_unwritable", Message: "二进制已换入，但无法清除待编译标记：" + err.Error()}
+		return &Error{Reason: "state_unwritable", Message: "The binary was swapped in, but the pending-compile marker could not be cleared: " + err.Error()}
 	}
 	return nil
 }
@@ -722,7 +722,7 @@ func stashProtected(ctx context.Context, root, ref string) (backupDir string, ke
 		abs := filepath.Join(root, p)
 		info, statErr := os.Stat(abs)
 		if statErr != nil || !info.Mode().IsRegular() {
-			return backupDir, kept, deleted, &Error{Reason: "backup_failed", Message: "备份前本地文件发生变化，未执行更新：" + p}
+			return backupDir, kept, deleted, &Error{Reason: "backup_failed", Message: "Local files changed before the backup; the update was not performed: " + p}
 		}
 		if backupDir == "" {
 			backupDir, err = newBackupDir(root, ts)
@@ -731,7 +731,7 @@ func stashProtected(ctx context.Context, root, ref string) (backupDir string, ke
 			}
 		}
 		if err := copyFile(abs, filepath.Join(backupDir, p), info.Mode()); err != nil {
-			return backupDir, kept, deleted, &Error{Reason: "backup_failed", Message: fmt.Sprintf("备份 %s 失败：%v", p, err)}
+			return backupDir, kept, deleted, &Error{Reason: "backup_failed", Message: fmt.Sprintf("Failed to back up %s: %v", p, err)}
 		}
 		kept = append(kept, p)
 	}
@@ -746,7 +746,7 @@ func stashProtected(ctx context.Context, root, ref string) (backupDir string, ke
 func removeProtected(root string, kept []string) error {
 	for _, rel := range kept {
 		if err := os.Remove(filepath.Join(root, filepath.FromSlash(rel))); err != nil && !os.IsNotExist(err) {
-			return &Error{Reason: "backup_failed", Message: fmt.Sprintf("移开 %s 失败：%v", rel, err)}
+			return &Error{Reason: "backup_failed", Message: fmt.Sprintf("Failed to move %s aside: %v", rel, err)}
 		}
 	}
 	return nil
@@ -794,7 +794,7 @@ func stashProtectedEdits(ctx context.Context, root, target string, changed []Cha
 		abs := filepath.Join(root, filepath.FromSlash(p))
 		info, statErr := os.Stat(abs)
 		if statErr != nil || !info.Mode().IsRegular() {
-			return backupDir, kept, deleted, &Error{Reason: "backup_failed", Message: "备份前本地文件发生变化，未执行回滚：" + p}
+			return backupDir, kept, deleted, &Error{Reason: "backup_failed", Message: "Local files changed before the backup; the rollback was not performed: " + p}
 		}
 		if backupDir == "" {
 			backupDir, err = newBackupDir(root, "rollback_"+ts)
@@ -803,7 +803,7 @@ func stashProtectedEdits(ctx context.Context, root, target string, changed []Cha
 			}
 		}
 		if err := copyFile(abs, filepath.Join(backupDir, filepath.FromSlash(p)), info.Mode()); err != nil {
-			return backupDir, kept, deleted, &Error{Reason: "backup_failed", Message: fmt.Sprintf("备份 %s 失败：%v", p, err)}
+			return backupDir, kept, deleted, &Error{Reason: "backup_failed", Message: fmt.Sprintf("Failed to back up %s: %v", p, err)}
 		}
 		kept = append(kept, p)
 	}
@@ -873,10 +873,10 @@ func restoreInterruptedProtected(ctx context.Context, root string, pending build
 		src := filepath.Join(pending.BackupDir, filepath.FromSlash(rel))
 		info, err := os.Stat(src)
 		if err != nil {
-			return &Error{Reason: "backup_missing", Message: fmt.Sprintf("待恢复内容的备份不存在：%s", rel)}
+			return &Error{Reason: "backup_missing", Message: fmt.Sprintf("The backup of the content to restore does not exist: %s", rel)}
 		}
 		if err := copyFile(src, dst, info.Mode()); err != nil {
-			return &Error{Reason: "backup_failed", Message: fmt.Sprintf("恢复 %s 失败：%v", rel, err)}
+			return &Error{Reason: "backup_failed", Message: fmt.Sprintf("Failed to restore %s: %v", rel, err)}
 		}
 	}
 	return nil
@@ -917,7 +917,7 @@ func Rollback(ctx context.Context, opts Options) (*Result, error) {
 
 	interrupted, err := readRollbackPending(root)
 	if err != nil {
-		return nil, &Error{Reason: "state_unreadable", Message: "无法读取回滚恢复记录：" + err.Error()}
+		return nil, &Error{Reason: "state_unreadable", Message: "Could not read the rollback restore record: " + err.Error()}
 	}
 	if interrupted != nil {
 		if err := repositoryRoot(ctx, root); err != nil {
@@ -931,15 +931,15 @@ func Rollback(ctx context.Context, opts Options) (*Result, error) {
 			return finishRollback(ctx, opts, *interrupted)
 		}
 		if head != interrupted.State.UpdatedCommit {
-			return nil, &Error{Reason: "moved_since_update", Message: "回滚中断后 HEAD 已经变了，拒绝覆盖后续提交"}
+			return nil, &Error{Reason: "moved_since_update", Message: "HEAD changed after the rollback was interrupted; overwriting subsequent commits is refused"}
 		}
 	}
 	st, ok, stateErr := recoveryState(root)
 	if stateErr != nil {
-		return nil, &Error{Reason: "state_unreadable", Message: "无法读取回滚状态：" + stateErr.Error()}
+		return nil, &Error{Reason: "state_unreadable", Message: "Could not read the rollback state: " + stateErr.Error()}
 	}
 	if !ok {
-		return nil, &Error{Reason: "no_state", Message: "没有可回滚的更新记录"}
+		return nil, &Error{Reason: "no_state", Message: "There is no update record to roll back"}
 	}
 	if err := repositoryRoot(ctx, root); err != nil {
 		return nil, err
@@ -949,15 +949,15 @@ func Rollback(ctx context.Context, opts Options) (*Result, error) {
 	if st.BinaryCommit != "" {
 		binaryCommit, resolveErr := gitCmd(ctx, root, "rev-parse", st.BinaryCommit)
 		if resolveErr != nil {
-			return nil, &Error{Reason: "bad_state", Message: "更新记录里的二进制提交不存在：" + st.BinaryCommit}
+			return nil, &Error{Reason: "bad_state", Message: "The binary commit in the update record does not exist: " + st.BinaryCommit}
 		}
 		previousCommit, resolveErr := gitCmd(ctx, root, "rev-parse", st.PreviousCommit)
 		if resolveErr != nil {
-			return nil, &Error{Reason: "bad_state", Message: "更新记录里的回滚提交不存在：" + st.PreviousCommit}
+			return nil, &Error{Reason: "bad_state", Message: "The rollback commit in the update record does not exist: " + st.PreviousCommit}
 		}
 		updatedCommit, resolveErr := gitCmd(ctx, root, "rev-parse", st.UpdatedCommit)
 		if resolveErr != nil {
-			return nil, &Error{Reason: "bad_state", Message: "更新记录里的更新提交不存在：" + st.UpdatedCommit}
+			return nil, &Error{Reason: "bad_state", Message: "The update commit in the update record does not exist: " + st.UpdatedCommit}
 		}
 		switch binaryCommit {
 		case previousCommit:
@@ -965,26 +965,26 @@ func Rollback(ctx context.Context, opts Options) (*Result, error) {
 			if st.BinarySHA256 != "" {
 				got, hashErr := fileSHA256(bin)
 				if hashErr != nil || got != st.BinarySHA256 {
-					return nil, &Error{Reason: "binary_changed", Message: "当前二进制与更新前记录不一致，拒绝在无法配对版本时回滚源码"}
+					return nil, &Error{Reason: "binary_changed", Message: "The current binary is inconsistent with the pre-update record; rolling back the source is refused when the versions cannot be paired"}
 				}
 			}
 		case updatedCommit:
 			restoreBinary = true
 		default:
-			return nil, &Error{Reason: "bad_state", Message: "更新记录里的二进制提交不属于这次更新"}
+			return nil, &Error{Reason: "bad_state", Message: "The binary commit in the update record does not belong to this update"}
 		}
 	}
 	if restoreBinary {
 		if st.PreviousBinaryAbsent {
-			return nil, &Error{Reason: "no_binary", Message: "这次更新之前没有二进制，不能使用其它更新留下的 .prev 回滚"}
+			return nil, &Error{Reason: "no_binary", Message: "There was no binary before this update, so a .prev left by another update cannot be used for rollback"}
 		}
 		if !fileExists(bin + ".prev") {
-			return nil, &Error{Reason: "no_binary", Message: "上一次更新没有留下旧二进制，无法回滚二进制（源码仍可用 git 处理）"}
+			return nil, &Error{Reason: "no_binary", Message: "The last update did not leave an old binary, so the binary cannot be rolled back (the source can still be handled with git)"}
 		}
 		if st.PreviousBinarySHA256 != "" {
 			got, hashErr := fileSHA256(bin + ".prev")
 			if hashErr != nil || got != st.PreviousBinarySHA256 {
-				return nil, &Error{Reason: "binary_changed", Message: "回滚二进制与更新记录不一致，拒绝把源码回到无法配对的版本"}
+				return nil, &Error{Reason: "binary_changed", Message: "The rollback binary is inconsistent with the update record; reverting the source to an unpairable version is refused"}
 			}
 		}
 	}
@@ -994,12 +994,12 @@ func Rollback(ctx context.Context, opts Options) (*Result, error) {
 	}
 	updated, err := gitCmd(ctx, root, "rev-parse", st.UpdatedCommit)
 	if err != nil {
-		return nil, &Error{Reason: "bad_state", Message: "更新记录里的提交在本仓库不存在：" + st.UpdatedCommit}
+		return nil, &Error{Reason: "bad_state", Message: "The commit in the update record does not exist in this repository: " + st.UpdatedCommit}
 	}
 	if head != updated {
 		return nil, &Error{
 			Reason:  "moved_since_update",
-			Message: fmt.Sprintf("自那次更新之后 HEAD 已经变了（现在是 %s），回滚只会撤到更新前的提交，因此拒绝执行。", shortHash(head)),
+			Message: fmt.Sprintf("HEAD has changed since that update (it is now %s); a rollback would only revert to the pre-update commit, so it is refused.", shortHash(head)),
 		}
 	}
 
@@ -1013,7 +1013,7 @@ func Rollback(ctx context.Context, opts Options) (*Result, error) {
 		for _, c := range blocking {
 			items = append(items, c.Path)
 		}
-		return nil, &Error{Reason: "local_source_edits", Message: "有本地源码改动，回滚会覆盖它们", Items: items}
+		return nil, &Error{Reason: "local_source_edits", Message: "There are local source changes; a rollback would overwrite them", Items: items}
 	}
 
 	// Content the operator owns is not the rollback's to discard either: reset --hard takes
@@ -1040,7 +1040,7 @@ func Rollback(ctx context.Context, opts Options) (*Result, error) {
 		}
 	}
 	if err := writeRollbackPending(root, pending); err != nil {
-		return nil, &Error{Reason: "state_unwritable", Message: "无法写入回滚恢复记录，未修改源码或二进制：" + err.Error()}
+		return nil, &Error{Reason: "state_unwritable", Message: "Could not write the rollback restore record; the source and binary were not modified: " + err.Error()}
 	}
 	if _, err := gitCmd(ctx, root, "reset", "--hard", "--quiet", st.PreviousCommit); err != nil {
 		return nil, &Error{Reason: "reset_failed", Message: err.Error()}
@@ -1088,14 +1088,14 @@ func verifyBuildSource(ctx context.Context, root, commit string) error {
 		return err
 	}
 	if head != commit {
-		return &Error{Reason: "build_state_mismatch", Message: "编译期间源码提交发生变化，拒绝换入无法配对的二进制"}
+		return &Error{Reason: "build_state_mismatch", Message: "The source commit changed during compilation; swapping in an unpairable binary is refused"}
 	}
 	_, blocking, err := localChanges(ctx, root)
 	if err != nil {
 		return err
 	}
 	if len(blocking) > 0 {
-		return &Error{Reason: "local_source_edits", Message: "编译期间源码发生本地改动，已保留二进制和备份，请先处理这些改动"}
+		return &Error{Reason: "local_source_edits", Message: "The source changed locally during compilation; the binary and backup have been kept, please handle these changes first"}
 	}
 	return nil
 }
@@ -1112,7 +1112,7 @@ func validateIncomingFiles(ctx context.Context, root string, paths map[string]bo
 	}
 	for _, rel := range nulList(others) {
 		if paths[rel] && !Protected(rel) {
-			return &Error{Reason: "local_source_edits", Message: "目标提交会覆盖本地未跟踪的源码文件，已拒绝更新：" + rel, Items: []string{rel}}
+			return &Error{Reason: "local_source_edits", Message: "The target commit would overwrite locally untracked source files, so the update was refused: " + rel, Items: []string{rel}}
 		}
 	}
 	return nil

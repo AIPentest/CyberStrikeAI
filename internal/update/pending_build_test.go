@@ -267,7 +267,7 @@ func TestAdoptBuildFailureIsFinishedByTheNextUpdate(t *testing.T) {
 }
 
 // TestRetryWithoutToolchainKeepsSayingSoAndThenBuilds: the no_toolchain message tells the
-// operator "安装 go 后再点一次更新即可补上二进制". Until the fix that retry answered
+// operator "Install go, then click update once more to build the binary". Until the fix that retry answered
 // success without compiling; the promise is only real if the click after installing go
 // actually builds - and the clicks before it keep an honest refusal.
 func TestRetryWithoutToolchainKeepsSayingSoAndThenBuilds(t *testing.T) {

@@ -8,20 +8,20 @@ import (
 	"cyberstrike-ai/internal/config"
 )
 
-// sessionHeaderPlaceholder 是自定义请求头值里代表「当前对话 ID」的占位符。
-// 写入方式（配置文件或设置页）示例：
+// sessionHeaderPlaceholder is the placeholder in a custom-header value that stands for the 'current conversation ID'.
+// Writing method (config file or settings page) example:
 //
 //	headers:
-//	  x-opencode-session: %session_id%
+//	 x-opencode-session: %session_id%
 //
-// 实际下发时会替换为当前对话的 conversation id。
-// 注意：不要使用 {{...}} 语法，index.html 是 Go 模板，会被当作模板函数解析。
+// At actual dispatch it is replaced with the current conversation's conversation id.
+// Note: do not use {{...}} syntax; index.html is a Go template and would be parsed as a template function.
 const sessionHeaderPlaceholder = "%session_id%"
 
 type sessionIDContextKey struct{}
 
-// WithSessionID 把当前对话 ID 注入 ctx。handler 在任务开始时注入一次，
-// 后续 Eino ChatModel 与内置 Client 发出的 HTTP 请求都能在请求上下文里读到。
+// WithSessionID Injects the current conversation ID into ctx. The handler injects it once at task start,
+// Subsequent HTTP requests made by the Eino ChatModel and the built-in Client can all read it from the request context.
 func WithSessionID(ctx context.Context, sessionID string) context.Context {
 	if ctx == nil {
 		return nil
@@ -33,7 +33,7 @@ func WithSessionID(ctx context.Context, sessionID string) context.Context {
 	return context.WithValue(ctx, sessionIDContextKey{}, id)
 }
 
-// SessionIDFromContext 读取 ctx 中的对话 ID，未注入时返回空串。
+// SessionIDFromContext Reads the conversation ID from ctx, returning an empty string when none is injected.
 func SessionIDFromContext(ctx context.Context) string {
 	if ctx == nil {
 		return ""
@@ -42,9 +42,9 @@ func SessionIDFromContext(ctx context.Context) string {
 	return v
 }
 
-// renderHeaderValue 把值里的 %session_id% 替换为当前对话 ID。
-// 第二个返回值为 false 表示该头依赖会话 ID 但上下文里取不到，应当跳过下发，
-// 避免把字面量 "%session_id%" 发给上游造成脏数据。
+// renderHeaderValue Replaces %session_id% in the value with the current conversation ID.
+// A second return value of false means the header depends on the session ID but it is not available in the context, so it should be skipped,
+// to avoid treating a literal "%session_id%" sent upstream, causing dirty data.
 func renderHeaderValue(value, sessionID string) (string, bool) {
 	if !strings.Contains(value, sessionHeaderPlaceholder) {
 		return value, true
@@ -56,8 +56,8 @@ func renderHeaderValue(value, sessionID string) (string, bool) {
 	return strings.ReplaceAll(value, sessionHeaderPlaceholder, id), true
 }
 
-// normalizedCustomHeaders 返回规范化后的自定义请求头：
-// 去掉名称两端空白，丢弃空名称/空值，便于安全地写入 http.Header。
+// normalizedCustomHeaders Returns the normalized custom request headers:
+// Trims whitespace from both ends of the name and discards empty names/values, for safe writing http.Header.
 func normalizedCustomHeaders(cfg *config.OpenAIConfig) map[string]string {
 	if cfg == nil || len(cfg.Headers) == 0 {
 		return nil
@@ -76,10 +76,10 @@ func normalizedCustomHeaders(cfg *config.OpenAIConfig) map[string]string {
 	return out
 }
 
-// applyCustomHeaders 把渠道配置的自定义请求头写入请求。
-// 同名的内置头（Authorization、Content-Type 等）会被配置值覆盖，
-// 因此只接受私有鉴权头的第三方 OpenAI 兼容网关也能正常调用。
-// 值中的 %session_id% 会替换为请求上下文里的当前对话 ID。
+// applyCustomHeaders Writes the channel config's custom request headers into the request.
+// Built-in headers of the same name (Authorization, Content-Type, etc.) are overridden by the configured values,
+// so third-party OpenAI-compatible gateways that only accept a private auth header can also be called normally.
+// %session_id% in the value is replaced with the current conversation from the request context ID.
 func applyCustomHeaders(req *http.Request, cfg *config.OpenAIConfig) {
 	if req == nil || req.Header == nil {
 		return
@@ -98,7 +98,7 @@ func applyCustomHeaders(req *http.Request, cfg *config.OpenAIConfig) {
 	}
 }
 
-// headersRoundTripper 为经过 Eino ChatModel 的请求注入渠道自定义请求头。
+// headersRoundTripper Injects the channel's custom request headers into requests going through the Eino ChatModel.
 type headersRoundTripper struct {
 	base http.RoundTripper
 	cfg  *config.OpenAIConfig
