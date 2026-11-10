@@ -157,7 +157,7 @@ func TestBuildFactIndexBlock_withLinksAndPathOverview(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	block, err := BuildFactIndexBlock(db, proj.ID, config.ProjectConfig{Enabled: true, FactIndexMaxRunes: 6500, FactIndexPathMaxRunes: 1000})
+	block, err := BuildFactIndexBlock(db, proj.ID, config.ProjectConfig{Enabled: true, FactIndexMaxRunes: 9000, FactIndexPathMaxRunes: 1000})
 	if err != nil {
 		t.Fatal(err)
 	}

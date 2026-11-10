@@ -108,7 +108,7 @@ func TestReplaceFactIndexSection(t *testing.T) {
 	})
 
 	t.Run("empty fresh index", func(t *testing.T) {
-		_, ok := ReplaceFactIndexSection(oldIndex, " ")
+		_, ok := ReplaceFactIndexSection(oldIndex, "  ")
 		if ok {
 			t.Fatal("expected false for empty fresh index")
 		}

@@ -148,7 +148,7 @@ func TestDecideJevPolicyChoiceRejectsEvenIfPentest(t *testing.T) {
 	if dec != "reject" {
 		t.Fatalf("decision=%s comment=%s", dec, comment)
 	}
-	if !strings.Contains(comment, "Organization policy") {
+	if !strings.Contains(comment, "organization policy") {
 		t.Fatalf("comment=%s", comment)
 	}
 }

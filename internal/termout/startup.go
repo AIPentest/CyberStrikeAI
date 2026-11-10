@@ -82,7 +82,7 @@ func printStartupWebUI(out io.Writer, opts StartupWebUIOptions) {
 	s.BlankLine()
 	s.Println(s.Bold(s.Cyan("CYBERSTRIKE AI")) + s.Dim(" / secure workspace"))
 	s.Println(s.Dim(strings.Repeat("─", 60)))
-	s.Println(s.Green("● ONLINE") + " " + s.Bold(s.White(urlFor(hosts[0]))))
+	s.Println(s.Green("● ONLINE") + "   " + s.Bold(s.White(urlFor(hosts[0]))))
 	for _, h := range hosts[1:] {
 		s.Println(s.Dim(" Network ") + s.Bold(s.White(urlFor(h))))
 	}

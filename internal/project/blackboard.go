@@ -166,7 +166,7 @@ func truncateIndexSummary(s string, maxRunes int) string {
 }
 
 func factIndexOmissionNotice(count int) string {
-	return fmt.Sprintf("\n (Another %d entries are not in the index; use list_project_facts or search_project_facts to query them.)\n", count)
+	return fmt.Sprintf("\n (Another %d not listed in the index; use list_project_facts or search_project_facts to query them.)\n", count)
 }
 
 func minimalFactIndexBlock(maxRunes int) string {

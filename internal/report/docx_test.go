@@ -73,7 +73,7 @@ func TestWordReportEscapesEvidenceAndHonorsSections(t *testing.T) {
 			r, _ := f.Open()
 			b, _ := io.ReadAll(r)
 			r.Close()
-			if bytes.Contains(b, []byte("script")) {
+			if bytes.Contains(b, []byte("&lt;script")) {
 				t.Fatal("evidence not excluded")
 			}
 		}

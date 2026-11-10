@@ -12,7 +12,7 @@ import (
 // The continuation supplement has a fixed ceiling within the configurable
 // fact index budget. Keep it inside the index markers so compaction and
 // delegated task enrichment refresh/carry it with the facts.
-const resumeSupplementMaxRunes = 6500
+const resumeSupplementMaxRunes = 9000
 
 func resumeJSON(v any) string {
 	b, _ := json.Marshal(v)

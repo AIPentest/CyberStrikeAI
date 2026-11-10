@@ -65,7 +65,7 @@ func TestProjectResumeSurvivesRestartAndStaysProjectScoped(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, want := range []string{"artifacts/parser.py", "python parser.py", "POST /login", "retest on a version change", "known finding", "fixed", conv.ID, "Restore prior work first", "Skip by default"} {
+		for _, want := range []string{"artifacts/parser.py", "python parser.py", "POST /login", "retest on a version change", "known finding", "fixed", conv.ID, "first restore prior work", "skip it by default"} {
 			if !strings.Contains(block, want) {
 				t.Errorf("missing %q in %s", want, block)
 			}
@@ -90,8 +90,8 @@ func TestResumeSupplementBudgetAndIndependentResultQuotas(t *testing.T) {
 	}
 	var facts []*database.ProjectFact
 	for i := 0; i < 25; i++ {
-		facts = append(facts, &database.ProjectFact{FactKey: fmt.Sprintf("artifact/%d", i), Summary: strings.Repeat("large", 2000), Body: strings.Repeat("text", 10000), Confidence: "confirmed"})
-		if _, err := db.CreateVulnerability(&database.Vulnerability{ProjectID: p.ID, Title: strings.Repeat("Vulnerability", 500), Severity: "high"}); err != nil {
+		facts = append(facts, &database.ProjectFact{FactKey: fmt.Sprintf("artifact/%d", i), Summary: strings.Repeat("x", 2000), Body: strings.Repeat("x", 10000), Confidence: "confirmed"})
+		if _, err := db.CreateVulnerability(&database.Vulnerability{ProjectID: p.ID, Title: strings.Repeat("xx", 500), Severity: "high"}); err != nil {
 			t.Fatal(err)
 		}
 	}

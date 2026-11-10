@@ -59,12 +59,12 @@ func BuildWorkspaceBlock(absPath string) string {
 	}
 	return fmt.Sprintf(`## The session working directory (for downloads and local analysis)
 
-**You **must use the following directory** to save files downloaded with curl/wget, temporary HTML/JS, and as the search scope for read_file/glob/grep: 
+**You must use the following directory** to save files downloaded with curl/wget, temporary HTML/JS, and as the search scope for read_file/glob/grep:
 `+"`%s`"+`
 
-- When a project is bound, this directory is shared by sessions of the same project; after a restart or reopening the conversation you should still search existing work first. Successful scripts and dependencies are saved in `+"`artifacts/`"+` under it, and use `+"`upsert_project_fact(category=note, fact_key=artifact/<Name>)`"+` Register the relative path, invocation method, and verification evidence.
-- ****must not** use the system `+"`/tmp`"+` or another global temporary directory (multiple projects/sessions would leak files into each other).
-- Download example: `+"`curl -o '%s/page.html' 'https://target/'`"+`; exec you can then `+"`workdir`"+` Set to that directory.
-- Before reading downloaded artifacts or temporary analysis files, search with glob/grep/read_file **confined to that directory**, and do not `+"`/tmp`"+` blind searching.
-- When the user asks"Current directory""Project root directory"or when it is the application's own files, interpret it against the service process's current working directory first; do not mistake an empty session working directory for the project root.`, absPath, absPath)
+- When a project is bound, this directory is shared by sessions of the same project; after a restart or reopening the conversation you should still search existing work first. Successful scripts and dependencies are saved in `+"`artifacts/`"+` under it; call `+"`upsert_project_fact(category=note, fact_key=artifact/<Name>)`"+` to register the relative path, invocation method, and verification evidence.
+- You **must not** use the system `+"`/tmp`"+` or another global temporary directory (multiple projects/sessions would leak files into each other).
+- Download example: `+"`curl -o '%s/page.html' 'https://target/'`"+`; with exec you can then set `+"`workdir`"+` to that directory.
+- Before reading downloaded artifacts or temporary analysis files, search with glob/grep/read_file **confined to that directory**, and do not do blind `+"`/tmp`"+` searching.
+- When the user asks about the "current directory" or "project root directory", or about the application's own files, interpret it against the service process's current working directory first; do not mistake an empty session working directory for the project root.`, absPath, absPath)
 }

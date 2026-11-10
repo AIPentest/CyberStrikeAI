@@ -34,7 +34,7 @@ func TestBuildScopeBlock_empty(t *testing.T) {
 func TestBuildScopeBlock_invalidJSON(t *testing.T) {
 	proj := &database.Project{Name: "X", ScopeJSON: `{not json`}
 	block := BuildScopeBlock(proj)
-	if !strings.Contains(block, "invalid JSON") {
+	if !strings.Contains(block, "Not valid JSON") {
 		t.Fatalf("unexpected: %s", block)
 	}
 }

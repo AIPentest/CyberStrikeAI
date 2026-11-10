@@ -23,7 +23,7 @@ func TestDefaultGovernmentProtection(t *testing.T) {
 		{"*.gov.*", "*.gov.*"},
 		{".gov", ".gov"},
 		{".gov.*", ".gov.*"},
-		{"https://Government affairs.gov.cn/", "Government affairs.gov.cn"},
+		{"https://政务.gov.cn/", "政务.gov.cn"},
 		{"https://gov.cn/", "gov.cn"},
 		{"https://agency.gov./", "agency.gov."},
 		{"https://agency%2egov/a", "agency.gov"},
@@ -35,7 +35,7 @@ func TestDefaultGovernmentProtection(t *testing.T) {
 			if match == nil || match.MatchedText != test.match {
 				t.Fatalf("Check = %+v, want match %q", match, test.match)
 			}
-			if !strings.Contains(match.Message, test.match) || !strings.Contains(match.Message, "Attacking government websites is prohibited") {
+			if !strings.Contains(match.Message, test.match) || !strings.Contains(match.Message, "attacking government websites is prohibited") {
 				t.Fatalf("unexpected reminder: %q", match.Message)
 			}
 		})

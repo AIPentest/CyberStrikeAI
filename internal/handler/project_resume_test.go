@@ -53,7 +53,7 @@ func TestSessionContextReloadsProjectResultsEveryTurn(t *testing.T) {
 	}
 	for _, id := range ids {
 		block := h.agentSessionContextBlock(id)
-		for _, want := range []string{"artifacts/parse_capture.py", "input capture.txt", v.ID, "tracked-finding", "先恢复成果"} {
+		for _, want := range []string{"artifacts/parse_capture.py", "input capture.txt", v.ID, "tracked-finding", "first restore prior work"} {
 			if !strings.Contains(block, want) {
 				t.Errorf("conversation %s missing %s", id, want)
 			}

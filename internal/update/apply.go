@@ -123,7 +123,7 @@ func readState(root string) (State, bool) {
 
 func writeState(root string, st State) error {
 	st.UpdatedAt = time.Now().Format(time.RFC3339)
-	data, err := json.MarshalIndent(st, "", " ")
+	data, err := json.MarshalIndent(st, "", "  ")
 	if err != nil {
 		return err
 	}
