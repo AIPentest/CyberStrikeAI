@@ -1,66 +1,66 @@
 name: "terrascan"
 command: "terrascan"
 enabled: true
-short_description: "基础设施即代码安全扫描工具"
+short_description: "An infrastructure-as-code security scanning tool"
 description: |
-  Terrascan是一个基础设施即代码安全扫描工具，用于检测IaC配置中的安全问题。
+  Terrascan is an infrastructure-as-code security scanning tool for detecting security issues in IaC configurations.
 
-  **主要功能：**
-  - IaC安全扫描
-  - 多种框架支持
-  - 策略检查
-  - 合规性验证
+  **Key features:**
+  - IaC Security scanning
+  - Multiple frameworks supported
+  - Policy checking
+  - Compliance verification
 
-  **使用场景：**
-  - IaC安全扫描
-  - 云配置审计
-  - 安全策略检查
-  - 合规性检查
+  **Use cases:**
+  - IaC Security scanning
+  - Cloud configuration auditing
+  - Security-policy checks
+  - Compliance checking
 parameters:
   - name: "scan_type"
     type: "string"
-    description: "扫描类型（all, terraform, k8s等）"
+    description: "Scan type (all, terraform, k8s, etc.)"
     required: false
     flag: "--scan-type"
     format: "flag"
     default: "all"
   - name: "iac_dir"
     type: "string"
-    description: "IaC目录"
+    description: "IaC Directory"
     required: false
     flag: "-d"
     format: "flag"
     default: "."
   - name: "policy_type"
     type: "string"
-    description: "要使用的策略类型"
+    description: "The policy type to use"
     required: false
     flag: "--policy-type"
     format: "flag"
   - name: "output_format"
     type: "string"
-    description: "输出格式（json, yaml, xml）"
+    description: "Output format (json, yaml, xml)"
     required: false
     flag: "--output"
     format: "flag"
     default: "json"
   - name: "severity"
     type: "string"
-    description: "严重程度过滤（high, medium, low）"
+    description: "Severity filtering (high, medium, low)"
     required: false
     flag: "--severity"
     format: "flag"
   - name: "additional_args"
     type: "string"
     description: |
-      额外的terrascan参数。用于传递未在参数列表中定义的terrascan选项。
+      Extra terrascan arguments. Used to pass terrascan options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example value:**
+      - Add common parameter examples based on the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple parameters with spaces
+      - Ensure the parameter format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

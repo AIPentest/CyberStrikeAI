@@ -1,38 +1,38 @@
 name: "clair"
 command: "clair"
 enabled: false
-short_description: "容器漏洞分析工具"
+short_description: "a container vulnerability-analysis tool"
 description: |
-  Clair是一个容器漏洞分析工具，用于扫描容器镜像中的漏洞。
+  Clair is a container vulnerability-analysis tool for scanning vulnerabilities in container images.
 
-  **主要功能：**
-  - 容器镜像扫描
-  - 漏洞检测
-  - 多种数据库支持
-  - API接口
+  **Key features:**
+  - Container image scanning
+  - Vulnerability detection
+  - Multiple databases supported
+  - API Endpoint
 
-  **使用场景：**
-  - 容器安全扫描
-  - 漏洞检测
-  - CI/CD集成
-  - 安全审计
+  **Use cases:**
+  - Container security scanning
+  - Vulnerability detection
+  - CI/CD Integration
+  - Security auditing
 parameters:
   - name: "image"
     type: "string"
-    description: "要扫描的容器镜像"
+    description: "Container image to scan"
     required: true
     flag: "--image"
     format: "flag"
   - name: "config"
     type: "string"
-    description: "Clair配置文件"
+    description: "Clair Configuration file"
     required: false
     flag: "--config"
     format: "flag"
     default: "/etc/clair/config.yaml"
   - name: "output_format"
     type: "string"
-    description: "输出格式（json, yaml）"
+    description: "Output format (json, yaml)"
     required: false
     flag: "--format"
     format: "flag"
@@ -40,14 +40,14 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的clair参数。用于传递未在参数列表中定义的clair选项。
+      Extra clair arguments. Used to pass clair options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example value:**
+      - Add common parameter examples based on the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple parameters with spaces
+      - Ensure the parameter format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"

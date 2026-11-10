@@ -57,29 +57,29 @@ args:
     fi
   - "_"
 enabled: true
-short_description: "在指定虚拟环境中创建/激活并安装Python依赖"
+short_description: "Create/activate the specified virtual environment and install Python dependencies in it"
 description: |
-  在虚拟环境中安装Python包。
+  Install a Python package in a virtual environment.
 
-  **主要功能：**
-  - 安装Python包
-  - 虚拟环境支持
-  - 依赖管理
+  **Key features:**
+  - Install a Python package
+  - Virtual-environment support
+  - Dependency management
 
-  **使用场景：**
-  - 环境配置
-  - 依赖安装
-  - 工具安装
+  **Use cases:**
+  - Environment configuration
+  - Dependency installation
+  - Tool installation
 parameters:
   - name: "package"
     type: "string"
-    description: "要安装的Python包名"
+    description: "Name of the Python package to install"
     required: true
     position: 0
     format: "positional"
   - name: "env_name"
     type: "string"
-    description: "虚拟环境名称（默认default）"
+    description: "Virtual-environment name (default default)"
     required: false
     default: "default"
     position: 1
@@ -87,15 +87,15 @@ parameters:
   - name: "additional_args"
     type: "string"
     description: |
-      额外的install-python-package参数。用于传递未在参数列表中定义的install-python-package选项。
+      Extra install-python-package arguments. Used to pass install-python-package options not defined in the parameter list.
 
-      **示例值：**
-      - 根据工具特性添加常用参数示例
+      **Example value:**
+      - Add common parameter examples based on the tool's characteristics
 
-      **注意事项：**
-      - 多个参数用空格分隔
-      - 确保参数格式正确，避免命令注入
-      - 此参数会直接追加到命令末尾
+      **Notes:**
+      - Separate multiple parameters with spaces
+      - Ensure the parameter format is correct to avoid command injection
+      - This parameter is appended directly to the end of the command
     required: false
     format: "positional"
     default: ""
