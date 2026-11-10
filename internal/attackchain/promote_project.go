@@ -15,11 +15,11 @@ var promoteSlugSanitizer = regexp.MustCompile(`[^a-z0-9._/-]+`)
 
 // PromoteToProjectResult: the attack-chain promotion result.
 type PromoteToProjectResult struct {
-	FactsCreated int                         `json:"facts_created"`
-	FactsUpdated int                         `json:"facts_updated"`
-	EdgesCreated int                         `json:"edges_created"`
-	FactKeys     []string                    `json:"fact_keys"`
-	Graph        *database.ProjectFactGraph  `json:"graph,omitempty"`
+	FactsCreated int                        `json:"facts_created"`
+	FactsUpdated int                        `json:"facts_updated"`
+	EdgesCreated int                        `json:"edges_created"`
+	FactKeys     []string                   `json:"fact_keys"`
+	Graph        *database.ProjectFactGraph `json:"graph,omitempty"`
 }
 
 // PromoteToProject promotes a conversation's attack chain into project facts and edges.

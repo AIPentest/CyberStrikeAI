@@ -224,8 +224,8 @@ func clearReasoningExtraFields(fields map[string]any) {
 }
 
 // applyClaudeExtendedThinking sets Anthropic Messages API fields per official guidance:
-//   - Adaptive models (4.6+): thinking.type=adaptive; output_config.effort only when user sets effort (API default is high).
-//   - Sonnet 3.7: thinking.type=enabled + budget_tokens=10000 (doc example); effort is not mapped — use extra_request_fields for custom budget.
+// - Adaptive models (4.6+): thinking.type=adaptive; output_config.effort only when user sets effort (API default is high).
+// - Sonnet 3.7: thinking.type=enabled + budget_tokens=10000 (doc example); effort is not mapped - use extra_request_fields for custom budget.
 func applyClaudeExtendedThinking(cfg *einoopenai.ChatModelConfig, mode, effort, model string) {
 	if cfg == nil || mode == "off" {
 		return
@@ -260,7 +260,7 @@ func claudeThinkingForModel(m string, sonnet37 bool) map[string]any {
 			"display":       "summarized",
 		}
 	}
-	// Opus 4.7+: manual enabled+budget rejected — adaptive only.
+	// Opus 4.7+: manual enabled+budget rejected - adaptive only.
 	if strings.Contains(m, "opus-4-7") || strings.Contains(m, "opus-4.7") {
 		return map[string]any{
 			"type":    "adaptive",
@@ -326,7 +326,7 @@ func normalizeEffort(s string) string {
 	}
 }
 
-// usesExtraFieldsReasoningEffort 为 Eino 无枚举的最高档 effort，经 ExtraFields 原样下发（max / xhigh 由网关自行识别，不做互转）。
+// usesExtraFieldsReasoningEffort Represents Eino's highest non-enumerated effort, passed through verbatim via ExtraFields (max / xhigh are recognized by the gateway itself, with no conversion between them).
 func usesExtraFieldsReasoningEffort(e string) bool {
 	return e == "max" || e == "xhigh"
 }
@@ -426,6 +426,6 @@ func applyOutputConfigEffort(cfg *einoopenai.ChatModelConfig, mode, effort strin
 }
 
 func effortStringForAPI(e string) string {
-	// 原样透传：OpenAI 官方多为 xhigh，部分兼容网关为 max，由配置/对话 effort 选择。
+	// Passed through verbatim: official OpenAI mostly uses xhigh, some compatible gateways use max, chosen by the config/conversation effort.
 	return strings.ToLower(strings.TrimSpace(e))
 }

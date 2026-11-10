@@ -121,7 +121,7 @@ func (b *Builder) fitAttackChainPayload(reactInput, modelOutput string) (string,
 	return outReact, outModel, truncated
 }
 
-// compactFormattedToolBodies 缩短格式化 trace 中 [tool] 消息的正文，保留工具头与调用 ID。
+// compactFormattedToolBodies Shortens the body of [tool] messages in the formatted trace, keeping the tool header and call ID.
 func compactFormattedToolBodies(s string, maxRunesPerBody int) string {
 	if maxRunesPerBody <= 0 || s == "" {
 		return s
@@ -229,7 +229,7 @@ func truncateRunesWithNotice(s string, maxRunes int) string {
 	if len(rs) <= maxRunes {
 		return s
 	}
-	const notice = "\n...[工具输出已截断 / tool output truncated]...\n"
+	const notice = "\n...[Tool output truncated / tool output truncated]...\n"
 	noticeRunes := []rune(notice)
 	keep := maxRunes - len(noticeRunes)
 	if keep < 200 {

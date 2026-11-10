@@ -28,18 +28,18 @@ type Template struct {
 }
 
 func DefaultTemplate() Template {
-	return Template{Title: "安全检查报告", Introduction: "本报告汇总当前会话已记录的检查结果，供人工复核与修复跟踪。", IncludeSummary: true, IncludeEvidence: true, IncludeRemediation: true}
+	return Template{Title: "Security Check Report", Introduction: "This report summarizes the check results recorded in the current session, for manual review and remediation tracking.", IncludeSummary: true, IncludeEvidence: true, IncludeRemediation: true}
 }
 func (t Template) Validate() error {
 	if strings.TrimSpace(t.Title) == "" {
-		return fmt.Errorf("报告标题不能为空")
+		return fmt.Errorf("The report title cannot be empty")
 	}
 	for _, f := range []struct {
 		name, value string
 		limit       int
-	}{{"标题", t.Title, 200}, {"单位", t.Organization, 500}, {"检查范围", t.Scope, 10000}, {"章节说明", t.Introduction, 10000}} {
+	}{{"Title", t.Title, 200}, {"Organization", t.Organization, 500}, {"Scope", t.Scope, 10000}, {"Section description", t.Introduction, 10000}} {
 		if !utf8.ValidString(f.value) || utf8.RuneCountInString(f.value) > f.limit {
-			return fmt.Errorf("%s超出长度限制（%d 字）", f.name, f.limit)
+			return fmt.Errorf("%s Exceeds the length limit (%d characters)", f.name, f.limit)
 		}
 	}
 	return nil
@@ -70,19 +70,19 @@ func Render(t Template, s Snapshot) ([]byte, error) {
 		return nil, err
 	}
 	if len(s.Findings) > 2000 {
-		return nil, fmt.Errorf("报告超过 2000 条发现限制")
+		return nil, fmt.Errorf("The report exceeds the 2000-finding limit")
 	}
 	size := len(s.Summary)
 	for _, v := range s.Findings {
 		if v == nil {
-			return nil, fmt.Errorf("发现记录不能为空")
+			return nil, fmt.Errorf("The finding record cannot be empty")
 		}
 		for _, text := range []string{v.ID, v.Title, v.Description, v.Severity, v.Status, v.Type, v.Target, v.Preconditions, v.ReproSteps, v.Evidence, v.Impact, v.Recommendation, v.RetestNotes, v.RetestLog} {
 			size += len(text)
 		}
 	}
 	if size > 8*1024*1024 {
-		return nil, fmt.Errorf("报告正文超过 8 MiB 限制，请缩小范围")
+		return nil, fmt.Errorf("The report body exceeds the 8 MiB limit; please narrow the scope")
 	}
 	var body strings.Builder
 	p := func(style, text string) {
@@ -92,48 +92,48 @@ func Render(t Template, s Snapshot) ([]byte, error) {
 	}
 	field := func(label, value string) {
 		if strings.TrimSpace(value) == "" {
-			value = "未记录"
+			value = "Not recorded"
 		}
-		p("Normal", label+"："+value)
+		p("Normal", label+": "+value)
 	}
 	p("Title", t.Title)
 	if t.Organization != "" {
-		field("单位", t.Organization)
+		field("Organization", t.Organization)
 	}
-	field("生成时间", s.GeneratedAt.Format("2006-01-02 15:04:05 -07:00"))
+	field("Generated at", s.GeneratedAt.Format("2006-01-02 15:04:05 -07:00"))
 	if s.ConversationID != "" {
-		field("会话", s.ConversationTitle+"（"+s.ConversationID+"）")
+		field("Session", s.ConversationTitle+" ("+s.ConversationID+")")
 	}
 	if s.RunID != "" {
-		field("运行 ID", s.RunID)
+		field("Run ID", s.RunID)
 	}
-	p("Heading1", "检查范围与说明")
-	field("检查范围", t.Scope)
+	p("Heading1", "Scope and description")
+	field("Scope", t.Scope)
 	p("Normal", t.Introduction)
 	if len(s.Findings) != 1 {
-		p("Normal", "本报告保留生成时的记录状态。未记录漏洞不代表目标安全，记录状态、证据充分性及覆盖范围需人工复核。")
-		p("Heading1", "风险统计")
+		p("Normal", "This report preserves the record state at generation time. An unrecorded vulnerability does not mean the target is secure; the record state, evidence sufficiency, and coverage require manual review.")
+		p("Heading1", "Risk statistics")
 		counts := map[string]int{}
 		for _, v := range s.Findings {
 			counts[v.Severity]++
 		}
-		field("发现总数", fmt.Sprint(len(s.Findings)))
+		field("Total findings", fmt.Sprint(len(s.Findings)))
 		for _, severity := range []string{"critical", "high", "medium", "low", "info"} {
 			field(severity, fmt.Sprint(counts[severity]))
 		}
-		p("Normal", "统计包含当前筛选范围内的全部记录；误报、已忽略与待确认记录请结合各项状态判断，不应全部视为已验证漏洞。")
+		p("Normal", "The statistics include all records within the current filter scope; false positives, ignored, and pending records should be judged together with each item's status and should not all be treated as verified vulnerabilities.")
 	}
 	if t.IncludeSummary {
-		p("Heading1", "最终回复（原文，待人工复核）")
-		field("会话最终回复", s.Summary)
+		p("Heading1", "Final reply (original text, pending manual review)")
+		field("Session final reply", s.Summary)
 	}
 	if len(s.Findings) == 1 {
-		p("Heading1", "漏洞详情")
+		p("Heading1", "Vulnerability details")
 	} else {
-		p("Heading1", "发现详情")
+		p("Heading1", "Finding details")
 	}
 	if len(s.Findings) == 0 {
-		p("Normal", "当前范围内没有已记录的漏洞；这不构成安全保证。")
+		p("Normal", "There are no recorded vulnerabilities within the current scope; this is not a security guarantee.")
 	}
 	for i, v := range s.Findings {
 		if len(s.Findings) != 1 {
@@ -141,17 +141,17 @@ func Render(t Template, s Snapshot) ([]byte, error) {
 		} else {
 			p("Heading2", v.Title)
 		}
-		for _, f := range [][2]string{{"记录 ID", v.ID}, {"严重程度", v.Severity}, {"记录状态", v.Status}, {"类型", v.Type}, {"目标", v.Target}, {"描述", v.Description}, {"前置条件", v.Preconditions}, {"影响", v.Impact}} {
+		for _, f := range [][2]string{{"Record ID", v.ID}, {"Severity", v.Severity}, {"Record status", v.Status}, {"Type", v.Type}, {"Target", v.Target}, {"Description", v.Description}, {"Preconditions", v.Preconditions}, {"Impact", v.Impact}} {
 			field(f[0], f[1])
 		}
 		if t.IncludeEvidence {
-			field("复现步骤", v.ReproSteps)
-			field("证据 / POC", v.Evidence)
+			field("Reproduction steps", v.ReproSteps)
+			field("Evidence / POC", v.Evidence)
 		}
 		if t.IncludeRemediation {
-			field("修复建议", v.Recommendation)
-			field("复测方式", v.RetestNotes)
-			field("复测记录", v.RetestLog)
+			field("Remediation advice", v.Recommendation)
+			field("Retest method", v.RetestNotes)
+			field("Retest record", v.RetestLog)
 		}
 	}
 	body.WriteString(`<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>`)

@@ -2,7 +2,7 @@ package einomcp
 
 import "sync"
 
-// ConversationHolder 在每次 DeepAgent 运行前写入会话 ID，供 MCP 工具桥接使用。
+// ConversationHolder Writes the session ID before each DeepAgent run, for use by the MCP tool bridge.
 type ConversationHolder struct {
 	mu sync.RWMutex
 	id string

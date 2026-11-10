@@ -22,13 +22,13 @@ type StartupWebUIOptions struct {
 func PrintConfigCreated() {
 	s := New(os.Stdout)
 	s.Println("")
-	s.Println(s.Green("✔ ") + s.Bold("已创建 config.yaml") + s.Dim("（来自 config.example.yaml）"))
+	s.Println(s.Green("✔ ") + s.Bold("Created config.yaml") + s.Dim(" (from config.example.yaml)"))
 	s.BlankLine()
 }
 
-// startupHosts 返回横幅应展示的访问地址。通配地址（含空 host）展开为回环地址
-// 加本机非回环 IPv4；显式 host 原样展示。横幅此前硬编码 127.0.0.1，导致
-// 绑定 0.0.0.0 的用户误以为 server.host 配置未生效（issue #301）。
+// startupHosts Returns the access address the banner should display. A wildcard address (including an empty host) is expanded to the loopback address
+// Adds the machine's non-loopback IPv4; an explicit host is shown verbatim. The banner was previously hardcoded to 127.0.0.1, which caused
+// Users who bind 0.0.0.0 mistakenly think the server.host config has no effect (issue #301).
 func startupHosts(host string) []string {
 	host = strings.TrimSpace(host)
 	if host != "" && host != "0.0.0.0" && host != "::" && host != "[::]" {
@@ -80,17 +80,17 @@ func printStartupWebUI(out io.Writer, opts StartupWebUIOptions) {
 	}
 
 	s.BlankLine()
-	s.Println(s.Bold(s.Cyan("CYBERSTRIKE AI")) + s.Dim("  /  secure workspace"))
+	s.Println(s.Bold(s.Cyan("CYBERSTRIKE AI")) + s.Dim(" / secure workspace"))
 	s.Println(s.Dim(strings.Repeat("─", 60)))
-	s.Println(s.Green("● ONLINE") + "   " + s.Bold(s.White(urlFor(hosts[0]))))
+	s.Println(s.Green("● ONLINE") + " " + s.Bold(s.White(urlFor(hosts[0]))))
 	for _, h := range hosts[1:] {
-		s.Println(s.Dim("  Network  ") + s.Bold(s.White(urlFor(h))))
+		s.Println(s.Dim(" Network ") + s.Bold(s.White(urlFor(h))))
 	}
 	if opts.SelfSigned {
-		s.Println(s.Dim("  TLS      ") + s.Yellow("self-signed") + s.Dim(" · accept the browser warning once"))
+		s.Println(s.Dim(" TLS ") + s.Yellow("self-signed") + s.Dim(" - accept the browser warning once"))
 	}
 	if opts.HTTPRedirect {
-		s.Println(s.Dim("  Redirect ") + fmt.Sprintf("http://%s/ → HTTPS", net.JoinHostPort(hosts[0], strconv.Itoa(port))))
+		s.Println(s.Dim(" Redirect ") + fmt.Sprintf("http://%s/ → HTTPS", net.JoinHostPort(hosts[0], strconv.Itoa(port))))
 	}
 	s.BlankLine()
 }
@@ -105,10 +105,10 @@ func PrintBootstrapAdminCredentials(password string) {
 	s := New(os.Stdout)
 	s.Println(s.Bold(s.Yellow("ADMIN SETUP REQUIRED")))
 	s.Println(s.Dim(strings.Repeat("─", 60)))
-	s.Println(s.Dim("  Username  ") + s.Bold(s.White("admin")))
-	s.Println(s.Dim("  Password  ") + s.Bold(s.Yellow(password)))
+	s.Println(s.Dim(" Username ") + s.Bold(s.White("admin")))
+	s.Println(s.Dim(" Password ") + s.Bold(s.Yellow(password)))
 	s.BlankLine()
-	s.Println(s.Yellow("  ! ") + s.White("Store this password securely. It is shown only once."))
-	s.Println(s.Dim("    Change it in Settings immediately after signing in."))
+	s.Println(s.Yellow(" ! ") + s.White("Store this password securely. It is shown only once."))
+	s.Println(s.Dim(" Change it in Settings immediately after signing in."))
 	s.BlankLine()
 }

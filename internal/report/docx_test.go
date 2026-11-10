@@ -14,10 +14,10 @@ import (
 
 func TestWordReportEscapesEvidenceAndHonorsSections(t *testing.T) {
 	template := DefaultTemplate()
-	template.Title = "中文报告 & <客户>"
+	template.Title = "Chinese report & <Client>"
 	template.IncludeRemediation = false
-	v := &database.Vulnerability{Title: "待确认发现", Severity: "high", Status: "false_positive", Evidence: "<script>&\x00\nGET /?x=1&y=2", Recommendation: "must-be-omitted"}
-	data, err := Render(template, Snapshot{Summary: "原始回复", GeneratedAt: time.Now(), Findings: []*database.Vulnerability{v}})
+	v := &database.Vulnerability{Title: "Pending findings", Severity: "high", Status: "false_positive", Evidence: "<script>&\x00\nGET /?x=1&y=2", Recommendation: "must-be-omitted"}
+	data, err := Render(template, Snapshot{Summary: "Original reply", GeneratedAt: time.Now(), Findings: []*database.Vulnerability{v}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestWordReportEscapesEvidenceAndHonorsSections(t *testing.T) {
 		}
 	}
 	doc := parts["word/document.xml"]
-	for _, text := range []string{"中文报告 &amp; &lt;客户&gt;", "&lt;script&gt;&amp;", "false_positive", "原始回复"} {
+	for _, text := range []string{"Chinese report &amp; &lt;Client&gt;", "&lt;script&gt;&amp;", "false_positive", "Original reply"} {
 		if !strings.Contains(doc, text) {
 			t.Errorf("missing %q", text)
 		}

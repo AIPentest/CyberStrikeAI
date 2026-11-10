@@ -601,7 +601,7 @@ Connect nodes by cause-and-effect to form a tree diagram (because it is single-a
 - **metadata requirement**:
   * vulnerability_type: vulnerability type (SQL injection, XSS, RCE, etc.)
   * description: detailed description of the vulnerability location, principle, and impact
-  * severity：critical/high/medium/low
+  * severity: critical/high/medium/low
   * location: the precise vulnerability location (URL, parameter, file path, etc.)
 - **tool_call_id** (at the same level as id/type/label, do not put it in metadata): the ID of the tool call that confirmed this vulnerability, copy the ID: value from the trace verbatim; leave empty when it cannot be matched, fabrication is forbidden
 

@@ -15,17 +15,17 @@ import (
 	"github.com/eino-contrib/jsonschema"
 )
 
-// ExecutionRecorder 可选，在 MCP 工具成功返回且带有 execution id 时回调（用于汇总 mcpExecutionIds）。
-// toolCallID 来自 Eino compose.GetToolCallID，用于与 reduction 后的展示结果关联。
+// ExecutionRecorder Optional; called back when an MCP tool returns successfully with an execution id (used for aggregation mcpExecutionIds).
+// toolCallID Comes from Eino compose.GetToolCallID, used to correlate with the post-reduction display result.
 type ExecutionRecorder func(executionID, toolCallID string)
 
-// ToolErrorPrefix 用于把内部 MCP 执行结果中的 IsError 标记传递到多代理上层。
-// Eino 工具通道目前只支持返回字符串，因此通过前缀标识，随后在多代理 runner 中解析为 success/isError。
+// ToolErrorPrefix Used to propagate the IsError flag from the internal MCP execution result up to the multi-agent layer.
+// Eino The tool channel currently only supports returning strings, so it is marked with a prefix and then parsed in the multi-agent runner into success/isError.
 const ToolErrorPrefix = "__CYBERSTRIKE_AI_TOOL_ERROR__\n"
 
-// ToolsFromDefinitions 将单 Agent 使用的 OpenAI 风格工具定义转为 Eino InvokableTool，执行时走 Agent 的 MCP 路径。
-// invokeNotify 可选：与 runEinoADKAgentLoop 共享，在 InvokableRun 返回时触发 UI 与 pending 清理（与 ADK Tool 事件去重）。
-// einoAgentName 为该套工具所属 ChatModelAgent 的 Name（主代理或子代理 id），用于 SSE 上的 einoAgent 字段。
+// ToolsFromDefinitions Converts the OpenAI-style tool definitions used by a single agent into Eino InvokableTools; at execution time they go through the agent's MCP path.
+// invokeNotify Optional: shared with runEinoADKAgentLoop; triggers UI and pending cleanup when InvokableRun returns (deduplicated against ADK Tool events).
+// einoAgentName The Name of the ChatModelAgent these tools belong to (the main-agent or sub-agent id), used for the einoAgent field in SSE.
 func ToolsFromDefinitions(
 	ag *agent.Agent,
 	holder *ConversationHolder,
@@ -45,14 +45,14 @@ func ToolsFromDefinitions(
 			return nil, fmt.Errorf("tool %q: %w", d.Function.Name, err)
 		}
 		out = append(out, &mcpBridgeTool{
-			info:           info,
-			name:           d.Function.Name,
-			agent:          ag,
-			holder:         holder,
-			record:         rec,
-			chunk:          toolOutputChunk,
-			invokeNotify:   invokeNotify,
-			einoAgentName:  strings.TrimSpace(einoAgentName),
+			info:          info,
+			name:          d.Function.Name,
+			agent:         ag,
+			holder:        holder,
+			record:        rec,
+			chunk:         toolOutputChunk,
+			invokeNotify:  invokeNotify,
+			einoAgentName: strings.TrimSpace(einoAgentName),
 		})
 	}
 	return out, nil
@@ -74,7 +74,7 @@ func toolInfoFromDefinition(d agent.Tool) (*schema.ToolInfo, error) {
 		js.Type = string(schema.Object)
 	}
 	if js.Properties == nil && js.Type == string(schema.Object) {
-		// 空参数对象
+		// Empty argument object
 	}
 	return &schema.ToolInfo{
 		Name:        fn.Name,
@@ -123,7 +123,7 @@ func (m *mcpBridgeTool) InvokableRun(ctx context.Context, argumentsInJSON string
 	return runMCPToolInvocation(ctx, m.agent, m.holder, m.name, argumentsInJSON, m.record, m.chunk)
 }
 
-// runMCPToolInvocation 与 mcpBridgeTool.InvokableRun 共用。
+// runMCPToolInvocation Shared with mcpBridgeTool.InvokableRun.
 func runMCPToolInvocation(
 	ctx context.Context,
 	ag *agent.Agent,
@@ -141,7 +141,7 @@ func runMCPToolInvocation(
 			return ToolErrorPrefix + fmt.Sprintf(
 				"Invalid tool arguments JSON: %s\n\nPlease ensure the arguments are a valid JSON object "+
 					"(double-quoted keys, matched braces, no trailing commas) and retry.\n\n"+
-					"（工具参数 JSON 解析失败：%s。请确保 arguments 是合法的 JSON 对象并重试。）",
+					" (Failed to parse the tool arguments as JSON: %s. Make sure arguments is a valid JSON object and retry.)",
 				err.Error(), err.Error()), nil
 		}
 	}
@@ -187,10 +187,10 @@ func runMCPToolInvocation(
 	return res.Result, nil
 }
 
-// UnknownToolReminderHandler 供 compose.ToolsNodeConfig.UnknownToolsHandler 使用：
-// 模型请求了未注册的工具名时，返回一个「软错误」工具结果（nil error），
-// 让模型在同一轮继续自我修正，避免触发 run-loop 级别的 full rerun。
-// 不进行名称猜测或映射，避免误执行。
+// UnknownToolReminderHandler Used by compose.ToolsNodeConfig.UnknownToolsHandler:
+// When the model requests an unregistered tool name, returns a 'soft error' tool result (nil error),
+// Lets the model keep self-correcting within the same turn, avoiding triggering run-loop-level full rerun.
+// Does not guess or map names, to avoid mistaken execution.
 func UnknownToolReminderHandler() func(ctx context.Context, name, input string) (string, error) {
 	return func(ctx context.Context, name, input string) (string, error) {
 		_ = ctx
@@ -210,5 +210,5 @@ func unknownToolReminderText(requested string) string {
 
 Please retry using only names that appear in the tool definitions for this turn (exact match, case-sensitive). Do not invent or rename tools; adjust your plan and continue.
 
-（工具 %q 未注册：请仅使用本回合上下文中给出的工具名称，须完全一致；请勿自行改写或猜测名称，并继续后续步骤。）`, requested, requested)
+ (Tool %q is not registered: use only the tool names given in this turn's context, matching them exactly; do not rewrite or guess names, and continue with the remaining steps.)`, requested, requested)
 }
