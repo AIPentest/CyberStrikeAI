@@ -354,8 +354,12 @@ func TestNewEinoAgenticChatModelFactoryBuildsNativeClaudeBackend(t *testing.T) {
 	if m == nil {
 		t.Fatal("claude agentic factory returned nil model")
 	}
-	if _, ok := m.(*agenticclaude.Model); !ok {
-		t.Fatalf("claude agentic factory returned %T, want native agenticclaude.Model", m)
+	repaired, ok := m.(*agenticStreamIndexRepairModel)
+	if !ok {
+		t.Fatalf("claude agentic factory returned %T, want stream index repair wrapper", m)
+	}
+	if _, ok := repaired.base.(*agenticclaude.Model); !ok {
+		t.Fatalf("wrapped claude backend = %T, want native agenticclaude.Model", repaired.base)
 	}
 	gate := evaluateEinoAgenticModelGate(agenticModelGateFactory(factory, config.OpenAIConfig{
 		Provider: "claude",
