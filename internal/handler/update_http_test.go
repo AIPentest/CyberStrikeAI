@@ -36,7 +36,11 @@ func newUpdateRouter(root string, restart func()) (*gin.Engine, *UpdateHandler) 
 func newUpdateRouterWithSource(root string, restart func(),
 	source func() string, save func(string) error) (*gin.Engine, *UpdateHandler) {
 	gin.SetMode(gin.TestMode)
-	h := NewUpdateHandler(root, nil, nil, restart, source, save)
+	var prepare func() (func(), error)
+	if restart != nil {
+		prepare = func() (func(), error) { return restart, nil }
+	}
+	h := NewUpdateHandler(root, nil, nil, prepare, source, save)
 	router := gin.New()
 	router.GET("/api/system/update", h.GetStatus)
 	router.GET("/api/system/update/job", h.Job)
@@ -313,7 +317,7 @@ func TestUpdateStatusReportsAPendingBinaryAndSupervision(t *testing.T) {
 		t.Fatalf("replacing the binary must be reported as pending, with when it was built: %+v", after)
 	}
 
-	// Supervision is read from the markers launchd/systemd leave in the environment.
+	// Retain the supervision hint for older clients; it does not control autoRestart.
 	t.Setenv("XPC_SERVICE_NAME", "")
 	t.Setenv("INVOCATION_ID", "")
 	t.Setenv("JOURNAL_STREAM", "")
@@ -322,7 +326,7 @@ func TestUpdateStatusReportsAPendingBinaryAndSupervision(t *testing.T) {
 	}
 	t.Setenv("XPC_SERVICE_NAME", "com.example.thing")
 	if !read().Supervised {
-		t.Error("XPC_SERVICE_NAME is launchd's own marker; the page's default must follow it")
+		t.Error("XPC_SERVICE_NAME is launchd's own marker")
 	}
 }
 

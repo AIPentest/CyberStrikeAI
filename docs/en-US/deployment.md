@@ -87,11 +87,12 @@ data/ config.yaml` - is put aside and restored, and the result names every file 
 is modified locally or the local history has diverged from the source it refuses and says why
 instead of forcing. See [the developer guide](developer-guide.md) for the full semantics.
 
-When a supervisor is detected (systemd/launchd startup markers in the environment), the "exit after
-updating" tick is pre-ticked: the process stands down after a successful update, the supervisor brings
-the new binary back, and the page reloads itself once the service answers (sessions live in memory, so
-one fresh login follows). Forgot the tick, or swapped the binary from the CLI? The console carries a
-persistent banner with **Restart now** - no shell login needed.
+On macOS and Linux, when started from the `cyberstrike-ai` binary alongside its config, the console
+defaults to switching to the new binary after a successful build. The old service remains available
+during the build. Connections briefly drop at the switch and the page reloads when the new service
+answers. Sign in again afterward because sessions live in memory. A supervisor is still useful for
+starting at boot and recovering from crashes. If you defer the switch or replace the binary from the
+CLI, the console offers **Restart now** on installations that support the switch.
 
 The update source is a single repository address in the `update` section of `config.yaml` (`repo`),
 or right on the console page: the official repository, your own fork, somebody else's repository or a

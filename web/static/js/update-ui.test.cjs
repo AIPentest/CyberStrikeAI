@@ -94,6 +94,8 @@ function envelope(status, job, canRestart, source, flags) {
         job: job === undefined ? null : job,
         canRestart: canRestart !== false,
         supervised: !!(flags && flags.supervised),
+        autoRestart: flags?.autoRestart,
+        bootID: flags?.bootID,
         needsRestart: !!(flags && flags.needsRestart),
         binaryBuiltAt: (flags && flags.binaryBuiltAt) || '',
         source: source || emptySource,
@@ -166,7 +168,8 @@ function harness(options) {
         const el = {
             id,
             innerHTML: '',
-            checked: false,
+            checked: id === 'update-restart-choice' &&
+                /id="update-restart-choice" checked/.test(nodes.get('update-console')?.innerHTML || ''),
             insertAdjacentHTML(_pos, html) { this.innerHTML = html + this.innerHTML; },
         };
         // 控制台住在系统设置页的「一键更新」分区里：页面和分区都得是 active，它才算在前台。
@@ -192,10 +195,7 @@ function harness(options) {
         'POST /api/system/update/adopt': [{ status: 200, body: { plan: adoptPlan } }],
     }, opts.responses || {});
 
-    // The watchdog probes with plain fetch (the app's apiFetch turns a 401 into "logged out",
-    // and the whole point here is to read that 401 as "the new process is up"). Tests script
-    // the answers: 'ok' (old process still answering), 'unauthorized' (a new process without
-    // our session), 'down' (nothing is listening), 'bad gateway'.
+    // Plain fetch observes boot headers without apiFetch's logout side effect.
     const probeQueue = (opts.probes || ['ok']).slice();
     const fetchProbes = [];
 
@@ -308,7 +308,14 @@ function harness(options) {
                 return Promise.reject(new TypeError('Failed to fetch'));
             }
             if (answer === 'unauthorized') {
-                return Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({ error: 'unauthorized' }) });
+                return Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({ error: '未授权访问，请先登录' }) });
+            }
+            if (typeof answer === 'object') {
+                return Promise.resolve({
+                    status: answer.status,
+                    headers: { get: name => name === 'X-CyberStrike-Boot-ID' ? answer.bootID : null },
+                    json: () => Promise.resolve(answer.body || {}),
+                });
             }
             if (answer === 'bad gateway') {
                 return Promise.resolve({ ok: false, status: 502, json: () => Promise.resolve({}) });
@@ -884,7 +891,7 @@ test('the restart tick only appears when the process can actually be restarted',
     const off = await harness({ canRestart: false });
     assert.doesNotMatch(off.html(), /id="update-restart-choice"/,
         'offering a promise the platform cannot keep is a lie');
-    assert.match(off.html(), /本次启动没有提供重启钩子/);
+    assert.match(off.html(), /当前启动方式不支持自动切换/);
 
     const on = await harness({
         canRestart: true,
@@ -896,19 +903,19 @@ test('the restart tick only appears when the process can actually be restarted',
     assert.ok(!/id="update-restart-choice" checked/.test(on.html()),
         'with nothing supervising the process, the tick must default to off: ticking it would just stop the platform');
 
-    // The default follows the environment: launchd/systemd markers mean a restart is a
-    // restart, so one click should be the whole update.
-    const supervised = await harness({
+    const standalone = await harness({
         canRestart: true,
-        flags: { supervised: true },
-        responses: { 'GET /api/system/update/job': [{ status: 200, body: { job: null } }] },
+        flags: { autoRestart: true, supervised: false },
+        responses: { 'GET /api/system/update/job': [{ status: 200, body: { job: { ...runningJob, restartRequested: true } } }] },
     });
-    assert.match(supervised.html(), /id="update-restart-choice" checked/,
-        'detected supervision must pre-tick the box');
+    assert.match(standalone.html(), /id="update-restart-choice" checked/,
+        'the standalone executable supports automatic activation');
+    await standalone.api.startUpdateApply();
+    assert.deepEqual(JSON.parse(standalone.calls.find(c => c.url === '/api/system/update/apply').body), { restart: true });
     // Once the operator decides for themselves, the default stops second-guessing them.
-    supervised.sandbox.document.getElementById('update-restart-choice').checked = false;
-    supervised.fire('updateRestartChoiceChanged', { checked: false });
-    assert.ok(!/id="update-restart-choice" checked/.test(supervised.html()));
+    standalone.sandbox.document.getElementById('update-restart-choice').checked = false;
+    standalone.fire('updateRestartChoiceChanged', { checked: false });
+    assert.ok(!/id="update-restart-choice" checked/.test(standalone.html()));
 
     on.calls.length = 0;
     on.fire('startUpdateApply');
@@ -1356,7 +1363,7 @@ test('restart now asks first, posts once, and hands the page to the watchdog', a
     h.fire('startRestartNow');
     await h.flush();
     assert.equal(h.confirms.length, 1, 'standing the service down is confirmed, never implied');
-    assert.match(h.confirms[0], /守护/, 'the confirm has to say what brings it back: ' + h.confirms[0]);
+    assert.match(h.confirms[0], /页面会自动刷新/);
     assert.deepEqual(h.calls, [], 'a cancelled restart must not post');
     assert.equal(h.vars.getWatchdogTimer(), null, 'nothing may be watched for a restart nobody asked for');
 
@@ -1389,8 +1396,8 @@ test('a refused restart is reported with the server sentence and arms nothing', 
 
 test('the watchdog reloads only when the NEW process answers, never while the old one still does', async () => {
     const h = await harness({
-        flags: { needsRestart: true },
-        probes: ['ok', 'down', 'down', 'unauthorized'],
+        flags: { needsRestart: true, bootID: 'old' },
+        probes: [{ status: 401, bootID: 'old' }, 'down', { status: 401 }, { status: 200, bootID: 'new' }],
         responses: { 'POST /api/system/update/restart': [{ status: 202, body: { restarting: true } }] },
     });
     await h.api.startRestartNow();
@@ -1399,18 +1406,18 @@ test('the watchdog reloads only when the NEW process answers, never while the ol
 
     await h.tick();
     await h.flush();
-    assert.equal(h.location.replaced.length, 0, 'a 200 from the old process is not "it is back"');
+    assert.equal(h.location.replaced.length, 0, 'an expired session on the old boot is not a restart');
 
     await h.tick();
     await h.flush();
     await h.tick();
     await h.flush();
-    assert.equal(h.location.replaced.length, 0, 'a dead service is not a recovered one');
+    assert.equal(h.location.replaced.length, 0, 'a dead service or proxy 401 does not prove recovery');
 
     await h.tick();
     await h.flush();
     assert.equal(h.location.replaced.length, 1,
-        'a 401 is the proof: only a new process can fail to know our session');
+        'the new boot can be recognized independently of authentication status');
     assert.match(h.location.replaced[0], /\?restarted=\d+/);
     assert.match(h.location.replaced[0], /#system-update$/);
     assert.equal(h.vars.getWatchdogTimer(), null, 'the page is leaving: the timer must be down');
@@ -1427,7 +1434,7 @@ test('a restart that does not come back says so instead of spinning forever', as
     downCase.vars.expireWatchdog();
     await downCase.tick();
     await downCase.flush();
-    assert.match(downCase.html(), /没有守护进程|不会自己启动/, 'the down advice must name the supervision question');
+    assert.match(downCase.html(), /服务仍未恢复，页面会继续重试/);
 
     const aliveCase = await harness({
         flags: { needsRestart: true },
@@ -1493,6 +1500,21 @@ test('a job poll that dies while the restart is in flight is not a failure', asy
     await h.tick();
     await h.flush();
     assert.equal(h.location.replaced.length, 1);
+});
+
+test('an update that did not build a binary stays on the progress page', async () => {
+    const h = await harness({
+        flags: { autoRestart: true },
+        responses: {
+            'GET /api/system/update/job': [{
+                status: 200,
+                body: { job: { ...succeededJob, result: { ...succeededJob.result, binaryBuilt: false } } },
+            }],
+        },
+    });
+    await h.api.startUpdateApply();
+    assert.deepEqual(JSON.parse(h.calls.find(c => c.url === '/api/system/update/apply').body), { restart: true });
+    assert.equal(h.vars.getWatchdogTimer(), null, 'a source-only update does not cause an outage');
 });
 
 test('an interrupted rollback offers recovery and blocks a new update', async () => {

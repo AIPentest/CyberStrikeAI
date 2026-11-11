@@ -48,7 +48,7 @@ disagree about why an update was refused.
 
 | entry | how it is used |
 |---|---|
-| console | System settings -> One-click update (`#system-update`, the old deep link still works). Opening this section reads the local tree only and does not go online; **Check** is what performs the fetch; **Update** starts a job the page polls; the "exit after updating" tick is pre-ticked when a supervisor is detected (launchd/systemd startup markers), and while the process is down the page watches for its return and reloads itself (sessions live in memory, so a fresh login follows); a rollback button sits below |
+| console | System settings -> One-click update (`#system-update`, the old deep link still works). **Update** starts a job the page polls. Supported installations switch to the newly built binary by default, and the page reloads once the service comes back. A rollback button sits below. |
 | REST | `GET /api/system/update` (state on disk, no network), `POST /api/system/update/check` (fetch, then report the gap), `POST /api/system/update/apply` (`202` with `job_id`, polled through `GET /api/system/update/job`), `POST /api/system/update/rollback` |
 | CLI | `./cyberstrike-ai -check-update`, `./cyberstrike-ai -update`, `./cyberstrike-ai -update-rollback`. The install root is the directory holding `--config`, or the current directory when `--config` was not given |
 
@@ -150,28 +150,24 @@ again after an interruption to finish recovery; the console reports `rollbackPen
 updates. Keep the recovery record, backup directory and `.prev` file. If recorded binary hashes do not
 match the files on disk, recovery refuses to overwrite them.
 
-### The two restart cases
+### Switching to the new binary
 
-The process only stands down (graceful `Shutdown`, then exit 0) when the request explicitly says
-`restart: true` **and** a restart hook was wired at startup. Whether it actually comes back is up to a
-supervisor (systemd, `run.sh`), and the page says exactly that rather than promising a boot that may
-not happen. Asking for a restart with no hook wired is a `400`, instead of stopping the service and
-claiming it restarted.
+On macOS and Linux, when started from the `cyberstrike-ai` binary alongside its config, the console
+sends `restart: true` by default. After a successful build and binary swap, the service closes its
+application resources and executes the new binary with the same PID, arguments, environment and
+working directory. Installations that cannot switch in place return `400` on an explicit restart
+request. CLI updates and REST updates without `restart: true` only replace files on disk.
 
 **A pending binary is a durable state, and it can be activated later.** The status endpoint compares
 the binary identity captured at startup (size + nanosecond mtime) with what is on disk now: after an
 update, a rollback or a CLI run swapped the file without a restart, `needsRestart` is true,
 `binaryBuiltAt` says when it was built, and the console grows a persistent banner with **Restart now**
 (`POST /api/system/update/restart`; `409 nothing_pending` when there is nothing to activate, `409`
-while a job runs, `400` without a hook). The `supervised` field comes from environment markers
-(launchd's `XPC_SERVICE_NAME`, systemd's `INVOCATION_ID`/`JOURNAL_STREAM`) and only decides the tick's
-default.
+while a job runs, `400` when unavailable). The console uses the `autoRestart` field as its default.
 
-**And the page recovers by itself.** While the process is down the console becomes a recovery view
-that probes the status endpoint every 2 seconds: a 200 means the old process is still answering (keep
-waiting), a dead connection means it is on its way out, and a 401 from a process that no longer knows
-the session is the proof the restart happened - the page then `location.replace`s itself back to
-`#system-update`. Leaving the console stops the watching instead of yanking the user back.
+**The page reloads automatically.** The console polls the session validation endpoint every two
+seconds for the new boot marker. Sessions live in memory, so users sign in again after the switch.
+Leaving the console stops the polling.
 
 ## Adding a Business Module
 

@@ -20,14 +20,15 @@ const UPDATE_FAILURE_KEYS = {
     restart: 'restartFailed',
 };
 
-let updateConsoleState = null;   // GET /api/system/update 的整包：{status, job, canRestart, supervised, needsRestart}
+let updateConsoleState = null;
 let updateCheck = { done: false, error: '' };
 let updateBusy = false;          // 页面自己发着的动作请求（检查 / 启动更新 / 回滚 / 重启）
 let updateChecking = false;      // 只影响「检查更新」按钮的措辞
 let updatePollTimer = null;
-let updateRestartChoice = true;  // 勾选框要在轮询重绘之后仍然是勾着的；默认值跟随 supervised
+let updateRestartChoice = false;
 let updateRestartChoiceSet = false; // 操作员本次会话手动改过之后，默认值不再顶掉他的选择
-let updateRestartPending = false;   // 已请求重启：进程退出/新进程接客就在眼前
+let updateRestartExpected = false;  // 更新结束后预计重启，构建阶段仍照常读进度
+let updateRestartPending = false;   // 正在等待服务恢复
 let updateWatchdogTimer = null;     // 重启守侧自己的定时器，跟任务进度轮询互不干扰
 let updateWatchdogDeadline = 0;
 let updateWatchdogSlow = null;      // null=还没超时；'running'=仍由旧进程应答；'down'=服务没回来
@@ -145,7 +146,9 @@ async function fetchUpdateStatus() {
         status: r.data.status || {},
         job: r.data.job || null,
         canRestart: !!r.data.canRestart,
-        supervised: !!r.data.supervised,
+        // Old backends have no self-restart capability field.
+        autoRestart: r.data.autoRestart ?? !!r.data.supervised,
+        bootID: r.data.bootID || '',
         needsRestart: !!r.data.needsRestart,
         binaryBuiltAt: r.data.binaryBuiltAt || '',
         source: r.data.source || { repo: '', configured: false, defaultRepo: '' },
@@ -154,11 +157,9 @@ async function fetchUpdateStatus() {
     return updateConsoleState;
 }
 
-// 勾选框的默认值：有守护（launchd/systemd 的启动标记）才默认勾上——没人守护时默认勾上
-// 等于"一键把服务点停"。操作员自己动过勾选框之后，服务端的值不再覆盖他的选择。
 function noteRestartDefault() {
     if (updateRestartChoiceSet) return;
-    updateRestartChoice = !!(updateConsoleState && updateConsoleState.supervised);
+    updateRestartChoice = updateCanRestart() && updateConsoleState.autoRestart;
 }
 
 // notify 只在平台真的载了 showNotification 时才动。它绝不能成为"操作看起来失败"的原因：
@@ -213,7 +214,7 @@ async function loadUpdateConsole() {
     }
     resetUpdateCheck();
     updateRestartChoiceSet = false;
-    updateRestartChoice = true; // 之后由 noteRestartDefault 按 supervised 修正
+    updateRestartChoice = false;
     updateActionError = '';     // 重新进页 = 干净画面，上一次动作的红字不跟过来
     const el = document.getElementById('update-console');
     if (!el) return;
@@ -226,7 +227,12 @@ async function loadUpdateConsole() {
         return;
     }
     renderUpdateConsole();
-    // 开页就有一次在跑的更新（比如另开一个标签页点的），接着看它，别让人以为没在动。
+    const job = updateJobOf();
+    updateRestartExpected = !!(job && job.restartRequested && job.state === 'running');
+    if (job && job.state === 'succeeded' && job.restartRequested && job.result?.binaryBuilt) {
+        startUpdateWatchdog();
+        return;
+    }
     if (isUpdateJobRunning()) startUpdatePolling();
     scheduleUpdateAutoCheck();
 }
@@ -246,8 +252,7 @@ function stopUpdatePolling() {
 // 重启守侧：请求重启之后，盯着"新进程是否已经接客"，接上了就整页刷新
 // ---------------------------------------------------------------------------
 
-// 只认一个新进程已经应答的事实：会话只活在旧进程内存里，新进程对旧令牌只会回 401。
-// 200 说明还在跟旧进程说话（还没退出），连不上/502 说明正在退出或还没起来——都继续等。
+// 服务启动标记变了才刷新。会话过期和代理的错误页都不代表换版。
 // 离开控制台就静默停表：不把已经走开的用户从别的页面拽回更新页。
 let updateWatchdogProbing = false;
 
@@ -259,28 +264,48 @@ async function watchdogProbe() {
     if (updateWatchdogProbing) return;
     updateWatchdogProbing = true;
     let status = 0;
+    let bootID = '';
+    let legacyUnauthorized = false;
+    const previousBoot = updateConsoleState && updateConsoleState.bootID;
     try {
-        const resp = await fetch('/api/system/update', {
+        const headers = { Accept: 'application/json' };
+        if (typeof authToken === 'string' && authToken) headers.Authorization = 'Bearer ' + authToken;
+        const resp = await fetch('/api/auth/validate', {
             method: 'GET',
             credentials: 'same-origin',
             cache: 'no-store',
-            headers: { Accept: 'application/json' },
+            redirect: 'error',
+            headers: headers,
+            signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined,
         });
         status = resp.status;
+        bootID = resp.headers?.get('X-CyberStrike-Boot-ID') || '';
+        if (status === 401 && !bootID) {
+            // A downgrade may return to a build that predates the boot header.
+            const data = await resp.json().catch(() => null);
+            legacyUnauthorized = data?.error === '未授权访问，请先登录';
+        }
     } catch (err) {
         status = 0;
     } finally {
         updateWatchdogProbing = false;
     }
-    if (status === 401) {
-        // 新进程已经接客、且不认我们的会话：整页刷新落到新版本，带 hash 回到本页。
-        // 先停表：页面马上要整体换掉，定时器不该再有第二次动作。
+    if (!isUpdateConsoleActive() || !updateWatchdogTimer) return;
+    if ((bootID && bootID !== previousBoot && (status === 200 || status === 401)) || legacyUnauthorized) {
         stopUpdateWatchdog();
         location.replace(location.pathname + '?restarted=' + Date.now() + '#system-update');
         return;
     }
+    if (updateRestartExpected && previousBoot && bootID === previousBoot && status === 200) {
+        // The progress request may have hit a transient network error during the build.
+        stopUpdateWatchdog();
+        updateRestartPending = false;
+        renderUpdateConsole();
+        startUpdatePolling();
+        return;
+    }
     if (updateWatchdogSlow === null && Date.now() > updateWatchdogDeadline) {
-        updateWatchdogSlow = status === 200 ? 'running' : 'down';
+        updateWatchdogSlow = bootID || status === 200 ? 'running' : 'down';
         renderUpdateWatchdog();
     }
 }
@@ -316,8 +341,8 @@ async function pollUpdateJob() {
     }
     if (!r.ok) {
         stopUpdatePolling();
-        if (updateRestartPending) {
-            // 进程按请求退了：这不是"读进度失败"，是重启进入了下一幕。
+        if (updateRestartExpected) {
+            // The page may have missed the last progress response before handoff.
             startUpdateWatchdog();
             return;
         }
@@ -327,12 +352,16 @@ async function pollUpdateJob() {
     const job = r.data && r.data.job ? r.data.job : null;
     if (updateConsoleState) updateConsoleState.job = job;
     renderUpdateConsole();
+    if (job && job.state === 'running') updateRestartExpected = !!job.restartRequested;
+    if (!job && updateRestartExpected) {
+        stopUpdatePolling();
+        startUpdateWatchdog();
+        return;
+    }
     if (job && job.state !== 'running') {
         stopUpdatePolling();
-        if (job.state === 'succeeded' && job.restartRequested) {
-            // 进程马上要让位给新二进制：先把结论播报掉，再进自恢复视图；不再回头
-            // 去读一个即将消失的服务（reportFinishedJob 会去读，这里跳过它）。
-            notify(updateDoneToast(job.result || null), 'success');
+        updateRestartExpected = false;
+        if (job.state === 'succeeded' && job.restartRequested && job.result?.binaryBuilt) {
             startUpdateWatchdog();
             return;
         }
@@ -357,7 +386,10 @@ function reportFinishedJob(job) {
     const result = job.result || null;
     if (job.state === 'succeeded') {
         notify(updateDoneToast(result), 'success');
-        if (result && result.needsRestart) notify(updateT('needsRestartToast'), 'info');
+        if (job.restartError) {
+            updateActionError = updateT('restartFailed', { reason: job.restartError });
+            notify(updateActionError, 'error');
+        } else if (result && result.needsRestart) notify(updateT('needsRestartToast'), 'info');
     } else {
         const reason = (job.failure && job.failure.message) ? job.failure.message : updateT('failureNoMessage');
         notify(updateT('jobFailedToast') + ': ' + reason, 'error');
@@ -479,7 +511,7 @@ async function startUpdateApply() {
         }
         if (!r.ok) throw new Error(r.error);
         resetUpdateCheck();
-        if (restart) updateRestartPending = true;
+        updateRestartExpected = restart;
         startUpdatePolling();
         notify(updateT('applyAccepted', { id: r.data.job_id || '-' }), 'success');
         await pollUpdateJob();
@@ -496,6 +528,7 @@ async function startRestartNow() {
         const r = await runUpdateRequest('POST', '/api/system/update/restart');
         if (!r.ok) throw new Error(r.error);
         stopUpdatePolling();
+        updateRestartExpected = false;
         notify(updateT('restartRequestedToast'), 'info');
         startUpdateWatchdog();
     }, 'restart');
@@ -587,7 +620,7 @@ async function confirmAdoptSource() {
         if (!r.ok) throw new Error(r.error);
         updateAdoptPlan = null;
         resetUpdateCheck();
-        if (restart) updateRestartPending = true;
+        updateRestartExpected = restart;
         startUpdatePolling();
         notify(updateT('adoptAccepted', { id: r.data.job_id || '-' }), 'success');
         await pollUpdateJob();
@@ -949,8 +982,10 @@ function renderRestartBanner() {
     });
     return '<div class="update-restart-banner">' +
         '<div class="update-restart-banner-text">' + escapeHtml(text) + '</div>' +
-        '<button class="btn-primary update-restart-btn" data-require-permission="update:apply" onclick="startRestartNow()">' +
-        escapeHtml(updateT('restartNowBtn')) + '</button></div>';
+        (updateCanRestart() ?
+            '<button class="btn-primary update-restart-btn" data-require-permission="update:apply" onclick="startRestartNow()">' +
+            escapeHtml(updateT('restartNowBtn')) + '</button>' : '') +
+        '</div>';
 }
 
 // 自恢复视图：重启请求发出后控制台画的就是它，直到新进程应答触发整页刷新。
