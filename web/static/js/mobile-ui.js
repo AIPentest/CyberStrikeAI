@@ -57,10 +57,10 @@
 
     /* 底部标签栏定义。label 只在 i18next 未就绪时兜底，正式文案走 labelKey。 */
     var TABS = [
-        { id: 'dashboard', label: '仪表盘', labelKey: 'nav.dashboard', icon: 'dashboard' },
-        { id: 'chat', label: '对话', labelKey: 'nav.chat', icon: 'chat' },
-        { id: 'hitl', label: '协同', labelKey: 'nav.hitl', icon: 'hitl', badge: 'hitl' },
-        { id: 'tasks', label: '任务', labelKey: 'nav.tasks', icon: 'tasks' }
+        { id: 'dashboard', label: 'Dashboard', labelKey: 'nav.dashboard', icon: 'dashboard' },
+        { id: 'chat', label: 'Conversation', labelKey: 'nav.chat', icon: 'chat' },
+        { id: 'hitl', label: 'Collaboration', labelKey: 'nav.hitl', icon: 'hitl', badge: 'hitl' },
+        { id: 'tasks', label: 'Task', labelKey: 'nav.tasks', icon: 'tasks' }
     ];
 
     /* 每个标签对应的"归属页"集合，用于点亮高亮 */
@@ -425,7 +425,7 @@
     function buildMenuButton() {
         var btn = el('button', 'm-menu-btn m-mobile-only', ICON.menu);
         btn.type = 'button';
-        ariaLabel(btn, 'mobile.openNav', '打开导航菜单');
+        ariaLabel(btn, 'mobile.openNav', 'Open the navigation menu');
         btn.addEventListener('click', function () {
             if (state.drawerOpen) closeDrawer();
             else openDrawer();
@@ -436,7 +436,7 @@
     function buildMoreButton() {
         var btn = el('button', 'm-more-btn m-mobile-only', ICON.more);
         btn.type = 'button';
-        ariaLabel(btn, 'mobile.moreActions', '更多操作');
+        ariaLabel(btn, 'mobile.moreActions', 'More actions');
         btn.addEventListener('click', function () {
             if (state.sheetOpen) closeSheet();
             else openSheet();
@@ -470,7 +470,7 @@
             '<span class="brand-wordmark"><span class="brand-wordmark__core">CyberStrike</span><span class="brand-wordmark__ai">AI</span></span>');
         var close = el('button', 'm-close-btn', ICON.close);
         close.type = 'button';
-        ariaLabel(close, 'mobile.closeNav', '关闭导航菜单');
+        ariaLabel(close, 'mobile.closeNav', 'Close the navigation menu');
         close.addEventListener('click', closeDrawer);
         head.appendChild(brand);
         head.appendChild(close);
@@ -478,14 +478,14 @@
         var search = el('div', 'm-drawer-search m-mobile-only');
         var input = el('input');
         input.type = 'search';
-        setAttrI18n(input, 'placeholder', 'mobile.searchMenu', '搜索菜单…');
-        setAttrI18n(input, 'aria-label', 'mobile.searchMenu', '搜索菜单');
+        setAttrI18n(input, 'placeholder', 'mobile.searchMenu', 'Search menu…');
+        setAttrI18n(input, 'aria-label', 'mobile.searchMenu', 'Search menu');
         input.setAttribute('autocomplete', 'off');
         input.addEventListener('input', function () {
             filterNav(input.value);
         });
         var empty = el('div', 'm-nav-empty m-mobile-only');
-        label(empty, 'mobile.noMatch', '没有匹配的菜单');
+        label(empty, 'mobile.noMatch', 'No matching menu');
         empty.hidden = true;
         search.appendChild(input);
         search.appendChild(empty);
@@ -502,7 +502,7 @@
 
         var close = el('button', 'm-close-btn m-chat-drawer-close', ICON.close);
         close.type = 'button';
-        ariaLabel(close, 'mobile.closeChatList', '关闭会话列表');
+        ariaLabel(close, 'mobile.closeChatList', 'Close the session list');
         close.addEventListener('click', closeChatDrawer);
 
         /* 顶掉桌面端「折叠」按钮的位置，避免额外占一行 */
@@ -512,7 +512,7 @@
         } else {
             var head = el('div', 'm-chat-drawer-head m-mobile-only');
             var title = el('span', 'm-chat-drawer-title');
-            label(title, 'mobile.chatList', '会话列表');
+            label(title, 'mobile.chatList', 'Session list');
             head.appendChild(title);
             head.appendChild(close);
             sidebar.insertBefore(head, sidebar.firstChild);
@@ -600,7 +600,7 @@
     function buildTabbar() {
         var bar = el('nav');
         bar.id = 'm-tabbar';
-        ariaLabel(bar, 'mobile.mainNav', '主导航');
+        ariaLabel(bar, 'mobile.mainNav', 'Main navigation');
 
         TABS.forEach(function (tab) {
             var btn = el('button', 'm-tab', ICON[tab.icon]);
@@ -725,16 +725,16 @@
         var req = root.requestFullscreen || root.webkitRequestFullscreen;
         if (!req) {
             /* iOS Safari 没有全屏 API：过去这里走一个空函数分支，按钮点了没有任何反馈 */
-            toast(translate('mobile.fullscreenUnsupported', '当前浏览器不支持全屏'));
+            toast(translate('mobile.fullscreenUnsupported', 'The current browser does not support fullscreen'));
             return;
         }
         try {
             var r = req.call(root);
             if (r && typeof r.catch === 'function') {
-                r.catch(function () { toast(translate('mobile.fullscreenUnsupported', '当前浏览器不支持全屏')); });
+                r.catch(function () { toast(translate('mobile.fullscreenUnsupported', 'The current browser does not support fullscreen')); });
             }
         } catch (e) {
-            toast(translate('mobile.fullscreenUnsupported', '当前浏览器不支持全屏'));
+            toast(translate('mobile.fullscreenUnsupported', 'The current browser does not support fullscreen'));
         }
     }
 
@@ -744,46 +744,46 @@
         sheet.id = 'm-sheet';
         sheet.setAttribute('role', 'dialog');
         sheet.setAttribute('aria-modal', 'true');
-        ariaLabel(sheet, 'mobile.moreActions', '更多操作');
+        ariaLabel(sheet, 'mobile.moreActions', 'More actions');
         sheet.classList.add('m-mobile-only');
 
         var grip = el('div', 'm-sheet-grip');
         var head = el('div', 'm-sheet-head');
         var title = el('span', 'm-sheet-title');
-        label(title, 'mobile.moreActions', '更多操作');
+        label(title, 'mobile.moreActions', 'More actions');
         head.appendChild(title);
         var close = el('button', 'm-close-btn', ICON.close);
         close.type = 'button';
-        ariaLabel(close, 'common.close', '关闭');
+        ariaLabel(close, 'common.close', 'Close');
         close.addEventListener('click', closeSheet);
         head.appendChild(close);
 
         var body = el('div', 'm-sheet-body');
 
-        body.appendChild(buildSheetItem('header.apiDocs', 'API 文档', 'doc', function () {
+        body.appendChild(buildSheetItem('header.apiDocs', 'API Document', 'doc', function () {
             if (!clickDesktopControl(/\/api-docs/)) window.location.href = '/api-docs';
         }));
         body.appendChild(buildSheetItem('header.github', 'GitHub', 'github', function () {
             clickDesktopControl(/github\.com/i);
         }));
-        body.appendChild(buildSheetItem('mobile.switchTheme', '切换主题', 'theme', function () {
+        body.appendChild(buildSheetItem('mobile.switchTheme', 'Switch theme', 'theme', function () {
             if (typeof window.cycleThemePreference === 'function') {
                 window.cycleThemePreference();
             } else {
                 var t = document.getElementById('theme-toggle-btn');
                 if (t) t.click();
             }
-            toast(translate('mobile.themeNow', '当前主题：{{name}}', { name: currentThemeLabel() }));
+            toast(translate('mobile.themeNow', 'Current theme: {{name}}', { name: currentThemeLabel() }));
         }, { keepOpen: true }));
-        body.appendChild(buildSheetItem('mobile.switchLanguage', '切换语言', 'lang', cycleLanguage, { keepOpen: true }));
+        body.appendChild(buildSheetItem('mobile.switchLanguage', 'Switch language', 'lang', cycleLanguage, { keepOpen: true }));
 
         body.appendChild(el('div', 'm-sheet-sep'));
 
-        body.appendChild(buildSheetItem('mobile.backToTop', '返回顶部', 'top', scrollActiveToTop, { keepOpen: true }));
-        body.appendChild(buildSheetItem('mobile.refreshPage', '刷新页面', 'refresh', function () {
+        body.appendChild(buildSheetItem('mobile.backToTop', 'Back to top', 'top', scrollActiveToTop, { keepOpen: true }));
+        body.appendChild(buildSheetItem('mobile.refreshPage', 'Refresh page', 'refresh', function () {
             location.reload();
         }));
-        body.appendChild(buildSheetItem('mobile.fullscreen', '全屏', 'full', requestFullscreenSafe, { keepOpen: true }));
+        body.appendChild(buildSheetItem('mobile.fullscreen', 'Fullscreen', 'full', requestFullscreenSafe, { keepOpen: true }));
         sheet.appendChild(grip);
         sheet.appendChild(head);
         sheet.appendChild(body);
@@ -814,7 +814,7 @@
 
         var listBtn = el('button', 'm-chat-bar-btn', ICON.list);
         var listSpan = el('span');
-        label(listSpan, 'mobile.conversations', '会话');
+        label(listSpan, 'mobile.conversations', 'Session');
         listBtn.appendChild(listSpan);
         listBtn.type = 'button';
         listBtn.addEventListener('click', openChatDrawer);
@@ -823,7 +823,7 @@
 
         var newBtn = el('button', 'm-chat-bar-btn m-primary', ICON.plus);
         var newSpan = el('span');
-        label(newSpan, 'mobile.newChat', '新对话');
+        label(newSpan, 'mobile.newChat', 'New conversation');
         newBtn.appendChild(newSpan);
         newBtn.type = 'button';
         newBtn.setAttribute('data-require-permission', 'chat:write');
@@ -831,7 +831,7 @@
             if (typeof window.startNewConversation === 'function') {
                 window.startNewConversation();
             } else {
-                toast(translate('mobile.chatModuleMissing', '对话模块尚未加载'));
+                toast(translate('mobile.chatModuleMissing', 'The conversation module is not loaded yet'));
             }
         });
 
