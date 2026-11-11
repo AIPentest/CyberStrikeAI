@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"cyberstrike-ai/internal/config"
+	"cyberstrike-ai/internal/llm"
 )
 
 // sessionHeaderPlaceholder 是自定义请求头值里代表「当前对话 ID」的占位符。
@@ -18,28 +19,17 @@ import (
 // 注意：不要使用 {{...}} 语法，index.html 是 Go 模板，会被当作模板函数解析。
 const sessionHeaderPlaceholder = "%session_id%"
 
-type sessionIDContextKey struct{}
-
 // WithSessionID 把当前对话 ID 注入 ctx。handler 在任务开始时注入一次，
-// 后续 Eino ChatModel 与内置 Client 发出的 HTTP 请求都能在请求上下文里读到。
+// 后续 Eino ChatModel、内置 Client 与 Claude 原生模型发出的 HTTP 请求都能在
+// 请求上下文里读到。存储键统一收敛到 llm 包，OpenAI 与 Claude 两条协议路径
+// 共用同一个上下文键，占位符渲染行为保持一致。
 func WithSessionID(ctx context.Context, sessionID string) context.Context {
-	if ctx == nil {
-		return nil
-	}
-	id := strings.TrimSpace(sessionID)
-	if id == "" {
-		return ctx
-	}
-	return context.WithValue(ctx, sessionIDContextKey{}, id)
+	return llm.WithSessionID(ctx, sessionID)
 }
 
 // SessionIDFromContext 读取 ctx 中的对话 ID，未注入时返回空串。
 func SessionIDFromContext(ctx context.Context) string {
-	if ctx == nil {
-		return ""
-	}
-	v, _ := ctx.Value(sessionIDContextKey{}).(string)
-	return v
+	return llm.SessionIDFromContext(ctx)
 }
 
 // renderHeaderValue 把值里的 %session_id% 替换为当前对话 ID。
