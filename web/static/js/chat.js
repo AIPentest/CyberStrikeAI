@@ -4372,12 +4372,7 @@ function renderProcessDetails(messageId, processDetails, options) {
         } else if (eventType === 'tool_calls_detected') {
             itemTitle = agPx + '🔧 ' + (typeof window.t === 'function' ? window.t('chat.toolCallsDetected', { count: data.count || 0 }) : '检测到 ' + (data.count || 0) + ' 个工具调用');
         } else if (eventType === 'tool_call') {
-            const toolName = data.toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : '未知工具');
-            const index = data.index || 0;
-            const total = data.total || 0;
-            const callTitle = typeof window.formatToolCallTimelineTitle === 'function'
-                ? window.formatToolCallTimelineTitle(toolName, index, total)
-                : (typeof window.t === 'function' ? window.t('chat.callTool', { name: escapeHtml(toolName), index: index, total: total }) : '调用工具: ' + escapeHtml(toolName) + ' (' + index + '/' + total + ')');
+            const callTitle = window.formatToolCallTimelineTitle(data.toolName, data.index, data.total);
             itemTitle = agPx + '🔧 ' + callTitle;
         } else if (eventType === 'tool_result') {
             const toolName = data.toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : '未知工具');

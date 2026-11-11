@@ -3608,9 +3608,6 @@ function handleStreamEvent(event, progressElement, progressId,
 
         case 'tool_call':
             const toolInfo = event.data || {};
-            const toolName = toolInfo.toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : '未知工具');
-            const index = toolInfo.index || 0;
-            const total = toolInfo.total || 0;
             const toolCallId = toolInfo.toolCallId || null;
             if (toolCallId) {
                 const existing = getToolCallMapping(progressId, toolCallId);
@@ -3625,7 +3622,7 @@ function handleStreamEvent(event, progressElement, progressId,
                     }
                 }
             }
-            const toolCallTitle = formatToolCallTimelineTitle(toolName, index, total);
+            const toolCallTitle = formatToolCallTimelineTitle(toolInfo.toolName, toolInfo.index, toolInfo.total);
             const toolCallItemId = addTimelineItem(timeline, 'tool_call', {
                 title: timelineAgentBracketPrefix(toolInfo) + '🔧 ' + toolCallTitle,
                 message: event.message,
@@ -5883,12 +5880,15 @@ function toolCallArgsEmpty(args) {
 
 function formatToolCallTimelineTitle(toolName, index, total) {
     const name = toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : '未知工具');
-    const idx = index || 0;
-    const tot = total || 0;
+    const idx = Number(index);
+    const tot = Number(total);
+    const hasBatchPosition = Number.isInteger(idx) && Number.isInteger(tot) && idx > 0 && idx <= tot;
     if (typeof window.t === 'function') {
-        return window.t('chat.callTool', { name: name, index: idx, total: tot });
+        const key = hasBatchPosition ? 'chat.callTool' : 'chat.callToolWithoutPosition';
+        const title = window.t(key, { name: name, index: idx, total: tot });
+        if (title && title !== key) return title;
     }
-    return '调用工具: ' + name + (tot ? ' (' + idx + '/' + tot + ')' : '');
+    return '调用工具: ' + name + (hasBatchPosition ? ' (' + idx + '/' + tot + ')' : '');
 }
 
 function collectToolResultTextParts(value, parts, depth) {
@@ -9629,12 +9629,7 @@ function refreshProgressAndTimelineI18n() {
             const count = parseInt(item.dataset.toolCallsCount, 10) || 0;
             titleSpan.textContent = ap + '\uD83D\uDD27 ' + _t('chat.toolCallsDetected', { count: count });
         } else if (type === 'tool_call' && (item.dataset.toolName !== undefined || item.dataset.toolIndex !== undefined)) {
-            const name = (item.dataset.toolName != null && item.dataset.toolName !== '') ? item.dataset.toolName : _t('chat.unknownTool');
-            const index = parseInt(item.dataset.toolIndex, 10) || 0;
-            const total = parseInt(item.dataset.toolTotal, 10) || 0;
-            const callTitle = typeof formatToolCallTimelineTitle === 'function'
-                ? formatToolCallTimelineTitle(name, index, total)
-                : _t('chat.callTool', { name: name, index: index, total: total });
+            const callTitle = formatToolCallTimelineTitle(item.dataset.toolName, item.dataset.toolIndex, item.dataset.toolTotal);
             titleSpan.textContent = ap + '\uD83D\uDD27 ' + callTitle;
             if (item.dataset.toolDisplayStatus) {
                 applyToolCallStatus(item, item.dataset.toolDisplayStatus);

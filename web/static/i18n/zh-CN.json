@@ -873,6 +873,7 @@
     "assistantStreamPhase": "助手输出",
     "toolCallsDetected": "检测到 {{count}} 个工具调用",
     "callTool": "调用工具: {{name}} ({{index}}/{{total}})",
+    "callToolWithoutPosition": "调用工具: {{name}}",
     "toolExecComplete": "工具 {{name}} 执行完成",
     "toolExecFailed": "工具 {{name}} 执行失败",
     "knowledgeRetrieval": "知识检索",

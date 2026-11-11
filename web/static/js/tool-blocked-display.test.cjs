@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const i18next = require('../vendor/i18next.min.js');
 const monitor = fs.readFileSync('web/static/js/monitor.js', 'utf8');
 const chat = fs.readFileSync('web/static/js/chat.js', 'utf8');
 const reason = '工具调用已被安全规则拦截：识别到 example.gov，禁止访问。\n规则: 政府网站保护';
@@ -48,7 +49,7 @@ function runtime() {
         getCurrentTimeLocale: () => 'en-US', getTimeFormatOptions: () => ({}),
         escapeHtml: (value) => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;'),
     };
-    const funcs = ['collectToolResultTextParts', 'isToolGuardBlockedResult', 'getToolExecutionDisplayStatus',
+    const funcs = ['formatToolCallTimelineTitle', 'collectToolResultTextParts', 'isToolGuardBlockedResult', 'getToolExecutionDisplayStatus',
         'getToolResultDisplayState', 'toolDisplayStatusFromState', 'getBackgroundRunningToolLabel',
         'getToolCallStatusPresentation', 'applyToolCallStatus', 'parseToolCallArgsFromData', 'toolCallArgsEmpty',
         'setToolCallDetailState', 'mergeToolResultIntoCallItem', 'coalesceProcessDetailsToolPairs',
@@ -59,6 +60,30 @@ function runtime() {
     vm.runInContext(['normalizeToolExecutionSummary', 'getToolExecutionStatusLabel', 'formatMCPResultJsonForDisplay'].map((name) => sourceFunction(chat, name)).join('\n'), ctx);
     return ctx;
 }
+
+test('tool call titles show a batch position only when the event has a valid one', async () => {
+    const ctx = runtime();
+    const titles = {
+        'zh-CN': '调用工具: exec',
+        'en-US': 'Call tool: exec',
+        'ru-RU': 'Вызов инструмента: exec',
+        'ar-SA': 'استدعاء الأداة: exec'
+    };
+    for (const [locale, title] of Object.entries(titles)) {
+        const translation = JSON.parse(fs.readFileSync(`web/static/i18n/${locale}.json`, 'utf8'));
+        const instance = i18next.createInstance();
+        await instance.init({ lng: locale, resources: { [locale]: { translation } } });
+        ctx.window.t = instance.t.bind(instance);
+        assert.equal(ctx.formatToolCallTimelineTitle('exec'), title);
+        assert.equal(ctx.formatToolCallTimelineTitle('exec', 0, 0), title);
+        assert.equal(ctx.formatToolCallTimelineTitle('exec', 1), title);
+        assert.equal(ctx.formatToolCallTimelineTitle('exec', 3, 2), title);
+        assert.equal(ctx.formatToolCallTimelineTitle('exec', 1, 2), title + ' (1/2)');
+        assert.equal(ctx.formatToolCallTimelineTitle('exec', '2', '2'), title + ' (2/2)');
+    }
+    delete ctx.window.t;
+    assert.equal(ctx.formatToolCallTimelineTitle('exec'), titles['zh-CN']);
+});
 
 test('structured block markers have priority over generic failure and running states', () => {
     const ctx = runtime();

@@ -897,6 +897,7 @@
     "assistantStreamPhase": "Ответ ассистента",
     "toolCallsDetected": "Обнаружено вызовов инструментов: {{count}}",
     "callTool": "Вызов инструмента: {{name}} ({{index}}/{{total}})",
+    "callToolWithoutPosition": "Вызов инструмента: {{name}}",
     "toolExecComplete": "Инструмент {{name}} выполнен",
     "toolExecFailed": "Сбой инструмента {{name}}",
     "knowledgeRetrieval": "Поиск в базе знаний",

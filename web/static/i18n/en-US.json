@@ -885,6 +885,7 @@
     "assistantStreamPhase": "Assistant output",
     "toolCallsDetected": "Detected {{count}} tool call(s)",
     "callTool": "Call tool: {{name}} ({{index}}/{{total}})",
+    "callToolWithoutPosition": "Call tool: {{name}}",
     "toolExecComplete": "Tool {{name}} completed",
     "toolExecFailed": "Tool {{name}} failed",
     "knowledgeRetrieval": "Knowledge retrieval",

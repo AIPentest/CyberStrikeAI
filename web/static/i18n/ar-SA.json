@@ -885,6 +885,7 @@
     "assistantStreamPhase": "مخرجات المساعد",
     "toolCallsDetected": "تم رصد {{count}} استدعاء أداة",
     "callTool": "استدعاء الأداة: {{name}} ({{index}}/{{total}})",
+    "callToolWithoutPosition": "استدعاء الأداة: {{name}}",
     "toolExecComplete": "اكتملت الأداة {{name}}",
     "toolExecFailed": "فشلت الأداة {{name}}",
     "knowledgeRetrieval": "استرجاع المعرفة",

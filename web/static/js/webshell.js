@@ -2231,12 +2231,7 @@ function buildWebshellTimelineItemFromDetail(detail) {
     } else if (eventType === 'tool_calls_detected') {
         title = ap + '🔧 ' + ((typeof window.t === 'function') ? window.t('chat.toolCallsDetected', { count: data.count || 0 }) : ('检测到 ' + (data.count || 0) + ' 个工具调用'));
     } else if (eventType === 'tool_call') {
-        var tn = data.toolName || ((typeof window.t === 'function') ? window.t('chat.unknownTool') : '未知工具');
-        var idx = data.index || 0;
-        var total = data.total || 0;
-        var wsCallTitle = typeof window.formatToolCallTimelineTitle === 'function'
-            ? window.formatToolCallTimelineTitle(tn, idx, total)
-            : ((typeof window.t === 'function') ? window.t('chat.callTool', { name: tn, index: idx, total: total }) : ('调用: ' + tn + (total ? ' (' + idx + '/' + total + ')' : '')));
+        var wsCallTitle = window.formatToolCallTimelineTitle(data.toolName, data.index, data.total);
         title = ap + '🔧 ' + wsCallTitle;
     } else if (eventType === 'tool_result') {
         var tname = data.toolName || '工具';
@@ -3754,12 +3749,7 @@ function runWebshellAiSend(conn, inputEl, sendBtn, messagesContainer) {
                         appendTimelineItem('tool_calls_detected', webshellAgentPx(_ed) + '🔧 ' + detectedLabel, _em || '', _ed);
                         if (!streamingTarget) assistantDiv.textContent = '…';
                     } else if (_et === 'tool_call' && _ed) {
-                        var tn = _ed.toolName || '未知工具';
-                        var idx = _ed.index || 0;
-                        var total = _ed.total || 0;
-                        var callTitle = typeof window.formatToolCallTimelineTitle === 'function'
-                            ? window.formatToolCallTimelineTitle(tn, idx, total)
-                            : (wsTOr('chat.callTool', '') || ('调用工具: ' + tn + (total ? ' (' + idx + '/' + total + ')' : '')));
+                        var callTitle = window.formatToolCallTimelineTitle(_ed.toolName, _ed.index, _ed.total);
                         var callItem = appendTimelineItem('tool_call', webshellAgentPx(_ed) + '🔧 ' + callTitle, _em || '', _ed);
                         if (_ed.toolCallId && callItem) {
                             wsToolCallItems.set(_ed.toolCallId, callItem);
