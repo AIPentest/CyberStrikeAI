@@ -466,7 +466,7 @@
 
         var head = el('div', 'm-drawer-head m-mobile-only');
         var brand = el('div', 'm-drawer-brand',
-            '<img src="/static/logo.png" alt="DarkStorm">' +
+            '<img src="/static/logo.png?v=20261112" alt="DarkStorm">' +
             '<span class="brand-wordmark"><span class="brand-wordmark__core">CyberStrike</span><span class="brand-wordmark__ai">AI</span></span>');
         var close = el('button', 'm-close-btn', ICON.close);
         close.type = 'button';
