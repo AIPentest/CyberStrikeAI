@@ -641,3 +641,15 @@ project:
 #   proxychains_mode: auto      # wrap raw-socket tools (nmap, etc.) with proxychains: auto (default) | off
 #                               # NOTE: proxychains tunnels TCP connect() only. For nmap use -sT -Pn -n so no
 #                               # raw packets (SYN scan / ping / OS detection) leak. See docs/en-US/egress-privacy.md
+
+# ============================================
+# Ephemeral mode (optional) — leave no trace after a test
+# ============================================
+# Persist as little as possible and wipe runtime artifacts when the server
+# stops, so a finished engagement leaves no junk on disk.
+# ephemeral:
+#   enabled: false         # master switch
+#   wipe_on_exit: true     # on shutdown, remove ALL runtime artifacts (workspace, tool-output cache,
+#                          # session artifacts, uploads, C2 artifacts, checkpoints, diagnostic logs). Irreversible.
+#   zero_retention: true   # apply aggressive storage policy at startup: auto-clean on, shortest grace,
+#                          # 1-day retention on every category (pair with wipe_on_exit for a true leave-nothing run)

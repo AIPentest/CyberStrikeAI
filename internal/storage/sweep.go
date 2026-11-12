@@ -147,6 +147,97 @@ func (c *Cleaner) SweepTarget(req SweepTargetRequest) (*Report, error) {
 	return rep, nil
 }
 
+// WipeAll removes every runtime artifact under every storage category root,
+// ignoring retention age, session scope, and active-session protection. It is
+// the ephemeral "leave nothing behind" wipe, intended to run on shutdown when
+// ephemeral mode is enabled, so a finished run persists no files on disk.
+//
+// Safety: path confinement is still enforced per unit via confined(), so only
+// paths genuinely under a category root are removed; the roots themselves are
+// never deleted. Deletion is irreversible — callers gate real deletion
+// (DryRun=false) behind explicit opt-in (ephemeral.wipe_on_exit).
+func (c *Cleaner) WipeAll(dryRun bool) (*Report, error) {
+	if !c.running.CompareAndSwap(false, true) {
+		return nil, ErrCleanupInProgress
+	}
+	defer c.running.Store(false)
+
+	startedAt := c.now()
+	rep := &Report{DryRun: dryRun, Trigger: "ephemeral-wipe", StartedAt: startedAt}
+
+	for _, cat := range categories() {
+		root := c.rootOf(cat)
+		cr := CategoryReport{
+			Key:   cat.key,
+			Label: cat.label,
+			Hint:  cat.hint,
+			Root:  root,
+		}
+		if root == "" {
+			cr.Missing = true
+			rep.Categories = append(rep.Categories, cr)
+			continue
+		}
+		if _, err := os.Stat(root); err != nil {
+			cr.Missing = true
+			rep.Categories = append(rep.Categories, cr)
+			continue
+		}
+		units, err := cat.scan(root)
+		if err != nil {
+			cr.Errors = append(cr.Errors, err.Error())
+			rep.Categories = append(rep.Categories, cr)
+			continue
+		}
+		for _, u := range units {
+			cr.Units++
+			cr.Bytes += u.Size
+			if !confined(root, u.Path) {
+				cr.SkippedUnsafe++
+				continue
+			}
+			cr.ReclaimableUnits++
+			cr.ReclaimableBytes += u.Size
+			if dryRun {
+				continue
+			}
+			if rmErr := removeUnit(u); rmErr != nil {
+				cr.Errors = append(cr.Errors, fmt.Sprintf("%s: %v", filepath.Base(u.Path), rmErr))
+				continue
+			}
+			cr.RemovedUnits++
+			cr.FreedBytes += u.Size
+		}
+		if cat.pruneEmpty && cr.RemovedUnits > 0 {
+			cr.RemovedEmptyDirs = pruneEmptyDirs(root, 2)
+		}
+		rep.Categories = append(rep.Categories, cr)
+	}
+
+	if rep.Categories == nil {
+		rep.Categories = []CategoryReport{}
+	}
+	for _, cr := range rep.Categories {
+		rep.Totals.Units += cr.Units
+		rep.Totals.Bytes += cr.Bytes
+		rep.Totals.ReclaimableUnits += cr.ReclaimableUnits
+		rep.Totals.ReclaimableBytes += cr.ReclaimableBytes
+		rep.Totals.RemovedUnits += cr.RemovedUnits
+		rep.Totals.FreedBytes += cr.FreedBytes
+		rep.Totals.Errors += len(cr.Errors)
+	}
+	rep.Filesystem = c.filesystem()
+	rep.DurationMS = time.Since(startedAt).Milliseconds()
+
+	if !dryRun && c.logger != nil {
+		c.logger.Info("storage ephemeral wipe executed",
+			zap.Int("removed_units", rep.Totals.RemovedUnits),
+			zap.Int64("freed_bytes", rep.Totals.FreedBytes))
+	}
+	c.invalidateCache()
+	return rep, nil
+}
+
 func scopeName(s Scope) string {
 	switch s {
 	case ScopeConversation:

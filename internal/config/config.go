@@ -52,7 +52,49 @@ type Config struct {
 	Project     ProjectConfig         `yaml:"project,omitempty" json:"project,omitempty"`
 	Vision      VisionConfig          `yaml:"vision,omitempty" json:"vision,omitempty"`
 	Update      UpdateConfig          `yaml:"update,omitempty" json:"update,omitempty"`
-	Egress      EgressConfig          `yaml:"egress,omitempty" json:"egress,omitempty"` // Outbound anonymization gateway (hide the operator's real IP)
+	Egress      EgressConfig          `yaml:"egress,omitempty" json:"egress,omitempty"`       // Outbound anonymization gateway (hide the operator's real IP)
+	Ephemeral   EphemeralConfig       `yaml:"ephemeral,omitempty" json:"ephemeral,omitempty"` // Leave-no-trace mode: wipe runtime artifacts on exit / zero retention
+}
+
+// EphemeralConfig controls leave-no-trace operation. When enabled, the platform
+// is configured to persist as little as possible on disk and to wipe its
+// runtime artifacts when it stops, so a finished test leaves no junk behind.
+type EphemeralConfig struct {
+	Enabled bool `yaml:"enabled" json:"enabled"` // Master switch for ephemeral mode
+	// WipeOnExit removes all runtime artifacts (workspace, tool-output cache,
+	// session artifacts, uploads, C2 artifacts, checkpoints, diagnostic logs)
+	// when the server shuts down. Irreversible by design.
+	WipeOnExit bool `yaml:"wipe_on_exit,omitempty" json:"wipe_on_exit,omitempty"`
+	// ZeroRetention applies an aggressive storage policy at startup (background
+	// auto-clean on, shortest grace, 1-day retention on every category) so
+	// artifacts do not accumulate between restarts.
+	ZeroRetention bool `yaml:"zero_retention,omitempty" json:"zero_retention,omitempty"`
+}
+
+// ZeroRetentionStorage returns an aggressive storage policy that keeps as
+// little as possible: background auto-clean enabled, the shortest safe poll
+// interval and grace periods, and 1-day retention on every category. It is the
+// "keep nothing" preset applied when ephemeral.zero_retention is set. The
+// day-granular model cannot express sub-day retention, so pair it with
+// ephemeral.wipe_on_exit for a true leave-nothing run.
+func ZeroRetentionStorage() StorageConfig {
+	on := true
+	interval := 5 // floor
+	zeroDays := 0 // orphan grace: reclaim deleted-session dirs immediately
+	zeroHours := 0
+	cats := make(map[string]StorageCategoryConfig, len(StorageCategoryOrder))
+	for _, key := range StorageCategoryOrder {
+		one := 1
+		enabled := true
+		cats[key] = StorageCategoryConfig{Enabled: &enabled, RetentionDays: &one}
+	}
+	return StorageConfig{
+		AutoClean:        &on,
+		IntervalMinutes:  &interval,
+		OrphanGraceDays:  &zeroDays,
+		ActiveGraceHours: &zeroHours,
+		Categories:       cats,
+	}
 }
 
 // EgressConfig controls the outbound privacy gateway. When enabled, every

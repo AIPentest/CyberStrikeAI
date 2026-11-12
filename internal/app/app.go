@@ -76,7 +76,9 @@ type App struct {
 	c2Handler          *handler.C2Handler        // C2 REST (synchronized with the Manager lifecycle)
 	storageHandler     *handler.StorageHandler   // runtime-workspace usage statistics and garbage cleanup
 	auditSvc           *audit.Service
-	egressGateway      *egress.Gateway // outbound anonymization gateway (hide the operator's real IP)
+	egressGateway      *egress.Gateway  // outbound anonymization gateway (hide the operator's real IP)
+	storageCleaner     *storage.Cleaner // runtime-artifact cleaner (used for ephemeral wipe-on-exit)
+	ephemeral          config.EphemeralConfig
 }
 
 // egressConfigFromAppConfig translates the user-facing EgressConfig into the
@@ -146,6 +148,17 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 		startEgressLeakCheck(gateway, log)
 	} else {
 		log.Logger.Warn("egress privacy gateway disabled: outbound traffic uses the real IP")
+	}
+
+	// Ephemeral mode: when zero-retention is requested, replace the storage
+	// policy with the aggressive "keep nothing" preset before the cleaner and
+	// retention loops read it.
+	if cfg.Ephemeral.Enabled && cfg.Ephemeral.ZeroRetention {
+		cfg.Storage = config.ZeroRetentionStorage()
+		log.Logger.Warn("ephemeral mode: zero-retention storage policy applied (artifacts purged aggressively)")
+	}
+	if cfg.Ephemeral.Enabled && cfg.Ephemeral.WipeOnExit {
+		log.Logger.Warn("ephemeral mode: runtime artifacts will be wiped on shutdown")
 	}
 
 	gin.SetMode(gin.ReleaseMode)
@@ -589,6 +602,8 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 		storageHandler:     storageHandler,
 		auditSvc:           auditSvc,
 		egressGateway:      gateway,
+		storageCleaner:     storageCleaner,
+		ephemeral:          cfg.Ephemeral,
 	}
 	// Lark/DingTalk long-lived connections (no public network needed), started in the background when enabled; later restarted via RestartRobotConnections when the frontend applies configuration
 	app.startRobotConnections()
@@ -912,6 +927,19 @@ func (a *App) Shutdown() {
 	// proxy credentials) so the platform leaves no junk behind after a run.
 	if err := egress.CleanupTempFiles(); err != nil {
 		a.logger.Logger.Warn("Failed to clean up egress temp files", zap.Error(err))
+	}
+
+	// Ephemeral mode: wipe all runtime artifacts on exit so a finished run
+	// leaves nothing on disk.
+	if a.ephemeral.Enabled && a.ephemeral.WipeOnExit && a.storageCleaner != nil {
+		rep, err := a.storageCleaner.WipeAll(false)
+		if err != nil {
+			a.logger.Logger.Warn("ephemeral wipe-on-exit failed", zap.Error(err))
+		} else {
+			a.logger.Logger.Info("ephemeral wipe-on-exit complete",
+				zap.Int("removed_units", rep.Totals.RemovedUnits),
+				zap.Int64("freed_bytes", rep.Totals.FreedBytes))
+		}
 	}
 }
 

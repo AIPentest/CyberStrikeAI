@@ -111,3 +111,45 @@ func TestSweepTargetRejectsBadInput(t *testing.T) {
 		}
 	}
 }
+
+func TestWipeAllRemovesEverything(t *testing.T) {
+	base := t.TempDir()
+	ws := filepath.Join(base, "workspace")
+	red := filepath.Join(base, "reduction")
+	mkSweepDirs(t,
+		filepath.Join(ws, "conversations", "c1"),
+		filepath.Join(ws, "projects", "p1"),
+		filepath.Join(red, "conversations", "c2"),
+	)
+	c := newSweepCleaner(t, ws, red)
+	rep, err := c.WipeAll(false)
+	if err != nil {
+		t.Fatalf("WipeAll: %v", err)
+	}
+	if rep.Totals.RemovedUnits != 3 {
+		t.Fatalf("removed = %d, want 3", rep.Totals.RemovedUnits)
+	}
+	for _, p := range []string{
+		filepath.Join(ws, "conversations", "c1"),
+		filepath.Join(ws, "projects", "p1"),
+		filepath.Join(red, "conversations", "c2"),
+	} {
+		if _, err := os.Stat(p); !os.IsNotExist(err) {
+			t.Errorf("still present after wipe: %s", p)
+		}
+	}
+}
+
+func TestWipeAllDryRun(t *testing.T) {
+	base := t.TempDir()
+	ws := filepath.Join(base, "workspace")
+	mkSweepDirs(t, filepath.Join(ws, "conversations", "c1"))
+	c := newSweepCleaner(t, ws, "")
+	rep, _ := c.WipeAll(true)
+	if rep.Totals.RemovedUnits != 0 || rep.Totals.ReclaimableUnits != 1 {
+		t.Fatalf("dry-run: removed=%d reclaimable=%d, want 0/1", rep.Totals.RemovedUnits, rep.Totals.ReclaimableUnits)
+	}
+	if _, err := os.Stat(filepath.Join(ws, "conversations", "c1")); err != nil {
+		t.Error("dry-run must not delete")
+	}
+}
