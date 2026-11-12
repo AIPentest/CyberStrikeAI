@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// setupTestExecutor 创建测试用的执行器
+// setupTestExecutor Create an executor for tests
 func setupTestExecutor(t *testing.T) (*Executor, *mcp.Server) {
 	logger := zap.NewNop()
 	mcpServer := mcp.NewServer(logger)
@@ -35,25 +35,25 @@ func TestExecutor_ExecuteInternalTool_UnknownTool(t *testing.T) {
 		"test": "value",
 	}
 
-	// 测试未知的内部工具类型
+	// Test the unknown internal tool type
 	toolResult, err := executor.executeInternalTool(ctx, "unknown_tool", "internal:unknown_tool", args)
 	if err != nil {
-		t.Fatalf("执行内部工具失败: %v", err)
+		t.Fatalf("Failed to run the internal tool: %v", err)
 	}
 
 	if !toolResult.IsError {
-		t.Fatal("未知的工具类型应该返回错误")
+		t.Fatal("An unknown tool type should return an error")
 	}
 
-	if !strings.Contains(toolResult.Content[0].Text, "未知的内部工具类型") {
-		t.Errorf("错误消息应该包含'未知的内部工具类型'")
+	if !strings.Contains(toolResult.Content[0].Text, "unknown internal tool type") {
+		t.Errorf("The error message should contain 'unknown internal tool type'")
 	}
 }
 
 func TestExecuteSystemCommand_BackgroundDoesNotBlockOnChildStdout(t *testing.T) {
 	executor, _ := setupTestExecutor(t)
-	// 子进程先向 stdout 写无换行字符再长时间 sleep；若与 echo $pid 共享管道且未重定向子进程 stdout，
-	// ReadString('\n') 会阻塞到子进程退出。后台包装须将子进程标准流与 PID 行分离。
+	// The child process first writes characters without a newline to stdout then sleeps for a long time; if together with echo $pid shares the pipe and the child process is not redirected stdout,
+	// ReadString('\n') would block until the child process exits. The background wrapper must separate the child's standard streams from the PID line.
 	scope := NewProcessScope()
 	t.Cleanup(func() {
 		if err := scope.Close(); err != nil {
@@ -74,7 +74,7 @@ func TestExecuteSystemCommand_BackgroundDoesNotBlockOnChildStdout(t *testing.T) 
 		t.Fatalf("expected success, got %+v", res)
 	}
 	txt := res.Content[0].Text
-	if !strings.Contains(txt, "后台命令已启动") {
+	if !strings.Contains(txt, "Background command started") {
 		t.Fatalf("unexpected body: %q", txt)
 	}
 }
@@ -240,7 +240,7 @@ func TestBuildCommandArgs_NmapSkipsEmptyOptionalFlags(t *testing.T) {
 	if !strings.Contains(joined, "110.52.223.114") {
 		t.Fatalf("target missing from args: %v", cmdArgs)
 	}
-	// target 应出现在 -Pn 之前，避免被误当作 --script 的参数
+	// target should appear before -Pn, to avoid being mistaken for a --script argument
 	pnIdx := indexOf(cmdArgs, "-Pn")
 	targetIdx := indexOf(cmdArgs, "110.52.223.114")
 	if pnIdx < 0 || targetIdx < 0 || targetIdx >= pnIdx {
@@ -257,7 +257,7 @@ func indexOf(slice []string, s string) int {
 	return -1
 }
 
-// TestCombinedOutputCancellable_ContextCancelKillsTree 验证 ctx 取消时能在数秒内结束（杀进程组，非挂死）。
+// TestCombinedOutputCancellable_ContextCancelKillsTree Verify that on ctx cancel it finishes within seconds (kill the process group, not a hang).
 func TestCombinedOutputCancellable_ContextCancelKillsTree(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("unix process group kill")

@@ -25,7 +25,7 @@ func RBACMiddlewareWithDenyHook(db *database.DB, denyHook RBACDenyHook) gin.Hand
 				denyHook(c, "unmapped_route", "")
 			}
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"error": "未配置访问权限",
+				"error": "No access permission configured",
 			})
 			return
 		}
@@ -35,7 +35,7 @@ func RBACMiddlewareWithDenyHook(db *database.DB, denyHook RBACDenyHook) gin.Hand
 				denyHook(c, "permission_denied", permission)
 			}
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"error":      "权限不足",
+				"error":      "Insufficient permissions",
 				"permission": permission,
 			})
 			return
@@ -51,7 +51,7 @@ func RBACMiddlewareWithDenyHook(db *database.DB, denyHook RBACDenyHook) gin.Hand
 			if denyHook != nil {
 				denyHook(c, "resource_denied", permission)
 			}
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "No permission to access this resource"})
 			return
 		}
 		c.Next()
@@ -81,7 +81,7 @@ func permissionAlternativesForRequest(method, path string) []string {
 	}
 	switch {
 	case strings.HasPrefix(path, "/config/tools"):
-		// MCP 管理页只需 mcp:read；系统设置页仍可用 config:read 访问同一接口。
+		// MCP The management page needs only mcp:read; the system settings page can still use config:read to access the same endpoint.
 		return []string{"mcp:read", "config:read"}
 	default:
 		return nil
