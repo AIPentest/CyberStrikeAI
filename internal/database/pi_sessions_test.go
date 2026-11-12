@@ -110,11 +110,11 @@ func TestDeleteTurnRollsBackWhenPiCleanupFails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A regular file as the parent is treated as an absent target by Windows
-	// RemoveAll. NUL is invalid on every supported OS and reliably exercises
-	// the cleanup error/transaction rollback path without filesystem privileges.
+	// Simulate an unusable persisted root. Inject it directly because Windows
+	// rejects NUL in filepath.Abs before registration, while Unix rejects it
+	// during removal. This reaches cleanup on both systems without privileges.
 	blocked := filepath.Join(root, "invalid\x00root")
-	if err := db.SetAgentSessionDir(blocked); err != nil {
+	if _, err := db.Exec(`INSERT INTO pi_session_roots (path) VALUES (?)`, blocked); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.DeleteConversationTurn(conv.ID, msg.ID); err == nil {
