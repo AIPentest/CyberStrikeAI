@@ -2,7 +2,8 @@
   "lang": {
     "zhCN": "中文",
     "enUS": "English",
-    "ruRU": "Русский"
+    "ruRU": "Русский",
+    "arSA": "العربية"
   },
   "mobile": {
     "openNav": "Open navigation menu",
@@ -277,6 +278,19 @@
     "capabilities": "Capabilities",
     "administration": "Administration"
   },
+  "tokenUsageUI": {
+    "chartHint": "Hover or focus a bar for exact usage",
+    "scopeProject": "Current project",
+    "scopeAccessible": "Accessible conversations",
+    "subtitle": "Explore model consumption, caching and usage trends",
+    "scopeNote": "Scope and counting rules",
+    "trendMetric": "Trend metric",
+    "noDailyData": "No daily usage records",
+    "cacheComposition": "Input cache breakdown",
+    "cacheHit": "Cache hit rate",
+    "uncachedInput": "Input without cache reads",
+    "cacheNote": "Cache reads are part of input, not added to the total again. Cache writes are listed separately."
+  },
   "dashboard": {
     "title": "Dashboard",
     "refresh": "Refresh",
@@ -287,7 +301,8 @@
     "toolCalls": "Tool invocations",
     "successRate": "Tool success rate",
     "tokenUsage": "Token usage",
-    "tokenUsageSub": "Last 7 days {{calls}} calls · Today {{today}}",
+    "usageCacheHitRate": "Cache hit {{rate}}",
+    "tokenUsageSub": "Cache hit {{rate}}",
     "noTokenUsageYet": "No usage yet",
     "clickToViewTasks": "Click to view tasks",
     "clickToViewChat": "Click to view conversations",
@@ -433,7 +448,33 @@
     "mcpPartialDown_other": "{{count}} stopped",
     "mcpAllDown": "All stopped",
     "noVulnDesc": "This list shows recent records; new results appear here when detection completes in chat",
-    "startScanBtn": "Go to chat to scan"
+    "startScanBtn": "Go to chat to scan",
+    "usageView": "View token usage",
+    "usagePeriod": "Period",
+    "usage7Days": "Last 7 days",
+    "usage30Days": "Last 30 days",
+    "usage90Days": "Last 90 days",
+    "usageTotal": "Total tokens",
+    "usageInput": "Input tokens",
+    "usageOutput": "Output tokens",
+    "usageCacheRead": "Cache read",
+    "usageCacheWrite": "Cache write",
+    "usageReasoning": "Reasoning tokens",
+    "usageCalls": "Model calls",
+    "usageCacheRate": "Cache read / input",
+    "usageByModel": "Usage by model (up to 20)",
+    "usageByDay": "Daily usage",
+    "usageRecent": "Recent runs (up to 20)",
+    "usageDate": "Date",
+    "usageTime": "Time",
+    "usageModel": "Model",
+    "usageStatus": "End reason",
+    "usageUnavailable": "Token usage is unavailable",
+    "usageScope": "Provider-reported usage from recorded Agent runs, including sub-agents. Cache reads and writes are part of input; reasoning is part of output. These details are not added to totals again. Unreported or uncollected usage is excluded. This is not a provider bill. Models are grouped by run configuration; runs with model failover may contain mixed usage.",
+    "usageShare": "Token share",
+    "usageTrend": "Daily token trend",
+    "usageFinal": "Completed",
+    "usagePartial": "Partial usage"
   },
   "projects": {
     "title": "Projects",
@@ -795,7 +836,7 @@
     "turnDurationHours": "{{hours}} hr {{minutes}} min",
     "turnProcessAria": "{{state}}; expand or collapse execution details",
     "turnTokenUsageLabel": "{{tokens}} tokens",
-    "turnTokenUsageTitle": "Token usage: {{total}} (input {{prompt}}, output {{completion}}, cached {{cached}}, reasoning {{reasoning}}, {{calls}} calls)",
+    "turnTokenUsageTitle": "Token usage: {{total}} (input {{prompt}}, output {{completion}}, cached {{cached}}, reasoning {{reasoning}}, {{calls}} calls) · Cache write {{cacheWrite}}",
     "turnNumber": "Turn {{number}}",
     "turnPending": "Processing…",
     "expandDetailLazyHint": "Expand details (loads iteration details on click)",
@@ -979,7 +1020,8 @@
     "hitlTimeoutUnlimited": "No limit",
     "hitlTimeoutHint": "Unanswered requests are rejected automatically when time expires; approval cards show the countdown.",
     "hitlStatusOff": "Human-in-the-loop: Off",
-    "rolePanelTitle": "Select role"
+    "rolePanelTitle": "Select role",
+    "einoUsageCacheWriteTokens": "Cache write tokens"
   },
   "toolGuard": {
     "invalidTestResponse": "The server returned an invalid test result",
@@ -1942,6 +1984,7 @@
   "settings": {
     "title": "System settings",
     "nav": {
+      "tokenUsage": "Token usage",
       "basic": "Basic",
       "hitl": "Human-in-the-loop",
       "knowledge": "Knowledge base",
@@ -3628,7 +3671,14 @@
     "redLine": "Red: enables/contributes",
     "grayLine": "Gray: logical order",
     "nodeDetails": "Node details",
-    "closeDetails": "Close details"
+    "closeDetails": "Close details",
+    "contextTitle": "Context summaries and evidence clues ({{count}})",
+    "contextNotice": "System-generated summaries from the current conversation trace may be newer than this graph. They support recall and retrieval, and do not grant new user authorization or verify tool evidence. Use snapshot paths in the summaries to locate original evidence.",
+    "contextSummary": "Context summary {{number}}",
+    "contextCopy": "Copy full summary",
+    "contextCopied": "Copied",
+    "contextCopyFailed": "Copy failed. Select the text to copy it manually.",
+    "regenerateFailed": "Regeneration failed: {{message}}"
   },
   "externalMcpModal": {
     "configJson": "Config JSON",
@@ -3722,7 +3772,6 @@
     "hitlPolicy": "Tool approval",
     "hitlHint": "Applies to all tasks in this queue, including tasks added later. Uses the global whitelist, audit strategy and timeout.",
     "hitlSubtaskHint": "New tasks use the queue’s tool approval setting. Change it in queue details.",
-
     "title": "New task",
     "queueTitle": "Queue title",
     "queueTitlePlaceholder": "Enter queue title (optional, for identification and filtering)",
@@ -4745,6 +4794,8 @@
     "deleteRoleConfirm": "Delete this platform role?",
     "scopeHint": "Resource scope and operation permissions jointly determine effective access.",
     "builtinAccount": "Built-in account",
+    "protectBuiltinAdminRole": "The built-in administrator must retain the admin role",
+    "protectBuiltinAdminEnabled": "The built-in administrator cannot be disabled",
     "statusEnabled": "Enabled",
     "statusDisabled": "Disabled",
     "noRoleAssigned": "No role assigned",
@@ -5083,5 +5134,14 @@
     "promptRequired": "Enter a retest prompt.",
     "navigationChanged": "You switched conversations. Return to the retest branch to send the prompt.",
     "branchCreated": "The retest branch was created. Continue verification in that branch."
+  },
+  "vulnerabilityDownload": {
+    "title": "Download vulnerability report",
+    "hint": "Choose a file format",
+    "markdown": "Markdown (.md)",
+    "word": "Word (.docx)",
+    "cancel": "Cancel",
+    "download": "Download vulnerability report",
+    "busy": "Preparing download…"
   }
 }

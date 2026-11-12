@@ -73,6 +73,12 @@ const einoSummarizeUserInstruction = `关键：仅以纯文本响应。禁止调
 - 当前位置（已完成/进行中/卡点）
 - 失败尝试与死路（方法、现象/报错摘要、结论）
 - 策略决策与下一步具体操作（须与最近用户请求及未完成任务一致）
+
+## 8. 原始证据检索线索（追加）
+- 只追加工具结果、关键发现与关键进展的简短检索线索，不再归纳用户输入，不改写前面各章节
+- 已取得的认证信息、重要请求、错误或其他证据：注明来源目标、工具/操作与可搜索关键词，便于缺少精确值时回读原始快照
+- 仅记录已有证据，不猜测；不重复长日志或完整凭据值；无信息写「无」
+- 不自行生成文件名、行号或复述旧快照路径，系统会附上本次实际保存的快照读取入口
 </summary>
 
 提醒：不要调用任何工具；必须基于上文已有对话直接输出 <analysis> 与 <summary>，勿输出 analysis 以外的正文。`
@@ -88,6 +94,7 @@ func newEinoSummarizationMiddleware(
 	db *database.DB,
 	projectID string,
 	logger *zap.Logger,
+	memoryScopes ...string,
 ) (adk.ChatModelAgentMiddleware, error) {
 	if summaryModel == nil || appCfg == nil {
 		return nil, fmt.Errorf("multiagent: summarization 需要 model 与配置")
@@ -144,12 +151,16 @@ func newEinoSummarizationMiddleware(
 	if summaryInputMax < 4096 {
 		summaryInputMax = 4096
 	}
+	memoryScope := summarizationMemoryScope(memoryScopes)
 	transcriptPath := ""
 	if conv := strings.TrimSpace(conversationID); conv != "" {
-		baseRoot := filepath.Join(os.TempDir(), "cyberstrike-summarization")
+		baseRoot := filepath.Join(os.TempDir(), "cyberstrike-summarization", sanitizeEinoPathSegment(conv), "summarization")
 		if dbPath := strings.TrimSpace(appCfg.Database.Path); dbPath != "" {
 			// Persist with the same lifecycle as local conversation storage.
 			baseRoot = filepath.Join(filepath.Dir(dbPath), "conversation_artifacts", sanitizeEinoPathSegment(conv), "summarization")
+		}
+		if memoryScope != "main" {
+			baseRoot = filepath.Join(baseRoot, "scopes", summarizationScopeID(memoryScope))
 		}
 		base := baseRoot
 		if abs, err := filepath.Abs(base); err == nil {
@@ -215,7 +226,9 @@ func newEinoSummarizationMiddleware(
 		TokenCounter:       tokenCounter,
 		UserInstruction:    einoSummarizeUserInstruction,
 		EmitInternalEvents: emitInternalEvents,
-		TranscriptFilePath: transcriptPath,
+		// Publish the immutable snapshot only after the host successfully writes it
+		// in Finalize; the framework otherwise advertises even a failed/stale alias.
+		TranscriptFilePath: "",
 		Retry: &summarization.RetryConfig{
 			MaxRetries: &retryMax,
 			ShouldRetry: func(_ context.Context, _ adk.Message, err error) bool {
@@ -240,15 +253,14 @@ func newEinoSummarizationMiddleware(
 		},
 		Finalize: func(ctx context.Context, originalMessages []adk.Message, summary adk.Message) ([]adk.Message, error) {
 			compactionMessages := stripOriginalUserIntentLedgerFromMessages(originalMessages)
-			defaultFinalized, derr := summarization.DefaultFinalize(ctx, compactionMessages, summary)
+			defaultFinalized, derr := summarization.DefaultFinalize(ctx, summarizationDefaultFinalizeInput(compactionMessages, originalMessages), summary)
 			if derr != nil {
 				return nil, derr
 			}
 			if len(defaultFinalized) == 0 {
 				return nil, fmt.Errorf("summarization default finalize returned no messages")
 			}
-			summary = appendTranscriptPathToSummarizationMessage(defaultFinalized[len(defaultFinalized)-1], transcriptPath)
-			summary = stripAnalysisFromSummarizationMessage(summary)
+			summary = finalizeSummarizationMemory(defaultFinalized[len(defaultFinalized)-1], originalMessages, transcriptPath, db, projectID, conversationID, memoryScope, appCfg.Project, logger)
 			userLedger := buildOriginalUserIntentLedgerMessage(originalMessages, userLedgerMaxRunes, userLedgerEntryMaxRunes)
 			out, ferr := summarizeFinalizeWithRecentAssistantToolTrail(ctx, compactionMessages, summary, tokenCounter, recentTrailMax)
 			if ferr != nil {
@@ -256,7 +268,7 @@ func newEinoSummarizationMiddleware(
 			}
 			out = mergeMessageIntoLeadingSystem(out, userLedger)
 			if appCfg != nil {
-				out = refreshFactIndexInMessages(out, db, projectID, appCfg.Project, logger)
+				out = refreshFactIndexInMessages(out, db, projectID, appCfg.Project, logger, conversationID)
 			}
 			return out, nil
 		},
@@ -461,7 +473,7 @@ func buildPlaintextSummarizationInput(
 }
 
 // refreshFactIndexInMessages 在 summarization 压缩后，用 DB 最新索引替换 system 中已有的项目黑板索引段。
-func refreshFactIndexInMessages(msgs []adk.Message, db *database.DB, projectID string, cfg config.ProjectConfig, logger *zap.Logger) []adk.Message {
+func refreshFactIndexInMessages(msgs []adk.Message, db *database.DB, projectID string, cfg config.ProjectConfig, logger *zap.Logger, conversationIDs ...string) []adk.Message {
 	if db == nil || !cfg.Enabled {
 		return msgs
 	}
@@ -469,7 +481,7 @@ func refreshFactIndexInMessages(msgs []adk.Message, db *database.DB, projectID s
 	if projectID == "" {
 		return msgs
 	}
-	freshIndex, err := project.BuildFactIndexBlock(db, projectID, cfg)
+	freshIndex, err := project.BuildFactIndexBlock(db, projectID, cfg, conversationIDs...)
 	if err != nil {
 		if logger != nil {
 			logger.Warn("summarization: 刷新项目黑板索引失败", zap.String("projectId", projectID), zap.Error(err))
@@ -477,10 +489,8 @@ func refreshFactIndexInMessages(msgs []adk.Message, db *database.DB, projectID s
 		return msgs
 	}
 	freshIndex = strings.TrimSpace(freshIndex)
-	if freshIndex == "" {
-		return msgs
-	}
-
+	// A successful empty build means the old block must be removed. Errors
+	// above retain the previous index instead of silently discarding context.
 	changed := false
 	out := make([]adk.Message, len(msgs))
 	for i, msg := range msgs {
@@ -488,7 +498,13 @@ func refreshFactIndexInMessages(msgs []adk.Message, db *database.DB, projectID s
 			out[i] = msg
 			continue
 		}
-		newContent, ok := project.ReplaceFactIndexSection(msg.Content, freshIndex)
+		var newContent string
+		var ok bool
+		if freshIndex == "" {
+			newContent, ok = project.RemoveFactIndexSection(msg.Content)
+		} else {
+			newContent, ok = project.ReplaceFactIndexSection(msg.Content, freshIndex)
+		}
 		if !ok {
 			out[i] = msg
 			continue
@@ -679,14 +695,8 @@ func writeSummarizationTranscript(path string, msgs []adk.Message) error {
 	if path == "" {
 		return nil
 	}
-	body := formatSummarizationTranscript(msgs)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("mkdir transcript dir: %w", err)
-	}
-	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
-		return fmt.Errorf("write transcript: %w", err)
-	}
-	return nil
+	_, err := writeSummarizationTranscriptSnapshot(path, msgs)
+	return err
 }
 
 func einoSummarizationTokenCounter(openAIModel string) summarization.TokenCounterFunc {

@@ -30,6 +30,7 @@ type ModelTokenUsage struct {
 	PromptTokens     int64     `json:"promptTokens"`
 	CompletionTokens int64     `json:"completionTokens"`
 	TotalTokens      int64     `json:"totalTokens"`
+	CacheWriteTokens int64     `json:"cacheWriteTokens"`
 	CachedTokens     int64     `json:"cachedTokens"`
 	ReasoningTokens  int64     `json:"reasoningTokens"`
 	CreatedAt        time.Time `json:"createdAt"`
@@ -43,6 +44,7 @@ type ModelTokenUsageSummary struct {
 	PromptTokens     int64 `json:"promptTokens"`
 	CompletionTokens int64 `json:"completionTokens"`
 	TotalTokens      int64 `json:"totalTokens"`
+	CacheWriteTokens int64 `json:"cacheWriteTokens"`
 	CachedTokens     int64 `json:"cachedTokens"`
 	ReasoningTokens  int64 `json:"reasoningTokens"`
 }
@@ -56,6 +58,7 @@ type ModelTokenUsageBreakdown struct {
 	PromptTokens     int64  `json:"promptTokens"`
 	CompletionTokens int64  `json:"completionTokens"`
 	TotalTokens      int64  `json:"totalTokens"`
+	CacheWriteTokens int64  `json:"cacheWriteTokens"`
 	CachedTokens     int64  `json:"cachedTokens"`
 	ReasoningTokens  int64  `json:"reasoningTokens"`
 }
@@ -100,6 +103,7 @@ func modelTokenUsageFromProcessDetail(messageID, conversationID, processDetailID
 		CompletionTokens: usageInt64(m["completionTokens"]),
 		TotalTokens:      usageInt64(m["totalTokens"]),
 		CachedTokens:     usageInt64(m["cachedTokens"]),
+		CacheWriteTokens: usageInt64(m["cacheWriteTokens"]),
 		ReasoningTokens:  usageInt64(m["reasoningTokens"]),
 	}
 	if usage.TotalTokens == 0 && (usage.PromptTokens > 0 || usage.CompletionTokens > 0) {
@@ -108,7 +112,7 @@ func modelTokenUsageFromProcessDetail(messageID, conversationID, processDetailID
 	if usage.ProcessDetailID == "" || usage.MessageID == "" || usage.ConversationID == "" {
 		return ModelTokenUsage{}, false
 	}
-	if usage.ModelCalls == 0 && usage.TotalTokens == 0 && usage.PromptTokens == 0 && usage.CompletionTokens == 0 && usage.CachedTokens == 0 && usage.ReasoningTokens == 0 {
+	if usage.ModelCalls == 0 && usage.TotalTokens == 0 && usage.PromptTokens == 0 && usage.CompletionTokens == 0 && usage.CachedTokens == 0 && usage.CacheWriteTokens == 0 && usage.ReasoningTokens == 0 {
 		return ModelTokenUsage{}, false
 	}
 	return usage, true
@@ -224,9 +228,9 @@ func (db *DB) UpsertModelTokenUsage(usage ModelTokenUsage) error {
 INSERT INTO model_token_usage (
 	id, process_detail_id, message_id, conversation_id, project_id,
 	source, orchestration, reason, model, model_calls,
-	prompt_tokens, completion_tokens, total_tokens, cached_tokens, reasoning_tokens,
+	prompt_tokens, completion_tokens, total_tokens, cached_tokens, cache_write_tokens, reasoning_tokens,
 	created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(process_detail_id) DO UPDATE SET
 	message_id = excluded.message_id,
 	conversation_id = excluded.conversation_id,
@@ -240,12 +244,13 @@ ON CONFLICT(process_detail_id) DO UPDATE SET
 	completion_tokens = excluded.completion_tokens,
 	total_tokens = excluded.total_tokens,
 	cached_tokens = excluded.cached_tokens,
+	cache_write_tokens = excluded.cache_write_tokens,
 	reasoning_tokens = excluded.reasoning_tokens,
 	created_at = excluded.created_at,
 	updated_at = excluded.updated_at`,
 		usage.ID, usage.ProcessDetailID, usage.MessageID, usage.ConversationID, projectValue,
 		usage.Source, usage.Orchestration, usage.Reason, usage.Model, usage.ModelCalls,
-		usage.PromptTokens, usage.CompletionTokens, usage.TotalTokens, usage.CachedTokens, usage.ReasoningTokens,
+		usage.PromptTokens, usage.CompletionTokens, usage.TotalTokens, usage.CachedTokens, usage.CacheWriteTokens, usage.ReasoningTokens,
 		createdAt, now,
 	)
 	if err != nil {
@@ -318,7 +323,7 @@ func (db *DB) GetModelTokenUsageStats(filter ModelTokenUsageFilter) (*ModelToken
 		return nil, err
 	}
 	byDay, err := db.queryModelTokenUsageBreakdown(
-		"SELECT date(mtu.created_at) AS k, date(mtu.created_at) AS label, "+modelTokenUsageSummarySelect("mtu")+" FROM model_token_usage mtu JOIN conversations c ON c.id = mtu.conversation_id"+where+" GROUP BY date(mtu.created_at) ORDER BY k DESC LIMIT ?",
+		"SELECT date(mtu.created_at, 'localtime') AS k, date(mtu.created_at, 'localtime') AS label, "+modelTokenUsageSummarySelect("mtu")+" FROM model_token_usage mtu JOIN conversations c ON c.id = mtu.conversation_id"+where+" GROUP BY date(mtu.created_at, 'localtime') ORDER BY k DESC LIMIT ?",
 		append(args, filter.Days)...,
 	)
 	if err != nil {
@@ -363,7 +368,8 @@ COALESCE(SUM(%sprompt_tokens), 0),
 COALESCE(SUM(%scompletion_tokens), 0),
 COALESCE(SUM(%stotal_tokens), 0),
 COALESCE(SUM(%scached_tokens), 0),
-COALESCE(SUM(%sreasoning_tokens), 0)`, p, p, p, p, p, p, p)
+COALESCE(SUM(%scache_write_tokens), 0),
+COALESCE(SUM(%sreasoning_tokens), 0)`, p, p, p, p, p, p, p, p)
 }
 
 func buildModelTokenUsageWhere(filter ModelTokenUsageFilter, usageAlias, convAlias string) (string, []interface{}) {
@@ -394,7 +400,7 @@ func (db *DB) queryModelTokenUsageSummary(query string, args ...interface{}) (Mo
 	var s ModelTokenUsageSummary
 	err := db.QueryRow(query, args...).Scan(
 		&s.Events, &s.ModelCalls, &s.PromptTokens, &s.CompletionTokens,
-		&s.TotalTokens, &s.CachedTokens, &s.ReasoningTokens,
+		&s.TotalTokens, &s.CachedTokens, &s.CacheWriteTokens, &s.ReasoningTokens,
 	)
 	if err != nil {
 		return s, fmt.Errorf("查询模型Token用量汇总失败: %w", err)
@@ -413,7 +419,7 @@ func (db *DB) queryModelTokenUsageBreakdown(query string, args ...interface{}) (
 		var row ModelTokenUsageBreakdown
 		if err := rows.Scan(
 			&row.Key, &row.Label, &row.Events, &row.ModelCalls, &row.PromptTokens,
-			&row.CompletionTokens, &row.TotalTokens, &row.CachedTokens, &row.ReasoningTokens,
+			&row.CompletionTokens, &row.TotalTokens, &row.CachedTokens, &row.CacheWriteTokens, &row.ReasoningTokens,
 		); err != nil {
 			return nil, fmt.Errorf("扫描模型Token用量分组失败: %w", err)
 		}
@@ -438,7 +444,7 @@ func (db *DB) ListModelTokenUsage(filter ModelTokenUsageFilter) ([]ModelTokenUsa
 SELECT mtu.id, mtu.process_detail_id, mtu.message_id, mtu.conversation_id,
 	COALESCE(mtu.project_id, ''), mtu.source, mtu.orchestration, mtu.reason, mtu.model,
 	mtu.model_calls, mtu.prompt_tokens, mtu.completion_tokens, mtu.total_tokens,
-	mtu.cached_tokens, mtu.reasoning_tokens, mtu.created_at, mtu.updated_at
+	mtu.cached_tokens, mtu.cache_write_tokens, mtu.reasoning_tokens, mtu.created_at, mtu.updated_at
 FROM model_token_usage mtu
 JOIN conversations c ON c.id = mtu.conversation_id`+where+`
 ORDER BY mtu.created_at DESC, mtu.rowid DESC
@@ -455,7 +461,7 @@ LIMIT ?`, args...)
 			&u.ID, &u.ProcessDetailID, &u.MessageID, &u.ConversationID, &u.ProjectID,
 			&u.Source, &u.Orchestration, &u.Reason, &u.Model, &u.ModelCalls,
 			&u.PromptTokens, &u.CompletionTokens, &u.TotalTokens, &u.CachedTokens,
-			&u.ReasoningTokens, &createdAt, &updatedAt,
+			&u.CacheWriteTokens, &u.ReasoningTokens, &createdAt, &updatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("扫描模型Token用量明细失败: %w", err)
 		}

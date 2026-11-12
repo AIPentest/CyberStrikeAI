@@ -117,12 +117,14 @@ test('助手轮次摘要会显示持久化 token 用量', () => {
         promptTokens: 1200,
         completionTokens: 34,
         cachedTokens: 200,
+        cacheWriteTokens: 100,
         reasoningTokens: 12,
         modelCalls: 1,
         model: 'deepseek-v3',
     });
 
     assert.equal(message.dataset.turnTotalTokens, '1234');
+    assert.equal(message.dataset.turnCacheWriteTokens, '100');
     assert.match(message.label.innerHTML, /1\.2K tokens/);
     assert.match(message.label.innerHTML, /turn-process-token-chip/);
 });

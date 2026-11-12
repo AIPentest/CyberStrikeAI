@@ -422,11 +422,18 @@ func (h *ProjectHandler) GetFactGraph(c *gin.Context) {
 	c.JSON(http.StatusOK, graph)
 }
 
+// note/context-* 由压缩流程独占写入；手工改写会让目标会话把它当成当前工作记录。
+const reservedContextCheckpointError = "note/context-* 为系统续接记录，不能在控制台创建或改写；项目共享事实请使用独立 fact_key"
+
 // CreateFact POST /api/projects/:id/facts
 func (h *ProjectHandler) CreateFact(c *gin.Context) {
 	var req upsertFactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if database.IsContextCheckpointKey(req.FactKey) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": reservedContextCheckpointError})
 		return
 	}
 	projectID := c.Param("id")
@@ -463,6 +470,10 @@ func (h *ProjectHandler) UpdateFact(c *gin.Context) {
 		return
 	}
 	oldFactKey := existing.FactKey
+	if database.IsContextCheckpointKey(oldFactKey) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": reservedContextCheckpointError})
+		return
+	}
 	var req updateFactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -470,6 +481,10 @@ func (h *ProjectHandler) UpdateFact(c *gin.Context) {
 	}
 	if req.FactKey != nil {
 		if k := strings.TrimSpace(*req.FactKey); k != "" {
+			if database.IsContextCheckpointKey(k) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": reservedContextCheckpointError})
+				return
+			}
 			existing.FactKey = k
 		}
 	}

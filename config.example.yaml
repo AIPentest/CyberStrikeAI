@@ -11,7 +11,7 @@
 
 # 前端显示的版本号（可选，不填则显示默认版本）。一键更新完成后，会用新代码里这个文件的值
 # 同步更新你的 config.yaml 的 version 字段（页头版本号与静态资源缓存随代码走）。
-version: "v1.7.23"
+version: "v1.7.24"
 # 服务器配置
 server:
   host: 0.0.0.0 # 监听地址，0.0.0.0 表示监听所有网络接口
@@ -124,6 +124,18 @@ ai:
       model: qwen3-max
       max_total_tokens: 120000
       max_completion_tokens: 32768
+      # headers: 可选。追加或覆盖发给模型网关的 HTTP 请求头，值支持 ${ENV_VAR} 与 ${ENV_VAR:-默认值}。
+      # 用于兼容要求私有鉴权头、版本头或组织头的第三方 OpenAI 兼容供应商（如 opencode 等聚合网关）。
+      # 配置后会覆盖同名的内置头（Authorization、User-Agent 等），空值项会被忽略。
+      # headers:
+      #   X-Api-Key: ${OPENCODE_API_KEY}
+      #   x-opencode-session: "%session_id%" # 自动替换为当前对话 ID
+      #   X-Client-Name: cyberstrike-ai
+      #   HTTP-Referer: https://example.com
+      # 配置自定义头时，仅允许同源重定向，跨主机、端口或协议的重定向会被拒绝。
+      # HITL 审计仅在未显式配置 provider/base_url/api_key 时继承主渠道 headers；
+      # 独立审计身份如需请求头，请在 hitl.audit_model.headers 中单独配置。
+      # 空 headers 与未配置等价；所有自定义头值在设置接口中均按敏感值脱敏。
       # Eino 路径模型推理：DeepSeek/OpenAI 为 thinking / reasoning_effort；Claude 4.6+ 为 adaptive + output_config.effort（仅显式配置 effort 时下发）；3.7 为 enabled+budget_tokens:10000（文档示例），effort 不映射，自定义预算用 extra_request_fields
       reasoning:
         mode: on # auto | on | off；off：OpenAI/Claude 不附加推理字段，DeepSeek 发送 thinking.type=disabled（其默认开启思考）
@@ -173,6 +185,8 @@ shodan:
 # Agent 配置
 # 达到最大迭代次数时，AI 会自动总结测试结果
 agent:
+  # 修改后重启服务，对新任务生效；例如 1440 = 24 小时，单次工具超时独立生效。
+  task_timeout_minutes: 600 # 任务执行超时（分钟）；未配置=600，0=不限时，负数无效；续跑重新计时
   max_iterations: 12000 # 全局最大迭代次数（单代理 / Deep / Supervisor / Plan-Execute 主执行器 / 子代理均沿用；agents/*.md 中 max_iterations>0 可单独覆盖）
   tool_timeout_minutes: 60 # 单次工具执行最大时长（分钟），超时自动终止；0 表示不限制（不推荐，易出现长时间挂起）
   tool_wait_timeout_seconds: 300 # 工具本轮最多等待（秒）；到时返回 execution_id，worker 继续后台执行，可用 wait_tool_execution 继续等待；0=等到完成
@@ -217,6 +231,8 @@ hitl:
     base_url: "" # openai 后端留空跟随主模型；typesafe 后端留空使用 https://api.typesafe.ai
     api_key: "" # openai 后端留空跟随主模型；typesafe 后端填写 TypeSafe API Key
     model: "" # openai 后端建议填小模型；typesafe 后端留空使用 jev-latest
+    reasoning:
+      profile: "" # auto / deepseek_compat / openai_compat；仅控制审计请求的 thinking 字段
   # 已决策审计日志保留天数（与 MCP 监控一致；省略默认 90；0 表示不自动清理）
   retention_days: 90
   # 按你环境里的真实工具名增删（与侧栏一致、小写不敏感）；不需要全局免审批可改为 []
@@ -600,7 +616,10 @@ roles_dir: roles # 角色配置文件目录（相对于配置文件所在目录�
 # ============================================
 project:
   enabled: true
+  # 压缩时自动保存续接摘要为 tentative note（每会话/代理更新一条，不替代已确认事实）
+  context_checkpoints: true
   # default_project_id: "" # 可选：机器人/批量任务创建对话时的默认项目 ID
+  # 项目续接补充包含在事实索引预算内；工作文件候选清单另有最多 4000 字符预算
   fact_index_max_runes: 65000
   # 事实关系速览段预算（从索引总预算中预留）
   fact_index_path_max_runes: 10000

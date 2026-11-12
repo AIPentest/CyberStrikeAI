@@ -1,0 +1,23 @@
+name: Context memory
+on:
+  push:
+    paths: ['internal/agent/**', 'internal/attackchain/**', 'internal/app/**', 'internal/config/**', 'internal/database/**', 'internal/handler/**', 'internal/mcp/**', 'internal/multiagent/**', 'internal/project/**', 'internal/projectprompt/**', 'go.mod', 'go.sum', '.github/workflows/context-memory.yml']
+  pull_request:
+    paths: ['internal/agent/**', 'internal/attackchain/**', 'internal/app/**', 'internal/config/**', 'internal/database/**', 'internal/handler/**', 'internal/mcp/**', 'internal/multiagent/**', 'internal/project/**', 'internal/projectprompt/**', 'go.mod', 'go.sum', '.github/workflows/context-memory.yml']
+permissions:
+  contents: read
+jobs:
+  memory:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Test compaction, resume, snapshots and scoped memory
+        run: go test -race ./internal/agent ./internal/attackchain ./internal/app ./internal/database ./internal/handler ./internal/multiagent ./internal/project ./internal/projectprompt

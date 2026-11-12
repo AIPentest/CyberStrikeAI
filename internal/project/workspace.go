@@ -62,6 +62,7 @@ func BuildWorkspaceBlock(absPath string) string {
 **必须使用以下目录**保存 curl/wget 下载的文件、临时 HTML/JS，以及 read_file/glob/grep 的检索范围：
 `+"`%s`"+`
 
+- 此目录在绑定项目时由同项目会话共享，重启或重新打开对话后仍应先检索已有成果。成功脚本及依赖保存在 `+"`artifacts/`"+` 下，并用 `+"`upsert_project_fact(category=note, fact_key=artifact/<名称>)`"+` 登记相对路径、调用方式和验证证据。
 - **禁止**使用系统 `+"`/tmp`"+` 或其它全局临时目录（多项目/多会话会互窜遗留文件）。
 - 下载示例：`+"`curl -o '%s/page.html' 'https://target/'`"+`；exec 时可将 `+"`workdir`"+` 设为该目录。
 - 读取下载产物或临时分析文件前，用 glob/grep/read_file **限定在该目录**下搜索，勿在 `+"`/tmp`"+` 盲目检索。

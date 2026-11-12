@@ -19,7 +19,7 @@ package openai
 //
 // 该层对调用方完全透明:
 //   - 仅当响应 Content-Type 是 text/event-stream 时介入；普通 JSON 响应原样透传
-//   - data: payload (含 [DONE] 与 {"error":...}) 一字节不改
+//   - data: payload 仅补齐 DeepSeek 缓存用量字段，其余内容原样透传
 //   - 上游真断流 (EOF / connection reset / context cancel) 原样透传
 
 import (
@@ -102,6 +102,11 @@ func (b *einoSSESanitizingBody) Read(p []byte) (int, error) {
 			if isPassThroughSSELine(line) {
 				if line[len(line)-1] != '\n' {
 					line = append(line, '\n')
+				}
+				payload := bytes.TrimSpace(bytes.TrimLeft(line, " \t")[5:])
+				normalized := normalizeEinoUsagePayload(payload)
+				if !bytes.Equal(payload, normalized) {
+					line = append(append([]byte("data: "), normalized...), '\n')
 				}
 				b.pending = line
 				if err != nil {

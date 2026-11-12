@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"cyberstrike-ai/internal/agent"
+
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/adk/prebuilt/planexecute"
 	"github.com/cloudwego/eino/components/model"
@@ -92,10 +94,14 @@ func planExecuteDefaultGenExecutorInput(ctx context.Context, in *planexecute.Exe
 	if err != nil {
 		return nil, err
 	}
-	return planexecute.ExecutorPrompt.Format(ctx, map[string]any{
+	msgs, err := planexecute.ExecutorPrompt.Format(ctx, map[string]any{
 		"input":          planExecuteFormatInput(in.UserInput),
 		"plan":           string(planContent),
 		"executed_steps": planExecuteFormatExecutedSteps(in.ExecutedSteps, nil, nil),
 		"step":           in.Plan.FirstStep(),
 	})
+	if err != nil {
+		return nil, err
+	}
+	return withPlanExecuteInputProvenance(msgs, in.UserInput, nil, nil, agent.PlanExecuteExecutorContext), nil
 }

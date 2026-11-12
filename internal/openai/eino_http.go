@@ -21,6 +21,8 @@ func NewEinoHTTPClient(cfg *config.OpenAIConfig, base *http.Client) *http.Client
 	transport = &reasoningToolChoiceCompatRoundTripper{base: transport, cfg: cfg}
 	transport = &einoSSEErrorRoundTripper{base: transport}
 	transport = &einoSSESanitizingRoundTripper{base: transport}
+	transport = &einoUsageNormalizingRoundTripper{base: transport}
+	transport = &headersRoundTripper{base: transport, cfg: cfg}
 	cloned.Transport = transport
-	return &cloned
+	return customHeaderHTTPClient(&cloned, cfg)
 }

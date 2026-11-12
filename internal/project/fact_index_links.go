@@ -142,13 +142,12 @@ func BuildFactPathOverviewSection(edges []*database.ProjectFactEdge, indexedKeys
 	}
 	filtered := make([]*database.ProjectFactEdge, 0, len(candidates))
 	for _, e := range candidates {
-		if len(indexedKeys) > 0 {
-			if _, ok := indexedKeys[e.SourceFactKey]; !ok {
-				continue
-			}
-			if _, ok := indexedKeys[e.TargetFactKey]; !ok {
-				continue
-			}
+		// No indexed facts means nothing may be related; filtering fails closed.
+		if _, ok := indexedKeys[e.SourceFactKey]; !ok {
+			continue
+		}
+		if _, ok := indexedKeys[e.TargetFactKey]; !ok {
+			continue
 		}
 		filtered = append(filtered, e)
 	}

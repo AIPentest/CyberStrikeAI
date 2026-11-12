@@ -144,7 +144,7 @@ func defaultFieldsForProvider(provider string) string {
 	case "shodan":
 		return "ip_str,port,hostnames,domains,org,isp,location.country_name,location.city,product,transport"
 	default:
-		return "host,ip,port,domain,title,protocol,country,province,city,server"
+		return "host,ip,port,domain,title,protocol,country,region,city,server"
 	}
 }
 
@@ -602,7 +602,7 @@ func (h *FofaHandler) Search(c *gin.Context) {
 	if req.Size > 10000 {
 		req.Size = 10000
 	}
-	if req.Fields == "" {
+	if strings.TrimSpace(req.Fields) == "" {
 		req.Fields = defaultFieldsForProvider(provider)
 	}
 
@@ -610,6 +610,8 @@ func (h *FofaHandler) Search(c *gin.Context) {
 		h.searchExternalProvider(c, provider, req)
 		return
 	}
+
+	req.Fields = normalizeFofaFields(req.Fields)
 
 	apiKey := h.resolveAPIKey(provider)
 	if apiKey == "" {

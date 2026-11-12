@@ -41,7 +41,7 @@ func (h *AgentHandler) buildWorkspaceBlock(conversationID string) string {
 		}
 		return ""
 	}
-	return project.BuildWorkspaceBlock(abs)
+	return project.BuildWorkspaceBlock(abs) + "\n\n" + project.BuildWorkspaceInventoryBlock(abs)
 }
 
 // projectBlackboardBlock 根据对话 ID 构建项目事实索引块（用于注入 system prompt）。
@@ -60,7 +60,7 @@ func (h *AgentHandler) projectBlackboardBlock(conversationID string) string {
 	if err != nil || projectID == "" {
 		return ""
 	}
-	block, err := project.BuildProjectBlackboardBlock(h.db, projectID, h.config.Project)
+	block, err := project.BuildProjectBlackboardBlock(h.db, projectID, h.config.Project, conversationID)
 	if err != nil {
 		h.logger.Warn("构建项目黑板索引失败", zap.String("conversationId", conversationID), zap.Error(err))
 		return ""

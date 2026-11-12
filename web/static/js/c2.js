@@ -3256,6 +3256,7 @@
         const totalPages = Math.max(1, Math.ceil(total / pageSize));
         if (total === 0) {
             paginationContainer.innerHTML = '';
+            if (typeof initPaginationSelects === 'function') initPaginationSelects(paginationContainer);
             return;
         }
         const start = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
@@ -3284,6 +3285,7 @@
         `;
         html += '</div>';
         paginationContainer.innerHTML = html;
+        if (typeof initPaginationSelects === 'function') initPaginationSelects(paginationContainer);
         if (typeof applyTranslations === 'function') applyTranslations(paginationContainer);
     };
 
@@ -4194,6 +4196,7 @@
 
         if (total === 0) {
             paginationContainer.innerHTML = '';
+            if (typeof initPaginationSelects === 'function') initPaginationSelects(paginationContainer);
             return;
         }
 
@@ -4224,6 +4227,7 @@
         `;
         html += '</div>';
         paginationContainer.innerHTML = html;
+        if (typeof initPaginationSelects === 'function') initPaginationSelects(paginationContainer);
         if (typeof applyTranslations === 'function') applyTranslations(paginationContainer);
     };
 

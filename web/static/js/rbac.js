@@ -714,6 +714,7 @@ function renderRbacRoles() {
     const userRoles = user ? rbacState.pendingUserRoles : new Set();
     box.innerHTML = rbacState.roles.map(role => {
         const checked = userRoles.has(role.id);
+        const protectedRole = rbacUserIsBuiltin(user) && role.id === 'admin' && checked;
         const permissionCount = (role.permissions || []).length;
         const assignedUsers = rbacState.users.filter(u => rbacUserRoles(u).includes(role.id)).length;
         const scope = rbacScopeInfo(role.scope);
@@ -721,7 +722,7 @@ function renderRbacRoles() {
             <article class="rbac-role-card${checked ? ' is-selected' : ''}">
                 <div class="rbac-role-card-head">
                     <label class="checkbox-label">
-                        <input type="checkbox" class="modern-checkbox" ${checked ? 'checked' : ''} ${!user ? 'disabled' : ''} onchange="toggleSelectedUserRole('${rbacEscape(role.id)}', this.checked)">
+                        <input type="checkbox" class="modern-checkbox" ${checked ? 'checked' : ''} ${!user || protectedRole ? 'disabled' : ''} title="${protectedRole ? rbacEscape(rbacT('rbac.protectBuiltinAdminRole', '内置管理员必须保留管理员角色')) : ''}" onchange="toggleSelectedUserRole('${rbacEscape(role.id)}', this.checked)">
                         <span class="checkbox-custom"></span>
                         <span class="checkbox-text"><strong>${rbacEscape(rbacRoleName(role))}</strong></span>
                     </label>
@@ -751,7 +752,8 @@ function ensurePendingUserRoles(user) {
 }
 
 function toggleSelectedUserRole(roleId, enabled) {
-    if (!selectedRbacUser()) return;
+    const user = selectedRbacUser();
+    if (!user || (rbacUserIsBuiltin(user) && roleId === 'admin' && !enabled)) return;
     if (enabled) rbacState.pendingUserRoles.add(roleId);
     else rbacState.pendingUserRoles.delete(roleId);
     renderRbacRoles();
@@ -1232,7 +1234,11 @@ function openRbacUserModal(userId = '') {
     document.getElementById('rbac-username').disabled = !!user;
     document.getElementById('rbac-display-name').value = user ? (user.displayName || user.display_name || '') : '';
     document.getElementById('rbac-password').value = '';
-    document.getElementById('rbac-user-enabled').checked = user ? !!user.enabled : true;
+    const enabledInput = document.getElementById('rbac-user-enabled');
+    enabledInput.checked = user ? !!user.enabled : true;
+    enabledInput.disabled = rbacUserIsBuiltin(user) && enabledInput.checked;
+    enabledInput.dataset.stateDisabled = String(enabledInput.disabled);
+    enabledInput.title = enabledInput.disabled ? rbacT('rbac.protectBuiltinAdminEnabled', '内置管理员不能停用') : '';
     const createRoles = document.getElementById('rbac-user-roles-create-section');
     const editRoles = document.getElementById('rbac-user-roles-edit-section');
     if (createRoles) createRoles.hidden = !!user;

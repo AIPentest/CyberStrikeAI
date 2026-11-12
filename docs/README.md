@@ -20,12 +20,18 @@ CyberStrikeAI documentation is organized by user journey. Start with deployment,
 - [Agent 与角色](zh-CN/agent-and-role-guide.md)
 - [Skills 指南](zh-CN/skills-guide.md)
 - [Eino 多代理](zh-CN/MULTI_AGENT_EINO.md)
+- [黑板与上下文记忆](zh-CN/blackboard-context-memory.md)
+- [Agent 最终回复治理](zh-CN/agent-finalization-best-practices.md)
 - [工作流](zh-CN/workflow-graph.md)
+- [调用拦截规则](zh-CN/tool-call-guard.md)
 - [工具执行治理](zh-CN/tool-execution-governance.md)
 - [人机协同最佳实践](zh-CN/hitl-best-practices.md)
 
 ### 功能指南
 
+- [资产管理](zh-CN/asset-management.md)
+- [项目任务续接](zh-CN/project-resume.md)
+- [Token 用量分析](zh-CN/token-usage-monitoring.md)
 - [知识库](zh-CN/knowledge-base.md)
 - [RBAC 权限管理](zh-CN/rbac.md)
 - [机器人接入](zh-CN/robot.md)
@@ -58,12 +64,18 @@ CyberStrikeAI documentation is organized by user journey. Start with deployment,
 - [Agents and Roles](en-US/agent-and-role-guide.md)
 - [Skills](en-US/skills-guide.md)
 - [Eino Multi-Agent](en-US/MULTI_AGENT_EINO.md)
+- [Blackboard and Context Memory](en-US/blackboard-context-memory.md)
+- [Agent Finalization](en-US/agent-finalization-best-practices.md)
 - [Workflows](en-US/workflow-graph.md)
+- [Tool Call Guard](en-US/tool-call-guard.md)
 - [Tool Execution Governance](en-US/tool-execution-governance.md)
 - [HITL Best Practices](en-US/hitl-best-practices.md)
 
 ### Feature guides
 
+- [Asset Management](en-US/asset-management.md)
+- [Resuming Project Tasks](en-US/project-resume.md)
+- [Token Usage Analysis](en-US/token-usage-monitoring.md)
 - [Knowledge Base](en-US/knowledge-base.md)
 - [RBAC Administration](en-US/rbac.md)
 - [Robot / Chatbot](en-US/robot.md)
@@ -85,3 +97,10 @@ CyberStrikeAI documentation is organized by user journey. Start with deployment,
 - Commands assume the repository root unless stated otherwise.
 - Examples use placeholders; never commit real credentials or target systems without explicit authorization.
 - Runtime behavior and configuration defaults are authoritative in `config.example.yaml` and the source code. If a document differs, report it as documentation drift.
+
+### Public documentation scope / 公开文档范围
+
+- 公开文档面向用户和贡献者，保留使用指南、稳定接口与架构说明、兼容性说明和发布记录。内部任务阶段记录、对话确认、一次性核查表和本地验证流水账应保存在仓库外，不作为产品文档提交。
+- Public docs serve users and contributors: usage guides, stable API and architecture references, compatibility notes, and release records. Keep internal task journals, conversation approvals, one-off review sheets, and local verification logs outside the repository.
+- 中英文指南使用相同文件名，并提供语言切换链接；各语言索引覆盖对应的全部指南。
+- Chinese and English guides use matching filenames and language-switch links; each locale index covers all guides in that language.

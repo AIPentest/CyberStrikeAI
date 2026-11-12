@@ -310,7 +310,7 @@ parameters:
 
       需要返回的字段，多个字段用逗号分隔。
       默认字段：ip,port,domain
-      可用字段：host,title,ip,domain,port,protocol,country,province,city,server,icp,header,banner,body,as_number,as_organization
+      可用字段：host,title,ip,domain,port,protocol,country,region,city,server,icp,header,banner,body,asn,org
     required: false
     position: 5
     format: "positional"

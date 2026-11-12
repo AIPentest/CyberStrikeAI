@@ -1,9 +1,11 @@
 package database
 
 import (
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -83,6 +85,115 @@ func TestFofaAssetIgnoresInvalidOptionalStructuredFields(t *testing.T) {
 	}
 	if asset.Domain != "" || asset.IP != "203.0.113.59" {
 		t.Fatalf("FOFA structured fields were not sanitized: %#v", asset)
+	}
+}
+
+// Start more workers than the pool can hold, with separate Asset inputs just as
+// parallel create_asset calls use. Check both returned counts and persisted IDs.
+func TestUpsertAssetsConcurrent(t *testing.T) {
+	for _, sameTarget := range []bool{false, true} {
+		t.Run(fmt.Sprintf("same_target=%t", sameTarget), func(t *testing.T) {
+			db, err := NewDB(filepath.Join(t.TempDir(), "assets.db"), zap.NewNop())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+
+			const workers = 32
+			start := make(chan struct{})
+			var wg sync.WaitGroup
+			assets := make([]*Asset, workers)
+			results := make([]AssetImportResult, workers)
+			errs := make([]error, workers)
+			for i := range workers {
+				host := fmt.Sprintf("host-%d.example.com", i)
+				if sameTarget {
+					host = "shared.example.com"
+				}
+				assets[i] = &Asset{Host: host, Port: 443, Protocol: "https", Title: fmt.Sprintf("title-%d", i)}
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					<-start
+					results[i], errs[i] = db.UpsertAssets([]*Asset{assets[i]}, "user-a")
+				}()
+			}
+			close(start)
+			wg.Wait()
+
+			created, updated := 0, 0
+			for i, err := range errs {
+				if err != nil {
+					t.Errorf("worker %d: %v", i, err)
+					continue
+				}
+				created += results[i].Created
+				updated += results[i].Updated
+				saved, err := db.GetAsset(assets[i].ID, RBACListAccess{Scope: RBACScopeAll})
+				if err != nil || saved.Host != assets[i].Host {
+					t.Errorf("worker %d asset was not persisted: %v", i, err)
+				}
+				if sameTarget && assets[i].ID != assets[0].ID {
+					t.Errorf("worker %d returned a different ID for the same target", i)
+				}
+			}
+			wantCreated, wantUpdated := workers, 0
+			if sameTarget {
+				wantCreated, wantUpdated = 1, workers-1
+			}
+			if created != wantCreated || updated != wantUpdated {
+				t.Errorf("created/updated = %d/%d, want %d/%d", created, updated, wantCreated, wantUpdated)
+			}
+			var count int
+			if err := db.QueryRow("SELECT COUNT(*) FROM assets").Scan(&count); err != nil || count != wantCreated {
+				t.Fatalf("persisted count = %d, want %d: %v", count, wantCreated, err)
+			}
+		})
+	}
+}
+
+func TestAssetConcurrentCreateAndUpdate(t *testing.T) {
+	db, err := NewDB(filepath.Join(t.TempDir(), "assets.db"), zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	const workers = 32
+	assets := make([]*Asset, workers)
+	for i := range workers {
+		assets[i] = &Asset{Host: fmt.Sprintf("existing-%d.example.com", i)}
+	}
+	if _, err := db.UpsertAssets(assets, "user-a"); err != nil {
+		t.Fatal(err)
+	}
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			if i%2 == 0 {
+				assets[i].Title = "updated"
+				if err := db.UpdateAsset(assets[i].ID, assets[i], RBACListAccess{Scope: RBACScopeAll}); err != nil {
+					t.Errorf("update %d: %v", i, err)
+				}
+			} else {
+				if _, err := db.UpsertAssets([]*Asset{{Host: fmt.Sprintf("new-%d.example.com", i)}}, "user-a"); err != nil {
+					t.Errorf("create %d: %v", i, err)
+				}
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	var total, updated int
+	if err := db.QueryRow("SELECT COUNT(*), COUNT(CASE WHEN title='updated' THEN 1 END) FROM assets").Scan(&total, &updated); err != nil {
+		t.Fatal(err)
+	}
+	if total != workers+workers/2 || updated != workers/2 {
+		t.Fatalf("persisted total/updated = %d/%d, want %d/%d", total, updated, workers+workers/2, workers/2)
 	}
 }
 

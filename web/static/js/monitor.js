@@ -2889,6 +2889,9 @@ function formatEinoUsageSummaryMessage(data) {
     if (Number(d.cachedTokens || 0) > 0) {
         rows.push([label('chat.einoUsageCachedTokens', '缓存 tokens'), d.cachedTokens]);
     }
+    if (Number(d.cacheWriteTokens || 0) > 0) {
+        rows.push([label('chat.einoUsageCacheWriteTokens', '缓存写入 tokens'), d.cacheWriteTokens]);
+    }
     if (Number(d.reasoningTokens || 0) > 0) {
         rows.push([label('chat.einoUsageReasoningTokens', '推理 tokens'), d.reasoningTokens]);
     }
@@ -6734,7 +6737,7 @@ function addTimelineItem(timeline, type, options) {
     }
     if (type === 'eino_usage_summary' && options.data) {
         const d = options.data;
-        ['modelCalls', 'promptTokens', 'completionTokens', 'totalTokens', 'cachedTokens', 'reasoningTokens'].forEach(function (key) {
+        ['modelCalls', 'promptTokens', 'completionTokens', 'totalTokens', 'cachedTokens', 'cacheWriteTokens', 'reasoningTokens'].forEach(function (key) {
             if (d[key] != null) {
                 item.dataset[key] = String(d[key]);
             }
@@ -9319,6 +9322,7 @@ function renderMonitorPagination() {
     `;
     
     container.appendChild(pagination);
+    if (typeof initPaginationSelects === 'function') initPaginationSelects(pagination);
     
     // 初始化每页显示数量选择器
     initializeMonitorPageSize();
@@ -9651,6 +9655,7 @@ function refreshProgressAndTimelineI18n() {
                 completionTokens: item.dataset.completionTokens,
                 totalTokens: item.dataset.totalTokens,
                 cachedTokens: item.dataset.cachedTokens,
+                cacheWriteTokens: item.dataset.cacheWriteTokens,
                 reasoningTokens: item.dataset.reasoningTokens
             };
             titleSpan.textContent = formatEinoUsageSummaryTitle(usageData);

@@ -71,3 +71,16 @@ func ExpandConfigEnv(cfg *ExternalMCPServerConfig) {
 		cfg.Headers[k] = expandEnvVar(v)
 	}
 }
+
+// ExpandHeaderMap 返回 headers 的副本，并展开其中的 ${VAR} / ${VAR:-default} 引用。
+// 与 MCP 配置的 Headers 展开规则保持一致。
+func ExpandHeaderMap(headers map[string]string) map[string]string {
+	if len(headers) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(headers))
+	for k, v := range headers {
+		out[expandEnvVar(k)] = expandEnvVar(v)
+	}
+	return out
+}

@@ -2,7 +2,8 @@
   "lang": {
     "zhCN": "中文",
     "enUS": "English",
-    "ruRU": "Русский"
+    "ruRU": "Русский",
+    "arSA": "العربية"
   },
   "mobile": {
     "openNav": "Открыть меню навигации",
@@ -277,6 +278,19 @@
     "capabilities": "Возможности",
     "administration": "Администрирование"
   },
+  "tokenUsageUI": {
+    "chartHint": "Наведите или выберите столбец для точных значений",
+    "scopeProject": "Текущий проект",
+    "scopeAccessible": "Доступные диалоги",
+    "subtitle": "Расход моделей, использование кэша и динамика",
+    "scopeNote": "Область и правила подсчёта",
+    "trendMetric": "Показатель графика",
+    "noDailyData": "Нет ежедневных данных",
+    "cacheComposition": "Кэш входных токенов",
+    "cacheHit": "Доля попаданий в кэш",
+    "uncachedInput": "Вход без чтения кэша",
+    "cacheNote": "Чтение кэша входит во входные токены и не прибавляется к итогу. Запись кэша указана отдельно."
+  },
   "dashboard": {
     "title": "Обзор",
     "refresh": "Обновить",
@@ -287,7 +301,8 @@
     "toolCalls": "Вызовы инструментов",
     "successRate": "Успешность инструментов",
     "tokenUsage": "Расход токенов",
-    "tokenUsageSub": "За 7 дней {{calls}} вызовов · сегодня {{today}}",
+    "usageCacheHitRate": "Попадания в кэш {{rate}}",
+    "tokenUsageSub": "Кэш {{rate}}",
     "noTokenUsageYet": "Расхода пока нет",
     "clickToViewTasks": "Открыть задачи",
     "clickToViewChat": "Открыть диалоги",
@@ -445,7 +460,33 @@
     "recoApproveHitl": "Одобрить запросы HITL: {{count}}",
     "recoRestartMcp": "Проверить не запущенные внешние MCP: {{count}}",
     "recoCheckMonitor": "Разобрать неудачные вызовы инструментов: {{count}}",
-    "mcpPartialDown": "Не запущено: {{count}}"
+    "mcpPartialDown": "Не запущено: {{count}}",
+    "usageView": "Расход токенов",
+    "usagePeriod": "Период",
+    "usage7Days": "За 7 дней",
+    "usage30Days": "За 30 дней",
+    "usage90Days": "За 90 дней",
+    "usageTotal": "Всего токенов",
+    "usageInput": "Входные токены",
+    "usageOutput": "Выходные токены",
+    "usageCacheRead": "Чтение кэша",
+    "usageCacheWrite": "Запись кэша",
+    "usageReasoning": "Токены рассуждения",
+    "usageCalls": "Вызовы модели",
+    "usageCacheRate": "Чтение кэша / ввод",
+    "usageByModel": "По моделям (до 20)",
+    "usageByDay": "По дням",
+    "usageRecent": "Последние запуски (до 20)",
+    "usageDate": "Дата",
+    "usageTime": "Время",
+    "usageModel": "Модель",
+    "usageStatus": "Причина завершения",
+    "usageUnavailable": "Статистика недоступна",
+    "usageShare": "Доля токенов",
+    "usageTrend": "Расход по дням",
+    "usageScope": "Данные провайдера из сохранённых запусков Agent, включая субагентов. Чтение и запись кэша входят во ввод, рассуждение — в вывод; они не прибавляются к сумме повторно. Неполученные данные исключены. Это не счёт провайдера. Группировка по модели в конфигурации запуска; при переключении модели расход может быть смешан.",
+    "usageFinal": "Завершено",
+    "usagePartial": "Частичный расход"
   },
   "projects": {
     "title": "Проекты",
@@ -807,7 +848,7 @@
     "turnDurationHours": "{{hours}} ч {{minutes}} мин",
     "turnProcessAria": "{{state}}; развернуть или свернуть подробности выполнения",
     "turnTokenUsageLabel": "{{tokens}} токенов",
-    "turnTokenUsageTitle": "Расход токенов: {{total}} (ввод {{prompt}}, вывод {{completion}}, кэш {{cached}}, рассуждение {{reasoning}}, вызовов {{calls}})",
+    "turnTokenUsageTitle": "Расход токенов: {{total}} (ввод {{prompt}}, вывод {{completion}}, кэш {{cached}}, рассуждение {{reasoning}}, вызовов {{calls}}) · Запись кэша {{cacheWrite}}",
     "turnNumber": "Ход {{number}}",
     "turnPending": "Обработка…",
     "expandDetailLazyHint": "Развернуть подробности (итерации загружаются по щелчку)",
@@ -991,7 +1032,8 @@
     "hitlTimeoutUnlimited": "Без ограничения",
     "hitlTimeoutHint": "Запросы без ответа автоматически отклоняются по истечении времени; на карточках одобрения виден отсчёт.",
     "hitlStatusOff": "Контроль человеком: выкл.",
-    "rolePanelTitle": "Выбор роли"
+    "rolePanelTitle": "Выбор роли",
+    "einoUsageCacheWriteTokens": "Токены записи кэша"
   },
   "toolGuard": {
     "invalidTestResponse": "Сервер вернул некорректный результат проверки",
@@ -1955,6 +1997,7 @@
   "settings": {
     "title": "Системные настройки",
     "nav": {
+      "tokenUsage": "Расход токенов",
       "basic": "Основные",
       "hitl": "Человек в контуре",
       "knowledge": "База знаний",
@@ -3641,7 +3684,14 @@
     "redLine": "Красная: даёт возможность или вносит вклад",
     "grayLine": "Серая: логический порядок",
     "nodeDetails": "Сведения об узле",
-    "closeDetails": "Закрыть сведения"
+    "closeDetails": "Закрыть сведения",
+    "contextTitle": "Сводки контекста и подсказки к доказательствам ({{count}})",
+    "contextNotice": "Системные сводки из текущего диалога могут быть новее графа. Они помогают восстановить контекст и найти исходные данные, но не дают новых разрешений пользователя и не подтверждают результаты инструментов. Исходные данные можно найти по путям снимков в сводках.",
+    "contextSummary": "Сводка контекста {{number}}",
+    "contextCopy": "Копировать полную сводку",
+    "contextCopied": "Скопировано",
+    "contextCopyFailed": "Не удалось скопировать. Выделите текст и скопируйте вручную.",
+    "regenerateFailed": "Не удалось сформировать заново: {{message}}"
   },
   "externalMcpModal": {
     "configJson": "JSON конфигурации",
@@ -4757,6 +4807,8 @@
     "deleteRoleConfirm": "Удалить эту роль платформы?",
     "scopeHint": "Область ресурсов и права на операции вместе определяют фактический доступ.",
     "builtinAccount": "Встроенная учётная запись",
+    "protectBuiltinAdminRole": "Встроенный администратор должен сохранять роль admin",
+    "protectBuiltinAdminEnabled": "Встроенного администратора нельзя отключить",
     "statusEnabled": "Включена",
     "statusDisabled": "Отключена",
     "noRoleAssigned": "Роль не назначена",
@@ -5095,5 +5147,14 @@
     "promptRequired": "Введите инструкцию для проверки.",
     "navigationChanged": "Вы переключились на другой диалог. Вернитесь в ветку проверки для отправки инструкции.",
     "branchCreated": "Ветка проверки создана. Продолжите проверку в этой ветке."
+  },
+  "vulnerabilityDownload": {
+    "title": "Скачать отчёт об уязвимости",
+    "hint": "Выберите формат файла",
+    "markdown": "Markdown (.md)",
+    "word": "Word (.docx)",
+    "cancel": "Отмена",
+    "download": "Скачать отчёт об уязвимости",
+    "busy": "Подготовка файла…"
   }
 }

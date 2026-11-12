@@ -50,6 +50,20 @@ func einoSummarizationModelRawErrorText(err error) (string, bool) {
 	return strings.TrimSpace(summaryErr.err.Error()), true
 }
 
+// Output-limit failures need a different prompt, rather than repeating the same
+// overlong summary or accepting truncated text as replacement conversation history.
+type einoSummaryOutputLimitError struct{ err error }
+
+func (e *einoSummaryOutputLimitError) Error() string { return e.err.Error() }
+func (e *einoSummaryOutputLimitError) Unwrap() error { return e.err }
+
+const conciseSummaryRetryInstruction = `The previous summarization request exhausted its output token budget. Generate a new, substantially shorter, complete summary from the original conversation above. Omit the <analysis> block and output only <summary>...</summary>. Preserve authorization, user constraints, confirmed findings, essential technical details, current progress and next steps. Merge repetitions and summarize long logs and asset lists. Do not repeat the full transcript or call tools. Finish all sections and the closing tag within the available output budget.`
+
+func shouldRetryConciseSummary(ctx context.Context, err error) bool {
+	var limitErr *einoSummaryOutputLimitError
+	return ctx.Err() == nil && errors.As(err, &limitErr)
+}
+
 type nonEmptySummaryChatModel struct {
 	base model.BaseChatModel
 }
@@ -59,6 +73,16 @@ func newNonEmptySummaryChatModel(base model.BaseChatModel) model.BaseChatModel {
 }
 
 func (m *nonEmptySummaryChatModel) Generate(ctx context.Context, input []*schema.Message, opts ...model.Option) (*schema.Message, error) {
+	out, err := m.generateOnce(ctx, input, opts...)
+	if !shouldRetryConciseSummary(ctx, err) {
+		return out, err
+	}
+	// Copy the slice: retry instructions must not mutate caller-owned history.
+	retryInput := append(append([]*schema.Message(nil), input...), schema.UserMessage(conciseSummaryRetryInstruction))
+	return m.generateOnce(ctx, retryInput, opts...)
+}
+
+func (m *nonEmptySummaryChatModel) generateOnce(ctx context.Context, input []*schema.Message, opts ...model.Option) (*schema.Message, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, newEinoSummarizationModelError(err)
 	}
@@ -70,11 +94,15 @@ func (m *nonEmptySummaryChatModel) Generate(ctx context.Context, input []*schema
 	if err != nil {
 		return nil, newEinoSummarizationModelError(err)
 	}
+	completionErr := validateClassicSummaryCompletion(out)
+	if shouldRetryConciseSummary(ctx, completionErr) {
+		return nil, newEinoSummarizationModelError(completionErr)
+	}
 	if strings.TrimSpace(classicAssistantTextContent(out)) == "" {
 		return nil, newEinoSummarizationModelError(fmt.Errorf("summary content is empty: %s", classicSummaryEmptyDiagnostics(out)))
 	}
-	if err := validateClassicSummaryCompletion(out); err != nil {
-		return nil, newEinoSummarizationModelError(err)
+	if completionErr != nil {
+		return nil, newEinoSummarizationModelError(completionErr)
 	}
 	return out, nil
 }
@@ -92,6 +120,16 @@ func newNonEmptyAgenticSummaryModel(base model.BaseModel[*schema.AgenticMessage]
 }
 
 func (m *nonEmptyAgenticSummaryModel) Generate(ctx context.Context, input []*schema.AgenticMessage, opts ...model.Option) (*schema.AgenticMessage, error) {
+	out, err := m.generateOnce(ctx, input, opts...)
+	if !shouldRetryConciseSummary(ctx, err) {
+		return out, err
+	}
+	// Copy the slice: retry instructions must not mutate caller-owned history.
+	retryInput := append(append([]*schema.AgenticMessage(nil), input...), schema.UserAgenticMessage(conciseSummaryRetryInstruction))
+	return m.generateOnce(ctx, retryInput, opts...)
+}
+
+func (m *nonEmptyAgenticSummaryModel) generateOnce(ctx context.Context, input []*schema.AgenticMessage, opts ...model.Option) (*schema.AgenticMessage, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, newEinoSummarizationModelError(err)
 	}
@@ -103,11 +141,15 @@ func (m *nonEmptyAgenticSummaryModel) Generate(ctx context.Context, input []*sch
 	if err != nil {
 		return nil, newEinoSummarizationModelError(err)
 	}
+	completionErr := validateAgenticSummaryCompletion(out)
+	if shouldRetryConciseSummary(ctx, completionErr) {
+		return nil, newEinoSummarizationModelError(completionErr)
+	}
 	if strings.TrimSpace(agenticAssistantTextContent(out)) == "" {
 		return nil, newEinoSummarizationModelError(fmt.Errorf("summary content is empty: %s", agenticSummaryEmptyDiagnostics(out)))
 	}
-	if err := validateAgenticSummaryCompletion(out); err != nil {
-		return nil, newEinoSummarizationModelError(err)
+	if completionErr != nil {
+		return nil, newEinoSummarizationModelError(completionErr)
 	}
 	return out, nil
 }
@@ -278,6 +320,9 @@ func validateClassicSummaryCompletion(msg *schema.Message) error {
 	if msg.ResponseMeta != nil {
 		reason = msg.ResponseMeta.FinishReason
 	}
+	if reason == "length" && len(msg.ToolCalls) == 0 {
+		return &einoSummaryOutputLimitError{err: fmt.Errorf("summary did not complete: finish_reason=%q tool_calls=%d", reason, len(msg.ToolCalls))}
+	}
 	if reason != "stop" || len(msg.ToolCalls) != 0 {
 		return fmt.Errorf("summary did not complete: finish_reason=%q tool_calls=%d", reason, len(msg.ToolCalls))
 	}
@@ -290,13 +335,21 @@ func validateAgenticSummaryCompletion(msg *schema.AgenticMessage) error {
 			if ext.FinishReason == "stop" {
 				return nil
 			}
-			return fmt.Errorf("summary did not complete: openai chat finish_reason=%q", ext.FinishReason)
+			err := fmt.Errorf("summary did not complete: openai chat finish_reason=%q", ext.FinishReason)
+			if ext.FinishReason == "length" {
+				return &einoSummaryOutputLimitError{err: err}
+			}
+			return err
 		}
 		if ext := meta.ClaudeExtension; ext != nil {
 			if ext.StopReason == "end_turn" {
 				return nil
 			}
-			return fmt.Errorf("summary did not complete: claude stop_reason=%q", ext.StopReason)
+			err := fmt.Errorf("summary did not complete: claude stop_reason=%q", ext.StopReason)
+			if ext.StopReason == "max_tokens" {
+				return &einoSummaryOutputLimitError{err: err}
+			}
+			return err
 		}
 		if ext := meta.OpenAIExtension; ext != nil {
 			if ext.Status == schemaopenai.ResponseStatusCompleted && ext.Error == nil && ext.IncompleteDetails == nil {

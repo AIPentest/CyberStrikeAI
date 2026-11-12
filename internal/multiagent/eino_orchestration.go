@@ -118,7 +118,7 @@ func buildPlanExecuteAgenticExecutorHandlers(ctx context.Context, a *PlanExecute
 		execHandlers = append(execHandlers, a.AgenticSkillMiddleware)
 	}
 	if a.AppCfg != nil {
-		sumMw, sumErr := newEinoAgenticSummarizationMiddleware(ctx, a.AgenticExecModel, a.AppCfg, a.MwCfg, a.ConversationID, a.DB, a.ProjectID, a.Logger)
+		sumMw, sumErr := newEinoAgenticSummarizationMiddleware(ctx, a.AgenticExecModel, a.AppCfg, a.MwCfg, a.ConversationID, a.DB, a.ProjectID, a.Logger, "plan_execute/executor")
 		if sumErr != nil {
 			return nil, fmt.Errorf("plan_execute agentic executor summarization: %w", sumErr)
 		}
@@ -188,6 +188,7 @@ func planExecuteExecutorGenInput(
 		if err != nil {
 			return nil, err
 		}
+		userMsgs = withPlanExecuteInputProvenance(userMsgs, in.UserInput, appCfg, mwCfg, agent.PlanExecuteExecutorContext)
 		userMsgs = normalizeSingleLeadingSystemMessage(userMsgs, oi)
 		logPlanExecuteModelInputEstimate(logger, modelName, conversationID, "plan_execute_executor_gen_input", userMsgs)
 		return userMsgs, nil
@@ -197,8 +198,10 @@ func planExecuteExecutorGenInput(
 func planExecuteFormatInput(input []adk.Message) string {
 	var sb strings.Builder
 	for _, msg := range input {
-		sb.WriteString(msg.Content)
-		sb.WriteString("\n")
+		if msg == nil {
+			continue
+		}
+		appendTranscriptMessage(&sb, msg)
 	}
 	return sb.String()
 }
@@ -235,6 +238,7 @@ func planExecuteReplannerGenInput(
 		if err != nil {
 			return nil, err
 		}
+		msgs = withPlanExecuteInputProvenance(msgs, in.UserInput, appCfg, mwCfg, agent.PlanExecuteReplannerContext)
 		if rewritten, rerr := applyBeforeModelRewriteHandlers(ctx, msgs, rewriteHandlers); rerr == nil && len(rewritten) > 0 {
 			msgs = rewritten
 		}
@@ -262,11 +266,19 @@ func normalizeSingleLeadingSystemMessage(msgs []adk.Message, extraSystem string)
 		systemParts = append(systemParts, extraSystem)
 	}
 	nonSystem := make([]adk.Message, 0, len(msgs))
+	var ledgerEntries []string
+	ledgerPresent, canonicalLedgerPresent := false, false
 	for _, msg := range msgs {
 		if msg == nil {
 			continue
 		}
 		if msg.Role == schema.System {
+			entries := trustedUserIntentLedgerEntries(msg)
+			if _, hasProvenance := msg.Extra[userIntentLedgerExtraKey]; hasProvenance {
+				ledgerEntries, ledgerPresent, canonicalLedgerPresent = entries, true, true
+			} else if !canonicalLedgerPresent && len(entries) > 0 {
+				ledgerEntries, ledgerPresent = entries, true
+			}
 			if s := strings.TrimSpace(msg.Content); s != "" {
 				systemParts = append(systemParts, s)
 			}
@@ -278,7 +290,11 @@ func normalizeSingleLeadingSystemMessage(msgs []adk.Message, extraSystem string)
 		return nonSystem
 	}
 	out := make([]adk.Message, 0, len(nonSystem)+1)
-	out = append(out, schema.SystemMessage(strings.Join(systemParts, "\n\n")))
+	system := schema.SystemMessage(strings.Join(systemParts, "\n\n"))
+	if ledgerPresent {
+		system.Extra = map[string]interface{}{userIntentLedgerExtraKey: append([]string(nil), ledgerEntries...)}
+	}
+	out = append(out, system)
 	out = append(out, nonSystem...)
 	return out
 }

@@ -58,6 +58,12 @@ func IsSparseFactBody(category, factKey, body string) bool {
 
 // FactBodyTemplate 按 category 返回建议的 body Markdown 骨架（供 Agent 填入真实内容）。
 func FactBodyTemplate(category, factKey string) string {
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(factKey)), "artifact/") {
+		return artifactFactBodyTemplate
+	}
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(factKey)), "test/") || strings.HasPrefix(strings.ToLower(strings.TrimSpace(factKey)), "negative/") {
+		return testResultFactBodyTemplate
+	}
 	if RequiresAttackChainBody(category, factKey) {
 		return attackChainFactBodyTemplate
 	}
@@ -133,3 +139,32 @@ func SparseBodyWarningIfNeeded(category, factKey, body string) string {
 	}
 	return SparseBodyWarning(category, factKey)
 }
+
+const artifactFactBodyTemplate = `## 成果与验证状态
+<用途、适用目标/入口；已验证成功 / 失败 / 未验证>
+
+## 文件与调用
+- 项目工作目录相对路径: artifacts/<文件名>
+- 依赖与版本: <依赖文件、安装/运行环境>
+- 调用方式与可变参数: <命令、输入输出；认证引用 auth/*>
+
+## 验证证据
+<验证时间、原始命令/输出、适用条件；不要从文件存在推断成功>
+
+## 关联
+<来源会话、依赖 fact_key、related_vulnerability_id>`
+
+const testResultFactBodyTemplate = `## 已测条件
+<目标、入口、参数、身份/认证、版本、测试时间>
+
+## 方法与证据
+<请求/命令、响应差异、工具输出；错误/超时须单独标明>
+
+## 结论与边界
+<成功 / 在已测条件下未发现 / 受阻 / 待验证；不扩展到未测试入口>
+
+## 复测触发条件
+<目标/入口/身份/版本变化、原证据不足或用户要求复测>
+
+## 关联
+<来源会话、脚本 artifact/*、相关事实/漏洞 ID>`

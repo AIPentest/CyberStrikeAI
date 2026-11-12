@@ -164,11 +164,21 @@ func TestEinoAgenticChatModelAgentCompactsContextBeforeBusinessModel(t *testing.
 	if strings.Contains(joined, "<analysis>") {
 		t.Fatalf("analysis leaked to business model input:\n%s", joined)
 	}
-	if strings.Count(joined, "原始扫描输出SHOULD_NOT_REACH_BUSINESS_MODEL") > 3 {
+	if strings.Count(stripOriginalUserIntentLedgerFromText(joined), "原始扫描输出SHOULD_NOT_REACH_BUSINESS_MODEL") > 3 {
 		t.Fatalf("raw oversized history leaked to business model input, count=%d", strings.Count(joined, "原始扫描输出SHOULD_NOT_REACH_BUSINESS_MODEL"))
 	}
+	// The synthetic history is a human message: keep its bounded original
+	// prefix in the host ledger, while excluding the oversized transcript from
+	// the business-model working context and persistence.
+	body := userIntentLedgerBlockRegex.FindStringSubmatch(joined)
+	if len(body) < 2 || !strings.Contains(body[1], "授权范围 example.com") || utf8RuneLen(strings.TrimSpace(body[1])) > modelFacingRuneBudget(appCfg.OpenAI.MaxTotalTokens, 0.20) {
+		t.Fatalf("human ledger missing or exceeds current budget: %#v", body)
+	}
+	if utf8RuneLen(joined) >= utf8RuneLen(rawHistory)/10 {
+		t.Fatal("oversized human transcript was reinjected")
+	}
 	traceJoined := joinClassicMessageContent(trace.Snapshot())
-	if !strings.Contains(traceJoined, "继续验证 SQL 注入路径") || strings.Count(traceJoined, "原始扫描输出SHOULD_NOT_REACH_BUSINESS_MODEL") > 3 {
+	if !strings.Contains(traceJoined, "继续验证 SQL 注入路径") || strings.Count(stripOriginalUserIntentLedgerFromText(traceJoined), "原始扫描输出SHOULD_NOT_REACH_BUSINESS_MODEL") > 3 {
 		t.Fatalf("model-facing trace not compacted:\n%s", traceJoined)
 	}
 }

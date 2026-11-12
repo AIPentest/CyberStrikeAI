@@ -10,19 +10,20 @@ import (
 )
 
 // appendEinoAgenticChatModelTailMiddlewares appends protocol-neutral handlers for
-// TypedChatModelAgent[*schema.AgenticMessage]. Classic ReAct history repair
-// handlers stay on the schema.Message path because AgenticMessage has native
-// content blocks for function calls/results.
+// TypedChatModelAgent[*schema.AgenticMessage]. History repair operates
+// directly on native function-call/result blocks without converting protocols.
 func appendEinoAgenticChatModelTailMiddlewares(
 	handlers []adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage],
 	cfg einoChatModelTailConfig,
 ) []adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage] {
 	handlers = append(handlers, newAgenticSystemMessageNormalizerMiddleware(cfg.logger, cfg.phase))
 	handlers = append(handlers, newAgenticContinuationUserDedupMiddleware(cfg.logger, cfg.phase))
+	handlers = append(handlers, newAgenticToolCallArgumentsSanitizerMiddleware(cfg.logger, cfg.phase+"_pre_summarization"))
 	if cfg.agenticSummarization != nil {
 		handlers = append(handlers, newAgenticToolPairReconcilerMiddleware(cfg.logger, cfg.phase+"_pre_summarization"))
 		handlers = append(handlers, cfg.agenticSummarization)
 	}
+	handlers = append(handlers, newAgenticToolCallArgumentsSanitizerMiddleware(cfg.logger, cfg.phase))
 	handlers = append(handlers, newAgenticToolPairReconcilerMiddleware(cfg.logger, cfg.phase))
 	if !cfg.skipOrphanPruner {
 		handlers = append(handlers, newAgenticOrphanToolPrunerMiddleware(cfg.logger, cfg.phase))
@@ -132,12 +133,21 @@ func countAgenticSystemMessages(msgs []*schema.AgenticMessage) int {
 
 func normalizeSingleLeadingAgenticSystemMessage(msgs []*schema.AgenticMessage) []*schema.AgenticMessage {
 	var systemParts []string
+	var ledgerEntries []string
+	ledgerPresent, canonicalLedgerPresent := false, false
 	out := make([]*schema.AgenticMessage, 0, len(msgs))
 	for _, msg := range msgs {
 		if msg == nil {
 			continue
 		}
 		if msg.Role == schema.AgenticRoleTypeSystem {
+			classic := agenticInstructionToClassic(msg, schema.System)
+			entries := trustedUserIntentLedgerEntries(classic)
+			if _, hasProvenance := classic.Extra[userIntentLedgerExtraKey]; hasProvenance {
+				ledgerEntries, ledgerPresent, canonicalLedgerPresent = entries, true, true
+			} else if !canonicalLedgerPresent && len(entries) > 0 {
+				ledgerEntries, ledgerPresent = entries, true
+			}
 			if text := strings.TrimSpace(agenticMessageText(msg)); text != "" {
 				systemParts = append(systemParts, text)
 			}
@@ -149,6 +159,9 @@ func normalizeSingleLeadingAgenticSystemMessage(msgs []*schema.AgenticMessage) [
 		return out
 	}
 	merged := schema.SystemAgenticMessage(strings.Join(systemParts, "\n\n"))
+	if ledgerPresent {
+		merged.Extra = map[string]interface{}{userIntentLedgerExtraKey: append([]string(nil), ledgerEntries...)}
+	}
 	return append([]*schema.AgenticMessage{merged}, out...)
 }
 

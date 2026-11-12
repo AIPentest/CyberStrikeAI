@@ -35,12 +35,17 @@ func (rt *reasoningToolChoiceCompatRoundTripper) RoundTrip(req *http.Request) (*
 		return nil, err
 	}
 
-	patched := body
+	patched, handled, err := patchNativeOpenAIReasoning(req, body, rt.cfg)
+	if err != nil {
+		return nil, err
+	}
 	var perr error
-	if isDeepSeekToolChoiceCompatProfile(rt.cfg) {
-		patched, perr = StripToolChoiceForThinkingMode(body)
-	} else {
-		patched, perr = StripReasoningIfForcedToolChoice(body)
+	if !handled {
+		if isDeepSeekToolChoiceCompatProfile(rt.cfg) {
+			patched, perr = StripToolChoiceForThinkingMode(body)
+		} else {
+			patched, perr = StripReasoningIfForcedToolChoice(body)
+		}
 	}
 	if perr != nil {
 		patched = body

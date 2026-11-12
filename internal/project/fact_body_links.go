@@ -172,17 +172,24 @@ func SyncBodyLinksSection(body string, edges []*database.ProjectFactEdge) string
 }
 
 func formatBodySyncLinksBlock(edges []*database.ProjectFactEdge) string {
-	if len(edges) == 0 {
-		return fmt.Sprintf("- %s:\n  （暂无）", bodySyncLinksHead)
-	}
+	// get_project_fact returns this body verbatim without scope filtering, so
+	// conversation-scoped working memory keys must not be mirrored into a shared fact.
 	var b strings.Builder
 	b.WriteString("- ")
 	b.WriteString(bodySyncLinksHead)
-	b.WriteString(":\n")
+	b.WriteString(":")
+	written := 0
 	for _, e := range edges {
-		b.WriteString(fmt.Sprintf("  - %s: %s\n", e.EdgeType, e.SourceFactKey))
+		if database.IsContextCheckpointKey(e.SourceFactKey) {
+			continue
+		}
+		b.WriteString(fmt.Sprintf("\n  - %s: %s", e.EdgeType, e.SourceFactKey))
+		written++
 	}
-	return strings.TrimRight(b.String(), "\n")
+	if written == 0 {
+		b.WriteString("\n  （暂无）")
+	}
+	return b.String()
 }
 
 // ResolveFactLinksForUpsert 合并显式 links、links_text 与 body 解析结果。

@@ -14,7 +14,9 @@ var factKeyPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._/-]*$`)
 
 // ValidateFactKey 校验事实 key（项目内唯一标识）。
 func ValidateFactKey(key string) error {
-	key = strings.TrimSpace(key)
+	if key != strings.TrimSpace(key) {
+		return fmt.Errorf("fact_key 不允许首尾空白")
+	}
 	if key == "" {
 		return fmt.Errorf("fact_key 不能为空")
 	}
@@ -58,11 +60,70 @@ type ProjectFact struct {
 
 // ProjectFactListFilter 事实列表筛选。
 type ProjectFactListFilter struct {
-	Category               string
-	Confidence             string
-	Search                 string
-	RelatedVulnerabilityID string
-	ExcludeDeprecated      bool // 为 true 时排除 confidence=deprecated
+	Category                   string
+	Confidence                 string
+	Search                     string
+	RelatedVulnerabilityID     string
+	ExcludeDeprecated          bool // 为 true 时排除 confidence=deprecated
+	RestrictContextCheckpoints bool // MCP defaults: hide other/unknown conversation checkpoints before pagination.
+	ContextConversationID      string
+	SourceConversationID       string // Optional provenance filter; it does not widen project or memory scope.
+}
+
+// ContextCheckpointKeyPrefix is reserved for system-generated working memory.
+const ContextCheckpointKeyPrefix = "note/context-"
+
+// IsContextCheckpointKey distinguishes working memory from ordinary shared facts.
+func IsContextCheckpointKey(key string) bool {
+	return strings.HasPrefix(strings.TrimSpace(key), ContextCheckpointKeyPrefix)
+}
+
+// Conversation scope affects only automatic working memory, never ordinary
+// project facts. Unknown origins require an explicit historical read.
+func ContextCheckpointVisible(f *ProjectFact, conversationID string, includeHistory bool) bool {
+	return f != nil && (!IsContextCheckpointKey(f.FactKey) || includeHistory ||
+		(strings.TrimSpace(conversationID) != "" && f.SourceConversationID == strings.TrimSpace(conversationID)))
+}
+
+// SaveContextCheckpoint tests project binding in the same SQLite write statement,
+// so a concurrent conversation rebind cannot slip between a read and an upsert.
+func (db *DB) SaveContextCheckpoint(f *ProjectFact) error {
+	if f == nil || !IsContextCheckpointKey(f.FactKey) || strings.TrimSpace(f.SourceConversationID) == "" {
+		return fmt.Errorf("invalid context checkpoint")
+	}
+	if err := ValidateFactKey(f.FactKey); err != nil {
+		return err
+	}
+	now := time.Now()
+	result, err := db.Exec(`INSERT INTO project_facts
+		(id, project_id, fact_key, category, summary, body, confidence, source_conversation_id, pinned, created_at, updated_at)
+		SELECT ?, ?, ?, 'note', ?, ?, 'tentative', ?, 0, ?, ?
+		WHERE EXISTS (SELECT 1 FROM conversations WHERE id = ? AND project_id = ?)
+		ON CONFLICT(project_id, fact_key) DO UPDATE SET
+		category = 'note', summary = excluded.summary, body = excluded.body,
+		confidence = 'tentative', source_conversation_id = excluded.source_conversation_id,
+		pinned = 0, updated_at = excluded.updated_at`,
+		uuid.New().String(), f.ProjectID, f.FactKey, f.Summary, f.Body, f.SourceConversationID,
+		now, now, f.SourceConversationID, f.ProjectID)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed == 0 {
+		return fmt.Errorf("checkpoint project does not match current conversation binding")
+	}
+	return nil
+}
+
+// Match strings.TrimSpace for legacy keys without migrating or rewriting them.
+const factKeyTrimCharacters = "\t\n\v\f\r \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
+
+func contextCheckpointScopeSQL(conversationID string) (string, []interface{}) {
+	return " AND (substr(trim(fact_key, ?), 1, ?) != ? OR (source_conversation_id = ? AND ? != ''))",
+		[]interface{}{factKeyTrimCharacters, len(ContextCheckpointKeyPrefix), ContextCheckpointKeyPrefix, strings.TrimSpace(conversationID), strings.TrimSpace(conversationID)}
 }
 
 // CreateProject 创建项目。
@@ -336,12 +397,17 @@ func (db *DB) SetConversationProjectID(conversationID, projectID string) error {
 }
 
 // ListProjectFactsForIndex 列出用于黑板索引注入的事实（不含 deprecated，除非 includeDeprecated）。
-func (db *DB) ListProjectFactsForIndex(projectID string, includeDeprecated bool) ([]*ProjectFact, error) {
-	query := `SELECT id, project_id, fact_key, category, summary, COALESCE(body,''), confidence,
+func (db *DB) ListProjectFactsForIndex(projectID string, includeDeprecated bool, conversationIDs ...string) ([]*ProjectFact, error) {
+	query := `SELECT id, project_id, fact_key, category, summary, '', confidence,
 		COALESCE(source_conversation_id,''), COALESCE(source_message_id,''), pinned,
 		COALESCE(related_vulnerability_id,''), created_at, updated_at
 		FROM project_facts WHERE project_id = ?`
 	args := []interface{}{projectID}
+	if len(conversationIDs) > 0 {
+		clause, values := contextCheckpointScopeSQL(conversationIDs[0])
+		query += clause
+		args = append(args, values...)
+	}
 	if !includeDeprecated {
 		query += " AND confidence != 'deprecated'"
 	}
@@ -364,6 +430,15 @@ func (db *DB) ListProjectFacts(projectID string, filter ProjectFactListFilter, l
 		COALESCE(related_vulnerability_id,''), created_at, updated_at
 		FROM project_facts WHERE project_id = ?`
 	args := []interface{}{projectID}
+	if filter.RestrictContextCheckpoints {
+		clause, values := contextCheckpointScopeSQL(filter.ContextConversationID)
+		query += clause
+		args = append(args, values...)
+	}
+	if source := strings.TrimSpace(filter.SourceConversationID); source != "" {
+		query += " AND source_conversation_id = ?"
+		args = append(args, source)
+	}
 	if c := strings.TrimSpace(filter.Category); c != "" {
 		query += " AND category = ?"
 		args = append(args, c)
@@ -428,8 +503,16 @@ func mergeFactBodyOnUpdate(incoming, existing string) string {
 
 // UpsertProjectFact 创建或更新事实（按 project_id + fact_key）。
 func (db *DB) UpsertProjectFact(f *ProjectFact) (*ProjectFact, error) {
-	if err := ValidateFactKey(f.FactKey); err != nil {
-		return nil, err
+	keyErr := ValidateFactKey(f.FactKey)
+	if keyErr != nil && (f.ID == "" || ValidateFactKey(strings.TrimSpace(f.FactKey)) != nil) {
+		return nil, keyErr
+	}
+	existing, err := db.GetProjectFactByKey(f.ProjectID, f.FactKey)
+	// Older versions accepted and stored padded keys. Preserve their exact
+	// identity when editing a loaded record, without allowing new padded keys
+	// or silently renaming historical evidence and its relationship references.
+	if keyErr != nil && (err != nil || existing == nil || existing.ID != f.ID) {
+		return nil, keyErr
 	}
 	if strings.TrimSpace(f.Category) == "" {
 		f.Category = "note"
@@ -439,7 +522,6 @@ func (db *DB) UpsertProjectFact(f *ProjectFact) (*ProjectFact, error) {
 	}
 	now := time.Now()
 
-	existing, err := db.GetProjectFactByKey(f.ProjectID, f.FactKey)
 	if err == nil && existing != nil {
 		f.ID = existing.ID
 		f.CreatedAt = existing.CreatedAt

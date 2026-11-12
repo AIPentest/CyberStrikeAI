@@ -313,13 +313,49 @@ const (
 // 1) ModelFacingTrace（与模型实际入参一致） 2) 事件流累积的 runAccumulatedMsgs 3) 初始 msgs。
 func einoMessagesForRunRestart(args *einoADKRunLoopArgs, baseMsgs, accumulated []adk.Message, baseCount int) ([]adk.Message, einoRunRestartContextSource) {
 	if trace := modelFacingTraceSnapshot(args); len(trace) > 0 {
-		// modelFacingTrace includes prior Instruction system message(s); genModelInput will prepend again.
-		return stripADKSystemMessages(trace), einoRestartContextModelTrace
+		// Drop regenerated instructions while preserving the host-owned human ledger.
+		return messagesForRestartWithHumanLedger(args, trace), einoRestartContextModelTrace
 	}
 	if len(accumulated) > baseCount {
-		return stripADKSystemMessages(accumulated), einoRestartContextAccumulated
+		return messagesForRestartWithHumanLedger(args, accumulated), einoRestartContextAccumulated
 	}
-	return append([]adk.Message(nil), baseMsgs...), einoRestartContextInitial
+	return messagesForRestartWithHumanLedger(args, baseMsgs), einoRestartContextInitial
+}
+
+// messagesForRestartWithHumanLedger removes stale system instructions and project
+// indexes. Only structured host provenance can survive a restart; text that merely
+// resembles a ledger is not a source of original human input.
+func messagesForRestartWithHumanLedger(args *einoADKRunLoopArgs, messages []adk.Message) []adk.Message {
+	var entries []string
+	for _, msg := range messages {
+		if msg == nil || msg.Role != schema.System {
+			continue
+		}
+		if _, present := msg.Extra[userIntentLedgerExtraKey]; present {
+			// Match system normalization: the latest canonical ledger is authoritative,
+			// including an empty/malformed value that must not revive an older ledger.
+			entries = trustedUserIntentLedgerEntries(msg)
+		}
+	}
+	out := stripADKSystemMessages(messages)
+	if len(entries) == 0 {
+		return out
+	}
+	maxRunes := config.DefaultSummarizationUserIntentLedgerMaxRunes
+	entryMax := config.DefaultSummarizationUserIntentLedgerEntryMaxRunes
+	maxTotalTokens := 0
+	if args != nil {
+		maxTotalTokens = args.MaxTotalTokens
+		if args.MiddlewareConfig != nil {
+			maxRunes = args.MiddlewareConfig.SummarizationUserIntentLedgerMaxRunesEffective()
+			entryMax = args.MiddlewareConfig.SummarizationUserIntentLedgerEntryMaxRunesEffective()
+		}
+	}
+	maxRunes = minPositiveInt(maxRunes, modelFacingRuneBudget(maxTotalTokens, 0.20))
+	anchor := schema.SystemMessage("")
+	anchor.Extra = map[string]interface{}{userIntentLedgerExtraKey: entries}
+	ledger := buildOriginalUserIntentLedgerMessage([]adk.Message{anchor}, maxRunes, minPositiveInt(entryMax, maxRunes))
+	return mergeMessageIntoLeadingSystem(out, ledger)
 }
 
 // adkMessagesHasUserContent reports whether the conversation tail is already a user turn

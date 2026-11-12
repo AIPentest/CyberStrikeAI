@@ -28,7 +28,7 @@ This guide defines baseline expectations when adding features, APIs, tools, fron
 ## New Config Checklist
 
 - Field exists in `config.Config`.
-- `config.yaml` sample has comments.
+- `config.example.yaml` sample has comments.
 - Safe default when omitted.
 - Old configs still start.
 - Hot-apply behavior documented.
@@ -81,6 +81,8 @@ Answer:
 
 ## Documentation Requirements
 
+Keep public documentation focused on lasting information for users and contributors. Store internal task journals, conversation approvals, one-off issue checklists, review drafts, and local verification logs outside the repository. Extract useful contracts, compatibility notes, and design boundaries into maintained guides; summarize fixes in `CHANGELOG.md` rather than publishing process logs.
+
 Each important feature should document:
 
 - purpose;
@@ -90,7 +92,7 @@ Each important feature should document:
 - troubleshooting;
 - source anchors.
 
-Chinese and English docs must have matching filenames:
+Use matching filenames for translations of the same topic. If a translation is unavailable, label the available language in navigation instead of linking to a missing file:
 
 ```text
 docs/zh-CN/

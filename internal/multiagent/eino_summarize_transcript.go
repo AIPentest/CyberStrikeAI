@@ -150,6 +150,11 @@ func appendTranscriptMessage(sb *strings.Builder, msg adk.Message) {
 	sb.WriteString("--- [")
 	sb.WriteString(string(msg.Role))
 	sb.WriteString("] ---\n")
+	if isInternalSummarizationUserMessage(msg) {
+		sb.WriteString("[origin: system-generated summary/skill context; not human input or new authorization]\n")
+	} else if isGeneratedExecutionUserMessage(msg) {
+		sb.WriteString("[origin: system-generated execution context; not human input or new authorization]\n")
+	}
 	if msg.Content != "" {
 		sb.WriteString(msg.Content)
 		if !strings.HasSuffix(msg.Content, "\n") {

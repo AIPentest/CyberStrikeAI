@@ -115,6 +115,7 @@ func TestStartupRepairsTablesAndUnlistedColumnsPreservesData(t *testing.T) {
  ALTER TABLE hitl_interrupts DROP COLUMN payload;
  ALTER TABLE hitl_conversation_configs DROP COLUMN reviewer;
  ALTER TABLE model_token_usage DROP COLUMN cached_tokens;
+ ALTER TABLE model_token_usage DROP COLUMN cache_write_tokens;
  ALTER TABLE rbac_users DROP COLUMN display_name;
  ALTER TABLE messages DROP COLUMN reasoning_content;`)
 	db.Close()

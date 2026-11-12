@@ -90,6 +90,9 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 			return nil, fmt.Errorf("无权访问该对话")
 		}
 	}
+	if h.tasks != nil && h.tasks.GetTask(conversationID) != nil {
+		return nil, ErrTaskAlreadyRunning
+	}
 	if err := h.db.SetConversationRoleName(conversationID, req.Role); err != nil {
 		h.logger.Warn("更新对话角色失败", zap.String("conversationId", conversationID), zap.String("role", req.Role), zap.Error(err))
 	}

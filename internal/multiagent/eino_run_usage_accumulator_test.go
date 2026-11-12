@@ -79,3 +79,25 @@ func TestMaxEinoTokenUsageUsesLargestStreamChunkValues(t *testing.T) {
 		t.Fatalf("usage = %#v", got)
 	}
 }
+
+func TestEinoRunUsageCacheWriteDoesNotInflateTotal(t *testing.T) {
+	acc := newEinoRunUsageAccumulator()
+	var stream *schema.TokenUsage
+	for i := 0; i < 2; i++ {
+		stream = maxEinoTokenUsage(stream, &schema.TokenUsage{
+			PromptTokens: 100, CompletionTokens: 20,
+			PromptTokenDetails:      schema.PromptTokenDetails{CachedTokens: 40, CacheWriteTokens: 30},
+			CompletionTokensDetails: schema.CompletionTokensDetails{ReasoningTokens: 10},
+		})
+	}
+	acc.AddUsage(stream)
+	got := acc.Summary()
+	if got.ModelCalls != 1 || got.TotalTokens != 120 || got.CacheWriteTokens != 30 || got.CachedTokens != 40 || got.ReasoningTokens != 10 {
+		t.Fatalf("summary = %#v", got)
+	}
+	var emitted map[string]interface{}
+	acc.EmitOnce("conv", "deep", "final", "claude-test", func(_, _ string, data interface{}) { emitted = data.(map[string]interface{}) }, nil)
+	if emitted["cacheWriteTokens"] != 30 || emitted["totalTokens"] != 120 {
+		t.Fatalf("event = %#v", emitted)
+	}
+}

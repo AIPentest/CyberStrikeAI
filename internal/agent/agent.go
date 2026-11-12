@@ -122,6 +122,11 @@ type ChatMessage struct {
 	// ModelFacingTrace is runtime-only metadata: true means Content was already the exact
 	// payload seen at the model boundary and must be restored byte-for-byte.
 	ModelFacingTrace bool `json:"-"`
+	// Internal provenance is restored from trusted trace metadata, never from
+	// message text. Keep it out of provider request JSON.
+	SummarizationKind         string   `json:"-"`
+	GeneratedContextKind      string   `json:"-"`
+	OriginalUserIntentEntries []string `json:"-"`
 }
 
 // MarshalJSON 自定义JSON序列化，将tool_calls中的arguments转换为JSON字符串

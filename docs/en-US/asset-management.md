@@ -104,6 +104,8 @@ Limits and behavior:
 5. Run the query, select results whose ownership has been verified, and choose **Save Selected**.
 6. Review the created, updated, and skipped counts.
 
+FOFA returns the state/province as `region`, which is saved to the asset province field on import. The legacy `province` alias in saved forms or API return-field lists is converted to `region`; this compatibility applies to returned fields, not query expressions.
+
 Internet search results are not automatically your assets. Narrow the query with organization domains, certificates, network ranges, or product fingerprints, then verify authorization before saving results.
 
 ## Normalization and deduplication

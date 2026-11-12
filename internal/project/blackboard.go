@@ -28,7 +28,7 @@ const (
 )
 
 // BuildFactIndexBlock 为 Agent 系统提示生成项目黑板索引（key + summary + 关系边 + 攻击路径，不含 body）。
-func BuildFactIndexBlock(db *database.DB, projectID string, cfg config.ProjectConfig) (string, error) {
+func BuildFactIndexBlock(db *database.DB, projectID string, cfg config.ProjectConfig, conversationIDs ...string) (string, error) {
 	if db == nil || !cfg.Enabled {
 		return "", nil
 	}
@@ -42,38 +42,74 @@ func BuildFactIndexBlock(db *database.DB, projectID string, cfg config.ProjectCo
 		return "", err
 	}
 
-	facts, err := db.ListProjectFactsForIndex(projectID, cfg.DefaultInjectDeprecated)
+	conversationID := ""
+	if len(conversationIDs) > 0 {
+		conversationID = strings.TrimSpace(conversationIDs[0])
+	}
+	facts, err := db.ListProjectFactsForIndex(projectID, cfg.DefaultInjectDeprecated, conversationID)
 	if err != nil {
 		return "", err
 	}
 	allEdges, _ := db.ListProjectFactEdgesByProject(projectID)
+	allEdges = FilterCheckpointEdges(allEdges, facts)
 	_, incomingByTarget := indexEdgeGroupMaps(allEdges)
+	resume := buildResumeSection(db, projectID, facts)
 
+	maxRunes := cfg.FactIndexMaxRunesEffective()
+	header := fmt.Sprintf("## 项目黑板索引（project: %s, id: %s）\n", indexField(proj.Name), proj.ID)
 	if len(facts) == 0 {
-		return wrapFactIndexBlock(fmt.Sprintf("## 项目黑板索引（project: %s, id: %s）\n（暂无事实）\n%s", proj.Name, proj.ID, factIndexFooterEmpty)), nil
+		content := header + "（暂无事实）\n" + factIndexFooterEmpty
+		if len([]rune(wrapFactIndexBlock(content+"\n\n"+resume))) <= maxRunes {
+			return wrapFactIndexBlock(content + "\n\n" + resume), nil
+		}
+		block := wrapFactIndexBlock(content)
+		if len([]rune(block)) <= maxRunes {
+			return block, nil
+		}
+		return minimalFactIndexBlock(maxRunes), nil
 	}
 
 	sortFactsForIndex(facts)
 
-	maxRunes := cfg.FactIndexMaxRunesEffective()
 	pathMaxRunes := cfg.FactIndexPathMaxRunesEffective()
 	footer := factIndexFooterGetDetail + "\n" + factIndexFooterWriteHint
-	footerRunes := len([]rune(footer))
-	factsBudget := maxRunes - pathMaxRunes - footerRunes
+	// Continuation data shares the host index cap. Reserve space for fact rows;
+	// tiny budgets retain tool retrieval guidance.
+	if len([]rune(resume)) <= maxRunes-len([]rune(wrapFactIndexBlock(header+footer)))-800 {
+		footer += "\n\n" + resume
+	}
+	// Include markers, separators and the worst-case omission notice in the cap.
+	omissionReserve := len([]rune(factIndexOmissionNotice(len(facts))))
+	framingRunes := len([]rune(wrapFactIndexBlock(header+footer))) + omissionReserve
+	available := maxRunes - framingRunes
+	if available <= 0 {
+		return minimalFactIndexBlock(maxRunes), nil
+	}
+	if pathMaxRunes > available {
+		pathMaxRunes = available
+	}
+	factsBudget := available - pathMaxRunes
 	if factsBudget < 800 {
-		factsBudget = maxRunes - footerRunes
+		factsBudget = available
 		pathMaxRunes = 0
 	}
 
 	indexedKeys := make(map[string]struct{}, len(facts))
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("## 项目黑板索引（project: %s, id: %s）\n", proj.Name, proj.ID))
-	used := len([]rune(b.String()))
+	b.WriteString(header)
+	used := 0
 	omitted := 0
 
 	for _, f := range facts {
-		indexedKeys[f.FactKey] = struct{}{}
-		line := fmt.Sprintf("- [%s] %s — %s (%s)", f.FactKey, f.Category, strings.TrimSpace(f.Summary), f.Confidence)
+		// Category and confidence are only defaulted, never validated, so either can
+		// carry a newline that would inject a fake index line into the system prompt.
+		line := fmt.Sprintf("- [%s] %s — %s (%s)", f.FactKey,
+			indexField(f.Category),
+			truncateIndexSummary(indexField(f.Summary), cfg.FactSummaryMaxRunesEffective()),
+			indexField(f.Confidence))
+		if database.IsContextCheckpointKey(f.FactKey) {
+			line += " [当前会话工作记录]"
+		}
 		line += FormatFactIndexLinksHint(f.FactKey, incomingByTarget[f.FactKey])
 		line += "\n"
 		lineRunes := len([]rune(line))
@@ -81,19 +117,62 @@ func BuildFactIndexBlock(db *database.DB, projectID string, cfg config.ProjectCo
 			omitted++
 			continue
 		}
+		indexedKeys[f.FactKey] = struct{}{}
 		b.WriteString(line)
 		used += lineRunes
 	}
 
 	if omitted > 0 {
-		b.WriteString(fmt.Sprintf("\n（另有 %d 条未列入索引，请使用 list_project_facts 或 search_project_facts 查询。）\n", omitted))
+		b.WriteString(factIndexOmissionNotice(omitted))
 	}
 
-	if pathSection := BuildFactPathOverviewSection(allEdges, indexedKeys, pathMaxRunes); pathSection != "" {
+	if pathSection := BuildFactPathOverviewSection(allEdges, indexedKeys, pathMaxRunes-1); pathSection != "" {
 		b.WriteString("\n")
 		b.WriteString(pathSection)
 	}
 
 	b.WriteString(footer)
 	return wrapFactIndexBlock(b.String()), nil
+}
+
+// A hidden checkpoint must not reappear via a visible fact's relationship hint.
+func FilterCheckpointEdges(edges []*database.ProjectFactEdge, visibleFacts []*database.ProjectFact) []*database.ProjectFactEdge {
+	visible := make(map[string]bool)
+	for _, f := range visibleFacts {
+		visible[f.FactKey] = true
+	}
+	var out []*database.ProjectFactEdge
+	for _, e := range edges {
+		if database.IsContextCheckpointKey(e.SourceFactKey) && !visible[e.SourceFactKey] ||
+			database.IsContextCheckpointKey(e.TargetFactKey) && !visible[e.TargetFactKey] {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
+// indexField 压平自由文本事实字段：换行能伪造索引行，宿主定界符能提前闭合索引块。
+func indexField(s string) string {
+	return factIndexSafeText(strings.Join(strings.Fields(s), " "))
+}
+
+func truncateIndexSummary(s string, maxRunes int) string {
+	runes := []rune(s)
+	if maxRunes > 0 && len(runes) > maxRunes {
+		return string(runes[:maxRunes-1]) + "…"
+	}
+	return s
+}
+
+func factIndexOmissionNotice(count int) string {
+	return fmt.Sprintf("\n（另有 %d 条未列入索引，请使用 list_project_facts 或 search_project_facts 查询。）\n", count)
+}
+
+func minimalFactIndexBlock(maxRunes int) string {
+	block := wrapFactIndexBlock("## 项目黑板索引\n索引预算不足；使用 list_project_facts 或 search_project_facts 按需查询。")
+	if len([]rune(block)) > maxRunes {
+		return ""
+	}
+	return block
 }

@@ -182,6 +182,8 @@ func discardPlanningIfEchoesToolResult(respPlan *responsePlanAgg, toolData inter
 
 // AgentHandler Agent处理器
 type AgentHandler struct {
+	asyncWorkers     sync.WaitGroup
+	asyncSubmitMu    sync.Mutex
 	agent            *agent.Agent
 	db               *database.DB
 	logger           *zap.Logger
@@ -2503,13 +2505,12 @@ func (h *AgentHandler) loadHistoryFromAgentTrace(conversationID string) ([]agent
 
 	dataSource := "database_last_agent_trace"
 
-	var messagesArray []map[string]interface{}
-	if err := json.Unmarshal([]byte(traceInputJSON), &messagesArray); err != nil {
+	parsed, err := agent.ParseTraceMessages(traceInputJSON)
+	if err != nil {
 		return nil, fmt.Errorf("解析代理轨迹 JSON 失败: %w", err)
 	}
 
-	messageCount := len(messagesArray)
-	modelFacingTrace := agent.IsModelFacingTraceJSON(traceInputJSON)
+	messageCount := len(parsed)
 
 	h.logger.Info("使用保存的代理轨迹恢复历史上下文",
 		zap.String("conversationId", conversationID),
@@ -2518,97 +2519,7 @@ func (h *AgentHandler) loadHistoryFromAgentTrace(conversationID string) ([]agent
 		zap.Int("messageCount", messageCount),
 		zap.Int("assistantOutSize", len(assistantOut)),
 	)
-	// fmt.Println("messagesArray:", messagesArray)//debug
-
-	// 转换为Agent消息格式
-	agentMessages := make([]agent.ChatMessage, 0, len(messagesArray))
-	for _, msgMap := range messagesArray {
-		msg := agent.ChatMessage{}
-		msg.ModelFacingTrace = modelFacingTrace
-
-		// 解析role
-		if role, ok := msgMap["role"].(string); ok {
-			msg.Role = role
-		} else {
-			continue // 跳过无效消息
-		}
-
-		// 跳过 system 消息（由 Eino Instruction 提供）
-		if msg.Role == "system" {
-			continue
-		}
-
-		// 解析content
-		if content, ok := msgMap["content"].(string); ok {
-			msg.Content = content
-		}
-		// DeepSeek 思考模式：含工具调用的 assistant 须在后续请求中回传 reasoning_content
-		if rc, ok := msgMap["reasoning_content"].(string); ok && strings.TrimSpace(rc) != "" {
-			msg.ReasoningContent = rc
-		}
-
-		// 解析tool_calls（如果存在）
-		if toolCallsRaw, ok := msgMap["tool_calls"]; ok && toolCallsRaw != nil {
-			if toolCallsArray, ok := toolCallsRaw.([]interface{}); ok {
-				msg.ToolCalls = make([]agent.ToolCall, 0, len(toolCallsArray))
-				for _, tcRaw := range toolCallsArray {
-					if tcMap, ok := tcRaw.(map[string]interface{}); ok {
-						toolCall := agent.ToolCall{}
-
-						// 解析ID
-						if id, ok := tcMap["id"].(string); ok {
-							toolCall.ID = id
-						}
-
-						// 解析Type
-						if toolType, ok := tcMap["type"].(string); ok {
-							toolCall.Type = toolType
-						}
-
-						// 解析Function
-						if funcMap, ok := tcMap["function"].(map[string]interface{}); ok {
-							toolCall.Function = agent.FunctionCall{}
-
-							// 解析函数名
-							if name, ok := funcMap["name"].(string); ok {
-								toolCall.Function.Name = name
-							}
-
-							// 解析arguments（可能是字符串或对象）
-							if argsRaw, ok := funcMap["arguments"]; ok {
-								if argsStr, ok := argsRaw.(string); ok {
-									// 如果是字符串，解析为JSON
-									var argsMap map[string]interface{}
-									if err := json.Unmarshal([]byte(argsStr), &argsMap); err == nil {
-										toolCall.Function.Arguments = argsMap
-									}
-								} else if argsMap, ok := argsRaw.(map[string]interface{}); ok {
-									// 如果已经是对象，直接使用
-									toolCall.Function.Arguments = argsMap
-								}
-							}
-						}
-
-						if toolCall.ID != "" {
-							msg.ToolCalls = append(msg.ToolCalls, toolCall)
-						}
-					}
-				}
-			}
-		}
-
-		// 解析tool_call_id（tool角色消息）
-		if toolCallID, ok := msgMap["tool_call_id"].(string); ok {
-			msg.ToolCallID = toolCallID
-		}
-		if tn, ok := msgMap["tool_name"].(string); ok && strings.TrimSpace(tn) != "" {
-			msg.ToolName = strings.TrimSpace(tn)
-		} else if tn, ok := msgMap["name"].(string); ok && strings.TrimSpace(tn) != "" && strings.EqualFold(msg.Role, "tool") {
-			msg.ToolName = strings.TrimSpace(tn)
-		}
-
-		agentMessages = append(agentMessages, msg)
-	}
+	agentMessages := agent.TraceMessagesForResume(parsed)
 
 	// 若存在 last_react_output（助手摘要），合并为最后一条 assistant（与保存格式一致）
 	if assistantOut != "" {

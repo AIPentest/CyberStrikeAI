@@ -1164,6 +1164,9 @@ func (db *DB) UpdateRBACUser(userID, displayName string, enabled *bool, roleIDs 
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := validateBuiltinAdminUpdate(tx, userID, enabled, roleIDs); err != nil {
+		return err
+	}
 	if enabled != nil {
 		if _, err := tx.Exec(`UPDATE rbac_users SET display_name = ?, enabled = ?, updated_at = ? WHERE id = ?`, strings.TrimSpace(displayName), boolToInt(*enabled), time.Now(), userID); err != nil {
 			return err

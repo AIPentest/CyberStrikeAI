@@ -44,6 +44,15 @@ func transformSecretTree(tree, current interface{}, restoring bool) error {
 	case map[string]interface{}:
 		previous, _ := current.(map[string]interface{})
 		for key, value := range node {
+			if key == "headers" {
+				if headers, ok := value.(map[string]interface{}); ok {
+					stored, _ := previous[key].(map[string]interface{})
+					if err := transformHeaderSecrets(headers, stored, restoring); err != nil {
+						return err
+					}
+					continue
+				}
+			}
 			text, isString := value.(string)
 			if secretConfigKey(key) && isString {
 				if !restoring && text != "" {

@@ -3,9 +3,11 @@ package multiagent
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"cyberstrike-ai/internal/config"
@@ -146,5 +148,120 @@ func TestEinoSummarizationModelOptionsSetOnlyMaxCompletionTokens(t *testing.T) {
 	}
 	if got, ok := body["max_completion_tokens"].(float64); !ok || int(got) != outputReserve {
 		t.Fatalf("max_completion_tokens = %#v, want %d", body["max_completion_tokens"], outputReserve)
+	}
+}
+
+// Exercise both production factories and their real SDK options, not just a
+// fake model: a truncated summary must be replaced only by a complete retry.
+func TestSummaryOutputLimitConciseRetry(t *testing.T) {
+	for _, kind := range []string{"classic", "agentic"} {
+		for _, tc := range []struct {
+			name        string
+			firstReason string
+			retryReason string
+			firstText   string
+			wantCalls   int
+			wantErr     bool
+		}{
+			{"complete", "stop", "", "complete summary", 1, false},
+			{"recovers", "length", "stop", "truncated summary", 2, false},
+			{"reasoning_only_recovers", "length", "stop", "", 2, false},
+			{"still_truncated", "length", "length", "truncated summary", 2, true},
+			{"retry_filtered", "length", "content_filter", "truncated summary", 2, true},
+			{"filtered", "content_filter", "", "filtered summary", 1, true},
+			{"missing_completion", "", "", "partial summary", 1, true},
+		} {
+			t.Run(kind+"/"+tc.name, func(t *testing.T) {
+				var calls atomic.Int32
+				bodies := make(chan map[string]any, 3)
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					n := calls.Add(1)
+					var body map[string]any
+					if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+						t.Errorf("decode request: %v", err)
+						w.WriteHeader(400)
+						return
+					}
+					bodies <- body
+					if r.Header.Get("X-CyberStrike-Summarization") != "1" {
+						t.Error("missing summary request header")
+					}
+					text, reason := tc.firstText, tc.firstReason
+					if n > 1 {
+						text, reason = "complete retry summary", tc.retryReason
+					}
+					w.Header().Set("Content-Type", "text/event-stream")
+					fmt.Fprintf(w, "data: {\"id\":\"test\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":%q},\"finish_reason\":null}]}\n\n", text)
+					fmt.Fprintf(w, "data: {\"id\":\"test\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":%q}]}\n\n", reason)
+					fmt.Fprint(w, "data: [DONE]\n\n")
+				}))
+				defer server.Close()
+				oa := config.OpenAIConfig{Provider: "openai", APIKey: "test-key", BaseURL: server.URL, Model: "deepseek-chat", MaxCompletionTokens: 128}
+				const reserve = 512
+				opts := newEinoSummarizationModelOptions(reserve, oa.Model, kind, &oa, nil)
+				ctx := context.Background()
+				var err error
+				var text string
+				if kind == "classic" {
+					base, modelErr := newEinoToolCallingChatModelFactory(server.Client(), nil, nil)(ctx, oa, einoModelModeNormal)
+					if modelErr != nil {
+						t.Fatal(modelErr)
+					}
+					input := []*schema.Message{schema.UserMessage("original conversation")}
+					out, genErr := newNonEmptySummaryChatModel(base).Generate(ctx, input, opts...)
+					err = genErr
+					text = classicAssistantTextContent(out)
+					if len(input) != 1 || input[0].Content != "original conversation" {
+						t.Fatal("mutated original history")
+					}
+				} else {
+					base, modelErr := newEinoAgenticChatModelFactory(server.Client(), nil, nil)(ctx, oa, einoModelModeNormal)
+					if modelErr != nil {
+						t.Fatal(modelErr)
+					}
+					input := []*schema.AgenticMessage{schema.UserAgenticMessage("original conversation")}
+					out, genErr := newNonEmptyAgenticSummaryModel(base).Generate(ctx, input, opts...)
+					err = genErr
+					text = agenticAssistantTextContent(out)
+					if len(input) != 1 {
+						t.Fatal("mutated original history")
+					}
+				}
+				if (err != nil) != tc.wantErr {
+					t.Fatalf("error = %v, wantErr = %v", err, tc.wantErr)
+				}
+				if tc.wantErr && text != "" {
+					t.Fatalf("accepted partial summary %q", text)
+				}
+				if !tc.wantErr && tc.wantCalls == 2 && text != "complete retry summary" {
+					t.Fatalf("summary = %q", text)
+				}
+				if int(calls.Load()) != tc.wantCalls {
+					t.Fatalf("calls = %d, want %d", calls.Load(), tc.wantCalls)
+				}
+				for i := 0; i < tc.wantCalls; i++ {
+					body := <-bodies
+					if body["max_completion_tokens"] != float64(reserve) {
+						t.Fatalf("output budget changed: %#v", body)
+					}
+					if _, ok := body["max_tokens"]; ok {
+						t.Fatal("duplicate output limits")
+					}
+					if _, ok := body["reasoning_effort"]; ok {
+						t.Fatal("reasoning enabled for summary")
+					}
+					msgs := body["messages"].([]any)
+					if i == 1 {
+						last := msgs[len(msgs)-1].(map[string]any)
+						if last["role"] != "user" || !strings.Contains(fmt.Sprint(last["content"]), conciseSummaryRetryInstruction) {
+							t.Fatalf("missing concise retry instruction: %#v", last)
+						}
+						if strings.Contains(fmt.Sprint(msgs), "truncated summary") {
+							t.Fatal("partial response leaked into retry history")
+						}
+					}
+				}
+			})
+		}
 	}
 }

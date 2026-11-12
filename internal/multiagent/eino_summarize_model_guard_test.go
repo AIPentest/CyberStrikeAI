@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -208,13 +209,15 @@ func TestSummaryStreamFailuresDoNotReturnPartialSummary(t *testing.T) {
 }
 
 func TestClaudeSummaryLargeBudgetStreamsThroughNativeSDK(t *testing.T) {
-	for _, mode := range []string{"complete", "truncated", "early_eof", "cancel_read"} {
+	for _, mode := range []string{"complete", "recovers", "truncated", "early_eof", "cancel_read"} {
 		t.Run(mode, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			started := make(chan struct{})
+			var requests atomic.Int32
 
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				request := requests.Add(1)
 				var body struct {
 					Stream    bool `json:"stream"`
 					MaxTokens int  `json:"max_tokens"`
@@ -240,6 +243,10 @@ func TestClaudeSummaryLargeBudgetStreamsThroughNativeSDK(t *testing.T) {
 					`{"type":"message_stop"}`,
 				}
 				switch mode {
+				case "recovers":
+					if request == 1 {
+						events[5] = strings.ReplaceAll(events[5], "end_turn", "max_tokens")
+					}
 				case "truncated":
 					events[5] = strings.ReplaceAll(events[5], "end_turn", "max_tokens")
 				case "early_eof", "cancel_read":
@@ -283,7 +290,14 @@ func TestClaudeSummaryLargeBudgetStreamsThroughNativeSDK(t *testing.T) {
 				defer timer.Stop()
 			}
 			out, err := newNonEmptyAgenticSummaryModel(native).Generate(ctx, input, opts...)
-			if mode != "complete" {
+			wantRequests := int32(1)
+			if mode == "recovers" || mode == "truncated" {
+				wantRequests = 2
+			}
+			if requests.Load() != wantRequests {
+				t.Fatalf("requests=%d, want %d", requests.Load(), wantRequests)
+			}
+			if mode != "complete" && mode != "recovers" {
 				if out != nil || err == nil {
 					t.Fatalf("accepted partial summary: out=%+v err=%v", out, err)
 				}

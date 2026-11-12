@@ -53,6 +53,8 @@ Frontend button hiding is only a usability feature. The server is the security b
 
 System roles cannot be edited or deleted. Their grants are rebuilt from the current permission catalog during upgrade, preventing stale grants from older versions. Create custom roles for different job functions.
 
+The built-in `admin` account is the permanent management fallback. It cannot be disabled, deleted, or stripped of its system `admin` role. These updates are rejected through both the UI and API, preserving the account details, permissions, and valid sessions. Display name and password updates, and role changes that retain `admin`, remain available. Other accounts can still be disabled or have their roles changed. This protection does not automatically repair previously missing role bindings.
+
 An account without a role can still authenticate but has almost no business capability; do not treat “no role” as a complete job profile.
 
 ---

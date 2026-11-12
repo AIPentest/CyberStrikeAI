@@ -435,7 +435,7 @@ test('the console lives inside the settings page as its own section', () => {
 
     // Both hash entry points carry the alias, and the retired page id is gone from the whitelists:
     // #system-update has to land on 系统设置 with its update section selected.
-    const aliases = [...router.matchAll(/const settingsSection = pageId === 'system-update' \? 'update' : '';/g)];
+    const aliases = [...router.matchAll(/const settingsSection = pageId === 'system-update' \? 'update' : /g)];
     assert.equal(aliases.length, 2, 'both hash parsers must normalize #system-update into the settings section');
     const selects = [...router.matchAll(/if \(settingsSection && typeof switchSettingsSection === 'function'\) \{[\s\S]{0,80}?switchSettingsSection\(settingsSection\);/g)];
     assert.equal(selects.length, 2, 'both hash paths must open the update section after switching the page');

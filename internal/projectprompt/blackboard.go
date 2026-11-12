@@ -62,6 +62,7 @@ func factRecordingGuidanceBlock() string {
 - **category / fact_key 建议**：
   - 环境认知：` + "`target/`" + `、` + "`auth/`" + `、` + "`infra/`" + `、` + "`business/`" + `（body 用环境模板即可）
   - 发现与利用：` + "`finding/`" + `、` + "`chain/`" + `、` + "`exploit/`" + `、` + "`poc/`" + `（**必须**用攻击链模板填满 body：入口、逐步攻击链、原始请求/响应或命令、证据、关联漏洞 ID）
+- **自动续接记录**：` + "`note/context-*`" + ` 是系统保留的会话工作摘要，不是项目已确认事实，禁止用 upsert_project_fact 覆盖该前缀。默认索引和事实工具只提供当前会话的续接记录，项目普通事实仍共享。需跨会话参考时，显式用 list_project_facts / search_project_facts / get_project_fact 的 include_history=true；列表和搜索可用 source_conversation_id 缩小来源范围。历史返回标注来源会话、更新时间及历史参考，核对当前授权、目标和凭据有效性，勿自动执行旧任务或将旧摘要当作已确认发现。缺少精确值时按正文中的快照路径分段回读，不猜测原值。同一会话/代理更新同一 key；需沉淀已核实的共享事实时另用独立 finding/auth 等 key，保留来源证据。
 - **与漏洞记录分工**：` + "`record_vulnerability`" + ` 记可交付 findings；事实记**复现所需的全部上下文**（含失败尝试、绕过、依赖会话），二者可各记一次。
 - 更新同一发现时保持相同 ` + "`fact_key`" + ` 覆盖写入，勿散落多个 key 导致上下文丢失。`
 }
@@ -103,7 +104,7 @@ func FactRecordingBlackboardSection(coordinatorDelegate bool) string {
 
 // FactRecordingSubAgentSection 子代理边渗透边记录（无工具时输出待落库条目）。
 func FactRecordingSubAgentSection() string {
-	return "## 边渗透边记录\n\n" + factRecordingIncrementalRhythmBuiltin(false, true) + "\n"
+	return "## 边渗透边记录\n\n" + ProjectResultRecordingGuidance() + "\n\n" + factRecordingIncrementalRhythmBuiltin(false, true) + "\n"
 }
 
 // FactRecordingBlackboardSectionMarkdown 与 FactRecordingBlackboardSection 等价的 Markdown（工具名为字面量，供 agents/*.md）。

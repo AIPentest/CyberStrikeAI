@@ -4945,6 +4945,7 @@ function normalizeAssistantTurnTokenUsage(data) {
         completionTokens: assistantTurnUsageNumber(source.completionTokens),
         totalTokens: assistantTurnUsageNumber(source.totalTokens),
         cachedTokens: assistantTurnUsageNumber(source.cachedTokens),
+        cacheWriteTokens: assistantTurnUsageNumber(source.cacheWriteTokens),
         reasoningTokens: assistantTurnUsageNumber(source.reasoningTokens),
         model: source.model != null ? String(source.model).trim() : ''
     };
@@ -4962,6 +4963,7 @@ function mergeAssistantTurnTokenUsage(target, usage) {
         completionTokens: 0,
         totalTokens: 0,
         cachedTokens: 0,
+        cacheWriteTokens: 0,
         reasoningTokens: 0,
         model: ''
     };
@@ -4970,6 +4972,7 @@ function mergeAssistantTurnTokenUsage(target, usage) {
     out.completionTokens += usage.completionTokens || 0;
     out.totalTokens += usage.totalTokens || 0;
     out.cachedTokens += usage.cachedTokens || 0;
+    out.cacheWriteTokens += usage.cacheWriteTokens || 0;
     out.reasoningTokens += usage.reasoningTokens || 0;
     if (!out.model && usage.model) out.model = usage.model;
     return out.totalTokens > 0 ? out : null;
@@ -4998,6 +5001,7 @@ function setAssistantTurnTokenUsage(messageElementOrId, usage) {
         delete messageElement.dataset.turnCompletionTokens;
         delete messageElement.dataset.turnTotalTokens;
         delete messageElement.dataset.turnCachedTokens;
+        delete messageElement.dataset.turnCacheWriteTokens;
         delete messageElement.dataset.turnReasoningTokens;
         delete messageElement.dataset.turnModel;
         syncAssistantTurnSummary(messageElement);
@@ -5008,6 +5012,7 @@ function setAssistantTurnTokenUsage(messageElementOrId, usage) {
     messageElement.dataset.turnCompletionTokens = String(normalized.completionTokens || 0);
     messageElement.dataset.turnTotalTokens = String(normalized.totalTokens || 0);
     messageElement.dataset.turnCachedTokens = String(normalized.cachedTokens || 0);
+    messageElement.dataset.turnCacheWriteTokens = String(normalized.cacheWriteTokens || 0);
     messageElement.dataset.turnReasoningTokens = String(normalized.reasoningTokens || 0);
     if (normalized.model) {
         messageElement.dataset.turnModel = normalized.model;
@@ -5025,6 +5030,7 @@ function getAssistantTurnTokenUsage(messageElement) {
         completionTokens: messageElement.dataset.turnCompletionTokens,
         totalTokens: messageElement.dataset.turnTotalTokens,
         cachedTokens: messageElement.dataset.turnCachedTokens,
+        cacheWriteTokens: messageElement.dataset.turnCacheWriteTokens,
         reasoningTokens: messageElement.dataset.turnReasoningTokens,
         model: messageElement.dataset.turnModel
     });
@@ -5051,6 +5057,7 @@ function formatAssistantTurnTokenUsageTitle(usage) {
         prompt: formatAssistantTurnTokenCount(safeUsage.promptTokens),
         completion: formatAssistantTurnTokenCount(safeUsage.completionTokens),
         cached: formatAssistantTurnTokenCount(safeUsage.cachedTokens),
+        cacheWrite: formatAssistantTurnTokenCount(safeUsage.cacheWriteTokens),
         reasoning: formatAssistantTurnTokenCount(safeUsage.reasoningTokens),
         calls: formatAssistantTurnTokenCount(safeUsage.modelCalls),
         model: safeUsage.model || ''
@@ -6853,6 +6860,26 @@ function updateActiveConversation() {
 
 // ==================== 攻击链可视化功能 ====================
 
+let attackChainRequestSequence = 0;
+const attackChainRequestOwners = new Map();
+
+function beginAttackChainRequest(conversationId) {
+    const requestSequence = ++attackChainRequestSequence;
+    attackChainRequestOwners.set(conversationId, requestSequence);
+    return requestSequence;
+}
+
+function isCurrentAttackChainRequest(conversationId, requestSequence) {
+    return currentAttackChainConversationId === conversationId && attackChainRequestSequence === requestSequence;
+}
+
+function finishAttackChainRequest(conversationId, requestSequence) {
+    if (attackChainRequestOwners.get(conversationId) === requestSequence) {
+        attackChainRequestOwners.delete(conversationId);
+        setAttackChainLoading(conversationId, false);
+    }
+}
+
 // 生成节点图标的 data URL（用于 Cytoscape background-image）
 // 返回一个精美的渐变色方块 + 白色矢量图标
 function _acBuildNodeIconDataUrl(iconType, color, colorDark) {
@@ -6919,6 +6946,29 @@ function updateAttackChainAvailability() {
     addAttackChainButton(currentConversationId);
 }
 
+function resetAttackChainContext() {
+    if (attackChainCytoscape) {
+        attackChainCytoscape.destroy();
+        attackChainCytoscape = null;
+    }
+    window.attackChainOriginalData = null;
+    if (window.CyberStrikeAttackChainContext) window.CyberStrikeAttackChainContext.clear();
+}
+
+function renderAttackChainError(container, message) {
+    if (!container) return;
+    const errorElement = document.createElement('div');
+    errorElement.className = 'error-message';
+    errorElement.textContent = message;
+    container.replaceChildren(errorElement);
+}
+
+// window.t escapes interpolation for innerHTML; these go to textContent, so opt out.
+function attackChainFailureText(key, fallbackPrefix, message) {
+    if (typeof window.t !== 'function') return fallbackPrefix + message;
+    return window.t(key, { message, interpolation: { escapeValue: false } });
+}
+
 // 显示攻击链模态框
 async function showAttackChain(conversationId) {
     // 如果当前显示的对话ID不同，或者没有在加载，允许打开
@@ -6933,6 +6983,11 @@ async function showAttackChain(conversationId) {
     }
 
     currentAttackChainConversationId = conversationId;
+    // Reopening or returning to a conversation starts a fresh view, even if an old request is pending.
+    attackChainRequestSequence += 1;
+    attackChainRequestOwners.delete(conversationId);
+    setAttackChainLoading(conversationId, false);
+    resetAttackChainContext();
     const modal = document.getElementById('attack-chain-modal');
     if (!modal) {
         console.error('攻击链模态框未找到');
@@ -6953,6 +7008,8 @@ async function showAttackChain(conversationId) {
     if (detailsPanel) {
         detailsPanel.style.display = 'none';
     }
+    const sidebar = document.querySelector('.attack-chain-sidebar');
+    if (sidebar) sidebar.classList.remove('details-active');
 
     // 禁用重新生成按钮
     const regenerateBtn = document.querySelector('button[onclick="regenerateAttackChain()"]');
@@ -6973,14 +7030,26 @@ async function loadAttackChain(conversationId) {
     }
 
     setAttackChainLoading(conversationId, true);
+    const requestSequence = beginAttackChainRequest(conversationId);
+    if (currentAttackChainConversationId === conversationId) {
+        resetAttackChainContext();
+        const container = document.getElementById('attack-chain-container');
+        if (container) {
+            container.innerHTML = '<div class="loading-spinner">' + (typeof window.t === 'function' ? window.t('chat.loading') : '加载中...') + '</div>';
+        }
+    }
 
     try {
         const response = await apiFetch(`/api/attack-chain/${conversationId}`);
 
+        if (!isCurrentAttackChainRequest(conversationId, requestSequence)) {
+            finishAttackChainRequest(conversationId, requestSequence);
+            return;
+        }
+
         if (!response.ok) {
             // 处理 409 Conflict（正在生成中）
             if (response.status === 409) {
-                const error = await response.json();
                 const container = document.getElementById('attack-chain-container');
                 if (container) {
                     container.innerHTML = `
@@ -6999,7 +7068,7 @@ async function loadAttackChain(conversationId) {
                 // 使用闭包保存 conversationId，防止串台
                 setTimeout(() => {
                     // 检查当前显示的对话ID是否匹配
-                    if (currentAttackChainConversationId === conversationId) {
+                    if (isCurrentAttackChainRequest(conversationId, requestSequence)) {
                         refreshAttackChain();
                     }
                 }, 5000);
@@ -7023,12 +7092,12 @@ async function loadAttackChain(conversationId) {
         const chainData = await response.json();
 
         // 检查当前显示的对话ID是否匹配，防止串台
-        if (currentAttackChainConversationId !== conversationId) {
+        if (!isCurrentAttackChainRequest(conversationId, requestSequence)) {
             console.log('攻击链数据已返回，但当前显示的对话已切换，忽略此次渲染', {
                 returned: conversationId,
                 current: currentAttackChainConversationId
             });
-            setAttackChainLoading(conversationId, false);
+            finishAttackChainRequest(conversationId, requestSequence);
             return;
         }
 
@@ -7039,20 +7108,20 @@ async function loadAttackChain(conversationId) {
         updateAttackChainStats(chainData);
 
         // 成功加载后，重置加载状态
-        setAttackChainLoading(conversationId, false);
+        finishAttackChainRequest(conversationId, requestSequence);
 
     } catch (error) {
         console.error('加载攻击链失败:', error);
-        const container = document.getElementById('attack-chain-container');
-        if (container) {
-            container.innerHTML = '<div class="error-message">' + (typeof window.t === 'function' ? window.t('chat.loadFailed', { message: error.message }) : '加载失败: ' + error.message) + '</div>';
-        }
         // 错误时也重置加载状态
-        setAttackChainLoading(conversationId, false);
+        finishAttackChainRequest(conversationId, requestSequence);
+        if (!isCurrentAttackChainRequest(conversationId, requestSequence)) return;
+        resetAttackChainContext();
+        renderAttackChainError(document.getElementById('attack-chain-container'),
+            attackChainFailureText('chat.loadFailed', '加载失败: ', error.message));
     } finally {
         // 恢复重新生成按钮
         const regenerateBtn = document.querySelector('button[onclick="regenerateAttackChain()"]');
-        if (regenerateBtn) {
+        if (regenerateBtn && isCurrentAttackChainRequest(conversationId, requestSequence)) {
             regenerateBtn.disabled = false;
             regenerateBtn.style.opacity = '1';
             regenerateBtn.style.cursor = 'pointer';
@@ -7062,6 +7131,12 @@ async function loadAttackChain(conversationId) {
 
 // 渲染攻击链
 function renderAttackChain(chainData) {
+    if (attackChainCytoscape) {
+        attackChainCytoscape.destroy();
+        attackChainCytoscape = null;
+    }
+    window.attackChainOriginalData = chainData;
+    if (window.CyberStrikeAttackChainContext) window.CyberStrikeAttackChainContext.render(chainData);
     const container = document.getElementById('attack-chain-container');
     if (!container) {
         return;
@@ -7674,8 +7749,6 @@ function renderAttackChain(chainData) {
         attackChainCytoscape.edges().style({ 'opacity': 0.88, 'width': '' });
     });
 
-    // 保存原始数据用于过滤
-    window.attackChainOriginalData = chainData;
 }
 
 // 安全地获取边的源节点和目标节点
@@ -8099,15 +8172,13 @@ function closeNodeDetails() {
 // 关闭攻击链模态框
 function closeAttackChainModal() {
     closeAppModal('attack-chain-modal');
+    attackChainRequestSequence += 1;
+    attackChainRequestOwners.delete(currentAttackChainConversationId);
+    setAttackChainLoading(currentAttackChainConversationId, false);
+    resetAttackChainContext();
 
     // 关闭节点详情
     closeNodeDetails();
-
-    // 清理Cytoscape实例
-    if (attackChainCytoscape) {
-        attackChainCytoscape.destroy();
-        attackChainCytoscape = null;
-    }
 
     currentAttackChainConversationId = null;
 }
@@ -8146,6 +8217,8 @@ async function regenerateAttackChain() {
     // 保存请求时的对话ID，防止串台
     const savedConversationId = currentAttackChainConversationId;
     setAttackChainLoading(savedConversationId, true);
+    const requestSequence = beginAttackChainRequest(savedConversationId);
+    resetAttackChainContext();
 
     const container = document.getElementById('attack-chain-container');
     if (container) {
@@ -8166,10 +8239,11 @@ async function regenerateAttackChain() {
             method: 'POST'
         });
 
+        if (!isCurrentAttackChainRequest(savedConversationId, requestSequence)) return;
+
         if (!response.ok) {
             // 处理 409 Conflict（正在生成中）
             if (response.status === 409) {
-                const error = await response.json();
                 if (container) {
                     container.innerHTML = `
                         <div class="loading-spinner" style="text-align: center; padding: 40px;">
@@ -8186,9 +8260,8 @@ async function regenerateAttackChain() {
                 // 5秒后自动刷新
                 // savedConversationId 已在函数开始处定义
                 setTimeout(() => {
-                    // 检查当前显示的对话ID是否匹配，且仍在加载中
-                    if (currentAttackChainConversationId === savedConversationId &&
-                        isAttackChainLoading(savedConversationId)) {
+                    // Only this view's latest request may start another refresh.
+                    if (isCurrentAttackChainRequest(savedConversationId, requestSequence)) {
                         refreshAttackChain();
                     }
                 }, 5000);
@@ -8202,12 +8275,12 @@ async function regenerateAttackChain() {
         const chainData = await response.json();
 
         // 检查当前显示的对话ID是否匹配，防止串台
-        if (currentAttackChainConversationId !== savedConversationId) {
+        if (!isCurrentAttackChainRequest(savedConversationId, requestSequence)) {
             console.log('攻击链数据已返回，但当前显示的对话已切换，忽略此次渲染', {
                 returned: savedConversationId,
                 current: currentAttackChainConversationId
             });
-            setAttackChainLoading(savedConversationId, false);
+            finishAttackChainRequest(savedConversationId, requestSequence);
             return;
         }
 
@@ -8219,14 +8292,15 @@ async function regenerateAttackChain() {
 
     } catch (error) {
         console.error('重新生成攻击链失败:', error);
-        if (container) {
-            container.innerHTML = `<div class="error-message">重新生成失败: ${error.message}</div>`;
-        }
+        if (!isCurrentAttackChainRequest(savedConversationId, requestSequence)) return;
+        resetAttackChainContext();
+        renderAttackChainError(container,
+            attackChainFailureText('attackChainModal.regenerateFailed', '重新生成失败: ', error.message));
     } finally {
-        setAttackChainLoading(savedConversationId, false);
+        finishAttackChainRequest(savedConversationId, requestSequence);
 
         // 恢复重新生成按钮
-        if (regenerateBtn) {
+        if (regenerateBtn && isCurrentAttackChainRequest(savedConversationId, requestSequence)) {
             regenerateBtn.disabled = false;
             regenerateBtn.style.opacity = '1';
             regenerateBtn.style.cursor = 'pointer';
@@ -9849,6 +9923,7 @@ function renderConversationsPagination(visibleCount) {
     if (!total) {
         el.innerHTML = '';
         el.hidden = true;
+        if (typeof initPaginationSelects === 'function') initPaginationSelects(el);
         return;
     }
 
@@ -9889,6 +9964,7 @@ function renderConversationsPagination(visibleCount) {
                 </select>
             </label>
         </div>`;
+        if (typeof initPaginationSelects === 'function') initPaginationSelects(el);
     } finally {
         conversationsPaginationRenderLock = false;
     }

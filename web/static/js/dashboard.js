@@ -162,7 +162,7 @@ async function refreshDashboard() {
             fetchJson(dashboardProjectScopedUrl('/api/c2/tasks?page=1&page_size=1')),
             fetchJson('/api/projects/dashboard-summary?fact_limit=10'),
             selectedSeverityStatus ? fetchJson('/api/vulnerabilities/stats?status=' + encodeURIComponent(selectedSeverityStatus)) : Promise.resolve(null),
-            fetchJson(dashboardProjectScopedUrl('/api/usage/tokens?days=7&limit=5'))
+            fetchJson(dashboardProjectScopedUrl('/api/usage/tokens?days=7&limit=20'))
         ]);
 
         // 如果在 await 期间 controller 已被 abort，说明又有新刷新启动了，丢弃本次结果
@@ -441,6 +441,7 @@ async function refreshDashboard() {
         setEl('dashboard-kpi-success-rate', '-');
         setEl('dashboard-kpi-tools-calls', '-');
         setEl('dashboard-kpi-token-usage', '-');
+        setKpiSubText('dashboard-kpi-token-sub-text', '-');
         setKpiSubText('dashboard-kpi-tasks-sub-text', '-');
         setKpiSubText('dashboard-kpi-vuln-sub-text', '-');
         setKpiSubText('dashboard-kpi-tools-sub-text', '-');
@@ -714,9 +715,8 @@ function renderDashboardTokenUsage(res) {
         setKpiSubText('dashboard-kpi-token-sub-text', '-');
         return;
     }
+    const cacheRate = tokenUsageCacheRate(summary);
     const total = Number(summary.totalTokens || 0);
-    const calls = Number(summary.modelCalls || 0);
-    const today = res && res.today ? Number(res.today.totalTokens || 0) : 0;
     if (!Number.isFinite(total) || total <= 0) {
         setEl('dashboard-kpi-token-usage', '0');
         setKpiSubText('dashboard-kpi-token-sub-text', dt('dashboard.noTokenUsageYet', null, '暂无用量'));
@@ -725,9 +725,8 @@ function renderDashboardTokenUsage(res) {
     setEl('dashboard-kpi-token-usage', formatTokenUsageCompact(total));
     setKpiSubText('dashboard-kpi-token-sub-text',
         dt('dashboard.tokenUsageSub', {
-            today: formatTokenUsageCompact(today),
-            calls: Number.isFinite(calls) ? calls : 0
-        }, '近 7 天 ' + (Number.isFinite(calls) ? calls : 0) + ' 次调用 · 今日 ' + formatTokenUsageCompact(today)));
+            rate: cacheRate
+        }, '缓存命中 ' + cacheRate));
 }
 
 function formatTokenUsageCompact(num) {

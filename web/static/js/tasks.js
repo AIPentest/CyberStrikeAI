@@ -1687,6 +1687,7 @@ function renderBatchQueuesPagination() {
     // 即使只有一页也显示分页信息（与 MCP 监控一致）
     if (total === 0) {
         paginationContainer.innerHTML = '';
+        if (typeof initPaginationSelects === 'function') initPaginationSelects(paginationContainer);
         return;
     }
     
@@ -1726,6 +1727,7 @@ function renderBatchQueuesPagination() {
     paginationHTML += '</div>';
     
     paginationContainer.innerHTML = paginationHTML;
+    if (typeof initPaginationSelects === 'function') initPaginationSelects(paginationContainer);
 }
 
 // 跳转到指定页面

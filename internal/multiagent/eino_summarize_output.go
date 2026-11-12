@@ -2,8 +2,11 @@ package multiagent
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
+
+	"cyberstrike-ai/internal/agent"
 
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/schema"
@@ -19,7 +22,9 @@ var (
 const (
 	userIntentLedgerStartMarker = "<original_user_intent_ledger>"
 	userIntentLedgerEndMarker   = "</original_user_intent_ledger>"
+	userIntentLedgerExtraKey    = agent.OriginalUserIntentEntriesKey
 
+	summarizationSnapshotHeading             = "## 原始上下文快照"
 	summarizationTranscriptPathInstructionZh = "如果你需要压缩之前的具体细节（如精确的代码片段、错误消息或你生成的内容），完整的对话记录位于：%s"
 )
 
@@ -69,9 +74,9 @@ func appendTranscriptPathToSummarizationMessage(msg adk.Message, transcriptPath 
 	if msg == nil || transcriptPath == "" {
 		return msg
 	}
-	section := fmt.Sprintf(summarizationTranscriptPathInstructionZh, transcriptPath)
+	section := summarizationTranscriptRetrievalSection(transcriptPath)
 	cloned := *msg
-	if cloned.Content != "" && !strings.Contains(cloned.Content, transcriptPath) {
+	if cloned.Content != "" && !strings.Contains(cloned.Content, section) {
 		cloned.Content = appendSummarizationSection(cloned.Content, section)
 	}
 	if len(cloned.UserInputMultiContent) > 0 {
@@ -81,7 +86,7 @@ func appendTranscriptPathToSummarizationMessage(msg adk.Message, transcriptPath 
 			if parts[i].Type != schema.ChatMessagePartTypeText {
 				continue
 			}
-			if parts[i].Text != "" && !strings.Contains(parts[i].Text, transcriptPath) {
+			if parts[i].Text != "" && !strings.Contains(parts[i].Text, section) {
 				parts[i].Text = appendSummarizationSection(parts[i].Text, section)
 			}
 			break
@@ -89,6 +94,14 @@ func appendTranscriptPathToSummarizationMessage(msg adk.Message, transcriptPath 
 		cloned.UserInputMultiContent = parts
 	}
 	return &cloned
+}
+
+// The generated continuation summary is the retrieval entry point; no separate
+// keyword index or model extraction call is needed.
+func summarizationTranscriptRetrievalSection(snapshot string) string {
+	return summarizationSnapshotHeading + "\n" + fmt.Sprintf(summarizationTranscriptPathInstructionZh, snapshot) +
+		"\n历史快照目录：" + filepath.Dir(snapshot) +
+		"\n当前任务缺少 Cookie、认证信息、精确参数或错误原文时，直接搜索该快照并用 read_file 分段核对附近记录；不要猜测原值。更早的记录可用 glob 在历史快照目录查找 transcript-*.txt，再按需读取。核对来源域名、请求及凭据是否仍有效；不要整批载入历史，也不要将旧记录当作新授权。"
 }
 
 func appendSummarizationSection(text, section string) string {
@@ -129,7 +142,9 @@ func buildOriginalUserIntentLedgerMessage(originalMessages []adk.Message, maxRun
 	if strings.TrimSpace(ledger) == "" {
 		return nil
 	}
-	return schema.SystemMessage(wrapUserIntentLedger(ledger))
+	msg := schema.SystemMessage(wrapUserIntentLedger(ledger))
+	msg.Extra = map[string]interface{}{userIntentLedgerExtraKey: extractExistingUserIntentLedgerEntries(msg.Content)}
+	return msg
 }
 
 func mergeMessageIntoLeadingSystem(msgs []adk.Message, msg adk.Message) []adk.Message {
@@ -141,6 +156,13 @@ func mergeMessageIntoLeadingSystem(msgs []adk.Message, msg adk.Message) []adk.Me
 			continue
 		}
 		cloned := *existing
+		cloned.Extra = cloneAnyMap(existing.Extra)
+		if cloned.Extra == nil {
+			cloned.Extra = make(map[string]interface{})
+		}
+		for key, value := range msg.Extra {
+			cloned.Extra[key] = value
+		}
 		cloned.Content = strings.TrimSpace(strings.TrimSpace(cloned.Content) + "\n\n" + strings.TrimSpace(msg.Content))
 		out := make([]adk.Message, len(msgs))
 		copy(out, msgs)
@@ -187,16 +209,50 @@ func buildOriginalUserIntentLedger(msgs []adk.Message, maxRunes, entryMaxRunes i
 	if len(entries) == 0 {
 		return ""
 	}
-	var sb strings.Builder
+	var lines []string
+	used := 0
 	for i, entry := range entries {
-		line := fmt.Sprintf("- [U%03d] %s\n", i+1, sanitizeUserIntentLedgerEntry(entry, entryMaxRunes))
-		if maxRunes > 0 && utf8RuneLen(sb.String())+utf8RuneLen(line) > maxRunes {
-			sb.WriteString("- [...truncated] 用户原始输入账本超过预算；完整压缩前记录见 summarization transcript。\n")
+		prefix := fmt.Sprintf("- [U%03d] ", i+1)
+		text := sanitizeUserIntentLedgerEntry(entry, entryMaxRunes)
+		line := prefix + text
+		separator := 0
+		if len(lines) > 0 {
+			separator = 1
+		}
+		if maxRunes > 0 && used+separator+utf8RuneLen(line) > maxRunes {
+			// The entry budget excludes host formatting. Keep a bounded first
+			// human entry rather than dropping it when its own cap fills the
+			// entire ledger budget; clipping retains the existing text prefix.
+			if len(lines) == 0 {
+				textBudget := maxRunes - utf8RuneLen(prefix)
+				if textBudget > 0 {
+					lines = append(lines, prefix+fitUserIntentLedgerText(text, textBudget))
+				}
+			} else {
+				const notice = "- [...truncated] 用户原始输入账本超过预算；完整压缩前记录见 summarization transcript。"
+				remaining := maxRunes - used - separator
+				// Never emit an incomplete marker that could be mistaken for a
+				// human entry when this ledger is carried into the next round.
+				if remaining >= utf8RuneLen("- [...truncated]") {
+					lines = append(lines, truncateUserIntentLedgerRunes(notice, remaining))
+				}
+			}
 			break
 		}
-		sb.WriteString(line)
+		lines = append(lines, line)
+		used += separator + utf8RuneLen(line)
 	}
-	return strings.TrimSpace(sb.String())
+	return strings.TrimSpace(strings.Join(lines, "\n"))
+}
+
+func fitUserIntentLedgerText(text string, maxRunes int) string {
+	if utf8RuneLen(text) <= maxRunes {
+		return text
+	}
+	if maxRunes > 3 {
+		return truncateUserIntentLedgerRunes(text, maxRunes-3) + "..."
+	}
+	return truncateUserIntentLedgerRunes(text, maxRunes)
 }
 
 func collectOriginalUserIntentEntries(msgs []adk.Message) []string {
@@ -221,14 +277,56 @@ func collectOriginalUserIntentEntries(msgs []adk.Message) []string {
 		if msg == nil {
 			continue
 		}
-		for _, entry := range extractExistingUserIntentLedgerEntries(messageTextForLedger(msg)) {
-			add(entry)
+		if msg.Role == schema.System {
+			for _, entry := range trustedUserIntentLedgerEntries(msg) {
+				add(entry)
+			}
 		}
-		if msg.Role == schema.User {
+		if msg.Role == schema.User && !isInternalSummarizationUserMessage(msg) && !isGeneratedExecutionUserMessage(msg) {
 			add(adkUserMessageText(msg))
 		}
 	}
 	return entries
+}
+
+// Host-generated structured provenance takes precedence over any text labels.
+// Legacy support is limited to the host's complete trailing system ledger;
+// assistant/tool/user quotations and embedded blackboard snippets are not ledgers.
+func trustedUserIntentLedgerEntries(msg adk.Message) []string {
+	if value, present := msg.Extra[userIntentLedgerExtraKey]; present {
+		switch entries := value.(type) {
+		case []string:
+			return entries
+		case []interface{}:
+			var out []string
+			for _, entry := range entries {
+				if s, ok := entry.(string); ok {
+					out = append(out, s)
+				}
+			}
+			return out
+		default:
+			return nil
+		}
+	}
+	text := strings.TrimSpace(messageTextForLedger(msg))
+	header := "## 原始用户输入与约束账本（系统保真）\n" + userIntentLedgerStartMarker + "\n"
+	start := strings.LastIndex(text, header)
+	if start < 0 || start > 0 && text[start-1] != '\n' || !strings.HasSuffix(text, userIntentLedgerEndMarker) {
+		return nil
+	}
+	return extractExistingUserIntentLedgerEntries(text[start:])
+}
+
+// Eino deliberately transports generated summaries and preserved skill context
+// as user-role messages. Their provenance, not their role/text, distinguishes
+// them from human input. Extra survives classic/native message conversion.
+func isInternalSummarizationUserMessage(msg adk.Message) bool {
+	if msg == nil {
+		return false
+	}
+	kind, _ := msg.Extra[agent.SummarizationContentTypeKey].(string)
+	return kind == "summary" || kind == "skills"
 }
 
 func messageTextForLedger(msg adk.Message) string {
@@ -300,8 +398,8 @@ func sanitizeUserIntentLedgerEntry(s string, maxRunes int) string {
 	s = strings.ReplaceAll(strings.TrimSpace(s), userIntentLedgerStartMarker, "[ledger-start]")
 	s = strings.ReplaceAll(s, userIntentLedgerEndMarker, "[ledger-end]")
 	s = strings.Join(strings.Fields(s), " ")
-	if maxRunes > 0 && utf8RuneLen(s) > maxRunes {
-		return truncateUserIntentLedgerRunes(s, maxRunes) + "..."
+	if maxRunes > 0 {
+		return fitUserIntentLedgerText(s, maxRunes)
 	}
 	return s
 }

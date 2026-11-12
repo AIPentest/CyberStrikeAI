@@ -1660,7 +1660,7 @@ function fofaResultToAsset(row, fields) {
     return {
         host: firstValue(['host', 'hostname']), ip, port: Number.isFinite(port) ? port : 0, domain,
         protocol: /^[a-z][a-z0-9+.-]{0,31}$/.test(rawProtocol) ? rawProtocol : '', title: firstValue(['title', 'service.http.title']), server: firstValue(['server', 'product']),
-        country: firstValue(['country', 'location.country_cn', 'location.country_name']), province: firstValue(['province', 'location.province_cn']), city: firstValue(['city', 'location.city_cn', 'location.city']),
+        country: firstValue(['country', 'location.country_cn', 'location.country_name']), province: firstValue(['region', 'province', 'location.province_cn']), city: firstValue(['city', 'location.city_cn', 'location.city']),
         source: (window.infoCollectState?.currentPayload?.provider || 'fofa'), status: 'active'
     };
 }

@@ -39,15 +39,16 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="/static/css/style.css?v=20261010-layout-overflow-1">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261027-pagination-custom-select">
+    <link rel="stylesheet" href="/static/css/vulnerability-download.css?v=20261030-2">
     <link rel="stylesheet" href="/static/css/oidc-login.css?v=1">
     <link rel="stylesheet" href="/static/css/tool-guard.css?v=20260907-7">
     <link rel="stylesheet" href="/static/css/chat-plan-progress.css?v=20260813-4">
     <link rel="stylesheet" href="/static/css/c2.css">
     <link rel="stylesheet" href="/static/vendor/xterm.css">
     <!-- 移动端样式层：全部规则限定在 767.98px 以下，桌面端零影响 -->
-    <link rel="stylesheet" href="/static/css/mobile.css?v=20261007-glass-1">
-    <script src="/static/js/router.js?v=20261009-retest-1"></script>
+    <link rel="stylesheet" href="/static/css/mobile.css?v=20261015-project-table-3">
+    <script src="/static/js/router.js?v=20261011-token-settings"></script>
 </head>
 <body>
     <div id="login-overlay" class="login-overlay" style="display: none;">
@@ -138,6 +139,7 @@
                                 <div class="lang-option" data-lang="zh-CN" onclick="onLanguageSelect('zh-CN')">中文</div>
                                 <div class="lang-option" data-lang="en-US" onclick="onLanguageSelect('en-US')">English</div>
                                 <div class="lang-option" data-lang="ru-RU" onclick="onLanguageSelect('ru-RU')">Русский</div>
+                                <div class="lang-option" data-lang="ar-SA" onclick="onLanguageSelect('ar-SA')">العربية</div>
                             </div>
                         </div>
                         <div class="notification-menu-container">
@@ -557,7 +559,7 @@
                                         <span class="dashboard-kpi-sub-text" id="dashboard-kpi-rate-sub-text" data-i18n="dashboard.healthyStatus">运行平稳</span>
                                     </div>
                                 </div>
-                                <div class="dashboard-kpi-card" role="button" tabindex="0" onclick="switchPage('chat')" onkeydown="if(event.key==='Enter'||event.key===' ') { event.preventDefault(); switchPage('chat'); }" data-i18n="dashboard.clickToViewChat" data-i18n-attr="title" title="点击查看对话">
+                                <div class="dashboard-kpi-card" role="button" tabindex="0" onclick="openDashboardTokenUsage()" onkeydown="if(event.key==='Enter'||event.key===' ') { event.preventDefault(); openDashboardTokenUsage(); }" data-i18n="dashboard.usageView" data-i18n-attr="title" title="查看用量详情">
                                     <div class="dashboard-kpi-head">
                                         <div class="dashboard-kpi-label" data-i18n="dashboard.tokenUsage">Token 用量</div>
                                         <span class="dashboard-kpi-icon dashboard-kpi-icon-tokens" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/><path d="M8 3 6 21"/><path d="m18 3-2 18"/></svg></span>
@@ -2276,7 +2278,7 @@
                                         <span>04</span>
                                         <label for="fofa-fields" data-i18n="infoCollectPage.returnFields">返回字段名（逗号分隔）</label>
                                     </div>
-                                    <input type="text" id="fofa-fields" value="host,ip,port,domain,title,protocol,country,province,city,server" />
+                                    <input type="text" id="fofa-fields" value="host,ip,port,domain,title,protocol,country,region,city,server" />
                                     <div class="info-collect-presets" id="info-collect-fields-presets" aria-label="字段模板"></div>
                                 </div>
                             </div>
@@ -3603,6 +3605,9 @@
                                 <div class="settings-nav-item active" data-section="basic" onclick="switchSettingsSection('basic')">
                                     <span data-i18n="settings.nav.basic">基本设置</span>
                                 </div>
+                                <div class="settings-nav-item" data-section="token-usage" role="button" tabindex="0" onclick="switchSettingsSection('token-usage')" onkeydown="if(event.key==='Enter'||event.key===' ') { event.preventDefault(); switchSettingsSection('token-usage'); }">
+                                    <span data-i18n="settings.nav.tokenUsage">Token 用量</span>
+                                </div>
                                 <div class="settings-nav-item" data-section="hitl" onclick="switchSettingsSection('hitl')">
                                     <span data-i18n="settings.nav.hitl">人机协同</span>
                                 </div>
@@ -3638,6 +3643,24 @@
                         
                         <!-- 右侧内容区域 -->
                         <div class="settings-content">
+                            <div id="settings-section-token-usage" class="settings-section-content token-usage-panel">
+                                <div class="settings-section-header token-usage-header">
+                                    <div><h3 data-i18n="settings.nav.tokenUsage">Token 用量</h3><p class="token-usage-subtitle" data-i18n="tokenUsageUI.subtitle">查看模型消耗、缓存利用与使用趋势</p></div>
+                                    <button id="settings-token-refresh" type="button" class="btn-secondary" onclick="refreshTokenUsage()" data-i18n="common.refresh">刷新</button>
+                                </div>
+                                <div class="token-usage-toolbar">
+                                    <label for="settings-token-days" data-i18n="dashboard.usagePeriod">统计周期</label>
+                                    <select id="settings-token-days" onchange="changeTokenUsagePeriod(this.value)">
+                                        <option value="7" data-i18n="dashboard.usage7Days">近 7 天</option>
+                                        <option value="30" data-i18n="dashboard.usage30Days">近 30 天</option>
+                                        <option value="90" data-i18n="dashboard.usage90Days">近 90 天</option>
+                                    </select>
+                                    <span id="settings-token-scope" class="token-usage-scope"></span>
+                                </div>
+                                <details class="token-usage-note"><summary data-i18n="tokenUsageUI.scopeNote">统计口径与说明</summary><p data-i18n="dashboard.usageScope">统计已记录的 Agent 运行中模型返回的用量，包括子 Agent。缓存读取和写入属于输入，推理属于输出，不重复加入总量。未返回或未采集的用量不在统计内；这不是供应商账单。模型按运行配置归类，切换模型的运行可能混合用量。</p></details>
+                                <div id="settings-token-analysis" aria-live="polite"></div>
+                            </div>
+
                             <!-- 基本设置 -->
                             <div id="settings-section-basic" class="settings-section-content active">
                                 <div class="settings-section-header">
@@ -3790,6 +3813,19 @@
                                                             <span class="checkbox-custom"></span>
                                                             <span class="checkbox-text" data-i18n="settingsBasic.openaiReasoningAllowClient">允许对话页覆盖推理选项</span>
                                                         </label>
+                                                    </details>
+                                                    <details class="ai-channel-form-section ai-channel-advanced-section">
+                                                        <summary>
+                                                            <span>
+                                                                <strong>自定义请求头</strong>
+                                                                <small>每行一条 KEY=VALUE；值支持 ${ENV_VAR}、${ENV_VAR:-默认值} 与 %session_id%（自动填当前对话 ID）；同名头会覆盖内置 Authorization。</small>
+                                                            </span>
+                                                        </summary>
+                                                        <div class="form-group">
+                                                            <label for="openai-custom-headers">请求头</label>
+                                                            <textarea id="openai-custom-headers" rows="4" spellcheck="false" placeholder="X-Api-Key=sk-xxx&#10;x-opencode-session=%session_id%&#10;HTTP-Referer=https://example.com"></textarea>
+                                                            <small class="form-hint">用于要求私有鉴权头、版本头或组织头的第三方 OpenAI 兼容供应商（例如 opencode 等聚合网关）。留空表示不附加。</small>
+                                                        </div>
                                                     </details>
                                                 </div>
                                             </div>
@@ -5698,6 +5734,11 @@
                     </div>
                     <div class="attack-chain-sidebar">
                         <div class="attack-chain-sidebar-content">
+                            <details id="attack-chain-context" class="attack-chain-context" hidden>
+                                <summary><span id="attack-chain-context-title"></span></summary>
+                                <p id="attack-chain-context-notice" class="attack-chain-context-notice"></p>
+                                <div id="attack-chain-context-content"></div>
+                            </details>
                             <div class="attack-chain-legend">
                                 <div class="legend-section">
                                     <div class="legend-title" data-i18n="attackChainModal.riskLevel">风险等级</div>
@@ -6993,39 +7034,55 @@
     <script src="/static/js/builtin-tools.js"></script>
     <script src="/static/js/auth.js?v=20261008-password-eye-1"></script>
     <script src="/static/js/modal.js"></script>
+    <dialog id="vulnerability-download-dialog" aria-labelledby="vulnerability-download-heading" aria-describedby="vulnerability-download-hint">
+        <div class="vulnerability-download-content">
+            <h3 id="vulnerability-download-heading" data-i18n="vulnerabilityDownload.title">下载漏洞报告</h3>
+            <p id="vulnerability-download-hint" data-i18n="vulnerabilityDownload.hint">请选择下载格式</p>
+            <div class="vulnerability-download-formats">
+                <button type="button" class="btn-secondary" data-download-format="md" onclick="downloadSelectedVulnerability('md')" data-i18n="vulnerabilityDownload.markdown">Markdown（.md）</button>
+                <button type="button" class="btn-primary" data-download-format="docx" onclick="downloadSelectedVulnerability('docx')" data-i18n="vulnerabilityDownload.word">Word（.docx）</button>
+            </div>
+            <p id="vulnerability-download-message" role="status" aria-live="polite"></p>
+            <button type="button" class="btn-secondary" onclick="closeVulnerabilityDownload()" data-i18n="vulnerabilityDownload.cancel">取消</button>
+        </div>
+    </dialog>
+
     <script src="/static/js/notifications.js"></script>
     <script src="/static/js/info-collect.js?v=20260717-1"></script>
     <script src="/static/js/assets.js?v=20260717-7"></script>
     <script src="/static/js/agents.js"></script>
-    <script src="/static/js/dashboard.js"></script>
+    <script src="/static/js/dashboard.js?v=20261011-token-settings-cache-only"></script>
     <script src="/static/js/chat-scroll.js?v=20260815-1"></script>
-    <script src="/static/js/monitor.js?v=20260907-blocked-1"></script>
-    <script src="/static/js/chat.js?v=20261009-retest-1"></script>
+    <script src="/static/js/monitor.js?v=20261011-token-usage-pagination-20261027"></script>
+    <script src="/static/js/attack-chain-context.js?v=20261012-summary-2"></script>
+    <script src="/static/js/chat.js?v=20261016-context-memory-token-usage-pagination-20261027"></script>
     <script src="/static/js/chat-plan-progress.js?v=20260815-1"></script>
-    <script src="/static/js/hitl.js?v=20260819-1"></script>
+    <script src="/static/js/hitl.js?v=20260819-1-pagination-20261027"></script>
     <script src="/static/js/tool-guard.js?v=20261010-conflict"></script>
-    <script src="/static/js/settings.js?v=20260717-1"></script>
+    <script src="/static/js/token-usage.js?v=20261012-token-analytics"></script>
+    <script src="/static/js/settings.js?v=20261011-token-settings-pagination-20261027"></script>
     <script src="/static/js/audit-datetime-picker.js"></script>
-    <script src="/static/js/audit.js"></script>
+    <script src="/static/js/audit.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/storage.js"></script>
     <script src="/static/js/wechat-robot.js"></script>
     <script src="/static/vendor/xterm.js"></script>
     <script src="/static/vendor/xterm-addon-fit.js"></script>
     <script src="/static/js/terminal.js"></script>
     <script src="/static/js/knowledge.js"></script>
-    <script src="/static/js/skills.js"></script>
+    <script src="/static/js/skills.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/fact-graph.js"></script>
-    <script src="/static/js/projects.js?v=20260819-1"></script>
-    <script src="/static/js/vulnerability.js?v=20261010-retest-2"></script>
-    <script src="/static/js/webshell.js?v=20260907-blocked-1"></script>
-    <script src="/static/js/chat-files.js"></script>
-    <script src="/static/js/tasks.js"></script>
+    <script src="/static/js/projects.js?v=20260819-1-pagination-20261027"></script>
+    <script src="/static/js/vulnerability.js?v=20261030-format-download"></script>
+    <script src="/static/js/vulnerability-download.js?v=20261030-2"></script>
+    <script src="/static/js/webshell.js?v=20261011-token-usage"></script>
+    <script src="/static/js/chat-files.js?v=20261027-pagination-custom-select"></script>
+    <script src="/static/js/tasks.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/workflow-package-client.js"></script>
     <script src="/static/js/workflows.js"></script>
     <script src="/static/js/update.js?v={{.Version}}"></script>
-    <script src="/static/js/roles.js"></script>
+    <script src="/static/js/roles.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/rbac.js"></script>
-    <script src="/static/js/c2.js"></script>
+    <script src="/static/js/c2.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/rbac-guards.js?v=20260907-1"></script>
     <!-- 移动端交互层：必须最后加载，它包装 window.switchPage 并注入移动端 DOM -->
     <script src="/static/js/mobile-ui.js?v=20261006-9"></script>

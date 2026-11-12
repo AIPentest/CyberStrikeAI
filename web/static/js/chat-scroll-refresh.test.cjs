@@ -341,7 +341,7 @@ test('消息气泡内部流式增高时仅在跟随模式继续粘底', () => {
 
 test('页面在任务补流脚本之前加载智能滚动控制器', () => {
     const scrollIndex = html.indexOf('/static/js/chat-scroll.js?v=20260815-1');
-    const monitorIndex = html.indexOf('/static/js/monitor.js?v=20260907-blocked-1');
+    const monitorIndex = html.indexOf('/static/js/monitor.js?v=20261011-token-usage');
 
     assert.notEqual(scrollIndex, -1);
     assert.notEqual(monitorIndex, -1);

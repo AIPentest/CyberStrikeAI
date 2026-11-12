@@ -13,6 +13,7 @@ type einoRunUsageSummary struct {
 	CompletionTokens int
 	TotalTokens      int
 	CachedTokens     int
+	CacheWriteTokens int
 	ReasoningTokens  int
 }
 
@@ -42,8 +43,13 @@ func (a *einoRunUsageAccumulator) AddUsage(usage *schema.TokenUsage) bool {
 	a.summary.ModelCalls++
 	a.summary.PromptTokens += usage.PromptTokens
 	a.summary.CompletionTokens += usage.CompletionTokens
-	a.summary.TotalTokens += usage.TotalTokens
+	total := usage.TotalTokens
+	if total == 0 {
+		total = usage.PromptTokens + usage.CompletionTokens
+	}
+	a.summary.TotalTokens += total
 	a.summary.CachedTokens += usage.PromptTokenDetails.CachedTokens
+	a.summary.CacheWriteTokens += usage.PromptTokenDetails.CacheWriteTokens
 	a.summary.ReasoningTokens += usage.CompletionTokensDetails.ReasoningTokens
 	return true
 }
@@ -88,6 +94,7 @@ func (a *einoRunUsageAccumulator) EmitOnce(
 		"completionTokens": s.CompletionTokens,
 		"totalTokens":      s.TotalTokens,
 		"cachedTokens":     s.CachedTokens,
+		"cacheWriteTokens": s.CacheWriteTokens,
 		"reasoningTokens":  s.ReasoningTokens,
 	}
 	if progress != nil {
@@ -104,6 +111,7 @@ func (a *einoRunUsageAccumulator) EmitOnce(
 			zap.Int("completionTokens", s.CompletionTokens),
 			zap.Int("totalTokens", s.TotalTokens),
 			zap.Int("cachedTokens", s.CachedTokens),
+			zap.Int("cacheWriteTokens", s.CacheWriteTokens),
 			zap.Int("reasoningTokens", s.ReasoningTokens),
 		)
 	}
@@ -129,6 +137,9 @@ func maxEinoTokenUsage(dst *schema.TokenUsage, src *schema.TokenUsage) *schema.T
 	if src.PromptTokenDetails.CachedTokens > dst.PromptTokenDetails.CachedTokens {
 		dst.PromptTokenDetails.CachedTokens = src.PromptTokenDetails.CachedTokens
 	}
+	if src.PromptTokenDetails.CacheWriteTokens > dst.PromptTokenDetails.CacheWriteTokens {
+		dst.PromptTokenDetails.CacheWriteTokens = src.PromptTokenDetails.CacheWriteTokens
+	}
 	if src.CompletionTokensDetails.ReasoningTokens > dst.CompletionTokensDetails.ReasoningTokens {
 		dst.CompletionTokensDetails.ReasoningTokens = src.CompletionTokensDetails.ReasoningTokens
 	}
@@ -149,5 +160,6 @@ func tokenUsageEmpty(u *schema.TokenUsage) bool {
 			u.CompletionTokens == 0 &&
 			u.TotalTokens == 0 &&
 			u.PromptTokenDetails.CachedTokens == 0 &&
+			u.PromptTokenDetails.CacheWriteTokens == 0 &&
 			u.CompletionTokensDetails.ReasoningTokens == 0)
 }

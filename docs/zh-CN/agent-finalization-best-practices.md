@@ -1,6 +1,6 @@
 # Agent 最终回复治理最佳实践
 
-[返回中文文档](README.md)
+[返回中文文档](README.md) | [English](../en-US/agent-finalization-best-practices.md)
 
 调研日期：2026-07-28
 

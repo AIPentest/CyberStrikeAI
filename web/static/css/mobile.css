@@ -174,7 +174,9 @@
    3. 顶部应用栏
    -------------------------------------------------------------------------- */
 @media (max-width: 767.98px) {
-    header {
+    /* Only the application bar has a fixed height and overlays page content.
+       Nested headers (e.g. project details/settings) must grow with their content. */
+    .container > header {
         height: var(--m-appbar-h);
         min-height: var(--m-appbar-h);
         padding: 0 var(--m-gutter);
@@ -874,6 +876,15 @@
         min-height: var(--m-touch);
         padding: 10px 12px;
         border-radius: 10px;
+    }
+
+    /* Preserve the fact search icon gutter after the generic mobile input padding. */
+    .projects-fact-filter-field--search input {
+        padding-left: 34px;
+    }
+
+    .projects-fact-search-icon {
+        bottom: calc((var(--m-touch) - 16px) / 2);
     }
 
     textarea {
@@ -2110,6 +2121,104 @@ body.m-panel-open .chat-input-container {
         overflow: visible !important;
     }
 
+    /* Projects: one vertical scroller must fit between the page heading and
+       bottom navigation. Desktop viewport minimums and nested flex scrollers
+       otherwise put the final rows outside the clipped mobile page. */
+    #page-projects .page-content.projects-page-layout {
+        display: block;
+        min-height: 0;
+        overflow-y: auto;
+    }
+
+    #page-projects .projects-sidebar-card {
+        height: auto;
+        min-height: 0;
+        max-height: none;
+        margin-bottom: 12px;
+    }
+
+    #page-projects .projects-list {
+        max-height: 220px;
+    }
+
+    #page-projects .projects-detail,
+    #page-projects .projects-detail-inner,
+    #page-projects .projects-panel,
+    #page-projects .projects-table-wrap,
+    #page-projects .projects-settings-layout {
+        flex: none;
+        height: auto;
+        min-height: 0;
+        max-height: none;
+    }
+
+    #page-projects .projects-panel,
+    #page-projects .projects-settings-layout {
+        overflow: visible;
+    }
+
+    #page-projects .projects-table-wrap {
+        overflow-x: auto;
+        overscroll-behavior-y: auto;
+    }
+
+    /* The project wrapper already owns scrolling; the generic mobile wrapper
+       must not add a second scrollbar or negative gutters inside the card. */
+    #page-projects .projects-table-wrap > .m-table-scroll {
+        overflow: visible;
+        margin: 0;
+        padding: 0;
+        background: none;
+    }
+
+    /* Eight fact columns need readable widths. Keep one horizontal scroll area
+       and let actions scroll with their row instead of covering other cells. */
+    #page-projects #project-panel-facts .data-table--projects {
+        width: 1440px;
+        min-width: 1440px;
+    }
+
+    #page-projects #project-panel-facts th:nth-child(1) { width: 160px; }
+    #page-projects #project-panel-facts th:nth-child(2) { width: 120px; }
+    #page-projects #project-panel-facts th:nth-child(3) { width: 280px; }
+    #page-projects #project-panel-facts th:nth-child(4) { width: 100px; }
+    #page-projects #project-panel-facts th:nth-child(5) { width: 120px; }
+    #page-projects #project-panel-facts th:nth-child(6) { width: 140px; }
+    #page-projects #project-panel-facts th:nth-child(7) { width: 160px; }
+    #page-projects #project-panel-facts th:nth-child(8) { width: 360px; }
+
+    #page-projects #project-panel-facts .data-table--projects .col-actions {
+        position: static;
+        max-width: none;
+        box-shadow: none;
+    }
+
+    #page-projects #project-panel-facts .col-actions .projects-table-actions {
+        flex-wrap: wrap;
+    }
+
+    #page-projects #project-panel-facts :is(.projects-category, .projects-fact-badge, .projects-confidence) {
+        max-width: 100%;
+        box-sizing: border-box;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    #page-projects #project-panel-assets .data-table--projects {
+        height: auto;
+    }
+
+    #page-projects #project-panel-assets .data-table--projects tbody {
+        flex: none;
+        overflow: visible;
+    }
+
+    #page-projects .project-fact-graph-layout {
+        flex: none;
+        height: 360px;
+        max-height: none;
+    }
+
     /* 21.5 C2 会话「重置」按钮实测 24x44，横向点不中 */
     #page-c2-sessions button,
     .c2-sessions-page button {
@@ -3047,10 +3156,10 @@ html[data-theme="dark"] {
 
 @media (max-width: 767.98px) {
     /* 25.1 顶栏 / 底栏：透出材质 + 发丝分隔线。
-       顶栏必须写成 html[data-theme] header：style.css 用同一条特异性给暗色塞了
+       顶栏必须带 html[data-theme]：style.css 用主题选择器给暗色塞了
        不透明渐变，只写 header 会在暗色下丢掉材质（实测 background 被压成渐变）。 */
-    header,
-    html[data-theme] header {
+    .container > header,
+    html[data-theme] .container > header {
         background: var(--m-material-solid);
         border-bottom: 1px solid var(--m-hairline);
         box-shadow: none;
@@ -3063,8 +3172,8 @@ html[data-theme="dark"] {
     }
 
     @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-        header,
-        html[data-theme] header {
+        .container > header,
+        html[data-theme] .container > header {
             background: var(--m-material);
             -webkit-backdrop-filter: saturate(180%) blur(20px);
             backdrop-filter: saturate(180%) blur(20px);

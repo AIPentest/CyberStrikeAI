@@ -231,6 +231,7 @@ function renderSkillsPagination() {
     // 即使只有一页也显示分页信息（参考MCP样式）
     if (total === 0) {
         paginationContainer.innerHTML = '';
+        if (typeof initPaginationSelects === 'function') initPaginationSelects(paginationContainer);
         return;
     }
     
@@ -277,6 +278,7 @@ function renderSkillsPagination() {
     paginationHTML += '</div>';
     
     paginationContainer.innerHTML = paginationHTML;
+    if (typeof initPaginationSelects === 'function') initPaginationSelects(paginationContainer);
     
     // 确保分页组件与列表内容区域对齐（不包括滚动条）
     function alignPaginationWidth() {

@@ -106,8 +106,8 @@ func TestAppendEinoAgenticChatModelTailMiddlewares(t *testing.T) {
 		phase: "agentic",
 		trace: holder,
 	})
-	// system + continuation + reconciler + orphan_pruner + trace
-	if len(handlers) != 5 {
-		t.Fatalf("handlers = %d, want system + continuation + reconciler + orphan_pruner + trace", len(handlers))
+	// system + continuation + two argument sanitizers + reconciler + orphan_pruner + trace
+	if len(handlers) != 7 {
+		t.Fatalf("handlers = %d, want system + continuation + two argument sanitizers + reconciler + orphan_pruner + trace", len(handlers))
 	}
 }
