@@ -80,6 +80,11 @@ type Config struct {
 	// DialTimeout bounds how long a single dial (including to the proxy) may
 	// take. Zero uses a sane default.
 	DialTimeout time.Duration
+	// ProxychainsMode controls whether spawned external tools (nmap and other
+	// raw-socket tools that ignore proxy env vars) are wrapped with
+	// proxychains: "auto"/"" wraps when a proxychains binary is present,
+	// "off" never wraps. Only meaningful for socks5/tor/http/https modes.
+	ProxychainsMode string
 }
 
 // Gateway is the outbound chokepoint. It is safe for concurrent use.
@@ -92,6 +97,11 @@ type Gateway struct {
 	fwdCtx   xproxy.ContextDialer
 	enabled  bool
 	mu       sync.RWMutex
+
+	// proxychains config caching (generated once, reused for every wrap)
+	pcOnce sync.Once
+	pcPath string
+	pcErr  error
 }
 
 // New builds a Gateway from cfg. It validates the configuration and, for

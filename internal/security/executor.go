@@ -184,8 +184,13 @@ func (e *Executor) ExecuteTool(ctx context.Context, toolName string, args map[st
 		}, nil
 	}
 
+	// Wrap raw-socket tools (nmap, etc.) with proxychains when the egress
+	// gateway is active, so they cannot bypass the proxy and leak the real IP.
+	// When wrapping is inactive this returns the command unchanged.
+	execCmd, execArgs := egress.Default().WrapToolCommand(toolConfig.Command, cmdArgs)
+
 	// Run the command
-	cmd := exec.CommandContext(ctx, toolConfig.Command, cmdArgs...)
+	cmd := exec.CommandContext(ctx, execCmd, execArgs...)
 	applyDefaultTerminalEnv(cmd)
 	attachNonInteractiveStdin(cmd)
 	_ = prepareShellCmdSession(cmd)
@@ -206,7 +211,7 @@ func (e *Executor) ExecuteTool(ctx context.Context, toolName string, args map[st
 			e.logger.Info("Detected that the tool needs a TTY, retrying with a PTY",
 				zap.String("tool", toolName),
 			)
-			cmd2 := exec.CommandContext(ctx, toolConfig.Command, cmdArgs...)
+			cmd2 := exec.CommandContext(ctx, execCmd, execArgs...)
 			applyDefaultTerminalEnv(cmd2)
 			_ = prepareShellCmdSession(cmd2)
 			output, err = runCommandWithPTY(ctx, cmd2, cb, e.toolOutputMaxBytes, spill)
@@ -218,7 +223,7 @@ func (e *Executor) ExecuteTool(ctx context.Context, toolName string, args map[st
 			e.logger.Info("Detected that the tool needs a TTY, retrying with a PTY",
 				zap.String("tool", toolName),
 			)
-			cmd2 := exec.CommandContext(ctx, toolConfig.Command, cmdArgs...)
+			cmd2 := exec.CommandContext(ctx, execCmd, execArgs...)
 			applyDefaultTerminalEnv(cmd2)
 			_ = prepareShellCmdSession(cmd2)
 			output, err = runCommandWithPTY(ctx, cmd2, nil, e.toolOutputMaxBytes, spill)
@@ -820,13 +825,17 @@ func (e *Executor) executeSystemCommand(ctx context.Context, args map[string]int
 	// Detect whether it is a background command (contains & symbol, but not inside quotes)
 	isBackground := IsBackgroundShellCommand(command)
 
+	// Wrap the shell (and therefore every tool it spawns) with proxychains when
+	// the egress gateway is active, so raw-socket tools cannot leak the real IP.
+	shCmd, shArgs := egress.Default().WrapToolCommand(shell, []string{"-c", command})
+
 	// Build the command
 	var cmd *exec.Cmd
 	if workDir != "" {
-		cmd = exec.CommandContext(ctx, shell, "-c", command)
+		cmd = exec.CommandContext(ctx, shCmd, shArgs...)
 		cmd.Dir = workDir
 	} else {
-		cmd = exec.CommandContext(ctx, shell, "-c", command)
+		cmd = exec.CommandContext(ctx, shCmd, shArgs...)
 	}
 	ConfigureShellCmdForAgentExecute(cmd)
 
@@ -857,7 +866,7 @@ func (e *Executor) executeSystemCommand(ctx context.Context, args map[string]int
 		output, err = streamCommandOutput(ctx, cmd, cb, ResolveShellNoOutputTimeoutSeconds(e.shellNoOutputTimeoutSec), e.toolOutputMaxBytes, spill)
 		if err != nil && shouldRetryWithPTY(output) {
 			e.logger.Info("Detected that the system command needs a TTY, retrying with a PTY")
-			cmd2 := exec.CommandContext(ctx, shell, "-c", command)
+			cmd2 := exec.CommandContext(ctx, shCmd, shArgs...)
 			if workDir != "" {
 				cmd2.Dir = workDir
 			}
@@ -868,7 +877,7 @@ func (e *Executor) executeSystemCommand(ctx context.Context, args map[string]int
 		output, err = combinedOutputCancellableWithLimit(ctx, cmd, e.toolOutputMaxBytes, spill)
 		if err != nil && shouldRetryWithPTY(output) {
 			e.logger.Info("Detected that the system command needs a TTY, retrying with a PTY")
-			cmd2 := exec.CommandContext(ctx, shell, "-c", command)
+			cmd2 := exec.CommandContext(ctx, shCmd, shArgs...)
 			if workDir != "" {
 				cmd2.Dir = workDir
 			}

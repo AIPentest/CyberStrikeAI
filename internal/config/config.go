@@ -69,6 +69,7 @@ type EgressConfig struct {
 	FailClosed      bool   `yaml:"fail_closed,omitempty" json:"fail_closed,omitempty"`             // Block outbound traffic if the proxy is down (kill-switch)
 	DNSThroughProxy bool   `yaml:"dns_through_proxy,omitempty" json:"dns_through_proxy,omitempty"` // Resolve hostnames at the proxy so DNS does not leak (SOCKS5/Tor)
 	DialTimeoutSec  int    `yaml:"dial_timeout_sec,omitempty" json:"dial_timeout_sec,omitempty"`   // Per-dial timeout in seconds (0 => default 30s)
+	ProxychainsMode string `yaml:"proxychains_mode,omitempty" json:"proxychains_mode,omitempty"`   // Wrap raw-socket tools (nmap, etc.) with proxychains: auto (default) | off
 }
 
 // UpdateConfig 一键更新的更新源（可选）：一个仓库地址，更新跟随该仓库的默认分支。

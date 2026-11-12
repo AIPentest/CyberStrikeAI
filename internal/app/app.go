@@ -95,6 +95,7 @@ func egressConfigFromAppConfig(c *config.EgressConfig) egress.Config {
 		FailClosed:      c.FailClosed,
 		DNSThroughProxy: c.DNSThroughProxy,
 		DialTimeout:     dialTimeout,
+		ProxychainsMode: c.ProxychainsMode,
 	}
 }
 
