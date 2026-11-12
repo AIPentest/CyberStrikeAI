@@ -39,7 +39,7 @@ func (h *VectorEinoRetriever) Retrieve(ctx context.Context, query string, opts .
 	}
 	q := strings.TrimSpace(query)
 	if q == "" {
-		return nil, fmt.Errorf("查询不能为空")
+		return nil, fmt.Errorf("The query cannot be empty")
 	}
 
 	ro := retriever.GetCommonOptions(nil, opts...)

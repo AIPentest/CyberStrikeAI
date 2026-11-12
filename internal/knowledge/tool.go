@@ -13,18 +13,18 @@ import (
 	"go.uber.org/zap"
 )
 
-// RegisterKnowledgeTool 注册知识检索工具到MCP服务器
+// RegisterKnowledgeTool Register the knowledge-retrieval tool with the MCP server
 func RegisterKnowledgeTool(
 	mcpServer *mcp.Server,
 	retriever *Retriever,
 	manager *Manager,
 	logger *zap.Logger,
 ) {
-	// 注册第一个工具：获取所有可用的风险类型列表
+	// Register the first tool: get the list of all available risk types
 	listRiskTypesTool := mcp.Tool{
 		Name:             builtin.ToolListKnowledgeRiskTypes,
-		Description:      "获取知识库中所有可用的风险类型（risk_type）列表。在搜索知识库之前，可以先调用此工具获取可用的风险类型，然后使用正确的风险类型进行精确搜索，这样可以大幅减少检索时间并提高检索准确性。",
-		ShortDescription: "获取知识库中所有可用的风险类型列表",
+		Description:      "Get the list of all available risk types (risk_type) in the knowledge base. Before searching the knowledge base, you can call this tool first to get the available risk types, then use the correct risk type for precise search, which greatly reduces retrieval time and improves retrieval accuracy.",
+		ShortDescription: "Get the list of all available risk types in the knowledge base",
 		InputSchema: map[string]interface{}{
 			"type":       "object",
 			"properties": map[string]interface{}{},
@@ -35,12 +35,12 @@ func RegisterKnowledgeTool(
 	listRiskTypesHandler := func(ctx context.Context, args map[string]interface{}) (*mcp.ToolResult, error) {
 		categories, err := manager.GetCategories()
 		if err != nil {
-			logger.Error("获取风险类型列表失败", zap.Error(err))
+			logger.Error("Failed to get the risk-type list", zap.Error(err))
 			return &mcp.ToolResult{
 				Content: []mcp.Content{
 					{
 						Type: "text",
-						Text: fmt.Sprintf("获取风险类型列表失败: %v", err),
+						Text: fmt.Sprintf("Failed to get the risk-type list: %v", err),
 					},
 				},
 				IsError: true,
@@ -52,18 +52,18 @@ func RegisterKnowledgeTool(
 				Content: []mcp.Content{
 					{
 						Type: "text",
-						Text: "知识库中暂无风险类型。",
+						Text: "There are no risk types in the knowledge base yet.",
 					},
 				},
 			}, nil
 		}
 
 		var resultText strings.Builder
-		resultText.WriteString(fmt.Sprintf("知识库中共有 %d 个风险类型：\n\n", len(categories)))
+		resultText.WriteString(fmt.Sprintf("There are %d risk types in the knowledge base: \n\n", len(categories)))
 		for i, category := range categories {
 			resultText.WriteString(fmt.Sprintf("%d. %s\n", i+1, category))
 		}
-		resultText.WriteString("\n提示：在调用 " + builtin.ToolSearchKnowledgeBase + " 工具时，可以使用上述风险类型之一作为 risk_type 参数，以缩小搜索范围并提高检索效率。")
+		resultText.WriteString("\n Hint: when calling " + builtin.ToolSearchKnowledgeBase + " tool, you can use one of the above risk types as the risk_type parameter to narrow the search scope and improve retrieval efficiency.")
 
 		return &mcp.ToolResult{
 			Content: []mcp.Content{
@@ -76,23 +76,23 @@ func RegisterKnowledgeTool(
 	}
 
 	mcpServer.RegisterTool(listRiskTypesTool, listRiskTypesHandler)
-	logger.Debug("风险类型列表工具已注册", zap.String("toolName", listRiskTypesTool.Name))
+	logger.Debug("The risk-type list tool is registered", zap.String("toolName", listRiskTypesTool.Name))
 
-	// 注册第二个工具：搜索知识库（保持原有功能）
+	// Register the second tool: search the knowledge base (keeping the original functionality)
 	searchTool := mcp.Tool{
 		Name:             builtin.ToolSearchKnowledgeBase,
-		Description:      "在知识库中搜索相关的安全知识。当你需要了解特定漏洞类型、攻击技术、检测方法等安全知识时，可以使用此工具进行检索。工具基于向量嵌入与余弦相似度检索（与 Eino retriever 语义一致）。建议：在搜索前可以先调用 " + builtin.ToolListKnowledgeRiskTypes + " 工具获取可用的风险类型，然后使用正确的 risk_type 参数进行精确搜索，这样可以大幅减少检索时间。",
-		ShortDescription: "搜索知识库中的安全知识（向量语义检索）",
+		Description:      "Search the knowledge base for relevant security knowledge. When you need to understand a specific vulnerability type, attack technique, detection method, or other security knowledge, use this tool to retrieve it. The tool is based on vector embeddings and cosine-similarity retrieval (consistent with Eino retriever semantics). Suggestion: before searching you can first call " + builtin.ToolListKnowledgeRiskTypes + " tool to get the available risk types, then use the correct risk_type parameter for precise search, which greatly reduces retrieval time.",
+		ShortDescription: "Search security knowledge in the knowledge base (vector semantic retrieval)",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
 				"query": map[string]interface{}{
 					"type":        "string",
-					"description": "搜索查询内容，描述你想要了解的安全知识主题",
+					"description": "The search query content, describing the security-knowledge topic you want to learn about",
 				},
 				"risk_type": map[string]interface{}{
 					"type":        "string",
-					"description": "可选：指定风险类型（如：SQL注入、XSS、文件上传等）。建议先调用 " + builtin.ToolListKnowledgeRiskTypes + " 工具获取可用的风险类型列表，然后使用正确的风险类型进行精确搜索，这样可以大幅减少检索时间。如果不指定则搜索所有类型。",
+					"description": "Optional: specify a risk type (such as: SQL injection, XSS, file upload, etc.). It is recommended to call first " + builtin.ToolListKnowledgeRiskTypes + " tool to get the list of available risk types, then use the correct risk type for precise search, which greatly reduces retrieval time. If not specified, all types are searched.",
 				},
 			},
 			"required": []string{"query"},
@@ -106,7 +106,7 @@ func RegisterKnowledgeTool(
 				Content: []mcp.Content{
 					{
 						Type: "text",
-						Text: "错误: 查询参数不能为空",
+						Text: "Error: the query parameter cannot be empty",
 					},
 				},
 				IsError: true,
@@ -118,12 +118,12 @@ func RegisterKnowledgeTool(
 			riskType = rt
 		}
 
-		logger.Info("执行知识库检索",
+		logger.Info("Perform knowledge-base retrieval",
 			zap.String("query", query),
 			zap.String("riskType", riskType),
 		)
 
-		// 检索统一走 Retriever.Search → VectorEinoRetriever（Eino retriever 语义）。
+		// Retrieval goes uniformly through Retriever.Search → VectorEinoRetriever (Eino retriever Semantics).
 		searchReq := &SearchRequest{
 			Query:    query,
 			RiskType: riskType,
@@ -132,12 +132,12 @@ func RegisterKnowledgeTool(
 
 		results, err := retriever.Search(ctx, searchReq)
 		if err != nil {
-			logger.Error("知识库检索失败", zap.Error(err))
+			logger.Error("Knowledge-base retrieval failed", zap.Error(err))
 			return &mcp.ToolResult{
 				Content: []mcp.Content{
 					{
 						Type: "text",
-						Text: fmt.Sprintf("检索失败: %v", err),
+						Text: fmt.Sprintf("Retrieval failed: %v", err),
 					},
 				},
 				IsError: true,
@@ -149,25 +149,25 @@ func RegisterKnowledgeTool(
 				Content: []mcp.Content{
 					{
 						Type: "text",
-						Text: fmt.Sprintf("未找到与查询 '%s' 相关的知识。建议：\n1. 尝试使用不同的关键词\n2. 检查风险类型是否正确\n3. 确认知识库中是否包含相关内容", query),
+						Text: fmt.Sprintf("No match found for the query '%s' related knowledge. Suggestion: \n1. Try different keywords\n2. Check whether the risk type is correct\n3. Confirm whether the knowledge base contains relevant content", query),
 					},
 				},
 			}, nil
 		}
 
-		// 格式化结果
+		// Format the result
 		var resultText strings.Builder
 
-		// 按余弦相似度（Score）降序
+		// Descending by cosine similarity (Score)
 		sort.Slice(results, func(i, j int) bool {
 			return results[i].Score > results[j].Score
 		})
 
-		// 按文档分组结果，以便更好地展示上下文
+		// Group results by document to present context better
 		type itemGroup struct {
 			itemID   string
 			results  []*RetrievalResult
-			maxScore float64 // 该文档块的最高相似度
+			maxScore float64 // The highest similarity of this document block
 		}
 		itemGroups := make([]*itemGroup, 0)
 		itemMap := make(map[string]*itemGroup)
@@ -190,15 +190,15 @@ func RegisterKnowledgeTool(
 			}
 		}
 
-		// 按文档内最高相似度排序
+		// Sort by the highest similarity within a document
 		sort.Slice(itemGroups, func(i, j int) bool {
 			return itemGroups[i].maxScore > itemGroups[j].maxScore
 		})
 
-		// 收集检索到的知识项ID（用于日志）
+		// Collect the retrieved knowledge-item IDs (for logging)
 		retrievedItemIDs := make([]string, 0, len(itemGroups))
 
-		resultText.WriteString(fmt.Sprintf("找到 %d 条相关知识片段：\n\n", len(results)))
+		resultText.WriteString(fmt.Sprintf("Found %d relevant knowledge snippets: \n\n", len(results)))
 
 		resultIndex := 1
 		for _, group := range itemGroups {
@@ -212,29 +212,29 @@ func RegisterKnowledgeTool(
 				}
 			}
 
-			// 按chunk_index排序，保证阅读的逻辑顺序（文档的原始顺序）
+			// Sort by chunk_index to ensure the logical reading order (the document's original order)
 			sort.Slice(itemResults, func(i, j int) bool {
 				return itemResults[i].Chunk.ChunkIndex < itemResults[j].Chunk.ChunkIndex
 			})
 
-			resultText.WriteString(fmt.Sprintf("--- 结果 %d (相似度: %.2f%%) ---\n",
+			resultText.WriteString(fmt.Sprintf("--- Result %d (similarity: %.2f%%) ---\n",
 				resultIndex, mainResult.Similarity*100))
-			resultText.WriteString(fmt.Sprintf("来源: [%s] %s (ID: %s)\n", mainResult.Item.Category, mainResult.Item.Title, mainResult.Item.ID))
+			resultText.WriteString(fmt.Sprintf("Source: [%s] %s (ID: %s)\n", mainResult.Item.Category, mainResult.Item.Title, mainResult.Item.ID))
 
-			// 按逻辑顺序显示所有chunk（包括主结果和扩展的chunk）
+			// Display all chunks in logical order (including the main result and expanded oneschunk)
 			if len(itemResults) == 1 {
-				// 只有一个chunk，直接显示
-				resultText.WriteString(fmt.Sprintf("内容片段:\n%s\n", mainResult.Chunk.ChunkText))
+				// Only one chunk, display it directly
+				resultText.WriteString(fmt.Sprintf("Content snippet:\n%s\n", mainResult.Chunk.ChunkText))
 			} else {
-				// 多个chunk，按逻辑顺序显示
-				resultText.WriteString("内容片段（按文档顺序）:\n")
+				// Multiple chunks, displayed in logical order
+				resultText.WriteString("Content snippet (in document order):\n")
 				for i, result := range itemResults {
-					// 标记主结果
+					// Mark the main result
 					marker := ""
 					if result.Chunk.ID == mainResult.Chunk.ID {
-						marker = " [主匹配]"
+						marker = " [Primary match]"
 					}
-					resultText.WriteString(fmt.Sprintf("  [片段 %d%s]\n%s\n", i+1, marker, result.Chunk.ChunkText))
+					resultText.WriteString(fmt.Sprintf("  [Snippet %d%s]\n%s\n", i+1, marker, result.Chunk.ChunkText))
 				}
 			}
 			resultText.WriteString("\n")
@@ -245,8 +245,8 @@ func RegisterKnowledgeTool(
 			resultIndex++
 		}
 
-		// 在结果末尾添加元数据（JSON格式，用于提取知识项ID）
-		// 使用特殊标记，避免影响AI阅读结果
+		// Append metadata at the end of the result (JSON format, used to extract knowledge itemsID)
+		// Use a special marker to avoid affecting how the AI reads the result
 		if len(retrievedItemIDs) > 0 {
 			metadataJSON, _ := json.Marshal(map[string]interface{}{
 				"_metadata": map[string]interface{}{
@@ -256,9 +256,9 @@ func RegisterKnowledgeTool(
 			resultText.WriteString(fmt.Sprintf("\n<!-- METADATA: %s -->", string(metadataJSON)))
 		}
 
-		// 记录检索日志（异步，不阻塞）
-		// 注意：这里没有conversationID和messageID，需要在Agent层面记录
-		// 实际的日志记录应该在Agent的progressCallback中完成
+		// Record the retrieval log (asynchronous, non-blocking)
+		// Note: there is no conversationID or messageID here; it must be logged at the Agent level
+		// Actual logging should be done in the Agent's progressCallback
 
 		return &mcp.ToolResult{
 			Content: []mcp.Content{
@@ -271,10 +271,10 @@ func RegisterKnowledgeTool(
 	}
 
 	mcpServer.RegisterTool(searchTool, searchHandler)
-	logger.Debug("知识检索工具已注册", zap.String("toolName", searchTool.Name))
+	logger.Debug("The knowledge-retrieval tool is registered", zap.String("toolName", searchTool.Name))
 }
 
-// contains 检查切片是否包含元素
+// contains Check whether the slice contains an element
 func contains(slice []string, item string) bool {
 	for _, s := range slice {
 		if s == item {
@@ -284,7 +284,7 @@ func contains(slice []string, item string) bool {
 	return false
 }
 
-// GetRetrievalMetadata 从工具调用中提取检索元数据（用于日志记录）
+// GetRetrievalMetadata Extract retrieval metadata from the tool call (used for logging)
 func GetRetrievalMetadata(args map[string]interface{}) (query string, riskType string) {
 	if q, ok := args["query"].(string); ok {
 		query = q
@@ -295,29 +295,29 @@ func GetRetrievalMetadata(args map[string]interface{}) (query string, riskType s
 	return
 }
 
-// FormatRetrievalResults 格式化检索结果为字符串（用于日志）
+// FormatRetrievalResults Format the retrieval result as a string (for logging)
 func FormatRetrievalResults(results []*RetrievalResult) string {
 	if len(results) == 0 {
-		return "未找到相关结果"
+		return "No relevant results found"
 	}
 
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("检索到 %d 条结果:\n", len(results)))
+	builder.WriteString(fmt.Sprintf("Retrieved %d results:\n", len(results)))
 
 	itemIDs := make(map[string]bool)
 	for i, result := range results {
-		builder.WriteString(fmt.Sprintf("%d. [%s] %s (相似度: %.2f%%)\n",
+		builder.WriteString(fmt.Sprintf("%d. [%s] %s (Similarity: %.2f%%)\n",
 			i+1, result.Item.Category, result.Item.Title, result.Similarity*100))
 		itemIDs[result.Item.ID] = true
 	}
 
-	// 返回知识项ID列表（JSON格式）
+	// Return the knowledge-item ID list (JSON format)
 	ids := make([]string, 0, len(itemIDs))
 	for id := range itemIDs {
 		ids = append(ids, id)
 	}
 	idsJSON, _ := json.Marshal(ids)
-	builder.WriteString(fmt.Sprintf("\n检索到的知识项ID: %s", string(idsJSON)))
+	builder.WriteString(fmt.Sprintf("\n The retrieved knowledge itemID: %s", string(idsJSON)))
 
 	return builder.String()
 }

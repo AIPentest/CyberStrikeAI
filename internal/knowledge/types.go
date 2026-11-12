@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// formatTime 格式化时间为 RFC3339 格式，零时间返回空字符串
+// formatTime Format time as RFC3339; a zero time returns an empty string
 func formatTime(t time.Time) string {
 	if t.IsZero() {
 		return ""
@@ -13,29 +13,29 @@ func formatTime(t time.Time) string {
 	return t.Format(time.RFC3339)
 }
 
-// KnowledgeItem 知识库项
+// KnowledgeItem Knowledge item
 type KnowledgeItem struct {
 	ID        string    `json:"id"`
-	Category  string    `json:"category"` // 风险类型（文件夹名）
-	Title     string    `json:"title"`    // 标题（文件名）
-	FilePath  string    `json:"filePath"` // 文件路径
-	Content   string    `json:"content"`  // 文件内容
+	Category  string    `json:"category"` // Risk type (folder name)
+	Title     string    `json:"title"`    // Title (file name)
+	FilePath  string    `json:"filePath"` // File path
+	Content   string    `json:"content"`  // File content
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// KnowledgeItemSummary 知识库项摘要（用于列表，不包含完整内容）
+// KnowledgeItemSummary Knowledge-item summary (for lists, without full content)
 type KnowledgeItemSummary struct {
 	ID        string    `json:"id"`
 	Category  string    `json:"category"`
 	Title     string    `json:"title"`
 	FilePath  string    `json:"filePath"`
-	Content   string    `json:"content,omitempty"` // 可选：内容预览（如果提供，通常只包含前 150 字符）
+	Content   string    `json:"content,omitempty"` // Optional: content preview (if provided, usually only the first 150 characters)
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// MarshalJSON 自定义 JSON 序列化，确保时间格式正确
+// MarshalJSON Custom JSON serialization to ensure the time format is correct
 func (k *KnowledgeItemSummary) MarshalJSON() ([]byte, error) {
 	type Alias KnowledgeItemSummary
 	aux := &struct {
@@ -50,7 +50,7 @@ func (k *KnowledgeItemSummary) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// MarshalJSON 自定义 JSON 序列化，确保时间格式正确
+// MarshalJSON Custom JSON serialization to ensure the time format is correct
 func (k *KnowledgeItem) MarshalJSON() ([]byte, error) {
 	type Alias KnowledgeItem
 	aux := &struct {
@@ -65,36 +65,36 @@ func (k *KnowledgeItem) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// KnowledgeChunk 知识块（用于向量化）
+// KnowledgeChunk Knowledge block (used for vectorization)
 type KnowledgeChunk struct {
 	ID         string    `json:"id"`
 	ItemID     string    `json:"itemId"`
 	ChunkIndex int       `json:"chunkIndex"`
 	ChunkText  string    `json:"chunkText"`
-	Embedding  []float32 `json:"-"` // 向量嵌入，不序列化到 JSON
+	Embedding  []float32 `json:"-"` // Vector embedding, not serialized to JSON
 	CreatedAt  time.Time `json:"createdAt"`
 }
 
-// RetrievalResult 检索结果
+// RetrievalResult Retrieval result
 type RetrievalResult struct {
 	Chunk      *KnowledgeChunk `json:"chunk"`
 	Item       *KnowledgeItem  `json:"item"`
-	Similarity float64         `json:"similarity"` // 相似度分数
-	Score      float64         `json:"score"`      // 与 Similarity 相同：余弦相似度
+	Similarity float64         `json:"similarity"` // Similarity score
+	Score      float64         `json:"score"`      // Same as Similarity: cosine similarity
 }
 
-// RetrievalLog 检索日志
+// RetrievalLog Retrieval log
 type RetrievalLog struct {
 	ID             string    `json:"id"`
 	ConversationID string    `json:"conversationId,omitempty"`
 	MessageID      string    `json:"messageId,omitempty"`
 	Query          string    `json:"query"`
 	RiskType       string    `json:"riskType,omitempty"`
-	RetrievedItems []string  `json:"retrievedItems"` // 检索到的知识项 ID 列表
+	RetrievedItems []string  `json:"retrievedItems"` // The list of retrieved knowledge-item IDs
 	CreatedAt      time.Time `json:"createdAt"`
 }
 
-// MarshalJSON 自定义 JSON 序列化，确保时间格式正确
+// MarshalJSON Custom JSON serialization to ensure the time format is correct
 func (r *RetrievalLog) MarshalJSON() ([]byte, error) {
 	type Alias RetrievalLog
 	return json.Marshal(&struct {
@@ -106,18 +106,18 @@ func (r *RetrievalLog) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// CategoryWithItems 分类及其下的知识项（用于按分类分页）
+// CategoryWithItems A category and its knowledge items (used for paging by category)
 type CategoryWithItems struct {
-	Category  string                  `json:"category"`  // 分类名称
-	ItemCount int                     `json:"itemCount"` // 该分类下的知识项总数
-	Items     []*KnowledgeItemSummary `json:"items"`     // 该分类下的知识项列表
+	Category  string                  `json:"category"`  // Category name
+	ItemCount int                     `json:"itemCount"` // The total number of knowledge items under this category
+	Items     []*KnowledgeItemSummary `json:"items"`     // The list of knowledge items under this category
 }
 
-// SearchRequest 搜索请求
+// SearchRequest Search request
 type SearchRequest struct {
 	Query          string  `json:"query"`
-	RiskType       string  `json:"riskType,omitempty"`       // 可选：指定风险类型
-	SubIndexFilter string  `json:"subIndexFilter,omitempty"` // 可选：仅保留 sub_indexes 含该标签的行（含未打标旧数据）
-	TopK           int     `json:"topK,omitempty"`           // 返回 Top-K 结果，默认 5
-	Threshold      float64 `json:"threshold,omitempty"`      // 相似度阈值，默认 0.7
+	RiskType       string  `json:"riskType,omitempty"`       // Optional: specify a risk type
+	SubIndexFilter string  `json:"subIndexFilter,omitempty"` // Optional: keep only rows whose sub_indexes contain this tag (including untagged legacy data)
+	TopK           int     `json:"topK,omitempty"`           // Return Top-K results, default 5
+	Threshold      float64 `json:"threshold,omitempty"`      // Similarity threshold, default 0.7
 }

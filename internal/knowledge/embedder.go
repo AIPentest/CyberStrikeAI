@@ -16,7 +16,7 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// Embedder 使用 CloudWeGo Eino 的 OpenAI Embedding 组件，并保留速率限制与重试。
+// Embedder Use CloudWeGo Eino's OpenAI Embedding component, keeping rate limiting and retries.
 type Embedder struct {
 	eino   embedding.Embedder
 	config *config.KnowledgeConfig
@@ -29,7 +29,7 @@ type Embedder struct {
 	mu             sync.Mutex
 }
 
-// NewEmbedder 基于 Eino eino-ext OpenAI Embedder；openAIConfig 用于在知识库未单独配置 key 时回退 API Key。
+// NewEmbedder Based on the Eino eino-ext OpenAI Embedder; openAIConfig is used as a fallback when the knowledge base has no separately configured key API Key.
 func NewEmbedder(ctx context.Context, cfg *config.KnowledgeConfig, openAIConfig *config.OpenAIConfig, logger *zap.Logger) (*Embedder, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("knowledge config is nil")
@@ -41,12 +41,12 @@ func NewEmbedder(ctx context.Context, cfg *config.KnowledgeConfig, openAIConfig 
 		rpm := cfg.Indexing.MaxRPM
 		rateLimiter = rate.NewLimiter(rate.Every(time.Minute/time.Duration(rpm)), rpm)
 		if logger != nil {
-			logger.Info("知识库索引速率限制已启用", zap.Int("maxRPM", rpm))
+			logger.Info("Knowledge-base index rate limiting enabled", zap.Int("maxRPM", rpm))
 		}
 	} else if cfg.Indexing.RateLimitDelayMs > 0 {
 		rateLimitDelay = time.Duration(cfg.Indexing.RateLimitDelayMs) * time.Millisecond
 		if logger != nil {
-			logger.Info("知识库索引固定延迟已启用", zap.Duration("delay", rateLimitDelay))
+			logger.Info("Knowledge-base index fixed delay enabled", zap.Duration("delay", rateLimitDelay))
 		}
 	}
 
@@ -75,7 +75,7 @@ func NewEmbedder(ctx context.Context, cfg *config.KnowledgeConfig, openAIConfig 
 		apiKey = strings.TrimSpace(openAIConfig.APIKey)
 	}
 	if apiKey == "" {
-		return nil, fmt.Errorf("embedding API key 未配置")
+		return nil, fmt.Errorf("embedding API key Not configured")
 	}
 
 	timeout := 120 * time.Second
@@ -106,7 +106,7 @@ func NewEmbedder(ctx context.Context, cfg *config.KnowledgeConfig, openAIConfig 
 	}, nil
 }
 
-// EmbeddingModelName 返回配置的嵌入模型名（用于 tiktoken 分块与向量行元数据）。
+// EmbeddingModelName Return the configured embedding model name (used for tiktoken chunking and vector-row metadata).
 func (e *Embedder) EmbeddingModelName() string {
 	if e == nil || e.config == nil {
 		return ""
@@ -125,7 +125,7 @@ func (e *Embedder) waitRateLimiter() {
 	if e.rateLimiter != nil {
 		ctx := context.Background()
 		if err := e.rateLimiter.Wait(ctx); err != nil && e.logger != nil {
-			e.logger.Warn("速率限制器等待失败", zap.Error(err))
+			e.logger.Warn("Rate limiter wait failed", zap.Error(err))
 		}
 	}
 	if e.rateLimitDelay > 0 {
@@ -133,7 +133,7 @@ func (e *Embedder) waitRateLimiter() {
 	}
 }
 
-// EmbedText 单条嵌入（float32，与历史存储格式一致）。
+// EmbedText Single embedding (float32, consistent with the historical storage format).
 func (e *Embedder) EmbedText(ctx context.Context, text string) ([]float32, error) {
 	vecs, err := e.EmbedStrings(ctx, []string{text})
 	if err != nil {
@@ -145,7 +145,7 @@ func (e *Embedder) EmbedText(ctx context.Context, text string) ([]float32, error
 	return vecs[0], nil
 }
 
-// EmbedStrings 批量嵌入，带重试；实现 [embedding.Embedder]，可供 Eino Indexer 使用。
+// EmbedStrings Batch embedding with retries; implements [embedding.Embedder], usable by the Eino Indexer.
 func (e *Embedder) EmbedStrings(ctx context.Context, texts []string, opts ...embedding.Option) ([][]float32, error) {
 	if e == nil || e.eino == nil {
 		return nil, fmt.Errorf("embedder not initialized")
@@ -159,7 +159,7 @@ func (e *Embedder) EmbedStrings(ctx context.Context, texts []string, opts ...emb
 		if attempt > 0 {
 			wait := e.retryDelay * time.Duration(attempt)
 			if e.logger != nil {
-				e.logger.Debug("嵌入重试前等待", zap.Int("attempt", attempt+1), zap.Duration("wait", wait))
+				e.logger.Debug("Wait before retrying the embedding", zap.Int("attempt", attempt+1), zap.Duration("wait", wait))
 			}
 			select {
 			case <-ctx.Done():
@@ -186,13 +186,13 @@ func (e *Embedder) EmbedStrings(ctx context.Context, texts []string, opts ...emb
 			return nil, err
 		}
 		if e.logger != nil {
-			e.logger.Debug("嵌入失败，将重试", zap.Int("attempt", attempt+1), zap.Error(err))
+			e.logger.Debug("Embedding failed, will retry", zap.Int("attempt", attempt+1), zap.Error(err))
 		}
 	}
-	return nil, fmt.Errorf("达到最大重试次数 (%d): %v", e.maxRetries, lastErr)
+	return nil, fmt.Errorf("Reached the maximum number of retries (%d): %v", e.maxRetries, lastErr)
 }
 
-// EmbedTexts 批量 float32 嵌入（兼容旧调用；单次请求批量以减小延迟）。
+// EmbedTexts Batch float32 embedding (compatible with old calls; batch per request to reduce latency).
 func (e *Embedder) EmbedTexts(ctx context.Context, texts []string) ([][]float32, error) {
 	return e.EmbedStrings(ctx, texts)
 }
