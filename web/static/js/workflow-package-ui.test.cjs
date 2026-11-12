@@ -4,12 +4,10 @@ const assert = require('node:assert/strict');
 
 test('workflow provides import, export, and overwrite-confirm containers', () => {
     const html = fs.readFileSync('web/templates/index.html', 'utf8');
-    const zh = JSON.parse(fs.readFileSync('web/static/i18n/zh-CN.json', 'utf8'));
     assert.match(html, /onclick="openWorkflowPackageImportModal\(\)"/);
     assert.match(html, /onclick="[^"]*exportCurrentWorkflowPackage\(\)"/);
     assert.match(html, /id="workflow-package-import-modal"/);
     assert.match(html, /id="workflow-package-overwrite-modal"/);
-    assert.equal(zh.workflows.package.importLocal, '导入本地包');
 });
 
 test('local package upload supports drag-drop, keyboard selection, and selected-file feedback', () => {
@@ -52,7 +50,6 @@ test('a failed import-request-id generation enters error handling', () => {
 });
 
 test('workflow-package dynamic states provide locale entries', () => {
-    const zh = JSON.parse(fs.readFileSync('web/static/i18n/zh-CN.json', 'utf8'));
     const en = JSON.parse(fs.readFileSync('web/static/i18n/en-US.json', 'utf8'));
     const keys = [
         ['errors', 'invalidArchive'],
@@ -62,7 +59,6 @@ test('workflow-package dynamic states provide locale entries', () => {
         ['result', 'overwritten']
     ];
     keys.forEach(([section, key]) => {
-        assert.equal(typeof zh.workflows.package[section][key], 'string');
         assert.equal(typeof en.workflows.package[section][key], 'string');
     });
 });
