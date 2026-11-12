@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#0b1120" media="(prefers-color-scheme: dark)">
-    <title data-i18n="apiDocs.pageTitle">API 文档 - CyberStrikeAI</title>
+    <title data-i18n="apiDocs.pageTitle">API Docs - CyberStrikeAI</title>
     <link rel="icon" type="image/png" href="/static/logo.png">
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="/static/js/theme.js"></script>
@@ -962,12 +962,11 @@
                     <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                <span data-i18n="apiDocs.title">API 文档</span>
+                <span data-i18n="apiDocs.title">API Docs</span>
             </h1>
-            <p data-i18n="apiDocs.subtitle">CyberStrikeAI 平台 API 接口文档，支持在线测试</p>
+            <p data-i18n="apiDocs.subtitle">CyberStrikeAI platform API documentation with online testing</p>
             <div class="api-docs-header-actions">
-                <button id="theme-toggle-btn" class="theme-toggle-btn btn-secondary" type="button" onclick="window.cycleThemePreference && window.cycleThemePreference()" data-i18n="theme.toggle" data-i18n-attr="title" title="切换主题" aria-label="切换主题">
-                    <svg class="theme-toggle-icon theme-toggle-icon--system" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                <button id="theme-toggle-btn" class="theme-toggle-btn btn-secondary" type="button" onclick="window.cycleThemePreference && window.cycleThemePreference()" data-i18n="theme.toggle" data-i18n-attr="title" title="Toggle theme" aria-label="Switch theme">Toggle theme<svg class="theme-toggle-icon theme-toggle-icon--system" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
                         <rect x="3" y="4" width="18" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
                         <path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                     </svg>
@@ -978,10 +977,10 @@
                     <svg class="theme-toggle-icon theme-toggle-icon--dark" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
                         <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3a7 7 0 1 0 11.5 11.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                     </svg>
-                    <span id="theme-toggle-label">跟随系统</span>
+                    <span id="theme-toggle-label">Follow system</span>
                 </button>
                 <div class="lang-switcher">
-                    <button type="button" class="btn-secondary lang-switcher-btn" onclick="typeof toggleLangDropdown === 'function' && toggleLangDropdown()" title="界面语言">
+                    <button type="button" class="btn-secondary lang-switcher-btn" onclick="typeof toggleLangDropdown === 'function' && toggleLangDropdown()" data-i18n="header.language" data-i18n-attr="title" data-i18n-skip-text="true" title="Interface language">
                         <span class="lang-switcher-icon">🌐</span>
                         <span id="current-lang-label">Chinese</span>
                     </button>
@@ -1002,17 +1001,17 @@
                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                             <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                         </svg>
-                        <h3 style="margin: 0; font-size: 1rem; font-weight: 600; color: var(--text-primary);" data-i18n="apiDocs.authTitle">API 认证说明</h3>
+                        <h3 style="margin: 0; font-size: 1rem; font-weight: 600; color: var(--text-primary);" data-i18n="apiDocs.authTitle">API Authentication</h3>
                     </div>
                     <svg id="auth-info-arrow" class="auth-info-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform 0.2s ease;">
                         <polyline points="6 9 12 15 18 9"/>
                     </svg>
                 </div>
                 <div id="auth-info-body" class="auth-info-body" style="display: none; color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6; margin-top: 16px;">
-                    <p style="margin: 0 0 12px 0;"><strong data-i18n="apiDocs.authAllNeedToken">所有 API 接口都需要 Token 认证。</strong></p>
+                    <p style="margin: 0 0 12px 0;"><strong data-i18n="apiDocs.authAllNeedToken">All API endpoints require Token authentication.</strong></p>
                     <div style="background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
-                        <p style="margin: 0 0 8px 0; font-weight: 500;" data-i18n="apiDocs.authGetToken">1. 获取 Token：</p>
-                        <p style="margin: 0 0 8px 0;" data-i18n="apiDocs.authGetTokenDesc">在前端页面登录后，Token 会自动保存。您也可以通过以下方式获取：</p>
+                        <p style="margin: 0 0 8px 0; font-weight: 500;" data-i18n="apiDocs.authGetToken">1. Get Token:</p>
+                        <p style="margin: 0 0 8px 0;" data-i18n="apiDocs.authGetTokenDesc">After logging in on the frontend, the Token is saved automatically. You can also get it via:</p>
                         <pre style="background: var(--bg-primary); padding: 8px; border-radius: 4px; margin: 8px 0; overflow-x: auto; font-size: 0.8125rem;"><code>POST /api/auth/login
 Content-Type: application/json
 
@@ -1020,21 +1019,20 @@ Content-Type: application/json
   "password": "your_password"
 }
 
-响应: { 
+Response: {
   "token": "eyJhbGc...", 
   "expires_at": "2026-01-27T...",
   "session_duration_hr": 24
 }</code></pre>
                     </div>
                     <div style="background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
-                        <p style="margin: 0 0 8px 0; font-weight: 500;" data-i18n="apiDocs.authUseToken">2. 使用 Token：</p>
-                        <p style="margin: 0 0 8px 0;" data-i18n="apiDocs.authUseTokenDesc">在请求头中添加 Authorization 字段：</p>
+                        <p style="margin: 0 0 8px 0; font-weight: 500;" data-i18n="apiDocs.authUseToken">2. Use Token:</p>
+                        <p style="margin: 0 0 8px 0;" data-i18n="apiDocs.authUseTokenDesc">Add the Authorization header:</p>
                         <pre style="background: var(--bg-primary); padding: 8px; border-radius: 4px; margin: 8px 0; overflow-x: auto; font-size: 0.8125rem;"><code>Authorization: Bearer your_token_here</code></pre>
-                        <p style="margin: 8px 0 0 0; font-size: 0.8125rem; color: var(--text-muted);" data-i18n="apiDocs.authTip">💡 提示：本页面会自动使用您已登录的 Token，无需手动填写。</p>
+                        <p style="margin: 8px 0 0 0; font-size: 0.8125rem; color: var(--text-muted);" data-i18n="apiDocs.authTip">💡 This page will use your logged-in Token automatically; no need to fill it manually.</p>
                     </div>
                     <div id="token-status" style="display: none; background: rgba(0, 102, 255, 0.1); padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--accent-color);">
-                        <p style="margin: 0; font-size: 0.8125rem; color: var(--accent-color);" data-i18n="apiDocs.tokenDetected">
-                            <strong>✓ 已检测到 Token</strong> - 您可以直接测试 API 接口
+                        <p style="margin: 0; font-size: 0.8125rem; color: var(--accent-color);" data-i18n="apiDocs.tokenDetected"><strong>✓ Token detected</strong> - You can test API endpoints directly
                         </p>
                     </div>
                 </div>
@@ -1055,10 +1053,10 @@ Content-Type: application/json
         
         <div class="api-docs-content">
             <div class="api-docs-sidebar">
-                <h3 data-i18n="apiDocs.sidebarGroupTitle">API 分组</h3>
+                <h3 data-i18n="apiDocs.sidebarGroupTitle">API Groups</h3>
                 <ul class="api-group-list" id="api-group-list">
                     <li class="api-group-item">
-                        <a href="#" class="api-group-link active" data-group="all" data-i18n="apiDocs.allApis">全部接口</a>
+                        <a href="#" class="api-group-link active" data-group="all" data-i18n="apiDocs.allApis">All APIs</a>
                     </li>
                 </ul>
             </div>
@@ -1070,8 +1068,8 @@ Content-Type: application/json
                         <line x1="12" y1="8" x2="12" y2="12"/>
                         <line x1="12" y1="16" x2="12.01" y2="16"/>
                     </svg>
-                    <h3 data-i18n="apiDocs.loading">加载中...</h3>
-                    <p data-i18n="apiDocs.loadingDesc">正在加载 API 文档</p>
+                    <h3 data-i18n="apiDocs.loading">Loading...</h3>
+                    <p data-i18n="apiDocs.loadingDesc">Loading API documentation</p>
                 </div>
             </div>
         </div>
