@@ -14,7 +14,7 @@ const ru = JSON.parse(fs.readFileSync('web/static/i18n/ru-RU.json', 'utf8'));
 
 // The only handlers this console is allowed to wire into markup.
 const HANDLES = ['startUpdateApply', 'checkForUpdates', 'rollbackUpdate',
-    'updateRestartChoiceChanged', 'loadUpdateConsole',
+    'loadUpdateConsole',
     'saveUpdateSource', 'previewAdoptSource', 'confirmAdoptSource',
     'startRestartNow', 'refreshUpdatePage'];
 
@@ -94,6 +94,8 @@ function envelope(status, job, canRestart, source, flags) {
         job: job === undefined ? null : job,
         canRestart: canRestart !== false,
         supervised: !!(flags && flags.supervised),
+        autoRestart: flags?.autoRestart,
+        bootID: flags?.bootID,
         needsRestart: !!(flags && flags.needsRestart),
         binaryBuiltAt: (flags && flags.binaryBuiltAt) || '',
         source: source || emptySource,
@@ -166,7 +168,6 @@ function harness(options) {
         const el = {
             id,
             innerHTML: '',
-            checked: false,
             insertAdjacentHTML(_pos, html) { this.innerHTML = html + this.innerHTML; },
         };
         // 控制台住在系统设置页的「一键更新」分区里：页面和分区都得是 active，它才算在前台。
@@ -192,10 +193,7 @@ function harness(options) {
         'POST /api/system/update/adopt': [{ status: 200, body: { plan: adoptPlan } }],
     }, opts.responses || {});
 
-    // The watchdog probes with plain fetch (the app's apiFetch turns a 401 into "logged out",
-    // and the whole point here is to read that 401 as "the new process is up"). Tests script
-    // the answers: 'ok' (old process still answering), 'unauthorized' (a new process without
-    // our session), 'down' (nothing is listening), 'bad gateway'.
+    // Plain fetch observes boot headers without apiFetch's logout side effect.
     const probeQueue = (opts.probes || ['ok']).slice();
     const fetchProbes = [];
 
@@ -228,6 +226,8 @@ function harness(options) {
         String,
         Date,
         Math,
+        URLSearchParams,
+        authToken: 'test-session',
         escapeHtml(text) {
             const div = sandbox.document.createElement('div');
             div.textContent = text;
@@ -302,13 +302,23 @@ function harness(options) {
             });
         },
         fetch(url, reqOpts = {}) {
+            if (url === '/api/system/update/job') {
+                return sandbox.apiFetch(url, reqOpts);
+            }
             fetchProbes.push({ url, opts: reqOpts });
             const answer = probeQueue.length > 1 ? probeQueue.shift() : (probeQueue[0] || 'ok');
             if (answer === 'down') {
                 return Promise.reject(new TypeError('Failed to fetch'));
             }
             if (answer === 'unauthorized') {
-                return Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({ error: 'unauthorized' }) });
+                return Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({ error: '未授权访问，请先登录' }) });
+            }
+            if (typeof answer === 'object') {
+                return Promise.resolve({
+                    status: answer.status,
+                    headers: { get: name => name === 'X-CyberStrike-Boot-ID' ? answer.bootID : null },
+                    json: () => Promise.resolve(answer.body || {}),
+                });
             }
             if (answer === 'bad gateway') {
                 return Promise.resolve({ ok: false, status: 502, json: () => Promise.resolve({}) });
@@ -321,6 +331,7 @@ function harness(options) {
         location: {
             pathname: '/',
             hash: '',
+            search: opts.search || '',
             replaced: [],
             reloads: 0,
             replace(target) { this.replaced.push(target); },
@@ -333,12 +344,11 @@ function harness(options) {
     vm.runInContext(`
         this.api = {
             loadUpdateConsole, checkForUpdates, startUpdateApply, rollbackUpdate,
-            updateRestartChoiceChanged, pollUpdateJob, renderUpdateConsole, stopUpdatePolling,
+            pollUpdateJob, renderUpdateConsole, stopUpdatePolling,
             startRestartNow
         };
         this.vars = {
             setBusy(v) { updateBusy = v; },
-            getRestartChoice() { return updateRestartChoice; },
             getPollTimer() { return updatePollTimer; },
             getCheckDone() { return updateCheck.done; },
             autoCheckDone() { return updateAutoCheckDone; },
@@ -429,7 +439,7 @@ test('the console lives inside the settings page as its own section', () => {
         'settings-section-update must live inside page-settings');
     assert.match(template, /id="settings-section-update"[\s\S]{0,700}?id="update-console"/);
     assert.match(template, /id="update-console"/);
-    assert.match(template, /<script src="\/static\/js\/update\.js\?v=\{\{\.Version\}\}"><\/script>/);
+    assert.match(template, /<script src="\/static\/js\/update\.js\?v=\{\{\.Version\}\}-auto-switch"><\/script>/);
     assert.match(template, /<div class="settings-section-header update-section-head">/);
     assert.match(template, /<h3 data-i18n="update\.title">/);
 
@@ -466,7 +476,7 @@ test('the update console has its own stylesheet section', () => {
     assert.ok(block.includes('.update-console'), 'the .update-* section must follow its own section header');
     ['.update-console', '.update-section-head', '.update-section-title', '.update-facts', '.update-chip-ok', '.update-chip-warn',
         '.update-chip-danger', '.update-error', '.update-check-failed', '.update-step-list', '.update-table',
-        '.update-restart-choice', '.update-blocker-list', '.update-apply-btn:disabled'].forEach(sel => {
+        '.update-blocker-list', '.update-apply-btn:disabled'].forEach(sel => {
         assert.ok(sheet.includes(sel), sel + ' must be defined');
     });
     // Every class the console emits has to be styled or be an existing shared one: a hook name
@@ -742,8 +752,6 @@ test('a tree that only owes a build still offers the button, and says it is a bu
     await h.flush();
     const apply = h.calls.find(c => c.method === 'POST' && c.url === '/api/system/update/apply');
     assert.ok(apply, 'the retry must reach the server: ' + h.calls.map(c => c.method + ' ' + c.url));
-    assert.match(h.confirms[h.confirms.length - 1], /补上二进制/,
-        'the confirm dialog describes a build, not "0 new commits"');
     const success = h.toasts.filter(t => t.type === 'success' && /补编译完成/.test(t.msg)).pop();
     assert.ok(success, 'a finished build retry is announced as a build: ' + JSON.stringify(h.toasts));
     assert.deepEqual(h.toasts.filter(t => t.type === 'success' && /a1b2c3d → a1b2c3d/.test(t.msg)), [],
@@ -782,7 +790,7 @@ test('a pending build with no toolchain fails with the server sentence, never a 
         'the server sentence must be shown: ' + JSON.stringify(h.toasts));
 });
 
-test('applying posts {"restart":false} and then reads the job every 1.5 seconds', async () => {
+test('applying reads the job every 1.5 seconds', async () => {
     // This test is about the poll cadence and the final re-read, so the job finishes without
     // having asked for a restart; the restart hand-off has its own test below.
     const plainSucceededJob = Object.assign({}, succeededJob, { restartRequested: false });
@@ -815,7 +823,7 @@ test('applying posts {"restart":false} and then reads the job every 1.5 seconds'
 
     const apply = h.calls.find(c => c.method === 'POST' && c.url === '/api/system/update/apply');
     assert.ok(apply, 'no apply was posted: ' + h.calls.map(c => c.method + ' ' + c.url));
-    assert.deepEqual(JSON.parse(apply.body), { restart: false },
+    assert.deepEqual(JSON.parse(apply.body), { restart: true },
         'the body is one object carrying a restart boolean, not a positional bag');
     assert.equal(h.liveTimers().length, 1, 'exactly one poller: ' + JSON.stringify(h.timers.map(t => t.ms)));
     assert.equal(h.liveTimers()[0].ms, 1500, 'progress must be read every 1.5 seconds');
@@ -880,72 +888,25 @@ test('a failing job shows the server message with its item list, and never claim
     assert.equal(h.toasts[h.toasts.length - 1].type, 'error');
 });
 
-test('the restart tick only appears when the process can actually be restarted', async () => {
-    const off = await harness({ canRestart: false });
-    assert.doesNotMatch(off.html(), /id="update-restart-choice"/,
-        'offering a promise the platform cannot keep is a lie');
-    assert.match(off.html(), /本次启动没有提供重启钩子/);
-
-    const on = await harness({
-        canRestart: true,
-        // No job to adopt: a running job would (correctly) block the second click, and this test
-        // is about what the checkbox does to the body, not about the block.
-        responses: { 'GET /api/system/update/job': [{ status: 200, body: { job: null } }] },
-    });
-    assert.match(on.html(), /<input type="checkbox" id="update-restart-choice"[^>]*onchange="updateRestartChoiceChanged\(this\.checked\)">/);
-    assert.ok(!/id="update-restart-choice" checked/.test(on.html()),
-        'with nothing supervising the process, the tick must default to off: ticking it would just stop the platform');
-
-    // The default follows the environment: launchd/systemd markers mean a restart is a
-    // restart, so one click should be the whole update.
-    const supervised = await harness({
-        canRestart: true,
-        flags: { supervised: true },
-        responses: { 'GET /api/system/update/job': [{ status: 200, body: { job: null } }] },
-    });
-    assert.match(supervised.html(), /id="update-restart-choice" checked/,
-        'detected supervision must pre-tick the box');
-    // Once the operator decides for themselves, the default stops second-guessing them.
-    supervised.sandbox.document.getElementById('update-restart-choice').checked = false;
-    supervised.fire('updateRestartChoiceChanged', { checked: false });
-    assert.ok(!/id="update-restart-choice" checked/.test(supervised.html()));
-
-    on.calls.length = 0;
-    on.fire('startUpdateApply');
-    await on.flush();
-    assert.deepEqual(JSON.parse(on.calls.find(c => c.url === '/api/system/update/apply').body), { restart: false });
-
-    // Tick it through the rendered onchange, exactly as a browser does (the element is already
-    // checked when change fires), then apply again.
-    on.vars.setBusy(false);
-    on.nodes.get('update-restart-choice').checked = true;
-    on.fire('updateRestartChoiceChanged', { checked: true });
-    assert.equal(on.vars.getRestartChoice(), true);
-    assert.match(on.html(), /id="update-restart-choice" checked/, 'the tick must survive the repaint');
-
-    on.calls.length = 0;
-    on.vars.setBusy(false);
-    on.fire('startUpdateApply');
-    await on.flush();
-    assert.deepEqual(JSON.parse(on.calls.find(c => c.url === '/api/system/update/apply').body), { restart: true },
-        'the restart flag that goes out is the checkbox, not a guess');
-});
-
-test('the confirm dialog says what the update will do, and cancelling posts nothing', async () => {
-    const h = await harness();
-    h.setConfirm(false);
-    h.calls.length = 0;
-    h.toasts.length = 0;
-    h.fire('startUpdateApply');
-    await h.flush();
-    assert.equal(h.confirms.length, 1, 'the operator must be asked before the tree moves');
-    assert.match(h.confirms[0], /重新编译/, 'the confirm must say the binary gets rebuilt: ' + h.confirms[0]);
-    assert.match(h.confirms[0], /二进制/);
-    assert.match(h.confirms[0], /github\.com\/AIPentest\/CyberStrikeAI/, 'the confirm must name the repository being fetched');
-    assert.match(h.confirms[0], /a1b2c3d/, 'the confirm must name where this machine is now');
-    assert.doesNotMatch(h.confirms[0], /\{\{/, 'the confirm went out un-interpolated: ' + h.confirms[0]);
-    assert.deepEqual(h.calls.map(c => c.method + ' ' + c.url), [], 'a cancelled update must not POST');
-    assert.deepEqual(h.toasts, [], 'a cancelled update must not be reported as anything');
+test('one click requests automatic activation when supported, with no prompt or start toast', async () => {
+    for (const canRestart of [true, false]) {
+        const h = await harness({
+            canRestart,
+            confirm: false,
+            responses: { 'GET /api/system/update/job': [{
+                status: 200, body: { job: { ...runningJob, restartRequested: canRestart } },
+            }] },
+        });
+        assert.match(h.html(), canRestart ? /页面随后自动刷新/ : /当前启动方式不支持自动切换/);
+        assert.doesNotMatch(h.html(), /id="update-restart-choice"/);
+        h.fire('startUpdateApply');
+        await h.flush();
+        const apply = h.calls.filter(c => c.url === '/api/system/update/apply');
+        assert.equal(apply.length, 1);
+        assert.deepEqual(JSON.parse(apply[0].body), { restart: canRestart });
+        assert.deepEqual(h.confirms, []);
+        assert.deepEqual(h.toasts, []);
+    }
 });
 
 test('a second apply is refused with 409 and the running job is adopted', async () => {
@@ -964,7 +925,7 @@ test('a second apply is refused with 409 and the running job is adopted', async 
     await h.flush();
     const apply = h.calls.find(c => c.url === '/api/system/update/apply');
     assert.equal(apply.method, 'POST');
-    assert.deepEqual(JSON.parse(apply.body), { restart: false });
+    assert.deepEqual(JSON.parse(apply.body), { restart: true });
     assert.match(h.html(), /正在编译二进制/, 'the job the server named must be shown, not swallowed');
     assert.match(h.html(), /upd-7/);
     assert.match(h.toasts[h.toasts.length - 1].msg, /已有一次更新在进行中/);
@@ -1125,13 +1086,13 @@ test('server strings cannot become markup, in text or in an attribute', async ()
     // Every emitted handler must still be executable as written: an injection into an attribute
     // would break the statement instead.
     const found = h.extractHandlers(html);
-    assert.ok(found.onclick.length && found.onchange.length, 'handlers must still render under hostile data');
+    assert.ok(found.onclick.length, 'handlers must still render under hostile data');
     found.onclick.concat(found.onchange).forEach(text => {
         assert.doesNotMatch(text, /"/, 'handler text carries a raw quote: ' + text);
         assert.equal(typeof vm.runInContext('(function(){' + text + '})', h.sandbox), 'function',
             'the emitted handler is not valid JS: ' + text);
     });
-    ['startUpdateApply', 'checkForUpdates', 'rollbackUpdate', 'updateRestartChoiceChanged']
+    ['startUpdateApply', 'checkForUpdates', 'rollbackUpdate']
         .forEach(name => assert.ok(found.onclick.concat(found.onchange).some(t => t.startsWith(name + '(')),
             name + ' must stay wired'));
 });
@@ -1176,6 +1137,7 @@ test('opening the page schedules exactly one deferred remote check', async () =>
     const checks = h.calls.filter(c => c.method === 'POST' && c.url === '/api/system/update/check');
     assert.strictEqual(checks.length, 1, 'the deferred timer must ask the remote exactly once');
     assert.match(h.html(), /3/, 'the answer must be on screen without another click');
+    assert.deepEqual(h.toasts, [], 'a background check should not pop up a success message');
 
     // Re-entering the page in the same session does not go back to the remote again.
     h.api.loadUpdateConsole();
@@ -1310,7 +1272,7 @@ test('adopt previews first, and confirming carries the counts into the dialog', 
     assert.match(h.confirms[0], /42/, 'the dialog counts what will happen');
     const adopt = h.calls.find(c => c.url === '/api/system/update/adopt' && c.method === 'POST' && c.body && c.body.includes('"confirm":true'));
     assert.ok(adopt, 'confirming must post to adopt');
-    assert.deepEqual(JSON.parse(adopt.body), { confirm: true, restart: false });
+    assert.deepEqual(JSON.parse(adopt.body), { confirm: true, restart: true });
     assert.ok(h.vars.getPollTimer(), 'the job it started must be polled');
 });
 
@@ -1356,7 +1318,7 @@ test('restart now asks first, posts once, and hands the page to the watchdog', a
     h.fire('startRestartNow');
     await h.flush();
     assert.equal(h.confirms.length, 1, 'standing the service down is confirmed, never implied');
-    assert.match(h.confirms[0], /守护/, 'the confirm has to say what brings it back: ' + h.confirms[0]);
+    assert.match(h.confirms[0], /页面会自动刷新/);
     assert.deepEqual(h.calls, [], 'a cancelled restart must not post');
     assert.equal(h.vars.getWatchdogTimer(), null, 'nothing may be watched for a restart nobody asked for');
 
@@ -1389,8 +1351,8 @@ test('a refused restart is reported with the server sentence and arms nothing', 
 
 test('the watchdog reloads only when the NEW process answers, never while the old one still does', async () => {
     const h = await harness({
-        flags: { needsRestart: true },
-        probes: ['ok', 'down', 'down', 'unauthorized'],
+        flags: { needsRestart: true, bootID: 'old' },
+        probes: [{ status: 401, bootID: 'old' }, 'down', { status: 401 }, { status: 200, bootID: 'new' }],
         responses: { 'POST /api/system/update/restart': [{ status: 202, body: { restarting: true } }] },
     });
     await h.api.startRestartNow();
@@ -1399,18 +1361,18 @@ test('the watchdog reloads only when the NEW process answers, never while the ol
 
     await h.tick();
     await h.flush();
-    assert.equal(h.location.replaced.length, 0, 'a 200 from the old process is not "it is back"');
+    assert.equal(h.location.replaced.length, 0, 'an expired session on the old boot is not a restart');
 
     await h.tick();
     await h.flush();
     await h.tick();
     await h.flush();
-    assert.equal(h.location.replaced.length, 0, 'a dead service is not a recovered one');
+    assert.equal(h.location.replaced.length, 0, 'a dead service or proxy 401 does not prove recovery');
 
     await h.tick();
     await h.flush();
     assert.equal(h.location.replaced.length, 1,
-        'a 401 is the proof: only a new process can fail to know our session');
+        'the new boot can be recognized independently of authentication status');
     assert.match(h.location.replaced[0], /\?restarted=\d+/);
     assert.match(h.location.replaced[0], /#system-update$/);
     assert.equal(h.vars.getWatchdogTimer(), null, 'the page is leaving: the timer must be down');
@@ -1427,7 +1389,7 @@ test('a restart that does not come back says so instead of spinning forever', as
     downCase.vars.expireWatchdog();
     await downCase.tick();
     await downCase.flush();
-    assert.match(downCase.html(), /没有守护进程|不会自己启动/, 'the down advice must name the supervision question');
+    assert.match(downCase.html(), /服务仍未恢复，页面会继续重试/);
 
     const aliveCase = await harness({
         flags: { needsRestart: true },
@@ -1445,17 +1407,15 @@ test('a restart that does not come back says so instead of spinning forever', as
 
 test('an update that asked for a restart hands the page to the watchdog instead of reporting a failed poll', async () => {
     const h = await harness({
-        flags: { supervised: true },
+        search: '?view=ops',
         responses: {
             'GET /api/system/update/job': [
-                { status: 200, body: { job: runningJob } },
+                { status: 200, body: { job: { ...runningJob, restartRequested: true } } },
                 { status: 200, body: { job: succeededJob } },
             ],
         },
-        probes: ['unauthorized'],
+        probes: ['bad gateway', { status: 200, bootID: 'new' }],
     });
-    // In a real browser the pre-ticked box makes this true; the harness reads the element.
-    h.sandbox.document.getElementById('update-restart-choice').checked = true;
     h.fire('startUpdateApply');
     await h.flush();
     const apply = h.calls.find(c => c.url === '/api/system/update/apply');
@@ -1470,10 +1430,14 @@ test('an update that asked for a restart hands the page to the watchdog instead 
     assert.deepEqual(h.toasts.filter(t => t.type === 'error'), [],
         'the process going away by request is not a polling failure to complain about');
     assert.ok(h.vars.restartPending());
+    assert.doesNotMatch(h.html(), /立即刷新页面|重新登录/);
 
     await h.tick();
-    await h.flush();
+    assert.deepEqual(h.location.replaced, [], 'a proxy error must not reload');
+    await h.tick();
+    assert.equal(h.probes.at(-1).opts.headers.Authorization, 'Bearer test-session');
     assert.equal(h.location.replaced.length, 1);
+    assert.match(h.location.replaced[0], /view=ops&restarted=\d+#system-update$/);
 });
 
 test('a job poll that dies while the restart is in flight is not a failure', async () => {
@@ -1484,7 +1448,6 @@ test('a job poll that dies while the restart is in flight is not a failure', asy
         rejects: ['GET /api/system/update/job'],
         probes: ['unauthorized'],
     });
-    h.sandbox.document.getElementById('update-restart-choice').checked = true;
     h.fire('startUpdateApply');
     await h.flush();
     assert.match(h.html(), /正在重启服务/, 'a dead poll while a restart is requested means the restart is in flight');
@@ -1493,6 +1456,21 @@ test('a job poll that dies while the restart is in flight is not a failure', asy
     await h.tick();
     await h.flush();
     assert.equal(h.location.replaced.length, 1);
+});
+
+test('an update that did not build a binary stays on the progress page', async () => {
+    const h = await harness({
+        flags: { autoRestart: true },
+        responses: {
+            'GET /api/system/update/job': [{
+                status: 200,
+                body: { job: { ...succeededJob, result: { ...succeededJob.result, binaryBuilt: false } } },
+            }],
+        },
+    });
+    await h.api.startUpdateApply();
+    assert.deepEqual(JSON.parse(h.calls.find(c => c.url === '/api/system/update/apply').body), { restart: true });
+    assert.equal(h.vars.getWatchdogTimer(), null, 'a source-only update does not cause an outage');
 });
 
 test('an interrupted rollback offers recovery and blocks a new update', async () => {

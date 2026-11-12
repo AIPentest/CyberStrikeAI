@@ -46,7 +46,7 @@ Server `POST /api/auth/login` returns `{ token, expires_at }`. There is **no ref
 | Local check | Re-check `expires_at` + `GET /api/auth/validate` every 30s |
 | Server probe | Immediate probe when DevTools panel becomes visible |
 | Unreachable | Show warning; keep token during transient outage |
-| 401/403 | Clear token (server restart clears in-memory sessions) |
+| 401/403 | Clear token and require re-authentication |
 | Before Send | `ensureAuthReady()` before SSE |
 | Permissions | `optional_host_permissions` — request origin on Validate |
 

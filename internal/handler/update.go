@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -32,10 +33,9 @@ type UpdateHandler struct {
 	root   string // the installation to update: the directory the config file lives in
 	logger *zap.Logger
 	audit  *audit.Service
-	// restart is the operator's own shutdown hook. It is only ever called when the
-	// request asked for a restart, because an unsupervised process that exits stays
-	// exited - "I restarted you" would be a lie on most deployments.
-	restart func()
+	// prepareRestart validates the replacement before the running service shuts down.
+	prepareRestart func() (func(), error)
+	bootID         string
 	// source reports the configured update source (config.yaml update.repo) as the
 	// operator last saved it; an empty string means "not configured" and the official
 	// repository is used. A function rather than a value because the config can change
@@ -59,15 +59,16 @@ type UpdateHandler struct {
 // returns a handle and the page polls it rather than sitting in one HTTP call until the
 // compiler finishes.
 type updateJob struct {
-	ID       string         `json:"id"`
-	Kind     string         `json:"kind"`  // apply | adopt
-	State    string         `json:"state"` // running | succeeded | failed
-	Started  string         `json:"started"`
-	Finished string         `json:"finished,omitempty"`
-	Steps    []update.Step  `json:"steps"`
-	Result   *update.Result `json:"result,omitempty"`
-	Failure  *update.Error  `json:"failure,omitempty"`
-	Restart  bool           `json:"restartRequested"`
+	ID           string         `json:"id"`
+	Kind         string         `json:"kind"`  // apply | adopt
+	State        string         `json:"state"` // running | succeeded | failed
+	Started      string         `json:"started"`
+	Finished     string         `json:"finished,omitempty"`
+	Steps        []update.Step  `json:"steps"`
+	Result       *update.Result `json:"result,omitempty"`
+	Failure      *update.Error  `json:"failure,omitempty"`
+	Restart      bool           `json:"restartRequested"`
+	RestartError string         `json:"restartError,omitempty"`
 }
 
 // view copies a job for transport, because its fields are written by the job's own
@@ -81,17 +82,18 @@ func (j *updateJob) view() *updateJob {
 // NewUpdateHandler takes the audit service as a constructor argument rather than through
 // a SetAudit the assembly has to remember: forgetting here is a compile error instead of
 // a privileged endpoint that writes no audit records at all.
-func NewUpdateHandler(root string, logger *zap.Logger, auditSvc *audit.Service, restart func(),
+func NewUpdateHandler(root string, logger *zap.Logger, auditSvc *audit.Service, prepareRestart func() (func(), error),
 	source func() string, saveSource func(repo string) error) *UpdateHandler {
 	return &UpdateHandler{
-		root:       root,
-		logger:     logger,
-		audit:      auditSvc,
-		restart:    restart,
-		source:     source,
-		saveSource: saveSource,
-		baseline:   update.StampBinary(root, update.Options{Root: root}),
-		jobs:       map[string]*updateJob{},
+		root:           root,
+		logger:         logger,
+		audit:          auditSvc,
+		prepareRestart: prepareRestart,
+		bootID:         uuid.NewString(),
+		source:         source,
+		saveSource:     saveSource,
+		baseline:       update.StampBinary(root, update.Options{Root: root}),
+		jobs:           map[string]*updateJob{},
 	}
 }
 
@@ -109,10 +111,8 @@ func (h *UpdateHandler) restartPending() (bool, string) {
 	return true, builtAt
 }
 
-// restartSupervised reports whether something outside this process is set up to bring it
-// back: launchd (XPC_SERVICE_NAME) and systemd (INVOCATION_ID / JOURNAL_STREAM) both leave
-// a marker in the environment. It is only the page's default for the restart tick - the
-// operator's own checkbox remains the decision.
+// restartSupervised is a legacy status hint. These environment markers do not
+// prove that the supervisor is configured to restart the service.
 func restartSupervised() bool {
 	return strings.TrimSpace(os.Getenv("XPC_SERVICE_NAME")) != "" ||
 		strings.TrimSpace(os.Getenv("INVOCATION_ID")) != "" ||
@@ -154,12 +154,21 @@ func (h *UpdateHandler) GetStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status":        snap,
 		"job":           h.latest(),
-		"canRestart":    h.restart != nil,
+		"canRestart":    h.prepareRestart != nil,
+		"autoRestart":   h.prepareRestart != nil,
+		"bootID":        h.bootID,
 		"supervised":    restartSupervised(),
 		"needsRestart":  needsRestart,
 		"binaryBuiltAt": binaryBuiltAt,
 		"source":        h.sourceView(),
 	})
+}
+
+// SetBootHeader runs before auth on the validation route so a client can tell
+// a new boot from a revoked or expired session on the current boot.
+func (h *UpdateHandler) SetBootHeader(c *gin.Context) {
+	c.Header("X-CyberStrike-Boot-ID", h.bootID)
+	c.Header("Cache-Control", "no-store")
 }
 
 // Check answers POST /api/system/update/check: fetch the tracked branch and report the
@@ -235,7 +244,7 @@ func (h *UpdateHandler) Adopt(c *gin.Context) {
 			return
 		}
 	}
-	if body.Confirm && body.Restart && h.restart == nil {
+	if body.Confirm && body.Restart && h.prepareRestart == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "本次启动没有提供重启钩子，接入完成后请由外部进程管理器重启服务"})
 		return
 	}
@@ -271,7 +280,7 @@ func (h *UpdateHandler) Apply(c *gin.Context) {
 			return
 		}
 	}
-	if body.Restart && h.restart == nil {
+	if body.Restart && h.prepareRestart == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "本次启动没有提供重启钩子，更新完成后请由外部进程管理器重启服务"})
 		return
 	}
@@ -286,7 +295,7 @@ func (h *UpdateHandler) Apply(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"job_id": job.ID, "state": job.State})
 }
 
-// Restart answers POST /api/system/update/restart: stand this process down so the binary
+// Restart answers POST /api/system/update/restart: replace this process so the binary
 // already on disk - an update or a rollback that ran without one - becomes the thing
 // answering requests. It refuses when there is nothing to activate, because a bounce that
 // cannot change anything is a dropped service for no reason.
@@ -306,7 +315,7 @@ func (h *UpdateHandler) Restart(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": "更新进行中，等它结束再重启", "job": busy})
 		return
 	}
-	if h.restart == nil {
+	if h.prepareRestart == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "本次启动没有提供重启钩子，请由外部进程管理器重启服务"})
 		return
 	}
@@ -318,10 +327,16 @@ func (h *UpdateHandler) Restart(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": "磁盘上的二进制不存在，无法重启", "reason": "no_binary"})
 		return
 	}
+	restart, err := h.prepareRestart()
+	if err != nil {
+		failure := &update.Error{Reason: "restart_unavailable", Message: "无法启动磁盘上的二进制：" + err.Error()}
+		c.JSON(statusForError(failure), errorBody(failure))
+		return
+	}
 	h.record(c, "update.restart", "started", "重启安装以运行磁盘上的新二进制", nil)
 	c.JSON(http.StatusAccepted, gin.H{"restarting": true})
 	scheduled = true
-	time.AfterFunc(updateRestartDelay, func() { defer release(); h.restart() })
+	time.AfterFunc(updateRestartDelay, func() { defer release(); restart() })
 }
 
 // Job answers GET /api/system/update/job: the running job, or the most recent one, with
@@ -411,22 +426,29 @@ func (h *UpdateHandler) startJob(kind string, restart bool) (*updateJob, bool) {
 		}
 		job.State = finish
 		job.Finished = time.Now().Format(time.RFC3339)
-		if job.Restart && finish == "succeeded" && res != nil && res.BinaryBuilt && h.restart != nil {
+		if job.Restart && finish == "succeeded" && res != nil && res.BinaryBuilt && h.prepareRestart != nil {
 			release, lockErr := update.LockInstall(opts)
 			if lockErr == nil {
-				h.mu.Unlock()
-				// Keep both CLI and HTTP writers out until the old process exits.
-				time.AfterFunc(updateRestartDelay, func() {
-					defer release()
-					defer func() { h.mu.Lock(); h.active = ""; h.mu.Unlock() }()
-					h.restart()
-				})
-				return
+				restart, prepareErr := h.prepareRestart()
+				if prepareErr == nil {
+					h.mu.Unlock()
+					// Keep both CLI and HTTP writers out until the old executable is replaced.
+					time.AfterFunc(updateRestartDelay, func() {
+						defer release()
+						defer func() { h.mu.Lock(); h.active = ""; h.mu.Unlock() }()
+						restart()
+					})
+					return
+				}
+				release()
+				job.RestartError = prepareErr.Error()
+			} else {
+				// Another writer acquired the lock after the build.
+				job.RestartError = lockErr.Error()
 			}
-			// Another process began an operation after the build. The binary is
-			// ready, but shutting down now would interrupt that operation.
-			job.Restart = false
 		}
+		// A completed job only reports restartRequested if it actually scheduled one.
+		job.Restart = false
 		h.active = ""
 		h.mu.Unlock()
 	}()

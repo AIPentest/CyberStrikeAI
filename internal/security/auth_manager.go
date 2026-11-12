@@ -1,6 +1,7 @@
 package security
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"strings"
@@ -28,7 +29,12 @@ type Session struct {
 	Permissions      map[string]bool
 	PermissionScopes map[string]string
 	Scope            string
+	userUpdatedAt    time.Time
 }
+
+type sessionDigest = [sha256.Size]byte
+
+func tokenDigest(token string) sessionDigest { return sha256.Sum256([]byte(token)) }
 
 // AuthManager manages password-based authentication and session lifecycle.
 type AuthManager struct {
@@ -36,7 +42,7 @@ type AuthManager struct {
 	db              *database.DB
 
 	mu       sync.RWMutex
-	sessions map[string]Session
+	sessions map[sessionDigest]Session
 	// Changes when cached authorization is revoked, including while a login
 	// is resolving access outside mu.
 	accessVersion uint64
@@ -50,7 +56,7 @@ func NewAuthManager(sessionDurationHours int) *AuthManager {
 
 	return &AuthManager{
 		sessionDuration: time.Duration(sessionDurationHours) * time.Hour,
-		sessions:        make(map[string]Session),
+		sessions:        make(map[sessionDigest]Session),
 	}
 }
 
@@ -111,7 +117,9 @@ func (a *AuthManager) publishSession(session Session, version uint64) bool {
 	if a.accessVersion != version {
 		return false
 	}
-	a.sessions[session.Token] = session
+	digest := tokenDigest(session.Token)
+	session.Token = ""
+	a.sessions[digest] = session
 	return true
 }
 
@@ -144,21 +152,30 @@ func (a *AuthManager) authenticateSession(username, password string) (Session, e
 	if err != nil {
 		return Session{}, err
 	}
+	if !access.User.Enabled || access.User.PasswordHash != user.PasswordHash {
+		return Session{}, ErrInvalidPassword
+	}
+	session := sessionForAccess(access, expiresAt)
+	session.Token = token
+	return session, nil
+}
+
+func sessionForAccess(access *database.RBACAccess, expiresAt time.Time) Session {
 	roleIDs := make([]string, 0, len(access.Roles))
 	for _, role := range access.Roles {
 		roleIDs = append(roleIDs, role.ID)
 	}
 	return Session{
-		Token:            token,
 		ExpiresAt:        expiresAt,
-		UserID:           user.ID,
-		Username:         user.Username,
-		DisplayName:      user.DisplayName,
+		UserID:           access.User.ID,
+		Username:         access.User.Username,
+		DisplayName:      access.User.DisplayName,
 		Roles:            roleIDs,
 		Permissions:      access.Permissions,
 		PermissionScopes: access.PermissionScopes,
 		Scope:            access.Scope,
-	}, nil
+		userUpdatedAt:    access.User.UpdatedAt,
+	}
 }
 
 func (s Session) ScopeFor(permission string) string {
@@ -174,8 +191,9 @@ func (a *AuthManager) ValidateToken(token string) (Session, bool) {
 		return Session{}, false
 	}
 
+	digest := tokenDigest(token)
 	a.mu.RLock()
-	session, ok := a.sessions[token]
+	session, ok := a.sessions[digest]
 	a.mu.RUnlock()
 	if !ok {
 		return Session{}, false
@@ -183,11 +201,12 @@ func (a *AuthManager) ValidateToken(token string) (Session, bool) {
 
 	if time.Now().After(session.ExpiresAt) {
 		a.mu.Lock()
-		delete(a.sessions, token)
+		delete(a.sessions, digest)
 		a.mu.Unlock()
 		return Session{}, false
 	}
 
+	session.Token = token
 	return session, true
 }
 
@@ -247,7 +266,7 @@ func (a *AuthManager) RevokeToken(token string) {
 	}
 
 	a.mu.Lock()
-	delete(a.sessions, token)
+	delete(a.sessions, tokenDigest(token))
 	a.mu.Unlock()
 }
 
@@ -289,7 +308,7 @@ func (a *AuthManager) RevokeRoleSessions(roleID string) {
 func (a *AuthManager) RevokeAllSessions() {
 	a.mu.Lock()
 	a.accessVersion++
-	a.sessions = make(map[string]Session)
+	a.sessions = make(map[sessionDigest]Session)
 	a.mu.Unlock()
 }
 

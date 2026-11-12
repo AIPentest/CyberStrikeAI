@@ -3457,7 +3457,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 									"type": "object",
 									"properties": map[string]interface{}{
 										"confirm": map[string]interface{}{"type": "boolean", "description": "false/缺省=只预览；true=确认执行"},
-										"restart": map[string]interface{}{"type": "boolean", "description": "接入成功后退出进程交给外部守护拉起，默认 false"},
+										"restart": map[string]interface{}{"type": "boolean", "description": "接入并构建成功后自动切换到新二进制，需要 canRestart，默认 false"},
 									},
 								},
 							},
@@ -6549,7 +6549,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 									"properties": map[string]interface{}{
 										"restart": map[string]interface{}{
 											"type":        "boolean",
-											"description": "更新成功后优雅关闭并退出进程；只在有外部守护时才会被拉起，默认 false",
+											"description": "更新并构建成功后自动切换到新二进制，需要 canRestart，默认 false",
 										},
 									},
 								},

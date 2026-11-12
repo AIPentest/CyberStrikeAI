@@ -14,7 +14,7 @@ func TestRevokeRoleSessionsMatchesSnapshotAndPreservesOthers(t *testing.T) {
 		{Token: "admin", UserID: "admin", Roles: []string{"admin"}},
 	} {
 		session.ExpiresAt = time.Now().Add(time.Hour)
-		a.sessions[session.Token] = session
+		a.sessions[tokenDigest(session.Token)] = session
 	}
 	a.RevokeRoleSessions(" ")
 	if len(a.sessions) != 4 {

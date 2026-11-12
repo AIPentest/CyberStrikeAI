@@ -44,6 +44,7 @@ import (
 
 // App 应用
 type App struct {
+	shutdownOnce       sync.Once
 	config             *config.Config
 	logger             *logger.Logger
 	router             *gin.Engine
@@ -611,14 +612,8 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 		return nil
 	})
 
-	// The one-click update acts on this installation's own tree, rooted where the live config
-	// file is. Its restart hook exits after a graceful shutdown, which is only "a restart" when
-	// something supervises the process - so the endpoint reports whether it is standing down or
-	// whether somebody has to start it again, instead of promising a boot that may not happen.
-	updateHandler := handler.NewUpdateHandler(configDir, log.Logger, auditSvc, func() {
-		app.Shutdown()
-		os.Exit(0)
-	}, configHandler.UpdateSource, configHandler.SetUpdateSource)
+	updateHandler := handler.NewUpdateHandler(configDir, log.Logger, auditSvc,
+		app.updateRestart(configDir), configHandler.UpdateSource, configHandler.SetUpdateSource)
 
 	// 设置路由（使用 App 实例以便动态获取 handler）
 	setupRoutes(
@@ -692,6 +687,17 @@ func (a *App) mcpHandlerWithAuth(w http.ResponseWriter, r *http.Request) {
 // Run 启动应用（向后兼容，不支持优雅关闭）
 func (a *App) Run() error {
 	return a.RunWithContext(context.Background())
+}
+
+// RestoreUpdateSessions consumes the handoff before the new HTTP listener starts.
+func (a *App) RestoreUpdateSessions(handoff *os.File) {
+	if handoff == nil {
+		return
+	}
+	defer handoff.Close()
+	if err := a.auth.RestoreRestartSessions(handoff); err != nil {
+		a.logger.Warn("无法恢复更新前的登录会话", zap.Error(err))
+	}
 }
 
 // RunWithContext 启动应用，支持通过 context 取消来优雅关闭
@@ -802,6 +808,10 @@ func (a *App) RunWithContext(ctx context.Context) error {
 
 // Shutdown 关闭应用
 func (a *App) Shutdown() {
+	a.shutdownOnce.Do(a.shutdown)
+}
+
+func (a *App) shutdown() {
 	if a.agentHandler != nil {
 		a.agentHandler.ShutdownTasks()
 	}
@@ -970,7 +980,7 @@ func setupRoutes(
 		authRoutes.POST("/login", security.RateLimitMiddleware(loginRL), authHandler.Login)
 		authRoutes.POST("/logout", security.AuthMiddleware(authManager), authHandler.Logout)
 		authRoutes.POST("/change-password", security.AuthMiddleware(authManager), security.RequirePermission("auth:self"), authHandler.ChangePassword)
-		authRoutes.GET("/validate", security.AuthMiddleware(authManager), authHandler.Validate)
+		authRoutes.GET("/validate", updateHandler.SetBootHeader, security.AuthMiddleware(authManager), authHandler.Validate)
 		authRoutes.POST("/robot-binding-code", security.AuthMiddleware(authManager), security.RequirePermission("auth:self"), robotHandler.CreateRobotBindingCode)
 		authRoutes.GET("/robot-bindings", security.AuthMiddleware(authManager), security.RequirePermission("auth:self"), robotHandler.ListMyRobotBindings)
 		authRoutes.DELETE("/robot-bindings/:id", security.AuthMiddleware(authManager), security.RequirePermission("auth:self"), robotHandler.DeleteMyRobotBinding)

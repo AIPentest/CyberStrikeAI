@@ -22,6 +22,7 @@ import (
 )
 
 func main() {
+	updateSessions := app.TakeUpdateSessionHandoff()
 	var configPath = flag.String("config", "config.yaml", "Path to the configuration file")
 	var httpsBootstrap = flag.Bool("https", false, "Enable HTTPS for the main site; uses an in-memory self-signed certificate when no cert/key is configured")
 	var httpBootstrap = flag.Bool("http", false, "Force plain HTTP for the main site, overriding TLS settings in the configuration file")
@@ -160,6 +161,7 @@ func main() {
 	if err != nil {
 		log.Fatal("应用初始化失败", "error", err)
 	}
+	application.RestoreUpdateSessions(updateSessions)
 
 	// 在后台监听信号
 	go func() {
