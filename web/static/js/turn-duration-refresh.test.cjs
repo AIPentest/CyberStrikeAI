@@ -85,7 +85,7 @@ test('刷新运行中任务时忽略摘要中的零耗时并按开始时间恢�
     });
 
     assert.equal(message.dataset.turnDurationMs, undefined);
-    assert.match(message.label.innerHTML, /已处理 1 分钟 5 秒/);
+    assert.match(message.label.innerHTML, /Processed 1 min 5 s/);
 });
 
 test('已完成任务仍优先使用持久化耗时', () => {
@@ -100,7 +100,7 @@ test('已完成任务仍优先使用持久化耗时', () => {
     });
 
     assert.equal(message.dataset.turnDurationMs, '65000');
-    assert.match(message.label.innerHTML, /耗时 1 分钟 5 秒/);
+    assert.match(message.label.innerHTML, /Duration 1 min 5 s/);
 });
 
 test('助手轮次摘要会显示持久化 token 用量', () => {
@@ -156,8 +156,8 @@ test('已中断任务使用固定终态耗时且不再按当前时间增长', ()
     });
 
     assert.equal(message.dataset.turnDurationMs, '265000');
-    assert.match(message.label.innerHTML, /已中断 · 耗时 4 分钟 25 秒/);
-    assert.doesNotMatch(message.label.innerHTML, /已处理/);
+    assert.match(message.label.innerHTML, /Interrupted · Duration 4 min 25 s/);
+    assert.doesNotMatch(message.label.innerHTML, /Processed/);
 });
 
 test('历史占位消息存在取消事件时不会再判定为运行中', () => {

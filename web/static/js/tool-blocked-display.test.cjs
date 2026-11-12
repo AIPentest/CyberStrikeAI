@@ -134,6 +134,6 @@ test('execution summary buttons and raw detail preserve the separate blocked sta
     const ctx = runtime();
     assert.equal(ctx.normalizeToolExecutionSummary({ toolName: 'http_request', status: 'blocked' }).status, 'blocked');
     assert.equal(ctx.normalizeToolExecutionSummary({ toolName: 'http_request', status: 'failed', error: reason }).status, 'blocked');
-    assert.equal(ctx.getToolExecutionStatusLabel('blocked'), '已拦截');
+    assert.equal(ctx.getToolExecutionStatusLabel('blocked'), 'Blocked');
     assert.equal(JSON.parse(ctx.formatMCPResultJsonForDisplay({ blocked: true, isError: true, content: [] })).blocked, true);
 });

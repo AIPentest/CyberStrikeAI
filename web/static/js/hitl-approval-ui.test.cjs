@@ -70,7 +70,7 @@ test('输入框可按会话通道获取模型并双向同步会话推理且审�
     assert.match(chat, /function renderChatReasoningEffortOptions\(\)/);
     assert.match(chat, /function renderChatReasoningModeOptions\(\)/);
     assert.match(chat, /case 'low': return 'low'[\s\S]{0,300}case 'max': return 'max'/);
-    assert.match(chat, /chatTranslate\('chat\.reasoningEffortUnset', '不指定'\)/);
+    assert.match(chat, /chatTranslate\('chat\.reasoningEffortUnset', 'Unspecified'\)/);
     assert.match(chat, /\['default', 'off', 'on', 'auto'\]/);
     assert.match(chat, /\['', 'low', 'medium', 'high', 'xhigh', 'max'\]/);
     assert.match(chat, /function selectChatReasoningMode\(mode\)[\s\S]{0,700}modeControl\.value = chosen[\s\S]{0,200}finishChatReasoningPickerUpdate\(\)/);
