@@ -29,6 +29,33 @@ import (
 // proxychainsBinaries are the candidate executable names, newest first.
 var proxychainsBinaries = []string{"proxychains4", "proxychains"}
 
+// tempDirName is the single directory under the OS temp root that the gateway
+// writes its generated artifacts (proxychains.conf) into, so cleanup has one
+// well-known place to remove.
+const tempDirName = "cyberstrike-egress"
+
+// TempDir returns the directory where the gateway writes temporary artifacts.
+func TempDir() string {
+	return filepath.Join(os.TempDir(), tempDirName)
+}
+
+// CleanupTempFiles removes every temporary artifact the egress gateway wrote
+// (notably proxychains.conf, which can contain proxy credentials). It is safe
+// to call when nothing was written and should be called on shutdown so the
+// platform does not leave junk — or credentials — behind after a test.
+func CleanupTempFiles() error {
+	dir := TempDir()
+	// Confine deletion to our own temp subdirectory, never os.TempDir() itself.
+	if filepath.Base(dir) != tempDirName {
+		return fmt.Errorf("egress: refusing to clean unexpected temp dir %q", dir)
+	}
+	err := os.RemoveAll(dir)
+	if err == nil || os.IsNotExist(err) {
+		return nil
+	}
+	return err
+}
+
 // ProxychainsBinary returns the path to a proxychains executable, or "" when
 // none is installed.
 func ProxychainsBinary() string {

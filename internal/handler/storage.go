@@ -132,6 +132,87 @@ func (h *StorageHandler) Cleanup(c *gin.Context) {
 	})
 }
 
+// storageSweepRequest is the body of POST /api/storage/sweep: an on-demand
+// wipe of one engagement's (conversation or project) artifacts.
+type storageSweepRequest struct {
+	// Scope is "conversation" or "project".
+	Scope string `json:"scope"`
+	// ID is the conversation or project ID to wipe.
+	ID string `json:"id"`
+	// DryRun defaults to true (count only) when omitted; real deletion needs false.
+	DryRun *bool `json:"dry_run"`
+	// Confirm must be true (together with dry_run=false) to actually delete.
+	Confirm bool `json:"confirm"`
+}
+
+// SweepSession POST /api/storage/sweep immediately removes all artifacts of a
+// single conversation or project, bypassing retention. Deletion is
+// irreversible, so a real wipe requires both dry_run=false and confirm=true.
+func (h *StorageHandler) SweepSession(c *gin.Context) {
+	if h.cleaner == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "storage cleanup is not initialized"})
+		return
+	}
+	var req storageSweepRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request parameters: " + err.Error()})
+		return
+	}
+
+	var scope storage.Scope
+	switch req.Scope {
+	case "conversation":
+		scope = storage.ScopeConversation
+	case "project":
+		scope = storage.ScopeProject
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "scope must be \"conversation\" or \"project\""})
+		return
+	}
+
+	dryRun := req.DryRun == nil || *req.DryRun
+	if !dryRun && !req.Confirm {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "deletion is irreversible: a real wipe requires both dry_run=false and confirm=true"})
+		return
+	}
+
+	rep, err := h.cleaner.SweepTarget(storage.SweepTargetRequest{
+		Scope:   scope,
+		ID:      req.ID,
+		DryRun:  dryRun,
+		Trigger: "manual-sweep",
+	})
+	switch {
+	case errors.Is(err, storage.ErrInvalidSweepTarget):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	case errors.Is(err, storage.ErrCleanupInProgress):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		return
+	case err != nil:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !dryRun && h.audit != nil {
+		detail := map[string]interface{}{
+			"scope":         req.Scope,
+			"id":            req.ID,
+			"removed_units": rep.Totals.RemovedUnits,
+			"freed_bytes":   rep.Totals.FreedBytes,
+			"errors":        rep.Totals.Errors,
+		}
+		h.audit.RecordOK(c, "storage", "sweep", "wiped engagement artifacts", "storage", req.ID, detail)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"dry_run":     rep.DryRun,
+		"categories":  rep.Categories,
+		"totals":      rep.Totals,
+		"duration_ms": rep.DurationMS,
+	})
+}
+
 func (h *StorageHandler) recordCleanup(c *gin.Context, rep *storage.Report) {
 	if h.audit == nil {
 		return

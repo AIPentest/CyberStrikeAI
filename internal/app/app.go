@@ -907,6 +907,12 @@ func (a *App) Shutdown() {
 			a.logger.Logger.Warn("Failed to close the main database connection", zap.Error(err))
 		}
 	}
+
+	// Remove egress temp artifacts (notably proxychains.conf, which can hold
+	// proxy credentials) so the platform leaves no junk behind after a run.
+	if err := egress.CleanupTempFiles(); err != nil {
+		a.logger.Logger.Warn("Failed to clean up egress temp files", zap.Error(err))
+	}
 }
 
 // startRobotConnections starts the DingTalk/Lark long-lived connections based on the current configuration (does not close existing connections first, used only for the first startup)
@@ -1227,6 +1233,7 @@ func setupRoutes(
 		protected.GET("/storage/meta", app.storageHandler.Meta)
 		protected.GET("/storage/status", app.storageHandler.Status)
 		protected.POST("/storage/cleanup", app.storageHandler.Cleanup)
+		protected.POST("/storage/sweep", app.storageHandler.SweepSession)
 
 		// External MCP management
 		protected.GET("/external-mcp", externalMCPHandler.GetExternalMCPs)
