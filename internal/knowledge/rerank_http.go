@@ -12,7 +12,6 @@ import (
 
 	"cyberstrike-ai/internal/config"
 
-	"github.com/cloudwego/eino/schema"
 	"go.uber.org/zap"
 )
 
@@ -56,7 +55,7 @@ func NewHTTPReranker(rc *config.RerankConfig, openAI *config.OpenAIConfig, logge
 	}, nil
 }
 
-func (r *HTTPReranker) Rerank(ctx context.Context, query string, docs []*schema.Document) ([]*schema.Document, error) {
+func (r *HTTPReranker) Rerank(ctx context.Context, query string, docs []*Document) ([]*Document, error) {
 	if r == nil {
 		return docs, nil
 	}
@@ -86,7 +85,7 @@ func (r *HTTPReranker) Rerank(ctx context.Context, query string, docs []*schema.
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*schema.Document, 0, len(order))
+	out := make([]*Document, 0, len(order))
 	for _, idx := range order {
 		if idx < 0 || idx >= len(docs) || docs[idx] == nil {
 			continue

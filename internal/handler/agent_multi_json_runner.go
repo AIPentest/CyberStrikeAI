@@ -37,7 +37,7 @@ func (h *AgentHandler) runMultiJSON(taskCtx, baseCtx context.Context, cancelWith
 	var decision agentfinalizer.Decision
 	var autoCancelledPendingExecutionIDs []string
 	for {
-		result, runErr = multiagent.RunDeepAgent(
+		result, runErr = multiagent.RunMultiAgent(
 			taskCtx,
 			runCfg,
 			&runCfg.MultiAgent,

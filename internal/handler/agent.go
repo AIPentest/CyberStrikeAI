@@ -794,7 +794,7 @@ func (h *AgentHandler) runRobotEinoSingleWithRetry(
 	assistantMessageID string,
 	taskStatus *string,
 ) (string, string, error) {
-	resultMA, errMA := multiagent.RunEinoSingleChatModelAgent(
+	resultMA, errMA := multiagent.RunSingleAgent(
 		taskCtx, h.config, &h.config.MultiAgent, h.agent, h.db, h.logger,
 		conversationID, h.conversationProjectID(conversationID), finalMessage, history, roleTools, progressCallback, nil, h.agentSessionContextBlock(conversationID),
 	)
@@ -814,7 +814,7 @@ func (h *AgentHandler) runRobotMultiAgentWithRetry(
 	assistantMessageID string,
 	taskStatus *string,
 ) (string, string, error) {
-	resultMA, errMA := multiagent.RunDeepAgent(
+	resultMA, errMA := multiagent.RunMultiAgent(
 		taskCtx, h.config, &h.config.MultiAgent, h.agent, h.db, h.logger,
 		conversationID, h.conversationProjectID(conversationID), finalMessage, history, roleTools, progressCallback,
 		h.agentsMarkdownDir, orchestration, nil, h.agentSessionContextBlock(conversationID),

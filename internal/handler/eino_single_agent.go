@@ -247,7 +247,7 @@ func (h *AgentHandler) EinoSingleAgentLoopStream(c *gin.Context) {
 			return h.interceptHITLForEinoTool(ctx, cancelWithCause, conversationID, assistantMessageID, sendEvent, toolName, arguments)
 		})
 
-		result, runErr = multiagent.RunEinoSingleChatModelAgent(
+		result, runErr = multiagent.RunSingleAgent(
 			taskCtxLoop,
 			runCfg,
 			&runCfg.MultiAgent,

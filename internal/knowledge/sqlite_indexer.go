@@ -7,10 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudwego/eino/callbacks"
-	"github.com/cloudwego/eino/components"
-	"github.com/cloudwego/eino/components/indexer"
-	"github.com/cloudwego/eino/schema"
 	"github.com/google/uuid"
 )
 
@@ -35,24 +31,14 @@ func (s *SQLiteIndexer) GetType() string {
 
 // Store embeds documents and inserts rows. Each doc must carry MetaData:
 // kb_item_id, kb_category, kb_title, kb_chunk_index (int). Content is chunk text only.
-func (s *SQLiteIndexer) Store(ctx context.Context, docs []*schema.Document, opts ...indexer.Option) (ids []string, err error) {
-	options := indexer.GetCommonOptions(nil, opts...)
+func (s *SQLiteIndexer) Store(ctx context.Context, docs []*Document, opts ...IndexOption) (ids []string, err error) {
+	options := indexOptions(opts...)
 	if options.Embedding == nil {
 		return nil, fmt.Errorf("sqlite indexer: embedding is required")
 	}
 	if len(docs) == 0 {
 		return nil, nil
 	}
-
-	ctx = callbacks.EnsureRunInfo(ctx, s.GetType(), components.ComponentOfIndexer)
-	ctx = callbacks.OnStart(ctx, &indexer.CallbackInput{Docs: docs})
-	defer func() {
-		if err != nil {
-			_ = callbacks.OnError(ctx, err)
-			return
-		}
-		_ = callbacks.OnEnd(ctx, &indexer.CallbackOutput{IDs: ids})
-	}()
 
 	subIdxStr := strings.Join(options.SubIndexes, ",")
 
@@ -99,6 +85,19 @@ func (s *SQLiteIndexer) Store(ctx context.Context, docs []*schema.Document, opts
 	}
 	defer tx.Rollback()
 
+	items := map[string]bool{}
+	for _, d := range docs {
+		id, err := RequireMetaString(d.MetaData, metaKBItemID)
+		if err != nil {
+			return nil, err
+		}
+		items[id] = true
+	}
+	for id := range items {
+		if _, err := tx.ExecContext(ctx, "DELETE FROM knowledge_embeddings WHERE item_id = ?", id); err != nil {
+			return nil, err
+		}
+	}
 	ids = make([]string, 0, len(docs))
 	for i, d := range docs {
 		chunkID := uuid.New().String()
@@ -138,5 +137,3 @@ func (s *SQLiteIndexer) Store(ctx context.Context, docs []*schema.Document, opts
 	}
 	return ids, nil
 }
-
-var _ indexer.Indexer = (*SQLiteIndexer)(nil)

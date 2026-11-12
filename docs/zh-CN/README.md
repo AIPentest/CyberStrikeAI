@@ -33,3 +33,5 @@
 
 - [开发者指南](developer-guide.md) · [插件开发](plugin-development.md) · [前端国际化](frontend-i18n.md)
 - [测试指南](testing.md) · [贡献规范](contributing-guide.md) · [发布流程](release-process.md)
+
+- [Pi 原生运行时与迁移](pi-runtime.md)

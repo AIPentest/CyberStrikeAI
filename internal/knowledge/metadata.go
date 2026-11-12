@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Document metadata keys for Eino schema.Document flowing through the RAG pipeline.
+// Document metadata keys for Eino Document flowing through the RAG pipeline.
 const (
 	metaKBCategory   = "kb_category"
 	metaKBTitle      = "kb_title"
@@ -14,7 +14,7 @@ const (
 	metaSimilarity   = "similarity"
 )
 
-// DSL keys for [VectorEinoRetriever.Retrieve] via [retriever.WithDSLInfo].
+// DSL keys for [VectorRetriever.Retrieve] via [retriever.WithDSLInfo].
 const (
 	DSLRiskType            = "risk_type"
 	DSLSimilarityThreshold = "similarity_threshold"

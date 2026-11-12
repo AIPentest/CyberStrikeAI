@@ -260,7 +260,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 			return h.interceptHITLForEinoTool(ctx, cancelWithCause, conversationID, assistantMessageID, sendEvent, toolName, arguments)
 		})
 
-		result, runErr = multiagent.RunDeepAgent(
+		result, runErr = multiagent.RunMultiAgent(
 			taskCtxLoop,
 			runCfg,
 			&runCfg.MultiAgent,

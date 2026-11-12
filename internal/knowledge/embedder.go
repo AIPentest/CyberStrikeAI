@@ -10,15 +10,13 @@ import (
 
 	"cyberstrike-ai/internal/config"
 
-	einoembedopenai "github.com/cloudwego/eino-ext/components/embedding/openai"
-	"github.com/cloudwego/eino/components/embedding"
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 )
 
 // Embedder 使用 CloudWeGo Eino 的 OpenAI Embedding 组件，并保留速率限制与重试。
 type Embedder struct {
-	eino   embedding.Embedder
+	eino   TextEmbedder
 	config *config.KnowledgeConfig
 	logger *zap.Logger
 
@@ -84,16 +82,7 @@ func NewEmbedder(ctx context.Context, cfg *config.KnowledgeConfig, openAIConfig 
 	}
 	httpClient := &http.Client{Timeout: timeout}
 
-	inner, err := einoembedopenai.NewEmbedder(ctx, &einoembedopenai.EmbeddingConfig{
-		APIKey:     apiKey,
-		BaseURL:    baseURL,
-		ByAzure:    false,
-		Model:      model,
-		HTTPClient: httpClient,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("eino OpenAI embedder: %w", err)
-	}
+	inner := &httpTextEmbedder{client: httpClient, endpoint: baseURL + "/embeddings", key: apiKey, model: model}
 
 	return &Embedder{
 		eino:           inner,
@@ -118,19 +107,23 @@ func (e *Embedder) EmbeddingModelName() string {
 	return "text-embedding-3-small"
 }
 
-func (e *Embedder) waitRateLimiter() {
+func (e *Embedder) waitRateLimiter(ctx context.Context) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if e.rateLimiter != nil {
-		ctx := context.Background()
-		if err := e.rateLimiter.Wait(ctx); err != nil && e.logger != nil {
-			e.logger.Warn("速率限制器等待失败", zap.Error(err))
+		if err := e.rateLimiter.Wait(ctx); err != nil {
+			return err
 		}
 	}
 	if e.rateLimitDelay > 0 {
-		time.Sleep(e.rateLimitDelay)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(e.rateLimitDelay):
+		}
 	}
+	return ctx.Err()
 }
 
 // EmbedText 单条嵌入（float32，与历史存储格式一致）。
@@ -145,8 +138,8 @@ func (e *Embedder) EmbedText(ctx context.Context, text string) ([]float32, error
 	return vecs[0], nil
 }
 
-// EmbedStrings 批量嵌入，带重试；实现 [embedding.Embedder]，可供 Eino Indexer 使用。
-func (e *Embedder) EmbedStrings(ctx context.Context, texts []string, opts ...embedding.Option) ([][]float32, error) {
+// EmbedStrings 批量嵌入，带重试；实现 [TextEmbedder]，可供 Eino Indexer 使用。
+func (e *Embedder) EmbedStrings(ctx context.Context, texts []string, opts ...EmbeddingOption) ([][]float32, error) {
 	if e == nil || e.eino == nil {
 		return nil, fmt.Errorf("embedder not initialized")
 	}
@@ -167,7 +160,9 @@ func (e *Embedder) EmbedStrings(ctx context.Context, texts []string, opts ...emb
 			case <-time.After(wait):
 			}
 		} else {
-			e.waitRateLimiter()
+			if err := e.waitRateLimiter(ctx); err != nil {
+				return nil, err
+			}
 		}
 
 		raw, err := e.eino.EmbedStrings(ctx, texts, opts...)
@@ -216,12 +211,12 @@ func (e *Embedder) isRetryableError(err error) bool {
 	return false
 }
 
-// einoFloatEmbedder adapts [][]float32 embedder to Eino's [][]float64 [embedding.Embedder] for Indexer.Store.
-type einoFloatEmbedder struct {
+// floatEmbedder adapts [][]float32 embedder to Eino's [][]float64 [TextEmbedder] for Indexer.Store.
+type floatEmbedder struct {
 	inner *Embedder
 }
 
-func (w *einoFloatEmbedder) EmbedStrings(ctx context.Context, texts []string, opts ...embedding.Option) ([][]float64, error) {
+func (w *floatEmbedder) EmbedStrings(ctx context.Context, texts []string, opts ...EmbeddingOption) ([][]float64, error) {
 	vec32, err := w.inner.EmbedStrings(ctx, texts, opts...)
 	if err != nil {
 		return nil, err
@@ -236,16 +231,16 @@ func (w *einoFloatEmbedder) EmbedStrings(ctx context.Context, texts []string, op
 	return out, nil
 }
 
-func (w *einoFloatEmbedder) GetType() string {
+func (w *floatEmbedder) GetType() string {
 	return "CyberStrikeKnowledgeEmbedder"
 }
 
-func (w *einoFloatEmbedder) IsCallbacksEnabled() bool {
+func (w *floatEmbedder) IsCallbacksEnabled() bool {
 	return false
 }
 
-// EinoEmbeddingComponent returns an [embedding.Embedder] that uses the same retry/rate-limit path
+// EmbeddingComponent returns an [TextEmbedder] that uses the same retry/rate-limit path
 // and produces float64 vectors expected by generic Eino indexer helpers.
-func (e *Embedder) EinoEmbeddingComponent() embedding.Embedder {
-	return &einoFloatEmbedder{inner: e}
+func (e *Embedder) EmbeddingComponent() TextEmbedder {
+	return &floatEmbedder{inner: e}
 }

@@ -3924,6 +3924,10 @@
                                     <h4 data-i18n="settingsBasic.agentConfig">Agent 配置</h4>
                                     <div class="settings-form">
                                         <div class="form-group">
+                                            <label for="agent-runtime-engine" data-i18n="settingsBasic.agentRuntime">智能体运行时</label>
+                                            <select id="agent-runtime-engine"><option value="pi">Pi Agent</option><option value="eino">Eino（迁移兼容）</option></select>
+                                        </div>
+                                        <div class="form-group">
                                             <label for="agent-max-iterations" data-i18n="settingsBasic.maxIterations">最大迭代次数</label>
                                             <input type="number" id="agent-max-iterations" min="1" data-i18n="settingsBasic.iterationsPlaceholder" data-i18n-attr="placeholder" placeholder="30" />
                                         </div>
@@ -4002,26 +4006,6 @@
 	                                                    <label for="summarization-user-ledger-max-runes" data-i18n="settingsBasic.userLedgerMaxRunes">用户原文账本总字符上限</label>
 	                                                    <input type="number" id="summarization-user-ledger-max-runes" min="0" step="1000" placeholder="96000" />
 	                                                    <small class="form-hint" data-i18n="settingsBasic.userLedgerMaxRunesHint">压缩后注入模型上下文的原始用户输入账本总上限；0 使用后端默认值。DB 原始消息不裁剪。</small>
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="summarization-user-ledger-entry-max-runes" data-i18n="settingsBasic.userLedgerEntryMaxRunes">单条用户原文字符上限</label>
-                                                    <input type="number" id="summarization-user-ledger-entry-max-runes" min="0" step="1000" placeholder="16000" />
-                                                    <small class="form-hint" data-i18n="settingsBasic.userLedgerEntryMaxRunesHint">账本中单条用户消息的模型可见上限；0 使用后端默认值，不影响 DB 原文。</small>
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="latest-user-message-max-runes" data-i18n="settingsBasic.latestUserMaxRunes">最新用户输入字符上限</label>
-                                                    <input type="number" id="latest-user-message-max-runes" min="0" step="1000" placeholder="48000" />
-                                                    <small class="form-hint" data-i18n="settingsBasic.latestUserMaxRunesHint">本轮最新 user 进入模型上下文的上限；超出时全文落盘，只注入预览。0 使用后端默认值。</small>
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="latest-user-message-head-runes" data-i18n="settingsBasic.latestUserHeadRunes">最新用户输入头部预览</label>
-                                                    <input type="number" id="latest-user-message-head-runes" min="0" step="1000" placeholder="24000" />
-                                                    <small class="form-hint" data-i18n="settingsBasic.latestUserHeadRunesHint">超长最新 user 保留给模型看的头部字符数。</small>
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="latest-user-message-tail-runes" data-i18n="settingsBasic.latestUserTailRunes">最新用户输入尾部预览</label>
-                                                    <input type="number" id="latest-user-message-tail-runes" min="0" step="1000" placeholder="24000" />
-                                                    <small class="form-hint" data-i18n="settingsBasic.latestUserTailRunesHint">超长最新 user 保留给模型看的尾部字符数。</small>
                                                 </div>
                                             </div>
                                         </details>

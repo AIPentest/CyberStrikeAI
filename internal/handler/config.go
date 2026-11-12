@@ -18,7 +18,6 @@ import (
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/database"
 	"cyberstrike-ai/internal/knowledge"
-	"cyberstrike-ai/internal/llm"
 	"cyberstrike-ai/internal/mcp"
 	"cyberstrike-ai/internal/mcp/builtin"
 	"cyberstrike-ai/internal/openai"
@@ -26,7 +25,6 @@ import (
 	"cyberstrike-ai/internal/toolguard"
 	"cyberstrike-ai/internal/typesafe"
 
-	"github.com/cloudwego/eino/schema"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -264,21 +262,22 @@ func (h *ConfigHandler) ApplyWechatRobotBinding(wc config.RobotWechatConfig) err
 
 // GetConfigResponse 获取配置响应
 type GetConfigResponse struct {
-	AI         config.AIConfig          `json:"ai"`
-	OpenAI     config.OpenAIConfig      `json:"openai"`
-	Vision     config.VisionConfig      `json:"vision"`
-	FOFA       config.FofaConfig        `json:"fofa"`
-	ZoomEye    config.SpaceSearchConfig `json:"zoomeye"`
-	Quake      config.SpaceSearchConfig `json:"quake"`
-	Shodan     config.SpaceSearchConfig `json:"shodan"`
-	MCP        config.MCPConfig         `json:"mcp"`
-	Tools      []ToolConfigInfo         `json:"tools"`
-	Agent      config.AgentConfig       `json:"agent"`
-	Hitl       config.HitlConfig        `json:"hitl,omitempty"`
-	Knowledge  config.KnowledgeConfig   `json:"knowledge"`
-	Robots     config.RobotsConfig      `json:"robots,omitempty"`
-	MultiAgent config.MultiAgentPublic  `json:"multi_agent,omitempty"`
-	C2         config.C2Public          `json:"c2"`
+	AgentRuntime config.AgentRuntimeConfig `json:"agent_runtime"`
+	AI           config.AIConfig           `json:"ai"`
+	OpenAI       config.OpenAIConfig       `json:"openai"`
+	Vision       config.VisionConfig       `json:"vision"`
+	FOFA         config.FofaConfig         `json:"fofa"`
+	ZoomEye      config.SpaceSearchConfig  `json:"zoomeye"`
+	Quake        config.SpaceSearchConfig  `json:"quake"`
+	Shodan       config.SpaceSearchConfig  `json:"shodan"`
+	MCP          config.MCPConfig          `json:"mcp"`
+	Tools        []ToolConfigInfo          `json:"tools"`
+	Agent        config.AgentConfig        `json:"agent"`
+	Hitl         config.HitlConfig         `json:"hitl,omitempty"`
+	Knowledge    config.KnowledgeConfig    `json:"knowledge"`
+	Robots       config.RobotsConfig       `json:"robots,omitempty"`
+	MultiAgent   config.MultiAgentPublic   `json:"multi_agent,omitempty"`
+	C2           config.C2Public           `json:"c2"`
 }
 
 // ToolConfigInfo 工具配置信息
@@ -374,21 +373,22 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 	}
 
 	response, err := maskedConfigResponse(GetConfigResponse{
-		AI:         h.config.AI,
-		OpenAI:     h.config.OpenAI,
-		Vision:     h.config.Vision,
-		FOFA:       h.config.FOFA,
-		ZoomEye:    h.config.ZoomEye,
-		Quake:      h.config.Quake,
-		Shodan:     h.config.Shodan,
-		MCP:        h.config.MCP,
-		Tools:      tools,
-		Agent:      h.config.Agent,
-		Hitl:       h.config.Hitl,
-		Knowledge:  h.config.Knowledge,
-		C2:         h.config.C2.Public(),
-		Robots:     h.config.Robots,
-		MultiAgent: multiPub,
+		AgentRuntime: h.config.AgentRuntime,
+		AI:           h.config.AI,
+		OpenAI:       h.config.OpenAI,
+		Vision:       h.config.Vision,
+		FOFA:         h.config.FOFA,
+		ZoomEye:      h.config.ZoomEye,
+		Quake:        h.config.Quake,
+		Shodan:       h.config.Shodan,
+		MCP:          h.config.MCP,
+		Tools:        tools,
+		Agent:        h.config.Agent,
+		Hitl:         h.config.Hitl,
+		Knowledge:    h.config.Knowledge,
+		C2:           h.config.C2.Public(),
+		Robots:       h.config.Robots,
+		MultiAgent:   multiPub,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "配置序列化失败"})
@@ -723,22 +723,23 @@ func (h *ConfigHandler) GetTools(c *gin.Context) {
 
 // UpdateConfigRequest 更新配置请求
 type UpdateConfigRequest struct {
-	AI         *config.AIConfig            `json:"ai,omitempty"`
-	OpenAI     *config.OpenAIConfig        `json:"openai,omitempty"`
-	Vision     *config.VisionConfig        `json:"vision,omitempty"`
-	FOFA       *config.FofaConfig          `json:"fofa,omitempty"`
-	ZoomEye    *config.SpaceSearchConfig   `json:"zoomeye,omitempty"`
-	Quake      *config.SpaceSearchConfig   `json:"quake,omitempty"`
-	Shodan     *config.SpaceSearchConfig   `json:"shodan,omitempty"`
-	MCP        *config.MCPConfig           `json:"mcp,omitempty"`
-	Tools      []ToolEnableStatus          `json:"tools,omitempty"`
-	Agent      *AgentConfigUpdate          `json:"agent,omitempty"`
-	Hitl       *config.HitlConfig          `json:"hitl,omitempty"`
-	Knowledge  *config.KnowledgeConfig     `json:"knowledge,omitempty"`
-	Robots     *config.RobotsConfig        `json:"robots,omitempty"`
-	MultiAgent *config.MultiAgentAPIUpdate `json:"multi_agent,omitempty"`
-	C2         *config.C2APIUpdate         `json:"c2,omitempty"`
-	Storage    *config.StorageConfig       `json:"storage,omitempty"`
+	AgentRuntime *config.AgentRuntimeConfig  `json:"agent_runtime,omitempty"`
+	AI           *config.AIConfig            `json:"ai,omitempty"`
+	OpenAI       *config.OpenAIConfig        `json:"openai,omitempty"`
+	Vision       *config.VisionConfig        `json:"vision,omitempty"`
+	FOFA         *config.FofaConfig          `json:"fofa,omitempty"`
+	ZoomEye      *config.SpaceSearchConfig   `json:"zoomeye,omitempty"`
+	Quake        *config.SpaceSearchConfig   `json:"quake,omitempty"`
+	Shodan       *config.SpaceSearchConfig   `json:"shodan,omitempty"`
+	MCP          *config.MCPConfig           `json:"mcp,omitempty"`
+	Tools        []ToolEnableStatus          `json:"tools,omitempty"`
+	Agent        *AgentConfigUpdate          `json:"agent,omitempty"`
+	Hitl         *config.HitlConfig          `json:"hitl,omitempty"`
+	Knowledge    *config.KnowledgeConfig     `json:"knowledge,omitempty"`
+	Robots       *config.RobotsConfig        `json:"robots,omitempty"`
+	MultiAgent   *config.MultiAgentAPIUpdate `json:"multi_agent,omitempty"`
+	C2           *config.C2APIUpdate         `json:"c2,omitempty"`
+	Storage      *config.StorageConfig       `json:"storage,omitempty"`
 }
 
 // AgentConfigUpdate 用于 PATCH /api/config 的 agent 段：仅 JSON 中出现的字段（指针非 nil）覆盖内存配置。
@@ -805,6 +806,14 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 	if err := restoreConfigRequestSecrets(&req, h.config); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+	if req.AgentRuntime != nil {
+		engine := strings.ToLower(strings.TrimSpace(req.AgentRuntime.Engine))
+		if engine != "pi" && engine != "eino" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "agent_runtime.engine must be pi or eino"})
+			return
+		}
+		h.config.AgentRuntime = *req.AgentRuntime
 	}
 
 	// 更新OpenAI配置
@@ -1334,27 +1343,6 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 	ctx = openai.WithSessionID(ctx, "connect-test")
 
 	start := time.Now()
-	if llm.IsClaudeProvider(req.Provider) {
-		nativeModel, err := llm.NewClaudeAgenticModel(ctx, *tmpCfg, nil, 5, nil)
-		if err == nil {
-			_, err = nativeModel.Generate(ctx, []*schema.AgenticMessage{
-				schema.UserAgenticMessage("Hi"),
-			})
-		}
-		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"error":   "连接失败: " + err.Error(),
-			})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"success":    true,
-			"model":      tmpCfg.Model,
-			"latency_ms": time.Since(start).Milliseconds(),
-		})
-		return
-	}
 
 	var chatResp struct {
 		ID      string `json:"id"`

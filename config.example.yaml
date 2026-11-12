@@ -168,6 +168,13 @@ shodan:
   api_key: "" # Shodan API Key；也可通过 SHODAN_API_KEY 环境变量配置
 # Agent 配置
 # 达到最大迭代次数时，AI 会自动总结测试结果
+# Pi runtime (Node.js >=22.19). Build with: bash scripts/build-pi-runtime.sh
+agent_runtime:
+  engine: pi # pi (default) | eino (legacy agent fallback)
+  node_path: node
+  worker_path: "" # empty: use the source-addressed runtime bundle
+  session_dir: data/pi-sessions
+
 agent:
   # 修改后重启服务，对新任务生效；例如 1440 = 24 小时，单次工具超时独立生效。
   task_timeout_minutes: 600 # 任务执行超时（分钟）；未配置=600，0=不限时，负数无效；续跑重新计时

@@ -33,7 +33,7 @@ func (h *AgentHandler) runSingleJSON(taskCtx, baseCtx context.Context, cancelWit
 	var decision agentfinalizer.Decision
 	var autoCancelledPendingExecutionIDs []string
 	for {
-		result, runErr = multiagent.RunEinoSingleChatModelAgent(
+		result, runErr = multiagent.RunSingleAgent(
 			taskCtx,
 			runCfg,
 			&runCfg.MultiAgent,

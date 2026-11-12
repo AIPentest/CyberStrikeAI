@@ -81,7 +81,7 @@ func RunRoleBoundWorkflow(ctx context.Context, args RunArgs) (*RunResult, error)
 			"workflowVersion": wf.Version,
 			"workflowRunId":   runID,
 			"conversationId":  args.ConversationID,
-			"engine":          "eino_workflow",
+			"engine":          "native_workflow",
 		})
 	}
 
@@ -94,7 +94,7 @@ func RunRoleBoundWorkflow(ctx context.Context, args RunArgs) (*RunResult, error)
 	streaming := args.Progress != nil
 	resuming := false
 	for {
-		_, err := invokeEinoGraph(ctx, args, runID, wf.ID, wf.Version, graph, state, resuming)
+		_, err := invokeGraph(ctx, args, runID, wf.ID, wf.Version, graph, state, resuming)
 		if err == nil {
 			break
 		}
@@ -117,7 +117,7 @@ func RunRoleBoundWorkflow(ctx context.Context, args RunArgs) (*RunResult, error)
 				"label":  hitl.NodeLabel,
 				"prompt": hitl.Prompt,
 			},
-			"engine": "eino_workflow",
+			"engine": "native_workflow",
 		}
 		partialJSON, _ := json.Marshal(partial)
 		_ = args.DB.SetWorkflowRunAwaitingHITL(runID, hitl.NodeID, string(partialJSON))
@@ -192,7 +192,7 @@ func RunRoleBoundWorkflow(ctx context.Context, args RunArgs) (*RunResult, error)
 		"metrics":         state.Metrics,
 		"executedNodes":   state.Executed,
 		"skippedNodes":    state.Skipped,
-		"engine":          "eino_workflow",
+		"engine":          "native_workflow",
 	}
 	outputJSON, _ := json.Marshal(output)
 
@@ -207,7 +207,7 @@ func RunRoleBoundWorkflow(ctx context.Context, args RunArgs) (*RunResult, error)
 			"outputs":       state.Outputs,
 			"metrics":       state.Metrics,
 			"response":      response,
-			"engine":        "eino_workflow",
+			"engine":        "native_workflow",
 		})
 	}
 	if args.Logger != nil {
@@ -216,7 +216,7 @@ func RunRoleBoundWorkflow(ctx context.Context, args RunArgs) (*RunResult, error)
 			zap.String("workflow_run_id", runID),
 			zap.String("conversation_id", args.ConversationID),
 			zap.String("role", args.Role.Name),
-			zap.String("engine", "eino_workflow"),
+			zap.String("engine", "native_workflow"),
 		)
 	}
 	return &RunResult{Response: response, RunID: runID, Status: "completed"}, nil

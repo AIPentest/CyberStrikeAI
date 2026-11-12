@@ -7,20 +7,16 @@ import (
 
 	"cyberstrike-ai/internal/config"
 
-	"github.com/cloudwego/eino/callbacks"
-	"github.com/cloudwego/eino/components"
-	"github.com/cloudwego/eino/components/retriever"
-	"github.com/cloudwego/eino/schema"
 	"go.uber.org/zap"
 )
 
 // knowledgePipelineRetriever: MultiQuery → vector candidates → rerank → post-process.
 type knowledgePipelineRetriever struct {
-	inner retriever.Retriever
+	inner DocumentRetriever
 	base  *Retriever
 }
 
-func newKnowledgePipelineRetriever(inner retriever.Retriever, base *Retriever) *knowledgePipelineRetriever {
+func newKnowledgePipelineRetriever(inner DocumentRetriever, base *Retriever) *knowledgePipelineRetriever {
 	if inner == nil || base == nil {
 		return nil
 	}
@@ -31,7 +27,7 @@ func (p *knowledgePipelineRetriever) GetType() string {
 	return "KnowledgeRAGPipeline"
 }
 
-func (p *knowledgePipelineRetriever) Retrieve(ctx context.Context, query string, opts ...retriever.Option) (out []*schema.Document, err error) {
+func (p *knowledgePipelineRetriever) Retrieve(ctx context.Context, query string, opts ...RetrievalOption) (out []*Document, err error) {
 	if p == nil || p.inner == nil || p.base == nil {
 		return nil, fmt.Errorf("knowledge pipeline retriever: nil")
 	}
@@ -40,7 +36,7 @@ func (p *knowledgePipelineRetriever) Retrieve(ctx context.Context, query string,
 		return nil, fmt.Errorf("查询不能为空")
 	}
 
-	ro := retriever.GetCommonOptions(nil, opts...)
+	ro := retrievalOptions(opts...)
 	finalTopK := p.base.config.TopK
 	if finalTopK <= 0 {
 		finalTopK = 5
@@ -48,16 +44,6 @@ func (p *knowledgePipelineRetriever) Retrieve(ctx context.Context, query string,
 	if ro.TopK != nil && *ro.TopK > 0 {
 		finalTopK = *ro.TopK
 	}
-
-	ctx = callbacks.EnsureRunInfo(ctx, p.GetType(), components.ComponentOfRetriever)
-	ctx = callbacks.OnStart(ctx, &retriever.CallbackInput{Query: q, TopK: finalTopK, Extra: ro.DSLInfo})
-	defer func() {
-		if err != nil {
-			_ = callbacks.OnError(ctx, err)
-			return
-		}
-		_ = callbacks.OnEnd(ctx, &retriever.CallbackOutput{Docs: out})
-	}()
 
 	out, err = p.inner.Retrieve(ctx, q, opts...)
 	if err != nil {
@@ -93,4 +79,4 @@ func (p *knowledgePipelineRetriever) Retrieve(ctx context.Context, query string,
 	return out, nil
 }
 
-var _ retriever.Retriever = (*knowledgePipelineRetriever)(nil)
+var _ DocumentRetriever = (*knowledgePipelineRetriever)(nil)

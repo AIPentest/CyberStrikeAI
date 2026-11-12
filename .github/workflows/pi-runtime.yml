@@ -1,0 +1,27 @@
+name: Pi runtime
+on:
+  push:
+    paths: ['runtime/pi/**', 'internal/agentruntime/**', 'internal/multiagent/**', 'internal/knowledge/**', 'internal/workflow/**', 'internal/config/**', 'cmd/build-runtime/**', 'scripts/build-pi-runtime.sh', '.github/workflows/pi-runtime.yml']
+  pull_request:
+    paths: ['runtime/pi/**', 'internal/agentruntime/**', 'internal/multiagent/**', 'internal/knowledge/**', 'internal/workflow/**', 'internal/config/**', 'cmd/build-runtime/**', 'scripts/build-pi-runtime.sh', '.github/workflows/pi-runtime.yml']
+permissions:
+  contents: read
+jobs:
+  runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+          cache: npm
+          cache-dependency-path: runtime/pi/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: npm ci --ignore-scripts
+        working-directory: runtime/pi
+      - run: npm run build && npm test
+        working-directory: runtime/pi
+      - run: go run ./cmd/build-runtime
+      - run: go test -race ./internal/agentruntime ./internal/multiagent ./internal/knowledge ./internal/workflow

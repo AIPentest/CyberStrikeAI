@@ -9,10 +9,6 @@ require (
 	github.com/bytedance/sonic v1.15.0
 	github.com/cloudwego/eino v0.9.21
 	github.com/cloudwego/eino-ext/adk/backend/local v0.2.6
-	github.com/cloudwego/eino-ext/components/document/loader/file v0.0.0-20260427010451-749e3706378b
-	github.com/cloudwego/eino-ext/components/document/transformer/splitter/markdown v0.0.0-20260427010451-749e3706378b
-	github.com/cloudwego/eino-ext/components/document/transformer/splitter/recursive v0.0.0-20260427010451-749e3706378b
-	github.com/cloudwego/eino-ext/components/embedding/openai v0.0.0-20260427010451-749e3706378b
 	github.com/cloudwego/eino-ext/components/model/agenticclaude v0.1.7
 	github.com/cloudwego/eino-ext/components/model/agenticopenai v0.2.4
 	github.com/cloudwego/eino-ext/components/model/openai v0.1.13
@@ -39,6 +35,7 @@ require (
 	go.uber.org/zap v1.26.0
 	golang.org/x/crypto v0.50.0
 	golang.org/x/net v0.53.0
+	golang.org/x/sys v0.43.0
 	golang.org/x/term v0.42.0
 	golang.org/x/text v0.37.0
 	golang.org/x/time v0.14.0
@@ -117,6 +114,7 @@ require (
 	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/slongfield/pyfmt v0.0.0-20220222012616-ea85ff4c361f // indirect
+	github.com/smarty/assertions v1.16.0 // indirect
 	github.com/standard-webhooks/standard-webhooks/libraries v0.0.1 // indirect
 	github.com/tetratelabs/wazero v1.11.0 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
@@ -142,7 +140,6 @@ require (
 	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
 	google.golang.org/api v0.189.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect

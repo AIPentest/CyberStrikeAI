@@ -181,7 +181,7 @@ func runAgentNode(ctx context.Context, args RunArgs, node graphNode, state *Work
 	agentProgress := workflowAgentProgress(args.Progress, state, node)
 	switch mode {
 	case "eino_single", "single", "chat":
-		result, err = multiagent.RunEinoSingleChatModelAgent(
+		result, err = multiagent.RunSingleAgent(
 			ctx,
 			args.AppCfg,
 			&args.AppCfg.MultiAgent,
@@ -198,7 +198,7 @@ func runAgentNode(ctx context.Context, args RunArgs, node graphNode, state *Work
 			args.SystemPromptExtra,
 		)
 	default:
-		result, err = multiagent.RunDeepAgent(
+		result, err = multiagent.RunMultiAgent(
 			ctx,
 			args.AppCfg,
 			&args.AppCfg.MultiAgent,

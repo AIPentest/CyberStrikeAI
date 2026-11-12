@@ -6,43 +6,38 @@ import (
 	"strings"
 
 	"cyberstrike-ai/internal/config"
-
-	"github.com/cloudwego/eino/callbacks"
-	"github.com/cloudwego/eino/components"
-	"github.com/cloudwego/eino/components/retriever"
-	"github.com/cloudwego/eino/schema"
 )
 
-// VectorEinoRetriever implements [retriever.Retriever] on top of SQLite-stored embeddings + cosine similarity.
+// VectorRetriever implements [DocumentRetriever] on top of SQLite-stored embeddings + cosine similarity.
 // It returns prefetch-sized vector candidates only; rerank and post-process run in [knowledgePipelineRetriever].
-type VectorEinoRetriever struct {
+type VectorRetriever struct {
 	inner *Retriever
 }
 
-// NewVectorEinoRetriever wraps r for Eino compose / tooling.
-func NewVectorEinoRetriever(r *Retriever) *VectorEinoRetriever {
+// NewVectorRetriever wraps r for Eino compose / tooling.
+func NewVectorRetriever(r *Retriever) *VectorRetriever {
 	if r == nil {
 		return nil
 	}
-	return &VectorEinoRetriever{inner: r}
+	return &VectorRetriever{inner: r}
 }
 
 // GetType identifies this retriever for Eino callbacks.
-func (h *VectorEinoRetriever) GetType() string {
+func (h *VectorRetriever) GetType() string {
 	return "SQLiteVectorKnowledgeRetriever"
 }
 
-// Retrieve runs vector search and returns [schema.Document] rows.
-func (h *VectorEinoRetriever) Retrieve(ctx context.Context, query string, opts ...retriever.Option) (out []*schema.Document, err error) {
+// Retrieve runs vector search and returns [Document] rows.
+func (h *VectorRetriever) Retrieve(ctx context.Context, query string, opts ...RetrievalOption) (out []*Document, err error) {
 	if h == nil || h.inner == nil {
-		return nil, fmt.Errorf("VectorEinoRetriever: nil retriever")
+		return nil, fmt.Errorf("VectorRetriever: nil retriever")
 	}
 	q := strings.TrimSpace(query)
 	if q == "" {
 		return nil, fmt.Errorf("查询不能为空")
 	}
 
-	ro := retriever.GetCommonOptions(nil, opts...)
+	ro := retrievalOptions(opts...)
 	cfg := h.inner.config
 
 	req := &SearchRequest{Query: q}
@@ -88,23 +83,6 @@ func (h *VectorEinoRetriever) Retrieve(ctx context.Context, query string, opts .
 	searchReq := *req
 	searchReq.TopK = fetchK
 
-	ctx = callbacks.EnsureRunInfo(ctx, h.GetType(), components.ComponentOfRetriever)
-	th := req.Threshold
-	st := &th
-	ctx = callbacks.OnStart(ctx, &retriever.CallbackInput{
-		Query:          q,
-		TopK:           finalTopK,
-		ScoreThreshold: st,
-		Extra:          ro.DSLInfo,
-	})
-	defer func() {
-		if err != nil {
-			_ = callbacks.OnError(ctx, err)
-			return
-		}
-		_ = callbacks.OnEnd(ctx, &retriever.CallbackOutput{Docs: out})
-	}()
-
 	results, err := h.inner.vectorSearch(ctx, &searchReq)
 	if err != nil {
 		return nil, err
@@ -113,13 +91,13 @@ func (h *VectorEinoRetriever) Retrieve(ctx context.Context, query string, opts .
 	return out, nil
 }
 
-func retrievalResultsToDocuments(results []*RetrievalResult) []*schema.Document {
-	out := make([]*schema.Document, 0, len(results))
+func retrievalResultsToDocuments(results []*RetrievalResult) []*Document {
+	out := make([]*Document, 0, len(results))
 	for _, res := range results {
 		if res == nil || res.Chunk == nil || res.Item == nil {
 			continue
 		}
-		d := &schema.Document{
+		d := &Document{
 			ID:      res.Chunk.ID,
 			Content: res.Chunk.ChunkText,
 			MetaData: map[string]any{
@@ -136,7 +114,7 @@ func retrievalResultsToDocuments(results []*RetrievalResult) []*schema.Document 
 	return out
 }
 
-func documentsToRetrievalResults(docs []*schema.Document) ([]*RetrievalResult, error) {
+func documentsToRetrievalResults(docs []*Document) ([]*RetrievalResult, error) {
 	out := make([]*RetrievalResult, 0, len(docs))
 	for i, d := range docs {
 		if d == nil {
@@ -170,4 +148,4 @@ func documentsToRetrievalResults(docs []*schema.Document) ([]*RetrievalResult, e
 	return out, nil
 }
 
-var _ retriever.Retriever = (*VectorEinoRetriever)(nil)
+var _ DocumentRetriever = (*VectorRetriever)(nil)

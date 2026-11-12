@@ -2,94 +2,107 @@ package knowledge
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
 	"cyberstrike-ai/internal/config"
-	"cyberstrike-ai/internal/llm"
 	"cyberstrike-ai/internal/openai"
-
-	einoopenai "github.com/cloudwego/eino-ext/components/model/openai"
-	"github.com/cloudwego/eino/components/model"
-	"github.com/cloudwego/eino/flow/retriever/multiquery"
 	"go.uber.org/zap"
 )
 
-// WireRetrieverPipeline builds Eino MultiQuery + HTTP rerank + post-process pipeline on r.
-// Call once after NewRetriever; UpdateConfig re-invokes when wireOpenAI is set.
-func WireRetrieverPipeline(ctx context.Context, r *Retriever, openAI *config.OpenAIConfig) error {
-	if r == nil {
-		return fmt.Errorf("retriever is nil")
+// WireRetrieverPipeline composes query expansion, vector search, reranking and context budgeting.
+func WireRetrieverPipeline(ctx context.Context, r *Retriever, oa *config.OpenAIConfig) error {
+	if r == nil || oa == nil || r.config == nil {
+		return fmt.Errorf("knowledge retrieval configuration is incomplete")
 	}
-	if openAI == nil {
-		return fmt.Errorf("openai config is nil")
-	}
-	if r.config == nil {
-		return fmt.Errorf("retrieval config is nil")
-	}
-	r.wireOpenAI = openAI
-
-	baseHTTPClient := &http.Client{Timeout: 120 * time.Second}
-	var rewriteLLM model.ChatModel
-	if llm.IsClaudeProvider(openAI.Provider) {
-		nativeModel, err := llm.NewClaudeAgenticModel(
-			ctx,
-			*openAI,
-			baseHTTPClient,
-			openAI.MaxCompletionTokensEffective(),
-			nil,
-		)
-		if err != nil {
-			return fmt.Errorf("multi_query native Claude rewrite model: %w", err)
-		}
-		rewriteLLM = llm.NewAgenticChatModelAdapter(nativeModel)
-	} else {
-		httpClient := openai.NewEinoHTTPClient(openAI, baseHTTPClient)
-		maxCompletionTokens := openAI.MaxCompletionTokensEffective()
-		chatCfg := &einoopenai.ChatModelConfig{
-			APIKey:              strings.TrimSpace(openAI.APIKey),
-			BaseURL:             strings.TrimSuffix(strings.TrimSpace(openAI.BaseURL), "/"),
-			Model:               strings.TrimSpace(openAI.Model),
-			HTTPClient:          httpClient,
-			MaxCompletionTokens: &maxCompletionTokens,
-		}
-		if chatCfg.Model == "" {
-			chatCfg.Model = "gpt-4o"
-		}
-		var err error
-		rewriteLLM, err = einoopenai.NewChatModel(ctx, chatCfg)
-		if err != nil {
-			return fmt.Errorf("multi_query rewrite model: %w", err)
-		}
-	}
-
-	reranker, err := NewHTTPReranker(&r.config.Rerank, openAI, r.logger)
+	r.wireOpenAI = oa
+	reranker, err := NewHTTPReranker(&r.config.Rerank, oa, r.logger)
 	if err != nil {
-		return fmt.Errorf("reranker: %w", err)
+		return err
 	}
 	r.SetDocumentReranker(reranker)
-
-	vec := NewVectorEinoRetriever(r)
-	mq, err := multiquery.NewRetriever(ctx, &multiquery.Config{
-		RewriteLLM:    rewriteLLM,
-		MaxQueriesNum: r.config.MultiQuery.MaxQueriesEffective(),
-		OrigRetriever: vec,
-	})
-	if err != nil {
-		return fmt.Errorf("multi_query: %w", err)
+	logger := r.logger
+	if logger == nil {
+		logger = zap.NewNop()
 	}
-
+	mq := &nativeMultiQuery{inner: NewVectorRetriever(r), max: r.config.MultiQuery.MaxQueriesEffective(), client: openai.NewClient(oa, &http.Client{Timeout: 120 * time.Second}, logger), model: oa.Model, logger: logger}
 	r.pipeline = newKnowledgePipelineRetriever(mq, r)
-	if r.logger != nil {
-		provider := r.config.Rerank.ProviderEffective(strings.TrimSpace(openAI.BaseURL))
-		r.logger.Info("知识库检索流水线已启用",
-			zap.String("pipeline", "MultiQuery→Vector→Rerank→PostRetrieve"),
-			zap.Int("multi_query_max", r.config.MultiQuery.MaxQueriesEffective()),
-			zap.String("rerank_provider", provider),
-			zap.String("rerank_model", r.config.Rerank.ModelEffective(provider)),
-		)
-	}
 	return nil
+}
+
+type nativeMultiQuery struct {
+	inner  DocumentRetriever
+	max    int
+	client *openai.Client
+	model  string
+	logger *zap.Logger
+}
+
+func (q *nativeMultiQuery) Retrieve(ctx context.Context, query string, opts ...RetrievalOption) ([]*Document, error) {
+	queries := []string{query}
+	if q.max > 1 {
+		payload := map[string]any{"model": q.model, "messages": []map[string]string{{"role": "system", "content": fmt.Sprintf("Return only a JSON array containing at most %d alternative search queries for the user's knowledge search. Preserve technical identifiers and the user's language.", q.max-1)}, {"role": "user", "content": query}}}
+		var answer struct {
+			Choices []struct {
+				Message struct {
+					Content string `json:"content"`
+				} `json:"message"`
+			} `json:"choices"`
+		}
+		if err := q.client.ChatCompletion(ctx, payload, &answer); err == nil && len(answer.Choices) > 0 {
+			text := strings.TrimSpace(answer.Choices[0].Message.Content)
+			text = strings.TrimPrefix(text, "```json")
+			text = strings.TrimPrefix(text, "```")
+			text = strings.TrimSuffix(text, "```")
+			var generated []string
+			if json.Unmarshal([]byte(strings.TrimSpace(text)), &generated) == nil {
+				seen := map[string]bool{query: true}
+				for _, v := range generated {
+					v = strings.TrimSpace(v)
+					if v != "" && !seen[v] {
+						queries = append(queries, v)
+						seen[v] = true
+					}
+					if len(queries) >= q.max {
+						break
+					}
+				}
+			}
+		} else if err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			q.logger.Warn("查询扩展失败，使用原始查询", zap.Error(err))
+		}
+	}
+	scores := map[string]float64{}
+	docs := map[string]*Document{}
+	var order []string
+	for _, query := range queries {
+		rows, err := q.inner.Retrieve(ctx, query, opts...)
+		if err != nil {
+			return nil, err
+		}
+		for rank, d := range rows {
+			key := d.ID
+			if key == "" {
+				key = d.Content
+			}
+			if _, ok := docs[key]; !ok {
+				docs[key] = d
+				order = append(order, key)
+			}
+			scores[key] += 1 / float64(60+rank+1)
+		}
+	}
+	sort.SliceStable(order, func(i, j int) bool { return scores[order[i]] > scores[order[j]] })
+	out := make([]*Document, 0, len(order))
+	for _, key := range order {
+		out = append(out, docs[key])
+	}
+	return out, nil
 }

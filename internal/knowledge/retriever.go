@@ -12,13 +12,11 @@ import (
 
 	"cyberstrike-ai/internal/config"
 
-	"github.com/cloudwego/eino/components/retriever"
-	"github.com/cloudwego/eino/schema"
 	"go.uber.org/zap"
 )
 
 // Retriever 检索器：SQLite 存向量 + Eino 嵌入，**纯向量检索**（余弦相似度、TopK、阈值），
-// 实现语义与 [retriever.Retriever] 适配层 [VectorEinoRetriever] 一致。
+// 实现语义与 [DocumentRetriever] 适配层 [VectorRetriever] 一致。
 type Retriever struct {
 	db       *sql.DB
 	embedder *Embedder
@@ -28,7 +26,7 @@ type Retriever struct {
 	rerankMu sync.RWMutex
 	reranker DocumentReranker
 
-	pipeline retriever.Retriever
+	pipeline   DocumentRetriever
 	wireOpenAI *config.OpenAIConfig
 }
 
@@ -122,18 +120,18 @@ func (r *Retriever) Search(ctx context.Context, req *SearchRequest) ([]*Retrieva
 	if q == "" {
 		return nil, fmt.Errorf("查询不能为空")
 	}
-	opts := r.einoRetrieverOptions(req)
-	docs, err := r.activeEinoRetriever().Retrieve(ctx, q, opts...)
+	opts := r.retrievalOptionsForRequest(req)
+	docs, err := r.activeRetriever().Retrieve(ctx, q, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return documentsToRetrievalResults(docs)
 }
 
-func (r *Retriever) einoRetrieverOptions(req *SearchRequest) []retriever.Option {
-	var opts []retriever.Option
+func (r *Retriever) retrievalOptionsForRequest(req *SearchRequest) []RetrievalOption {
+	var opts []RetrievalOption
 	if req.TopK > 0 {
-		opts = append(opts, retriever.WithTopK(req.TopK))
+		opts = append(opts, WithTopK(req.TopK))
 	}
 	dsl := map[string]any{}
 	if strings.TrimSpace(req.RiskType) != "" {
@@ -146,26 +144,26 @@ func (r *Retriever) einoRetrieverOptions(req *SearchRequest) []retriever.Option 
 		dsl[DSLSubIndexFilter] = strings.TrimSpace(req.SubIndexFilter)
 	}
 	if len(dsl) > 0 {
-		opts = append(opts, retriever.WithDSLInfo(dsl))
+		opts = append(opts, WithDSLInfo(dsl))
 	}
 	return opts
 }
 
-// EinoRetrieve 直接返回 [schema.Document]，供 Eino Graph / Chain 使用。
-func (r *Retriever) EinoRetrieve(ctx context.Context, query string, opts ...retriever.Option) ([]*schema.Document, error) {
-	return r.activeEinoRetriever().Retrieve(ctx, query, opts...)
+// RetrieveDocuments 直接返回 [Document]，供 Eino Graph / Chain 使用。
+func (r *Retriever) RetrieveDocuments(ctx context.Context, query string, opts ...RetrievalOption) ([]*Document, error) {
+	return r.activeRetriever().Retrieve(ctx, query, opts...)
 }
 
-func (r *Retriever) activeEinoRetriever() retriever.Retriever {
+func (r *Retriever) activeRetriever() DocumentRetriever {
 	if r != nil && r.pipeline != nil {
 		return r.pipeline
 	}
-	return NewVectorEinoRetriever(r)
+	return NewVectorRetriever(r)
 }
 
-// AsEinoRetriever 将知识库检索流水线暴露为 Eino [retriever.Retriever]。
-func (r *Retriever) AsEinoRetriever() retriever.Retriever {
-	return r.activeEinoRetriever()
+// AsRetriever 将知识库检索流水线暴露为 Eino [DocumentRetriever]。
+func (r *Retriever) AsRetriever() DocumentRetriever {
+	return r.activeRetriever()
 }
 
 func (r *Retriever) knowledgeEmbeddingSelectSQL(riskType, subIndexFilter string) (string, []interface{}) {

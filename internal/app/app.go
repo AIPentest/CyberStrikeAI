@@ -79,6 +79,9 @@ type App struct {
 
 // New 创建新应用
 func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error) {
+	if err := cfg.AgentRuntime.Validate(); err != nil {
+		return nil, err
+	}
 	toolGuard, err := toolguard.NewManager(cfg.EffectiveToolGuard())
 	if err != nil {
 		return nil, fmt.Errorf("初始化调用拦截规则: %w", err)

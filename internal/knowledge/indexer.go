@@ -4,17 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"cyberstrike-ai/internal/config"
 
-	fileloader "github.com/cloudwego/eino-ext/components/document/loader/file"
-	"github.com/cloudwego/eino/components/document"
-	"github.com/cloudwego/eino/components/indexer"
-	"github.com/cloudwego/eino/compose"
-	"github.com/cloudwego/eino/schema"
 	"go.uber.org/zap"
 )
 
@@ -27,8 +23,7 @@ type Indexer struct {
 	overlap     int
 	indexingCfg *config.IndexingConfig
 
-	indexChain compose.Runnable[[]*schema.Document, []string]
-	fileLoader *fileloader.FileLoader
+	indexChain *knowledgeIndexChain
 
 	mu            sync.RWMutex
 	lastError     string
@@ -81,16 +76,6 @@ func NewIndexer(ctx context.Context, db *sql.DB, embedder *Embedder, logger *zap
 		return nil, fmt.Errorf("knowledge index chain: %w", err)
 	}
 
-	var fl *fileloader.FileLoader
-	fl, err = fileloader.NewFileLoader(ctx, nil)
-	if err != nil {
-		if logger != nil {
-			logger.Warn("Eino FileLoader 初始化失败，prefer_source_file 将回退数据库正文", zap.Error(err))
-		}
-		fl = nil
-		err = nil
-	}
-
 	return &Indexer{
 		db:          db,
 		embedder:    embedder,
@@ -99,7 +84,6 @@ func NewIndexer(ctx context.Context, db *sql.DB, embedder *Embedder, logger *zap
 		overlap:     overlap,
 		indexingCfg: indexingCfg,
 		indexChain:  chain,
-		fileLoader:  fl,
 	}, nil
 }
 
@@ -139,36 +123,16 @@ func (idx *Indexer) IndexItem(ctx context.Context, itemID string) error {
 		return fmt.Errorf("获取知识项失败：%w", err)
 	}
 
-	if _, err := idx.db.Exec("DELETE FROM knowledge_embeddings WHERE item_id = ?", itemID); err != nil {
-		return fmt.Errorf("删除旧向量失败：%w", err)
-	}
-
 	body := strings.TrimSpace(content)
-	if idx.indexingCfg != nil && idx.indexingCfg.PreferSourceFile && strings.TrimSpace(filePath) != "" && idx.fileLoader != nil {
-		docs, lerr := idx.fileLoader.Load(ctx, document.Source{URI: strings.TrimSpace(filePath)})
-		if lerr == nil && len(docs) > 0 {
-			var b strings.Builder
-			for i, d := range docs {
-				if d == nil {
-					continue
-				}
-				if i > 0 {
-					b.WriteString("\n\n")
-				}
-				b.WriteString(d.Content)
-			}
-			if s := strings.TrimSpace(b.String()); s != "" {
-				body = s
-			}
-		} else if idx.logger != nil {
-			idx.logger.Warn("优先源文件读取失败，使用数据库正文",
-				zap.String("itemId", itemID),
-				zap.String("path", filePath),
-				zap.Error(lerr))
+	if idx.indexingCfg != nil && idx.indexingCfg.PreferSourceFile && strings.TrimSpace(filePath) != "" {
+		if b, err := os.ReadFile(strings.TrimSpace(filePath)); err == nil && strings.TrimSpace(string(b)) != "" {
+			body = string(b)
+		} else if err != nil && idx.logger != nil {
+			idx.logger.Warn("源文件读取失败，使用数据库正文", zap.Error(err))
 		}
 	}
 
-	root := &schema.Document{
+	root := &Document{
 		ID:      itemID,
 		Content: body,
 		MetaData: map[string]any{
@@ -178,12 +142,12 @@ func (idx *Indexer) IndexItem(ctx context.Context, itemID string) error {
 		},
 	}
 
-	idxOpts := []indexer.Option{indexer.WithEmbedding(idx.embedder.EinoEmbeddingComponent())}
+	idxOpts := []IndexOption{WithEmbedding(idx.embedder.EmbeddingComponent())}
 	if idx.indexingCfg != nil && len(idx.indexingCfg.SubIndexes) > 0 {
-		idxOpts = append(idxOpts, indexer.WithSubIndexes(idx.indexingCfg.SubIndexes))
+		idxOpts = append(idxOpts, WithSubIndexes(idx.indexingCfg.SubIndexes))
 	}
 
-	ids, err := idx.indexChain.Invoke(ctx, []*schema.Document{root}, compose.WithIndexerOption(idxOpts...))
+	ids, err := idx.indexChain.Invoke(ctx, []*Document{root}, idxOpts...)
 	if err != nil {
 		msg := fmt.Sprintf("索引写入失败 (知识项：%s): %v", itemID, err)
 		idx.mu.Lock()

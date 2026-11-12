@@ -123,7 +123,7 @@ func RegisterKnowledgeTool(
 			zap.String("riskType", riskType),
 		)
 
-		// 检索统一走 Retriever.Search → VectorEinoRetriever（Eino retriever 语义）。
+		// 检索统一走 Retriever.Search → VectorRetriever（Eino retriever 语义）。
 		searchReq := &SearchRequest{
 			Query:    query,
 			RiskType: riskType,

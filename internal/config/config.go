@@ -21,37 +21,38 @@ import (
 )
 
 type Config struct {
-	Version     string                `yaml:"version,omitempty" json:"version,omitempty"` // 前端显示的版本号，如 v1.3.3
-	Server      ServerConfig          `yaml:"server"`
-	Log         LogConfig             `yaml:"log"`
-	MCP         MCPConfig             `yaml:"mcp"`
-	AI          AIConfig              `yaml:"ai,omitempty" json:"ai,omitempty"`
-	OpenAI      OpenAIConfig          `yaml:"openai,omitempty" json:"openai,omitempty"`
-	FOFA        FofaConfig            `yaml:"fofa,omitempty" json:"fofa,omitempty"`
-	ZoomEye     SpaceSearchConfig     `yaml:"zoomeye,omitempty" json:"zoomeye,omitempty"`
-	Quake       SpaceSearchConfig     `yaml:"quake,omitempty" json:"quake,omitempty"`
-	Shodan      SpaceSearchConfig     `yaml:"shodan,omitempty" json:"shodan,omitempty"`
-	Agent       AgentConfig           `yaml:"agent"`
-	Hitl        HitlConfig            `yaml:"hitl,omitempty" json:"hitl,omitempty"`
-	ToolGuard   *toolguard.Config     `yaml:"tool_guard,omitempty" json:"tool_guard,omitempty"`
-	Security    SecurityConfig        `yaml:"security"`
-	Database    DatabaseConfig        `yaml:"database"`
-	Auth        AuthConfig            `yaml:"auth"`
-	Audit       AuditConfig           `yaml:"audit,omitempty" json:"audit,omitempty"`
-	Monitor     MonitorConfig         `yaml:"monitor,omitempty" json:"monitor,omitempty"`
-	Storage     StorageConfig         `yaml:"storage,omitempty" json:"storage,omitempty"`
-	ExternalMCP ExternalMCPConfig     `yaml:"external_mcp,omitempty"`
-	Knowledge   KnowledgeConfig       `yaml:"knowledge,omitempty"`
-	C2          C2Config              `yaml:"c2,omitempty" json:"c2,omitempty"`                 // 内置 C2 总开关；未配置时默认启用
-	Robots      RobotsConfig          `yaml:"robots,omitempty" json:"robots,omitempty"`         // 企业微信/钉钉/飞书等机器人配置
-	RolesDir    string                `yaml:"roles_dir,omitempty" json:"roles_dir,omitempty"`   // 角色配置文件目录（新方式）
-	Roles       map[string]RoleConfig `yaml:"roles,omitempty" json:"roles,omitempty"`           // 向后兼容：支持在主配置文件中定义角色
-	SkillsDir   string                `yaml:"skills_dir,omitempty" json:"skills_dir,omitempty"` // Skills配置文件目录
-	AgentsDir   string                `yaml:"agents_dir,omitempty" json:"agents_dir,omitempty"` // 多代理子 Agent Markdown 定义目录（*.md，YAML front matter）
-	MultiAgent  MultiAgentConfig      `yaml:"multi_agent,omitempty" json:"multi_agent,omitempty"`
-	Project     ProjectConfig         `yaml:"project,omitempty" json:"project,omitempty"`
-	Vision      VisionConfig          `yaml:"vision,omitempty" json:"vision,omitempty"`
-	Update      UpdateConfig          `yaml:"update,omitempty" json:"update,omitempty"`
+	Version      string                `yaml:"version,omitempty" json:"version,omitempty"` // 前端显示的版本号，如 v1.3.3
+	Server       ServerConfig          `yaml:"server"`
+	Log          LogConfig             `yaml:"log"`
+	MCP          MCPConfig             `yaml:"mcp"`
+	AI           AIConfig              `yaml:"ai,omitempty" json:"ai,omitempty"`
+	OpenAI       OpenAIConfig          `yaml:"openai,omitempty" json:"openai,omitempty"`
+	FOFA         FofaConfig            `yaml:"fofa,omitempty" json:"fofa,omitempty"`
+	ZoomEye      SpaceSearchConfig     `yaml:"zoomeye,omitempty" json:"zoomeye,omitempty"`
+	Quake        SpaceSearchConfig     `yaml:"quake,omitempty" json:"quake,omitempty"`
+	Shodan       SpaceSearchConfig     `yaml:"shodan,omitempty" json:"shodan,omitempty"`
+	Agent        AgentConfig           `yaml:"agent"`
+	AgentRuntime AgentRuntimeConfig    `yaml:"agent_runtime,omitempty" json:"agent_runtime,omitempty"`
+	Hitl         HitlConfig            `yaml:"hitl,omitempty" json:"hitl,omitempty"`
+	ToolGuard    *toolguard.Config     `yaml:"tool_guard,omitempty" json:"tool_guard,omitempty"`
+	Security     SecurityConfig        `yaml:"security"`
+	Database     DatabaseConfig        `yaml:"database"`
+	Auth         AuthConfig            `yaml:"auth"`
+	Audit        AuditConfig           `yaml:"audit,omitempty" json:"audit,omitempty"`
+	Monitor      MonitorConfig         `yaml:"monitor,omitempty" json:"monitor,omitempty"`
+	Storage      StorageConfig         `yaml:"storage,omitempty" json:"storage,omitempty"`
+	ExternalMCP  ExternalMCPConfig     `yaml:"external_mcp,omitempty"`
+	Knowledge    KnowledgeConfig       `yaml:"knowledge,omitempty"`
+	C2           C2Config              `yaml:"c2,omitempty" json:"c2,omitempty"`                 // 内置 C2 总开关；未配置时默认启用
+	Robots       RobotsConfig          `yaml:"robots,omitempty" json:"robots,omitempty"`         // 企业微信/钉钉/飞书等机器人配置
+	RolesDir     string                `yaml:"roles_dir,omitempty" json:"roles_dir,omitempty"`   // 角色配置文件目录（新方式）
+	Roles        map[string]RoleConfig `yaml:"roles,omitempty" json:"roles,omitempty"`           // 向后兼容：支持在主配置文件中定义角色
+	SkillsDir    string                `yaml:"skills_dir,omitempty" json:"skills_dir,omitempty"` // Skills配置文件目录
+	AgentsDir    string                `yaml:"agents_dir,omitempty" json:"agents_dir,omitempty"` // 多代理子 Agent Markdown 定义目录（*.md，YAML front matter）
+	MultiAgent   MultiAgentConfig      `yaml:"multi_agent,omitempty" json:"multi_agent,omitempty"`
+	Project      ProjectConfig         `yaml:"project,omitempty" json:"project,omitempty"`
+	Vision       VisionConfig          `yaml:"vision,omitempty" json:"vision,omitempty"`
+	Update       UpdateConfig          `yaml:"update,omitempty" json:"update,omitempty"`
 }
 
 // UpdateConfig 一键更新的更新源（可选）：一个仓库地址，更新跟随该仓库的默认分支。
