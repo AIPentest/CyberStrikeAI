@@ -620,3 +620,21 @@ project:
 # to turn the directory into a git work tree tracking that repository, after which one-click update works as in a normal installation.
 # update:
 #   repo: https://github.com/AIPentest/CyberStrikeAI.git  # a repository address; empty/omitted = official repository
+
+# ============================================
+# Egress privacy gateway (optional) — hide the operator's real IP
+# ============================================
+# When enabled, every outbound connection the platform makes (LLM calls, MCP
+# tools, recon HTTP clients, C2, webshell, robots) is routed through the
+# configured proxy so your real IP is never exposed while the system is active.
+# With fail_closed, traffic is BLOCKED if the proxy is unreachable instead of
+# leaking out on the real interface — prefer a failed request over a leak.
+# egress:
+#   enabled: false              # master switch
+#   mode: tor                   # socks5 | tor | http | https | direct
+#   address: "127.0.0.1:9050"   # proxy host:port (empty + mode=tor => 127.0.0.1:9050)
+#   username: ""                # optional proxy username
+#   password: ""                # optional proxy password
+#   fail_closed: true           # kill-switch: block outbound if the proxy is down
+#   dns_through_proxy: true     # resolve hostnames at the proxy (SOCKS5/Tor) so DNS does not leak
+#   dial_timeout_sec: 30        # per-dial timeout in seconds (0 => default 30s)
