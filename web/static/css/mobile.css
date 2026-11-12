@@ -1553,8 +1553,8 @@ body.m-panel-open .chat-input-container {
         /* 白底 6.6:1，灰底(≥#f8fafc)仍 ≥6.2:1 */
         --text-muted: #5b6472;
         /* 白底 6.0:1，浅灰底(#f1f3f5) 5.5:1 —— 原 #adb5bd 仅 2.07:1 */
-        /* 原 #3b82f6 作正文色在白底仅 3.68:1，深一档后 5.2:1 */
-        --accent-color: #2563eb;
+        /* 原 #ef4444 作正文色在白底仅 3.68:1，深一档后 5.2:1 */
+        --accent-color: #dc2626;
     }
 
     html[data-theme="dark"] {
@@ -1732,7 +1732,7 @@ body.m-panel-open .chat-input-container {
     /* 18.12 C2 工具栏文字型按钮（无类名，继承 accent 色）；
        排除带内联背景的按钮，避免文字色与底色撞车 */
     #page-c2-sessions button:not(.btn-primary):not(.btn-secondary):not(.btn-danger):not([style*="background"]) {
-        color: #1d4ed8 !important;
+        color: #b91c1c !important;
     }
 
     /* 18.13 dashboard / HITL / 知识库残留的低对比文本（原 3.3~4.5:1） */
@@ -1749,8 +1749,8 @@ body.m-panel-open .chat-input-container {
     #page-knowledge-management .empty-state button,
     #page-knowledge-management .empty-state .btn,
     #hitl-pending-count {
-        background-color: #2563eb !important;
-        border-color: #2563eb !important;
+        background-color: #dc2626 !important;
+        border-color: #dc2626 !important;
         color: #ffffff !important;
         font-weight: 600;
     }
@@ -1764,7 +1764,7 @@ body.m-panel-open .chat-input-container {
     }
 
     #projects-list-count {
-        color: #0052cc !important;
+        color: #b91c1c !important;
     }
 
     #page-settings .required-mark {
@@ -2276,13 +2276,13 @@ body.m-panel-open .chat-input-container {
 
 /* --------------------------------------------------------------------------
    23. 深色主题对比度修正（_mdark.mjs 全站实测出 4 类违规）
-   深色令牌里 --accent-color 是 #60a5fa（浅蓝），配白字只有 2.54:1；
+   深色令牌里 --accent-color 是 #f87171（浅蓝），配白字只有 2.54:1；
    语义绿 #15803d 在 #111f29 底上 3.33:1；危险红 #b02a37 在 #111827 底上 2.73:1。
    统一只改文字色、不动背景，保证亮色主题与桌面端完全不受影响。
    -------------------------------------------------------------------------- */
 @media (max-width: 767.98px) {
 
-    /* 23.1 浅蓝底(#60a5fa)上的白字 → 深墨蓝 #0b1120，实测 9.4:1 */
+    /* 23.1 浅蓝底(#f87171)上的白字 → 深墨蓝 #0b1120，实测 9.4:1 */
     html[data-theme="dark"] .btn-primary,
     html[data-theme="dark"] .btn-primary:hover,
     html[data-theme="dark"] .btn-primary:focus,
@@ -2826,7 +2826,7 @@ body.m-panel-open .chat-input-container {
     #rbac-metric-users,                   /* 4.34 on #e5ecf9，strong 是本体的 id */
     .rbac-metric-users,
     .rbac-metric-users span {
-        color: #1557e7 !important;
+        color: #dc2626 !important;
     }
 
     /* 待处理琥珀 */
@@ -2861,15 +2861,15 @@ body.m-panel-open .chat-input-container {
         color: #c22231 !important;
     }
 
-    /* 25.4 c2 的主行动按钮：c2.css 拿 --c2-accent(#3b82f6)（c2.css:8）当按钮底色，
-       白字只有 3.68:1。同一个 #3b82f6 作正文色时已在 18.x 处理过，作按钮底色这条漏了。
-       压深到 #2563eb → 5.17:1。
+    /* 25.4 c2 的主行动按钮：c2.css 拿 --c2-accent(#ef4444)（c2.css:8）当按钮底色，
+       白字只有 3.68:1。同一个 #ef4444 作正文色时已在 18.x 处理过，作按钮底色这条漏了。
+       压深到 #dc2626 → 5.17:1。
        **必须限定亮色主题**：深色主题下 `--c2-accent` 会变成浅蓝，按钮是"浅底+深字"，
        在深色里改背景会直接把文字对比度打下来（实测 3.64:1）。 */
     html:not([data-theme="dark"]) .c2-payload-card .btn-primary,
     html:not([data-theme="dark"]) #c2-build-btn {
-        background: #2563eb !important;
-        border-color: #2563eb !important;
+        background: #dc2626 !important;
+        border-color: #dc2626 !important;
     }
 
     /* 25.5 第九轮第二遍：新暴露页面里剩下的文本类小字也纳入 12px 下限。
@@ -2952,14 +2952,14 @@ body.m-panel-open .chat-input-container {
 html[data-theme="dark"] {
 
     /* 26.1 【已回滚的误判，留作记录】深色主题下 `.btn-primary` 的常规形态是
-       "浅蓝底 #60a5fa + 深墨蓝文字"，实测 9.4:1 —— 与亮色主题的"深蓝底 + 白字"
+       "浅蓝底 #f87171 + 深墨蓝文字"，实测 9.4:1 —— 与亮色主题的"深蓝底 + 白字"
        互为反色，这是**有意设计**（正是 23.1 区块处理过的那套写法）。
        我最初把它误判成"深字压蓝底"，统一改成浅色文字，结果把 18 个页面里
        可见的主按钮从 9.4:1 一次性压到 2.21:1 —— `_mdark.mjs` 重测后立刻暴露。
        结论：**不要动 `.btn-primary` 的文字色**。
 
        真正有问题的是登录按钮：`#login-overlay .btn-primary.login-submit` 上叠了
-       background-image: linear-gradient(135deg,#2563eb,#1d4ed8) 的深蓝渐变，
+       background-image: linear-gradient(135deg,#dc2626,#b91c1c) 的深蓝渐变，
        把浅蓝底盖掉了，文字仍是深墨蓝 → 实测 1:1 ~ 3.64:1。只修这一处。 */
     #login-overlay .btn-primary,
     #login-overlay .login-submit {
@@ -2987,13 +2987,13 @@ html[data-theme="dark"] {
     .agent-role-badge--orchestrator,      /* 2.69 */
     .rbac-metric-users,
     .rbac-metric-users span {             /* 2.77 */
-        color: #6591f1 !important;
+        color: #f87171 !important;
     }
 
     /* 26.4 紫 */
     .rbac-metric-roles,
     .rbac-metric-roles span {             /* 2.90 */
-        color: #9c6af1 !important;
+        color: #ef4444 !important;
     }
 
     /* 26.5 绿 —— #24a655 是"启用徽章 / #142f2c 底"的解（对更暗的 chip 底只会更高） */
@@ -3038,15 +3038,15 @@ html[data-theme="dark"] {
         color: #7c7c7c !important;
     }
 
-    /* 26.10 mcp-management 的「全部」筛选按钮是白字压在浅蓝 #60a5fa 上：
+    /* 26.10 mcp-management 的「全部」筛选按钮是白字压在浅蓝 #f87171 上：
        冻结色相与饱和度后**无解**（白色没有可提亮的余量，求解器原样返回 #ffffff），
        所以只能压深底色。 */
     .btn-filter.active {
-        background: #2563eb !important;
-        border-color: #2563eb !important;
+        background: #dc2626 !important;
+        border-color: #dc2626 !important;
     }
 
-    /* 26.11 c2 会话工具栏的文字型按钮：18.12 给的 #1d4ed8 在深底上只有 2.84:1。
+    /* 26.11 c2 会话工具栏的文字型按钮：18.12 给的 #b91c1c 在深底上只有 2.84:1。
        那条规则的特异性是 (1,4,1)——四个 `:not()` 里的类与属性**都要计入**特异性，
        所以这里必须原样带上同一个选择器才压得住（4 个 `:not()` 里的类与属性都要计入特异性）。
 
@@ -3057,12 +3057,12 @@ html[data-theme="dark"] {
        而且**连把特异性翻倍都毫无反应**——因为根本没有参与匹配。
        块内规则已经自带 `html[data-theme="dark"]` 前缀，这里反而不能再写。 */
     #page-c2-sessions button:not(.btn-primary):not(.btn-secondary):not(.btn-danger):not([style*="background"]) {
-        color: #6591f1 !important;
+        color: #f87171 !important;
     }
 
-    /* 26.12 空状态行动按钮：18.13 给它们铺了实心 #2563eb 底，
-       23.1 又按"浅蓝底(#60a5fa)"的假设把文字改成深墨蓝 —— 两轮修复前提不一致，
-       结果成了"深蓝底上的深蓝字"（实测 3.64:1）。底色既然固定是 #2563eb，
+    /* 26.12 空状态行动按钮：18.13 给它们铺了实心 #dc2626 底，
+       23.1 又按"浅蓝底(#f87171)"的假设把文字改成深墨蓝 —— 两轮修复前提不一致，
+       结果成了"深蓝底上的深蓝字"（实测 3.64:1）。底色既然固定是 #dc2626，
        深色下文字就必须回转浅色（5.17:1）。前缀由所属的 `html[data-theme="dark"]` 块提供，
        这里**不能**再手写一遍（原因见 26.11 的注释）。 */
     .dashboard-empty-action,
@@ -3587,7 +3587,7 @@ html[data-theme="dark"] {
             radial-gradient(120% 88% at 88% -12%,
                 color-mix(in srgb, var(--accent-color) 14%, transparent), transparent 58%),
             radial-gradient(95% 72% at -12% 106%,
-                color-mix(in srgb, #8b5cf6 11%, transparent), transparent 60%),
+                color-mix(in srgb, #ef4444 11%, transparent), transparent 60%),
             var(--bg-secondary);
     }
 
@@ -3596,7 +3596,7 @@ html[data-theme="dark"] {
             radial-gradient(120% 88% at 88% -12%,
                 color-mix(in srgb, var(--accent-color) 18%, transparent), transparent 58%),
             radial-gradient(95% 72% at -12% 106%,
-                color-mix(in srgb, #8b5cf6 13%, transparent), transparent 60%),
+                color-mix(in srgb, #ef4444 13%, transparent), transparent 60%),
             var(--bg-secondary);
     }
 
@@ -3663,7 +3663,7 @@ html[data-theme="dark"] {
             radial-gradient(120% 88% at 85% -10%,
                 color-mix(in srgb, var(--accent-color) 13%, transparent), transparent 60%),
             radial-gradient(95% 72% at -12% 108%,
-                color-mix(in srgb, #8b5cf6 10%, transparent), transparent 62%),
+                color-mix(in srgb, #ef4444 10%, transparent), transparent 62%),
             color-mix(in srgb, var(--bg-secondary) 92%, transparent);
     }
 
@@ -3672,7 +3672,7 @@ html[data-theme="dark"] {
             radial-gradient(120% 88% at 85% -10%,
                 color-mix(in srgb, var(--accent-color) 17%, transparent), transparent 60%),
             radial-gradient(95% 72% at -12% 108%,
-                color-mix(in srgb, #8b5cf6 12%, transparent), transparent 62%),
+                color-mix(in srgb, #ef4444 12%, transparent), transparent 62%),
             color-mix(in srgb, #0b1120 92%, transparent);
     }
 

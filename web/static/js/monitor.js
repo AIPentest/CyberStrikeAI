@@ -4312,28 +4312,28 @@ function describeHitlApprovalRequest(data) {
     const isCommand = !!command || /(^|::|_)exec$|shell|terminal|command|run_command/.test(toolName);
     const isFile = !!path || /write_file|edit_file|apply_patch|delete_file|move_file/.test(toolName);
     let displayTool = rawToolName;
-    let question = hitlApprovalTemplate('hitl.requestGeneric', 'Allow CyberStrikeAI to call {{tool}}?', { tool: rawToolName });
+    let question = hitlApprovalTemplate('hitl.requestGeneric', 'Allow DarkStorm to call {{tool}}?', { tool: rawToolName });
     let primary = '';
     let kind = 'generic';
     if (isBrowser) {
         kind = 'browser';
         question = url
             ? (url.length > 160
-                ? hitlApprovalTranslate('hitl.requestVisitLongUrl', 'Allow CyberStrikeAI to access this address?')
-                : hitlApprovalTemplate('hitl.requestVisitUrl', 'Allow CyberStrikeAI to access {{url}}?', { url: url }))
-            : hitlApprovalTranslate('hitl.requestBrowser', 'Allow CyberStrikeAI to use the browser?');
+                ? hitlApprovalTranslate('hitl.requestVisitLongUrl', 'Allow DarkStorm to access this address?')
+                : hitlApprovalTemplate('hitl.requestVisitUrl', 'Allow DarkStorm to access {{url}}?', { url: url }))
+            : hitlApprovalTranslate('hitl.requestBrowser', 'Allow DarkStorm to use the browser?');
         primary = url;
     } else if (isCommand) {
         kind = 'command';
-        question = hitlApprovalTranslate('hitl.requestCommand', 'Allow CyberStrikeAI to run this command?');
+        question = hitlApprovalTranslate('hitl.requestCommand', 'Allow DarkStorm to run this command?');
         primary = command;
     } else if (isFile) {
         kind = 'file';
         question = path
             ? (path.length > 160
-                ? hitlApprovalTranslate('hitl.requestModifyLongPath', 'Allow CyberStrikeAI to modify this file?')
-                : hitlApprovalTemplate('hitl.requestFile', 'Allow CyberStrikeAI to modify {{path}}?', { path: path }))
-            : hitlApprovalTranslate('hitl.requestFiles', 'Allow CyberStrikeAI to modify files?');
+                ? hitlApprovalTranslate('hitl.requestModifyLongPath', 'Allow DarkStorm to modify this file?')
+                : hitlApprovalTemplate('hitl.requestFile', 'Allow DarkStorm to modify {{path}}?', { path: path }))
+            : hitlApprovalTranslate('hitl.requestFiles', 'Allow DarkStorm to modify files?');
         primary = path;
     }
     return {

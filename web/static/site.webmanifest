@@ -1,6 +1,6 @@
 {
-  "name": "CyberStrikeAI",
-  "short_name": "CyberStrikeAI",
+  "name": "DarkStorm",
+  "short_name": "DarkStorm",
   "description": "AI 安全测试平台 WebUI",
   "start_url": "/",
   "scope": "/",

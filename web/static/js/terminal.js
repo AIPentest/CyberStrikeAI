@@ -32,7 +32,7 @@
         }
         // i18n 未就绪时的后备 (与 zh-CN 一致)
         var fallbacks = {
-            'settingsTerminal.welcomeLine': 'CyberStrikeAI Terminal - a real shell session; type commands directly; Ctrl+L Clear screen',
+            'settingsTerminal.welcomeLine': 'DarkStorm Terminal - a real shell session; type commands directly; Ctrl+L Clear screen',
             'settingsTerminal.sessionClosed': '[Session closed]',
             'settingsTerminal.connectionError': '[Terminal connection error]',
             'settingsTerminal.connectFailed': '[Unable to connect to the terminal service: {{msg}}]',

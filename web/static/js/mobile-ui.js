@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CyberStrikeAI — Mobile UI Runtime
+   DarkStorm — Mobile UI Runtime
    --------------------------------------------------------------------------
    与 mobile.css 配套的移动端交互层。设计语言参考 QuantumNous/new-api：
      - 768px 断点（matchMedia('(max-width: 767.98px)')）
@@ -466,7 +466,7 @@
 
         var head = el('div', 'm-drawer-head m-mobile-only');
         var brand = el('div', 'm-drawer-brand',
-            '<img src="/static/logo.png" alt="CyberStrikeAI">' +
+            '<img src="/static/logo.png" alt="DarkStorm">' +
             '<span class="brand-wordmark"><span class="brand-wordmark__core">CyberStrike</span><span class="brand-wordmark__ai">AI</span></span>');
         var close = el('button', 'm-close-btn', ICON.close);
         close.type = 'button';
