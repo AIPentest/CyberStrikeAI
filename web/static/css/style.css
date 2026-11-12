@@ -47481,3 +47481,168 @@ html[data-theme="dark"] .token-usage-panel { --token-cache-color: #2dd4bf; }
     .token-usage-subtitle { max-width: 220px; line-height: 1.6; }
     .token-usage-trend-svg { min-width: 480px; }
 }
+
+/* ============================================================
+   Chat page — Cybersecurity / red-tone console theme
+   Scoped entirely under #page-chat so no other page is affected.
+   ============================================================ */
+#page-chat {
+    --cs-bg: #0a0b0e;
+    --cs-bg-elev: #101216;
+    --cs-panel: #0d0e12;
+    --cs-red: #ef4444;
+    --cs-red-bright: #ff3b4e;
+    --cs-red-dim: #7f1d1d;
+    --cs-line: rgba(239, 68, 68, 0.18);
+    --cs-text: #e7e9ee;
+    --cs-text-dim: #9aa0ac;
+    /* Redefine the shared theme tokens locally so every child element that
+       reads them turns dark/red on this page only, without per-class rules. */
+    --bg-primary: #101216;
+    --bg-secondary: #0a0b0e;
+    --bg-tertiary: #15181d;
+    --card-bg: #101216;
+    --input-bg: #0d0e12;
+    --text-primary: #e7e9ee;
+    --text-color: #e7e9ee;
+    --text-secondary: #9aa0ac;
+    --text-muted: #6b7280;
+    --border-color: rgba(239, 68, 68, 0.18);
+    --accent-color: #ef4444;
+    --accent-hover: #f87171;
+    --brand-core: #e7e9ee;
+    background:
+        linear-gradient(rgba(239, 68, 68, 0.035) 1px, transparent 1px) 0 0 / 100% 34px,
+        linear-gradient(90deg, rgba(239, 68, 68, 0.035) 1px, transparent 1px) 0 0 / 34px 100%,
+        radial-gradient(1200px 600px at 70% -10%, rgba(239, 68, 68, 0.08), transparent 60%),
+        var(--cs-bg);
+    color: var(--cs-text);
+}
+
+/* Conversation / project sidebar */
+#page-chat .conversation-sidebar {
+    background: var(--cs-panel);
+    border-right: 1px solid var(--cs-line);
+    color: var(--cs-text);
+}
+#page-chat .conversation-sidebar * { color: inherit; }
+#page-chat .conversation-sidebar .sidebar-section-title,
+#page-chat .conversation-sidebar [class*="section-title"],
+#page-chat .conversation-sidebar [class*="label"] { color: var(--cs-text-dim); letter-spacing: 0.08em; }
+
+#page-chat .new-chat-btn {
+    background: linear-gradient(135deg, var(--cs-red) 0%, var(--cs-red-dim) 100%);
+    color: #fff;
+    border: 1px solid rgba(239, 68, 68, 0.6);
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.25), 0 6px 18px rgba(239, 68, 68, 0.25);
+}
+#page-chat .new-chat-btn:hover { filter: brightness(1.08); box-shadow: 0 0 18px rgba(239, 68, 68, 0.45); }
+
+/* Project search + list rows */
+#page-chat input[type="text"],
+#page-chat input[type="search"],
+#page-chat .chat-project-panel-search-input {
+    background: var(--cs-bg-elev);
+    border: 1px solid var(--cs-line);
+    color: var(--cs-text);
+}
+#page-chat input::placeholder { color: var(--cs-text-dim); }
+#page-chat .conversation-sidebar [class*="item"]:hover,
+#page-chat .conversation-sidebar [class*="row"]:hover {
+    background: rgba(239, 68, 68, 0.08);
+}
+
+/* Messages area */
+#page-chat .chat-messages { background: transparent; }
+
+/* Empty / welcome state — terminal prompt feel */
+#page-chat .chat-welcome-empty-state-title {
+    color: var(--cs-red-bright);
+    text-shadow: 0 0 18px rgba(255, 59, 78, 0.45);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+#page-chat .chat-welcome-empty-state-title::before {
+    content: "> ";
+    color: var(--cs-red);
+    opacity: 0.85;
+}
+#page-chat .chat-welcome-empty-state-title::after {
+    content: "_";
+    margin-left: 4px;
+    color: var(--cs-red-bright);
+    animation: cs-blink 1.05s steps(1) infinite;
+}
+@keyframes cs-blink { 50% { opacity: 0; } }
+#page-chat .chat-welcome-empty-state-subtitle { color: var(--cs-text-dim); }
+#page-chat .chat-welcome-project-name { color: var(--cs-red); }
+
+/* Composer / input console */
+#page-chat .chat-input-container {
+    background: linear-gradient(180deg, var(--cs-bg-elev), var(--cs-panel));
+    border: 1px solid var(--cs-line);
+    border-radius: 12px;
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.08), 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 40px rgba(239, 68, 68, 0.04);
+}
+#page-chat .chat-input-container:focus-within {
+    border-color: rgba(239, 68, 68, 0.55);
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35), 0 0 24px rgba(239, 68, 68, 0.25);
+}
+#page-chat #chat-input,
+#page-chat .chat-input,
+#page-chat [contenteditable="true"] {
+    color: var(--cs-text);
+    background: transparent;
+}
+#page-chat #chat-input::placeholder,
+#page-chat .chat-input::placeholder { color: var(--cs-text-dim); }
+
+/* Composer context row + footer chips/selectors */
+#page-chat .chat-composer-context,
+#page-chat .chat-composer-footer {
+    background: transparent;
+    border-color: var(--cs-line);
+}
+#page-chat .chat-composer-context [class*="selector"],
+#page-chat .chat-composer-footer [class*="selector"],
+#page-chat .chat-composer-footer [class*="chip"],
+#page-chat .chat-composer-context [class*="btn"],
+#page-chat .chat-composer-footer [class*="btn"] {
+    background: var(--cs-bg-elev);
+    border: 1px solid var(--cs-line);
+    color: var(--cs-text);
+}
+#page-chat .chat-composer-context [class*="selector"]:hover,
+#page-chat .chat-composer-footer [class*="selector"]:hover { border-color: rgba(239, 68, 68, 0.45); }
+
+/* Send button */
+#page-chat [class*="chat-send"],
+#page-chat [class*="send-btn"],
+#page-chat button[type="submit"] {
+    background: linear-gradient(135deg, var(--cs-red) 0%, var(--cs-red-dim) 100%);
+    color: #fff;
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.4);
+}
+
+/* Scrollbars inside the chat page */
+#page-chat ::-webkit-scrollbar { width: 10px; height: 10px; }
+#page-chat ::-webkit-scrollbar-track { background: var(--cs-panel); }
+#page-chat ::-webkit-scrollbar-thumb { background: rgba(239, 68, 68, 0.35); border-radius: 6px; }
+#page-chat ::-webkit-scrollbar-thumb:hover { background: rgba(239, 68, 68, 0.55); }
+
+/* Chat cybersecurity theme — fix light wrappers that hardcode backgrounds */
+#page-chat .chat-container { background: transparent; }
+#page-chat .chat-messages { background: transparent; }
+#page-chat .chat-input-field,
+#page-chat .chat-input-with-files,
+#page-chat .chat-input-primary-row {
+    background: var(--cs-bg-elev);
+    border-color: var(--cs-line);
+    color: var(--cs-text);
+}
+#page-chat .chat-input-field { box-shadow: inset 0 0 0 1px var(--cs-line); }
+/* Message bubbles: keep readable on the dark console */
+#page-chat .message,
+#page-chat [class*="message-bubble"],
+#page-chat [class*="chat-message"] { color: var(--cs-text); }
+#page-chat [class*="message"] [class*="content"] { color: var(--cs-text); }
