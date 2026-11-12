@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"cyberstrike-ai/internal/config"
+	"cyberstrike-ai/internal/egress"
 
 	"go.uber.org/zap"
 )
@@ -105,7 +106,7 @@ func runTelegramPoll(ctx context.Context, cfg config.RobotTelegramConfig, h Mess
 	}
 	offset := cfg.UpdateOffset
 	logger.Info("Telegram Long polling started", zap.String("bot", botUsername))
-	client := &http.Client{Timeout: telegramLongPollSec*time.Second + 10*time.Second}
+	client := &http.Client{Timeout: telegramLongPollSec*time.Second + 10*time.Second, Transport: egress.Default().Transport()}
 
 	for {
 		select {

@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"cyberstrike-ai/internal/egress"
 )
 
 const (
@@ -48,7 +50,7 @@ func NewClient(baseURL, botToken, botAgent string, clientVersion uint32) *Client
 		BotToken:      strings.TrimSpace(botToken),
 		BotAgent:      sanitizeBotAgent(agent),
 		ClientVersion: clientVersion,
-		HTTP:          &http.Client{Timeout: 0},
+		HTTP:          &http.Client{Timeout: 0, Transport: egress.Default().Transport()},
 	}
 }
 

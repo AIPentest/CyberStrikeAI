@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"cyberstrike-ai/internal/config"
+	"cyberstrike-ai/internal/egress"
 	openaiClient "cyberstrike-ai/internal/openai"
 
 	"github.com/gin-gonic/gin"
@@ -30,8 +31,10 @@ type FofaHandler struct {
 }
 
 func NewFofaHandler(cfg *config.Config, logger *zap.Logger) *FofaHandler {
-	// LLM 请求通常比 FOFA 查询更慢一点，单独给一个更宽松的超时。
-	llmHTTPClient := &http.Client{Timeout: 2 * time.Minute}
+	// LLM requests are usually a bit slower than FOFA queries, so give them a
+	// more generous timeout. Both clients route through the egress gateway so
+	// FOFA queries and LLM calls do not expose the operator's real IP.
+	llmHTTPClient := &http.Client{Timeout: 2 * time.Minute, Transport: egress.Default().Transport()}
 	var llmCfg *config.OpenAIConfig
 	if cfg != nil {
 		llmCfg = &cfg.OpenAI
@@ -39,7 +42,7 @@ func NewFofaHandler(cfg *config.Config, logger *zap.Logger) *FofaHandler {
 	return &FofaHandler{
 		cfg:          cfg,
 		logger:       logger,
-		client:       &http.Client{Timeout: 60 * time.Second},
+		client:       &http.Client{Timeout: 60 * time.Second, Transport: egress.Default().Transport()},
 		openAIClient: openaiClient.NewClient(llmCfg, llmHTTPClient, logger),
 	}
 }

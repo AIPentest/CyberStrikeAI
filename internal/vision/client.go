@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"cyberstrike-ai/internal/config"
+	"cyberstrike-ai/internal/egress"
 	"cyberstrike-ai/internal/llm"
 	"cyberstrike-ai/internal/openai"
 
@@ -49,15 +49,13 @@ func (c *Client) Analyze(ctx context.Context, img ImagePayload, question string)
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
+	// Route vision-model requests through the egress gateway so image-analysis
+	// API traffic does not expose the operator's real IP.
+	transport := egress.Default().Transport()
+	transport.ResponseHeaderTimeout = timeout + 10*time.Second
 	httpClient := &http.Client{
-		Timeout: timeout + 15*time.Second,
-		Transport: &http.Transport{
-			DialContext: (&net.Dialer{
-				Timeout:   60 * time.Second,
-				KeepAlive: 60 * time.Second,
-			}).DialContext,
-			ResponseHeaderTimeout: timeout + 10*time.Second,
-		},
+		Timeout:   timeout + 15*time.Second,
+		Transport: transport,
 	}
 
 	b64 := base64.StdEncoding.EncodeToString(img.Bytes)

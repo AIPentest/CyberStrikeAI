@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"cyberstrike-ai/internal/config"
+	"cyberstrike-ai/internal/egress"
 
 	"github.com/bwmarrin/discordgo"
 	lark "github.com/larksuite/oapi-sdk-go/v3"
@@ -93,7 +94,9 @@ func SupportsProactive(platform string) bool {
 	}
 }
 
-func nilSafeHTTPClient() *http.Client { return &http.Client{Timeout: 15 * time.Second} }
+func nilSafeHTTPClient() *http.Client {
+	return &http.Client{Timeout: 15 * time.Second, Transport: egress.Default().Transport()}
+}
 
 func sendWecomProactive(ctx context.Context, cfg config.RobotWecomConfig, userID, message string) error {
 	if !cfg.Enabled || strings.TrimSpace(cfg.CorpID) == "" || strings.TrimSpace(cfg.Secret) == "" || cfg.AgentID == 0 {

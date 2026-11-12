@@ -21,6 +21,7 @@ import (
 	"cyberstrike-ai/internal/authctx"
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/database"
+	"cyberstrike-ai/internal/egress"
 	"cyberstrike-ai/internal/mcp/builtin"
 	"cyberstrike-ai/internal/multiagent"
 	"cyberstrike-ai/internal/openai"
@@ -281,7 +282,7 @@ func NewAgentHandler(agent *agent.Agent, db *database.DB, cfg *config.Config, lo
 	bus := NewTaskEventBus()
 	tm := NewAgentTaskManager()
 	tm.SetTaskEventBus(bus)
-	llmHTTP := &http.Client{Timeout: 2 * time.Minute}
+	llmHTTP := &http.Client{Timeout: 2 * time.Minute, Transport: egress.Default().Transport()}
 	var llmCfg *config.OpenAIConfig
 	if cfg != nil {
 		llmCfg = &cfg.OpenAI

@@ -14,6 +14,7 @@ import (
 	"cyberstrike-ai/internal/agent"
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/database"
+	"cyberstrike-ai/internal/egress"
 	"cyberstrike-ai/internal/openai"
 
 	"github.com/google/uuid"
@@ -45,11 +46,12 @@ type Chain struct {
 
 // NewBuilder creates a new attack-chain builder
 func NewBuilder(db *database.DB, openAIConfig *config.OpenAIConfig, logger *zap.Logger) *Builder {
-	transport := &http.Transport{
-		MaxIdleConns:        100,
-		MaxIdleConnsPerHost: 10,
-		IdleConnTimeout:     90 * time.Second,
-	}
+	// Base transport from the egress gateway so chain-analysis LLM traffic
+	// routes through the operator's proxy when anonymization is enabled.
+	transport := egress.Default().Transport()
+	transport.MaxIdleConns = 100
+	transport.MaxIdleConnsPerHost = 10
+	transport.IdleConnTimeout = 90 * time.Second
 	httpClient := &http.Client{Timeout: 5 * time.Minute, Transport: transport}
 
 	// Prefer the unified Token limit in the config file (config.yaml -> openai.max_total_tokens)

@@ -16,6 +16,7 @@ import (
 
 	"cyberstrike-ai/internal/audit"
 	"cyberstrike-ai/internal/database"
+	"cyberstrike-ai/internal/egress"
 	"cyberstrike-ai/internal/security"
 
 	"github.com/gin-gonic/gin"
@@ -337,15 +338,18 @@ func (h *WebShellHandler) SetAudit(s *audit.Service) {
 
 // NewWebShellHandler 创建 WebShell 处理器，db 可为 nil（连接配置接口将不可用）
 func NewWebShellHandler(logger *zap.Logger, db *database.DB) *WebShellHandler {
+	// Base transport from the egress gateway so traffic to the target host
+	// leaves on the operator's proxy, not the real IP.
+	transport := egress.Default().Transport()
+	transport.DisableKeepAlives = false
+	// WebShell targets commonly use self-signed certs or IP access (no IP SAN
+	// in the cert); skip verification by default, matching clients like AntSword.
+	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // intentional for webshell proxy
 	return &WebShellHandler{
 		logger: logger,
 		client: &http.Client{
-			Timeout: 30 * time.Second,
-			Transport: &http.Transport{
-				DisableKeepAlives: false,
-				// WebShell 场景常见自签证书或 IP 访问（证书无 IP SAN）；默认跳过校验，与蚁剑等客户端一致。
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // intentional for webshell proxy
-			},
+			Timeout:   30 * time.Second,
+			Transport: transport,
 		},
 		db: db,
 	}
