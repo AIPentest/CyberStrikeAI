@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 )
 
@@ -11,6 +12,19 @@ type AgentRuntimeConfig struct {
 	NodePath   string `yaml:"node_path,omitempty" json:"node_path,omitempty"`
 	WorkerPath string `yaml:"worker_path,omitempty" json:"worker_path,omitempty"`
 	SessionDir string `yaml:"session_dir,omitempty" json:"session_dir,omitempty"`
+}
+
+// AgentSessionDir is shared by the runner and conversation cleanup, including
+// configurations that omit database.path or restore the default session root.
+func (c *Config) AgentSessionDir() string {
+	if dir := strings.TrimSpace(c.AgentRuntime.SessionDir); dir != "" {
+		return dir
+	}
+	dbPath := strings.TrimSpace(c.Database.Path)
+	if dbPath == "" {
+		dbPath = "data/conversations.db"
+	}
+	return filepath.Join(filepath.Dir(dbPath), "pi-sessions")
 }
 
 func (c AgentRuntimeConfig) Validate() error {

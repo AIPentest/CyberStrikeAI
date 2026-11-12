@@ -11,7 +11,7 @@ bash scripts/build-pi-runtime.sh
 go build -o cyberstrike-ai ./cmd/server
 ```
 
-The launcher and self-update build prepare the worker. Dependency installation uses the lockfile with lifecycle scripts disabled. Complete bundles are published under `runtime/pi/.builds/<source fingerprint>`; running workers keep their original dependencies, and source rollback selects the corresponding old bundle. Retain the runtime sources and matching bundle when deploying, or rebuild on the destination. A Go binary alone is insufficient for Pi.
+The launcher and self-update build prepare the worker. The new server also prepares a missing matching bundle at startup and checks the worker handshake before accepting requests. This covers the first upgrade from Eino, whose old updater only builds Go. Preparation requires Node.js >=22.19, npm and access to the locked npm dependencies; failures stop startup with an actionable error. An existing matching bundle starts without npm or dependency downloads. Dependency installation uses the lockfile with lifecycle scripts disabled. Complete bundles are published under `runtime/pi/.builds/<source fingerprint>`; running workers keep their original dependencies, and source rollback selects the corresponding old bundle. Retain the runtime sources and matching bundle when deploying, or rebuild on the destination. A Go binary alone is insufficient for Pi.
 
 After pulling a worker fix into a source installation, run `bash scripts/build-pi-runtime.sh` in that installation before restarting the service. If `agent_runtime.worker_path` is set, make sure it points to the rebuilt worker. Keep existing session files: the worker corrects interrupted OpenAI-compatible tool batches when preparing model requests.
 
@@ -20,6 +20,8 @@ After pulling a worker fix into a source installation, run `bash scripts/build-p
 `agent_runtime.engine` accepts only `pi` (also the default). The former engine and dependencies have been removed. Optional `node_path`, `worker_path`, and `session_dir` control deployment.
 
 The model worker uses HTTP/1.1 and respects the service's `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables. Model redirects stay on the original origin to protect credentials.
+
+Deleting a conversation turn removes all of its persisted Pi mode/child sessions and advances a database revision; the next request imports the remaining database history. A running conversation must be stopped before deleting a turn. Session roots are retained in the database across configuration changes and restarts so deletion cleans both old and new locations.
 
 Chat agents, specialists and workflow Agent nodes use Pi. Large catalogs can use native tool search. Conversation task boards remain compatible with the existing UI.
 

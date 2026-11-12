@@ -49,21 +49,7 @@ func ResolveWorker(configured string) (string, error) {
 		}
 		return path, nil
 	}
-	var candidates []string
-	if exe, err := os.Executable(); err == nil {
-		candidates = append(candidates, filepath.Join(filepath.Dir(exe), "runtime/pi/dist/worker.js"))
-	}
-	if cwd, err := os.Getwd(); err == nil {
-		candidates = append(candidates, filepath.Join(cwd, "runtime/pi/dist/worker.js"))
-		// Package tests and developer commands may run below the repository root.
-		for dir := cwd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
-			if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-				candidates = append(candidates, filepath.Join(dir, "runtime/pi/dist/worker.js"))
-				break
-			}
-		}
-	}
-	for _, path := range candidates {
+	for _, path := range workerCandidates() {
 		root := filepath.Dir(filepath.Dir(path))
 		if fingerprint, err := SourceFingerprint(root); err == nil {
 			bundle := filepath.Join(root, ".builds", fingerprint)
@@ -79,6 +65,24 @@ func ResolveWorker(configured string) (string, error) {
 		}
 	}
 	return "", errors.New("Pi worker missing; run bash scripts/build-pi-runtime.sh, or configure agent_runtime.worker_path")
+}
+
+func workerCandidates() []string {
+	var candidates []string
+	if exe, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(exe), "runtime/pi/dist/worker.js"))
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		candidates = append(candidates, filepath.Join(cwd, "runtime/pi/dist/worker.js"))
+		// Package tests and developer commands may run below the repository root.
+		for dir := cwd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
+			if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+				candidates = append(candidates, filepath.Join(dir, "runtime/pi/dist/worker.js"))
+				break
+			}
+		}
+	}
+	return candidates
 }
 
 // Run owns one isolated worker and reaps it on every exit. Tool execution stays in the host.

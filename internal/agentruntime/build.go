@@ -59,6 +59,10 @@ func SourceFingerprint(root string) (string, error) {
 // PreparePiRuntime publishes an immutable source-addressed worker bundle. Source rollback
 // selects the prior bundle automatically; an active worker keeps its original dependencies.
 func PreparePiRuntime(ctx context.Context, root string) (string, error) {
+	return preparePiRuntime(ctx, root, "")
+}
+
+func preparePiRuntime(ctx context.Context, root, node string) (string, error) {
 	root, err := filepath.Abs(root)
 	if err != nil {
 		return "", err
@@ -100,10 +104,13 @@ func PreparePiRuntime(ctx context.Context, root string) (string, error) {
 			return "", err
 		}
 	}
-	if _, err = exec.LookPath("node"); err != nil {
+	if node == "" {
+		node = "node"
+	}
+	if node, err = exec.LookPath(node); err != nil {
 		return "", fmt.Errorf("Pi requires Node.js >=22.19: %w", err)
 	}
-	check := exec.CommandContext(ctx, "node", "-e", `const [a,b]=process.versions.node.split('.').map(Number);process.exit(a>22||(a===22&&b>=19)?0:1)`)
+	check := exec.CommandContext(ctx, node, "-e", `const [a,b]=process.versions.node.split('.').map(Number);process.exit(a>22||(a===22&&b>=19)?0:1)`)
 	if err = check.Run(); err != nil {
 		return "", fmt.Errorf("Pi requires Node.js >=22.19")
 	}
@@ -113,6 +120,7 @@ func PreparePiRuntime(ctx context.Context, root string) (string, error) {
 			cmd = exec.CommandContext(ctx, "cmd.exe", append([]string{"/d", "/c", "npm"}, args...)...)
 		}
 		cmd.Dir = stage
+		cmd.Env = append(os.Environ(), "PATH="+filepath.Dir(node)+string(os.PathListSeparator)+os.Getenv("PATH"))
 		var output bytes.Buffer
 		cmd.Stdout = &output
 		cmd.Stderr = &output

@@ -57,7 +57,6 @@ type DB struct {
 	logger                   *zap.Logger
 	conversationArtifactsDir string
 	agentPlantaskBaseDir     string // skills_dir + plantask_rel_dir (per-conversation subdirs)
-	piSessionBaseDir         string
 	agentCheckpointBaseDir   string // checkpoint_dir root (per-conversation subdirs)
 	agentReductionRootDir    string // reduction_root_dir or default tmp/reduction (conversations/<id> subdirs)
 	agentWorkspaceRootDir    string // workspace_root_dir or default tmp/workspace (projects|conversations/<id> subdirs)
@@ -190,8 +189,6 @@ func (db *DB) SetAgentConversationDirs(plantaskBase, checkpointBase, reductionRo
 	db.agentReductionRootDir = strings.TrimSpace(reductionRoot)
 	db.agentWorkspaceRootDir = strings.TrimSpace(workspaceRoot)
 }
-
-func (db *DB) SetAgentSessionDir(base string) { db.piSessionBaseDir = strings.TrimSpace(base) }
 
 // SetChatUploadsDir configures the chat_uploads root so DeleteConversation can remove
 // uploaded attachment files. Their chat_upload_artifacts rows already disappear via

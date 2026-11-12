@@ -627,6 +627,13 @@ func (h *ConversationHandler) DeleteConversationTurn(c *gin.Context) {
 		return
 	}
 
+	if h.taskState != nil {
+		if running, _ := h.taskState.ConversationTaskRuntimeState(conversationID); running {
+			c.JSON(http.StatusConflict, gin.H{"error": "请先停止当前任务，再删除对话轮次"})
+			return
+		}
+	}
+
 	deletedIDs, err := h.db.DeleteConversationTurn(conversationID, req.MessageID)
 	if err != nil {
 		h.logger.Warn("删除对话轮次失败",

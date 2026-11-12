@@ -260,14 +260,22 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 		tools = append(tools, t)
 	}
 	oa := r.cfg.OpenAI
-	root := r.cfg.AgentRuntime.SessionDir
-	if root == "" {
-		root = filepath.Join(filepath.Dir(r.cfg.Database.Path), "pi-sessions")
-		if r.cfg.Database.Path == "" {
-			root = "data/pi-sessions"
+	root := r.cfg.AgentSessionDir()
+	key := fmt.Sprintf("%x", sha256.Sum256([]byte(r.agentID+"\x00"+r.sessionKey)))
+	if r.db != nil && strings.TrimSpace(r.conversationID) != "" {
+		if err := r.db.SetAgentSessionDir(root); err != nil {
+			return nil, fmt.Errorf("register Pi session root: %w", err)
+		}
+		revision, err := r.db.AgentSessionRevision(r.conversationID)
+		if err != nil {
+			return nil, fmt.Errorf("read Pi session revision: %w", err)
+		}
+		// A worker that was already in flight at deletion may publish its old file
+		// again. Never resume that generation after the database history changes.
+		if revision > 0 {
+			key = fmt.Sprintf("%s-r%d", key, revision)
 		}
 	}
-	key := fmt.Sprintf("%x", sha256.Sum256([]byte(r.agentID+"\x00"+r.sessionKey)))
 	history, err := piHistoryJSON(r.history)
 	if err != nil {
 		return nil, err

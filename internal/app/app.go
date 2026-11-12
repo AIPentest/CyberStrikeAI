@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"cyberstrike-ai/internal/agent"
+	"cyberstrike-ai/internal/agentruntime"
 	"cyberstrike-ai/internal/audit"
 	"cyberstrike-ai/internal/authctx"
 	"cyberstrike-ai/internal/c2"
@@ -80,6 +81,12 @@ type App struct {
 func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error) {
 	if err := cfg.AgentRuntime.Validate(); err != nil {
 		return nil, err
+	}
+	prepareCtx, cancelPrepare := context.WithTimeout(context.Background(), 5*time.Minute)
+	prepareErr := agentruntime.EnsurePiRuntime(prepareCtx, cfg.AgentRuntime.NodePath, cfg.AgentRuntime.WorkerPath)
+	cancelPrepare()
+	if prepareErr != nil {
+		return nil, prepareErr
 	}
 	toolGuard, err := toolguard.NewManager(cfg.EffectiveToolGuard())
 	if err != nil {
@@ -368,11 +375,9 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	reductionRoot := strings.TrimSpace(cfg.MultiAgent.Runtime.ReductionRootDir)
 	workspaceRoot := strings.TrimSpace(cfg.Agent.WorkspaceRootDir)
 	db.SetAgentConversationDirs(plantaskBase, checkpointBase, reductionRoot, workspaceRoot)
-	piSessionDir := strings.TrimSpace(cfg.AgentRuntime.SessionDir)
-	if piSessionDir == "" {
-		piSessionDir = filepath.Join(filepath.Dir(cfg.Database.Path), "pi-sessions")
+	if err := db.SetAgentSessionDir(cfg.AgentSessionDir()); err != nil {
+		return nil, fmt.Errorf("register Pi session root: %w", err)
 	}
-	db.SetAgentSessionDir(piSessionDir)
 
 	// 运行空间垃圾清理：根目录一律复用上面已解析好的同一批值，
 	// 避免在 storage 包内重新推导导致「清理的目录」与「实际写入的目录」不一致。

@@ -1,7 +1,6 @@
 package database
 
 import (
-	"cyberstrike-ai/internal/agentruntime"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -730,6 +729,9 @@ func (db *DB) UpdateConversationTime(id string) error {
 // 漏洞记录会保留：vulnerabilities.conversation_id 使用 ON DELETE SET NULL，仅解除与会话的关联。
 // 注意：knowledge_retrieval_logs 在删除前会被显式清理。
 func (db *DB) DeleteConversation(id string) error {
+	if err := db.removePiSessions(id); err != nil {
+		return err
+	}
 	// 删除对话前补全漏洞来源标签，便于在漏洞库中追溯已删除会话的发现。
 	_, err := db.Exec(`
 		UPDATE vulnerabilities
@@ -831,7 +833,6 @@ func (db *DB) agentWorkspaceBaseDir() string {
 }
 
 func (db *DB) removeConversationScopedDirs(conversationID, projectID string) {
-	db.removeConversationScopedDir(db.piSessionBaseDir, agentruntime.ConversationStorageKey(conversationID), "pi_sessions")
 	// summarization transcript, etc.
 	db.removeConversationScopedDir(db.conversationArtifactsDir, conversationID, "conversation_artifacts")
 	// Agent plantask JSON boards (skills_dir/.pi/plantask/<id>/).
@@ -1193,13 +1194,18 @@ func (db *DB) DeleteConversationTurn(conversationID, anchorMessageID string) (de
 	}
 
 	_, err = tx.Exec(
-		`UPDATE conversations SET last_react_input = NULL, last_react_output = NULL, updated_at = ? WHERE id = ?`,
+		`UPDATE conversations SET last_react_input = NULL, last_react_output = NULL, pi_session_revision = pi_session_revision + 1, updated_at = ? WHERE id = ?`,
 		time.Now(), conversationID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("clear react data: %w", err)
 	}
 
+	// Invalidate every mode/child session before acknowledging deletion. If cleanup
+	// fails, roll back the messages instead of reporting a misleading success.
+	if err := db.removePiSessions(conversationID); err != nil {
+		return nil, err
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit: %w", err)
 	}

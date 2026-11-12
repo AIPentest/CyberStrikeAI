@@ -809,6 +809,20 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+		if h.db != nil {
+			// Keep both roots even if a later save fails: active workers may still
+			// write to the previous root while new requests use the updated one.
+			if err := h.db.SetAgentSessionDir(h.config.AgentSessionDir()); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			candidate := *h.config
+			candidate.AgentRuntime = updated
+			if err := h.db.SetAgentSessionDir(candidate.AgentSessionDir()); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
 		h.config.AgentRuntime = updated
 	}
 

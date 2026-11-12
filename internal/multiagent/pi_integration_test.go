@@ -10,15 +10,125 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"cyberstrike-ai/internal/agent"
 	"cyberstrike-ai/internal/config"
+	"cyberstrike-ai/internal/database"
 	"cyberstrike-ai/internal/mcp"
 	"go.uber.org/zap"
 )
+
+func TestPiDeleteTurnExcludesDeletedContentFromNextModelRequest(t *testing.T) {
+	for _, deletedIndex := range []int{0, 1, 2} {
+		t.Run(fmt.Sprint(deletedIndex), func(t *testing.T) {
+			cfg := piTestConfig(t)
+			db, err := database.NewDB(filepath.Join(t.TempDir(), "sessions.db"), zap.NewNop())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			conv, err := db.CreateConversation("deletion fixture", database.ConversationCreateMeta{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var requestsMu sync.Mutex
+			var requests []string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				var body struct {
+					Messages []map[string]any `json:"messages"`
+				}
+				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+					t.Error(err)
+				}
+				raw, _ := json.Marshal(body.Messages)
+				requestsMu.Lock()
+				defer requestsMu.Unlock()
+				requests = append(requests, string(raw))
+				piReply(w, "", "", nil, fmt.Sprintf("reply-marker-%d", len(requests)-1))
+			}))
+			defer server.Close()
+			cfg.OpenAI.BaseURL = server.URL + "/v1"
+			ag := piTestAgent(cfg, nil)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			var anchors []string
+			for i := 0; i < 3; i++ {
+				message := fmt.Sprintf("user-marker-%d", i)
+				msg, err := db.AddMessage(conv.ID, "user", message, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				anchors = append(anchors, msg.ID)
+				res, err := RunSingleAgent(ctx, cfg, &cfg.MultiAgent, ag, db, zap.NewNop(), conv.ID, "", message, nil, []string{"echo"}, nil, nil, "")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if res.RuntimeStatus != "completed" {
+					t.Fatalf("run failed: %+v", res)
+				}
+				if _, err := db.AddMessage(conv.ID, "assistant", res.Response, nil); err != nil {
+					t.Fatal(err)
+				}
+			}
+			// Preserve the old generation and simulate a late publish after deletion.
+			oldFiles := map[string][]byte{}
+			if err := filepath.WalkDir(cfg.AgentSessionDir(), func(path string, entry os.DirEntry, err error) error {
+				if err != nil {
+					return err
+				}
+				if !entry.IsDir() {
+					oldFiles[path], err = os.ReadFile(path)
+				}
+				return err
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if len(oldFiles) == 0 {
+				t.Fatal("no persisted Pi session to invalidate")
+			}
+			if _, err := db.DeleteConversationTurn(conv.ID, anchors[deletedIndex]); err != nil {
+				t.Fatal(err)
+			}
+			for path, body := range oldFiles {
+				if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, body, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			messages, err := db.GetMessages(conv.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var history []agent.ChatMessage
+			for _, m := range messages {
+				history = append(history, agent.ChatMessage{Role: m.Role, Content: m.Content})
+			}
+			res, err := RunSingleAgent(ctx, cfg, &cfg.MultiAgent, ag, db, zap.NewNop(), conv.ID, "", "continue", history, []string{"echo"}, nil, nil, "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			requestsMu.Lock()
+			defer requestsMu.Unlock()
+			if res.RuntimeStatus != "completed" || len(requests) != 4 {
+				t.Fatalf("result=%+v requests=%d", res, len(requests))
+			}
+			for i := 0; i < 3; i++ {
+				for _, prefix := range []string{"user-marker-", "reply-marker-"} {
+					present := strings.Contains(requests[3], fmt.Sprintf("%s%d", prefix, i))
+					if present != (i != deletedIndex) {
+						t.Fatalf("wrong history after deleting turn %d: %s", deletedIndex, requests[3])
+					}
+				}
+			}
+		})
+	}
+}
 
 func piTestConfig(t *testing.T) *config.Config {
 	t.Helper()
