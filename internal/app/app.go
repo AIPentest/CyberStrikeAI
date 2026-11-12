@@ -135,6 +135,9 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	if err != nil {
 		return nil, fmt.Errorf("initialize egress gateway: %w", err)
 	}
+	// Install as the process-wide default so scattered outbound HTTP clients
+	// route through it without threading a *Gateway through every constructor.
+	egress.SetDefault(gateway)
 	if gateway.Enabled() {
 		log.Logger.Info("egress privacy gateway active",
 			zap.String("mode", string(gateway.Mode())),

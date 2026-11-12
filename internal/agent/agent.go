@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,6 +14,7 @@ import (
 
 	"cyberstrike-ai/internal/c2"
 	"cyberstrike-ai/internal/config"
+	"cyberstrike-ai/internal/egress"
 	"cyberstrike-ai/internal/mcp"
 	"cyberstrike-ai/internal/mcp/builtin"
 	"cyberstrike-ai/internal/openai"
@@ -67,19 +67,17 @@ func NewAgent(cfg *config.OpenAIConfig, agentCfg *config.AgentConfig, mcpServer 
 		maxIterations = 30
 	}
 
-	// Configure the HTTP Transport, optimizing connection management and timeout settings
-	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout:   300 * time.Second,
-			KeepAlive: 300 * time.Second,
-		}).DialContext,
-		MaxIdleConns:          100,
-		MaxIdleConnsPerHost:   10,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   30 * time.Second,
-		ResponseHeaderTimeout: 60 * time.Minute, // response-header timeout: increased to 15 minutes to handle large responses
-		DisableKeepAlives:     false,            // enable connection reuse
-	}
+	// Configure the HTTP Transport, optimizing connection management and timeout
+	// settings. The base transport comes from the process-wide egress gateway so
+	// that, when anonymization is enabled, LLM API traffic routes through the
+	// configured proxy and never exposes the operator's real IP.
+	transport := egress.Default().Transport()
+	transport.MaxIdleConns = 100
+	transport.MaxIdleConnsPerHost = 10
+	transport.IdleConnTimeout = 90 * time.Second
+	transport.TLSHandshakeTimeout = 30 * time.Second
+	transport.ResponseHeaderTimeout = 60 * time.Minute // handle large/slow responses
+	transport.DisableKeepAlives = false                // enable connection reuse
 
 	// Increase the timeout to 30 minutes to support long-running AI inference
 	// Especially when using streaming responses or handling complex tasks
@@ -396,7 +394,7 @@ func (a *Agent) getAvailableTools(roleTools []string) []Tool {
 						} else if toolEnabled, exists := cfg.ToolEnabled[actualToolName]; exists {
 							enabled = toolEnabled // use the configured tool status
 						} else {
-						enabled = true // tool not in config, default to enabled
+							enabled = true // tool not in config, default to enabled
 						}
 					}
 				}

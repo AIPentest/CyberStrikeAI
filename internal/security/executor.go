@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"cyberstrike-ai/internal/config"
+	"cyberstrike-ai/internal/egress"
 	"cyberstrike-ai/internal/mcp"
 	"cyberstrike-ai/internal/tooloutput"
 
@@ -1273,6 +1274,12 @@ func applyDefaultTerminalEnv(cmd *exec.Cmd) {
 			}
 		}
 		return false
+	}
+	// Route spawned tools (curl/wget/http clients) through the egress proxy so
+	// they do not leak the operator's real IP. Only inject when the user has
+	// not already set a proxy, and skip tools that already carry one.
+	if !has("HTTP_PROXY") && !has("http_proxy") && !has("ALL_PROXY") && !has("all_proxy") {
+		cmd.Env = append(cmd.Env, egress.Default().ProxyEnv()...)
 	}
 	if !has("TERM") {
 		cmd.Env = append(cmd.Env, "TERM=xterm-256color")

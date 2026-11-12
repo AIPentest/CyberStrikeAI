@@ -87,8 +87,8 @@ type Gateway struct {
 	cfg      Config
 	mode     Mode
 	addr     string
-	proxyURL *url.URL          // set for http/https modes
-	forward  xproxy.Dialer     // set for socks5/tor modes
+	proxyURL *url.URL      // set for http/https modes
+	forward  xproxy.Dialer // set for socks5/tor modes
 	fwdCtx   xproxy.ContextDialer
 	enabled  bool
 	mu       sync.RWMutex
