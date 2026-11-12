@@ -108,7 +108,7 @@ test('live merge replaces a red failure badge with the distinct block badge and 
     assert.equal(item.classList.contains('tool-call-blocked'), true);
     assert.equal(item.classList.contains('tool-call-failed'), false);
     assert.equal(item.title.children.length, 1);
-    assert.match(item.title.children[0].textContent, /已拦截/);
+    assert.match(item.title.children[0].textContent, /Blocked/);
     assert.equal(ctx.toolCallDetailStateByItemId.get(item.id).rawText, reason);
 });
 
