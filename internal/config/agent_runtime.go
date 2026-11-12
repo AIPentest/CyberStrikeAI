@@ -13,13 +13,10 @@ type AgentRuntimeConfig struct {
 	SessionDir string `yaml:"session_dir,omitempty" json:"session_dir,omitempty"`
 }
 
-func (c AgentRuntimeConfig) UsesPi() bool {
-	return strings.TrimSpace(c.Engine) == "" || strings.EqualFold(strings.TrimSpace(c.Engine), "pi")
-}
 func (c AgentRuntimeConfig) Validate() error {
 	engine := strings.ToLower(strings.TrimSpace(c.Engine))
-	if engine != "" && engine != "pi" && engine != "eino" {
-		return fmt.Errorf("unknown agent runtime %q (expected pi or eino)", c.Engine)
+	if engine != "" && engine != "pi" {
+		return fmt.Errorf("unsupported agent runtime %q: this version only supports pi", c.Engine)
 	}
 	return nil
 }

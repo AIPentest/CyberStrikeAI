@@ -34,7 +34,7 @@ func piTestConfig(t *testing.T) *config.Config {
 	}
 	cfg := &config.Config{AgentRuntime: config.AgentRuntimeConfig{Engine: "pi", WorkerPath: worker, SessionDir: t.TempDir()}, OpenAI: config.OpenAIConfig{Provider: "openai", APIKey: "fixture-key", Model: "fixture", MaxTotalTokens: 32000, MaxCompletionTokens: 1024}}
 	cfg.Agent.MaxIterations = 8
-	cfg.MultiAgent.EinoSkills.Disable = true
+	cfg.MultiAgent.Skills.Disable = true
 	return cfg
 }
 
@@ -64,6 +64,58 @@ func piTestAgent(cfg *config.Config, handler mcp.ToolHandler) *agent.Agent {
 		return nil, fmt.Errorf("secret must never execute")
 	})
 	return agent.NewAgent(&cfg.OpenAI, &cfg.Agent, srv, nil, zap.NewNop(), 8)
+}
+
+func TestPiSingleChatAcceptsParameterlessTaskListSchema(t *testing.T) {
+	cfg := piTestConfig(t)
+	cfg.SkillsDir = t.TempDir()
+	cfg.MultiAgent.Runtime.PlantaskEnable = true
+	cfg.MultiAgent.Skills = config.AgentSkillsConfig{FilesystemTools: new(bool)}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Tools []struct {
+				Function struct {
+					Name       string         `json:"name"`
+					Parameters map[string]any `json:"parameters"`
+				} `json:"function"`
+			} `json:"tools"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		for _, tool := range body.Tools {
+			if tool.Function.Name != "TaskList" {
+				continue
+			}
+			if required, exists := tool.Function.Parameters["required"]; exists {
+				if names, ok := required.([]any); !ok || len(names) != 0 {
+					http.Error(w, "Invalid schema for function 'TaskList': expected an array of required parameters", http.StatusBadRequest)
+					return
+				}
+			}
+			piReply(w, "", "", nil, "hello")
+			return
+		}
+		t.Error("TaskList is missing from the request")
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer server.Close()
+	cfg.OpenAI.BaseURL = server.URL + "/v1"
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	ag := piTestAgent(cfg, func(context.Context, map[string]any) (*mcp.ToolResult, error) {
+		t.Error("plain chat must not execute the fixture tool")
+		return nil, fmt.Errorf("unexpected tool call")
+	})
+	res, err := RunSingleAgent(ctx, cfg, &cfg.MultiAgent, ag, nil, zap.NewNop(), "schema-fixture", "", "say hello", nil, []string{"echo"}, nil, nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.RuntimeStatus != "completed" || res.Response != "hello" {
+		t.Fatalf("expected a chat reply, got %+v", res)
+	}
 }
 
 func TestPiSinglePreservesHITLAndExecutionEvidence(t *testing.T) {
@@ -101,7 +153,7 @@ func TestPiSinglePreservesHITLAndExecutionEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Response != "verified" || executed.Load() != 1 || len(res.MCPExecutionIDs) != 1 {
+	if res.Response != "verified" || res.RuntimeStatus != "completed" || executed.Load() != 1 || len(res.MCPExecutionIDs) != 1 {
 		t.Fatalf("result=%+v executions=%d", res, executed.Load())
 	}
 }
@@ -160,5 +212,36 @@ func TestPiMultiUsesNativeChildAndRestrictsItsTools(t *testing.T) {
 	}
 	if res.Response != "verified multi" || calls.Load() != 4 || executions.Load() != 1 || len(res.MCPExecutionIDs) != 1 {
 		t.Fatalf("result=%+v calls=%d executions=%d", res, calls.Load(), executions.Load())
+	}
+}
+
+func TestPiRepeatedProviderIDDoesNotSuppressNewToolInvocation(t *testing.T) {
+	cfg := piTestConfig(t)
+	var requests atomic.Int32
+	var executions atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch requests.Add(1) {
+		case 1:
+			piReply(w, "echo", "reused", map[string]any{"text": "first"}, "")
+		case 2:
+			piReply(w, "echo", "reused", map[string]any{"text": "second"}, "")
+		default:
+			piReply(w, "", "", nil, "both completed")
+		}
+	}))
+	defer server.Close()
+	cfg.OpenAI.BaseURL = server.URL + "/v1"
+	ag := piTestAgent(cfg, func(_ context.Context, args map[string]interface{}) (*mcp.ToolResult, error) {
+		executions.Add(1)
+		return &mcp.ToolResult{Content: []mcp.Content{{Type: "text", Text: fmt.Sprint(args["text"])}}}, nil
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	res, err := RunSingleAgent(ctx, cfg, &cfg.MultiAgent, ag, nil, zap.NewNop(), "reused-id", "", "perform both", nil, []string{"echo"}, nil, nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if executions.Load() != 2 || len(res.MCPExecutionIDs) != 2 {
+		t.Fatalf("invocations incorrectly deduplicated: %+v count=%d", res, executions.Load())
 	}
 }

@@ -40,6 +40,7 @@ type Request struct {
 	Model              Model           `json:"model"`
 	FallbackModels     []Model         `json:"fallbackModels,omitempty"`
 	RetryMax           int             `json:"retryMax,omitempty"`
+	RetryMaxDelayMS    int             `json:"retryMaxDelayMs,omitempty"`
 	Tools              []Tool          `json:"tools"`
 	ToolSearch         bool            `json:"toolSearch"`
 	ToolSearchMinTools int             `json:"toolSearchMinTools,omitempty"`
@@ -54,9 +55,10 @@ type Event struct {
 }
 
 type ToolCall struct {
-	ID        string         `json:"id"`
-	Name      string         `json:"name"`
-	Arguments map[string]any `json:"arguments"`
+	ID         string         `json:"id"`
+	ProviderID string         `json:"providerId,omitempty"`
+	Name       string         `json:"name"`
+	Arguments  map[string]any `json:"arguments"`
 }
 
 type ToolResult struct {

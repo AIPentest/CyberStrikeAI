@@ -1,9 +1,9 @@
 name: Pi runtime
 on:
   push:
-    paths: ['runtime/pi/**', 'internal/agentruntime/**', 'internal/multiagent/**', 'internal/knowledge/**', 'internal/workflow/**', 'internal/config/**', 'cmd/build-runtime/**', 'scripts/build-pi-runtime.sh', '.github/workflows/pi-runtime.yml']
+    paths: ['runtime/pi/**', 'internal/**', 'cmd/**', 'go.mod', 'go.sum', 'scripts/build-pi-runtime.sh', 'scripts/check-pi-only.sh', '.github/workflows/pi-runtime.yml']
   pull_request:
-    paths: ['runtime/pi/**', 'internal/agentruntime/**', 'internal/multiagent/**', 'internal/knowledge/**', 'internal/workflow/**', 'internal/config/**', 'cmd/build-runtime/**', 'scripts/build-pi-runtime.sh', '.github/workflows/pi-runtime.yml']
+    paths: ['runtime/pi/**', 'internal/**', 'cmd/**', 'go.mod', 'go.sum', 'scripts/build-pi-runtime.sh', 'scripts/check-pi-only.sh', '.github/workflows/pi-runtime.yml']
 permissions:
   contents: read
 jobs:
@@ -24,4 +24,5 @@ jobs:
       - run: npm run build && npm test
         working-directory: runtime/pi
       - run: go run ./cmd/build-runtime
+      - run: bash scripts/check-pi-only.sh
       - run: go test -race ./internal/agentruntime ./internal/multiagent ./internal/knowledge ./internal/workflow

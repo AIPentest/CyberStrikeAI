@@ -13,7 +13,7 @@ internal/handler/        HTTP handlers
 internal/database/       SQLite access
 internal/security/       auth, rate limits, shell execution
 internal/mcp/            MCP server and external MCP manager
-internal/multiagent/     Eino single-agent, multi-agent, middleware
+internal/multiagent/     Pi single-agent, multi-agent, middleware
 internal/workflow/       graph orchestration runtime
 internal/knowledge/      indexing and retrieval
 internal/c2/             built-in C2

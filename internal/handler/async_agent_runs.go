@@ -86,7 +86,7 @@ func (h *AgentHandler) submitAgentRunWithExecutor(c *gin.Context, multi bool, ex
 			return
 		}
 	}
-	source := "eino_agent_async"
+	source := "agent_async"
 	if multi {
 		source = "multi_agent_async"
 	}
@@ -116,7 +116,7 @@ func (h *AgentHandler) submitAgentRunWithExecutor(c *gin.Context, multi bool, ex
 	ctx = h.tasks.BindProcessScope(ctx, prep.ConversationID, task.RunID)
 	ctx = mcp.WithMCPConversationID(ctx, prep.ConversationID)
 	ctx = mcp.WithToolRunRegistry(ctx, h.tasks)
-	ctx = mcp.WithEinoExecuteRunRegistry(ctx, h.tasks)
+	ctx = mcp.WithAgentExecuteRunRegistry(ctx, h.tasks)
 	h.asyncWorkers.Add(1)
 	go func() {
 		defer h.asyncWorkers.Done()
@@ -125,7 +125,7 @@ func (h *AgentHandler) submitAgentRunWithExecutor(c *gin.Context, multi bool, ex
 	h.agentRunReceipt(c, record)
 }
 func (h *AgentHandler) agentRunReceipt(c *gin.Context, r *database.AgentRun) {
-	url := "/api/eino-agent/runs/" + r.RunID
+	url := "/api/agent/runs/" + r.RunID
 	c.Header("Location", url)
 	c.JSON(http.StatusAccepted, gin.H{"runId": r.RunID, "conversationId": r.ConversationID, "assistantMessageId": r.AssistantMessageID, "status": r.Status, "statusUrl": url})
 }

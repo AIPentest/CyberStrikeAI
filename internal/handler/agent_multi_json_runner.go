@@ -15,7 +15,7 @@ import (
 func (h *AgentHandler) runMultiJSON(taskCtx, baseCtx context.Context, cancelWithCause context.CancelCauseFunc, req *ChatRequest, prep *multiAgentPrepared, status *string, respond func(int, interface{})) {
 	progressCallback := h.createProgressCallback(taskCtx, cancelWithCause, prep.ConversationID, prep.AssistantMessageID, nil)
 	taskCtx = multiagent.WithHITLToolInterceptor(taskCtx, func(ctx context.Context, toolName, arguments string) (string, error) {
-		return h.interceptHITLForEinoTool(ctx, cancelWithCause, prep.ConversationID, prep.AssistantMessageID, nil, toolName, arguments)
+		return h.interceptHITLForAgentTool(ctx, cancelWithCause, prep.ConversationID, prep.AssistantMessageID, nil, toolName, arguments)
 	})
 	runCfg, _, err := h.configForAIChannel(req.AIChannelID)
 	if err != nil {
@@ -33,7 +33,7 @@ func (h *AgentHandler) runMultiJSON(taskCtx, baseCtx context.Context, cancelWith
 	if o := strings.TrimSpace(req.Orchestration); o != "" {
 		effectiveOrch = config.NormalizeMultiAgentOrchestration(o)
 	}
-	agentMode := "eino_" + effectiveOrch
+	agentMode := effectiveOrch
 	var decision agentfinalizer.Decision
 	var autoCancelledPendingExecutionIDs []string
 	for {
@@ -56,22 +56,22 @@ func (h *AgentHandler) runMultiJSON(taskCtx, baseCtx context.Context, cancelWith
 			h.agentSessionContextBlock(prep.ConversationID),
 		)
 		if runErr != nil {
-			if shouldPersistEinoAgentTraceAfterRunError(baseCtx) {
-				h.persistEinoAgentTraceForResume(prep.ConversationID, result)
+			if shouldPersistAgentAgentTraceAfterRunError(baseCtx) {
+				h.persistAgentAgentTraceForResume(prep.ConversationID, result)
 			}
-			h.logger.Error("Eino DeepAgent 执行失败", zap.Error(runErr))
-			clientErr := multiagent.EinoClientRunErrorMessage(runErr)
+			h.logger.Error("Agent DeepAgent 执行失败", zap.Error(runErr))
+			clientErr := multiagent.ClientRunErrorMessage(runErr)
 			errMsg := "执行失败: " + clientErr
 			if prep.AssistantMessageID != "" {
 				_, _ = h.db.Exec("UPDATE messages SET content = ?, updated_at = ? WHERE id = ?", errMsg, time.Now(), prep.AssistantMessageID)
 			}
-			errData := multiagent.EinoClientRunErrorFields(runErr)
+			errData := multiagent.ClientRunErrorFields(runErr)
 			errData["error"] = errMsg
 			respond(http.StatusInternalServerError, errData)
 			return
 		}
-		mw := &h.config.MultiAgent.EinoMiddleware
-		if h.tryContinueOnEinoEmptyResponse(taskCtx, mw, prep.ConversationID, result, &emptyResponseContinueAttempt, &curHist, &curMsg, progressCallback) {
+		mw := &h.config.MultiAgent.Runtime
+		if h.tryContinueOnAgentEmptyResponse(taskCtx, mw, prep.ConversationID, result, &emptyResponseContinueAttempt, &curHist, &curMsg, progressCallback) {
 			continue
 		}
 		decision = h.decideAgentRunForDeliveryWithPolicy(prep.ConversationID, prep.AssistantMessageID, agentMode, result, result.MCPExecutionIDs, requestRequiresExecutionEvidence(req))

@@ -2,14 +2,11 @@ package config
 
 import "testing"
 
-func TestAgentRuntimeDefaultAndExplicitFallback(t *testing.T) {
-	if !(AgentRuntimeConfig{}).UsesPi() {
-		t.Fatal("Pi must be the default")
+func TestAgentRuntimeIsPiOnly(t *testing.T) {
+	if (AgentRuntimeConfig{}).Validate() != nil || (AgentRuntimeConfig{Engine: "pi"}).Validate() != nil {
+		t.Fatal("Pi default rejected")
 	}
-	if (AgentRuntimeConfig{Engine: "eino"}).UsesPi() {
-		t.Fatal("explicit fallback ignored")
-	}
-	if (AgentRuntimeConfig{Engine: "typo"}).Validate() == nil {
-		t.Fatal("invalid runtime accepted")
+	if (AgentRuntimeConfig{Engine: "eino"}).Validate() == nil {
+		t.Fatal("retired engine accepted")
 	}
 }

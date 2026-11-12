@@ -4,8 +4,8 @@
 
 ### Added
 
-- 默认 Agent 运行时迁移为 Pi 1.5.2：Go 工具网关继续处理角色、审批、监控与证据；聊天与子代理的模型提案接入 Pi。新增按源码指纹发布的 Node Worker、流式协议、会话恢复、原生工具检索。部署需 Node.js >=22.19；保留显式 Eino Agent 回退。
-- Workflow 改用原生 DAG 与版本化检查点，知识库改用自身文档、切分、Embedding 和检索组件。旧 Eino Workflow 检查点需由原版本恢复，详见 [Pi 迁移说明](docs/zh-CN/pi-runtime.md)。
+- 默认 Agent 运行时迁移为 Pi 1.5.2：Go 工具网关继续处理角色、审批、监控与证据；聊天与子代理的模型提案接入 Pi。新增按源码指纹发布的 Node Worker、流式协议、会话恢复和原生工具检索。部署需 Node.js >=22.19；已删除 Eino 内核、模型适配、桥接和全部依赖，运行时仅支持 Pi。
+- Workflow 改用原生 DAG 与版本化检查点，知识库改用自身文档、切分、Embedding 和检索组件。旧 Eino Workflow 检查点无法由新版直接恢复，升级前需完成或导出旧任务，详见 [Pi 迁移说明](docs/zh-CN/pi-runtime.md)。
 
 - AI 渠道支持自定义 HTTP 请求头、环境变量和会话 ID 占位符；保存后的鉴权头可安全用于连接测试，独立审计身份隔离主渠道请求头，自定义头不会跟随跨源重定向。
 

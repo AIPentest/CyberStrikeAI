@@ -15,6 +15,7 @@ import (
 	"cyberstrike-ai/internal/agents"
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/database"
+	"cyberstrike-ai/internal/mcp/builtin"
 	"cyberstrike-ai/internal/project"
 	"cyberstrike-ai/internal/reasoning"
 	"cyberstrike-ai/internal/tooloutput"
@@ -26,6 +27,8 @@ import (
 type piRun struct {
 	cfg                                               *config.Config
 	ag                                                *agent.Agent
+	db                                                *database.DB
+	projectID                                         string
 	conversationID, agentID, systemPrompt, sessionKey string
 	history                                           []agent.ChatMessage
 	roleTools                                         []string
@@ -45,14 +48,19 @@ func runPiSingle(ctx context.Context, cfg *config.Config, ag *agent.Agent, db *d
 	if ag == nil {
 		return nil, fmt.Errorf("Pi agent is nil")
 	}
-	prompt := project.AppendSystemPromptBlock(ag.EinoSingleAgentSystemInstruction(), extra)
+	prompt := project.AppendSystemPromptBlock(ag.SystemInstruction(), extra)
 	prompt = project.AppendVisionImageAnalysisIfReady(prompt, cfg.Vision.Ready())
-	return (&piRun{cfg: cfg, ag: ag, conversationID: conversationID, agentID: "main", systemPrompt: prompt,
+	return (&piRun{cfg: cfg, ag: ag, db: db, projectID: projectID, conversationID: conversationID, agentID: "main", systemPrompt: prompt,
 		history: history, roleTools: roleTools, progress: progress, reasoning: intent}).run(ctx, message)
 }
 
 func piToolSchema(properties map[string]any, required ...string) map[string]any {
-	return map[string]any{"type": "object", "properties": properties, "required": required}
+	schema := map[string]any{"type": "object", "properties": properties}
+	// A nil slice would encode as null, which is not a valid required list.
+	if len(required) > 0 {
+		schema["required"] = required
+	}
+	return schema
 }
 
 func runPiMulti(ctx context.Context, cfg *config.Config, ma *config.MultiAgentConfig, ag *agent.Agent, db *database.DB, logger *zap.Logger,
@@ -76,10 +84,10 @@ func runPiMulti(ctx context.Context, cfg *config.Config, ma *config.MultiAgentCo
 		subs = agents.MergeYAMLAndMarkdown(subs, loaded.SubAgents)
 	}
 	if mode == "plan_execute" {
-		subs = []config.MultiAgentSubConfig{{ID: "executor", Description: "Execute one concrete plan step and return observed evidence", Instruction: ag.EinoSingleAgentSystemInstruction(), RoleTools: roleTools}}
+		subs = []config.MultiAgentSubConfig{{ID: "executor", Description: "Execute one concrete plan step and return observed evidence", Instruction: ag.SystemInstruction(), RoleTools: roleTools}}
 	}
 	if len(subs) == 0 && !ma.WithoutGeneralSubAgent && mode != "supervisor" {
-		subs = []config.MultiAgentSubConfig{{ID: "general", Description: "General task specialist", Instruction: ag.EinoSingleAgentSystemInstruction(), RoleTools: roleTools}}
+		subs = []config.MultiAgentSubConfig{{ID: "general", Description: "General task specialist", Instruction: ag.SystemInstruction(), RoleTools: roleTools}}
 	}
 	if len(subs) == 0 {
 		return nil, fmt.Errorf("Pi %s requires at least one configured sub-agent", mode)
@@ -104,9 +112,9 @@ func runPiMulti(ctx context.Context, cfg *config.Config, ma *config.MultiAgentCo
 	prompt = project.AppendSystemPromptBlock(prompt, extra)
 	prompt += "\n\nAvailable specialists:\n" + strings.Join(catalog, "\n") + "\nUse task to delegate a concrete objective. Each child receives only the tools permitted for it and this conversation. Verify evidence before reporting completion."
 	if mode == "plan_execute" {
-		prompt += "\nFirst create a concrete plan with write_todos. Delegate one step at a time to executor using task, examine the result, update the plan, and replan when evidence requires it. Finish with the verified deliverable."
+		prompt += "\nCreate a concrete plan using the available task-board tools or a concise plan in text. Delegate one step at a time to executor using task, examine the result, update the plan, and replan when evidence requires it. Finish with the verified deliverable."
 	}
-	main := &piRun{cfg: cfg, ag: ag, conversationID: conversationID, agentID: "main", systemPrompt: prompt, history: history, roleTools: roleTools, progress: progress, reasoning: intent, sessionKey: mode}
+	main := &piRun{cfg: cfg, ag: ag, db: db, projectID: projectID, conversationID: conversationID, agentID: "main", systemPrompt: prompt, history: history, roleTools: roleTools, progress: progress, reasoning: intent, sessionKey: mode}
 	str := map[string]any{"type": "string"}
 	main.extraTools = []agentruntime.Tool{
 		{Name: "task", Description: "Delegate a concrete task to a named specialist and return its evidence-backed result", Parameters: piToolSchema(map[string]any{"subagent_type": str, "description": str}, "subagent_type", "description")},
@@ -115,6 +123,21 @@ func runPiMulti(ctx context.Context, cfg *config.Config, ma *config.MultiAgentCo
 	var idsMu sync.Mutex
 	var childIDs []string
 	var deliverable string
+	if ma.WithoutWriteTodos {
+		main.extraTools = main.extraTools[:1]
+	}
+	planLimitReached := false
+	planCalls := 0
+	planLimit := ma.PlanExecuteLoopMaxIterations
+	if planLimit <= 0 {
+		planLimit = 10
+	}
+	if mode == "plan_execute" {
+		main.maxTurns = planLimit*3 + 3
+		if cap := agentMaxIterations(cfg); cap < main.maxTurns {
+			main.maxTurns = cap
+		}
+	}
 	main.extraTools = append(main.extraTools, agentruntime.Tool{Name: "exit", Description: "Finish with the verified final deliverable", Parameters: piToolSchema(map[string]any{"final_result": str}, "final_result")})
 	if mode == "supervisor" {
 		main.extraTools = append(main.extraTools, agentruntime.Tool{Name: "transfer_to_agent", Description: "Delegate to a named specialist", Parameters: piToolSchema(map[string]any{"agent_name": str, "description": str}, "agent_name", "description")})
@@ -131,7 +154,7 @@ func runPiMulti(ctx context.Context, cfg *config.Config, ma *config.MultiAgentCo
 			return agentruntime.ToolResult{Content: text, Terminate: true}, nil
 		}
 		if call.Name == "write_todos" {
-			if cfg.MultiAgent.EinoMiddleware.PlantaskEnable && cfg.SkillsDir != "" {
+			if cfg.MultiAgent.Runtime.PlantaskEnable && cfg.SkillsDir != "" {
 				return main.executePiPlan(callCtx, call)
 			}
 			b, _ := json.Marshal(call.Arguments)
@@ -141,6 +164,16 @@ func runPiMulti(ctx context.Context, cfg *config.Config, ma *config.MultiAgentCo
 			return agentruntime.ToolResult{Content: string(b)}, nil
 		}
 		id, _ := call.Arguments["subagent_type"].(string)
+		if mode == "plan_execute" {
+			idsMu.Lock()
+			if planCalls >= planLimit {
+				planLimitReached = true
+				idsMu.Unlock()
+				return agentruntime.ToolResult{Content: "Planning step budget reached. Existing results are preserved; further execution needs a new budget.", Terminate: true}, nil
+			}
+			planCalls++
+			idsMu.Unlock()
+		}
 		if call.Name == "transfer_to_agent" {
 			id, _ = call.Arguments["agent_name"].(string)
 		}
@@ -162,7 +195,7 @@ func runPiMulti(ctx context.Context, cfg *config.Config, ma *config.MultiAgentCo
 		// A child may narrow its parent's catalog, never expand it.
 		parentNames := main.availableCatalog
 		childPrompt := project.AppendSystemPromptBlock(sub.Instruction, extra) + "\n\nOriginal user task:\n" + message
-		child := &piRun{cfg: cfg, ag: ag, conversationID: conversationID, agentID: id, systemPrompt: childPrompt, roleTools: tools, catalogAllow: parentNames, progress: progress, reasoning: intent, child: true, sessionKey: call.ID, maxTurns: sub.MaxIterations}
+		child := &piRun{cfg: cfg, ag: ag, db: db, projectID: projectID, conversationID: conversationID, agentID: id, systemPrompt: childPrompt, roleTools: tools, catalogAllow: parentNames, progress: progress, reasoning: intent, child: true, sessionKey: call.ID, maxTurns: sub.MaxIterations}
 		res, err := child.run(callCtx, task)
 		if res == nil {
 			return agentruntime.ToolResult{}, err
@@ -175,6 +208,10 @@ func runPiMulti(ctx context.Context, cfg *config.Config, ma *config.MultiAgentCo
 	res, err := main.run(ctx, message)
 	if res != nil {
 		idsMu.Lock()
+		if planLimitReached {
+			res.RuntimeStatus = "blocked"
+			res.RuntimeCompletionReason = "planning_iteration_limit"
+		}
 		if deliverable != "" {
 			res.Response = deliverable
 			res.LastAgentTraceOutput = deliverable
@@ -230,8 +267,8 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 			root = "data/pi-sessions"
 		}
 	}
-	key := fmt.Sprintf("%x", sha256.Sum256([]byte(r.conversationID+"\x00"+r.agentID+"\x00"+r.sessionKey)))
-	history, err := json.Marshal(r.history)
+	key := fmt.Sprintf("%x", sha256.Sum256([]byte(r.agentID+"\x00"+r.sessionKey)))
+	history, err := piHistoryJSON(r.history)
 	if err != nil {
 		return nil, err
 	}
@@ -242,14 +279,17 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 	runID := uuid.NewString()
 	req := agentruntime.Request{RunID: runID, ConversationID: r.conversationID, SystemPrompt: r.systemPrompt, Message: message, History: history,
 		Model: piModelConfig(oa, r.reasoning, r.conversationID),
-		Tools: tools, SessionDir: filepath.Join(root, key), MaxTurns: max}
+		Tools: tools, SessionDir: filepath.Join(root, agentruntime.ConversationStorageKey(r.conversationID), key), MaxTurns: max}
 	if strings.TrimSpace(r.conversationID) == "" {
 		req.SessionDir = ""
 	}
-	req.ToolSearch = r.cfg.MultiAgent.EinoMiddleware.ToolSearchEnable
-	req.ToolSearchMinTools = r.cfg.MultiAgent.EinoMiddleware.ToolSearchMinTools
-	req.AlwaysVisibleTools = append([]string(nil), r.cfg.MultiAgent.EinoMiddleware.ToolSearchAlwaysVisibleTools...)
-	visibleCount := r.cfg.MultiAgent.EinoMiddleware.ToolSearchAlwaysVisible
+	req.ToolSearch = r.cfg.MultiAgent.Runtime.ToolSearchEnable
+	req.ToolSearchMinTools = r.cfg.MultiAgent.Runtime.ToolSearchMinTools
+	req.AlwaysVisibleTools = append([]string(nil), r.cfg.MultiAgent.Runtime.ToolSearchAlwaysVisibleTools...)
+	if r.cfg.MultiAgent.Runtime.ToolSearchIncludeBuiltinsEffective() {
+		req.AlwaysVisibleTools = append(req.AlwaysVisibleTools, builtin.GetAllBuiltinTools()...)
+	}
+	visibleCount := r.cfg.MultiAgent.Runtime.ToolSearchAlwaysVisible
 	if visibleCount <= 0 {
 		visibleCount = 12
 	}
@@ -259,8 +299,9 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 		}
 		req.AlwaysVisibleTools = append(req.AlwaysVisibleTools, t.Name)
 	}
-	req.RetryMax = r.cfg.MultiAgent.EinoMiddleware.ModelRetryMaxRetries
-	for _, id := range r.cfg.MultiAgent.EinoMiddleware.ModelFailoverChannels {
+	req.RetryMax = r.cfg.MultiAgent.Runtime.ModelRetryMaxRetries
+	req.RetryMaxDelayMS = r.cfg.MultiAgent.Runtime.ModelRetryMaxBackoffSec * 1000
+	for _, id := range r.cfg.MultiAgent.Runtime.ModelFailoverChannels {
 		ch, _, ok := r.cfg.ResolveAIChannel(id)
 		if !ok {
 			return nil, fmt.Errorf("unknown fallback AI channel: %s", id)
@@ -270,7 +311,7 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 		}
 		fallback := piModelConfig(ch, r.reasoning, r.conversationID)
 		req.FallbackModels = append(req.FallbackModels, fallback)
-		if cap := r.cfg.MultiAgent.EinoMiddleware.ModelFailoverMaxRetries; cap > 0 && len(req.FallbackModels) >= cap {
+		if cap := r.cfg.MultiAgent.Runtime.ModelFailoverMaxRetries; cap > 0 && len(req.FallbackModels) >= cap {
 			break
 		}
 	}
@@ -295,10 +336,10 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 		}
 		data["runId"] = runID
 		data["conversationId"] = r.conversationID
-		data["einoAgent"] = r.agentID
-		data["einoRole"] = "orchestrator"
+		data["agentName"] = r.agentID
+		data["agentRole"] = "orchestrator"
 		if r.child {
-			data["einoRole"] = "subagent"
+			data["agentRole"] = "subagent"
 		}
 		r.progress(kind, text, data)
 	}
@@ -324,7 +365,7 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 				}
 			}
 		}
-		progress("tool_call", "", map[string]any{"toolName": call.Name, "toolCallId": call.ID, "arguments": call.Arguments})
+		progress("tool_call", "", map[string]any{"toolName": call.Name, "toolCallId": call.ID, "providerToolCallId": call.ProviderID, "arguments": call.Arguments})
 		var result agentruntime.ToolResult
 		var err error
 		if localNames[call.Name] {
@@ -347,8 +388,8 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 			result.Content = err.Error()
 			result.IsError = true
 		}
-		if r.cfg.MultiAgent.EinoMiddleware.ReductionEnable {
-			result.Content = tooloutput.BoundWithSpill(result.Content, r.cfg.MultiAgent.EinoMiddleware.ReductionMaxLengthForTruncEffective(), tooloutput.SpillOpts{RootDir: r.cfg.MultiAgent.EinoMiddleware.ReductionRootDir, ConversationID: r.conversationID, ExecutionID: result.ExecutionID})
+		if r.cfg.MultiAgent.Runtime.ReductionEnable {
+			result.Content = tooloutput.BoundWithSpill(result.Content, r.cfg.MultiAgent.Runtime.ReductionMaxLengthForTruncEffective(), tooloutput.SpillOpts{RootDir: r.cfg.MultiAgent.Runtime.ReductionRootDir, ConversationID: r.conversationID, ExecutionID: result.ExecutionID})
 		}
 		progress("tool_result", result.Content, map[string]any{"toolName": call.Name, "toolCallId": call.ID, "executionId": result.ExecutionID, "result": result.Content, "success": !result.IsError, "isError": result.IsError, "agentFacing": true})
 		return result, err
@@ -357,6 +398,23 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 	var modelCalls, promptTokens, completionTokens, cacheRead, cacheWrite int
 	reasonID := func() string { return fmt.Sprintf("%s-reasoning-%d", runID, iteration.Load()) }
 	emit := func(e agentruntime.Event) {
+		if e.Type == "compaction_end" {
+			var data struct {
+				Result *struct {
+					Summary string `json:"summary"`
+				} `json:"result"`
+				SessionFile string `json:"sessionFile"`
+				EntryID     string `json:"sessionEntryId"`
+			}
+			if json.Unmarshal(e.Data, &data) == nil && data.Result != nil {
+				key, err := savePiContextCheckpoint(r.db, r.cfg.Project, r.projectID, r.conversationID, r.agentID, data.Result.Summary, data.SessionFile, data.EntryID)
+				if err != nil {
+					progress("progress", "保存项目续接记录失败；Pi 会话记录仍保留", map[string]any{"kind": "context_checkpoint_error"})
+				} else if key != "" {
+					progress("context_checkpoint", "已保存项目续接记录", map[string]any{"factKey": key, "sessionFile": data.SessionFile, "sessionEntryId": data.EntryID})
+				}
+			}
+		}
 		if e.Type == "turn_start" {
 			if thought != "" {
 				progress("reasoning_chain_stream_end", thought, map[string]any{"streamId": reasonID()})
@@ -412,7 +470,7 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 				thought += data.Delta.Delta
 				progress("reasoning_chain_stream_delta", data.Delta.Delta, map[string]any{"streamId": reasonID(), "accumulated": thought})
 			}
-		} else if e.Type == "auto_compaction_start" || e.Type == "auto_retry_start" || e.Type == "model_failover" {
+		} else if e.Type == "compaction_start" || e.Type == "auto_retry_start" || e.Type == "model_failover" {
 			progress("progress", e.Type, map[string]any{})
 		}
 	}
@@ -439,7 +497,7 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 		progress("reasoning_chain_stream_end", thought, map[string]any{"streamId": reasonID()})
 	}
 	if modelCalls > 0 {
-		progress("eino_usage_summary", "Pi token usage summary", map[string]any{"model": oa.Model, "modelCalls": modelCalls, "promptTokens": promptTokens, "completionTokens": completionTokens, "totalTokens": promptTokens + completionTokens, "cachedTokens": cacheRead, "cacheWriteTokens": cacheWrite})
+		progress("agent_usage_summary", "Pi token usage summary", map[string]any{"model": oa.Model, "modelCalls": modelCalls, "promptTokens": promptTokens, "completionTokens": completionTokens, "totalTokens": promptTokens + completionTokens, "cachedTokens": cacheRead, "cacheWriteTokens": cacheWrite})
 	}
 	if res == nil {
 		return nil, runErr
@@ -447,6 +505,8 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 	idsMu.Lock()
 	out := &RunResult{Response: res.Response, LastAgentTraceInput: string(res.History), LastAgentTraceOutput: res.Response, MCPExecutionIDs: append([]string(nil), ids...), Status: res.Status}
 	switch res.Status {
+	case "completed":
+		out.RuntimeStatus = "completed"
 	case "iteration_limit":
 		out.RuntimeStatus = "blocked"
 		out.RuntimeCompletionReason = "iteration_limit"
@@ -457,7 +517,7 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 	}
 	idsMu.Unlock()
 	if r.child {
-		progress("sub_agent_result", res.Response, map[string]any{"agentName": r.agentID})
+		progress("agent_reply", res.Response, map[string]any{"agentName": r.agentID})
 	}
 	return out, runErr
 }

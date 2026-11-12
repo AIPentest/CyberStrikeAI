@@ -12,7 +12,7 @@
 ## Concepts and orchestration
 
 - [Architecture](architecture.md) · [Security Model](security-model.md) · [RBAC](rbac.md)
-- [Agents and Roles](agent-and-role-guide.md) · [Skills](skills-guide.md) · [Eino Multi-Agent](MULTI_AGENT_EINO.md) · [Agent Finalization](agent-finalization-best-practices.md)
+- [Agents and Roles](agent-and-role-guide.md) · [Skills](skills-guide.md) · [Pi Multi-Agent](MULTI_AGENT_PI.md) · [Agent Finalization](agent-finalization-best-practices.md)
 - [Blackboard and Context Memory](blackboard-context-memory.md)
 - [Tool Call Guard](tool-call-guard.md)
 - [Workflows](workflow-graph.md) · [Tool Execution Governance](tool-execution-governance.md) · [HITL Best Practices](hitl-best-practices.md)

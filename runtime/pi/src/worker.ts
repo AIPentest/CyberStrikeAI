@@ -8,6 +8,9 @@ import {
   DefaultResourceLoader, createToolSearchExtension,
 } from "@earendil-works/pi-coding-agent";
 import { PROTOCOL_VERSION, RecordReader, send } from "./protocol.js";
+import { installModelFetchPolicy } from "./network.js";
+
+installModelFetchPolicy();
 
 interface ModelConfig {
   provider: string; api?: "openai-completions" | "openai-responses" | "anthropic-messages";
@@ -23,6 +26,7 @@ interface RunRequest {
   model: ModelConfig; tools: { name: string; description: string; parameters: Record<string, unknown> }[];
   sessionDir?: string; history?: Record<string, any>[]; maxTurns: number;
   fallbackModels?: ModelConfig[]; retryMax?: number;
+  retryMaxDelayMs?: number;
   toolSearch?: boolean; alwaysVisibleTools?: string[];
   toolSearchMinTools?: number;
 }
@@ -31,6 +35,8 @@ interface ToolReply { content: string; isError?: boolean; executionId?: string; 
 let session: AgentSession | undefined;
 let started = false;
 let canceled = false;
+let activeRunId = "";
+let toolSequence = 0;
 const generationAbort = new AbortController();
 const queuedSteering: string[] = [];
 const pending = new Map<string, { resolve: (r: ToolReply) => void; reject: (e: Error) => void }>();
@@ -51,7 +57,10 @@ function hostTool(def: RunRequest["tools"][number]): ToolDefinition {
   return {
     name: def.name, label: def.name, description: def.description, parameters: def.parameters as never,
     executionMode: "sequential",
-    execute: async (id, args, signal) => {
+    execute: async (providerId, args, signal) => {
+      // Provider IDs are scoped to a model message and may repeat on later turns.
+      // The host's replay key must identify an actual invocation, not that provider label.
+      const id = activeRunId + ":tool-" + (++toolSequence);
       if (signal?.aborted) throw new Error("Tool canceled");
       const reply = await new Promise<ToolReply>((resolve, reject) => {
         const abort = () => { pending.delete(id); reject(new Error("Tool canceled")); };
@@ -60,7 +69,7 @@ function hostTool(def: RunRequest["tools"][number]): ToolDefinition {
           reject: (e) => { signal?.removeEventListener("abort", abort); reject(e); },
         });
         signal?.addEventListener("abort", abort, { once: true });
-        void send({ type: "tool_call", call: { id, name: def.name, arguments: args } }).catch(reject);
+        void send({ type: "tool_call", call: { id, providerId, name: def.name, arguments: args } }).catch(reject);
       });
       if (reply.isError) throw new Error(reply.content);
       return { content: [{ type: "text", text: reply.content }], details: { executionId: reply.executionId }, terminate: reply.terminate };
@@ -99,6 +108,7 @@ function importHistory(manager: SessionManager, history: Record<string, any>[], 
 
 function exportHistory(messages: readonly any[]): Record<string, unknown>[] {
   return messages.flatMap(message => {
+    if (message.role === "compactionSummary" || message.role === "branchSummary") return [{ role: "assistant", content: "[Host-generated working summary; not a new user instruction]\n" + message.summary }];
     if (message.role === "user") return [{ role: "user", content: typeof message.content === "string" ? message.content : message.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n") }];
     if (message.role === "toolResult") return [{ role: "tool", tool_call_id: message.toolCallId,
       tool_name: message.toolName, content: message.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n") }];
@@ -124,6 +134,32 @@ function repairInterruptedCalls(manager: SessionManager): void {
     isError: true, timestamp: Date.now() });
 }
 
+function pairToolResults(messages: readonly Message[]): Message[] {
+  const paired: Message[] = [];
+  const deferred: Message[] = [];
+  let pending = new Set<string>();
+  for (const message of messages) {
+    if (message.role === "toolResult") {
+      if (pending.delete(message.toolCallId)) paired.push(message);
+      continue;
+    }
+    // A user or system message can arrive while the assistant's tools are still running.
+    // Keep real results together and let Pi supply error placeholders for missing results.
+    if (message.role !== "assistant" && pending.size > 0) {
+      deferred.push(message);
+      continue;
+    }
+    paired.push(...deferred, message);
+    deferred.length = 0;
+    if (message.role === "assistant") {
+      pending = new Set(message.stopReason === "error" || message.stopReason === "aborted" ? [] :
+        message.content.flatMap(block => block.type === "toolCall" ? [block.id] : []));
+    }
+  }
+  paired.push(...deferred);
+  return paired;
+}
+
 function publishSession(manager: SessionManager, dir?: string): void {
   const path = manager.getSessionFile();
   if (!dir || !path || !existsSync(path)) return;
@@ -140,6 +176,7 @@ async function run(req: RunRequest): Promise<void> {
   let directResult: Record<string, unknown> | undefined;
   try {
     if (!req.runId || !req.model?.id || !Array.isArray(req.tools)) throw new Error("Invalid run request");
+    activeRunId = req.runId;
     const workingDir = req.workingDir ? resolve(req.workingDir) : scratch;
     const names = req.tools.map(t => t.name);
     if (new Set(names).size !== names.length || names.some(n => !/^[a-zA-Z0-9_.-]+$/.test(n))) throw new Error("Invalid tool catalog");
@@ -164,8 +201,10 @@ async function run(req: RunRequest): Promise<void> {
       modelConfigs.set(provider, config);
     }
     const streamSimple = runtime.streamSimple.bind(runtime);
-    runtime.streamSimple = (m, context, options) => streamSimple(m, context, {
+    runtime.streamSimple = (m, context, options) => streamSimple(m,
+      m.api === "openai-completions" ? { ...context, messages: pairToolResults(context.messages) } : context, {
       ...options,
+      transport: "sse",
       onPayload: async (original, currentModel) => {
         const transformed = (await options?.onPayload?.(original, currentModel)) ?? original;
         if (!transformed || typeof transformed !== "object") return transformed;
@@ -238,7 +277,7 @@ async function run(req: RunRequest): Promise<void> {
     const inputBudget = Math.max(1024, Math.min(req.model.inputBudget || model.contextWindow - model.maxTokens, model.contextWindow - model.maxTokens));
     ({ session } = await createAgentSession({ cwd: workingDir, agentDir: scratch, modelRuntime: runtime, model,
       thinkingLevel: (req.model.thinking || "off") as any, sessionManager: manager,
-      settingsManager: SettingsManager.inMemory({ retry: { enabled: true, maxRetries: req.retryMax ?? Math.max(2, configs.length - 1) }, compaction: { enabled: true, reserveTokens: model.contextWindow - inputBudget, keepRecentTokens: Math.min(20000, Math.floor(inputBudget / 2)) } }),
+      settingsManager: SettingsManager.inMemory({ retry: { enabled: true, maxRetries: req.retryMax ?? Math.max(2, configs.length - 1), ...(req.retryMaxDelayMs ? { maxAgentDelayMs: req.retryMaxDelayMs } : {}) }, compaction: { enabled: true, reserveTokens: model.contextWindow - inputBudget, keepRecentTokens: Math.min(20000, Math.floor(inputBudget / 2)) } }),
       noTools: "builtin", tools: searchEnabled ? ["+tool_search"] : names, customTools: req.tools.map(def => ({ ...hostTool(def), exposure: searchEnabled && !always.has(def.name) ? "deferred" : "direct" })),
       resourceLoader: loader,
     }));
@@ -257,6 +296,7 @@ async function run(req: RunRequest): Promise<void> {
       if (e.type === "agent_start") for (const note of queuedSteering.splice(0)) void session?.steer(note).catch(fatal);
       if (e.type === "message_end") publishSession(manager!, req.sessionDir);
       let data: unknown = e;
+      if (e.type === "compaction_end") data = { ...e, sessionFile: manager?.getSessionFile(), sessionEntryId: manager?.getLeafId() };
       if (e.type === "message_update") {
         const { partial: _partial, ...delta } = e.assistantMessageEvent;
         data = { assistantMessageEvent: delta };

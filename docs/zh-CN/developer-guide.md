@@ -11,7 +11,7 @@ internal/handler/        HTTP Handler
 internal/database/       SQLite 数据访问
 internal/security/       认证、限流、Shell 执行
 internal/mcp/            MCP Server、外部 MCP 管理
-internal/multiagent/     Eino 单代理、多代理、中间件
+internal/multiagent/     Pi 单代理、多代理、中间件
 internal/workflow/       工作流运行时
 internal/knowledge/      知识库索引与检索
 internal/c2/             内置 C2

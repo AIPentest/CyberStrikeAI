@@ -11,6 +11,7 @@ import (
 
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/openai"
+
 	"go.uber.org/zap"
 )
 
@@ -25,11 +26,24 @@ func WireRetrieverPipeline(ctx context.Context, r *Retriever, oa *config.OpenAIC
 		return err
 	}
 	r.SetDocumentReranker(reranker)
+	vector := NewVectorRetriever(r)
+	maxQueries := r.config.MultiQuery.MaxQueriesEffective()
+	if maxQueries == 1 {
+		r.pipeline = newKnowledgePipelineRetriever(vector, r)
+		return nil
+	}
+
 	logger := r.logger
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	mq := &nativeMultiQuery{inner: NewVectorRetriever(r), max: r.config.MultiQuery.MaxQueriesEffective(), client: openai.NewClient(oa, &http.Client{Timeout: 120 * time.Second}, logger), model: oa.Model, logger: logger}
+	mq := &nativeMultiQuery{
+		inner:  vector,
+		max:    maxQueries,
+		client: openai.NewClient(oa, &http.Client{Timeout: 120 * time.Second}, logger),
+		model:  oa.Model,
+		logger: logger,
+	}
 	r.pipeline = newKnowledgePipelineRetriever(mq, r)
 	return nil
 }
@@ -44,40 +58,38 @@ type nativeMultiQuery struct {
 
 func (q *nativeMultiQuery) Retrieve(ctx context.Context, query string, opts ...RetrievalOption) ([]*Document, error) {
 	queries := []string{query}
-	if q.max > 1 {
-		payload := map[string]any{"model": q.model, "messages": []map[string]string{{"role": "system", "content": fmt.Sprintf("Return only a JSON array containing at most %d alternative search queries for the user's knowledge search. Preserve technical identifiers and the user's language.", q.max-1)}, {"role": "user", "content": query}}}
-		var answer struct {
-			Choices []struct {
-				Message struct {
-					Content string `json:"content"`
-				} `json:"message"`
-			} `json:"choices"`
-		}
-		if err := q.client.ChatCompletion(ctx, payload, &answer); err == nil && len(answer.Choices) > 0 {
-			text := strings.TrimSpace(answer.Choices[0].Message.Content)
-			text = strings.TrimPrefix(text, "```json")
-			text = strings.TrimPrefix(text, "```")
-			text = strings.TrimSuffix(text, "```")
-			var generated []string
-			if json.Unmarshal([]byte(strings.TrimSpace(text)), &generated) == nil {
-				seen := map[string]bool{query: true}
-				for _, v := range generated {
-					v = strings.TrimSpace(v)
-					if v != "" && !seen[v] {
-						queries = append(queries, v)
-						seen[v] = true
-					}
-					if len(queries) >= q.max {
-						break
-					}
+	payload := map[string]any{"model": q.model, "messages": []map[string]string{{"role": "system", "content": fmt.Sprintf("Return only a JSON array containing at most %d alternative search queries for the user's knowledge search. Preserve technical identifiers and the user's language.", q.max-1)}, {"role": "user", "content": query}}}
+	var answer struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := q.client.ChatCompletion(ctx, payload, &answer); err == nil && len(answer.Choices) > 0 {
+		text := strings.TrimSpace(answer.Choices[0].Message.Content)
+		text = strings.TrimPrefix(text, "```json")
+		text = strings.TrimPrefix(text, "```")
+		text = strings.TrimSuffix(text, "```")
+		var generated []string
+		if json.Unmarshal([]byte(strings.TrimSpace(text)), &generated) == nil {
+			seen := map[string]bool{query: true}
+			for _, v := range generated {
+				v = strings.TrimSpace(v)
+				if v != "" && !seen[v] {
+					queries = append(queries, v)
+					seen[v] = true
+				}
+				if len(queries) >= q.max {
+					break
 				}
 			}
-		} else if err != nil {
-			if ctx.Err() != nil {
-				return nil, ctx.Err()
-			}
-			q.logger.Warn("查询扩展失败，使用原始查询", zap.Error(err))
 		}
+	} else if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		q.logger.Warn("查询扩展失败，使用原始查询", zap.Error(err))
 	}
 	scores := map[string]float64{}
 	docs := map[string]*Document{}

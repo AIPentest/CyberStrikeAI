@@ -2,9 +2,16 @@ package agentruntime
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"path/filepath"
 	"sync"
 )
+
+// ConversationStorageKey keeps every session/child scope for a conversation under one cleanup boundary.
+func ConversationStorageKey(conversationID string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(conversationID)))
+}
 
 type sessionLock struct {
 	token chan struct{}

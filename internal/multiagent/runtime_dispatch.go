@@ -6,6 +6,7 @@ import (
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/database"
 	"cyberstrike-ai/internal/reasoning"
+	"fmt"
 	"go.uber.org/zap"
 )
 
@@ -25,10 +26,13 @@ func RunSingleAgent(
 	reasoningClient *reasoning.ClientIntent,
 	systemPromptExtra string,
 ) (*RunResult, error) {
-	if appCfg != nil && appCfg.AgentRuntime.UsesPi() {
+	if appCfg != nil {
+		if err := appCfg.AgentRuntime.Validate(); err != nil {
+			return nil, err
+		}
 		return runPiSingle(ctx, appCfg, ag, db, logger, conversationID, projectID, userMessage, history, roleTools, progress, reasoningClient, systemPromptExtra)
 	}
-	return RunEinoSingleChatModelAgent(ctx, appCfg, ma, ag, db, logger, conversationID, projectID, userMessage, history, roleTools, progress, reasoningClient, systemPromptExtra)
+	return nil, fmt.Errorf("agent configuration is nil")
 }
 func RunMultiAgent(
 	ctx context.Context,
@@ -48,8 +52,11 @@ func RunMultiAgent(
 	reasoningClient *reasoning.ClientIntent,
 	systemPromptExtra string,
 ) (*RunResult, error) {
-	if appCfg != nil && appCfg.AgentRuntime.UsesPi() {
+	if appCfg != nil {
+		if err := appCfg.AgentRuntime.Validate(); err != nil {
+			return nil, err
+		}
 		return runPiMulti(ctx, appCfg, ma, ag, db, logger, conversationID, projectID, userMessage, history, roleTools, progress, agentsMarkdownDir, orchestrationOverride, reasoningClient, systemPromptExtra)
 	}
-	return RunDeepAgent(ctx, appCfg, ma, ag, db, logger, conversationID, projectID, userMessage, history, roleTools, progress, agentsMarkdownDir, orchestrationOverride, reasoningClient, systemPromptExtra)
+	return nil, fmt.Errorf("agent configuration is nil")
 }

@@ -524,7 +524,7 @@ func summarizeProcessDetailData(eventType string, data interface{}) interface{} 
 		"toolName": true, "toolCallId": true, "index": true, "total": true,
 		"arguments": true, "argumentsObj": true,
 		"success": true, "isError": true, "executionId": true,
-		"einoAgent": true, "einoRole": true, "einoScope": true, "orchestration": true,
+		"agentName": true, "agentRole": true, "agentScope": true, "orchestration": true,
 		"agentFacing": true,
 		"status":      true, "modelFacingIsError": true, "resultPreview": true,
 	}

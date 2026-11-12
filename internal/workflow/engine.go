@@ -13,7 +13,7 @@ type compiledArtifact struct {
 	hitlIDs []string
 }
 
-// Engine compiles and caches Eino Workflow artifacts.
+// Engine compiles and caches Agent Workflow artifacts.
 type Engine struct {
 	mu            sync.RWMutex
 	cache         map[string]*compiledArtifact

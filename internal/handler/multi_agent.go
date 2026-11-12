@@ -19,7 +19,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// MultiAgentLoopStream Eino DeepAgent 流式对话（需 config.multi_agent.enabled）。
+// MultiAgentLoopStream Agent DeepAgent 流式对话（需 config.multi_agent.enabled）。
 func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	c.Header("Content-Type", "text/event-stream; charset=utf-8")
 	c.Header("Cache-Control", "no-cache")
@@ -60,7 +60,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	var sseWriteMu sync.Mutex
 	var ssePublishConversationID string
 	sendEvent := func(eventType, message string, data interface{}) {
-		// 用户主动停止时，Eino 可能仍会并发上报 eventType=="error"。
+		// 用户主动停止时，Agent 可能仍会并发上报 eventType=="error"。
 		// 为避免 UI 看到“取消错误 + cancelled 文案”两条回复，这里直接丢弃取消对应的 error。
 		if eventType == "error" && baseCtx != nil {
 			cause := context.Cause(baseCtx)
@@ -104,7 +104,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 		sseWriteMu.Unlock()
 	}
 
-	h.logger.Info("收到 Eino DeepAgent 流式请求",
+	h.logger.Info("收到 Agent DeepAgent 流式请求",
 		zap.String("conversationId", req.ConversationID),
 	)
 
@@ -156,7 +156,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 		}
 	}()
 
-	sendEvent("progress", "正在启动 Eino 多代理...", map[string]interface{}{
+	sendEvent("progress", "正在启动 Agent 多代理...", map[string]interface{}{
 		"conversationId": conversationID,
 	})
 
@@ -212,7 +212,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	if o := strings.TrimSpace(req.Orchestration); o != "" {
 		effectiveOrch = config.NormalizeMultiAgentOrchestration(o)
 	}
-	agentMode := "eino_" + effectiveOrch
+	agentMode := effectiveOrch
 	var decision agentfinalizer.Decision
 	var autoCancelledPendingExecutionIDs []string
 
@@ -222,7 +222,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 		progressCallback := func(eventType, message string, data interface{}) {
 			if eventType == "iteration" {
 				if m, ok := data.(map[string]interface{}); ok {
-					if scope, _ := m["einoScope"].(string); scope == "main" {
+					if scope, _ := m["agentScope"].(string); scope == "main" {
 						raw := 0
 						switch v := m["iteration"].(type) {
 						case int:
@@ -249,7 +249,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 		}
 		taskCtxLoop := mcp.WithMCPConversationID(taskCtx, conversationID)
 		taskCtxLoop = mcp.WithToolRunRegistry(taskCtxLoop, h.tasks)
-		taskCtxLoop = mcp.WithEinoExecuteRunRegistry(taskCtxLoop, h.tasks)
+		taskCtxLoop = mcp.WithAgentExecuteRunRegistry(taskCtxLoop, h.tasks)
 		taskCtxLoop = multiagent.WithAgentRuntimeCancelRegistrar(taskCtxLoop, func(cancel func(error) bool) func() {
 			return h.tasks.BindAgentRuntimeCancel(conversationID, cancel)
 		})
@@ -257,7 +257,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 			return h.tasks.BindAgentTurnLoopInterrupt(conversationID, push)
 		})
 		taskCtxLoop = multiagent.WithHITLToolInterceptor(taskCtxLoop, func(ctx context.Context, toolName, arguments string) (string, error) {
-			return h.interceptHITLForEinoTool(ctx, cancelWithCause, conversationID, assistantMessageID, sendEvent, toolName, arguments)
+			return h.interceptHITLForAgentTool(ctx, cancelWithCause, conversationID, assistantMessageID, sendEvent, toolName, arguments)
 		})
 
 		result, runErr = multiagent.RunMultiAgent(
@@ -284,11 +284,11 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 		}
 
 		if runErr == nil {
-			mw := &h.config.MultiAgent.EinoMiddleware
-			if h.tryContinueOnEinoEmptyResponse(taskCtx, mw, conversationID, result, &emptyResponseContinueAttempt, &curHistory, &curFinalMessage, progressCallback) {
+			mw := &h.config.MultiAgent.Runtime
+			if h.tryContinueOnAgentEmptyResponse(taskCtx, mw, conversationID, result, &emptyResponseContinueAttempt, &curHistory, &curFinalMessage, progressCallback) {
 				mainIterationOffset += segmentMainIterationMax
 				timeoutCancel()
-				baseCtx, cancelWithCause, taskCtx, timeoutCancel = h.rebindEinoRunningTask(taskCtx, conversationID, timeoutCancel)
+				baseCtx, cancelWithCause, taskCtx, timeoutCancel = h.rebindAgentRunningTask(taskCtx, conversationID, timeoutCancel)
 				continue
 			}
 			decision = h.decideAgentRunForDeliveryWithPolicy(conversationID, assistantMessageID, agentMode, result, cumulativeMCPExecutionIDs, requestRequiresExecutionEvidence(&req))
@@ -299,7 +299,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 			if h.tryAutoContinueAfterFinalization(taskCtx, conversationID, result, decision, &finalizationAutoContinueAttempt, &curHistory, &curFinalMessage, progressCallback) {
 				mainIterationOffset += segmentMainIterationMax
 				timeoutCancel()
-				baseCtx, cancelWithCause, taskCtx, timeoutCancel = h.rebindEinoRunningTask(taskCtx, conversationID, timeoutCancel)
+				baseCtx, cancelWithCause, taskCtx, timeoutCancel = h.rebindAgentRunningTask(taskCtx, conversationID, timeoutCancel)
 				continue
 			}
 			timeoutCancel()
@@ -316,8 +316,8 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 			}
 		}
 		if errors.Is(cause, multiagent.ErrInterruptContinue) {
-			if shouldPersistEinoAgentTraceAfterRunError(baseCtx) {
-				h.persistEinoAgentTraceForResume(conversationID, result)
+			if shouldPersistAgentAgentTraceAfterRunError(baseCtx) {
+				h.persistAgentAgentTraceForResume(conversationID, result)
 			}
 			note := h.tasks.TakeInterruptContinueNote(conversationID)
 			icSummary := interruptContinueTimelineSummary(note)
@@ -346,8 +346,8 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 			continue
 		}
 
-		if shouldPersistEinoAgentTraceAfterRunError(baseCtx) {
-			h.persistEinoAgentTraceForResume(conversationID, result)
+		if shouldPersistAgentAgentTraceAfterRunError(baseCtx) {
+			h.persistAgentAgentTraceForResume(conversationID, result)
 		}
 		if errors.Is(cause, ErrTaskCancelled) {
 			taskStatus = "cancelled"
@@ -391,16 +391,16 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 			return
 		}
 
-		h.logger.Error("Eino DeepAgent 执行失败", zap.Error(runErr))
+		h.logger.Error("Agent DeepAgent 执行失败", zap.Error(runErr))
 		taskStatus = "failed"
 		h.tasks.UpdateTaskStatus(conversationID, taskStatus)
-		clientErr := multiagent.EinoClientRunErrorMessage(runErr)
+		clientErr := multiagent.ClientRunErrorMessage(runErr)
 		errMsg := "执行失败: " + clientErr
 		if assistantMessageID != "" {
 			_, _ = h.db.Exec("UPDATE messages SET content = ?, updated_at = ? WHERE id = ?", errMsg, time.Now(), assistantMessageID)
 			_ = h.db.AddProcessDetail(assistantMessageID, conversationID, "error", errMsg, nil)
 		}
-		errData := multiagent.EinoClientRunErrorFields(runErr)
+		errData := multiagent.ClientRunErrorFields(runErr)
 		errData["conversationId"] = conversationID
 		errData["messageId"] = assistantMessageID
 		errData["error"] = errMsg
@@ -444,7 +444,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	sendEvent("done", "", map[string]interface{}{"conversationId": conversationID})
 }
 
-// MultiAgentLoop Eino DeepAgent 非流式对话（需 multi_agent.enabled）。
+// MultiAgentLoop Agent DeepAgent 非流式对话（需 multi_agent.enabled）。
 func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 	if h.config == nil || !h.config.MultiAgent.Enabled {
 		c.JSON(http.StatusNotFound, gin.H{"error": "多代理未启用，请在 config.yaml 中设置 multi_agent.enabled: true"})
@@ -457,7 +457,7 @@ func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 		return
 	}
 
-	h.logger.Info("收到 Eino DeepAgent 非流式请求", zap.String("conversationId", req.ConversationID))
+	h.logger.Info("收到 Agent DeepAgent 非流式请求", zap.String("conversationId", req.ConversationID))
 
 	releaseAdmission := h.lockAgentAdmission()
 	defer releaseAdmission()
@@ -488,7 +488,7 @@ func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 	taskCtx = h.tasks.BindProcessScope(taskCtx, prep.ConversationID, jsonTask.RunID)
 	taskCtx = mcp.WithMCPConversationID(taskCtx, prep.ConversationID)
 	taskCtx = mcp.WithToolRunRegistry(taskCtx, h.tasks)
-	taskCtx = mcp.WithEinoExecuteRunRegistry(taskCtx, h.tasks)
+	taskCtx = mcp.WithAgentExecuteRunRegistry(taskCtx, h.tasks)
 	jsonTaskStatus := "failed"
 	defer func() { _ = h.tasks.FinishTaskRun(prep.ConversationID, jsonTask.RunID, jsonTaskStatus) }()
 	respond := h.taskFinishingJSONResponder(c, prep.ConversationID, jsonTask.RunID, func() string { return jsonTaskStatus })
@@ -496,8 +496,8 @@ func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 	h.runMultiJSON(taskCtx, baseCtx, cancelWithCause, &req, prep, &jsonTaskStatus, respond)
 }
 
-// persistEinoAgentTraceForResume 在 Eino 运行异常结束时写入代理轨迹（库列 last_react_*），供下一请求 loadHistoryFromAgentTrace 软续跑。
-func (h *AgentHandler) persistEinoAgentTraceForResume(conversationID string, result *multiagent.RunResult) {
+// persistAgentAgentTraceForResume 在 Agent 运行异常结束时写入代理轨迹（库列 last_react_*），供下一请求 loadHistoryFromAgentTrace 软续跑。
+func (h *AgentHandler) persistAgentAgentTraceForResume(conversationID string, result *multiagent.RunResult) {
 	if h == nil || result == nil {
 		return
 	}
@@ -505,7 +505,7 @@ func (h *AgentHandler) persistEinoAgentTraceForResume(conversationID string, res
 		return
 	}
 	if err := h.db.SaveAgentTrace(conversationID, result.LastAgentTraceInput, result.LastAgentTraceOutput); err != nil {
-		h.logger.Warn("保存 Eino 续跑上下文失败", zap.String("conversationId", conversationID), zap.Error(err))
+		h.logger.Warn("保存 Agent 续跑上下文失败", zap.String("conversationId", conversationID), zap.Error(err))
 	}
 }
 

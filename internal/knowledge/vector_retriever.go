@@ -14,7 +14,7 @@ type VectorRetriever struct {
 	inner *Retriever
 }
 
-// NewVectorRetriever wraps r for Eino compose / tooling.
+// NewVectorRetriever wraps r for Agent compose / tooling.
 func NewVectorRetriever(r *Retriever) *VectorRetriever {
 	if r == nil {
 		return nil
@@ -22,7 +22,7 @@ func NewVectorRetriever(r *Retriever) *VectorRetriever {
 	return &VectorRetriever{inner: r}
 }
 
-// GetType identifies this retriever for Eino callbacks.
+// GetType identifies this retriever for Agent callbacks.
 func (h *VectorRetriever) GetType() string {
 	return "SQLiteVectorKnowledgeRetriever"
 }

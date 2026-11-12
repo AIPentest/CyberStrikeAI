@@ -17,7 +17,7 @@ func TestBatchHITLPolicyPersistence(t *testing.T) {
 	defer db.Close()
 	m := NewBatchTaskManager(zap.NewNop())
 	m.SetDB(db)
-	q, err := m.CreateBatchQueue("approval", "", "eino_single", "manual", "", "", nil, 1, []string{"test"}, "audit_agent")
+	q, err := m.CreateBatchQueue("approval", "", "single", "manual", "", "", nil, 1, []string{"test"}, "audit_agent")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestBatchHITLPersistenceFailure(t *testing.T) {
 	}
 	m := NewBatchTaskManager(zap.NewNop())
 	m.SetDB(db)
-	q, err := m.CreateBatchQueue("test", "", "eino_single", "manual", "", "", nil, 1, []string{"test"}, "human")
+	q, err := m.CreateBatchQueue("test", "", "single", "manual", "", "", nil, 1, []string{"test"}, "human")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestBatchHITLPersistenceFailure(t *testing.T) {
 	if q.HITLPolicy != "human" || q.Title != "test" {
 		t.Fatal("failed write changed in-memory policy")
 	}
-	if _, err := m.CreateBatchQueue("test", "", "eino_single", "manual", "", "", nil, 1, []string{"test"}, "audit_agent"); err == nil {
+	if _, err := m.CreateBatchQueue("test", "", "single", "manual", "", "", nil, 1, []string{"test"}, "audit_agent"); err == nil {
 		t.Fatal("create failure hidden")
 	}
 }

@@ -32,7 +32,7 @@ Web 登录凭据由 RBAC 用户管理（默认内置 `admin` 账号）。建议�
 
 - 内置安全执行工具。
 - `tools/` 下的 YAML 命令工具。
-- Eino Skills 文件系统工具，如 `read_file`、`write_file`、`edit_file`、`execute`。
+- Pi Skills 文件系统工具，如 `read_file`、`write_file`、`edit_file`、`execute`。
 - 外部 MCP 暴露的工具。
 - C2 和 WebShell 相关 MCP 工具。
 

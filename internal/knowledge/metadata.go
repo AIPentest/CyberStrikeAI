@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Document metadata keys for Eino Document flowing through the RAG pipeline.
+// Document metadata keys for Agent Document flowing through the RAG pipeline.
 const (
 	metaKBCategory   = "kb_category"
 	metaKBTitle      = "kb_title"

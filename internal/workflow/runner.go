@@ -24,7 +24,7 @@ func ShouldAutoRunRoleWorkflow(role config.RoleConfig) bool {
 	return policy == "" || policy == "auto"
 }
 
-// RunRoleBoundWorkflow executes the persisted role-bound workflow via cached Eino Workflow.
+// RunRoleBoundWorkflow executes the persisted role-bound workflow via cached Agent Workflow.
 func RunRoleBoundWorkflow(ctx context.Context, args RunArgs) (*RunResult, error) {
 	if args.DB == nil {
 		return nil, fmt.Errorf("workflow db is nil")

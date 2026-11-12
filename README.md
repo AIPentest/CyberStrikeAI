@@ -9,7 +9,7 @@
 
 **The system of action for AI-native cybersecurity—where intent becomes governed execution, evidence becomes operational memory, and every operation improves the next.**
 
-CyberStrikeAI connects planning, execution, human oversight, evidence, and replay in one auditable workspace. Built in Go, it combines Eino-powered agents, MCP-native tools, RAG knowledge, visual workflows, and attack-chain modeling and analysis for authorized security operations.
+CyberStrikeAI connects planning, execution, human oversight, evidence, and replay in one auditable workspace. Built in Go, it combines Pi-powered agents, MCP-native tools, RAG knowledge, visual workflows, and attack-chain modeling and analysis for authorized security operations.
 
 **Start here:** [Quick start](#quick-start-one-command-deployment) · [Documentation](docs/en-US/README.md) · [Security hardening](docs/en-US/security-hardening.md)
 
@@ -110,7 +110,7 @@ CyberStrikeAI connects planning, execution, human oversight, evidence, and repla
 ### Agents and orchestration
 
 - 🤖 **Agentic execution** translates natural-language intent into governed, auditable security actions.
-- 🧩 **Eino orchestration** supports single-agent execution plus Deep, Plan-Execute, and Supervisor multi-agent modes.
+- 🧩 **Pi orchestration** supports single-agent execution plus Deep, Plan-Execute, and Supervisor multi-agent modes.
 - 🔀 **Graph workflows** combine Agents, tools, conditions, approvals, and outputs into reusable flows.
 - 🎭 **Role-based testing** provides focused prompts and tool policies for common security scenarios.
 
@@ -345,7 +345,7 @@ CyberStrikeAI/
 ├── web/                 # Static SPA + templates
 ├── tools/               # YAML tool recipes (100+ examples provided)
 ├── roles/               # Role configurations (12+ predefined security testing roles)
-├── skills/              # Agent Skills dirs (SKILL.md + optional files; demo: cyberstrike-eino-demo)
+├── skills/              # Agent Skills dirs (SKILL.md + optional files; demo: cyberstrike-pi-demo)
 ├── agents/              # Multi-agent Markdown (orchestrator.md + sub-agent *.md)
 ├── docs/                # Topic docs (deployment, config, security, API, knowledge base, C2, WebShell, etc.)
 ├── images/              # Docs screenshots & diagrams

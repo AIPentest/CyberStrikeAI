@@ -2,7 +2,7 @@
 
 [Back to English documentation](README.md)
 
-This document describes how CyberStrikeAI governs long-running tools, blocking MCP calls, oversized outputs, cancellation, and context restore. The goal is to preserve standard Agent/Eino tool semantics while preventing tool hangs, context blowups, oversized database records, and unsafe resume behavior.
+This document describes how CyberStrikeAI governs long-running tools, blocking MCP calls, oversized outputs, cancellation, and context restore. The goal is to preserve standard Agent/Pi tool semantics while preventing tool hangs, context blowups, oversized database records, and unsafe resume behavior.
 
 ## Goals
 
@@ -15,7 +15,7 @@ This document describes how CyberStrikeAI governs long-running tools, blocking M
 
 ## Execution Model
 
-Tool calls still appear to Eino/Agent as standard tool invocations, but the blocking work runs in a worker:
+Tool calls still appear to Pi/Agent as standard tool invocations, but the blocking work runs in a worker:
 
 ```text
 Agent calls tool
@@ -67,7 +67,7 @@ Typical flow:
 4. If still incomplete, continue waiting or call cancel_tool_execution
 ```
 
-`tool_wait_timeout_seconds` applies to internal MCP tools, external MCP tools, and Eino filesystem's streaming `execute`. Eino's non-streaming filesystem tools such as `ls/read_file/write_file/edit_file/glob/grep` are recorded in execution monitoring, but they are not converted into resumable background workers.
+`tool_wait_timeout_seconds` applies to internal MCP tools, external MCP tools, and Pi filesystem's streaming `execute`. Pi's non-streaming filesystem tools such as `ls/read_file/write_file/edit_file/glob/grep` are recorded in execution monitoring, but they are not converted into resumable background workers.
 
 ## Cancellation and Session Cleanup
 
@@ -98,11 +98,11 @@ agent:
 
 ## Output Governance
 
-CyberStrikeAI uses `multi_agent.eino_middleware.reduction_max_length_for_trunc` as the unified tool result cap. The example configuration uses 50000 bytes.
+CyberStrikeAI uses `multi_agent.runtime.reduction_max_length_for_trunc` as the unified tool result cap. The example configuration uses 50000 bytes.
 
 ```yaml
 multi_agent:
-  eino_middleware:
+  runtime:
     reduction_enable: true
     reduction_max_length_for_trunc: 50000
 ```
@@ -114,7 +114,7 @@ Coverage:
 | Agent-facing tool result | Uses the canonical capped result |
 | DB / monitor storage | Stores the same canonical result |
 | `get_tool_execution` / `wait_tool_execution` | Reads the same canonical result |
-| Eino `execute` / filesystem monitor records | Capped before completion is persisted |
+| Pi `execute` / filesystem monitor records | Capped before completion is persisted |
 | Non-streaming `exec` stdout/stderr | Source-side bounded buffer |
 | Streaming `exec` stdout/stderr | Streamed UI output is also bounded |
 | PTY execution path | Uses the same output cap |
@@ -176,7 +176,7 @@ agent:
   shell_no_output_timeout_seconds: 1200
 
 multi_agent:
-  eino_middleware:
+  runtime:
     reduction_enable: true
     reduction_max_length_for_trunc: 50000
 ```
@@ -222,7 +222,7 @@ Expected behavior:
 
 ## Task-owned process lifetime
 
-Each task has a distinct `runId`. Local commands and detached MCP workers retain ownership through context values. Managed `exec ... &` and Eino background execution return promptly but cannot outlive task cleanup. Unowned background launches are rejected. Cleanup seals process and worker admission, cancels workers, terminates processes and waits for reaping. Interrupt-and-continue retains ownership; SSE disconnection does not end the task. Failed cleanup retains the conversation slot and reports `cleanup_failed`; a 15-second sweep retries it.
+Each task has a distinct `runId`. Local commands and detached MCP workers retain ownership through context values. Managed `exec ... &` and Pi background execution return promptly but cannot outlive task cleanup. Unowned background launches are rejected. Cleanup seals process and worker admission, cancels workers, terminates processes and waits for reaping. Interrupt-and-continue retains ownership; SSE disconnection does not end the task. Failed cleanup retains the conversation slot and reports `cleanup_failed`; a 15-second sweep retries it.
 
 ### Kernel containment and crash recovery
 

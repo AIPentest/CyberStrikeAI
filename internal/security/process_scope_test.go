@@ -16,8 +16,6 @@ import (
 	"syscall"
 	"testing"
 	"time"
-
-	"github.com/cloudwego/eino/adk/filesystem"
 )
 
 func readTestPID(t *testing.T, path string) int {
@@ -76,7 +74,7 @@ func TestProcessScope_BackgroundSurvivesToolButEndsWithTask(t *testing.T) {
 	}
 }
 
-func TestProcessScope_EinoBackgroundReturnsPromptlyAndIsOwned(t *testing.T) {
+func TestProcessScope_AgentBackgroundReturnsPromptlyAndIsOwned(t *testing.T) {
 	for _, useFlag := range []bool{false, true} {
 		t.Run(fmt.Sprint(useFlag), func(t *testing.T) {
 			scope := NewProcessScope()
@@ -87,7 +85,7 @@ func TestProcessScope_EinoBackgroundReturnsPromptlyAndIsOwned(t *testing.T) {
 			if !useFlag {
 				command += " &"
 			}
-			stream, err := NewEinoStreamingShell().ExecuteStreaming(ctx, &filesystem.ExecuteRequest{Command: command, RunInBackendGround: useFlag})
+			stream, err := NewStreamingShell().ExecuteStreaming(ctx, &ShellExecuteRequest{Command: command, RunInBackendGround: useFlag})
 			if err != nil {
 				t.Fatal(err)
 			}

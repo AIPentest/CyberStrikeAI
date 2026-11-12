@@ -77,7 +77,7 @@ func TestRebindTaskRestartsConfiguredBudget(t *testing.T) {
 			}
 			expired, cancelExpired := context.WithDeadline(base, time.Now().Add(-time.Second))
 			before := time.Now()
-			_, stopNew, resumed, cancelNew := h.rebindEinoRunningTask(expired, "resume", cancelExpired)
+			_, stopNew, resumed, cancelNew := h.rebindAgentRunningTask(expired, "resume", cancelExpired)
 			defer stopNew(nil)
 			defer cancelNew()
 			if resumed.Err() != nil {

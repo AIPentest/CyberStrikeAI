@@ -12,9 +12,11 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cyberstrike-ai/internal/agentruntime"
+	"cyberstrike-ai/internal/mcp"
 	"cyberstrike-ai/internal/security"
 	"cyberstrike-ai/internal/skillpackage"
 	"cyberstrike-ai/internal/tooloutput"
@@ -25,11 +27,11 @@ func (r *piRun) piLocalCatalog(ctx context.Context) ([]agentruntime.Tool, map[st
 	var tools []agentruntime.Tool
 	names := map[string]bool{}
 	var catalog strings.Builder
-	if r.cfg.MultiAgent.EinoSkills.Disable {
+	if r.cfg.MultiAgent.Skills.Disable {
 		return tools, names, "", nil
 	}
 	str := map[string]any{"type": "string"}
-	if r.cfg.MultiAgent.EinoMiddleware.PlantaskEnable && r.cfg.SkillsDir != "" {
+	if r.cfg.MultiAgent.Runtime.PlantaskEnable && r.cfg.SkillsDir != "" {
 		for _, t := range piPlanTools() {
 			tools = append(tools, t)
 			names[t.Name] = true
@@ -44,7 +46,7 @@ func (r *piRun) piLocalCatalog(ctx context.Context) ([]agentruntime.Tool, map[st
 			fmt.Fprintf(&catalog, "- %s: %s\n", s.ID, s.Description)
 		}
 		if len(skills) > 0 {
-			name := r.cfg.MultiAgent.EinoSkills.SkillToolName
+			name := r.cfg.MultiAgent.Skills.SkillToolName
 			if name == "" {
 				name = "skill"
 			}
@@ -52,7 +54,7 @@ func (r *piRun) piLocalCatalog(ctx context.Context) ([]agentruntime.Tool, map[st
 			names[name] = true
 		}
 	}
-	if r.cfg.MultiAgent.EinoSkills.EinoSkillFilesystemToolsEffective() && !localToolPermissionDenied(ctx, "execute") {
+	if r.cfg.MultiAgent.Skills.FilesystemToolsEffective() && !localToolPermissionDenied(ctx, "execute") {
 		for _, t := range []agentruntime.Tool{
 			{Name: "read_file", Description: "Read a text file, optionally selecting a 1-based line offset and line limit", Parameters: piToolSchema(map[string]any{"path": str, "offset": map[string]any{"type": "integer", "minimum": 1}, "limit": map[string]any{"type": "integer", "minimum": 1}}, "path")},
 			{Name: "write_file", Description: "Write UTF-8 text to a file", Parameters: piToolSchema(map[string]any{"path": str, "content": str}, "path", "content")},
@@ -79,9 +81,11 @@ type piBoundedOutput struct {
 	onChunk   func(string)
 	spool     io.Writer
 	spoolPath string
+	lastWrite atomic.Int64
 }
 
 func (b *piBoundedOutput) Write(p []byte) (int, error) {
+	b.lastWrite.Store(time.Now().UnixNano())
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.spool != nil {
@@ -119,7 +123,7 @@ func (r *piRun) executePiLocal(ctx context.Context, call agentruntime.ToolCall) 
 		return r.executePiPlan(ctx, call)
 	}
 	arg := func(key string) string { v, _ := call.Arguments[key].(string); return v }
-	skillName := r.cfg.MultiAgent.EinoSkills.SkillToolName
+	skillName := r.cfg.MultiAgent.Skills.SkillToolName
 	if skillName == "" {
 		skillName = "skill"
 	}
@@ -161,16 +165,50 @@ func (r *piRun) executePiLocal(ctx context.Context, call agentruntime.ToolCall) 
 			return result, fmt.Errorf("command is required")
 		}
 		timeout := time.Duration(agentToolTimeoutMinutes(r.cfg)) * time.Minute
-		if timeout <= 0 {
-			timeout = 30 * time.Minute
+		execCtx, cancel := context.WithCancel(ctx)
+		if timeout > 0 {
+			cancel()
+			execCtx, cancel = context.WithTimeout(ctx, timeout)
 		}
-		execCtx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
+		registry := mcp.AgentExecuteRunRegistryFromContext(ctx)
+		if registry != nil {
+			registry.RegisterActiveAgentExecute(r.conversationID, cancel)
+			defer registry.UnregisterActiveAgentExecute(r.conversationID)
+		}
 		cmd := exec.CommandContext(execCtx, "/bin/sh", "-c", arg("command"))
 		cmd.Dir = arg("cwd")
 		security.ConfigureShellCmdForAgentExecute(cmd)
 		output := &piBoundedOutput{}
-		spoolPath, err := tooloutput.WriteTruncFile(tooloutput.SpillOpts{RootDir: r.cfg.MultiAgent.EinoMiddleware.ReductionRootDir, ConversationID: r.conversationID}, "")
+		output.lastWrite.Store(time.Now().UnixNano())
+		idleSeconds := r.cfg.Agent.ShellNoOutputTimeoutSeconds
+		if idleSeconds == 0 {
+			idleSeconds = 300
+		}
+		idleDone := make(chan struct{})
+		defer close(idleDone)
+		var idleExpired atomic.Bool
+		if idleSeconds > 0 {
+			go func() {
+				ticker := time.NewTicker(250 * time.Millisecond)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-idleDone:
+						return
+					case <-execCtx.Done():
+						return
+					case <-ticker.C:
+						if time.Since(time.Unix(0, output.lastWrite.Load())) >= time.Duration(idleSeconds)*time.Second {
+							idleExpired.Store(true)
+							cancel()
+							return
+						}
+					}
+				}
+			}()
+		}
+		spoolPath, err := tooloutput.WriteTruncFile(tooloutput.SpillOpts{RootDir: r.cfg.MultiAgent.Runtime.ReductionRootDir, ConversationID: r.conversationID}, "")
 		if err != nil {
 			return result, err
 		}
@@ -196,6 +234,14 @@ func (r *piRun) executePiLocal(ctx context.Context, call agentruntime.ToolCall) 
 		result.ExecutionID = r.ag.FinishLocalToolExecution(ctx, id, call.Name, call.Arguments, result.Content, err)
 		if err != nil {
 			result.Content += "\n" + err.Error()
+		}
+		if idleExpired.Load() && err != nil {
+			result.Content += fmt.Sprintf("\nCommand stopped after %d seconds without stdout/stderr.", idleSeconds)
+		}
+		if registry != nil {
+			if note := registry.TakeAgentExecuteAbortNote(r.conversationID); note != "" {
+				result.Content += "\nTool stopped by the user. Follow-up instruction: " + note
+			}
 		}
 		return result, nil
 	case "read_file":

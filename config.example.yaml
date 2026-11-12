@@ -69,7 +69,7 @@ storage:
     conversation_artifacts: # 摘要与超长输入台账 data/conversation_artifacts；默认 30 天
       enabled: true
       retention_days: 30
-    plantask: # 多代理计划看板 skills/.eino/plantask；默认 30 天（纯派生数据）
+    plantask: # 多代理计划看板 skills/.pi/plantask；默认 30 天（纯派生数据）
       enabled: true
       retention_days: 30
     c2_artifacts: # C2 回传截图/上传件/下发文件/payload tmp/c2；默认 30 天
@@ -96,7 +96,7 @@ storage:
 #   - DeepSeek: https://api.deepseek.com/v1
 #   - 其他兼容 OpenAI 协议的 API
 # 常用模型: gpt-4, gpt-3.5-turbo, deepseek-chat, claude-3-opus 等
-# provider: 可选值 openai_compatible(默认) | claude(Eino 原生 Anthropic Messages API)
+# provider: 可选值 openai_compatible(默认) | claude(Pi 原生 Anthropic Messages API)
 ai:
   default_channel: qwen-max
   channels:
@@ -120,7 +120,7 @@ ai:
       # HITL 审计仅在未显式配置 provider/base_url/api_key 时继承主渠道 headers；
       # 独立审计身份如需请求头，请在 hitl.audit_model.headers 中单独配置。
       # 空 headers 与未配置等价；所有自定义头值在设置接口中均按敏感值脱敏。
-      # Eino 路径模型推理：DeepSeek/OpenAI 为 thinking / reasoning_effort；Claude 4.6+ 为 adaptive + output_config.effort（仅显式配置 effort 时下发）；3.7 为 enabled+budget_tokens:10000（文档示例），effort 不映射，自定义预算用 extra_request_fields
+      # Pi 路径模型推理：DeepSeek/OpenAI 为 thinking / reasoning_effort；Claude 4.6+ 为 adaptive + output_config.effort（仅显式配置 effort 时下发）；3.7 为 enabled+budget_tokens:10000（文档示例），effort 不映射，自定义预算用 extra_request_fields
       reasoning:
         mode: on # auto | on | off；off：OpenAI/Claude 不附加推理字段，DeepSeek 发送 thinking.type=disabled（其默认开启思考）
         effort: high # low | medium | high | max | xhigh（最高档：OpenAI 常用 xhigh，部分网关用 max，原样下发）；空表示不指定
@@ -147,7 +147,7 @@ vision:
   jpeg_quality: 82
   max_payload_bytes: 524288 # 编码后送 VL API 上限，默认 512KB
   skip_preprocess_below_bytes: 2097152 # 低于 2MB 且长边<=max_dimension 且<=max_payload 时原图直传；0=始终压缩
-  detail: auto # low | high | auto（Eino ImageURLDetail）
+  detail: auto # low | high | auto（Pi ImageURLDetail）
   timeout_seconds: 60
 # ============================================
 # 资产管理（网络空间测绘搜索）配置（可选）
@@ -170,7 +170,7 @@ shodan:
 # 达到最大迭代次数时，AI 会自动总结测试结果
 # Pi runtime (Node.js >=22.19). Build with: bash scripts/build-pi-runtime.sh
 agent_runtime:
-  engine: pi # pi (default) | eino (legacy agent fallback)
+  engine: pi # Pi is the only agent runtime
   node_path: node
   worker_path: "" # empty: use the source-addressed runtime bundle
   session_dir: data/pi-sessions
@@ -337,77 +337,45 @@ hitl:
     - 只做最小必要修改以收窄范围、消除风险（如限制 path、去掉危险 flag）
     - 禁止扩大攻击面：不得扩大目标范围、提升权限或引入破坏性参数
     - 无法安全改参且存在上述高危情形时应 reject，不要勉强 approve
-# 多代理与 Eino 单代理（CloudWeGo Eino ADK；单代理入口 /api/eino-agent*，多代理 /api/multi-agent*）
+# 多代理与 Pi 单代理（Pi SDK；单代理入口 /api/agent*，多代理 /api/multi-agent*）
 # 依赖在 go.mod 中拉取；若下载失败可设置: go env -w GOPROXY=https://goproxy.cn,direct
 # Deep / Plan-Execute / Supervisor 由对话页与 WebShell 所选模式在请求体 orchestration 中指定；机器人按 robot_default_agent_mode
 multi_agent:
   enabled: true
-  robot_default_agent_mode: eino_single # 企微/钉钉/飞书机器人默认：eino_single | deep | plan_execute | supervisor
-  batch_use_multi_agent: false # true 时「批量任务」队列中每个子任务也走 Eino 多代理（成本更高）
-  # plan_execute 专用：execute↔replan 外层循环上限，0 表示 Eino 默认 10。主/子代理 ReAct 轮次见 agent.max_iterations。
+  robot_default_agent_mode: single # 企微/钉钉/飞书机器人默认：single | deep | plan_execute | supervisor
+  batch_use_multi_agent: false # true 时「批量任务」队列中每个子任务也走 Pi 多代理（成本更高）
+  # plan_execute 专用：execute↔replan 外层循环上限，0 表示 原生默认 10。主/子代理 ReAct 轮次见 agent.max_iterations。
   plan_execute_loop_max_iterations: 0
   sub_agent_user_context_max_runes: 0 # 子代理 task 描述中注入用户原文；0=不截断（默认），>0=总字符上限，负数=禁用
   without_general_sub_agent: false # false 时保留 Deep 内置 general-purpose 子代理
   without_write_todos: false
-  orchestrator_instruction: "" # Deep 主代理：agents/orchestrator.md（或 kind: orchestrator 的单个 .md）正文优先；正文为空时用此处；皆空则 Eino 默认
+  orchestrator_instruction: "" # Deep 主代理：agents/orchestrator.md（或 kind: orchestrator 的单个 .md）正文优先；正文为空时用此处；皆空则 原生默认
   orchestrator_instruction_plan_execute: "" # plan_execute 主代理：agents/orchestrator-plan-execute.md 正文优先；正文为空时用此处；皆空则用内置 plan_execute 提示（不使用 Deep 的 orchestrator_instruction）
   orchestrator_instruction_supervisor: "" # supervisor 主代理：agents/orchestrator-supervisor.md 正文优先；正文为空时用此处；皆空则用内置 supervisor 提示（transfer/exit 说明仍由运行追加；不使用 Deep 的 orchestrator_instruction）
-  # Eino 官方 Skills：渐进式披露 + 可选本机文件/Shell（eino-ext local backend）。Skills 目录见 skills_dir。
-  eino_skills:
+  # Pi 官方 Skills：渐进式披露 + 可选本机文件/Shell（原生 Go 工具）。Skills 目录见 skills_dir。
+  skills:
     disable: false # true：不注册 skill 渐进式披露中间件，也不挂本机 FS/Shell 工具；false：按下方开关加载
     filesystem_tools: true # true：注册 read_file/glob/grep/write/edit/execute（授权环境慎用）；false：仅 skill，不暴露本机读写与 Shell
     skill_tool_name: skill # 模型侧可调用的「加载技能」工具名，一般保持 skill；与技能包文档中的调用名一致即可
-  # Eino ADK 中间件与 Deep/Supervisor/plan_execute Executor 调参（结构体见 internal/config/config.go → MultiAgentEinoMiddlewareConfig）
+  # Pi 原生 中间件与 Deep/Supervisor/plan_execute Executor 调参（结构体见 internal/config/config.go → MultiAgentPiMiddlewareConfig）
   # plan_execute：下列 patch/reduction/tool_search/plantask 等同样作用于 Executor（经 ExecPreMiddlewares）；Planner/Replanner 不挂 MCP 前置中间件。
-  eino_middleware:
-    patch_tool_calls: true # true：修补历史中无 tool_result 的悬空 tool_call（流式中断/重试后更稳）；false：关闭；字段省略时默认等同 true
-    tool_search_enable: true # true：工具数 ≥ min 时启用 tool_search，仅前 N 个工具常驻，其余按正则按需解锁，省 token、减误选；false：全量工具进上下文
-    tool_search_min_tools: 20 # 达到该数量才启用 tool_search（避免工具很少时多此一举）；与 always_visible 配合使用
-    tool_search_always_visible: 12 # 始终直接暴露给模型的工具个数（顺序与角色工具列表一致）；其余工具进入动态池，需 tool_search 解锁
-    tool_search_always_visible_tools: [read_file, glob, grep, analyze_image, write_file, edit_file, execute, task, transfer_to_agent, exit, write_todos, skill, tool_search, TaskCreate, TaskGet, TaskUpdate, TaskList, record_vulnerability, list_vulnerabilities, get_vulnerability, get_tool_execution, wait_tool_execution, cancel_tool_execution, list_knowledge_risk_types, search_knowledge_base, webshell_exec, webshell_file_list, webshell_file_read, webshell_file_write, manage_webshell_list, manage_webshell_add, manage_webshell_update, manage_webshell_delete, manage_webshell_test, batch_task_list, batch_task_get, batch_task_start, batch_task_rerun, batch_task_pause, batch_task_update_metadata, batch_task_update_schedule, batch_task_schedule_enabled, batch_task_update_task, batch_task_remove_task, batch_task_delete, batch_task_create, batch_task_add_task, http-framework-test, exec] # 后端内置常驻工具白名单（优先于 always_visible 数量策略）
-    plantask_enable: true # P0：主代理挂载 TaskCreate/Get/Update/List 结构化任务板；需 eino_skills 可用且 skills_dir 存在
-    plantask_rel_dir: .eino/plantask # 任务文件相对 skills_dir，按会话分子目录：skills/.eino/plantask/<conversationId>/
-    reduction_enable: true # true：大工具输出截断并落盘到本地文件（tmp/reduction/.../trunc/<id>），上下文只留 <persisted-output> 预览；不依赖 eino_skills
-    reduction_max_length_for_trunc: 100000 # 单条工具结果超过该字节数时：全文写入本地 trunc 文件，返回带路径的截断预览（MCP/exec 与 reduction 共用此阈值）
-    reduction_max_tokens_for_clear: 60000 # 历史工具结果清理阈值（tokens），应低于 max_total_tokens * summarization_trigger_ratio
-    reduction_root_dir: "" # 非空：截断/清理内容落盘根路径；空：项目目录下 tmp/reduction（按会话/项目隔离）
-    reduction_clear_exclude: [] # 不参与「清理阶段」的工具名额外列表（会与 task/transfer/exit 等内置排除项合并）；需要时用 YAML 列表填写
-    reduction_sub_agents: true # true：子代理也挂 reduction；false：仅编排主代理使用 reduction
-    summarization_trigger_ratio: 0.8 # summarization 触发比例（max_total_tokens * ratio），建议 0.75~0.85
-    summarization_output_reserve_tokens: 40960 # 摘要模型输出预留 token；摘要输入预算 = 触发阈值 - 该值
-    summarization_emit_internal_events: true # true：发出 summarization 内部事件（便于诊断）
-    summarization_user_intent_ledger_max_runes: 96000 # 压缩后注入模型上下文的「原始用户输入与约束账本」总字符上限；DB 原始消息不裁剪
-    summarization_user_intent_ledger_entry_max_runes: 16000 # 账本中单条用户消息的字符上限；超出仅裁剪模型可见账本，不影响 DB 原文
-    latest_user_message_max_runes: 48000 # 本轮最新 user 进入模型上下文的字符上限；超出时全文落盘，仅注入 head/tail 预览
-    latest_user_message_head_runes: 24000 # 超长本轮 user 的头部预览字符数
-    latest_user_message_tail_runes: 24000 # 超长本轮 user 的尾部预览字符数
-    plan_execute_user_input_budget_ratio: 0.35 # plan_execute 中 userInput 预算比例（planner/replanner/executor 共用）
-    plan_execute_executed_steps_budget_ratio: 0.2 # plan_execute 中 executed_steps 预算比例
-    plan_execute_max_step_result_runes: 4000 # plan_execute 每步结果最大字符数（超出截断）
-    plan_execute_keep_last_steps: 8 # plan_execute 仅保留最近 N 步正文，早期步骤折叠为标题
-    checkpoint_dir: "" # 聊天链路不再使用 ADK checkpoint；跨轮模型态统一走 conversations.last_react_*，便于排查 stale context
-    model_retry_max_retries: 0 # Eino 原生 ChatModel retry；408/409/425/429/5xx/网络抖动/空流式输出会重试；0=默认 4（永久性 4xx 不重试）
-    model_retry_max_backoff_sec: 0 # Eino 原生 ChatModel retry 单次退避上限秒数；0=默认 30
-    model_failover_channels: [] # Eino 原生 ChatModel failover；填写 ai.channels ID，例如 [qwen-plus]；retry 耗尽后按顺序切换
-    model_failover_max_retries: 0 # 备用通道最多尝试数；0=尝试全部 model_failover_channels
-    empty_response_continue_max_attempts: 0 # Run 成功但未捕获助手正文（含流式中断）时 Handler 退避续跑次数；0=默认 5
-    deep_output_key: final_answer # P0：Eino session 写入最终助手结论（框架内部；Deep/Supervisor 主/eino_single）
-    task_tool_description_prefix: "" # 非空：仅 Deep 的 task 工具使用自定义描述前缀，运行时会拼接子代理名称；空则走 Eino 默认生成逻辑
-  # Eino callbacks + OpenTelemetry：框架级 span（与 Zap 对齐）；默认不向终端用户 UI 推 eino_trace_*（见 sse_trace_to_client）
-  eino_callbacks:
-    enabled: true
-    # log_only=仅 Zap+OTel（推荐默认）| sse/full=才启用流式回调副本关闭等（full 含 stream hooks）
-    mode: log_only
-    sse_trace_to_client: false # true：且 mode 为 sse/full 时，向前端时间线推送 eino_trace_*（排障/内网演示用）
-    max_input_summary_runes: 400
-    max_output_summary_runes: 400
-    zap_verbose: false # true：Debug 附带 input/output 摘要
-    otel:
-      enabled: true
-      service_name: cyberstrike-ai
-      exporter: stdout # none | stdout（开发/本机）| otlphttp（生产接 Collector）
-      otlp_endpoint: localhost:4318 # otlphttp 时使用，host:port，路径固定 /v1/traces
-      sample_ratio: 1.0 # 0~1，ParentBased+TraceIDRatio
+  runtime:
+    tool_search_enable: true
+    tool_search_min_tools: 20
+    tool_search_always_visible: 12
+    tool_search_always_visible_tools: [get_tool_execution, wait_tool_execution, cancel_tool_execution, search_knowledge_base]
+    tool_search_include_builtins: true # true：后端内置工具始终常驻，绕过 tool_search
+    plantask_enable: true
+    plantask_rel_dir: .pi/plantask
+    reduction_enable: true
+    reduction_root_dir: tmp/reduction
+    reduction_max_length_for_trunc: 12000
+    model_retry_max_retries: 0 # 0 uses Pi SDK defaults
+    model_retry_max_backoff_sec: 0 # 0 uses Pi SDK defaults
+    model_failover_channels: []
+    model_failover_max_retries: 0
+    empty_response_continue_max_attempts: 5
+
 # 数据库配置
 database:
   path: data/conversations.db # SQLite 数据库文件路径，用于存储对话历史和消息
@@ -472,9 +440,9 @@ knowledge:
   retrieval:
     top_k: 5 # 检索返回的Top-K结果数量
     similarity_threshold: 0.4 # 余弦相似度阈值（0-1），低于此值的结果将被过滤
-    # Eino MultiQuery：LLM 改写查询后多路向量检索再融合（始终启用）
+    # Pi MultiQuery：LLM 改写查询后多路向量检索再融合
     multi_query:
-      max_queries: 4 # 改写变体上限（含语义覆盖）；建议 3~4
+      max_queries: 4 # 含原查询的检索次数上限，设为 1 时直接向量检索
     # 精排（始终启用）：dashscope 用 gte-rerank；其他 OpenAI 兼容端点走 /v1/rerank
     rerank:
       provider: "" # 空=按 base_url 推断：dashscope | cohere
@@ -502,15 +470,15 @@ knowledge:
     # 重试配置
     max_retries: 3 # 最大重试次数（默认 3），遇到速率限制或服务器错误时自动重试
     retry_delay_ms: 1000 # 重试间隔毫秒数（默认 1000），每次重试会递增延迟
-    # 分块策略（Eino）：markdown_then_recursive = 先按 Markdown 标题切再递归；recursive = 仅递归切分。留空时程序内默认 markdown_then_recursive
+    # 分块策略（Pi）：markdown_then_recursive = 先按 Markdown 标题切再递归；recursive = 仅递归切分。留空时程序内默认 markdown_then_recursive
     chunk_strategy: markdown_then_recursive
     # 嵌入 HTTP 请求超时（秒）。0 表示使用内置默认（一般为 120），与向量化 API 客户端一致
     request_timeout_seconds: 120
-    # true：索引时优先用知识项 file_path 指向的磁盘文件内容（Eino FileLoader）；false：用数据库里存的正文。读盘失败会回退 DB
+    # true：索引时优先用知识项 file_path 指向的磁盘文件内容（Pi FileLoader）；false：用数据库里存的正文。读盘失败会回退 DB
     prefer_source_file: false
     # 单次嵌入 API 请求的文本条数上限（索引写入按此分批）。须 ≤ 服务商限制（如部分兼容接口最多 10）；过大易 400
     batch_size: 10
-    # Eino indexer.WithSubIndexes：逻辑分区标签列表，会写入向量表 sub_indexes，检索可用 sub_index_filter 过滤；无需求可 []
+    # Pi indexer.WithSubIndexes：逻辑分区标签列表，会写入向量表 sub_indexes，检索可用 sub_index_filter 过滤；无需求可 []
     sub_indexes: []
 # ============================================
 # 机器人配置（企业微信、钉钉、飞书）
@@ -586,7 +554,7 @@ robots:
 # ============================================
 
 # 技能包目录：每个子目录仅标准 SKILL.md（Agent Skills：front matter 仅 name、description）+ 可选附属文件；无 SKILL.yaml
-# 示例：skills/cyberstrike-eino-demo/
+# 示例：skills/cyberstrike-pi-demo/
 skills_dir: skills # Skills配置文件目录（相对于配置文件所在目录）
 # ============================================
 # 多代理子 Agent（Markdown，唯一维护处）

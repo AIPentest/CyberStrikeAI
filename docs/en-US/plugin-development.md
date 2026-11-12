@@ -62,7 +62,7 @@ After extension reload, close DevTools completely and reopen F12 (stale panel co
 
 - Login: `POST /api/auth/login`, then `GET /api/auth/validate`.
 - Persist `expires_at`; re-login when expired (no silent refresh).
-- Prefer `/api/eino-agent/stream` or `/api/multi-agent/stream` (SSE).
+- Prefer `/api/agent/stream` or `/api/multi-agent/stream` (SSE).
 - Large files: `/api/chat-uploads`, then reference in message.
 - Full spec: `/api-docs` or `/api/openapi/spec`.
 

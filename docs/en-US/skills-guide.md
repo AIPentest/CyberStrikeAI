@@ -66,5 +66,5 @@ For SSRF, a Skill describes the test procedure; the KB stores metadata addresses
 
 - Validation: `internal/skillpackage/validate.go`
 - Service: `internal/skillpackage/service.go`
-- Eino Skills: `internal/multiagent/eino_skills.go`
+- Pi Skills: `internal/multiagent/pi_local_tools.go`
 - Handler: `internal/handler/skills.go`

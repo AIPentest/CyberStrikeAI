@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// WorkflowLocalState is the Eino WithGenLocalState payload (checkpoint-serializable).
+// WorkflowLocalState is the Agent WithGenLocalState payload (checkpoint-serializable).
 type WorkflowLocalState struct {
 	Inputs              map[string]any            `json:"inputs,omitempty"`
 	Outputs             map[string]any            `json:"outputs,omitempty"`

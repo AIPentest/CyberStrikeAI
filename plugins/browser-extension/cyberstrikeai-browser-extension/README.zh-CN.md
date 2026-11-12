@@ -66,7 +66,7 @@ Cookie: ...
 #### 发送到 CyberStrikeAI
 
 - 弹窗选择：**项目 / 角色 / 对话模式**（动态 API）+ 测试指令
-- 支持 **Eino Single**、**Deep**、**Plan-Execute**、**Supervisor**
+- 支持 **Pi Single**、**Deep**、**Plan-Execute**、**Supervisor**
 - **Latest XHR**：一键选中最近 API 请求并打开发送弹窗
 - **Stop**：中止本地 SSE + 调用服务端 `/api/agent-loop/cancel`
 

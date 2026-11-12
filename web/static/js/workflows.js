@@ -66,7 +66,7 @@
         return _t(key);
     }
 
-    const AGENT_MODES = ['eino_single', 'deep', 'plan_execute', 'supervisor'];
+    const AGENT_MODES = ['single', 'deep', 'plan_execute', 'supervisor'];
     const JOIN_STRATEGIES = ['all_merge', 'last_by_canvas', 'first_non_empty', 'fail_fast'];
     const NODE_DEFAULT_SIZE = { w: 150, h: 52 };
     const NODE_TYPE_SIZES = { condition: { w: 118, h: 86 } };
@@ -147,7 +147,7 @@
             case 'tool':
                 return { tool_name: '', arguments: '{}', timeout_seconds: '', join_strategy: 'all_merge' };
             case 'agent':
-                return { agent_mode: 'eino_single', input_binding: { from: 'previous', field: 'output' }, instruction: '', output_key: 'agent_result', join_strategy: 'all_merge' };
+                return { agent_mode: 'single', input_binding: { from: 'previous', field: 'output' }, instruction: '', output_key: 'agent_result', join_strategy: 'all_merge' };
             case 'condition':
                 return { expression: '{{previous.output}} != ""', join_strategy: 'all_merge' };
             case 'hitl':
@@ -1194,7 +1194,7 @@
                 };
             case 'agent':
                 return {
-                    agent_mode: (document.getElementById('workflow-agent-mode') || {}).value || 'eino_single',
+                    agent_mode: (document.getElementById('workflow-agent-mode') || {}).value || 'single',
                     input_binding: readBinding('workflow-agent-input'),
                     instruction: (document.getElementById('workflow-agent-instruction') || {}).value || '',
                     output_key: (document.getElementById('workflow-agent-output-key') || {}).value || 'agent_result',
@@ -1564,7 +1564,7 @@
                 timeout_seconds: '120',
                 join_strategy: 'all_merge'
             } : {
-                agent_mode: 'eino_single',
+                agent_mode: 'single',
                 input_binding: { from: 'previous', field: 'output' },
                 instruction: capability.label + '。根据用户需求执行安全流程步骤，并输出结构化结果：' + prompt,
                 output_key: 'agent_result',
@@ -1611,7 +1611,7 @@
                 insertedApproval = true;
             }
             const action = add('agent', '执行受控处置', {
-                agent_mode: 'eino_single',
+                agent_mode: 'single',
                 input_binding: { from: 'previous', field: 'output' },
                 instruction: '仅在授权范围内生成处置步骤草稿；实际执行前必须由人工确认。用户需求：' + prompt,
                 output_key: 'remediation_plan',

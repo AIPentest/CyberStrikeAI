@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@earendil-works/pi-ai": "1.5.2",
-    "@earendil-works/pi-coding-agent": "1.5.2"
+    "@earendil-works/pi-coding-agent": "1.5.2",
+    "undici": "8.12.3"
   },
   "devDependencies": {
     "@types/node": "22.19.19",

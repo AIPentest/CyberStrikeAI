@@ -38,7 +38,7 @@ vision:
 
 系统提示已说明：遇图片调用 `analyze_image`，勿用 `read_file` 读二进制图。
 
-`multi_agent.eino_middleware.tool_search_always_visible_tools` 建议包含 `analyze_image`。
+`multi_agent.runtime.tool_search_always_visible_tools` 建议包含 `analyze_image`。
 
 ## 合规
 

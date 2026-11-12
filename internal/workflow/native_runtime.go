@@ -48,7 +48,7 @@ func invokeGraph(ctx context.Context, args RunArgs, runID, workflowID string, ve
 			return false, fmt.Errorf("workflow checkpoint is missing")
 		}
 		if err = json.Unmarshal(body, &cp); err != nil || cp.Version != 1 || cp.State == nil {
-			return false, fmt.Errorf("workflow checkpoint uses an unsupported legacy format; resume with its original runtime")
+			return false, fmt.Errorf("legacy workflow checkpoint cannot be resumed by this Pi-only version; export prior results and start a new run")
 		}
 		if cp.GraphHash != hash {
 			return false, fmt.Errorf("workflow changed since the checkpoint; refusing to replay a different graph")

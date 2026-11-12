@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Indexer 使用 Eino Compose 索引链（Markdown/递归分块、Lambda  enrich、SQLite 索引）与嵌入写入。
+// Indexer 使用 Agent Compose 索引链（Markdown/递归分块、Lambda  enrich、SQLite 索引）与嵌入写入。
 type Indexer struct {
 	db          *sql.DB
 	embedder    *Embedder
@@ -40,7 +40,7 @@ type Indexer struct {
 	rebuildLastChunks int
 }
 
-// NewIndexer 创建索引器并编译 Eino 索引链；kcfg 为完整知识库配置（含 indexing 与路径相关行为）。
+// NewIndexer 创建索引器并编译 Agent 索引链；kcfg 为完整知识库配置（含 indexing 与路径相关行为）。
 func NewIndexer(ctx context.Context, db *sql.DB, embedder *Embedder, logger *zap.Logger, kcfg *config.KnowledgeConfig) (*Indexer, error) {
 	if db == nil {
 		return nil, fmt.Errorf("db is nil")
@@ -68,7 +68,7 @@ func NewIndexer(ctx context.Context, db *sql.DB, embedder *Embedder, logger *zap
 	embedModel := embedder.EmbeddingModelName()
 	splitter, err := newKnowledgeSplitter(chunkSize, overlap, embedModel)
 	if err != nil {
-		return nil, fmt.Errorf("eino recursive splitter: %w", err)
+		return nil, fmt.Errorf("native document splitter: %w", err)
 	}
 
 	chain, err := buildKnowledgeIndexChain(ctx, indexingCfg, db, splitter, embedModel)
@@ -87,7 +87,7 @@ func NewIndexer(ctx context.Context, db *sql.DB, embedder *Embedder, logger *zap
 	}, nil
 }
 
-// RecompileIndexChain 在配置或嵌入模型变更后重建 Eino 索引链（无需重启进程）。
+// RecompileIndexChain 在配置或嵌入模型变更后重建 Agent 索引链（无需重启进程）。
 func (idx *Indexer) RecompileIndexChain(ctx context.Context) error {
 	if idx == nil || idx.db == nil || idx.embedder == nil {
 		return fmt.Errorf("indexer 未初始化")
@@ -98,7 +98,7 @@ func (idx *Indexer) RecompileIndexChain(ctx context.Context) error {
 	embedModel := idx.embedder.EmbeddingModelName()
 	splitter, err := newKnowledgeSplitter(idx.chunkSize, idx.overlap, embedModel)
 	if err != nil {
-		return fmt.Errorf("eino recursive splitter: %w", err)
+		return fmt.Errorf("native document splitter: %w", err)
 	}
 	chain, err := buildKnowledgeIndexChain(ctx, idx.indexingCfg, idx.db, splitter, embedModel)
 	if err != nil {

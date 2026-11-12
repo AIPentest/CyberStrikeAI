@@ -21,7 +21,7 @@ func TestPiPlanBoardRemainsReadableByConversationAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	db.SetEinoConversationDirs(filepath.Join(dir, ".eino", "plantask"), "", "", "")
+	db.SetAgentConversationDirs(filepath.Join(dir, ".pi", "plantask"), "", "", "")
 	created, err := r.executePiPlan(context.Background(), agentruntime.ToolCall{Name: "TaskCreate", Arguments: map[string]any{"subject": "Collect evidence"}})
 	if err != nil {
 		t.Fatal(err)

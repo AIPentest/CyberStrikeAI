@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Retriever 检索器：SQLite 存向量 + Eino 嵌入，**纯向量检索**（余弦相似度、TopK、阈值），
+// Retriever 检索器：SQLite 存向量 + Agent 嵌入，**纯向量检索**（余弦相似度、TopK、阈值），
 // 实现语义与 [DocumentRetriever] 适配层 [VectorRetriever] 一致。
 type Retriever struct {
 	db       *sql.DB
@@ -50,7 +50,7 @@ func NewRetriever(db *sql.DB, embedder *Embedder, config *RetrievalConfig, logge
 	}
 }
 
-// UpdateConfig 更新检索配置并重建 Eino MultiQuery + 重排流水线。
+// UpdateConfig 更新检索配置并重建 Agent MultiQuery + 重排流水线。
 func (r *Retriever) UpdateConfig(cfg *RetrievalConfig) {
 	if cfg != nil {
 		r.config = cfg
@@ -111,7 +111,7 @@ func cosineSimilarity(a, b []float32) float64 {
 	return dotProduct / (math.Sqrt(normA) * math.Sqrt(normB))
 }
 
-// Search 搜索知识库（Eino MultiQuery → 向量检索 → 重排 → 后处理）。
+// Search 搜索知识库（Agent MultiQuery → 向量检索 → 重排 → 后处理）。
 func (r *Retriever) Search(ctx context.Context, req *SearchRequest) ([]*RetrievalResult, error) {
 	if req == nil {
 		return nil, fmt.Errorf("请求不能为空")
@@ -149,7 +149,7 @@ func (r *Retriever) retrievalOptionsForRequest(req *SearchRequest) []RetrievalOp
 	return opts
 }
 
-// RetrieveDocuments 直接返回 [Document]，供 Eino Graph / Chain 使用。
+// RetrieveDocuments 直接返回 [Document]，供 Agent Graph / Chain 使用。
 func (r *Retriever) RetrieveDocuments(ctx context.Context, query string, opts ...RetrievalOption) ([]*Document, error) {
 	return r.activeRetriever().Retrieve(ctx, query, opts...)
 }
@@ -161,7 +161,7 @@ func (r *Retriever) activeRetriever() DocumentRetriever {
 	return NewVectorRetriever(r)
 }
 
-// AsRetriever 将知识库检索流水线暴露为 Eino [DocumentRetriever]。
+// AsRetriever 将知识库检索流水线暴露为 Agent [DocumentRetriever]。
 func (r *Retriever) AsRetriever() DocumentRetriever {
 	return r.activeRetriever()
 }

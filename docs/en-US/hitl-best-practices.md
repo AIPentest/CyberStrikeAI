@@ -106,7 +106,7 @@ Allowlisted tools skip approval, so keep the list stable and low-risk. Recommend
 - Execution and task-state reads: `get_tool_execution`, `wait_tool_execution`, `batch_task_list`, `batch_task_get`
 - Local management-metadata reads: `manage_webshell_list`, `c2_event`, `c2_file`
 
-These built-in MCP reads remain constrained by RBAC and resource scope; the allowlist only bypasses HITL approval and does not grant additional access. `list_dir` is effective only when that is the actual tool name; the Eino filesystem directory-listing tool is named `ls`.
+These built-in MCP reads remain constrained by RBAC and resource scope; the allowlist only bypasses HITL approval and does not grant additional access. `list_dir` is effective only when that is the actual tool name; the Pi filesystem directory-listing tool is named `ls`.
 
 Avoid globally allowlisting:
 

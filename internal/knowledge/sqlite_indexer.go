@@ -24,7 +24,7 @@ func NewSQLiteIndexer(db *sql.DB, batchSize int, embeddingModel string) *SQLiteI
 	return &SQLiteIndexer{db: db, batchSize: batchSize, embeddingModel: strings.TrimSpace(embeddingModel)}
 }
 
-// GetType implements eino callback run info.
+// GetType identifies this native indexer in diagnostics.
 func (s *SQLiteIndexer) GetType() string {
 	return "SQLiteKnowledgeIndexer"
 }

@@ -8,22 +8,7 @@ import (
 )
 
 func piModelConfig(oa config.OpenAIConfig, intent *reasoning.ClientIntent, conversationID string) agentruntime.Model {
-	mode, effort := oa.Reasoning.ModeEffective(), oa.Reasoning.Effort
-	if intent != nil && oa.Reasoning.AllowClientReasoningEffective() {
-		if intent.Mode != "" {
-			mode = intent.Mode
-		}
-		if intent.Effort != "" {
-			effort = intent.Effort
-		}
-	}
-	thinking := "off"
-	if mode == "on" || (mode == "auto" && effort != "") {
-		thinking = effort
-		if thinking == "" {
-			thinking = "medium"
-		}
-	}
+	thinking := reasoning.ThinkingLevel(&oa, intent)
 	api := "openai-completions"
 	provider := strings.ToLower(strings.TrimSpace(oa.Provider))
 	if provider == "claude" || provider == "anthropic" {
@@ -50,7 +35,7 @@ func piModelConfig(oa config.OpenAIConfig, intent *reasoning.ClientIntent, conve
 		budget = oa.MaxCompletionTokensEffective()
 	}
 	window := budget + oa.MaxCompletionTokensEffective()
-	extra := reasoning.AgenticOpenAIExtraFields(&oa, intent)
+	extra := reasoning.ProviderExtraFields(&oa, intent)
 	if api == "openai-responses" {
 		extra = oa.Reasoning.ExtraRequestFields
 	}

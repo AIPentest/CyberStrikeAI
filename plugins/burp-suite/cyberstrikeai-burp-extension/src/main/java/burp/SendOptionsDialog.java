@@ -37,7 +37,7 @@ final class SendOptionsDialog {
     ) {
         CyberStrikeAIClient.AgentMode defaultMode = lastAgentMode != null
                 ? lastAgentMode
-                : CyberStrikeAIClient.AgentMode.EINO_SINGLE;
+                : CyberStrikeAIClient.AgentMode.SINGLE;
 
         JPanel panel = new JPanel(new BorderLayout(0, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(4, 4, 0, 4));

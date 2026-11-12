@@ -879,7 +879,7 @@ func (h *RobotHandler) cmdDoctor() string {
 			enabledExternal++
 		}
 	}
-	return fmt.Sprintf("【配置诊断】\n主模型: %s\nEino 多代理: %s\n内置 MCP 工具: %d/%d 个已启用\nHTTP MCP 服务: %s\n外部 MCP: %d 个已启用\n知识库: %s\n项目功能: %s\n说明: 内置工具不依赖 HTTP MCP 服务；此命令只检查配置，不主动探测外部服务。", configured(strings.TrimSpace(h.config.OpenAI.Model) != "" && strings.TrimSpace(h.config.OpenAI.BaseURL) != ""), enabled(h.config.MultiAgent.Enabled), enabledInternalTools, len(h.config.Security.Tools), enabled(h.config.MCP.Enabled), enabledExternal, enabled(h.config.Knowledge.Enabled), enabled(h.config.Project.Enabled))
+	return fmt.Sprintf("【配置诊断】\n主模型: %s\nAgent 多代理: %s\n内置 MCP 工具: %d/%d 个已启用\nHTTP MCP 服务: %s\n外部 MCP: %d 个已启用\n知识库: %s\n项目功能: %s\n说明: 内置工具不依赖 HTTP MCP 服务；此命令只检查配置，不主动探测外部服务。", configured(strings.TrimSpace(h.config.OpenAI.Model) != "" && strings.TrimSpace(h.config.OpenAI.BaseURL) != ""), enabled(h.config.MultiAgent.Enabled), enabledInternalTools, len(h.config.Security.Tools), enabled(h.config.MCP.Enabled), enabledExternal, enabled(h.config.Knowledge.Enabled), enabled(h.config.Project.Enabled))
 }
 
 func (h *RobotHandler) recordRobotCommandAudit(access *database.RBACAccess, platform, action, resourceType, resourceID, message string) {
@@ -951,14 +951,14 @@ func robotAgentModeLabel(mode string) string {
 	case "supervisor":
 		return "Supervisor"
 	default:
-		return "Eino 单代理"
+		return "Agent 单代理"
 	}
 }
 
 func parseRobotAgentMode(input string) (string, bool) {
 	switch strings.ToLower(strings.TrimSpace(input)) {
-	case "eino_single", "eino-single", "single", "单代理", "eino单代理", "eino 单代理":
-		return "eino_single", true
+	case "single", "pi-single", "pi_single", "eino_single", "eino-single", "单代理", "eino单代理", "eino 单代理":
+		return "single", true
 	case "deep":
 		return "deep", true
 	case "plan_execute", "plan-execute", "planexecute", "pe":
@@ -974,9 +974,9 @@ func (h *RobotHandler) cmdModes(platform, userID string) string {
 	current := h.getAgentMode(platform, userID)
 	multiStatus := "可用"
 	if h.config == nil || !h.config.MultiAgent.Enabled {
-		multiStatus = "不可用（需在系统设置中启用 Eino 多代理）"
+		multiStatus = "不可用（需在系统设置中启用 Agent 多代理）"
 	}
-	return fmt.Sprintf("【对话模式】\n· Eino 单代理 — 可用\n· Deep — %s\n· Plan-Execute — %s\n· Supervisor — %s\n\n当前模式: %s\n切换示例：模式 deep", multiStatus, multiStatus, multiStatus, robotAgentModeLabel(current))
+	return fmt.Sprintf("【对话模式】\n· Agent 单代理 — 可用\n· Deep — %s\n· Plan-Execute — %s\n· Supervisor — %s\n\n当前模式: %s\n切换示例：模式 deep", multiStatus, multiStatus, multiStatus, robotAgentModeLabel(current))
 }
 
 func (h *RobotHandler) cmdSwitchMode(platform, userID, input string) string {
@@ -984,8 +984,8 @@ func (h *RobotHandler) cmdSwitchMode(platform, userID, input string) string {
 	if !ok {
 		return fmt.Sprintf("不支持的对话模式「%s」。发送「模式」查看可用模式。", strings.TrimSpace(input))
 	}
-	if mode != "eino_single" && (h.config == nil || !h.config.MultiAgent.Enabled) {
-		return fmt.Sprintf("无法切换到 %s：请先在系统设置中启用 Eino 多代理。", robotAgentModeLabel(mode))
+	if mode != "single" && (h.config == nil || !h.config.MultiAgent.Enabled) {
+		return fmt.Sprintf("无法切换到 %s：请先在系统设置中启用 Agent 多代理。", robotAgentModeLabel(mode))
 	}
 	h.setAgentMode(platform, userID, mode)
 	return fmt.Sprintf("已切换对话模式：%s\n后续消息和新对话将使用该模式。", robotAgentModeLabel(mode))

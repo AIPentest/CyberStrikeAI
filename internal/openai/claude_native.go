@@ -158,7 +158,7 @@ func (c *Client) claudeRequest(ctx context.Context, payload any, stream bool) (*
 	req.Header.Set("x-api-key", c.config.APIKey)
 	req.Header.Set("anthropic-version", "2023-06-01")
 	applyCustomHeaders(req, c.config)
-	res, err := c.httpClient.Do(req)
+	res, err := customHeaderHTTPClient(c.httpClient, c.config).Do(req)
 	if err != nil {
 		return nil, err
 	}

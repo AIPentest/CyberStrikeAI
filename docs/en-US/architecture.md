@@ -24,12 +24,12 @@ flowchart LR
 
 ## Request Path
 
-For `/api/eino-agent/stream`:
+For `/api/agent/stream`:
 
 1. Gin route enters auth middleware.
 2. Handler parses message, conversation, role, uploads, and WebShell context.
 3. Agent builds model input: history, role prompt, project facts, tools.
-4. Eino Runner calls the model.
+4. Pi Runner calls the model.
 5. Tool requests go through MCP.
 6. HITL may interrupt before execution.
 7. Tool results are saved to process details and monitoring.

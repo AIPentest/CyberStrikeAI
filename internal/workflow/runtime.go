@@ -12,7 +12,7 @@ import (
 
 type workflowRuntimeCtxKey struct{}
 
-// workflowRuntime carries per-run execution context into Eino Workflow local state.
+// workflowRuntime carries per-run execution context into Agent Workflow local state.
 type workflowRuntime struct {
 	args  RunArgs
 	runID string

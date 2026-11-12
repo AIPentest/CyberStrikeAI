@@ -18,7 +18,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// SkillsHandler Skills处理器（磁盘 + Eino 规范；运行时由 Eino ADK skill 中间件加载）
+// SkillsHandler Skills处理器（磁盘 + Agent 规范；运行时由 Pi skill 中间件加载）
 type SkillsHandler struct {
 	config     *config.Config
 	configPath string

@@ -106,9 +106,9 @@ func runToolNode(ctx context.Context, args RunArgs, node graphNode, state *Workf
 		executionID = result.ExecutionID
 		isError = result.IsError
 	}
-	maxToolOutputBytes := config.MultiAgentEinoMiddlewareConfig{}.ReductionMaxLengthForTruncEffective()
+	maxToolOutputBytes := config.AgentTuningConfig{}.ReductionMaxLengthForTruncEffective()
 	if args.AppCfg != nil {
-		maxToolOutputBytes = args.AppCfg.MultiAgent.EinoMiddleware.ReductionMaxLengthForTruncEffective()
+		maxToolOutputBytes = args.AppCfg.MultiAgent.Runtime.ReductionMaxLengthForTruncEffective()
 	}
 	output = truncateWorkflowToolOutput(output, maxToolOutputBytes, executionID)
 	out := toolOutputMap(node, output, toolName, toolArgs, executionID, isError)
@@ -171,7 +171,7 @@ func runAgentNode(ctx context.Context, args RunArgs, node graphNode, state *Work
 	}
 	mode := strings.ToLower(cfgString(node.Config, "agent_mode"))
 	if mode == "" {
-		mode = "eino_single"
+		mode = "single"
 	}
 	inputSource := resolveNodeInputBinding(node.Config, state)
 	message := buildAgentNodeMessage(node, state, inputSource)
@@ -180,7 +180,7 @@ func runAgentNode(ctx context.Context, args RunArgs, node graphNode, state *Work
 	state.SegmentMaxIteration = 0
 	agentProgress := workflowAgentProgress(args.Progress, state, node)
 	switch mode {
-	case "eino_single", "single", "chat":
+	case "single", "eino_single", "chat":
 		result, err = multiagent.RunSingleAgent(
 			ctx,
 			args.AppCfg,
@@ -300,7 +300,7 @@ func applyWorkflowMainIterationOffset(data interface{}, state *WorkflowLocalStat
 	if !ok || m == nil {
 		return
 	}
-	scope, _ := m["einoScope"].(string)
+	scope, _ := m["agentScope"].(string)
 	if strings.TrimSpace(scope) != "main" {
 		return
 	}

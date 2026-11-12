@@ -1193,7 +1193,7 @@ async function sendAssetsToChat(assets, template) {
 async function createAssetScanTasks(assets, template) {
     const tasks = assets.map(asset => renderAssetScanPrompt(template, asset));
     const executeNow = !!document.getElementById('asset-scan-execute-now').checked;
-    const response = await apiFetch('/api/batch-tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: assetT('assets.scanQueueTitle', '资产批量扫描'), tasks, executeNow, projectId: commonAssetProjectId(assets), concurrency: 1, agentMode: 'eino_single', scheduleMode: 'manual' }) });
+    const response = await apiFetch('/api/batch-tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: assetT('assets.scanQueueTitle', '资产批量扫描'), tasks, executeNow, projectId: commonAssetProjectId(assets), concurrency: 1, agentMode: 'single', scheduleMode: 'manual' }) });
     if (!response.ok) throw new Error(await response.text());
     const result = await response.json();
     const queueTasks = result.queue && Array.isArray(result.queue.tasks) ? result.queue.tasks : [];

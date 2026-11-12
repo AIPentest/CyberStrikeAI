@@ -79,7 +79,7 @@ func TestCreateProgressCallback_MirrorsWebStreamEvents(t *testing.T) {
 	}
 }
 
-func TestCreateProgressCallback_HidesInternalEinoDiagnostics(t *testing.T) {
+func TestCreateProgressCallback_HidesInternalAgentDiagnostics(t *testing.T) {
 	tmp := t.TempDir()
 	db, err := database.NewDB(filepath.Join(tmp, "test.sqlite"), zap.NewNop())
 	if err != nil {
@@ -106,7 +106,7 @@ func TestCreateProgressCallback_HidesInternalEinoDiagnostics(t *testing.T) {
 	cb("model_output_rejected", "模型工具调用不完整或参数不安全，已阻止执行并要求重写。", map[string]interface{}{
 		"reason": "invalid_tool_arguments_json",
 	})
-	cb("progress", "Eino TurnLoop 常驻多轮 runtime 已接管本轮会话。", map[string]interface{}{
+	cb("progress", "Agent TurnLoop 常驻多轮 runtime 已接管本轮会话。", map[string]interface{}{
 		"kind": "turn_loop_takeover",
 	})
 
@@ -147,8 +147,8 @@ func TestCreateProgressCallback_PersistsRunningResponseBeforeDone(t *testing.T) 
 	cb := h.createProgressCallback(context.Background(), nil, conv.ID, asst.ID, nil)
 	meta := map[string]interface{}{
 		"streamId":      "response-refresh-1",
-		"einoAgent":     "cyberstrike-eino-single",
-		"orchestration": "eino_single",
+		"agentName":     "cyberstrike-eino-single",
+		"orchestration": "single",
 	}
 	cb("response_start", "", meta)
 	cb("response_delta", "刷新前已生成的第一部分", openai.WithSSEAccumulated(meta, "刷新前已生成的第一部分"))

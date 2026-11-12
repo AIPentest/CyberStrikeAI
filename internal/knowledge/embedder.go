@@ -14,11 +14,11 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// Embedder 使用 CloudWeGo Eino 的 OpenAI Embedding 组件，并保留速率限制与重试。
+// Embedder uses native OpenAI-compatible HTTP with rate limits and bounded retries.
 type Embedder struct {
-	eino   TextEmbedder
-	config *config.KnowledgeConfig
-	logger *zap.Logger
+	provider TextEmbedder
+	config   *config.KnowledgeConfig
+	logger   *zap.Logger
 
 	rateLimiter    *rate.Limiter
 	rateLimitDelay time.Duration
@@ -27,7 +27,7 @@ type Embedder struct {
 	mu             sync.Mutex
 }
 
-// NewEmbedder 基于 Eino eino-ext OpenAI Embedder；openAIConfig 用于在知识库未单独配置 key 时回退 API Key。
+// NewEmbedder 基于 native OpenAI-compatible Embedding HTTP；openAIConfig 用于在知识库未单独配置 key 时回退 API Key。
 func NewEmbedder(ctx context.Context, cfg *config.KnowledgeConfig, openAIConfig *config.OpenAIConfig, logger *zap.Logger) (*Embedder, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("knowledge config is nil")
@@ -85,7 +85,7 @@ func NewEmbedder(ctx context.Context, cfg *config.KnowledgeConfig, openAIConfig 
 	inner := &httpTextEmbedder{client: httpClient, endpoint: baseURL + "/embeddings", key: apiKey, model: model}
 
 	return &Embedder{
-		eino:           inner,
+		provider:       inner,
 		config:         cfg,
 		logger:         logger,
 		rateLimiter:    rateLimiter,
@@ -138,9 +138,9 @@ func (e *Embedder) EmbedText(ctx context.Context, text string) ([]float32, error
 	return vecs[0], nil
 }
 
-// EmbedStrings 批量嵌入，带重试；实现 [TextEmbedder]，可供 Eino Indexer 使用。
+// EmbedStrings 批量嵌入，带重试；实现 [TextEmbedder]，可供 Agent Indexer 使用。
 func (e *Embedder) EmbedStrings(ctx context.Context, texts []string, opts ...EmbeddingOption) ([][]float32, error) {
-	if e == nil || e.eino == nil {
+	if e == nil || e.provider == nil {
 		return nil, fmt.Errorf("embedder not initialized")
 	}
 	if len(texts) == 0 {
@@ -165,7 +165,7 @@ func (e *Embedder) EmbedStrings(ctx context.Context, texts []string, opts ...Emb
 			}
 		}
 
-		raw, err := e.eino.EmbedStrings(ctx, texts, opts...)
+		raw, err := e.provider.EmbedStrings(ctx, texts, opts...)
 		if err == nil {
 			out := make([][]float32, len(raw))
 			for i, row := range raw {
@@ -211,7 +211,7 @@ func (e *Embedder) isRetryableError(err error) bool {
 	return false
 }
 
-// floatEmbedder adapts [][]float32 embedder to Eino's [][]float64 [TextEmbedder] for Indexer.Store.
+// floatEmbedder adapts [][]float32 embedder to native [][]float64 [TextEmbedder] for Indexer.Store.
 type floatEmbedder struct {
 	inner *Embedder
 }
@@ -240,7 +240,7 @@ func (w *floatEmbedder) IsCallbacksEnabled() bool {
 }
 
 // EmbeddingComponent returns an [TextEmbedder] that uses the same retry/rate-limit path
-// and produces float64 vectors expected by generic Eino indexer helpers.
+// and produces float64 vectors expected by native indexer helpers.
 func (e *Embedder) EmbeddingComponent() TextEmbedder {
 	return &floatEmbedder{inner: e}
 }

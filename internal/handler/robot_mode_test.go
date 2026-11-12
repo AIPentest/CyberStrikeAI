@@ -26,10 +26,10 @@ func TestRobotModeSwitch(t *testing.T) {
 func TestRobotModeRejectsUnavailableMultiAgent(t *testing.T) {
 	h := NewRobotHandler(&config.Config{}, nil, nil, zap.NewNop())
 
-	if got := h.cmdSwitchMode("lark", "user-1", "deep"); !strings.Contains(got, "启用 Eino 多代理") {
+	if got := h.cmdSwitchMode("lark", "user-1", "deep"); !strings.Contains(got, "启用 Agent 多代理") {
 		t.Fatalf("unexpected rejection: %s", got)
 	}
-	if got := h.getAgentMode("lark", "user-1"); got != "eino_single" {
+	if got := h.getAgentMode("lark", "user-1"); got != "single" {
 		t.Fatalf("mode changed after rejection: %q", got)
 	}
 }

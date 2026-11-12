@@ -34,9 +34,9 @@ func (r *piRun) planDir() (string, error) {
 	if root == "" {
 		return "", fmt.Errorf("skills directory required for task board")
 	}
-	rel := r.cfg.MultiAgent.EinoMiddleware.PlantaskRelDir
+	rel := r.cfg.MultiAgent.Runtime.PlantaskRelDir
 	if rel == "" {
-		rel = ".eino/plantask"
+		rel = ".pi/plantask"
 	}
 	return filepath.Join(root, rel, r.conversationID), nil
 }

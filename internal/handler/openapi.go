@@ -119,7 +119,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 						},
 						"agentMode": map[string]interface{}{
 							"type":        "string",
-							"description": "agent 模式，例如 eino_single、eino_deep、workflow",
+							"description": "agent 模式，例如 single、deep、workflow",
 						},
 						"finalized": map[string]interface{}{
 							"type":        "boolean",
@@ -477,8 +477,8 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 						},
 						"agentMode": map[string]interface{}{
 							"type":        "string",
-							"description": "代理模式：eino_single（Eino ADK 单代理，默认）| deep | plan_execute | supervisor",
-							"enum":        []string{"eino_single", "deep", "plan_execute", "supervisor"},
+							"description": "代理模式：single（Pi 单代理，默认）| deep | plan_execute | supervisor",
+							"enum":        []string{"single", "deep", "plan_execute", "supervisor"},
 						},
 						"scheduleMode": map[string]interface{}{
 							"type":        "string",
@@ -1252,7 +1252,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 				"post": map[string]interface{}{
 					"tags":        []string{"对话管理"},
 					"summary":     "创建对话",
-					"description": "创建一个新的安全测试对话。\n**重要说明**：\n- ✅ 创建的对话会**立即保存到数据库**\n- ✅ 前端页面会**自动刷新**显示新对话\n- ✅ 与前端创建的对话**完全一致**\n**创建对话的两种方式**：\n**方式1（推荐）：** 直接使用 `/api/eino-agent` 发送消息，**不提供** `conversationId` 参数，系统会自动创建新对话并发送消息。这是最简单的方式，一步完成创建和发送。\n**方式2：** 先调用此端点创建空对话，然后使用返回的 `conversationId` 调用 `/api/eino-agent` 发送消息。适用于需要先创建对话，稍后再发送消息的场景。\n**示例**：\n```json\n{\n  \"title\": \"Web应用安全测试\"\n}\n```",
+					"description": "创建一个新的安全测试对话。\n**重要说明**：\n- ✅ 创建的对话会**立即保存到数据库**\n- ✅ 前端页面会**自动刷新**显示新对话\n- ✅ 与前端创建的对话**完全一致**\n**创建对话的两种方式**：\n**方式1（推荐）：** 直接使用 `/api/agent` 发送消息，**不提供** `conversationId` 参数，系统会自动创建新对话并发送消息。这是最简单的方式，一步完成创建和发送。\n**方式2：** 先调用此端点创建空对话，然后使用返回的 `conversationId` 调用 `/api/agent` 发送消息。适用于需要先创建对话，稍后再发送消息的场景。\n**示例**：\n```json\n{\n  \"title\": \"Web应用安全测试\"\n}\n```",
 					"operationId": "createConversation",
 					"requestBody": map[string]interface{}{
 						"required": true,
@@ -1562,12 +1562,12 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 					},
 				},
 			},
-			"/api/eino-agent": map[string]interface{}{
+			"/api/agent": map[string]interface{}{
 				"post": map[string]interface{}{
 					"tags":        []string{"对话交互"},
-					"summary":     "发送消息并获取 AI 回复（Eino ADK 单代理，非流式）",
-					"description": "向 AI 发送消息并获取回复（非流式）。由 **CloudWeGo Eino** `adk.NewChatModelAgent` + `adk.NewRunner.Run` 执行单代理 MCP 工具链。**不依赖** `multi_agent.enabled`；`multi_agent.eino_skills` / `eino_middleware` 等与多代理主代理一致时可生效。支持 `webshellConnectionId`、角色与附件。",
-					"operationId": "sendMessageEinoSingleAgent",
+					"summary":     "发送消息并获取 AI 回复（Pi 单代理，非流式）",
+					"description": "向 AI 发送消息并获取回复（非流式）。由 **Pi** 原生运行时执行单代理 MCP 工具链，工具调用交回 Go 网关。**不依赖** `multi_agent.enabled`；`multi_agent.skills` / `multi_agent.runtime` 等与多代理主代理一致时可生效。支持 `webshellConnectionId`、角色与附件。",
+					"operationId": "sendMessageAgentSingleAgent",
 					"requestBody": map[string]interface{}{
 						"required": true,
 						"content": map[string]interface{}{
@@ -1601,12 +1601,12 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 					},
 				},
 			},
-			"/api/eino-agent/stream": map[string]interface{}{
+			"/api/agent/stream": map[string]interface{}{
 				"post": map[string]interface{}{
 					"tags":        []string{"对话交互"},
-					"summary":     "发送消息并获取 AI 回复（Eino ADK 单代理，SSE）",
-					"description": "向 AI 发送消息并获取流式回复（SSE）。由 Eino **单代理** ADK 执行；事件类型与多代理流式一致（含 `tool_call` / `response_delta` / `thinking` 等）。`response_start` / `response_delta` 仅为候选/过程输出；只有 `type: response` 且 `data.finalized=true` 才表示成功最终回复。缺 completed 执行证据时可能先发送 `finalization_auto_continue`，表示服务端基于已有 trace 无注入续跑。`data.finalized=false` 时 message 为未完成/阻断说明。**不依赖** `multi_agent.enabled`。",
-					"operationId": "sendMessageEinoSingleAgentStream",
+					"summary":     "发送消息并获取 AI 回复（Pi 单代理，SSE）",
+					"description": "向 AI 发送消息并获取流式回复（SSE）。由 Agent **单代理** ADK 执行；事件类型与多代理流式一致（含 `tool_call` / `response_delta` / `thinking` 等）。`response_start` / `response_delta` 仅为候选/过程输出；只有 `type: response` 且 `data.finalized=true` 才表示成功最终回复。缺 completed 执行证据时可能先发送 `finalization_auto_continue`，表示服务端基于已有 trace 无注入续跑。`data.finalized=false` 时 message 为未完成/阻断说明。**不依赖** `multi_agent.enabled`。",
+					"operationId": "sendMessageAgentSingleAgentStream",
 					"requestBody": map[string]interface{}{
 						"required": true,
 						"content": map[string]interface{}{
@@ -1644,8 +1644,8 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 			"/api/multi-agent": map[string]interface{}{
 				"post": map[string]interface{}{
 					"tags":        []string{"对话交互"},
-					"summary":     "发送消息并获取 AI 回复（Eino 多代理，非流式）",
-					"description": "与 `POST /api/eino-agent` 请求体相同，但由 **CloudWeGo Eino** 多代理执行。编排由请求体 `orchestration`（`deep` | `plan_execute` | `supervisor`）指定，缺省为 `deep`。**前提**：`multi_agent.enabled: true`；未启用时返回 404 JSON。支持 `webshellConnectionId`。",
+					"summary":     "发送消息并获取 AI 回复（Agent 多代理，非流式）",
+					"description": "与 `POST /api/agent` 请求体相同，但由 **Pi** 多代理执行。编排由请求体 `orchestration`（`deep` | `plan_execute` | `supervisor`）指定，缺省为 `deep`。**前提**：`multi_agent.enabled: true`；未启用时返回 404 JSON。支持 `webshellConnectionId`。",
 					"operationId": "sendMessageMultiAgent",
 					"requestBody": map[string]interface{}{
 						"required": true,
@@ -1668,12 +1668,12 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 										},
 										"webshellConnectionId": map[string]interface{}{
 											"type":        "string",
-											"description": "WebShell 连接 ID（可选，与 Eino 单/多代理流式行为一致）",
+											"description": "WebShell 连接 ID（可选，与 Agent 单/多代理流式行为一致）",
 										},
 										"finalization": finalizationRequestSchema,
 										"orchestration": map[string]interface{}{
 											"type":        "string",
-											"description": "Eino 预置编排：deep | plan_execute | supervisor；缺省 deep",
+											"description": "Agent 预置编排：deep | plan_execute | supervisor；缺省 deep",
 											"enum":        []string{"deep", "plan_execute", "supervisor"},
 										},
 									},
@@ -1701,8 +1701,8 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 			"/api/multi-agent/stream": map[string]interface{}{
 				"post": map[string]interface{}{
 					"tags":        []string{"对话交互"},
-					"summary":     "发送消息并获取 AI 回复（Eino 多代理，SSE）",
-					"description": "与 `POST /api/eino-agent/stream` 类似；由 Eino 多代理执行。`orchestration` 指定 deep / plan_execute / supervisor，缺省 deep。`response_start` / `response_delta` 仅为候选/过程输出；只有 `type: response` 且 `data.finalized=true` 才表示成功最终回复。缺 completed 执行证据时可能先发送 `finalization_auto_continue`，表示服务端基于已有 trace 无注入续跑。**前提**：`multi_agent.enabled: true`；未启用时 SSE 内首条为 `type: error` 后接 `done`。支持 `webshellConnectionId`。",
+					"summary":     "发送消息并获取 AI 回复（Agent 多代理，SSE）",
+					"description": "与 `POST /api/agent/stream` 类似；由 Agent 多代理执行。`orchestration` 指定 deep / plan_execute / supervisor，缺省 deep。`response_start` / `response_delta` 仅为候选/过程输出；只有 `type: response` 且 `data.finalized=true` 才表示成功最终回复。缺 completed 执行证据时可能先发送 `finalization_auto_continue`，表示服务端基于已有 trace 无注入续跑。**前提**：`multi_agent.enabled: true`；未启用时 SSE 内首条为 `type: error` 后接 `done`。支持 `webshellConnectionId`。",
 					"operationId": "sendMessageMultiAgentStream",
 					"requestBody": map[string]interface{}{
 						"required": true,
@@ -4758,7 +4758,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 									"properties": map[string]interface{}{
 										"title":     map[string]interface{}{"type": "string", "description": "队列标题"},
 										"role":      map[string]interface{}{"type": "string", "description": "使用的角色名称"},
-										"agentMode": map[string]interface{}{"type": "string", "description": "代理模式", "enum": []string{"eino_single", "deep", "plan_execute", "supervisor"}},
+										"agentMode": map[string]interface{}{"type": "string", "description": "代理模式", "enum": []string{"single", "deep", "plan_execute", "supervisor"}},
 									},
 								},
 							},
@@ -6648,7 +6648,7 @@ func (h *OpenAPIHandler) GetConversationResults(c *gin.Context) {
 		vulnerabilities[i] = *v
 	}
 
-	// 获取执行结果（历史大结果由 Eino reduction 落盘，此处不再聚合文件存储）
+	// 获取执行结果（历史大结果由 Agent reduction 落盘，此处不再聚合文件存储）
 	executionResults := []map[string]interface{}{}
 
 	response := map[string]interface{}{

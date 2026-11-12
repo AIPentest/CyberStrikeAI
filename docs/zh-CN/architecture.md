@@ -35,7 +35,7 @@ flowchart LR
 
 `internal/handler/` 按业务拆分：
 
-- `agent.go`、`eino_single_agent.go`、`multi_agent.go`
+- `agent.go`、`single_agent.go`、`multi_agent.go`
 - `workflow.go`、`workflow_run.go`
 - `knowledge.go`
 - `webshell.go`
@@ -58,14 +58,14 @@ Handler 负责参数解析、权限中间件后的业务协调和 HTTP 响应。
 - `internal/agents/`
 - `agents/`
 
-默认运行时是 Pi TypeScript SDK。`internal/agentruntime/` 管理子进程协议与构建，`internal/multiagent/pi_*.go` 负责角色、工具、审批和事件适配。单代理及 Deep、Plan-Execute、Supervisor 均使用 Pi 会话；角色仍由 Markdown 定义。旧 Eino 内核仅在 `agent_runtime.engine: eino` 时启用，供迁移回退。详见 [Pi 运行时](pi-runtime.md)。
+默认运行时是 Pi TypeScript SDK。`internal/agentruntime/` 管理子进程协议与构建，`internal/multiagent/pi_*.go` 负责角色、工具、审批和事件适配。单代理及 Deep、Plan-Execute、Supervisor 均使用 Pi 会话；角色仍由 Markdown 定义。旧框架内核与依赖已删除，运行时仅支持 Pi。详见 [Pi 运行时](pi-runtime.md)。
 
 ## MCP 与工具
 
 MCP 相关：
 
 - `internal/mcp/`：Server、外部 MCP、连接恢复。
-- `internal/agentruntime/` 与 `internal/multiagent/pi_runner.go`：Pi 与 Go MCP 执行链适配；`internal/einomcp/` 留作 Eino 兼容路径。
+- `internal/agentruntime/` 与 `internal/multiagent/pi_runner.go`：Pi 与 Go MCP 执行链适配；`internal/agentruntime/` 留作 Pi 兼容路径。
 - `tools/`：YAML 命令工具。
 - `internal/app/*_tools.go`：Go 内置工具注册。
 
@@ -123,7 +123,7 @@ MCP 相关：
 
 ## 一次对话请求的真实路径
 
-以 `/api/eino-agent/stream` 为例：
+以 `/api/agent/stream` 为例：
 
 1. Gin 路由进入认证中间件。
 2. Handler 解析请求体、会话 ID、角色、附件和 WebShell 上下文。
