@@ -110,10 +110,10 @@ func TestDeleteTurnRollsBackWhenPiCleanupFails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blocked := filepath.Join(root, "not-a-directory")
-	if err := os.WriteFile(blocked, []byte("blocked"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	// A regular file as the parent is treated as an absent target by Windows
+	// RemoveAll. NUL is invalid on every supported OS and reliably exercises
+	// the cleanup error/transaction rollback path without filesystem privileges.
+	blocked := filepath.Join(root, "invalid\x00root")
 	if err := db.SetAgentSessionDir(blocked); err != nil {
 		t.Fatal(err)
 	}
