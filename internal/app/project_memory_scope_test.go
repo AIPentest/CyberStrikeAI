@@ -75,12 +75,12 @@ func TestProjectMemoryToolScopeAndHistoricalOptIn(t *testing.T) {
 		args["source_conversation_id"] = history.ID
 		result = call(name, args)
 		body = text(result)
-		if result.IsError || !strings.Contains(body, "note/context-history") || !strings.Contains(body, "历史参考") || !strings.Contains(body, history.ID) || !strings.Contains(body, "更新时间=") || strings.Contains(body, "note/context-own") {
+		if result.IsError || !strings.Contains(body, "note/context-history") || !strings.Contains(body, "Historical reference") || !strings.Contains(body, history.ID) || !strings.Contains(body, "updated at=") || strings.Contains(body, "note/context-own") {
 			t.Fatalf("explicit history lost provenance: %s", body)
 		}
 	}
 	page := text(call(builtin.ToolListProjectFacts, map[string]interface{}{"limit": 1}))
-	if strings.Contains(page, "共 0 条") || strings.Contains(page, "note/context-history") || strings.Contains(page, "note/context-legacy") {
+	if strings.Contains(page, "0 total") || strings.Contains(page, "note/context-history") || strings.Contains(page, "note/context-legacy") {
 		t.Fatalf("scope filtering occurred after pagination: %s", page)
 	}
 	shared := call(builtin.ToolGetProjectFact, map[string]interface{}{"fact_key": "finding/shared"})
@@ -96,11 +96,11 @@ func TestProjectMemoryToolScopeAndHistoricalOptIn(t *testing.T) {
 		t.Fatal("default get exposes foreign checkpoint")
 	}
 	visible := call(builtin.ToolGetProjectFact, map[string]interface{}{"fact_key": "note/context-history", "include_history": true})
-	if visible.IsError || !strings.Contains(text(visible), "HISTORIC_COOKIE") || !strings.Contains(text(visible), "历史参考") {
+	if visible.IsError || !strings.Contains(text(visible), "HISTORIC_COOKIE") || !strings.Contains(text(visible), "Historical reference") {
 		t.Fatalf("explicit history unavailable: %s", text(visible))
 	}
 	unknown := call(builtin.ToolGetProjectFact, map[string]interface{}{"fact_key": "note/context-legacy", "include_history": true})
-	if unknown.IsError || !strings.Contains(text(unknown), "未知来源") || !strings.Contains(text(unknown), "历史参考") {
+	if unknown.IsError || !strings.Contains(text(unknown), "Unknown source") || !strings.Contains(text(unknown), "Historical reference") {
 		t.Fatal("unknown origin presented as current memory")
 	}
 	outsideRead := call(builtin.ToolGetProjectFact, map[string]interface{}{"fact_key": "note/context-outside", "include_history": true, "project_id": pOther.ID})

@@ -95,7 +95,7 @@ func (c ProjectConfig) ContextCheckpointsEnabled() bool {
 // FactIndexMaxRunesEffective 自动注入黑板索引的最大 rune 数。
 func (c ProjectConfig) FactIndexMaxRunesEffective() int {
 	if c.FactIndexMaxRunes <= 0 {
-		return 3500
+		return 9000
 	}
 	return c.FactIndexMaxRunes
 }
@@ -103,7 +103,7 @@ func (c ProjectConfig) FactIndexMaxRunesEffective() int {
 // FactIndexPathMaxRunesEffective 攻击路径速览段的最大 rune 数（从 fact_index_max_runes 预算中预留）。
 func (c ProjectConfig) FactIndexPathMaxRunesEffective() int {
 	if c.FactIndexPathMaxRunes <= 0 {
-		return 1000
+		return 1800
 	}
 	return c.FactIndexPathMaxRunes
 }

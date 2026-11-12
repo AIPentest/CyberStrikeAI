@@ -2,7 +2,7 @@ package project
 
 import "cyberstrike-ai/internal/database"
 
-// GetProjectStats 聚合项目统计（含待补全事实数）。
+// GetProjectStats Aggregates project statistics (including the count of facts to be completed).
 func GetProjectStats(db *database.DB, projectID string) (*database.ProjectStats, error) {
 	stats, err := db.GetProjectStatsCounts(projectID)
 	if err != nil {

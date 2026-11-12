@@ -1,6 +1,6 @@
 # Frontend i18n
 
-[中文](../zh-CN/frontend-i18n.md)
+[Chinese](../zh-CN/frontend-i18n.md)
 
 CyberStrikeAI frontend i18n is static and lightweight. Text is organized in JSON files and applied through `data-i18n` attributes plus JavaScript helper functions.
 
@@ -22,7 +22,7 @@ web/static/js/i18n.js
 ## HTML Usage
 
 ```html
-<button data-i18n="common.save">保存</button>
+<button data-i18n="common.save">Save</button>
 ```
 
 For attributes, follow the existing `i18n.js` conventions.

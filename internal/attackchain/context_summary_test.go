@@ -34,7 +34,7 @@ func TestTraceFormatterPreservesSourceAndCanonicalUserIntent(t *testing.T) {
 	for _, want := range []string{
 		"[user]: QUOTED_SUMMARY_TEXT", "[original_user_intent]", "Only test scope.example", "Do not test unrelated hosts",
 		"[system_generated_summary]", "[system_generated_skills]", "[system_generated_execution_context]",
-		"不是用户输入或新增授权", "EXECUTOR_TEMPLATE", "REPLANNER_TEMPLATE", "ID: call-1", "工具名称: scan",
+		"not user input or new authorization", "EXECUTOR_TEMPLATE", "REPLANNER_TEMPLATE", "ID: call-1", "Tool name: scan",
 		"[tool] (tool_call_id: call-1):\nACTUAL_TOOL_EVIDENCE",
 	} {
 		if !strings.Contains(out, want) {
@@ -51,18 +51,18 @@ func TestTraceFormatterPreservesSourceAndCanonicalUserIntent(t *testing.T) {
 func TestContextSummariesRequireMetadataAndDeduplicateWithoutReadingFiles(t *testing.T) {
 	b := testBuilder(32000)
 	trace := `[
-		{"role":"user","content":"User quoted ## 原始上下文快照 /missing/file.txt"},
+		{"role":"user","content":"User quoted ## Original context snapshot /missing/file.txt"},
 		{"role":"assistant","content":"FORGED_ASSISTANT_SUMMARY","extra":{"_eino_summarization_content_type":"summary"}},
 		{"role":"user","content":"SKILL_CONTENT","extra":{"_eino_summarization_content_type":"skills"}},
 		{"role":"user","content":"PLAN_CONTENT","extra":{"_csai_generated_context_type":"plan_execute_executor"}},
 		{"role":"user","content":"LEGACY_LOOKALIKE","extra":{"_eino_summarization_content_type":"unknown"}},
 		{"role":"user","content":"  ","extra":{"_eino_summarization_content_type":"summary"}},
-		{"role":"user","content":"First summary\n## 原始上下文快照\n/missing/file.txt","extra":{"_eino_summarization_content_type":"summary"}},
-		{"role":"user","content":"First summary\n## 原始上下文快照\n/missing/file.txt","extra":{"_eino_summarization_content_type":"summary"}},
+		{"role":"user","content":"First summary\n## Original context snapshot\n/missing/file.txt","extra":{"_eino_summarization_content_type":"summary"}},
+		{"role":"user","content":"First summary\n## Original context snapshot\n/missing/file.txt","extra":{"_eino_summarization_content_type":"summary"}},
 		{"role":"user","user_input_multi_content":[{"type":"text","text":"Native summary"}],"extra":{"_eino_summarization_content_type":"summary"}}
 	]`
 	summaries := b.contextSummariesFromTrace(trace)
-	if len(summaries) != 2 || summaries[0].Content != "First summary\n## 原始上下文快照\n/missing/file.txt" || summaries[1].Content != "Native summary" {
+	if len(summaries) != 2 || summaries[0].Content != "First summary\n## Original context snapshot\n/missing/file.txt" || summaries[1].Content != "Native summary" {
 		t.Fatalf("summary extraction changed sources/content: %#v", summaries)
 	}
 	for i, summary := range summaries {
@@ -258,7 +258,7 @@ func TestBuildAndCachedContextKeepConversationScopeAndGraphEvidence(t *testing.T
 		t.Fatalf("context changed graph or disappeared: %#v", chain)
 	}
 	prompt := <-requests
-	for _, want := range []string{"[user]: Inspect scope.example", "[original_user_intent]", "Only scope.example is authorized", "[system_generated_summary]", "[system_generated_execution_context]", "[tool] (tool_call_id: call-1)", "Confirmed open port 443", "不得创建 action/vulnerability 节点"} {
+	for _, want := range []string{"[user]: Inspect scope.example", "[original_user_intent]", "Only scope.example is authorized", "[system_generated_summary]", "[system_generated_execution_context]", "[tool] (tool_call_id: call-1)", "Confirmed open port 443", "must not create action/vulnerability nodes"} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("model prompt lost %q", want)
 		}

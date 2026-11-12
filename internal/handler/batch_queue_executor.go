@@ -134,7 +134,7 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 
 	finalMessage := task.Message
 	var roleTools []string
-	if queue.Role != "" && queue.Role != "默认" {
+	if queue.Role != "" && queue.Role != "Default" {
 		if h.config.Roles != nil {
 			if role, exists := h.config.Roles[queue.Role]; exists && role.Enabled {
 				if role.UserPrompt != "" {

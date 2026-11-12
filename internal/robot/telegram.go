@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	telegramPlatform       = "telegram"
-	telegramAPIBase        = "https://api.telegram.org"
-	telegramLongPollSec    = 30
+	telegramPlatform        = "telegram"
+	telegramAPIBase         = "https://api.telegram.org"
+	telegramLongPollSec     = 30
 	telegramMaxMessageRunes = 4096
 )
 
@@ -28,10 +28,10 @@ type telegramUpdate struct {
 }
 
 type telegramMessage struct {
-	MessageID int64           `json:"message_id"`
-	Chat      telegramChat    `json:"chat"`
-	From      *telegramUser   `json:"from"`
-	Text      string          `json:"text"`
+	MessageID int64            `json:"message_id"`
+	Chat      telegramChat     `json:"chat"`
+	From      *telegramUser    `json:"from"`
+	Text      string           `json:"text"`
 	Entities  []telegramEntity `json:"entities"`
 }
 
@@ -67,7 +67,7 @@ type telegramBotMe struct {
 	} `json:"result"`
 }
 
-// StartTelegram 启动 Telegram Bot 长轮询（getUpdates，无需公网回调）。
+// StartTelegram Starts Telegram Bot long polling (getUpdates, no public callback needed).
 func StartTelegram(ctx context.Context, robotsCfg config.RobotsConfig, h MessageHandler, logger *zap.Logger) {
 	cfg := robotsCfg.Telegram
 	if !cfg.Enabled || strings.TrimSpace(cfg.BotToken) == "" {
@@ -81,11 +81,11 @@ func runTelegramLoop(ctx context.Context, cfg config.RobotTelegramConfig, h Mess
 	for {
 		err := runTelegramPoll(ctx, cfg, h, logger)
 		if ctx.Err() != nil {
-			logger.Info("Telegram 长轮询已按配置关闭")
+			logger.Info("Telegram Long polling closed as configured")
 			return
 		}
 		if err != nil {
-			logger.Warn("Telegram 长轮询异常，将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
+			logger.Warn("Telegram Long polling error; it will reconnect automatically", zap.Error(err), zap.Duration("retry_after", backoff))
 		}
 		if !waitReconnect(ctx, &backoff) {
 			return
@@ -98,13 +98,13 @@ func runTelegramPoll(ctx context.Context, cfg config.RobotTelegramConfig, h Mess
 	botUsername := strings.TrimSpace(cfg.BotUsername)
 	if botUsername == "" {
 		if name, err := telegramGetMe(ctx, token); err != nil {
-			logger.Warn("Telegram getMe 失败", zap.Error(err))
+			logger.Warn("Telegram getMe failed", zap.Error(err))
 		} else {
 			botUsername = name
 		}
 	}
 	offset := cfg.UpdateOffset
-	logger.Info("Telegram 长轮询已启动", zap.String("bot", botUsername))
+	logger.Info("Telegram Long polling started", zap.String("bot", botUsername))
 	client := &http.Client{Timeout: telegramLongPollSec*time.Second + 10*time.Second}
 
 	for {
@@ -140,10 +140,10 @@ func runTelegramPoll(ctx context.Context, cfg config.RobotTelegramConfig, h Mess
 				}
 			}
 			userID := telegramSessionKey(chatType, u.Message.Chat.ID, u.Message.From.ID)
-			logger.Info("Telegram 收到消息", zap.String("from", userID), zap.String("content", text))
+			logger.Info("Telegram Received a message", zap.String("from", userID), zap.String("content", text))
 			reply := h.HandleMessage(telegramPlatform, userID, text)
 			if err := telegramSendReply(ctx, client, token, u.Message.Chat.ID, reply); err != nil {
-				logger.Warn("Telegram 发送回复失败", zap.String("to", userID), zap.Error(err))
+				logger.Warn("Telegram Failed to send the reply", zap.String("to", userID), zap.Error(err))
 			}
 		}
 	}

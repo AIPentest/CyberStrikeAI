@@ -25,13 +25,13 @@ func recoverAdoption(ctx context.Context, opts Options) error {
 	}
 	pending, present, err := readBuildPending(root)
 	if err != nil {
-		return &Error{Reason: "state_unreadable", Message: "无法读取接入恢复记录：" + err.Error()}
+		return &Error{Reason: "state_unreadable", Message: "Could not read the connect restore record: " + err.Error()}
 	}
 	if !present || pending.AdoptBranch == "" {
 		return nil
 	}
 	if !ValidName(pending.AdoptBranch) {
-		return &Error{Reason: "bad_state", Message: "接入恢复记录的分支不合法"}
+		return &Error{Reason: "bad_state", Message: "The branch in the connect restore record is invalid"}
 	}
 	head, headErr := gitCmd(ctx, root, "rev-parse", "HEAD")
 	if headErr != nil {
@@ -47,14 +47,14 @@ func recoverAdoption(ctx context.Context, opts Options) error {
 			old, oldErr := os.ReadFile(backup)
 			current, currentErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
 			if oldErr != nil || currentErr != nil || !bytes.Equal(old, current) {
-				return &Error{Reason: "local_source_edits", Message: "接入中断后本地文件发生变化，已保留现场：" + rel}
+				return &Error{Reason: "local_source_edits", Message: "Local files changed after the connect was interrupted; the state has been kept: " + rel}
 			}
 		}
 		if _, err := gitCmd(ctx, root, "checkout", "--force", "-B", pending.AdoptBranch, pending.Commit); err != nil {
 			return err
 		}
 	} else if head != pending.Commit {
-		return &Error{Reason: "build_state_mismatch", Message: "接入中断后 HEAD 发生变化，已保留现场"}
+		return &Error{Reason: "build_state_mismatch", Message: "HEAD changed after the connect was interrupted; the state has been kept"}
 	}
 	if err := restoreInterruptedProtected(ctx, root, pending, true); err != nil {
 		return err
@@ -150,10 +150,10 @@ func Adopt(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 	if err != nil {
 		return nil, err
 	}
-	step("preflight", fmt.Sprintf("把目录 %s 接入更新源 %s", root, source))
+	step("preflight", fmt.Sprintf("Connects directory %s to the update source %s", root, source))
 
 	if _, err := gitCmd(ctx, root, "init", "--quiet"); err != nil {
-		return nil, &Error{Reason: "init_failed", Message: "git init 失败：" + err.Error()}
+		return nil, &Error{Reason: "init_failed", Message: "git init failed: " + err.Error()}
 	}
 	adopted := false
 	defer func() {
@@ -163,7 +163,7 @@ func Adopt(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 		}
 	}()
 	if _, err := gitCmd(ctx, root, "remote", "add", "origin", source); err != nil {
-		return nil, &Error{Reason: "init_failed", Message: "添加远端失败：" + err.Error()}
+		return nil, &Error{Reason: "init_failed", Message: "Failed to add the remote: " + err.Error()}
 	}
 
 	branch, commit, subject, err := fetchSource(ctx, root, source)
@@ -175,7 +175,7 @@ func Adopt(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 	if err != nil {
 		return nil, err
 	}
-	step("fetch", fmt.Sprintf("%s/%s（%s %s）共 %d 个文件：%d 个本机版本会被目标版本替换，%d 个运维者文件先暂存再放回",
+	step("fetch", fmt.Sprintf("%s/%s (%s %s)%d files in total: %d local versions will be replaced by the target version, and %d operator files are stashed first and then restored",
 		source, branch, commit, subject, len(scan.paths), len(scan.changed), len(scan.kept)))
 
 	backupDir := ""
@@ -190,18 +190,18 @@ func Adopt(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 		abs := filepath.Join(root, filepath.FromSlash(p))
 		info, statErr := os.Stat(abs)
 		if statErr != nil || !info.Mode().IsRegular() {
-			return nil, &Error{Reason: "backup_failed", Message: "备份前本地文件发生变化，未执行接入：" + p}
+			return nil, &Error{Reason: "backup_failed", Message: "Local files changed before the backup; the connect was not performed: " + p}
 		}
 		dst := filepath.Join(backupDir, "overwritten", filepath.FromSlash(p))
 		if Protected(p) {
 			dst = filepath.Join(backupDir, filepath.FromSlash(p))
 		}
 		if err := copyFile(abs, dst, info.Mode()); err != nil {
-			return nil, &Error{Reason: "backup_failed", Message: fmt.Sprintf("备份 %s 失败：%v", p, err)}
+			return nil, &Error{Reason: "backup_failed", Message: fmt.Sprintf("Failed to back up %s: %v", p, err)}
 		}
 	}
 	if len(backupAll) > 0 {
-		step("protect", fmt.Sprintf("%d 个文件已留底（被替换的在 %s/overwritten/，运维者的会原样放回）", len(backupAll), backupDir))
+		step("protect", fmt.Sprintf("%d files have been backed up (replaced ones are in %s/overwritten/, operator files are restored verbatim)", len(backupAll), backupDir))
 	}
 
 	targetCommit, err := gitCmd(ctx, root, "rev-parse", ref)
@@ -227,11 +227,11 @@ func Adopt(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 	}
 	// Record both the target and backups before checkout can replace any file.
 	if err := writeBuildPending(root, pending); err != nil {
-		return nil, &Error{Reason: "state_unwritable", Message: "无法写入接入恢复状态：" + err.Error()}
+		return nil, &Error{Reason: "state_unwritable", Message: "Could not write the connect restore state: " + err.Error()}
 	}
 	adopted = true
 	if _, err := gitCmd(ctx, root, "checkout", "--force", "-B", branch, targetCommit); err != nil {
-		return nil, &Error{Reason: "checkout_failed", Message: "落地目标内容失败，已保留恢复记录，再次更新可恢复：" + err.Error()}
+		return nil, &Error{Reason: "checkout_failed", Message: "Failed to write the target content to disk; the restore record has been kept, and a further update can recover it: " + err.Error()}
 	}
 	if err := restoreProtected(backupDir, scan.kept); err != nil {
 		return nil, err
@@ -239,10 +239,10 @@ func Adopt(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 	pending.AdoptBranch = ""
 	pending.VersionBefore, pending.VersionAfter = plannedVersionChange(root)
 	if err := writeBuildPending(root, pending); err != nil {
-		return nil, &Error{Reason: "state_unwritable", Message: "无法更新接入恢复状态：" + err.Error()}
+		return nil, &Error{Reason: "state_unwritable", Message: "Could not update the connect restore state: " + err.Error()}
 	}
 	if _, err := gitCmd(ctx, root, "branch", "--set-upstream-to="+ref); err != nil {
-		return nil, &Error{Reason: "upstream_failed", Message: "设置分支跟踪失败：" + err.Error()}
+		return nil, &Error{Reason: "upstream_failed", Message: "Failed to set branch tracking: " + err.Error()}
 	}
 
 	versionBefore, versionAfter, versionErr := syncVersionToConfig(root)
@@ -262,7 +262,7 @@ func Adopt(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 		if err := clearBuildPending(root); err != nil {
 			return res, err
 		}
-		step("done", fmt.Sprintf("目录已接入 %s/%s（%s）；按请求跳过重新编译", source, branch, commit))
+		step("done", fmt.Sprintf("Directory connected to %s/%s (%s); recompilation skipped as requested", source, branch, commit))
 		res.Duration = time.Since(start).Round(time.Millisecond).String()
 		return res, nil
 	}
@@ -270,11 +270,11 @@ func Adopt(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 	bin := filepath.Join(root, opts.binaryName())
 	res.BinaryPath = bin
 	if _, canBuild := toolchain(ctx, root); !canBuild {
-		step("done", fmt.Sprintf("目录已接入 %s/%s（%s）；本机没有 Go 工具链，二进制未重编", source, branch, commit))
+		step("done", fmt.Sprintf("Directory connected to %s/%s (%s); this machine has no Go toolchain, so the binary was not recompiled", source, branch, commit))
 		res.Duration = time.Since(start).Round(time.Millisecond).String()
 		return res, &Error{
 			Reason:  "no_toolchain",
-			Message: "目录已接入更新源，但本机没有 Go 工具链，无法重新编译。装好 go 后再点一次更新即可补上二进制。",
+			Message: "The directory is connected to the update source, but this machine has no Go toolchain and cannot recompile. Install go, then click update once more to build the binary.",
 		}
 	}
 
@@ -282,7 +282,7 @@ func Adopt(ctx context.Context, opts Options, onStep func(Step)) (*Result, error
 		res.Duration = time.Since(start).Round(time.Millisecond).String()
 		return res, err
 	}
-	step("done", fmt.Sprintf("目录已接入 %s/%s（%s）并换好二进制", source, branch, commit))
+	step("done", fmt.Sprintf("Directory connected to %s/%s (%s) and the binary swapped in", source, branch, commit))
 	res.Duration = time.Since(start).Round(time.Millisecond).String()
 	return res, nil
 }
@@ -295,20 +295,20 @@ func adoptPreflight(ctx context.Context, opts Options) (root, source string, err
 		return "", "", err
 	}
 	if _, err := exec.LookPath("git"); err != nil {
-		return "", "", &Error{Reason: "no_git", Message: "本机没有 git，无法把目录接入更新源"}
+		return "", "", &Error{Reason: "no_git", Message: "This machine has no git, so the directory cannot be connected to the update source"}
 	}
 	if _, err := gitCmd(ctx, root, "rev-parse", "--is-inside-work-tree"); err == nil {
-		return "", "", &Error{Reason: "already_a_repo", Message: "这个目录已经是 git 工作树：用「一键更新」，不需要接入"}
+		return "", "", &Error{Reason: "already_a_repo", Message: "This directory is already a git worktree: use 'one-click update', no connecting needed"}
 	}
 	if fi, statErr := os.Stat(root); statErr != nil || !fi.IsDir() {
-		return "", "", &Error{Reason: "bad_root", Message: "安装目录不存在：" + root}
+		return "", "", &Error{Reason: "bad_root", Message: "The install directory does not exist: " + root}
 	}
 	if _, statErr := os.Lstat(filepath.Join(root, ".git")); !os.IsNotExist(statErr) {
-		return "", "", &Error{Reason: "existing_git_metadata", Message: "安装目录已存在 .git 元数据，接入不会覆盖它；请先人工检查仓库状态"}
+		return "", "", &Error{Reason: "existing_git_metadata", Message: "The install directory already has .git metadata; connecting will not overwrite it, please check the repository state manually first"}
 	}
 	source = opts.repoURL()
 	if !ValidRemoteURL(source) {
-		return "", "", &Error{Reason: "bad_source", Message: "更新源仓库地址不合法（只允许 https/http/ssh/git/file:// 或本机绝对路径）"}
+		return "", "", &Error{Reason: "bad_source", Message: "The update-source repository address is invalid (only https/http/ssh/git/file:// or a local absolute path is allowed)"}
 	}
 	return root, source, nil
 }
@@ -319,20 +319,20 @@ func adoptPreflight(ctx context.Context, opts Options) (root, source string, err
 func fetchSource(ctx context.Context, repo, source string) (string, string, string, error) {
 	out, err := gitCmd(ctx, repo, "ls-remote", "--symref", source, "HEAD")
 	if err != nil {
-		return "", "", "", &Error{Reason: "fetch_failed", Message: "读取远端默认分支失败：" + err.Error()}
+		return "", "", "", &Error{Reason: "fetch_failed", Message: "Failed to read the remote default branch: " + err.Error()}
 	}
 	branch := parseDefaultBranch(out)
 	if branch == "" {
-		return "", "", "", &Error{Reason: "no_branch", Message: "无法确定远端默认分支：" + source}
+		return "", "", "", &Error{Reason: "no_branch", Message: "Could not determine the remote default branch: " + source}
 	}
 	if _, err := gitCmd(ctx, repo, "fetch", "--quiet", "--no-tags", "--recurse-submodules=no",
 		source, "+refs/heads/"+branch+":refs/remotes/origin/"+branch); err != nil {
-		return "", "", "", &Error{Reason: "fetch_failed", Message: "拉取失败：" + err.Error()}
+		return "", "", "", &Error{Reason: "fetch_failed", Message: "Pull failed: " + err.Error()}
 	}
 	ref := "origin/" + branch
 	commit, err := gitCmd(ctx, repo, "rev-parse", "--short", ref)
 	if err != nil {
-		return "", "", "", &Error{Reason: "no_branch", Message: fmt.Sprintf("远端没有分支 %s", branch)}
+		return "", "", "", &Error{Reason: "no_branch", Message: fmt.Sprintf("The remote has no branches %s", branch)}
 	}
 	subject, _ := gitCmd(ctx, repo, "log", "-1", "--format=%s", ref)
 	return branch, commit, subject, nil
@@ -375,7 +375,7 @@ func scanAdoption(ctx context.Context, root, repo, ref string) (*adoptionScan, e
 		}
 		hash, err := gitBlobHash(abs)
 		if err != nil {
-			return nil, &Error{Reason: "backup_failed", Message: "无法读取待接入的本地文件，未修改目录：" + p + ": " + err.Error()}
+			return nil, &Error{Reason: "backup_failed", Message: "Could not read the local files to be connected; the directory was not modified: " + p + ": " + err.Error()}
 		}
 		modeChanged := runtime.GOOS != "windows" && Protected(p) && info.Mode().Perm() != targetModes[p]
 		if hash == scan.target[p] && !modeChanged {

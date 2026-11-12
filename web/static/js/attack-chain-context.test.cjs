@@ -37,8 +37,8 @@ function harness(options = {}) {
         querySelector: selector => selector === '.attack-chain-sidebar' ? sidebar : button,
         execCommand: () => { copied.push(body.children.find(child => child.tagName === 'textarea').value); return options.copyWorks !== false; }
     };
-    let language = 'zh-CN';
-    const dictionaries = Object.fromEntries(['zh-CN', 'en-US', 'ru-RU'].map(lang => [lang, JSON.parse(fs.readFileSync(`web/static/i18n/${lang}.json`, 'utf8'))]));
+    let language = 'en-US';
+    const dictionaries = Object.fromEntries(['en-US', 'ru-RU'].map(lang => [lang, JSON.parse(fs.readFileSync(`web/static/i18n/${lang}.json`, 'utf8'))]));
     const window = {
         t(key, values) {
             let translated = key.split('.').reduce((value, part) => value && value[part], dictionaries[language]) || key;
@@ -98,7 +98,7 @@ test('summary text and snapshot paths remain inert and copying preserves the exa
     assert.deepEqual(h.sinks, [], 'no raw summary content ever reaches an HTML sink');
     await entry.children[2].listeners.get('click')();
     assert.deepEqual(h.copied, [content]);
-    assert.equal(entry.children[3].textContent, '已复制');
+    assert.equal(entry.children[3].textContent, 'Copied');
 });
 
 test('only explicit provenance qualifies and empty/new context clears old bodies', () => {
@@ -151,7 +151,7 @@ test('clipboard restrictions use the text fallback and failures retain selectabl
         assert.equal(h.body.children.length, 0);
         assert.equal(entry.children[2].disabled, false);
         assert.equal(entry.children[1].textContent, 'full evidence path');
-        assert.equal(entry.children[3].textContent, options.copyWorks === false ? '复制失败，可选中文本手动复制。' : '已复制');
+        assert.equal(entry.children[3].textContent, options.copyWorks === false ? 'Copy failed. Select the text to copy it manually.' : 'Copied');
     }
 });
 
@@ -162,7 +162,7 @@ test('an empty graph still displays its context without changing nodes or statis
     h.runtime.renderAttackChain(data);
     h.runtime.updateAttackChainStats(data);
     assert.equal(h.entries()[0].children[1].textContent, 'summary without graph nodes');
-    assert.equal(h.ids.get('attack-chain-stats').textContent, '节点: 0 | 边: 0');
+    assert.equal(h.ids.get('attack-chain-stats').textContent, 'Nodes: 0 | Edges: 0');
     assert.equal(data.nodes.length, 0);
     assert.equal(h.window.attackChainOriginalData, data);
     assert.equal(destroyed, 1);
@@ -253,7 +253,7 @@ test('regenerate failure reports its own message key unescaped', async () => {
     const h = harness({ apiFetch: async () => ({ ok: false, status: 500, json: async () => ({ error: upstream }) }) });
     await h.runtime.regenerateAttackChain();
     const shown = h.ids.get('attack-chain-container').children[0].textContent;
-    assert.equal(shown.startsWith('重新生成失败: '), true);
+    assert.equal(shown.startsWith('Regeneration failed: '), true);
     assert.equal(shown.includes(upstream), true);
     assert.equal(h.sinks.some(html => html.includes('api.example.com')), false);
 });

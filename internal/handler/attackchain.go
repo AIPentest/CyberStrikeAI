@@ -33,7 +33,7 @@ func NewAttackChainHandler(db *database.DB, openAIConfig *config.OpenAIConfig, l
 	}
 }
 
-// UpdateConfig 更新OpenAI配置
+// UpdateConfig updates the OpenAI configuration
 func (h *AttackChainHandler) UpdateConfig(cfg *config.OpenAIConfig) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

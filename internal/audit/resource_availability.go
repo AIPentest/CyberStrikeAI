@@ -7,17 +7,17 @@ import (
 )
 
 var auditActionsResourceRemoved = map[string]bool{
-	"delete":                  true,
-	"item_delete":             true,
-	"connection_delete":       true,
-	"listener_delete":         true,
-	"session_delete":          true,
-	"task_delete":             true,
-	"execution_delete":        true,
-	"execution_delete_batch":  true,
-	"delete_queue":            true,
-	"delete_batch_task":       true,
-	"markdown_delete":         true,
+	"delete":                 true,
+	"item_delete":            true,
+	"connection_delete":      true,
+	"listener_delete":        true,
+	"session_delete":         true,
+	"task_delete":            true,
+	"execution_delete":       true,
+	"execution_delete_batch": true,
+	"delete_queue":           true,
+	"delete_batch_task":      true,
+	"markdown_delete":        true,
 }
 
 // ApplyResourceAvailability sets log.ResourceAvailable when the linked resource can be checked.
@@ -59,7 +59,7 @@ func resourceStillExists(db *database.DB, resourceType, resourceID string) (bool
 	case "vulnerability":
 		_, err := db.GetVulnerability(resourceID)
 		if err != nil {
-			return false, strings.Contains(err.Error(), "不存在")
+			return false, strings.Contains(err.Error(), "does not exist")
 		}
 		return true, true
 	case "batch_queue":

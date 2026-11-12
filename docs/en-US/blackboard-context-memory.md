@@ -1,6 +1,6 @@
 # Retaining blackboard checkpoints after long-context compaction
 
-[中文](../zh-CN/blackboard-context-memory.md)
+[Chinese](../zh-CN/blackboard-context-memory.md)
 
 When a conversation is bound to a project and the project blackboard is enabled, every successful compaction summary automatically saves a continuation record. Retention no longer relies only on the Agent calling fact tools before compaction.
 

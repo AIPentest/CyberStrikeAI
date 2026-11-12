@@ -53,7 +53,7 @@ test('password preview toggles accessibly and can be reset without changing the 
  assert.equal(h.fields['login-password-toggle'].textContent,undefined);
  h.ctx.window.t=undefined;
  h.ctx.toggleLoginPasswordVisibility();
- assert.equal(h.fields['login-password-toggle'].getAttribute('aria-label'),'隐藏密码');
+ assert.equal(h.fields['login-password-toggle'].getAttribute('aria-label'),'Hide password');
 });
 test('password form has field-specific errors without requesting a save',async () => {
  const h=harness({'auth-new-password':'short','auth-confirm-password':'different'});

@@ -20,8 +20,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// registerC2Tools 注册所有 C2 MCP 工具（合并同类项，减少工具数量以节省上下文 token）。
-// webListenPort 为本进程 Web/API 监听端口（配置 server.port，启动时已加载），用于 MCP 描述中提示勿与 C2 bind_port 冲突。
+// registerC2Tools registers all C2 MCP tools (merging similar items, reducing the number of tools to save context tokens).
+// webListenPort is this process's Web/API listen port (configured via server.port, loaded at startup), used in the MCP description to warn against conflicting with the C2 bind_port.
 func registerC2Tools(mcpServer *mcp.Server, c2Manager *c2.Manager, logger *zap.Logger, webListenPort int) {
 	registerC2ListenerTool(mcpServer, c2Manager, logger, webListenPort)
 	registerC2SessionTool(mcpServer, c2Manager, logger)
@@ -48,37 +48,37 @@ func makeC2Result(data interface{}, err error) (*mcp.ToolResult, error) {
 }
 
 // ============================================================================
-// c2_listener — 监听器统一工具
+// c2_listener — unified listener tool
 // ============================================================================
 
 func registerC2ListenerTool(s *mcp.Server, m *c2.Manager, l *zap.Logger, webListenPort int) {
 	s.RegisterTool(mcp.Tool{
 		Name: builtin.ToolC2Listener,
-		Description: fmt.Sprintf(`C2 监听器管理。通过 action 参数选择操作：
-- list: 列出所有监听器
-- get: 获取监听器详情（需 listener_id）
-- create: 创建监听器（需 name, type, bind_port）。成功时除 listener 外会返回 implant_token（仅此一次，用于 X-Implant-Token / oneliner；list/get/start 不再返回）
-- update: 更新监听器配置（需 listener_id，可改 name/bind_host/bind_port/remark/config/callback_host）
-- start: 启动监听器（需 listener_id）
-- stop: 停止监听器（需 listener_id）
-- delete: 删除监听器（需 listener_id）
-监听器类型: tcp_reverse, http_beacon, https_beacon, websocket
-tcp_reverse 默认仅接受 CSB1 加密 Beacon（AES-GCM + ImplantToken）才登记会话；经典 bash/nc 反弹需在 config.allow_legacy_shell=true（公网不推荐）。
-端口约束：create/update 的 bind_port 禁止与本平台 Web/API 所用端口相同。当前本服务该端口为 %d（配置项 server.port，随进程启动从配置文件加载）。若 bind_port 与此相同会导致本服务或监听器 bind 失败、Beacon/oneliner 误连到 Web 而非 C2。请为监听器另选空闲端口。`, webListenPort),
+		Description: fmt.Sprintf(`C2 listener management. Select the operation via the action parameter:
+- list: list all listeners
+- get: get listener details (requires listener_id)
+- create: create a listener (requires name, type, bind_port). On success, besides listener, it returns implant_token (only this once, used for X-Implant-Token / oneliner; list/get/start no longer return it)
+- update: update the listener configuration (requires listener_id, can change name/bind_host/bind_port/remark/config/callback_host)
+- start: start the listener (requires listener_id)
+- stop: stop the listener (requires listener_id)
+- delete: delete the listener (requires listener_id)
+Listener types: tcp_reverse, http_beacon, https_beacon, websocket
+tcp_reverse by default only registers a session for a CSB1-encrypted Beacon (AES-GCM + ImplantToken); a classic bash/nc reverse shell requires config.allow_legacy_shell=true (not recommended on the public internet).
+Port constraint: the bind_port of create/update must not be the same as the port used by this platform's Web/API. This service's current port is %d (config item server.port, loaded from the config file at process startup). If bind_port is the same, this service or the listener will fail to bind, and the Beacon/oneliner will mistakenly connect to the Web instead of C2. Please choose another free port for the listener.`, webListenPort),
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"action":        map[string]interface{}{"type": "string", "description": "操作: list/get/create/update/start/stop/delete", "enum": []string{"list", "get", "create", "update", "start", "stop", "delete"}},
-				"listener_id":   map[string]interface{}{"type": "string", "description": "监听器 ID（get/update/start/stop/delete 需要）"},
-				"name":          map[string]interface{}{"type": "string", "description": "监听器名称（create/update）"},
-				"type":          map[string]interface{}{"type": "string", "description": "监听器类型（create）", "enum": []string{"tcp_reverse", "http_beacon", "https_beacon", "websocket"}},
-				"bind_host":     map[string]interface{}{"type": "string", "description": "绑定地址，默认 127.0.0.1；外网监听常用 0.0.0.0"},
-				"callback_host": map[string]interface{}{"type": "string", "description": "可选：植入端/Payload 回连主机名（公网 IP 或域名）。写入 config_json；生成 oneliner/beacon 时优先于 bind_host。update 时传入空字符串可清除"},
-				"bind_port":     map[string]interface{}{"type": "integer", "description": fmt.Sprintf("绑定端口（create 必填）。须 ≠ %d（当前本服务 Web/API 端口，配置 server.port）", webListenPort), "minimum": 1, "maximum": 65535},
-				"project_id":    map[string]interface{}{"type": "string", "description": "所属项目 ID。create 省略时默认使用当前对话绑定项目；未绑定项目的对话则创建未绑定监听器"},
+				"action":        map[string]interface{}{"type": "string", "description": "Operation: list/get/create/update/start/stop/delete", "enum": []string{"list", "get", "create", "update", "start", "stop", "delete"}},
+				"listener_id":   map[string]interface{}{"type": "string", "description": "Listener ID (required for get/update/start/stop/delete)"},
+				"name":          map[string]interface{}{"type": "string", "description": "Listener name (create/update)"},
+				"type":          map[string]interface{}{"type": "string", "description": "Listener type (create)", "enum": []string{"tcp_reverse", "http_beacon", "https_beacon", "websocket"}},
+				"bind_host":     map[string]interface{}{"type": "string", "description": "Bind address, default 127.0.0.1; 0.0.0.0 is commonly used for external listening"},
+				"callback_host": map[string]interface{}{"type": "string", "description": "Optional: the implant/Payload callback hostname (public IP or domain). Written to config_json; takes priority over bind_host when generating a oneliner/beacon. Pass an empty string on update to clear it"},
+				"bind_port":     map[string]interface{}{"type": "integer", "description": fmt.Sprintf("Bind port (required for create). Must be ≠ %d (this service's current Web/API port, config server.port)", webListenPort), "minimum": 1, "maximum": 65535},
+				"project_id":    map[string]interface{}{"type": "string", "description": "Owning project ID. When omitted in create, the project bound to the current conversation is used by default; a conversation not bound to a project creates an unbound listener"},
 				"profile_id":    map[string]interface{}{"type": "string", "description": "Malleable Profile ID"},
-				"remark":        map[string]interface{}{"type": "string", "description": "备注"},
-				"config":        map[string]interface{}{"type": "object", "description": "高级配置（beacon 路径/TLS/OPSEC 等），create/update 可用。tcp_reverse 可选 allow_legacy_shell:true 允许未加密经典 shell（默认 false）"},
+				"remark":        map[string]interface{}{"type": "string", "description": "Remark"},
+				"config":        map[string]interface{}{"type": "object", "description": "Advanced configuration (beacon path/TLS/OPSEC, etc.), available for create/update. tcp_reverse optionally allow_legacy_shell:true permits an unencrypted classic shell (default false)"},
 			},
 			"required": []string{"action"},
 		},
@@ -231,33 +231,33 @@ tcp_reverse 默认仅接受 CSB1 加密 Beacon（AES-GCM + ImplantToken）才登
 }
 
 // ============================================================================
-// c2_session — 会话统一工具
+// c2_session — unified session tool
 // ============================================================================
 
 func registerC2SessionTool(s *mcp.Server, m *c2.Manager, l *zap.Logger) {
 	s.RegisterTool(mcp.Tool{
 		Name: builtin.ToolC2Session,
-		Description: `C2 会话管理。通过 action 参数选择操作：
-- list: 列出会话（可按 listener_id/status/os/search/suspicious 过滤）
-- get: 获取会话详情及最近任务历史（需 session_id）
-- set_sleep: 设置心跳间隔（需 session_id）
-- kill: 下发 exit 任务让 implant 退出（需 session_id）
-- delete: 删除单个会话记录（需 session_id）
-- delete_batch: 批量删除会话（需 session_ids 数组）`,
+		Description: `C2 session management. Select the operation via the action parameter:
+- list: list sessions (can filter by listener_id/status/os/search/suspicious)
+- get: get session details and recent task history (requires session_id)
+- set_sleep: set the heartbeat interval (requires session_id)
+- kill: issue an exit task to make the implant quit (requires session_id)
+- delete: delete a single session record (requires session_id)
+- delete_batch: batch-delete sessions (requires the session_ids array)`,
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"action":         map[string]interface{}{"type": "string", "description": "操作: list/get/set_sleep/kill/delete/delete_batch", "enum": []string{"list", "get", "set_sleep", "kill", "delete", "delete_batch"}},
-				"session_id":     map[string]interface{}{"type": "string", "description": "会话 ID（get/set_sleep/kill/delete 需要）"},
-				"session_ids":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "会话 ID 列表（delete_batch）"},
-				"listener_id":    map[string]interface{}{"type": "string", "description": "按监听器过滤（list）"},
-				"status":         map[string]interface{}{"type": "string", "description": "按状态过滤: active/sleeping/dead/killed（list）"},
-				"os":             map[string]interface{}{"type": "string", "description": "按 OS 过滤: linux/windows/darwin（list）"},
-				"search":         map[string]interface{}{"type": "string", "description": "模糊搜索 hostname/username/IP（list）"},
-				"suspicious":     map[string]interface{}{"type": "boolean", "description": "仅疑似误报：离线且 tcp_* / unknown / PID 0（list）"},
-				"limit":          map[string]interface{}{"type": "integer", "description": "返回数量上限（list）"},
-				"sleep_seconds":  map[string]interface{}{"type": "integer", "description": "心跳间隔秒数（set_sleep）"},
-				"jitter_percent": map[string]interface{}{"type": "integer", "description": "抖动百分比 0-100（set_sleep）"},
+				"action":         map[string]interface{}{"type": "string", "description": "Operation: list/get/set_sleep/kill/delete/delete_batch", "enum": []string{"list", "get", "set_sleep", "kill", "delete", "delete_batch"}},
+				"session_id":     map[string]interface{}{"type": "string", "description": "Session ID (required for get/set_sleep/kill/delete)"},
+				"session_ids":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "List of session IDs (delete_batch)"},
+				"listener_id":    map[string]interface{}{"type": "string", "description": "Filter by listener (list)"},
+				"status":         map[string]interface{}{"type": "string", "description": "Filter by status: active/sleeping/dead/killed (list)"},
+				"os":             map[string]interface{}{"type": "string", "description": "Filter by OS: linux/windows/darwin (list)"},
+				"search":         map[string]interface{}{"type": "string", "description": "Fuzzy search hostname/username/IP (list)"},
+				"suspicious":     map[string]interface{}{"type": "boolean", "description": "Only suspected false positives: offline and tcp_* / unknown / PID 0 (list)"},
+				"limit":          map[string]interface{}{"type": "integer", "description": "Upper limit on the number returned (list)"},
+				"sleep_seconds":  map[string]interface{}{"type": "integer", "description": "Heartbeat interval in seconds (set_sleep)"},
+				"jitter_percent": map[string]interface{}{"type": "integer", "description": "Jitter percentage 0-100 (set_sleep)"},
 			},
 			"required": []string{"action"},
 		},
@@ -341,44 +341,44 @@ func registerC2SessionTool(s *mcp.Server, m *c2.Manager, l *zap.Logger) {
 }
 
 // ============================================================================
-// c2_task — 任务下发统一工具（合并所有 task 类型）
+// c2_task — unified task-issuing tool (merges all task types)
 // ============================================================================
 
 func registerC2TaskTool(s *mcp.Server, m *c2.Manager, l *zap.Logger) {
 	s.RegisterTool(mcp.Tool{
 		Name: builtin.ToolC2Task,
-		Description: `在 C2 会话上下发任务。所有任务类型通过 task_type 参数指定：
-- exec: 执行命令（需 command）
-- shell: 交互式命令，保持 cwd（需 command）
-- pwd/ps/screenshot/socks_stop: 无额外参数
-- cd/ls: 需 path
-- kill_proc: 需 pid
-- upload: 需 remote_path + file_id
-- download: 需 remote_path
-- port_fwd: 需 action(start/stop) + local_port + remote_host + remote_port
-- socks_start: 需 port（默认 1080）
-- load_assembly: 需 data(base64) 或 file_id，可选 args
-- persist: 可选 method(auto/cron/bashrc/launchagent/registry/schtasks)
-返回 task_id，用 c2_task_manage 的 wait/get_result 获取结果。`,
+		Description: `Issue a task on a C2 session. All task types are specified via the task_type parameter:
+- exec: execute a command (requires command)
+- shell: interactive command, preserves cwd (requires command)
+- pwd/ps/screenshot/socks_stop: no extra parameters
+- cd/ls: require path
+- kill_proc: requires pid
+- upload: requires remote_path + file_id
+- download: requires remote_path
+- port_fwd: requires action(start/stop) + local_port + remote_host + remote_port
+- socks_start: requires port (default 1080)
+- load_assembly: requires data(base64) or file_id, optional args
+- persist: optional method(auto/cron/bashrc/launchagent/registry/schtasks)
+Returns task_id; use c2_task_manage's wait/get_result to obtain the result.`,
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"session_id":      map[string]interface{}{"type": "string", "description": "C2 会话 ID（s_xxx）"},
-				"task_type":       map[string]interface{}{"type": "string", "description": "任务类型", "enum": []string{"exec", "shell", "pwd", "cd", "ls", "ps", "kill_proc", "upload", "download", "screenshot", "port_fwd", "socks_start", "socks_stop", "load_assembly", "persist"}},
-				"command":         map[string]interface{}{"type": "string", "description": "命令（exec/shell）"},
-				"path":            map[string]interface{}{"type": "string", "description": "路径（cd/ls）"},
-				"pid":             map[string]interface{}{"type": "integer", "description": "进程 ID（kill_proc）"},
-				"remote_path":     map[string]interface{}{"type": "string", "description": "远程路径（upload/download）"},
-				"file_id":         map[string]interface{}{"type": "string", "description": "服务端文件 ID（upload/load_assembly）"},
-				"data":            map[string]interface{}{"type": "string", "description": "base64 数据（load_assembly）"},
-				"args":            map[string]interface{}{"type": "string", "description": "命令行参数（load_assembly）"},
+				"session_id":      map[string]interface{}{"type": "string", "description": "C2 session ID (s_xxx)"},
+				"task_type":       map[string]interface{}{"type": "string", "description": "Task type", "enum": []string{"exec", "shell", "pwd", "cd", "ls", "ps", "kill_proc", "upload", "download", "screenshot", "port_fwd", "socks_start", "socks_stop", "load_assembly", "persist"}},
+				"command":         map[string]interface{}{"type": "string", "description": "Command (exec/shell)"},
+				"path":            map[string]interface{}{"type": "string", "description": "Path (cd/ls)"},
+				"pid":             map[string]interface{}{"type": "integer", "description": "Process ID (kill_proc)"},
+				"remote_path":     map[string]interface{}{"type": "string", "description": "Remote path (upload/download)"},
+				"file_id":         map[string]interface{}{"type": "string", "description": "Server-side file ID (upload/load_assembly)"},
+				"data":            map[string]interface{}{"type": "string", "description": "base64 data (load_assembly)"},
+				"args":            map[string]interface{}{"type": "string", "description": "Command-line arguments (load_assembly)"},
 				"action":          map[string]interface{}{"type": "string", "description": "start/stop（port_fwd）"},
-				"local_port":      map[string]interface{}{"type": "integer", "description": "本地端口（port_fwd）"},
-				"remote_host":     map[string]interface{}{"type": "string", "description": "远程主机（port_fwd）"},
-				"remote_port":     map[string]interface{}{"type": "integer", "description": "远程端口（port_fwd）"},
-				"port":            map[string]interface{}{"type": "integer", "description": "SOCKS5 端口（socks_start），默认 1080"},
-				"method":          map[string]interface{}{"type": "string", "description": "持久化方法（persist）: auto/cron/bashrc/launchagent/registry/schtasks"},
-				"timeout_seconds": map[string]interface{}{"type": "integer", "description": "超时秒数，默认 60"},
+				"local_port":      map[string]interface{}{"type": "integer", "description": "Local port (port_fwd)"},
+				"remote_host":     map[string]interface{}{"type": "string", "description": "Remote host (port_fwd)"},
+				"remote_port":     map[string]interface{}{"type": "integer", "description": "Remote port (port_fwd)"},
+				"port":            map[string]interface{}{"type": "integer", "description": "SOCKS5 port (socks_start), default 1080"},
+				"method":          map[string]interface{}{"type": "string", "description": "Persistence method (persist): auto/cron/bashrc/launchagent/registry/schtasks"},
+				"timeout_seconds": map[string]interface{}{"type": "integer", "description": "Timeout in seconds, default 60"},
 			},
 			"required": []string{"session_id", "task_type"},
 		},
@@ -438,26 +438,26 @@ func registerC2TaskTool(s *mcp.Server, m *c2.Manager, l *zap.Logger) {
 }
 
 // ============================================================================
-// c2_task_manage — 任务管理工具（查询/等待/取消）
+// c2_task_manage — task management tool (query/wait/cancel)
 // ============================================================================
 
 func registerC2TaskManageTool(s *mcp.Server, m *c2.Manager, l *zap.Logger) {
 	s.RegisterTool(mcp.Tool{
 		Name: builtin.ToolC2TaskManage,
-		Description: `C2 任务管理。通过 action 参数选择操作：
-- get_result: 获取任务详情和结果（需 task_id）
-- wait: 阻塞等待任务完成并返回结果（需 task_id）
-- list: 列出任务（可按 session_id/status 过滤）
-- cancel: 取消排队中的任务（需 task_id）`,
+		Description: `C2 task management. Select the operation via the action parameter:
+- get_result: get task details and result (requires task_id)
+- wait: block and wait for the task to complete and return the result (requires task_id)
+- list: list tasks (can filter by session_id/status)
+- cancel: cancel a queued task (requires task_id)`,
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"action":          map[string]interface{}{"type": "string", "description": "操作: get_result/wait/list/cancel", "enum": []string{"get_result", "wait", "list", "cancel"}},
-				"task_id":         map[string]interface{}{"type": "string", "description": "任务 ID（get_result/wait/cancel 需要）"},
-				"session_id":      map[string]interface{}{"type": "string", "description": "按会话过滤（list）"},
-				"status":          map[string]interface{}{"type": "string", "description": "按状态过滤: queued/sent/running/success/failed/cancelled（list）"},
-				"limit":           map[string]interface{}{"type": "integer", "description": "返回数量上限（list）"},
-				"timeout_seconds": map[string]interface{}{"type": "integer", "description": "等待超时秒数（wait），默认 60"},
+				"action":          map[string]interface{}{"type": "string", "description": "Operation: get_result/wait/list/cancel", "enum": []string{"get_result", "wait", "list", "cancel"}},
+				"task_id":         map[string]interface{}{"type": "string", "description": "Task ID (required for get_result/wait/cancel)"},
+				"session_id":      map[string]interface{}{"type": "string", "description": "Filter by session (list)"},
+				"status":          map[string]interface{}{"type": "string", "description": "Filter by status: queued/sent/running/success/failed/cancelled (list)"},
+				"limit":           map[string]interface{}{"type": "integer", "description": "Upper limit on the number returned (list)"},
+				"timeout_seconds": map[string]interface{}{"type": "integer", "description": "Wait timeout in seconds (wait), default 60"},
 			},
 			"required": []string{"action"},
 		},
@@ -526,31 +526,31 @@ func registerC2TaskManageTool(s *mcp.Server, m *c2.Manager, l *zap.Logger) {
 }
 
 // ============================================================================
-// c2_payload — Payload 统一工具
+// c2_payload — unified Payload tool
 // ============================================================================
 
 func registerC2PayloadTool(s *mcp.Server, m *c2.Manager, l *zap.Logger, webListenPort int) {
 	s.RegisterTool(mcp.Tool{
 		Name: builtin.ToolC2Payload,
-		Description: fmt.Sprintf(`C2 Payload 生成。通过 action 参数选择操作：
-- oneliner: 生成单行 payload。kind 必须与监听器协议一致，否则会失败：
-  • tcp_reverse：默认仅支持 build 加密 Beacon；若监听器 config.allow_legacy_shell=true，才可用 kind: bash, nc, nc_mkfifo, python, perl, powershell。
-  • http_beacon / https_beacon / websocket：仅 HTTP(S) Beacon 轮询，oneliner 只能用 kind: curl_beacon（脚本内用 bash+curl，与「tcp 的 bash」不同）。curl_beacon 返回串末尾含「 &」用于把整个 bash -c 放后台；若用 exec/execute 同步执行，必须整段原样复制（含末尾 &）。若删掉 &，内部 while 死循环占满前台，调用会一直阻塞到超时/杀进程。
-  • 公网部署 tcp_reverse 请用 build 生成加密 Beacon，勿开启 allow_legacy_shell。
-  • 省略 kind 时，会按监听器类型自动选第一个兼容类型（HTTP 系默认为 curl_beacon）。
-- build: 交叉编译 beacon 二进制。支持 http_beacon / https_beacon / websocket / tcp_reverse（tcp_reverse 植入端回连后先发魔数 CSB1，再经 AES-GCM 解密且校验 ImplantToken 后才登记会话）。
-依赖的监听器 bind_port 须避开本服务 Web 端口 %d（配置 server.port，与 c2_listener 描述一致），否则 Beacon 无法正确回连。`, webListenPort),
+		Description: fmt.Sprintf(`C2 Payload generation. Select the operation via the action parameter:
+- oneliner: generate a single-line payload. kind must match the listener protocol, otherwise it fails:
+  • tcp_reverse: by default only supports a build-encrypted Beacon; kind: bash, nc, nc_mkfifo, python, perl, powershell are available only if the listener's config.allow_legacy_shell=true.
+  • http_beacon / https_beacon / websocket: only HTTP(S) Beacon polling; oneliner can only use kind: curl_beacon (the script internally uses bash+curl, different from "tcp's bash"). The curl_beacon return string ends with " &" to put the entire bash -c in the background; if executing synchronously with exec/execute, you must copy the whole segment verbatim (including the trailing &). If you delete the &, the internal while infinite loop occupies the foreground and the call will block until timeout/process kill.
+  • For a public-internet tcp_reverse deployment, use build to generate an encrypted Beacon; do not enable allow_legacy_shell.
+  • When kind is omitted, the first compatible type is chosen automatically by listener type (HTTP-family defaults to curl_beacon).
+- build: cross-compile a beacon binary. Supports http_beacon / https_beacon / websocket / tcp_reverse (for tcp_reverse, after the implant reconnects, it first sends the magic CSB1, then after AES-GCM decryption and ImplantToken verification the session is registered).
+The dependent listener's bind_port must avoid this service's Web port %d (config server.port, consistent with the c2_listener description), otherwise the Beacon cannot reconnect correctly.`, webListenPort),
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"action":         map[string]interface{}{"type": "string", "description": "操作: oneliner/build", "enum": []string{"oneliner", "build"}},
-				"listener_id":    map[string]interface{}{"type": "string", "description": "监听器 ID（必填）。oneliner 前请确认该监听器的 type，再选兼容的 kind"},
-				"kind":           map[string]interface{}{"type": "string", "description": "仅 action=oneliner 需要。tcp_reverse: bash|nc|nc_mkfifo|python|perl|powershell；http_beacon|https_beacon|websocket: 仅 curl_beacon"},
-				"host":           map[string]interface{}{"type": "string", "description": "oneliner/build 可选覆盖：非空则强制用作植入回连主机。留空时顺序为：监听器 callback_host（create/update 的 callback_host 参数写入）→ bind_host（0.0.0.0 时尝试本机对外 IP 探测）"},
-				"os":             map[string]interface{}{"type": "string", "description": "目标 OS（build）: linux/windows/darwin", "default": "linux"},
-				"arch":           map[string]interface{}{"type": "string", "description": "目标架构（build）: amd64/arm64/386/arm", "default": "amd64"},
-				"sleep_seconds":  map[string]interface{}{"type": "integer", "description": "默认心跳间隔（build）"},
-				"jitter_percent": map[string]interface{}{"type": "integer", "description": "默认抖动百分比（build）"},
+				"action":         map[string]interface{}{"type": "string", "description": "Operation: oneliner/build", "enum": []string{"oneliner", "build"}},
+				"listener_id":    map[string]interface{}{"type": "string", "description": "Listener ID (required). Before oneliner, confirm this listener's type, then choose a compatible kind"},
+				"kind":           map[string]interface{}{"type": "string", "description": "Required only for action=oneliner. tcp_reverse: bash|nc|nc_mkfifo|python|perl|powershell; http_beacon|https_beacon|websocket: only curl_beacon"},
+				"host":           map[string]interface{}{"type": "string", "description": "Optional override for oneliner/build: if non-empty, it is forced to be used as the implant callback host. When left empty, the order is: listener callback_host (written by the callback_host parameter of create/update) → bind_host (when 0.0.0.0, tries to detect the machine's external IP)"},
+				"os":             map[string]interface{}{"type": "string", "description": "Target OS (build): linux/windows/darwin", "default": "linux"},
+				"arch":           map[string]interface{}{"type": "string", "description": "Target architecture (build): amd64/arm64/386/arm", "default": "amd64"},
+				"sleep_seconds":  map[string]interface{}{"type": "integer", "description": "Default heartbeat interval (build)"},
+				"jitter_percent": map[string]interface{}{"type": "integer", "description": "Default jitter percentage (build)"},
 			},
 			"required": []string{"action", "listener_id"},
 		},
@@ -581,7 +581,7 @@ func registerC2PayloadTool(s *mcp.Server, m *c2.Manager, l *zap.Logger, webListe
 				for i, k := range compatible {
 					names[i] = string(k)
 				}
-				return makeC2Result(nil, fmt.Errorf("监听器类型 %s 不支持 %s，兼容类型: %v", listener.Type, kind, names))
+				return makeC2Result(nil, fmt.Errorf("listener type %s does not support %s, compatible types: %v", listener.Type, kind, names))
 			}
 			if err := c2.ValidateOnelinerForListener(listener, kind); err != nil {
 				return makeC2Result(nil, err)
@@ -601,7 +601,7 @@ func registerC2PayloadTool(s *mcp.Server, m *c2.Manager, l *zap.Logger, webListe
 				"oneliner": oneliner, "kind": input.Kind, "host": host, "port": listener.BindPort,
 			}
 			if kind == c2.OnelinerCurl {
-				out["usage_note"] = "同步 exec/execute：整段原样执行（末尾须有「 &」）。去掉则 while 永不结束，工具会一直卡住。"
+				out["usage_note"] = "Synchronous exec/execute: execute the whole segment verbatim (must have a trailing \" &\"). Removing it means the while never ends and the tool will hang."
 			}
 			return makeC2Result(out, nil)
 
@@ -634,22 +634,22 @@ func registerC2PayloadTool(s *mcp.Server, m *c2.Manager, l *zap.Logger, webListe
 }
 
 // ============================================================================
-// c2_event — 事件查询工具
+// c2_event — event query tool
 // ============================================================================
 
 func registerC2EventTool(s *mcp.Server, m *c2.Manager, l *zap.Logger) {
 	s.RegisterTool(mcp.Tool{
 		Name:        builtin.ToolC2Event,
-		Description: "获取 C2 事件（上线/掉线/任务/错误），支持按级别/类别/会话/任务/时间过滤",
+		Description: "Get C2 events (online/offline/task/error), supports filtering by level/category/session/task/time",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"level":      map[string]interface{}{"type": "string", "description": "级别过滤: info/warn/critical"},
-				"category":   map[string]interface{}{"type": "string", "description": "类别过滤: listener/session/task/payload/opsec"},
-				"session_id": map[string]interface{}{"type": "string", "description": "按会话过滤"},
-				"task_id":    map[string]interface{}{"type": "string", "description": "按任务过滤"},
-				"since":      map[string]interface{}{"type": "string", "description": "起始时间（RFC3339 格式，如 2025-01-01T00:00:00Z）"},
-				"limit":      map[string]interface{}{"type": "integer", "default": 50, "description": "返回数量"},
+				"level":      map[string]interface{}{"type": "string", "description": "Level filter: info/warn/critical"},
+				"category":   map[string]interface{}{"type": "string", "description": "Category filter: listener/session/task/payload/opsec"},
+				"session_id": map[string]interface{}{"type": "string", "description": "Filter by session"},
+				"task_id":    map[string]interface{}{"type": "string", "description": "Filter by task"},
+				"since":      map[string]interface{}{"type": "string", "description": "Start time (RFC3339 format, e.g. 2025-01-01T00:00:00Z)"},
+				"limit":      map[string]interface{}{"type": "integer", "default": 50, "description": "Number to return"},
 			},
 		},
 	}, func(ctx context.Context, params map[string]interface{}) (*mcp.ToolResult, error) {
@@ -683,31 +683,31 @@ func c2ToolAccess(ctx context.Context) database.RBACListAccess {
 }
 
 // ============================================================================
-// c2_profile — Malleable Profile 管理工具（新增）
+// c2_profile — Malleable Profile management tool (new)
 // ============================================================================
 
 func registerC2ProfileTool(s *mcp.Server, m *c2.Manager, l *zap.Logger) {
 	s.RegisterTool(mcp.Tool{
 		Name: builtin.ToolC2Profile,
-		Description: `C2 Malleable Profile 管理（控制 beacon 通信伪装）。通过 action 参数选择操作：
-- list: 列出所有 Profile
-- get: 获取 Profile 详情（需 profile_id）
-- create: 创建 Profile（需 name，可选 user_agent/uris/request_headers/response_headers/body_template/jitter_min_ms/jitter_max_ms）
-- update: 更新 Profile（需 profile_id）
-- delete: 删除 Profile（需 profile_id）`,
+		Description: `C2 Malleable Profile management (controls beacon communication disguise). Select the operation via the action parameter:
+- list: list all Profiles
+- get: get Profile details (requires profile_id)
+- create: create a Profile (requires name, optional user_agent/uris/request_headers/response_headers/body_template/jitter_min_ms/jitter_max_ms)
+- update: update a Profile (requires profile_id)
+- delete: delete a Profile (requires profile_id)`,
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"action":           map[string]interface{}{"type": "string", "description": "操作: list/get/create/update/delete", "enum": []string{"list", "get", "create", "update", "delete"}},
-				"profile_id":       map[string]interface{}{"type": "string", "description": "Profile ID（get/update/delete 需要）"},
-				"name":             map[string]interface{}{"type": "string", "description": "Profile 名称"},
-				"user_agent":       map[string]interface{}{"type": "string", "description": "User-Agent 字符串"},
-				"uris":             map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "beacon 请求的 URI 列表"},
-				"request_headers":  map[string]interface{}{"type": "object", "description": "自定义请求头"},
-				"response_headers": map[string]interface{}{"type": "object", "description": "自定义响应头"},
-				"body_template":    map[string]interface{}{"type": "string", "description": "响应体模板"},
-				"jitter_min_ms":    map[string]interface{}{"type": "integer", "description": "最小抖动（毫秒）"},
-				"jitter_max_ms":    map[string]interface{}{"type": "integer", "description": "最大抖动（毫秒）"},
+				"action":           map[string]interface{}{"type": "string", "description": "Operation: list/get/create/update/delete", "enum": []string{"list", "get", "create", "update", "delete"}},
+				"profile_id":       map[string]interface{}{"type": "string", "description": "Profile ID (required for get/update/delete)"},
+				"name":             map[string]interface{}{"type": "string", "description": "Profile name"},
+				"user_agent":       map[string]interface{}{"type": "string", "description": "User-Agent string"},
+				"uris":             map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "List of URIs for beacon requests"},
+				"request_headers":  map[string]interface{}{"type": "object", "description": "Custom request headers"},
+				"response_headers": map[string]interface{}{"type": "object", "description": "Custom response headers"},
+				"body_template":    map[string]interface{}{"type": "string", "description": "Response body template"},
+				"jitter_min_ms":    map[string]interface{}{"type": "integer", "description": "Minimum jitter (milliseconds)"},
+				"jitter_max_ms":    map[string]interface{}{"type": "integer", "description": "Maximum jitter (milliseconds)"},
 			},
 			"required": []string{"action"},
 		},
@@ -835,21 +835,21 @@ func registerC2ProfileTool(s *mcp.Server, m *c2.Manager, l *zap.Logger) {
 }
 
 // ============================================================================
-// c2_file — 文件管理工具（新增）
+// c2_file — file management tool (new)
 // ============================================================================
 
 func registerC2FileTool(s *mcp.Server, m *c2.Manager, l *zap.Logger) {
 	s.RegisterTool(mcp.Tool{
 		Name: builtin.ToolC2File,
-		Description: `C2 文件管理。通过 action 参数选择操作：
-- list: 列出会话的文件传输记录（需 session_id）
-- get_result: 获取任务结果文件路径（截图等，需 task_id）`,
+		Description: `C2 file management. Select the operation via the action parameter:
+- list: list a session's file-transfer records (requires session_id)
+- get_result: get the task result file path (screenshots, etc., requires task_id)`,
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"action":     map[string]interface{}{"type": "string", "description": "操作: list/get_result", "enum": []string{"list", "get_result"}},
-				"session_id": map[string]interface{}{"type": "string", "description": "会话 ID（list 需要）"},
-				"task_id":    map[string]interface{}{"type": "string", "description": "任务 ID（get_result 需要）"},
+				"action":     map[string]interface{}{"type": "string", "description": "Operation: list/get_result", "enum": []string{"list", "get_result"}},
+				"session_id": map[string]interface{}{"type": "string", "description": "Session ID (required for list)"},
+				"task_id":    map[string]interface{}{"type": "string", "description": "Task ID (required for get_result)"},
 			},
 			"required": []string{"action"},
 		},
@@ -890,7 +890,7 @@ func registerC2FileTool(s *mcp.Server, m *c2.Manager, l *zap.Logger) {
 }
 
 // ============================================================================
-// 工具函数
+// Utility functions
 // ============================================================================
 
 func getString(params map[string]interface{}, key string) string {

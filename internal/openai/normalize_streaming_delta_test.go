@@ -3,7 +3,7 @@ package openai
 import "testing"
 
 func TestNormalizeStreamingDelta_RepeatedCharBoundary(t *testing.T) {
-	// 流式在重复数字边界分片：不得把 "43" 的首字符与 "194" 尾字符误合并。
+	// Streaming fragments at the boundary of repeated digits: must not wrongly merge the first character of "43" with the trailing characters of "194".
 	cur, d := normalizeStreamingDelta("https://x:194", "43")
 	if want := "https://x:19443"; cur != want {
 		t.Fatalf("next: want %q got %q", want, cur)
@@ -45,7 +45,7 @@ func TestNormalizeStreamingDelta_SingleRuneRepeated(t *testing.T) {
 }
 
 func TestNormalizeStreamingDelta_CumulativeExtendsNumber(t *testing.T) {
-	// 已缓冲 "194" 后收到累计串 "19443"（注意 "1943" 并非 "19443" 的前缀，不能靠误写的中间态测 HasPrefix）。
+	// After buffering "194", a cumulative string "19443" arrives (note that "1943" is not a prefix of "19443", so a mistakenly-written intermediate state must not be relied on to test HasPrefix).
 	cur, d := normalizeStreamingDelta("194", "19443")
 	if want := "19443"; cur != want {
 		t.Fatalf("next: want %q got %q", want, cur)

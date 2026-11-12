@@ -13,7 +13,7 @@ import (
 
 const ProtocolVersion = "2024-11-05"
 
-// Message MCP消息
+// Message: an MCP message
 type Message struct {
 	ID      interface{}       `json:"id,omitempty"`
 	Method  string            `json:"method,omitempty"`
@@ -23,75 +23,75 @@ type Message struct {
 	Version string            `json:"jsonrpc,omitempty"`
 }
 
-// Error MCP错误
+// Error: an MCP error
 type Error struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
 }
 
-// InitializeRequest 初始化请求
+// InitializeRequest: an initialization request
 type InitializeRequest struct {
 	ProtocolVersion string                 `json:"protocolVersion"`
 	Capabilities    map[string]interface{} `json:"capabilities"`
 	ClientInfo      ClientInfo             `json:"clientInfo"`
 }
 
-// ClientInfo 客户端信息
+// ClientInfo: client information
 type ClientInfo struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
 }
 
-// InitializeResponse 初始化响应
+// InitializeResponse: an initialization response
 type InitializeResponse struct {
 	ProtocolVersion string                 `json:"protocolVersion"`
 	Capabilities    ServerCapabilities     `json:"capabilities"`
 	ServerInfo      ServerInfo             `json:"serverInfo"`
 }
 
-// ServerCapabilities 服务器能力
+// ServerCapabilities: server capabilities
 type ServerCapabilities struct {
 	Tools map[string]interface{} `json:"tools,omitempty"`
 }
 
-// ServerInfo 服务器信息
+// ServerInfo: server information
 type ServerInfo struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
 }
 
-// Tool 工具定义
+// Tool: tool definition
 type Tool struct {
 	Name        string                 `json:"name"`
 	Description string                 `json:"description"`
 	InputSchema map[string]interface{} `json:"inputSchema"`
 }
 
-// ListToolsResponse 列出工具响应
+// ListToolsResponse: list-tools response
 type ListToolsResponse struct {
 	Tools []Tool `json:"tools"`
 }
 
-// CallToolRequest 调用工具请求
+// CallToolRequest: call-tool request
 type CallToolRequest struct {
 	Name      string                 `json:"name"`
 	Arguments map[string]interface{} `json:"arguments"`
 }
 
-// CallToolResponse 调用工具响应
+// CallToolResponse: call-tool response
 type CallToolResponse struct {
 	Content []Content `json:"content"`
 	IsError bool      `json:"isError,omitempty"`
 }
 
-// Content 内容
+// Content: content
 type Content struct {
 	Type string `json:"type"`
 	Text string `json:"text"`
 }
 
-// SSEServer SSE MCP服务器
+// SSEServer: SSE MCP server
 type SSEServer struct {
 	sseClients map[string]chan []byte
 	mu         sync.RWMutex
@@ -103,7 +103,7 @@ func NewSSEServer() *SSEServer {
 	}
 }
 
-// handleSSE 处理SSE连接
+// handleSSE: handle an SSE connection
 func (s *SSEServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -130,20 +130,20 @@ func (s *SSEServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 		s.mu.Unlock()
 	}()
 
-	// 发送初始ready事件
+	// Send the initial ready event
 	fmt.Fprintf(w, "event: message\ndata: {\"type\":\"ready\",\"status\":\"ok\"}\n\n")
 	flusher.Flush()
 
-	log.Printf("SSE客户端连接: %s", clientID)
+	log.Printf("SSE client connected: %s", clientID)
 
-	// 心跳
+	// Heartbeat
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-r.Context().Done():
-			log.Printf("SSE客户端断开: %s", clientID)
+			log.Printf("SSE client disconnected: %s", clientID)
 			return
 		case msg, ok := <-clientChan:
 			if !ok {
@@ -152,14 +152,14 @@ func (s *SSEServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "event: message\ndata: %s\n\n", msg)
 			flusher.Flush()
 		case <-ticker.C:
-			// 心跳
+			// Heartbeat
 			fmt.Fprintf(w, ": ping\n\n")
 			flusher.Flush()
 		}
 	}
 }
 
-// handleMessage 处理POST消息
+// handleMessage: handle a POST message
 func (s *SSEServer) handleMessage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -172,16 +172,16 @@ func (s *SSEServer) handleMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("收到请求: method=%s, id=%v", msg.Method, msg.ID)
+	log.Printf("Received request: method=%s, id=%v", msg.Method, msg.ID)
 
-	// 处理消息
+	// Process the message
 	response := s.processMessage(&msg)
 
-	// 如果有SSE客户端，通过SSE推送响应
+	// If there is an SSE client, push the response over SSE
 	if response != nil {
 		responseJSON, _ := json.Marshal(response)
 		s.mu.RLock()
-		// 发送给所有SSE客户端
+		// Send to all SSE clients
 		for _, ch := range s.sseClients {
 			select {
 			case ch <- responseJSON:
@@ -191,7 +191,7 @@ func (s *SSEServer) handleMessage(w http.ResponseWriter, r *http.Request) {
 		s.mu.RUnlock()
 	}
 
-	// 也直接返回响应（兼容非SSE模式）
+	// Also return the response directly (compatible with non-SSE mode)
 	if response != nil {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
@@ -200,7 +200,7 @@ func (s *SSEServer) handleMessage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// processMessage 处理MCP消息
+// processMessage: process an MCP message
 func (s *SSEServer) processMessage(msg *Message) *Message {
 	switch msg.Method {
 	case "initialize":
@@ -221,7 +221,7 @@ func (s *SSEServer) processMessage(msg *Message) *Message {
 	}
 }
 
-// handleInitialize 处理初始化
+// handleInitialize: handle initialization
 func (s *SSEServer) handleInitialize(msg *Message) *Message {
 	var req InitializeRequest
 	if err := json.Unmarshal(msg.Params, &req); err != nil {
@@ -235,7 +235,7 @@ func (s *SSEServer) handleInitialize(msg *Message) *Message {
 		}
 	}
 
-	log.Printf("初始化请求: client=%s, version=%s", req.ClientInfo.Name, req.ClientInfo.Version)
+	log.Printf("Initialize request: client=%s, version=%s", req.ClientInfo.Name, req.ClientInfo.Version)
 
 	response := InitializeResponse{
 		ProtocolVersion: ProtocolVersion,
@@ -258,18 +258,18 @@ func (s *SSEServer) handleInitialize(msg *Message) *Message {
 	}
 }
 
-// handleListTools 处理列出工具
+// handleListTools: handle listing tools
 func (s *SSEServer) handleListTools(msg *Message) *Message {
 	tools := []Tool{
 		{
 			Name:        "test_echo",
-			Description: "回显输入的文本，用于测试SSE MCP服务器",
+			Description: "Echoes the input text, used to test the SSE MCP server",
 			InputSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
 					"text": map[string]interface{}{
 						"type":        "string",
-						"description": "要回显的文本",
+						"description": "the text to echo",
 					},
 				},
 				"required": []string{"text"},
@@ -277,17 +277,17 @@ func (s *SSEServer) handleListTools(msg *Message) *Message {
 		},
 		{
 			Name:        "test_add",
-			Description: "计算两个数字的和，用于测试SSE MCP服务器",
+			Description: "Computes the sum of two numbers, used to test the SSE MCP server",
 			InputSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
 					"a": map[string]interface{}{
 						"type":        "number",
-						"description": "第一个数字",
+						"description": "the first number",
 					},
 					"b": map[string]interface{}{
 						"type":        "number",
-						"description": "第二个数字",
+						"description": "the second number",
 					},
 				},
 				"required": []string{"a", "b"},
@@ -304,7 +304,7 @@ func (s *SSEServer) handleListTools(msg *Message) *Message {
 	}
 }
 
-// handleCallTool 处理工具调用
+// handleCallTool: handle a tool call
 func (s *SSEServer) handleCallTool(msg *Message) *Message {
 	var req CallToolRequest
 	if err := json.Unmarshal(msg.Params, &req); err != nil {
@@ -318,7 +318,7 @@ func (s *SSEServer) handleCallTool(msg *Message) *Message {
 		}
 	}
 
-	log.Printf("调用工具: name=%s, args=%v", req.Name, req.Arguments)
+	log.Printf("Calling tool: name=%s, args=%v", req.Name, req.Arguments)
 
 	var content []Content
 
@@ -328,7 +328,7 @@ func (s *SSEServer) handleCallTool(msg *Message) *Message {
 		content = []Content{
 			{
 				Type: "text",
-				Text: fmt.Sprintf("回显: %s", text),
+				Text: fmt.Sprintf("Echo: %s", text),
 			},
 		}
 	case "test_add":
@@ -377,10 +377,10 @@ func main() {
 	http.HandleFunc("/message", server.handleMessage)
 
 	port := ":8082"
-	log.Printf("SSE MCP测试服务器启动在端口 %s", port)
-	log.Printf("SSE端点: http://localhost%s/sse", port)
-	log.Printf("消息端点: http://localhost%s/message", port)
-	log.Printf("配置示例:")
+	log.Printf("SSE MCP test server started on port %s", port)
+	log.Printf("SSE endpoint: http://localhost%s/sse", port)
+	log.Printf("Message endpoint: http://localhost%s/message", port)
+	log.Printf("Configuration example:")
 	log.Printf(`{
   "test-sse-mcp": {
     "transport": "sse",

@@ -26,7 +26,7 @@ func RegisterConversationCreateHook(s *Service) {
 			Category:     "conversation",
 			Action:       "create",
 			Result:       "success",
-			Message:      "创建对话",
+			Message:      "Create conversation",
 			ResourceType: "conversation",
 			ResourceID:   conv.ID,
 			Detail:       detail,

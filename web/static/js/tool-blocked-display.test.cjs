@@ -108,7 +108,7 @@ test('live merge replaces a red failure badge with the distinct block badge and 
     assert.equal(item.classList.contains('tool-call-blocked'), true);
     assert.equal(item.classList.contains('tool-call-failed'), false);
     assert.equal(item.title.children.length, 1);
-    assert.match(item.title.children[0].textContent, /已拦截/);
+    assert.match(item.title.children[0].textContent, /Blocked/);
     assert.equal(ctx.toolCallDetailStateByItemId.get(item.id).rawText, reason);
 });
 
@@ -134,6 +134,6 @@ test('execution summary buttons and raw detail preserve the separate blocked sta
     const ctx = runtime();
     assert.equal(ctx.normalizeToolExecutionSummary({ toolName: 'http_request', status: 'blocked' }).status, 'blocked');
     assert.equal(ctx.normalizeToolExecutionSummary({ toolName: 'http_request', status: 'failed', error: reason }).status, 'blocked');
-    assert.equal(ctx.getToolExecutionStatusLabel('blocked'), '已拦截');
+    assert.equal(ctx.getToolExecutionStatusLabel('blocked'), 'Blocked');
     assert.equal(JSON.parse(ctx.formatMCPResultJsonForDisplay({ blocked: true, isError: true, content: [] })).blocked, true);
 });

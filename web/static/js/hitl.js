@@ -71,7 +71,7 @@ function hitlPayloadSummary(payloadObj) {
     if (payloadObj && payloadObj.userMessage) parts.push(hitlT('fieldUserMessage', 'User'));
     if (payloadObj && payloadObj.thinking) parts.push(hitlT('fieldThinking', 'Thinking'));
     if (payloadObj && payloadObj.executionResult) parts.push(hitlT('fieldExecutionResult', 'Result'));
-    return parts.length ? parts.join(' · ') : '—';
+    return parts.length ? parts.join('  -  ') : '—';
 }
 
 function hitlModeNormalize(m) {
@@ -118,7 +118,7 @@ function hitlPaginationT(key, opts, fallback) {
 function hitlLocale() {
     if (typeof window.uiLocale === 'function') return window.uiLocale();
     if (typeof window.__locale === 'string' && window.__locale.length) {
-        if (window.__locale.startsWith('zh')) return 'zh-CN';
+        if (window.__locale.startsWith('zh')) return 'en-US';
         if (window.__locale.startsWith('ru')) return 'ru-RU';
         return 'en-US';
     }
@@ -147,14 +147,14 @@ function renderHitlPagination(containerId, state, goPageFnName, pageSizeChangeFn
     const start = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const end = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
     const infoText = hitlPaginationT('paginationInfo', { start: start, end: end, total: total },
-        '显示 ' + start + '-' + end + ' / 共 ' + total + ' 条记录');
-    const perPageLabel = hitlPaginationT('perPageLabel', null, '每页显示');
-    const firstPageLabel = hitlPaginationT('firstPage', null, '首页');
-    const prevPageLabel = hitlPaginationT('prevPage', null, '上一页');
+        'Show ' + start + '-' + end + ' / total ' + total + ' records');
+    const perPageLabel = hitlPaginationT('perPageLabel', null, 'Per page');
+    const firstPageLabel = hitlPaginationT('firstPage', null, 'First');
+    const prevPageLabel = hitlPaginationT('prevPage', null, 'Previous');
     const pageInfoText = hitlPaginationT('pageInfo', { page: currentPage, total: totalPages },
-        '第 ' + currentPage + ' / ' + totalPages + ' 页');
-    const nextPageLabel = hitlPaginationT('nextPage', null, '下一页');
-    const lastPageLabel = hitlPaginationT('lastPage', null, '末页');
+        'Page ' + currentPage + ' / ' + totalPages + ' pages');
+    const nextPageLabel = hitlPaginationT('nextPage', null, 'Next');
+    const lastPageLabel = hitlPaginationT('lastPage', null, 'Last');
     const disabledFirst = currentPage === 1 || total === 0;
     const disabledLast = currentPage >= totalPages || total === 0;
     let html = '<div class="monitor-pagination">';
@@ -350,7 +350,7 @@ async function initHitlDefaultReviewerFromServer() {
     }
 }
 
-/** 无会话时：将免审批工具合并进服务端 config.yaml，返回更新后的全局白名单数组 */
+/** 无会话时: 将免审批工具合并进服务端 config.yaml, 返回更新后的全局白名单数组 */
 async function mergeHitlGlobalToolWhitelist(sensitiveTools) {
     const list = Array.isArray(sensitiveTools) ? sensitiveTools : [];
     const resp = await hitlApiFetch('/api/hitl/tool-whitelist', {
@@ -626,7 +626,7 @@ async function syncHitlConfigFromServer(conversationId) {
                 enabled: true,
                 timeoutSeconds: merged.timeoutSeconds
             }).catch(function (err) {
-                console.warn('HITL 会话配置同步到服务器失败（将仅保留本地 UI）:', err);
+                console.warn('HITL Failed to sync the session config to the server (only the local copy is kept UI):', err);
             });
         }
     }
@@ -636,7 +636,7 @@ async function syncHitlConfigFromServer(conversationId) {
             await saveHitlConversationConfig(conversationId, merged);
             markLegacyHitlTimeoutMigrated(conversationId);
         } catch (err) {
-            console.warn('HITL 旧会话等待时限迁移失败，将在下次加载时重试:', err);
+            console.warn('HITL Failed to migrate the old session wait-timeout; it will retry on the next load:', err);
         }
     } else if (normalizeHitlTimeoutSeconds(merged.timeoutSeconds, 0) > 0) {
         markLegacyHitlTimeoutMigrated(conversationId);
@@ -709,7 +709,7 @@ function bindHitlAutoResizeTextareas(root) {
 }
 
 /**
- * 审批提交后原 SSE 已断开：轮询任务列表，运行中则拉取过程详情；任务结束后再整页加载会话以对齐终态。
+ * 审批提交后原 SSE 已断开: turn询任务列表, 运行中则拉取过程详情; 任务结束后再整pages加载会话以对齐终态.
  */
 async function followAgentRunAfterHitlDecision(conversationId) {
     if (!conversationId || typeof apiFetch !== 'function') return;
@@ -1266,7 +1266,7 @@ function hitlAuditEngineLabel(backend, model) {
         ? hitlT('auditEngineJev', 'TypeSafe Jev')
         : hitlT('auditEngineOpenAI', 'OpenAI protocol');
     const m = String(model || '').trim();
-    return m ? (name + ' · ' + m) : name;
+    return m ? (name + '  -  ' + m) : name;
 }
 
 function hitlAuditEngineFromItem(item) {
@@ -1318,7 +1318,7 @@ function renderHitlPageAuditEngine() {
         return;
     }
     el.hidden = false;
-    el.textContent = hitlT('auditEngineLabel', 'Approval engine') + '：' + engine;
+    el.textContent = hitlT('auditEngineLabel', 'Approval engine') + ': ' + engine;
 }
 
 function hitlFormatTime(v) {
@@ -2019,14 +2019,14 @@ document.addEventListener('languagechange', function () {
     }
 });
 
-// 由 applyHitlSidebarConfig 调用，将侧栏配置同步到后端
+// 由 applyHitlSidebarConfig 调用, 将侧栏配置同step到后端
 window.syncHitlConfigToServerByCurrentConversation = syncHitlConfigToServerByCurrentConversation;
 window.saveHitlConversationConfig = saveHitlConversationConfig;
 window.mergeHitlGlobalToolWhitelist = mergeHitlGlobalToolWhitelist;
 window.fetchHitlDefaultConfig = fetchHitlDefaultConfig;
 window.putHitlDefaultConfig = putHitlDefaultConfig;
 
-// 由 chat.js 在 loadConversation 内 await 调用；挂到 window 供其它入口显式触发
+// 由 chat.js 在 loadConversation 内 await 调用; 挂到 window 供其它入口显式触发
 window.syncHitlConfigFromServer = syncHitlConfigFromServer;
 window.fetchHitlDefaultReviewer = fetchHitlDefaultReviewer;
 window.putHitlDefaultReviewer = putHitlDefaultReviewer;

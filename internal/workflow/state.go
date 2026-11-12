@@ -140,16 +140,16 @@ func conditionMatched(state *WorkflowLocalState) bool {
 func conditionBranchHint(edge graphEdge) string {
 	if edge.Config != nil {
 		switch strings.ToLower(strings.TrimSpace(cfgString(edge.Config, "branch"))) {
-		case "true", "yes", "y", "是":
+		case "true", "yes", "y":
 			return "true"
-		case "false", "no", "n", "否":
+		case "false", "no", "n":
 			return "false"
 		}
 	}
 	switch strings.ToLower(strings.TrimSpace(edge.Label)) {
-	case "true", "yes", "y", "是":
+	case "true", "yes", "y":
 		return "true"
-	case "false", "no", "n", "否":
+	case "false", "no", "n":
 		return "false"
 	}
 	return ""
@@ -185,30 +185,30 @@ func truncateWorkflowPreview(s string, limit int) string {
 
 func renderWorkflowResponse(roleName, workflowName string, version int, runID string, state *WorkflowLocalState) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("角色「%s」已完成工作流「%s」（版本 %d）。\n\n", roleName, workflowName, version))
-	sb.WriteString(fmt.Sprintf("运行 ID：%s\n", runID))
-	sb.WriteString(fmt.Sprintf("已执行节点：%d", len(state.Executed)))
+	sb.WriteString(fmt.Sprintf("Role '%s' has completed workflow '%s' (version %d).\n\n", roleName, workflowName, version))
+	sb.WriteString(fmt.Sprintf("Run ID: %s\n", runID))
+	sb.WriteString(fmt.Sprintf("Executed node: %d", len(state.Executed)))
 	if len(state.Skipped) > 0 {
-		sb.WriteString(fmt.Sprintf("，跳过节点：%d", len(state.Skipped)))
+		sb.WriteString(fmt.Sprintf(", Skip node: %d", len(state.Skipped)))
 	}
 	sb.WriteString("\n\n")
 	if len(state.Outputs) > 0 {
-		sb.WriteString("输出：\n")
+		sb.WriteString("Output: \n")
 		keys := make([]string, 0, len(state.Outputs))
 		for k := range state.Outputs {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			sb.WriteString(fmt.Sprintf("- %s：%v\n", k, state.Outputs[k]))
+			sb.WriteString(fmt.Sprintf("- %s: %v\n", k, state.Outputs[k]))
 		}
 	} else {
-		sb.WriteString("暂无输出。请检查是否配置了输出节点，或条件分支是否命中。\n")
+		sb.WriteString("No output yet. Check whether an output node is configured, or whether a conditional branch was taken.\n")
 	}
 	if len(state.Skipped) > 0 {
-		sb.WriteString("\n未执行的节点类型仍会保留运行记录：")
-		sb.WriteString(strings.Join(state.Skipped, "、"))
-		sb.WriteString("。")
+		sb.WriteString("\n Node types that were not executed still keep a run record: ")
+		sb.WriteString(strings.Join(state.Skipped, ", "))
+		sb.WriteString(".")
 	}
 	return strings.TrimSpace(sb.String())
 }

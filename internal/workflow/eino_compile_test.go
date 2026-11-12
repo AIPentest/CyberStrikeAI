@@ -28,8 +28,8 @@ func testWorkflowDB(t *testing.T) *database.DB {
 func linearStartOutputGraph() string {
 	return `{
   "nodes": [
-    {"id": "start-1", "type": "start", "label": "开始", "position": {"x": 0, "y": 0}, "config": {}},
-    {"id": "out-1", "type": "output", "label": "输出", "position": {"x": 0, "y": 120}, "config": {"output_key": "result", "source_binding": {"from": "inputs", "field": "message"}}}
+    {"id": "start-1", "type": "start", "label": "Start", "position": {"x": 0, "y": 0}, "config": {}},
+    {"id": "out-1", "type": "output", "label": "Output", "position": {"x": 0, "y": 120}, "config": {"output_key": "result", "source_binding": {"from": "inputs", "field": "message"}}}
   ],
   "edges": [
     {"id": "e1", "source": "start-1", "target": "out-1"}
@@ -41,15 +41,15 @@ func linearStartOutputGraph() string {
 func conditionBranchGraph() string {
 	return `{
   "nodes": [
-    {"id": "start-1", "type": "start", "label": "开始", "position": {"x": 0, "y": 0}, "config": {}},
-    {"id": "cond-1", "type": "condition", "label": "判断", "position": {"x": 0, "y": 80}, "config": {"expression": "{{inputs.message}} == yes"}},
-    {"id": "out-yes", "type": "output", "label": "是", "position": {"x": -80, "y": 160}, "config": {"output_key": "branch", "static_value": "yes"}},
-    {"id": "out-no", "type": "output", "label": "否", "position": {"x": 80, "y": 160}, "config": {"output_key": "branch", "static_value": "no"}}
+    {"id": "start-1", "type": "start", "label": "Start", "position": {"x": 0, "y": 0}, "config": {}},
+    {"id": "cond-1", "type": "condition", "label": "Decision", "position": {"x": 0, "y": 80}, "config": {"expression": "{{inputs.message}} == yes"}},
+    {"id": "out-yes", "type": "output", "label": "Yes", "position": {"x": -80, "y": 160}, "config": {"output_key": "branch", "static_value": "yes"}},
+    {"id": "out-no", "type": "output", "label": "No", "position": {"x": 80, "y": 160}, "config": {"output_key": "branch", "static_value": "no"}}
   ],
   "edges": [
     {"id": "e1", "source": "start-1", "target": "cond-1"},
-    {"id": "e2", "source": "cond-1", "target": "out-yes", "label": "是"},
-    {"id": "e3", "source": "cond-1", "target": "out-no", "label": "否"}
+    {"id": "e2", "source": "cond-1", "target": "out-yes", "label": "Yes"},
+    {"id": "e3", "source": "cond-1", "target": "out-no", "label": "No"}
   ],
   "config": {"schema_version": 1}
 }`
@@ -71,9 +71,9 @@ func TestValidateGraphJSON_rejectsInvalidGraphs(t *testing.T) {
 			name: "start with incoming edge",
 			graph: `{
   "nodes": [
-    {"id": "start-1", "type": "start", "label": "开始", "position": {"x": 0, "y": 0}, "config": {}},
+    {"id": "start-1", "type": "start", "label": "Start", "position": {"x": 0, "y": 0}, "config": {}},
     {"id": "agent-1", "type": "agent", "label": "Agent", "position": {"x": 0, "y": 80}, "config": {"instruction": "noop"}},
-    {"id": "out-1", "type": "output", "label": "输出", "position": {"x": 0, "y": 160}, "config": {"output_key": "result"}}
+    {"id": "out-1", "type": "output", "label": "Output", "position": {"x": 0, "y": 160}, "config": {"output_key": "result"}}
   ],
   "edges": [
     {"id": "e1", "source": "start-1", "target": "agent-1"},
@@ -81,47 +81,47 @@ func TestValidateGraphJSON_rejectsInvalidGraphs(t *testing.T) {
     {"id": "e3", "source": "agent-1", "target": "out-1"}
   ]
 }`,
-			wantErr: "开始节点",
+			wantErr: "Start node",
 		},
 		{
 			name: "output with outgoing edge",
 			graph: `{
   "nodes": [
-    {"id": "start-1", "type": "start", "label": "开始", "position": {"x": 0, "y": 0}, "config": {}},
-    {"id": "out-1", "type": "output", "label": "输出", "position": {"x": 0, "y": 80}, "config": {"output_key": "result"}},
-    {"id": "end-1", "type": "end", "label": "结束", "position": {"x": 0, "y": 160}, "config": {}}
+    {"id": "start-1", "type": "start", "label": "Start", "position": {"x": 0, "y": 0}, "config": {}},
+    {"id": "out-1", "type": "output", "label": "Output", "position": {"x": 0, "y": 80}, "config": {"output_key": "result"}},
+    {"id": "end-1", "type": "end", "label": "End", "position": {"x": 0, "y": 160}, "config": {}}
   ],
   "edges": [
     {"id": "e1", "source": "start-1", "target": "out-1"},
     {"id": "e2", "source": "out-1", "target": "end-1"}
   ]
 }`,
-			wantErr: "不能有出边",
+			wantErr: "cannot have an outgoing edge",
 		},
 		{
 			name: "tool without name",
 			graph: `{
   "nodes": [
-    {"id": "start-1", "type": "start", "label": "开始", "position": {"x": 0, "y": 0}, "config": {}},
-    {"id": "tool-1", "type": "tool", "label": "工具", "position": {"x": 0, "y": 80}, "config": {}},
-    {"id": "out-1", "type": "output", "label": "输出", "position": {"x": 0, "y": 160}, "config": {"output_key": "result"}}
+    {"id": "start-1", "type": "start", "label": "Start", "position": {"x": 0, "y": 0}, "config": {}},
+    {"id": "tool-1", "type": "tool", "label": "Tool", "position": {"x": 0, "y": 80}, "config": {}},
+    {"id": "out-1", "type": "output", "label": "Output", "position": {"x": 0, "y": 160}, "config": {"output_key": "result"}}
   ],
   "edges": [
     {"id": "e1", "source": "start-1", "target": "tool-1"},
     {"id": "e2", "source": "tool-1", "target": "out-1"}
   ]
 }`,
-			wantErr: "必须选择 MCP 工具",
+			wantErr: "must select an MCP tool",
 		},
 		{
 			name: "condition with too many branches",
 			graph: `{
   "nodes": [
-    {"id": "start-1", "type": "start", "label": "开始", "position": {"x": 0, "y": 0}, "config": {}},
-    {"id": "cond-1", "type": "condition", "label": "判断", "position": {"x": 0, "y": 80}, "config": {"expression": "{{inputs.message}}"}},
-    {"id": "out-1", "type": "output", "label": "输出1", "position": {"x": -80, "y": 160}, "config": {"output_key": "a"}},
-    {"id": "out-2", "type": "output", "label": "输出2", "position": {"x": 0, "y": 160}, "config": {"output_key": "b"}},
-    {"id": "out-3", "type": "output", "label": "输出3", "position": {"x": 80, "y": 160}, "config": {"output_key": "c"}}
+    {"id": "start-1", "type": "start", "label": "Start", "position": {"x": 0, "y": 0}, "config": {}},
+    {"id": "cond-1", "type": "condition", "label": "Decision", "position": {"x": 0, "y": 80}, "config": {"expression": "{{inputs.message}}"}},
+    {"id": "out-1", "type": "output", "label": "Output1", "position": {"x": -80, "y": 160}, "config": {"output_key": "a"}},
+    {"id": "out-2", "type": "output", "label": "Output2", "position": {"x": 0, "y": 160}, "config": {"output_key": "b"}},
+    {"id": "out-3", "type": "output", "label": "Output3", "position": {"x": 80, "y": 160}, "config": {"output_key": "c"}}
   ],
   "edges": [
     {"id": "e1", "source": "start-1", "target": "cond-1"},
@@ -130,30 +130,30 @@ func TestValidateGraphJSON_rejectsInvalidGraphs(t *testing.T) {
     {"id": "e4", "source": "cond-1", "target": "out-3"}
   ]
 }`,
-			wantErr: "1 到 2 条出边",
+			wantErr: "1 to 2 outgoing edges",
 		},
 		{
 			name: "orphan node",
 			graph: `{
   "nodes": [
-    {"id": "start-1", "type": "start", "label": "开始", "position": {"x": 0, "y": 0}, "config": {}},
-    {"id": "out-1", "type": "output", "label": "输出", "position": {"x": 0, "y": 80}, "config": {"output_key": "result"}},
-    {"id": "agent-1", "type": "agent", "label": "孤岛", "position": {"x": 200, "y": 80}, "config": {"instruction": "noop"}}
+    {"id": "start-1", "type": "start", "label": "Start", "position": {"x": 0, "y": 0}, "config": {}},
+    {"id": "out-1", "type": "output", "label": "Output", "position": {"x": 0, "y": 80}, "config": {"output_key": "result"}},
+    {"id": "agent-1", "type": "agent", "label": "Island", "position": {"x": 200, "y": 80}, "config": {"instruction": "noop"}}
   ],
   "edges": [
     {"id": "e1", "source": "start-1", "target": "out-1"}
   ]
 }`,
-			wantErr: "不可达",
+			wantErr: "is unreachable",
 		},
 		{
 			name: "cycle",
 			graph: `{
   "nodes": [
-    {"id": "start-1", "type": "start", "label": "开始", "position": {"x": 0, "y": 0}, "config": {}},
+    {"id": "start-1", "type": "start", "label": "Start", "position": {"x": 0, "y": 0}, "config": {}},
     {"id": "agent-1", "type": "agent", "label": "Agent1", "position": {"x": 0, "y": 80}, "config": {"instruction": "noop", "output_key": "a1"}},
     {"id": "agent-2", "type": "agent", "label": "Agent2", "position": {"x": 0, "y": 160}, "config": {"instruction": "noop", "output_key": "a2"}},
-    {"id": "out-1", "type": "output", "label": "输出", "position": {"x": 0, "y": 240}, "config": {"output_key": "result"}}
+    {"id": "out-1", "type": "output", "label": "Output", "position": {"x": 0, "y": 240}, "config": {"output_key": "result"}}
   ],
   "edges": [
     {"id": "e1", "source": "start-1", "target": "agent-1"},
@@ -162,20 +162,20 @@ func TestValidateGraphJSON_rejectsInvalidGraphs(t *testing.T) {
     {"id": "e4", "source": "agent-2", "target": "out-1"}
   ]
 }`,
-			wantErr: "环路",
+			wantErr: "has a cycle",
 		},
 		{
 			name: "output without key",
 			graph: `{
   "nodes": [
-    {"id": "start-1", "type": "start", "label": "开始", "position": {"x": 0, "y": 0}, "config": {}},
-    {"id": "out-1", "type": "output", "label": "输出", "position": {"x": 0, "y": 80}, "config": {}}
+    {"id": "start-1", "type": "start", "label": "Start", "position": {"x": 0, "y": 0}, "config": {}},
+    {"id": "out-1", "type": "output", "label": "Output", "position": {"x": 0, "y": 80}, "config": {}}
   ],
   "edges": [
     {"id": "e1", "source": "start-1", "target": "out-1"}
   ]
 }`,
-			wantErr: "输出变量名",
+			wantErr: "output variable name",
 		},
 	}
 
@@ -355,7 +355,7 @@ func TestRunRoleBoundWorkflow_integration(t *testing.T) {
 	graph := linearStartOutputGraph()
 	if err := db.UpsertWorkflowDefinition(&database.WorkflowDefinition{
 		ID:        "wf-linear",
-		Name:      "线性流程",
+		Name:      "Linear flow",
 		Version:   1,
 		GraphJSON: graph,
 		Enabled:   true,

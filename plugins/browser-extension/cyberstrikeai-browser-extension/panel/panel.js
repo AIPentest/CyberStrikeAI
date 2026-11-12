@@ -887,7 +887,7 @@ async function openSendDialog(entryOverride) {
   try {
     const { projects, roles } = await fetchCatalogCached(baseUrl, token);
     fillSelect($('dlg-project'), projects, config.lastProjectId);
-    const lastRole = config.lastRole === '默认' ? '' : config.lastRole;
+    const lastRole = config.lastRole === 'Default' ? '' : config.lastRole;
     fillSelect($('dlg-role'), roles, lastRole);
   } catch (err) {
     if (await handleAuthFailure(err, 'Token invalid or expired — please Validate again')) {

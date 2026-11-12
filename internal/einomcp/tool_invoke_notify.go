@@ -2,19 +2,19 @@ package einomcp
 
 import "sync"
 
-// ToolInvokeNotifyHolder 由 Eino run loop 与 MCP/execute 桥共享；Fire 在工具原始返回时触发。
-// UI 的 tool_result 须等 ADK schema.Tool 事件（reduction 后正文），不在此 holder 的回调里推送。
+// ToolInvokeNotifyHolder Shared by the Eino run loop and the MCP/execute bridge; Fire is triggered when the tool originally returns.
+// UI whose tool_result must wait for the ADK schema.Tool event (post-reduction body); it is not pushed from this holder's callback.
 type ToolInvokeNotifyHolder struct {
 	mu sync.RWMutex
 	fn func(toolCallID, toolName, einoAgent string, success bool, content string, invokeErr error)
 }
 
-// NewToolInvokeNotifyHolder 创建可在 ToolsFromDefinitions 与 run loop 之间共享的 holder。
+// NewToolInvokeNotifyHolder Creates one that can be shared between ToolsFromDefinitions and the run loop holder.
 func NewToolInvokeNotifyHolder() *ToolInvokeNotifyHolder {
 	return &ToolInvokeNotifyHolder{}
 }
 
-// Set 由 runEinoADKAgentLoop 在开始消费 iter 之前调用；可多次覆盖（通常仅一次）。
+// Set Called by runEinoADKAgentLoop before it starts consuming iter; may be overridden multiple times (usually only once).
 func (h *ToolInvokeNotifyHolder) Set(fn func(toolCallID, toolName, einoAgent string, success bool, content string, invokeErr error)) {
 	if h == nil {
 		return
@@ -24,7 +24,7 @@ func (h *ToolInvokeNotifyHolder) Set(fn func(toolCallID, toolName, einoAgent str
 	h.fn = fn
 }
 
-// Fire 由 mcpBridgeTool 在工具调用返回时调用；若尚未 Set 或 toolCallID 为空则忽略。
+// Fire Called by mcpBridgeTool when a tool call returns; ignored if it has not been Set or toolCallID is empty.
 func (h *ToolInvokeNotifyHolder) Fire(toolCallID, toolName, einoAgent string, success bool, content string, invokeErr error) {
 	if h == nil {
 		return

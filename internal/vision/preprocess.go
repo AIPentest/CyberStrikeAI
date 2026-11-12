@@ -10,36 +10,36 @@ import (
 	"github.com/disintegration/imaging"
 )
 
-// ImagePayload 送入 VL API 的图片字节与 MIME。
+// ImagePayload The image bytes sent to the VL API and MIME.
 type ImagePayload struct {
 	Bytes    []byte
 	MIMEType string
 }
 
-// PreprocessMeta 记录缩放与编码结果，供工具输出与排障。
+// PreprocessMeta Logs the resizing and encoding results, for tool output and troubleshooting.
 type PreprocessMeta struct {
-	OriginalPath      string
-	OriginalBytes     int64
-	OriginalWidth     int
-	OriginalHeight    int
-	OutputWidth       int
-	OutputHeight      int
-	OutputBytes       int
-	OutputMIMEType    string
-	JPEGQuality       int // 0 表示未 JPEG 重编码（原图直传）
-	PreprocessMode    string // passthrough | jpeg
+	OriginalPath   string
+	OriginalBytes  int64
+	OriginalWidth  int
+	OriginalHeight int
+	OutputWidth    int
+	OutputHeight   int
+	OutputBytes    int
+	OutputMIMEType string
+	JPEGQuality    int    // 0 indicates no JPEG re-encoding (the original image is passed through)
+	PreprocessMode string // passthrough | jpeg
 }
 
-// PreprocessOptions 图片预处理参数。
+// PreprocessOptions Image-preprocessing parameters.
 type PreprocessOptions struct {
 	MaxImageBytes            int64
 	MaxDimension             int
 	JPEGQuality              int
 	MaxPayloadBytes          int64
-	SkipPreprocessBelowBytes int64 // 0 = 始终压缩；>0 时小图+尺寸合规可直传
+	SkipPreprocessBelowBytes int64 // 0 = Always compress; when >0, small images+If the size is compliant it can be passed through directly
 }
 
-// PreprocessImageFile 读取图片；大图或超尺寸走 imaging 缩放+JPEG，否则可原图直传。
+// PreprocessImageFile Reads the image; large or oversized images go through imaging resizing+JPEG, Otherwise the original image can be passed through directly.
 func PreprocessImageFile(path string, opt PreprocessOptions) (ImagePayload, PreprocessMeta, error) {
 	var meta PreprocessMeta
 	meta.OriginalPath = path
@@ -201,7 +201,7 @@ func mimeFromImageFormat(format string) string {
 	}
 }
 
-// DecodeImageConfig 用于测试：确认文件可被解码。
+// DecodeImageConfig For testing: confirm the file can be decoded.
 func DecodeImageConfig(path string) (image.Config, string, error) {
 	f, err := os.Open(path)
 	if err != nil {

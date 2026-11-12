@@ -35,7 +35,7 @@ test('project headers contain their content and all tabs receive mobile taps', a
                 await page.addScriptTag({ content: `let currentProjectTab = 'facts'; window.loads = [];
                     ${['Facts', 'FactGraph', 'Assets', 'Conversations', 'Vulnerabilities'].map(name => `function loadProject${name}() { window.loads.push('${name}'); }`).join('\n')}
                     ${switchTab}` });
-                for (const locale of ['zh-CN', 'en-US', 'ru-RU']) {
+                for (const locale of ['en-US', 'ru-RU']) {
                     const translations = JSON.parse(read(`web/static/i18n/${locale}.json`));
                     await page.evaluate(dict => {
                         document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -224,7 +224,7 @@ test('mobile facts keep badges and actions inside their columns while scrolling 
                     window.showEditFactModal = () => { window.actionClicked = 'edit'; };
                     window.viewProjectFactBody = () => { window.actionClicked = 'details'; };
                 });
-                for (const locale of ['zh-CN', 'en-US', 'ru-RU']) {
+                for (const locale of ['en-US', 'ru-RU']) {
                     await page.evaluate(dict => {
                         window.t = key => key.split('.').reduce((v, k) => v?.[k], dict) || key;
                         document.querySelectorAll('thead [data-i18n]').forEach(el => { el.textContent = window.t(el.dataset.i18n); });

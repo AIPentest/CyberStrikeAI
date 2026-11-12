@@ -116,9 +116,9 @@ const DRAFT_SAVE_DELAY = 500; // 500ms防抖延迟
 
 // 对话文件上传相关（后端会拼接路径与内容发给大模型，前端不再重复发文件列表）
 const MAX_CHAT_FILES = 10;
-const CHAT_FILE_DEFAULT_PROMPT = '请根据上传的文件内容进行分析。';
+const CHAT_FILE_DEFAULT_PROMPT = 'Please analyze based on the uploaded file content.';
 /** 与 handler.formatInterruptContinueUserMessage 首段一致；主对话不展示，仅迭代详情（user_interrupt_continue） */
-const CHAT_INTERRUPT_CONTINUE_USER_PREFIX = '【用户补充 / 中断后继续】';
+const CHAT_INTERRUPT_CONTINUE_USER_PREFIX = '[User supplement / continue after interruption]';
 function isInterruptContinueInjectChatMessage(content) {
     return typeof content === 'string' && content.trimStart().startsWith(CHAT_INTERRUPT_CONTINUE_USER_PREFIX);
 }
@@ -513,11 +513,11 @@ function getHitlModeLabel(mode) {
     const safeMode = normalizeHitlMode(mode);
     switch (safeMode) {
         case HITL_MODE_APPROVAL:
-            return chatTranslate('chat.hitlModeApproval', '审批模式');
+            return chatTranslate('chat.hitlModeApproval', 'Approval mode');
         case HITL_MODE_REVIEW_EDIT:
-            return chatTranslate('chat.hitlModeReviewEdit', '审查编辑');
+            return chatTranslate('chat.hitlModeReviewEdit', 'Review and edit');
         default:
-            return chatTranslate('chat.hitlModeOff', '关闭');
+            return chatTranslate('chat.hitlModeOff', 'Close');
     }
 }
 
@@ -574,11 +574,11 @@ async function onHitlReviewerChanged(reviewer) {
         } else if (typeof window.putHitlDefaultReviewer === 'function') {
             await window.putHitlDefaultReviewer(cfg.reviewer);
         }
-        const ok = typeof window.t === 'function' ? window.t('hitl.pageReviewerSaved') : '审批方已保存。';
+        const ok = typeof window.t === 'function' ? window.t('hitl.pageReviewerSaved') : 'The approver has been saved.';
         showChatToast(ok, 'success');
     } catch (e) {
         console.warn('onHitlReviewerChanged', e);
-        const prefix = typeof window.t === 'function' ? window.t('chat.hitlApplyFail') : '同步到服务器失败';
+        const prefix = typeof window.t === 'function' ? window.t('chat.hitlApplyFail') : 'Failed to sync to the server';
         showChatToast(prefix, 'error');
     }
 }
@@ -761,17 +761,17 @@ async function applyHitlSidebarConfig() {
 
         if (cid && typeof window.saveHitlConversationConfig === 'function') {
             await window.saveHitlConversationConfig(cid, cfg);
-            const ok = typeof window.t === 'function' ? window.t('chat.hitlApplyOkSync') : '人机协同配置已保存并同步到服务器。';
+            const ok = typeof window.t === 'function' ? window.t('chat.hitlApplyOkSync') : 'The human-in-the-loop config has been saved and synced to the server.';
             showHitlApplyFeedback(ok, false);
         } else if (typeof window.putHitlDefaultConfig === 'function') {
             await window.putHitlDefaultConfig(cfg);
-            const okDefault = typeof window.t === 'function' ? window.t('chat.hitlApplyOkDefaultConfig') : '人机协同默认配置已写入 config.yaml 并生效。';
+            const okDefault = typeof window.t === 'function' ? window.t('chat.hitlApplyOkDefaultConfig') : 'The human-in-the-loop default config has been written to config.yaml and taken effect.';
             showHitlApplyFeedback(okDefault, false);
         } else if (yamlMerged) {
-            const okYaml = typeof window.t === 'function' ? window.t('chat.hitlApplyOkWhitelistYaml') : '免审批工具已合并进 config.yaml 并生效。会话配置会自动保存。';
+            const okYaml = typeof window.t === 'function' ? window.t('chat.hitlApplyOkWhitelistYaml') : 'Approval-free tools have been merged into config.yaml and taken effect. The session config is saved automatically.';
             showHitlApplyFeedback(okYaml, false);
         } else {
-            const localOnly = typeof window.t === 'function' ? window.t('chat.hitlApplyOkLocal') : '已保存到本浏览器。';
+            const localOnly = typeof window.t === 'function' ? window.t('chat.hitlApplyOkLocal') : 'Saved to this browser.';
             showHitlApplyFeedback(localOnly, false);
         }
         if (typeof window.refreshHitlPageWhitelist === 'function') {
@@ -779,7 +779,7 @@ async function applyHitlSidebarConfig() {
         }
     } catch (e) {
         console.warn('applyHitlSidebarConfig', e);
-        const prefix = typeof window.t === 'function' ? window.t('chat.hitlApplyFail') : '同步到服务器失败';
+        const prefix = typeof window.t === 'function' ? window.t('chat.hitlApplyFail') : 'Failed to sync to the server';
         const detail = (e && e.message) ? e.message : String(e);
         showHitlApplyFeedback(prefix + (detail ? '：' + detail : ''), true);
     } finally {
@@ -946,7 +946,7 @@ function getAgentModeLabelForValue(mode) {
         }
     }
     switch (mode) {
-        case CHAT_AGENT_MODE_EINO_SINGLE: return 'Eino 单代理';
+        case CHAT_AGENT_MODE_EINO_SINGLE: return 'Eino Single agent';
         case 'deep': return 'Deep';
         case 'plan_execute': return 'Plan-Execute';
         case 'supervisor': return 'Supervisor';
@@ -1027,7 +1027,7 @@ function populateChatAIChannelSelect(ai) {
     select.innerHTML = '';
     const fallbackOpt = document.createElement('option');
     fallbackOpt.value = '';
-    fallbackOpt.textContent = typeof window.t === 'function' ? window.t('chat.aiChannelDefault') : '跟随默认通道';
+    fallbackOpt.textContent = typeof window.t === 'function' ? window.t('chat.aiChannelDefault') : 'Follow the default channel';
     select.appendChild(fallbackOpt);
     Object.keys(chatAIChannels).sort().forEach(function (id) {
         const ch = chatAIChannels[id] || {};
@@ -1053,7 +1053,7 @@ function currentChatAIChannelLabel() {
     const id = selectedChatAIChannelId() || chatDefaultAIChannel;
     const ch = id ? chatAIChannels[id] : null;
     if (!ch) {
-        return chatTranslate('chat.aiChannelDefaultShort', '默认通道');
+        return chatTranslate('chat.aiChannelDefaultShort', 'Default channel');
     }
     return ch.name || id;
 }
@@ -1086,7 +1086,7 @@ function currentHitlAuditModelLabel() {
 function currentHitlAuditEngineLabel() {
     const engine = currentHitlAuditBackend() === 'typesafe'
         ? chatTranslate('settings.hitl.auditBackendTypeSafe', 'TypeSafe Jev')
-        : chatTranslate('settings.hitl.auditBackendOpenAI', 'OpenAI 协议模型');
+        : chatTranslate('settings.hitl.auditBackendOpenAI', 'OpenAI Protocol model');
     const model = currentHitlAuditModelLabel();
     return engine + (model ? ' · ' + model : '');
 }
@@ -1168,7 +1168,7 @@ function chatReasoningEffortLabel(value) {
         case 'high': return 'high';
         case 'xhigh': return 'xhigh';
         case 'max': return 'max';
-        default: return chatTranslate('chat.reasoningEffortUnset', '不指定');
+        default: return chatTranslate('chat.reasoningEffortUnset', 'Unspecified');
     }
 }
 
@@ -1185,7 +1185,7 @@ function currentChatReasoningMode() {
 
 function currentChatReasoningMenuLabel() {
     const modeValue = currentChatReasoningMode();
-    if (modeValue === 'off') return chatTranslate('chat.reasoningModeOff', '关闭');
+    if (modeValue === 'off') return chatTranslate('chat.reasoningModeOff', 'Close');
     const effort = currentChatReasoningEffort();
     return effort ? chatReasoningEffortLabel(effort) : reasoningSummaryModeLabel(modeValue);
 }
@@ -1255,7 +1255,7 @@ function renderChatSystemModelOptions(models, currentModel) {
             option.classList.add('is-selected');
             const current = document.createElement('span');
             current.className = 'chat-system-model-current';
-            current.textContent = chatTranslate('chat.systemModelCurrent', '当前');
+            current.textContent = chatTranslate('chat.systemModelCurrent', 'Current');
             option.appendChild(current);
         }
         option.addEventListener('click', function (event) {
@@ -1289,7 +1289,7 @@ function renderChatReasoningEffortOptions() {
         if (effort === currentEffort) {
             const current = document.createElement('span');
             current.className = 'chat-system-model-current';
-            current.textContent = chatTranslate('chat.systemModelCurrent', '当前');
+            current.textContent = chatTranslate('chat.systemModelCurrent', 'Current');
             option.appendChild(current);
         }
         option.addEventListener('click', function (event) {
@@ -1320,7 +1320,7 @@ function renderChatReasoningModeOptions() {
         if (mode === currentMode) {
             const current = document.createElement('span');
             current.className = 'chat-system-model-current';
-            current.textContent = chatTranslate('chat.systemModelCurrent', '当前');
+            current.textContent = chatTranslate('chat.systemModelCurrent', 'Current');
             option.appendChild(current);
         }
         option.addEventListener('click', function (event) {
@@ -1334,7 +1334,7 @@ function renderChatReasoningModeOptions() {
 
 function finishChatReasoningPickerUpdate() {
     persistChatReasoningPrefs();
-    setChatSystemModelStatus(chatTranslate('chat.reasoningSessionUpdated', '会话推理设置已更新'), 'success');
+    setChatSystemModelStatus(chatTranslate('chat.reasoningSessionUpdated', 'The session reasoning settings have been updated'), 'success');
     if (chatSystemModelCloseTimer) window.clearTimeout(chatSystemModelCloseTimer);
     chatSystemModelCloseTimer = window.setTimeout(function () {
         chatSystemModelSaving = false;
@@ -1372,7 +1372,7 @@ function renderChatSystemModelRetry() {
     const retry = document.createElement('button');
     retry.type = 'button';
     retry.className = 'chat-system-model-retry';
-    retry.textContent = chatTranslate('chat.systemModelRetry', '重新获取');
+    retry.textContent = chatTranslate('chat.systemModelRetry', 'Fetch again');
     retry.addEventListener('click', function (retryEvent) {
         retryEvent.preventDefault();
         retryEvent.stopPropagation();
@@ -1386,7 +1386,7 @@ function renderChatAIChannelOptions() {
     if (!ui.list) return;
     ui.list.innerHTML = '';
     const selected = selectedChatAIChannelId();
-    const choices = [{ id: '', label: chatTranslate('chat.aiChannelDefault', '跟随默认通道') }]
+    const choices = [{ id: '', label: chatTranslate('chat.aiChannelDefault', 'Follow the default channel') }]
         .concat(Object.keys(chatAIChannels).sort().map(function (id) {
             const channel = chatAIChannels[id] || {};
             return { id: id, label: channel.name || id };
@@ -1405,7 +1405,7 @@ function renderChatAIChannelOptions() {
         if (choice.id === selected) {
             const current = document.createElement('span');
             current.className = 'chat-system-model-current';
-            current.textContent = chatTranslate('chat.systemModelCurrent', '当前');
+            current.textContent = chatTranslate('chat.systemModelCurrent', 'Current');
             option.appendChild(current);
         }
         option.addEventListener('click', function (event) {
@@ -1426,7 +1426,7 @@ async function selectChatAIChannel(channelId) {
     refreshSessionSettingsSelects();
     updateChatSystemModelPickerValues();
     openChatSystemModelView('main');
-    setChatSystemModelStatus(chatTranslate('chat.systemModelLoading', '正在获取模型列表…'), 'loading');
+    setChatSystemModelStatus(chatTranslate('chat.systemModelLoading', 'Fetching the model list…'), 'loading');
     await fetchChatSystemModelsForChannel(resolveChatPickerChannelId(), { force: true });
 }
 
@@ -1447,28 +1447,28 @@ function openChatSystemModelView(view, event) {
     ui.subview.hidden = false;
     ui.subview.dataset.view = view;
     if (view === 'channel') {
-        if (ui.subviewTitle) ui.subviewTitle.textContent = chatTranslate('chat.aiChannelLabel', 'AI 通道');
+        if (ui.subviewTitle) ui.subviewTitle.textContent = chatTranslate('chat.aiChannelLabel', 'AI Channel');
         setChatSystemModelStatus('', '');
         renderChatAIChannelOptions();
         return;
     }
     if (view === 'mode') {
-        if (ui.subviewTitle) ui.subviewTitle.textContent = chatTranslate('chat.reasoningModeLabel', '推理模式');
+        if (ui.subviewTitle) ui.subviewTitle.textContent = chatTranslate('chat.reasoningModeLabel', 'Reasoning mode');
         setChatSystemModelStatus('', '');
         renderChatReasoningModeOptions();
         return;
     }
     if (view === 'effort') {
-        if (ui.subviewTitle) ui.subviewTitle.textContent = chatTranslate('chat.reasoningEffortLabel', '推理强度');
+        if (ui.subviewTitle) ui.subviewTitle.textContent = chatTranslate('chat.reasoningEffortLabel', 'Reasoning effort');
         setChatSystemModelStatus('', '');
         renderChatReasoningEffortOptions();
         return;
     }
-    if (ui.subviewTitle) ui.subviewTitle.textContent = chatTranslate('chat.systemModelField', '模型');
+    if (ui.subviewTitle) ui.subviewTitle.textContent = chatTranslate('chat.systemModelField', 'Model');
     if (chatSystemModelOptions.length) {
         const count = renderChatSystemModelOptions(chatSystemModelOptions, chatSystemModelCurrent);
         setChatSystemModelStatus(
-            chatTranslate('chat.systemModelLoaded', '已获取 {count} 个模型').replace('{count}', String(count)),
+            chatTranslate('chat.systemModelLoaded', 'Fetched {count} models').replace('{count}', String(count)),
             'success'
         );
     } else if (chatSystemModelLoadError) {
@@ -1476,7 +1476,7 @@ function openChatSystemModelView(view, event) {
         setChatSystemModelStatus(chatSystemModelLoadError, 'error');
     } else {
         ui.list.innerHTML = '';
-        setChatSystemModelStatus(chatTranslate('chat.systemModelLoading', '正在获取模型列表…'), 'loading');
+        setChatSystemModelStatus(chatTranslate('chat.systemModelLoading', 'Fetching the model list…'), 'loading');
     }
 }
 
@@ -1490,11 +1490,11 @@ async function selectChatSystemModel(model) {
     if (ui.list) {
         ui.list.querySelectorAll('button').forEach(function (button) { button.disabled = true; });
     }
-    setChatSystemModelStatus(chatTranslate('chat.systemModelSaving', '正在保存…'), 'loading');
+    setChatSystemModelStatus(chatTranslate('chat.systemModelSaving', 'Saving…'), 'loading');
     try {
         const latestResponse = await apiFetch('/api/config');
         if (!latestResponse.ok) {
-            throw new Error(await readChatSystemModelError(latestResponse, chatTranslate('chat.systemModelSaveFailed', '保存失败')));
+            throw new Error(await readChatSystemModelError(latestResponse, chatTranslate('chat.systemModelSaveFailed', 'Failed to save')));
         }
         const latest = await latestResponse.json();
         const state = chatSystemModelConfigState(latest, resolveChatPickerChannelId());
@@ -1505,11 +1505,11 @@ async function selectChatSystemModel(model) {
             body: JSON.stringify({ ai: state.ai })
         });
         if (!updateResponse.ok) {
-            throw new Error(await readChatSystemModelError(updateResponse, chatTranslate('chat.systemModelSaveFailed', '保存失败')));
+            throw new Error(await readChatSystemModelError(updateResponse, chatTranslate('chat.systemModelSaveFailed', 'Failed to save')));
         }
         const applyResponse = await apiFetch('/api/config/apply', { method: 'POST' });
         if (!applyResponse.ok) {
-            throw new Error(await readChatSystemModelError(applyResponse, chatTranslate('chat.systemModelApplyFailed', '应用模型失败')));
+            throw new Error(await readChatSystemModelError(applyResponse, chatTranslate('chat.systemModelApplyFailed', 'Failed to apply the model')));
         }
         chatAIChannels = state.ai.channels;
         chatDefaultAIChannel = resolveChatAIChannelId(state.ai.default_channel) || state.channelId;
@@ -1519,7 +1519,7 @@ async function selectChatSystemModel(model) {
         chatSystemModelOptions = [chosen].concat(chatSystemModelOptions);
         updateChatSystemModelPickerValues();
         renderChatSystemModelOptions(chatSystemModelOptions, chosen);
-        setChatSystemModelStatus(chatTranslate('chat.systemModelSaved', '已自动保存'), 'success');
+        setChatSystemModelStatus(chatTranslate('chat.systemModelSaved', 'Auto-saved'), 'success');
         if (chatSystemModelCloseTimer) window.clearTimeout(chatSystemModelCloseTimer);
         chatSystemModelCloseTimer = window.setTimeout(function () {
             chatSystemModelSaving = false;
@@ -1528,7 +1528,7 @@ async function selectChatSystemModel(model) {
         return;
     } catch (error) {
         console.error('selectChatSystemModel', error);
-        setChatSystemModelStatus(error.message || chatTranslate('chat.systemModelSaveFailed', '保存失败'), 'error');
+        setChatSystemModelStatus(error.message || chatTranslate('chat.systemModelSaveFailed', 'Failed to save'), 'error');
     }
     chatSystemModelSaving = false;
     if (ui.list) {
@@ -1566,7 +1566,7 @@ async function fetchChatSystemModelsForChannel(channelId, options) {
             .filter(function (model, index, all) { return model && all.indexOf(model) === index; })
             .length;
         setChatSystemModelStatus(
-            chatTranslate('chat.systemModelLoaded', '已获取 {count} 个模型').replace('{count}', String(cachedCount)),
+            chatTranslate('chat.systemModelLoaded', 'Fetched {count} models').replace('{count}', String(cachedCount)),
             'success'
         );
         return;
@@ -1574,10 +1574,10 @@ async function fetchChatSystemModelsForChannel(channelId, options) {
     if (ui.subview && !ui.subview.hidden && ui.subview.dataset.view === 'model') {
         ui.list.innerHTML = '';
     }
-    setChatSystemModelStatus(chatTranslate('chat.systemModelLoading', '正在获取模型列表…'), 'loading');
+    setChatSystemModelStatus(chatTranslate('chat.systemModelLoading', 'Fetching the model list…'), 'loading');
     try {
         if (!String(channel.api_key || '').trim()) {
-            throw new Error(chatTranslate('chat.systemModelNeedApiKey', '请先在系统设置中配置 API Key'));
+            throw new Error(chatTranslate('chat.systemModelNeedApiKey', 'Please configure it in the system settings first API Key'));
         }
         const listResponse = await apiFetch('/api/config/list-models', {
             method: 'POST',
@@ -1590,7 +1590,7 @@ async function fetchChatSystemModelsForChannel(channelId, options) {
         });
         const result = await listResponse.json().catch(function () { return {}; });
         if (!listResponse.ok || !result.success) {
-            throw new Error(result.error || chatTranslate('chat.systemModelLoadFailed', '获取模型失败'));
+            throw new Error(result.error || chatTranslate('chat.systemModelLoadFailed', 'Failed to fetch the model'));
         }
         if (requestId !== chatSystemModelRequestSeq || ui.menu.hidden) return;
         chatSystemModelOptions = Array.isArray(result.models) ? result.models.slice() : [];
@@ -1606,12 +1606,12 @@ async function fetchChatSystemModelsForChannel(channelId, options) {
             renderChatSystemModelOptions(chatSystemModelOptions, chatSystemModelCurrent);
         }
         setChatSystemModelStatus(
-            chatTranslate('chat.systemModelLoaded', '已获取 {count} 个模型').replace('{count}', String(count)),
+            chatTranslate('chat.systemModelLoaded', 'Fetched {count} models').replace('{count}', String(count)),
             'success'
         );
     } catch (error) {
         if (requestId !== chatSystemModelRequestSeq || ui.menu.hidden) return;
-        chatSystemModelLoadError = error.message || chatTranslate('chat.systemModelLoadFailed', '获取模型失败');
+        chatSystemModelLoadError = error.message || chatTranslate('chat.systemModelLoadFailed', 'Failed to fetch the model');
         if (ui.subview && !ui.subview.hidden && ui.subview.dataset.view === 'model') {
             renderChatSystemModelRetry();
         }
@@ -1664,10 +1664,10 @@ function persistChatAIChannelPref() {
 function reasoningSummaryModeLabel(mode) {
     const m = (mode || 'default').trim();
     switch (m) {
-        case 'off': return chatTranslate('chat.reasoningModeOff', '关闭');
-        case 'on': return chatTranslate('chat.reasoningModeOn', '开启');
-        case 'auto': return chatTranslate('chat.reasoningModeAuto', '自动');
-        default: return chatTranslate('chat.reasoningSummaryFollow', '系统');
+        case 'off': return chatTranslate('chat.reasoningModeOff', 'Close');
+        case 'on': return chatTranslate('chat.reasoningModeOn', 'Enable');
+        case 'auto': return chatTranslate('chat.reasoningModeAuto', 'Auto');
+        default: return chatTranslate('chat.reasoningSummaryFollow', 'System');
     }
 }
 
@@ -1713,7 +1713,7 @@ function updateChatComposerSessionShortcuts(summary) {
         if (shortcut) {
             const channel = currentChatAIChannelLabel();
             const effort = currentChatReasoningMenuLabel();
-            const action = chatTranslate('chat.modelSettingsAria', '选择 AI 通道、模型与推理设置');
+            const action = chatTranslate('chat.modelSettingsAria', 'Select the AI channel, model, and reasoning settings');
             shortcut.setAttribute('aria-label', action + '：' + channel + ' · ' + label + ' · ' + effort);
             shortcut.title = action + '：' + channel + ' · ' + label + ' · ' + effort;
         }
@@ -1723,8 +1723,8 @@ function updateChatComposerSessionShortcuts(summary) {
         const cfg = readHitlConfigFromForm();
         const auditAgent = normalizeHitlReviewer(cfg.reviewer) === 'audit_agent';
         const prefix = auditAgent
-            ? chatTranslate('chat.sessionShortcutAuditAgent', 'Agent 审查')
-            : chatTranslate('chat.sessionShortcutHuman', '人工审批');
+            ? chatTranslate('chat.sessionShortcutAuditAgent', 'Agent Review')
+            : chatTranslate('chat.sessionShortcutHuman', 'Manual approval');
         const modeLabel = data.hitl || getHitlModeLabel(cfg.mode);
         const approvalModel = auditAgent ? currentHitlAuditEngineLabel() : '';
         const label = prefix + '：' + modeLabel + (approvalModel ? ' · ' + approvalModel : '');
@@ -1868,8 +1868,8 @@ function updateChatPrimaryActionState() {
     if (!button) return;
     const running = isCurrentChatTaskActive();
     const label = running
-        ? chatTranslate('tasks.stopTask', '停止任务')
-        : chatTranslate('chat.send', '发送');
+        ? chatTranslate('tasks.stopTask', 'Stop task')
+        : chatTranslate('chat.send', 'Send');
     button.classList.toggle('is-task-running', running);
     button.setAttribute('aria-label', label);
     button.setAttribute('title', label);
@@ -2176,7 +2176,7 @@ function saveChatDraft(content) {
         }
     } catch (error) {
         // localStorage可能已满或不可用，静默失败
-        console.warn('保存草稿失败:', error);
+        console.warn('Failed to save the draft:', error);
     }
 }
 
@@ -2210,7 +2210,7 @@ function restoreChatDraft() {
             localStorage.removeItem(DRAFT_STORAGE_KEY);
         }
     } catch (error) {
-        console.warn('恢复草稿失败:', error);
+        console.warn('Failed to restore the draft:', error);
     }
 }
 
@@ -2220,7 +2220,7 @@ function clearChatDraft() {
         // 同步清除，确保立即生效
         localStorage.removeItem(DRAFT_STORAGE_KEY);
     } catch (error) {
-        console.warn('清除草稿失败:', error);
+        console.warn('Failed to clear the draft:', error);
     }
 }
 
@@ -2272,7 +2272,7 @@ async function sendMessage(options = {}) {
     }
     if (isCurrentChatTaskActive()) {
         updateChatPrimaryActionState();
-        showChatToast(chatTranslate('chat.taskAlreadyRunning', '当前会话已有任务正在执行，请先等待完成或停止任务。'), 'info');
+        showChatToast(chatTranslate('chat.taskAlreadyRunning', 'The current session already has a task running; wait for it to finish or stop the task first.'), 'info');
         return;
     }
 
@@ -2281,7 +2281,7 @@ async function sendMessage(options = {}) {
         if (needWait) {
             const waitLabel = (typeof window.t === 'function')
                 ? window.t('chat.waitingAttachmentsUpload')
-                : '正在等待附件上传完成…';
+                : 'Waiting for attachment upload to finish…';
             chatAttachmentProgressSet(true, 0, waitLabel);
         }
         try {
@@ -2293,7 +2293,7 @@ async function sendMessage(options = {}) {
         if (bad.length) {
             const hint = (typeof window.t === 'function')
                 ? window.t('chat.attachmentsUploadIncomplete')
-                : '部分附件未上传成功，请移除失败项或重新选择文件后再发送。';
+                : 'Some attachments failed to upload; remove the failed items or reselect files before sending.';
             alert(hint);
             return;
         }
@@ -2437,7 +2437,7 @@ async function sendMessage(options = {}) {
         });
 
         if (!response.ok) {
-            throw new Error('请求失败: ' + response.status);
+            throw new Error('Request failed: ' + response.status);
         }
 
         if (typeof options.onRequestAccepted === 'function') options.onRequestAccepted();
@@ -2488,7 +2488,7 @@ async function sendMessage(options = {}) {
                             try {
                                 onEvent(JSON.parse(line.slice(6)));
                             } catch (e) {
-                                console.error('解析事件数据失败:', e, line);
+                                console.error('Failed to parse the event data:', e, line);
                             }
                         }
                     }
@@ -2531,7 +2531,7 @@ async function sendMessage(options = {}) {
                 if (!attached && isStreamStillVisibleForRequest()) {
                     const hint = typeof window.t === 'function'
                         ? window.t('chat.streamEndedWithoutDone')
-                        : '连接提前结束，未收到任务完成信号。任务可能仍在后端执行，请查看顶部运行中任务或刷新当前对话。';
+                        : 'The connection ended early; no task-completion signal was received. The task may still be running on the backend; check the running tasks at the top or refresh the current conversation.';
                     addMessage('system', hint);
                 }
             }
@@ -2564,9 +2564,9 @@ async function sendMessage(options = {}) {
         if (isNetwork && typeof window.t === 'function') {
             addMessage('system', window.t('chat.streamNetworkErrorHint', { detail: msg }));
         } else if (isNetwork) {
-            addMessage('system', '连接已中断（' + msg + '）。长时间任务可能仍在后端执行，请查看顶部运行中任务或稍后刷新对话。');
+            addMessage('system', 'Connection interrupted (' + msg + ').A long-running task may still be running on the backend; check the running tasks at the top or refresh the conversation later.');
         } else {
-            addMessage('system', '错误: ' + msg);
+            addMessage('system', 'Error: ' + msg);
         }
         if (typeof loadActiveTasks === 'function') {
             loadActiveTasks();
@@ -2592,17 +2592,17 @@ function renderChatFileChips() {
         name.title = a.fileName;
         let label = a.fileName;
         if (a.uploading) {
-            label += ' · ' + ((typeof window.t === 'function') ? window.t('chat.attachmentUploading') : '上传中…');
+            label += ' · ' + ((typeof window.t === 'function') ? window.t('chat.attachmentUploading') : 'Uploading…');
         } else if (a.uploadError) {
-            label += ' · ' + ((typeof window.t === 'function') ? window.t('chat.attachmentUploadFailed') : '失败');
+            label += ' · ' + ((typeof window.t === 'function') ? window.t('chat.attachmentUploadFailed') : 'Failed');
         }
         name.textContent = label;
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'chat-file-chip-remove';
-        remove.title = typeof window.t === 'function' ? window.t('common.remove') : '移除';
+        remove.title = typeof window.t === 'function' ? window.t('common.remove') : 'Remove';
         remove.innerHTML = '×';
-        remove.setAttribute('aria-label', '移除 ' + a.fileName);
+        remove.setAttribute('aria-label', 'Remove ' + a.fileName);
         remove.addEventListener('click', () => removeChatAttachment(i));
         chip.appendChild(name);
         chip.appendChild(remove);
@@ -2664,7 +2664,7 @@ function refreshChatAttachmentUploadProgress() {
             total: chatAttachments.length,
             percent: overall
         })
-        : ('上传附件 ' + (chatAttachments.length - uploading.length) + '/' + chatAttachments.length + ' · ' + overall + '%');
+        : ('Upload attachment ' + (chatAttachments.length - uploading.length) + '/' + chatAttachments.length + ' · ' + overall + '%');
     chatAttachmentProgressSet(true, overall, line);
 }
 
@@ -2711,7 +2711,7 @@ async function uploadOneChatAttachment(entry, file) {
             cur.uploadError = msg;
             cur.serverPath = null;
         }
-        alert(((typeof window.t === 'function') ? window.t('chat.attachmentUploadAlert', { name: file.name }) : ('上传失败：' + file.name)) + '\n' + msg);
+        alert(((typeof window.t === 'function') ? window.t('chat.attachmentUploadAlert', { name: file.name }) : ('Upload failed: ' + file.name)) + '\n' + msg);
     }
     renderChatFileChips();
     refreshChatAttachmentUploadProgress();
@@ -2721,7 +2721,7 @@ async function addFilesToChat(files) {
     if (!files || !files.length) return;
     const next = Array.from(files);
     if (chatAttachments.length + next.length > MAX_CHAT_FILES) {
-        alert('最多同时上传 ' + MAX_CHAT_FILES + ' 个文件，当前已选 ' + chatAttachments.length + ' 个。');
+        alert('You can upload at most ' + MAX_CHAT_FILES + ' files; ' + chatAttachments.length + ' currently selected.');
         return;
     }
     next.forEach((file) => {
@@ -2871,14 +2871,14 @@ async function fetchMentionTools() {
                 });
             }
         } catch (mcpError) {
-            console.warn('加载外部MCP列表失败:', mcpError);
+            console.warn('Failed to load the external MCP list:', mcpError);
             externalMcpNames = [];
         }
 
         while (page <= totalPages && page <= 20) {
             // 构建API URL，如果指定了角色，添加role查询参数
             let url = `/api/config/tools?page=${page}&page_size=${pageSize}`;
-            if (roleName && roleName !== '默认') {
+            if (roleName && roleName !== 'Default') {
                 url += `&role=${encodeURIComponent(roleName)}`;
             }
 
@@ -2926,7 +2926,7 @@ async function fetchMentionTools() {
         mentionTools = collected;
         mentionToolsLoaded = true;
     } catch (error) {
-        console.warn('加载工具列表失败，@提及功能可能不可用:', error);
+        console.warn('Failed to load the tool list, @The mention feature may be unavailable:', error);
     }
     return mentionTools;
 }
@@ -3111,7 +3111,7 @@ function updateMentionCandidates() {
         if (aEnabled !== bEnabled) {
             return aEnabled ? -1 : 1;
         }
-        return a.name.localeCompare(b.name, 'zh-CN');
+        return a.name.localeCompare(b.name, 'en-US');
     });
 
     mentionFilteredTools = filtered;
@@ -3136,14 +3136,14 @@ function renderMentionSuggestions({ showLoading = false } = {}) {
     const previousScrollTop = canPreserveScroll ? existingList.scrollTop : 0;
 
     if (showLoading) {
-        mentionSuggestionsEl.innerHTML = '<div class="mention-empty">' + (typeof window.t === 'function' ? window.t('chat.loadingTools') : '正在加载工具...') + '</div>';
+        mentionSuggestionsEl.innerHTML = '<div class="mention-empty">' + (typeof window.t === 'function' ? window.t('chat.loadingTools') : 'Loading tools...') + '</div>';
         mentionSuggestionsEl.style.display = 'block';
         delete mentionSuggestionsEl.dataset.lastMentionQuery;
         return;
     }
 
     if (!mentionFilteredTools.length) {
-        mentionSuggestionsEl.innerHTML = '<div class="mention-empty">' + (typeof window.t === 'function' ? window.t('chat.noMatchTools') : '没有匹配的工具') + '</div>';
+        mentionSuggestionsEl.innerHTML = '<div class="mention-empty">' + (typeof window.t === 'function' ? window.t('chat.noMatchTools') : 'No matching tools') + '</div>';
         mentionSuggestionsEl.style.display = 'block';
         mentionSuggestionsEl.dataset.lastMentionQuery = currentQuery;
         return;
@@ -3154,16 +3154,16 @@ function renderMentionSuggestions({ showLoading = false } = {}) {
         // 如果工具有 roleEnabled 字段（指定了角色），使用它；否则使用 enabled
         const toolEnabled = tool.roleEnabled !== undefined ? tool.roleEnabled : tool.enabled;
         const disabledClass = toolEnabled ? '' : 'disabled';
-        const badge = tool.isExternal ? '<span class="mention-item-badge">外部</span>' : '<span class="mention-item-badge internal">内置</span>';
+        const badge = tool.isExternal ? '<span class="mention-item-badge"> External</span>' : '<span class="mention-item-badge internal"> Built-in</span>';
         const nameHtml = escapeHtml(tool.name);
-        const description = tool.description && tool.description.length > 0 ? escapeHtml(tool.description) : (typeof window.t === 'function' ? window.t('chat.noDescription') : '暂无描述');
+        const description = tool.description && tool.description.length > 0 ? escapeHtml(tool.description) : (typeof window.t === 'function' ? window.t('chat.noDescription') : 'No description');
         const descHtml = `<div class="mention-item-desc">${description}</div>`;
         // 根据工具在当前角色中的启用状态显示状态标签
-        const statusLabel = toolEnabled ? '可用' : (tool.roleEnabled !== undefined ? '已禁用（当前角色）' : '已禁用');
+        const statusLabel = toolEnabled ? 'Available' : (tool.roleEnabled !== undefined ? 'Disabled (current role)' : 'Disabled');
         const statusClass = toolEnabled ? 'enabled' : 'disabled';
         const originLabel = tool.isExternal
-            ? (tool.externalMcp ? `来源：${escapeHtml(tool.externalMcp)}` : '来源：外部MCP')
-            : '来源：内置工具';
+            ? (tool.externalMcp ? `Source: ${escapeHtml(tool.externalMcp)}` : 'Source: externalMCP')
+            : 'Source: built-in tool';
 
         return `
             <button type="button" class="mention-item ${activeClass} ${disabledClass}" data-index="${index}">
@@ -3414,39 +3414,39 @@ window.applyProjectNameDisplay = applyProjectNameDisplay;
 function getChatWelcomeProjectName() {
     const projectElement = document.getElementById('chat-project-text');
     const projectText = (projectElement?.dataset?.fullName || projectElement?.textContent || '').trim();
-    return projectText || (typeof window.t === 'function' ? window.t('projects.noProject') : '无项目');
+    return projectText || (typeof window.t === 'function' ? window.t('projects.noProject') : 'No project');
 }
 
 function getChatWelcomeText() {
     const project = getChatWelcomeProjectName();
-    const noProject = typeof window.t === 'function' ? window.t('projects.noProject') : '无项目';
+    const noProject = typeof window.t === 'function' ? window.t('projects.noProject') : 'No project';
     if (!project || project === noProject) {
         return typeof window.t === 'function'
             ? window.t('chat.noProjectWelcomeMessage')
-            : '当前无项目，请输入您的测试需求，系统将自动执行相应的安全测试。';
+            : 'No project currently; enter your testing requirements and the system will automatically run the matching security tests.';
     }
     return typeof window.t === 'function'
         ? window.t('chat.projectWelcomeMessage', { project })
-        : `当前${project}项目，请输入您的测试需求，系统将自动执行相应的安全测试。`;
+        : `Current${project} project; enter your testing requirements and the system will automatically run the matching security tests.`;
 }
 
 function updateChatWelcomeTitle(title) {
     if (!title) return;
     const project = getChatWelcomeProjectName();
-    const noProject = typeof window.t === 'function' ? window.t('projects.noProject') : '无项目';
+    const noProject = typeof window.t === 'function' ? window.t('projects.noProject') : 'No project';
     const subtitle = title.parentElement?.querySelector('.chat-welcome-empty-state-subtitle');
 
     if (project === noProject) {
         title.textContent = typeof window.t === 'function'
             ? window.t('chat.noProjectWelcomeTitle')
-            : '要测试什么？';
+            : 'What to test?';
     } else {
         const prefix = typeof window.t === 'function'
             ? window.t('chat.projectWelcomeTitlePrefix')
-            : '要在 ';
+            : 'Test in ';
         const suffix = typeof window.t === 'function'
             ? window.t('chat.projectWelcomeTitleSuffix')
-            : ' 项目中测试什么？';
+            : ' What to test in the project?';
         const projectName = document.createElement('span');
         projectName.className = 'chat-welcome-project-name';
         applyProjectNameDisplay(projectName, project);
@@ -3456,7 +3456,7 @@ function updateChatWelcomeTitle(title) {
     if (subtitle) {
         subtitle.textContent = typeof window.t === 'function'
             ? window.t('chat.welcomeSubtitle')
-            : '请输入您的测试需求，系统将自动执行相应的安全测试。';
+            : 'Enter your testing requirements and the system will automatically run the matching security tests.';
     }
 }
 
@@ -3536,8 +3536,8 @@ function appendMessageCopyButton(messageDiv) {
     copyBtn = document.createElement('button');
     copyBtn.type = 'button';
     copyBtn.className = 'message-copy-btn';
-    copyBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg><span>' + (typeof window.t === 'function' ? window.t('common.copy') : '复制') + '</span>';
-    copyBtn.title = typeof window.t === 'function' ? window.t('chat.copyMessageTitle') : '复制消息内容';
+    copyBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg><span>' + (typeof window.t === 'function' ? window.t('common.copy') : 'Copy') + '</span>';
+    copyBtn.title = typeof window.t === 'function' ? window.t('chat.copyMessageTitle') : 'Copy the message content';
     copyBtn.setAttribute('aria-label', copyBtn.title);
     copyBtn.onclick = function(e) {
         e.stopPropagation();
@@ -3706,7 +3706,7 @@ function copyMessageToClipboard(messageDiv, button) {
                 return navigator.clipboard.writeText(text).then(() => {
                     showCopySuccess(button);
                 }).catch(err => {
-                    console.error('Clipboard API 复制失败:', err);
+                    console.error('Clipboard API Copy failed:', err);
                     fallbackCopy(text);
                 });
             } else {
@@ -3737,8 +3737,8 @@ function copyMessageToClipboard(messageDiv, button) {
                     throw new Error('execCommand copy failed');
                 }
             } catch (execErr) {
-                console.error('降级复制失败:', execErr);
-                alert(typeof window.t === 'function' ? window.t('chat.copyFailedManual') : '复制失败，请手动选择内容复制');
+                console.error('Fallback copy failed:', execErr);
+                alert(typeof window.t === 'function' ? window.t('chat.copyFailedManual') : 'Copy failed; please select the content manually to copy');
             }
         };
 
@@ -3767,8 +3767,8 @@ function copyMessageToClipboard(messageDiv, button) {
         // 使用原始Markdown内容
         doCopy(originalContent);
     } catch (error) {
-        console.error('复制消息时出错:', error);
-        alert(typeof window.t === 'function' ? window.t('chat.copyFailedManual') : '复制失败，请手动选择内容复制');
+        console.error('Error copying the message:', error);
+        alert(typeof window.t === 'function' ? window.t('chat.copyFailedManual') : 'Copy failed; please select the content manually to copy');
     }
 }
 
@@ -3777,7 +3777,7 @@ function showCopySuccess(button) {
     if (button) {
         const originalText = button.innerHTML;
         button.dataset.copySuccessActive = '1';
-        button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg><span>' + (typeof window.t === 'function' ? window.t('common.copied') : '已复制') + '</span>';
+        button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg><span>' + (typeof window.t === 'function' ? window.t('common.copied') : 'Copied') + '</span>';
         button.style.color = '#10b981';
         button.style.background = 'rgba(16, 185, 129, 0.1)';
         button.style.borderColor = 'rgba(16, 185, 129, 0.3)';
@@ -3946,6 +3946,9 @@ function isInternalEinoDiagnosticDetail(detail) {
     if (detail.eventType === 'model_output_rejected') return true;
     if (detail.eventType !== 'progress') return false;
     const msg = String(detail.message != null ? detail.message : '').trim();
+    // Backend-coupled: these diagnostic messages are emitted in Chinese by
+    // internal/multiagent (not yet translated); match them verbatim until the
+    // Go producer and consumer are flipped to English together.
     if (msg === 'Eino TurnLoop 常驻多轮 runtime 已接管本轮会话。' ||
         msg === 'Eino TurnLoop 已在安全点切换到用户补充后的下一轮。' ||
         msg === '已将用户补充推入 Eino TurnLoop，正在等待安全点切换…') {
@@ -4027,8 +4030,8 @@ function messageHasConversationContent(messageElement) {
 }
 
 function syncProcessDetailButtonLabels(messageId, expanded) {
-    const expandT = typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情';
-    const collapseT = typeof window.t === 'function' ? window.t('tasks.collapseDetail') : '收起详情';
+    const expandT = typeof window.t === 'function' ? window.t('chat.expandDetail') : 'Expand details';
+    const collapseT = typeof window.t === 'function' ? window.t('tasks.collapseDetail') : 'Collapse details';
     const label = expanded ? collapseT : expandT;
     document.querySelectorAll('#' + messageId + ' .process-detail-btn').forEach((btn) => {
         btn.innerHTML = '<span>' + label + '</span>';
@@ -4101,7 +4104,7 @@ function renderProcessDetails(messageId, processDetails, options) {
     if (!processDetailBtn) {
         processDetailBtn = document.createElement('button');
         processDetailBtn.className = 'mcp-detail-btn process-detail-btn';
-        processDetailBtn.innerHTML = '<span>' + (typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情') + '</span>';
+        processDetailBtn.innerHTML = '<span>' + (typeof window.t === 'function' ? window.t('chat.expandDetail') : 'Expand details') + '</span>';
         processDetailBtn.onclick = () => toggleProcessDetails(null, messageId);
         buttonsContainer.appendChild(processDetailBtn);
     }
@@ -4149,8 +4152,8 @@ function renderProcessDetails(messageId, processDetails, options) {
     if (isLazyNotLoaded && !reasoningFromMessage) {
         detailsContainer.dataset.lazyNotLoaded = '1';
         detailsContainer.dataset.loaded = '0';
-        const expandLabel = typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情';
-        let lazyHint = expandLabel + '（点击后加载迭代详情）';
+        const expandLabel = typeof window.t === 'function' ? window.t('chat.expandDetail') : 'Expand details';
+        let lazyHint = expandLabel + ' (Click to load the iteration details)';
         timeline.innerHTML = '<div class="progress-timeline-empty">' + lazyHint + '</div>';
         bindProcessDetailsLazyHint(timeline, messageId);
         timeline.classList.remove('expanded');
@@ -4190,7 +4193,7 @@ function renderProcessDetails(messageId, processDetails, options) {
     // 如果没有processDetails或为空，显示空状态
     if (!processDetails || processDetails.length === 0) {
         if (!appendMode && !prependMode) {
-            timeline.innerHTML = '<div class="progress-timeline-empty">' + (typeof window.t === 'function' ? window.t('chat.noProcessDetail') : '暂无过程详情（可能执行过快或未触发详细事件）') + '</div>';
+            timeline.innerHTML = '<div class="progress-timeline-empty">' + (typeof window.t === 'function' ? window.t('chat.noProcessDetail') : 'No process details (execution may have been too fast or detailed events were not triggered)') + '</div>';
             if (!isProcessDetailsUserExpanded(messageId)) {
                 timeline.classList.remove('expanded');
             }
@@ -4225,14 +4228,14 @@ function renderProcessDetails(messageId, processDetails, options) {
         const key = String(kind || '').trim();
         if (!key) return '';
         const labels = {
-            rate_limit: '限流 / 请求过多',
-            retryable_http: '可重试 HTTP 错误',
-            upstream_server: '上游服务错误',
-            http_error: 'HTTP 错误',
-            upstream_busy: '上游繁忙',
-            network: '网络连接异常',
-            stream: '流式读取异常',
-            transient: '临时异常'
+            rate_limit: 'Rate limited / too many requests',
+            retryable_http: 'Retryable HTTP error',
+            upstream_server: 'Upstream service error',
+            http_error: 'HTTP Error',
+            upstream_busy: 'Upstream busy',
+            network: 'Network connection error',
+            stream: 'Streaming read error',
+            transient: 'Temporary error'
         };
         if (typeof window.t === 'function') {
             const translated = window.t('chat.einoRunRetryKind_' + key);
@@ -4248,7 +4251,7 @@ function renderProcessDetails(messageId, processDetails, options) {
         const d = data && typeof data === 'object' ? data : {};
         const base = typeof window.t === 'function'
             ? window.t('chat.einoRunRetryTitle')
-            : '🔁 临时错误重试';
+            : '🔁 Temporary error, retrying';
         const attempt = Number(d.attempt || 0);
         const maxAttempts = Number(d.maxAttempts || 0);
         if (Number.isFinite(attempt) && attempt > 0 && Number.isFinite(maxAttempts) && maxAttempts > 0) {
@@ -4275,7 +4278,7 @@ function renderProcessDetails(messageId, processDetails, options) {
         if (Number.isFinite(attempt) && attempt > 0 && Number.isFinite(maxAttempts) && maxAttempts > 0) {
             const retryPlan = typeof window.t === 'function'
                 ? window.t('chat.einoRunRetryPlan', { attempt: attempt, maxAttempts: maxAttempts, backoffSec: Number.isFinite(backoffSec) && backoffSec > 0 ? backoffSec : '-' })
-                : ('重试进度：第 ' + attempt + '/' + maxAttempts + ' 次，等待 ' + (Number.isFinite(backoffSec) && backoffSec > 0 ? backoffSec : '-') + ' 秒');
+                : ('Retry progress: attempt ' + attempt + '/' + maxAttempts + ', waiting ' + (Number.isFinite(backoffSec) && backoffSec > 0 ? backoffSec : '-') + ' s');
             if (!base || base.indexOf(String(attempt) + '/' + String(maxAttempts)) === -1) {
                 lines.push(retryPlan);
             }
@@ -4283,13 +4286,13 @@ function renderProcessDetails(messageId, processDetails, options) {
         if (kind) {
             const kindLabel = typeof window.t === 'function'
                 ? window.t('chat.einoRunRetryReasonKind')
-                : '原因类型';
+                : 'Reason type';
             lines.push(kindLabel + '：' + kind);
         }
         if (errRaw && (!base || base.indexOf(errRaw) === -1)) {
             const detailLabel = typeof window.t === 'function'
                 ? window.t('chat.einoRunRetryErrorDetail')
-                : '错误详情';
+                : 'Error details';
             lines.push(detailLabel + '：' + errRaw);
         }
         return lines.join('\n');
@@ -4304,41 +4307,41 @@ function renderProcessDetails(messageId, processDetails, options) {
         let itemTitle = title;
         if (eventType === 'workflow_start') {
             const name = data.workflowName || data.workflowId || '';
-            itemTitle = '🧭 工作流开始' + (name ? (' · ' + name) : '');
+            itemTitle = '🧭 Workflow started' + (name ? (' · ' + name) : '');
         } else if (eventType === 'workflow_done') {
             const name = data.workflowName || data.workflowId || '';
-            itemTitle = '✅ 工作流完成' + (name ? (' · ' + name) : '');
+            itemTitle = '✅ Workflow complete' + (name ? (' · ' + name) : '');
         } else if (eventType === 'workflow_node_start') {
             const label = data.label || title || data.nodeId || '';
-            itemTitle = '▶ 节点开始' + (label ? (' · ' + label) : '');
+            itemTitle = '▶ Node started' + (label ? (' · ' + label) : '');
         } else if (eventType === 'workflow_node_result') {
             const label = data.label || data.nodeId || '';
             const status = data.status || '';
             const nodeType = data.nodeType != null ? String(data.nodeType).toLowerCase() : '';
             if (nodeType === 'condition') {
                 const matched = data.matched === true || data.matched === 'true' || (data.output && (data.output.matched === true || data.output.matched === 'true'));
-                itemTitle = (matched ? '✅' : '🔀') + ' 条件判断' + (label ? (' · ' + label) : '') + ' → ' + (matched ? '是' : '否');
+                itemTitle = (matched ? '✅' : '🔀') + ' Condition' + (label ? (' · ' + label) : '') + ' → ' + (matched ? 'Yes' : 'No');
             } else {
                 const icon = status === 'failed' ? '❌' : (status === 'skipped' ? '⏭️' : '✅');
-                itemTitle = icon + ' 节点完成' + (label ? (' · ' + label) : '') + (status ? ('（' + status + '）') : '');
+                itemTitle = icon + ' Node complete' + (label ? (' · ' + label) : '') + (status ? ('（' + status + '）') : '');
             }
         } else if (eventType === 'workflow_branch_taken' || eventType === 'workflow_branch_skipped') {
             const branch = data.branchLabel || '';
             const target = data.targetLabel || data.targetId || '';
             const taken = eventType === 'workflow_branch_taken';
-            itemTitle = (taken ? '➡️' : '⏭️') + (taken ? ' 执行分支' : ' 跳过分支') + (branch ? (' · ' + branch) : '') + (target ? (' → ' + target) : '');
+            itemTitle = (taken ? '➡️' : '⏭️') + (taken ? ' Branch executed' : ' Branch skipped') + (branch ? (' · ' + branch) : '') + (target ? (' → ' + target) : '');
         } else if (eventType === 'workflow_tool_start') {
             const tool = data.tool || data.toolName || '';
-            itemTitle = '🔧 工具节点' + (tool ? (' · ' + tool) : '');
+            itemTitle = '🔧 Tool node' + (tool ? (' · ' + tool) : '');
         } else if (eventType === 'workflow_agent_output') {
             const label = data.label || data.nodeId || '';
-            itemTitle = '🤖 Agent 输出' + (label ? (' · ' + label) : '');
+            itemTitle = '🤖 Agent Output' + (label ? (' · ' + label) : '');
         } else if (eventType === 'workflow_hitl_checkpoint') {
-            itemTitle = '🧑‍⚖️ 人工确认检查点';
+            itemTitle = '🧑‍⚖️ Manual confirmation checkpoint';
         } else if (eventType === 'workflow_hitl_waiting') {
-            itemTitle = '🧑‍⚖️ 工作流等待审批';
+            itemTitle = '🧑‍⚖️ Workflow waiting for approval';
         } else if (eventType === 'workflow_paused') {
-            itemTitle = '⏸️ 工作流已暂停';
+            itemTitle = '⏸️ Workflow paused';
         } else if (eventType === 'iteration') {
             const n = data.iteration || 1;
             if (data.orchestration === 'plan_execute' && data.einoScope === 'main') {
@@ -4346,42 +4349,42 @@ function renderProcessDetails(messageId, processDetails, options) {
                     ? window.translatePlanExecuteAgentName(data.einoAgent) : (data.einoAgent || '');
                 itemTitle = (typeof window.t === 'function'
                     ? window.t('chat.einoPlanExecuteRound', { n: n, phase: phase })
-                    : ('Plan-Execute · 第 ' + n + ' 轮 · ' + phase));
+                    : ('Plan-Execute · round ' + n + ' · ' + phase));
             } else if (data.einoScope === 'main') {
                 itemTitle = agPx + (typeof window.t === 'function'
                     ? window.t('chat.einoOrchestratorRound', { n: n })
-                    : ('主代理 · 第 ' + n + ' 轮'));
+                    : ('Main agent · round ' + n));
             } else if (data.einoScope === 'sub') {
                 const agent = data.einoAgent != null ? String(data.einoAgent).trim() : '';
                 itemTitle = agPx + (typeof window.t === 'function'
                     ? window.t('chat.einoSubAgentStep', { n: n, agent: agent })
-                    : ('子代理 · ' + agent + ' · 第 ' + n + ' 步'));
+                    : ('Sub-agent · ' + agent + ' · step ' + n));
             } else {
-                itemTitle = agPx + (typeof window.t === 'function' ? window.t('chat.iterationRound', { n: n }) : '第 ' + n + ' 轮迭代');
+                itemTitle = agPx + (typeof window.t === 'function' ? window.t('chat.iterationRound', { n: n }) : 'No.  ' + n + ' iteration rounds');
             }
         } else if (eventType === 'thinking') {
-            itemTitle = agPx + '🤔 ' + (typeof window.t === 'function' ? window.t('chat.aiThinking') : 'AI思考');
+            itemTitle = agPx + '🤔 ' + (typeof window.t === 'function' ? window.t('chat.aiThinking') : 'AI Thinking');
         } else if (eventType === 'reasoning_chain') {
-            itemTitle = agPx + '🔗 ' + (typeof window.t === 'function' ? window.t('chat.reasoningChain') : '推理过程');
+            itemTitle = agPx + '🔗 ' + (typeof window.t === 'function' ? window.t('chat.reasoningChain') : 'Reasoning process');
         } else if (eventType === 'planning') {
             if (typeof window.einoMainStreamPlanningTitle === 'function') {
                 itemTitle = window.einoMainStreamPlanningTitle(data);
             } else {
-                itemTitle = agPx + '📝 ' + (typeof window.t === 'function' ? window.t('chat.planning') : '规划中');
+                itemTitle = agPx + '📝 ' + (typeof window.t === 'function' ? window.t('chat.planning') : 'Planning');
             }
         } else if (eventType === 'tool_calls_detected') {
-            itemTitle = agPx + '🔧 ' + (typeof window.t === 'function' ? window.t('chat.toolCallsDetected', { count: data.count || 0 }) : '检测到 ' + (data.count || 0) + ' 个工具调用');
+            itemTitle = agPx + '🔧 ' + (typeof window.t === 'function' ? window.t('chat.toolCallsDetected', { count: data.count || 0 }) : 'Detected ' + (data.count || 0) + ' tool calls');
         } else if (eventType === 'tool_call') {
-            const toolName = data.toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : '未知工具');
+            const toolName = data.toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : 'Unknown tool');
             const index = data.index || 0;
             const total = data.total || 0;
             const callTitle = typeof window.formatToolCallTimelineTitle === 'function'
                 ? window.formatToolCallTimelineTitle(toolName, index, total)
-                : (typeof window.t === 'function' ? window.t('chat.callTool', { name: escapeHtml(toolName), index: index, total: total }) : '调用工具: ' + escapeHtml(toolName) + ' (' + index + '/' + total + ')');
+                : (typeof window.t === 'function' ? window.t('chat.callTool', { name: escapeHtml(toolName), index: index, total: total }) : 'Call tool: ' + escapeHtml(toolName) + ' (' + index + '/' + total + ')');
             itemTitle = agPx + '🔧 ' + callTitle;
         } else if (eventType === 'tool_result') {
-            const toolName = data.toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : '未知工具');
-            const noResultText = typeof window.t === 'function' ? window.t('timeline.noResult') : '无结果';
+            const toolName = data.toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : 'Unknown tool');
+            const noResultText = typeof window.t === 'function' ? window.t('timeline.noResult') : 'No result';
             const result = data.result != null ? data.result : (data.error != null ? data.error : (data.resultPreview != null ? data.resultPreview : noResultText));
             const resultStr = typeof result === 'string' ? result : JSON.stringify(result);
             const displayState = typeof window.getToolResultDisplayState === 'function'
@@ -4391,47 +4394,47 @@ function renderProcessDetails(messageId, processDetails, options) {
             const success = !displayState.isError && !backgroundRunning;
             const statusIcon = displayState.kind === 'blocked' ? '🛡' : (backgroundRunning ? '⏳' : (success ? '✅' : '❌'));
             const execText = displayState.kind === 'blocked'
-                ? (typeof window.t === 'function' ? window.t('chat.toolExecBlocked', { name: escapeHtml(toolName) }) : '工具 ' + escapeHtml(toolName) + ' 已拦截')
+                ? (typeof window.t === 'function' ? window.t('chat.toolExecBlocked', { name: escapeHtml(toolName) }) : 'Tool ' + escapeHtml(toolName) + ' Blocked')
                 : backgroundRunning
-                ? ((typeof window.getBackgroundRunningToolLabel === 'function' ? window.getBackgroundRunningToolLabel() : '后台执行中') + ': ' + escapeHtml(toolName))
-                : (success ? (typeof window.t === 'function' ? window.t('chat.toolExecComplete', { name: escapeHtml(toolName) }) : '工具 ' + escapeHtml(toolName) + ' 执行完成') : (typeof window.t === 'function' ? window.t('chat.toolExecFailed', { name: escapeHtml(toolName) }) : '工具 ' + escapeHtml(toolName) + ' 执行失败'));
+                ? ((typeof window.getBackgroundRunningToolLabel === 'function' ? window.getBackgroundRunningToolLabel() : 'Running in background') + ': ' + escapeHtml(toolName))
+                : (success ? (typeof window.t === 'function' ? window.t('chat.toolExecComplete', { name: escapeHtml(toolName) }) : 'Tool ' + escapeHtml(toolName) + ' Execution complete') : (typeof window.t === 'function' ? window.t('chat.toolExecFailed', { name: escapeHtml(toolName) }) : 'Tool ' + escapeHtml(toolName) + ' Execution failed'));
             let execLine = statusIcon + ' ' + execText;
             if (toolName === BuiltinTools.SEARCH_KNOWLEDGE_BASE && success) {
-                execLine = '📚 ' + execLine + ' - ' + (typeof window.t === 'function' ? window.t('chat.knowledgeRetrievalTag') : '知识检索');
+                execLine = '📚 ' + execLine + ' - ' + (typeof window.t === 'function' ? window.t('chat.knowledgeRetrievalTag') : 'Knowledge retrieval');
             }
             itemTitle = agPx + execLine;
         } else if (eventType === 'eino_agent_reply') {
-            itemTitle = agPx + '💬 ' + (typeof window.t === 'function' ? window.t('chat.einoAgentReplyTitle') : '子代理回复');
+            itemTitle = agPx + '💬 ' + (typeof window.t === 'function' ? window.t('chat.einoAgentReplyTitle') : 'Sub-agent reply');
         } else if (eventType === 'eino_empty_response_continue') {
             itemTitle = typeof window.t === 'function'
                 ? window.t('chat.einoEmptyResponseContinueTitle')
-                : '🔁 自动续跑（无助手正文）';
+                : '🔁 Auto-continue (no assistant body)';
         } else if (eventType === 'eino_run_retry') {
             itemTitle = formatProcessDetailEinoRunRetryTitle(data);
             detail.message = formatProcessDetailEinoRunRetryMessage(title, data);
         } else if (eventType === 'knowledge_retrieval') {
-            itemTitle = '📚 ' + (typeof window.t === 'function' ? window.t('chat.knowledgeRetrieval') : '知识检索');
+            itemTitle = '📚 ' + (typeof window.t === 'function' ? window.t('chat.knowledgeRetrieval') : 'Knowledge retrieval');
         } else if (eventType === 'error') {
-            itemTitle = '❌ ' + (typeof window.t === 'function' ? window.t('chat.error') : '错误');
+            itemTitle = '❌ ' + (typeof window.t === 'function' ? window.t('chat.error') : 'Error');
         } else if (eventType === 'cancelled') {
-            itemTitle = '⛔ ' + (typeof window.t === 'function' ? window.t('chat.taskCancelled') : '任务已取消');
+            itemTitle = '⛔ ' + (typeof window.t === 'function' ? window.t('chat.taskCancelled') : 'Task cancelled');
         } else if (eventType === 'hitl_interrupt') {
-            const hitlMsg = (detail.message && String(detail.message).trim()) ? String(detail.message).trim() : (typeof window.t === 'function' ? window.t('hitl.pendingTitle') : '待审批');
+            const hitlMsg = (detail.message && String(detail.message).trim()) ? String(detail.message).trim() : (typeof window.t === 'function' ? window.t('hitl.pendingTitle') : 'Pending approval');
             itemTitle = agPx + '🧑‍⚖️ HITL · ' + hitlMsg;
         } else if (eventType === 'hitl_audit_agent_started') {
-            itemTitle = agPx + '审计 Agent 正在审查';
+            itemTitle = agPx + 'The audit agent is reviewing';
         } else if (eventType === 'hitl_audit_agent') {
-            itemTitle = agPx + '审计 Agent 已完成审查';
+            itemTitle = agPx + 'The audit agent has finished the review';
         } else if (eventType === 'hitl_resumed') {
-            itemTitle = agPx + '审批已通过';
+            itemTitle = agPx + 'Approval granted';
         } else if (eventType === 'hitl_rejected') {
-            itemTitle = agPx + '审批已拒绝';
+            itemTitle = agPx + 'Approval rejected';
         } else if (eventType === 'progress') {
             itemTitle = typeof window.translateProgressMessage === 'function' ? window.translateProgressMessage(detail.message || '') : (detail.message || '');
         } else if (eventType === 'user_interrupt_continue') {
             itemTitle = typeof window.t === 'function'
                 ? window.t('chat.userInterruptContinueTitle')
-                : '⏸️ 用户中断并继续';
+                : '⏸️ User interrupted and continued';
         }
 
         if (eventType === 'hitl_interrupt' || eventType === 'hitl_audit_agent_started' ||
@@ -4539,8 +4542,8 @@ function finishProcessDetailsRender(messageElement, processDetails, isLazyNotLoa
     if (isLazyNotLoaded && getMessageReasoningContent(messageElement)) {
         const lazyHint = document.createElement('div');
         lazyHint.className = 'progress-timeline-empty progress-timeline-lazy-hint';
-        lazyHint.textContent = (typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情') +
-            '（点击后加载完整过程详情）';
+        lazyHint.textContent = (typeof window.t === 'function' ? window.t('chat.expandDetail') : 'Expand details') +
+            ' (Click to load the full process details)';
         timeline.appendChild(lazyHint);
         bindProcessDetailsLazyHint(lazyHint, messageElement.id);
     }
@@ -4611,12 +4614,12 @@ function prefetchProcessDetailsSummaryHint(messageId, messageElement) {
             }
             const timeline = detailsContainer.querySelector('.progress-timeline');
             if (!timeline || detailsContainer.dataset.loaded === '1') return;
-            const expandLabel = typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情';
-            let hint = expandLabel + '（点击后加载迭代详情）';
+            const expandLabel = typeof window.t === 'function' ? window.t('chat.expandDetail') : 'Expand details';
+            let hint = expandLabel + ' (click to load iteration details)';
             if (s.maxIteration > 0) {
-                hint = expandLabel + '（共 ' + s.maxIteration + ' 轮迭代，' + (s.total || 0) + ' 条详情）';
+                hint = expandLabel + ' (' + s.maxIteration + ' iteration rounds, ' + (s.total || 0) + ' details)';
             } else if (s.total > 0) {
-                hint = expandLabel + '（共 ' + (s.total || 0) + ' 条详情）';
+                hint = expandLabel + ' (' + (s.total || 0) + ' details)';
             }
             const empty = timeline.querySelector('.progress-timeline-empty');
             if (empty) {
@@ -4903,13 +4906,13 @@ function formatMcpToolsToggleLabel(count, expanded) {
             const s = window.t('chat.collapseToolExecutions');
             if (s && s !== 'chat.collapseToolExecutions') return s;
         }
-        return '收起工具执行';
+        return 'Collapse tool execution';
     }
     if (typeof window.t === 'function') {
         const s = window.t('chat.toolExecutionsCount', { n: count });
         if (s && s !== 'chat.toolExecutionsCount') return s;
     }
-    return count + '次工具执行';
+    return count + 'tool executions';
 }
 
 function formatAssistantTurnDuration(durationMs) {
@@ -4920,16 +4923,16 @@ function formatAssistantTurnDuration(durationMs) {
     if (hours > 0) {
         return typeof window.t === 'function'
             ? window.t('chat.turnDurationHours', { hours: hours, minutes: minutes })
-            : hours + ' 小时 ' + minutes + ' 分钟';
+            : hours + ' h ' + minutes + ' min';
     }
     if (minutes > 0) {
         return typeof window.t === 'function'
             ? window.t('chat.turnDurationMinutes', { minutes: minutes, seconds: seconds })
-            : minutes + ' 分钟 ' + seconds + ' 秒';
+            : minutes + ' min ' + seconds + ' s';
     }
     return typeof window.t === 'function'
         ? window.t('chat.turnDurationSeconds', { seconds: seconds })
-        : seconds + ' 秒';
+        : seconds + ' s';
 }
 
 function assistantTurnUsageNumber(value) {
@@ -5173,15 +5176,15 @@ function syncAssistantTurnSummary(messageElementOrId) {
         : '';
     let text;
     if (status === 'running') {
-        text = typeof window.t === 'function' ? window.t('chat.turnElapsedRunning', { duration: duration }) : '已处理 ' + duration;
+        text = typeof window.t === 'function' ? window.t('chat.turnElapsedRunning', { duration: duration }) : 'Processed ' + duration;
     } else if (status === 'cancelled') {
-        text = typeof window.t === 'function' ? window.t('chat.turnElapsedCancelled', { duration: duration }) : '已中断 · 耗时 ' + duration;
+        text = typeof window.t === 'function' ? window.t('chat.turnElapsedCancelled', { duration: duration }) : 'Interrupted · Duration ' + duration;
     } else if (status === 'timeout') {
-        text = typeof window.t === 'function' ? window.t('chat.turnElapsedTimeout', { duration: duration }) : '已超时 · 耗时 ' + duration;
+        text = typeof window.t === 'function' ? window.t('chat.turnElapsedTimeout', { duration: duration }) : 'Timed out · Duration ' + duration;
     } else if (status === 'failed') {
-        text = typeof window.t === 'function' ? window.t('chat.turnElapsedFailed', { duration: duration }) : '执行失败 · 耗时 ' + duration;
+        text = typeof window.t === 'function' ? window.t('chat.turnElapsedFailed', { duration: duration }) : 'Execution failed · Duration ' + duration;
     } else {
-        text = typeof window.t === 'function' ? window.t('chat.turnElapsedComplete', { duration: duration }) : '耗时 ' + duration;
+        text = typeof window.t === 'function' ? window.t('chat.turnElapsedComplete', { duration: duration }) : 'Duration ' + duration;
     }
     label.innerHTML = `
         <span class="turn-process-leading">
@@ -5195,7 +5198,7 @@ function syncAssistantTurnSummary(messageElementOrId) {
     label.setAttribute('aria-expanded', expanded ? 'true' : 'false');
     label.setAttribute('aria-label', typeof window.t === 'function'
         ? window.t('chat.turnProcessAria', { state: text })
-        : text + '，展开或收起执行过程');
+        : text + ', Expand or collapse the execution process');
 }
 
 window.setAssistantTurnTiming = setAssistantTurnTiming;
@@ -5257,7 +5260,7 @@ function ensureMcpCallSectionChrome(messageElement, messageId) {
     if (clientId && !toolbar.querySelector('.process-detail-btn')) {
         const processDetailBtn = document.createElement('button');
         processDetailBtn.className = 'mcp-detail-btn process-detail-btn';
-        processDetailBtn.innerHTML = '<span>' + (typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情') + '</span>';
+        processDetailBtn.innerHTML = '<span>' + (typeof window.t === 'function' ? window.t('chat.expandDetail') : 'Expand details') + '</span>';
         processDetailBtn.onclick = () => toggleProcessDetails(null, clientId);
         toolbar.appendChild(processDetailBtn);
     }
@@ -5371,7 +5374,7 @@ function renderMcpCallButtons(messageElement) {
         } else {
             btn.innerHTML = '<span>' + (typeof window.t === 'function'
                 ? window.t('chat.callNumber', { n: index + 1 })
-                : '调用 #' + (index + 1)) + '</span>';
+                : 'Call #' + (index + 1)) + '</span>';
         }
         fragment.appendChild(btn);
     });
@@ -5467,19 +5470,19 @@ function getToolExecutionStatusLabel(status) {
         }
     }
     const fallback = {
-        completed: '成功',
-        failed: '失败',
-        blocked: '已拦截',
-        running: '运行中',
-        cancelled: '已取消',
-        pending: '等待中',
-        result_missing: '结果记录缺失'
+        completed: 'Success',
+        failed: 'Failed',
+        blocked: 'Blocked',
+        running: 'Running',
+        cancelled: 'Cancelled',
+        pending: 'Waiting',
+        result_missing: 'Result record missing'
     };
     return fallback[normalized] || '';
 }
 
 function renderToolExecutionButtonContent(btn, displayToolName, index, status) {
-    const safeToolName = escapeHtml(displayToolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : '未知工具'));
+    const safeToolName = escapeHtml(displayToolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : 'Unknown tool'));
     const safeIndex = escapeHtml(index || '');
     const statusText = getToolExecutionStatusLabel(status);
     const normalizedStatus = String(status || '').toLowerCase();
@@ -5520,7 +5523,7 @@ async function batchUpdateButtonToolNames(buttonsContainer, executionIds, render
             }
         });
     } catch (error) {
-        console.error('批量获取工具名称失败:', error);
+        console.error('Failed to batch-fetch tool names:', error);
     }
 }
 
@@ -5643,12 +5646,12 @@ function renderMCPDetailModal(exec) {
     if (resultTabLabel) {
         const key = blocked ? 'mcpDetailModal.blockReason' : 'mcpDetailModal.correctInfo';
         resultTabLabel.dataset.i18n = key;
-        resultTabLabel.textContent = typeof window.t === 'function' ? window.t(key) : (blocked ? '拦截原因' : '正确信息');
+        resultTabLabel.textContent = typeof window.t === 'function' ? window.t(key) : (blocked ? 'Block reason' : 'Correct info');
     }
 
     if (exec.result) {
         const agentVisibleText = formatMCPDetailText(extractMCPResultText(exec.result));
-        const emptyText = typeof window.t === 'function' ? window.t('mcpDetailModal.execSuccessNoContent') : '执行成功，未返回可展示的文本内容。';
+        const emptyText = typeof window.t === 'function' ? window.t('mcpDetailModal.execSuccessNoContent') : 'Executed successfully; no displayable text content was returned.';
 
         if (blocked) {
             responseElement.className = 'code-block blocked';
@@ -5679,9 +5682,9 @@ function renderMCPDetailModal(exec) {
         }
     } else {
         if (normalizedStatus === 'running' || normalizedStatus === 'background_running') {
-            responseElement.textContent = typeof window.t === 'function' ? window.t('mcpDetailModal.runningNoResponseYet') : '尚无返回，工具可能仍在执行。若长时间无响应，可在下方终止本次调用。';
+            responseElement.textContent = typeof window.t === 'function' ? window.t('mcpDetailModal.runningNoResponseYet') : 'No response yet; the tool may still be running. If there is no response for a long time, you can terminate this call below.';
         } else {
-            responseElement.textContent = typeof window.t === 'function' ? window.t('chat.noResponseData') : '暂无响应数据';
+            responseElement.textContent = typeof window.t === 'function' ? window.t('chat.noResponseData') : 'No response data';
         }
         setMCPResultDetailTabs('raw', false);
     }
@@ -5692,7 +5695,7 @@ function renderMCPDetailModal(exec) {
         if ((normalizedStatus === 'running' || normalizedStatus === 'background_running') && exec.id) {
             abortSection.style.display = 'block';
             abortBtn.dataset.execId = exec.id || '';
-            abortBtn.textContent = typeof window.t === 'function' ? window.t('mcpDetailModal.abortBtn') : '终止工具';
+            abortBtn.textContent = typeof window.t === 'function' ? window.t('mcpDetailModal.abortBtn') : 'Terminate tool';
         } else {
             abortSection.style.display = 'none';
             delete abortBtn.dataset.execId;
@@ -5708,7 +5711,7 @@ async function showMCPDetail(executionId) {
 
         if (!response.ok) {
             closeMCPDetail();
-            alert((typeof window.t === 'function' ? window.t('mcpDetailModal.getDetailFailed') : '获取详情失败') + ': ' + (exec.error || (typeof window.t === 'function' ? window.t('mcpDetailModal.unknown') : '未知错误')));
+            alert((typeof window.t === 'function' ? window.t('mcpDetailModal.getDetailFailed') : 'Failed to fetch details') + ': ' + (exec.error || (typeof window.t === 'function' ? window.t('mcpDetailModal.unknown') : 'Unknown error')));
             return;
         }
 
@@ -5717,7 +5720,7 @@ async function showMCPDetail(executionId) {
         });
     } catch (error) {
         closeMCPDetail();
-        alert((typeof window.t === 'function' ? window.t('mcpDetailModal.getDetailFailed') : '获取详情失败') + ': ' + error.message);
+        alert((typeof window.t === 'function' ? window.t('mcpDetailModal.getDetailFailed') : 'Failed to fetch details') + ': ' + error.message);
     }
 }
 
@@ -5799,7 +5802,7 @@ async function cancelMCPToolExecutionSubmit(executionId, userNote, options = {})
                 throw new Error(body.error || body.message || res.statusText);
             }
         }
-        const okMsg = typeof window.t === 'function' ? window.t('mcpDetailModal.abortSuccess') : '已发送终止请求';
+        const okMsg = typeof window.t === 'function' ? window.t('mcpDetailModal.abortSuccess') : 'Termination request sent';
         alert(okMsg);
         if (options.refreshDetail && typeof showMCPDetail === 'function') {
             await showMCPDetail(executionId);
@@ -5809,7 +5812,7 @@ async function cancelMCPToolExecutionSubmit(executionId, userNote, options = {})
             await refreshMonitorPanel(page);
         }
     } catch (e) {
-        const failMsg = typeof window.t === 'function' ? window.t('mcpDetailModal.abortFailed') : '终止失败';
+        const failMsg = typeof window.t === 'function' ? window.t('mcpDetailModal.abortFailed') : 'Termination failed';
         alert(failMsg + ': ' + (e && e.message ? e.message : String(e)));
     }
 }
@@ -5858,11 +5861,11 @@ function copyDetailBlock(elementId, triggerBtn = null) {
         if (!triggerBtn) {
             return;
         }
-        triggerBtn.textContent = '已复制';
+        triggerBtn.textContent = 'Copied';
         triggerBtn.disabled = true;
         setTimeout(() => {
             triggerBtn.disabled = false;
-            triggerBtn.textContent = triggerBtn.dataset.originalLabel || originalLabel || '复制';
+            triggerBtn.textContent = triggerBtn.dataset.originalLabel || originalLabel || 'Copy';
         }, 1200);
     };
 
@@ -5901,9 +5904,9 @@ function copyDetailBlock(elementId, triggerBtn = null) {
         .catch(() => {
             if (triggerBtn) {
                 triggerBtn.disabled = false;
-                triggerBtn.textContent = triggerBtn.dataset.originalLabel || originalLabel || '复制';
+                triggerBtn.textContent = triggerBtn.dataset.originalLabel || originalLabel || 'Copy';
             }
-            alert('复制失败，请手动选择文本复制。');
+            alert('Copy failed; please select the text manually to copy.');
         });
 }
 
@@ -5979,7 +5982,7 @@ function createConversationListItem(conversation) {
 
     const title = document.createElement('div');
     title.className = 'conversation-title';
-    const titleText = conversation.title || '未命名对话';
+    const titleText = conversation.title || 'Untitled conversation';
     title.textContent = safeTruncateText(titleText, 60);
     title.title = titleText; // 设置完整标题以便悬停查看
     contentWrapper.appendChild(title);
@@ -6011,7 +6014,7 @@ function createConversationListItem(conversation) {
                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
     `;
-    deleteBtn.title = '删除对话';
+    deleteBtn.title = 'Delete conversation';
     deleteBtn.onclick = (e) => {
         e.stopPropagation();
         deleteConversation(conversation.id);
@@ -6090,7 +6093,7 @@ function ensureProjectSidebarStructure() {
     const newTaskLabel = sidebar.querySelector('.new-chat-btn span:last-child');
     if (newTaskLabel) {
         newTaskLabel.setAttribute('data-i18n', 'chat.newTask');
-        newTaskLabel.textContent = conversationSidebarText('chat.newTask', '新任务');
+        newTaskLabel.textContent = conversationSidebarText('chat.newTask', 'New task');
     }
 
     const searchInput = document.getElementById('conversation-search-input');
@@ -6099,7 +6102,7 @@ function ensureProjectSidebarStructure() {
         searchInput.setAttribute('data-i18n-attr', 'placeholder');
         searchInput.setAttribute('oninput', 'handleProjectFolderSearch(this.value)');
         searchInput.setAttribute('onkeypress', "if(event.key === 'Enter') handleProjectFolderSearch(this.value)");
-        searchInput.placeholder = conversationSidebarText('projects.searchProjectsPlaceholder', '搜索项目…');
+        searchInput.placeholder = conversationSidebarText('projects.searchProjectsPlaceholder', 'Search projects…');
     }
     const searchClear = document.getElementById('conversation-search-clear');
     if (searchClear) searchClear.setAttribute('onclick', 'clearProjectFolderSearch()');
@@ -6119,7 +6122,7 @@ function ensureProjectSidebarStructure() {
         if (legacyTitle) {
             legacyTitle.id = 'project-folders-title';
             legacyTitle.setAttribute('data-i18n', 'chat.projectFolders');
-            legacyTitle.textContent = conversationSidebarText('chat.projectFolders', '项目');
+            legacyTitle.textContent = conversationSidebarText('chat.projectFolders', 'Project');
         }
         const legacyList = projectSection.querySelector('#task-folders-list');
         if (legacyList) {
@@ -6135,8 +6138,8 @@ function ensureProjectSidebarStructure() {
         projectSection.setAttribute('aria-labelledby', 'project-folders-title');
         projectSection.innerHTML =
             '<div class="section-header project-folders-header">' +
-                '<span id="project-folders-title" class="section-title" data-i18n="chat.projectFolders">项目</span>' +
-                '<button type="button" class="add-group-btn project-folders-add-btn" data-require-permission="project:write" onclick="showNewProjectModalFromChatSidebar()" data-i18n="projects.newProject" data-i18n-attr="title,aria-label" data-i18n-skip-text="true" title="新建项目" aria-label="新建项目">' +
+                '<span id="project-folders-title" class="section-title" data-i18n="chat.projectFolders"> Project</span>' +
+                '<button type="button" class="add-group-btn project-folders-add-btn" data-require-permission="project:write" onclick="showNewProjectModalFromChatSidebar()" data-i18n="projects.newProject" data-i18n-attr="title,aria-label" data-i18n-skip-text="true" title="New project" aria-label="New project">' +
                     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
                 '</button>' +
             '</div>' +
@@ -6156,7 +6159,7 @@ function ensureProjectSidebarStructure() {
         addProjectButton.setAttribute('data-i18n', 'projects.newProject');
         addProjectButton.setAttribute('data-i18n-attr', 'title,aria-label');
         addProjectButton.setAttribute('data-i18n-skip-text', 'true');
-        addProjectButton.title = conversationSidebarText('projects.newProject', '新建项目');
+        addProjectButton.title = conversationSidebarText('projects.newProject', 'New project');
         addProjectButton.setAttribute('aria-label', addProjectButton.title);
         addProjectButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
         projectHeader.appendChild(addProjectButton);
@@ -6183,11 +6186,11 @@ function ensureProjectSidebarStructure() {
             toggle.setAttribute('data-i18n', 'chat.toggleRecentConversations');
             toggle.setAttribute('data-i18n-attr', 'title,aria-label');
             toggle.setAttribute('data-i18n-skip-text', 'true');
-            toggle.title = conversationSidebarText('chat.toggleRecentConversations', '展开/折叠最近对话');
+            toggle.title = conversationSidebarText('chat.toggleRecentConversations', 'Expand/collapse recent conversations');
             toggle.setAttribute('aria-label', toggle.title);
             toggle.addEventListener('click', toggleRecentConversations);
             if (title) toggle.appendChild(title);
-            else toggle.innerHTML = '<span class="section-title" data-i18n="chat.recentConversations">最近对话</span>';
+            else toggle.innerHTML = '<span class="section-title" data-i18n="chat.recentConversations"> Recent conversations</span>';
 
             const meta = document.createElement('span');
             meta.className = 'recent-conversations-toggle-meta';
@@ -6267,7 +6270,7 @@ function formatConversationTimestamp(dateObj, todayStart, yesterdayStart) {
     const referenceYesterday = yesterdayStart || new Date(referenceToday.getTime() - 24 * 60 * 60 * 1000);
     const messageDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
     const fmtLocale = (typeof window.uiLocale === 'function' ? window.uiLocale() : 'en-US');
-    const yesterdayLabel = typeof window.t === 'function' ? window.t('chat.yesterday') : '昨天';
+    const yesterdayLabel = typeof window.t === 'function' ? window.t('chat.yesterday') : 'Yesterday';
 
     const timeOnlyOpts = { hour: '2-digit', minute: '2-digit' };
     const dateTimeOpts = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
@@ -6422,7 +6425,7 @@ async function loadConversation(conversationId) {
         } catch (fetchError) {
             if (fetchError && fetchError.name === 'AbortError') return;
             if (!cachedConversation) throw fetchError;
-            console.warn('加载最新对话失败，使用本地缓存:', fetchError);
+            console.warn('Failed to load the latest conversation; using the local cache:', fetchError);
             conversation = cachedConversation;
         }
         if (seq !== loadConversationRequestSeq) {
@@ -6437,7 +6440,7 @@ async function loadConversation(conversationId) {
                 if (previousConversationId) syncChatConversationHash(previousConversationId);
                 else clearChatConversationHash();
             }
-            showChatToast('加载对话失败: ' + (conversation.error || '未知错误'), 'error');
+            showChatToast('Failed to load the conversation: ' + (conversation.error || 'Unknown error'), 'error');
             return;
         }
         if (response && response.ok) {
@@ -6452,7 +6455,7 @@ async function loadConversation(conversationId) {
         window._loadedConversationProjectId = conversation.projectId || conversation.project_id || '';
         const conversationRoleName = conversation.roleName || conversation.role_name || '';
         if (typeof window.setCurrentRole === 'function') {
-            window.setCurrentRole(conversationRoleName || '默认');
+            window.setCurrentRole(conversationRoleName || 'Default');
         }
         applyConversationAgentMode(conversationId, conversation);
         try {
@@ -6714,8 +6717,8 @@ async function loadConversation(conversationId) {
                 window.selectChatProjectConversationItem(previousConversationId);
             }
         }
-        console.error('加载对话失败:', error);
-        showChatToast('加载对话失败: ' + (error && error.message ? error.message : String(error)), 'error');
+        console.error('Failed to load the conversation:', error);
+        showChatToast('Failed to load the conversation: ' + (error && error.message ? error.message : String(error)), 'error');
     } finally {
         if (seq === loadConversationRequestSeq && typeof window.finishChatConversationRestore === 'function') {
             window.finishChatConversationRestore(conversationId);
@@ -6738,7 +6741,7 @@ function attachDeleteTurnButton(messageEl) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'message-delete-turn-btn';
-    const title = typeof window.t === 'function' ? window.t('chat.deleteTurnTitle') : '删除本轮对话';
+    const title = typeof window.t === 'function' ? window.t('chat.deleteTurnTitle') : 'Delete this conversation turn';
     btn.title = title;
     btn.setAttribute('aria-label', title);
     btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -6765,7 +6768,7 @@ function attachDeleteTurnButton(messageEl) {
 /** 删除锚点所在整轮（后端：该轮 user 至下一轮 user 之前），并清空 ReAct 快照 */
 async function deleteConversationTurnFromUI(anchorBackendMessageId) {
     if (!currentConversationId || !anchorBackendMessageId) return;
-    const confirmMsg = typeof window.t === 'function' ? window.t('chat.deleteTurnConfirm') : '确定删除本轮对话？';
+    const confirmMsg = typeof window.t === 'function' ? window.t('chat.deleteTurnConfirm') : 'Confirm deleting this conversation turn?';
     if (!confirm(confirmMsg)) return;
     try {
         const response = await apiFetch(`/api/conversations/${currentConversationId}/delete-turn`, {
@@ -6787,7 +6790,7 @@ async function deleteConversationTurnFromUI(anchorBackendMessageId) {
         }
     } catch (error) {
         console.error('delete turn failed:', error);
-        const failed = typeof window.t === 'function' ? window.t('chat.deleteTurnFailed') : '删除本轮失败';
+        const failed = typeof window.t === 'function' ? window.t('chat.deleteTurnFailed') : 'Failed to delete this turn';
         alert(failed + ': ' + (error && error.message ? error.message : error));
     }
 }
@@ -6796,7 +6799,7 @@ async function deleteConversationTurnFromUI(anchorBackendMessageId) {
 async function deleteConversation(conversationId, skipConfirm = false) {
     // 确认删除（如果调用者没有跳过确认）
     if (!skipConfirm) {
-        if (!confirm('确定要删除这个对话吗？对话消息将不可恢复，但已记录的漏洞会保留在漏洞库中。')) {
+        if (!confirm('Are you sure you want to delete this conversation? Conversation messages cannot be recovered, but recorded vulnerabilities are kept in the vulnerability library.')) {
             return;
         }
     }
@@ -6808,7 +6811,7 @@ async function deleteConversation(conversationId, skipConfirm = false) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || '删除失败');
+            throw new Error(error.error || 'Delete failed');
         }
 
         // 如果删除的是当前对话，清空对话界面
@@ -6843,8 +6846,8 @@ async function deleteConversation(conversationId, skipConfirm = false) {
         }
 
     } catch (error) {
-        console.error('删除对话失败:', error);
-        alert('删除对话失败: ' + error.message);
+        console.error('Failed to delete the conversation:', error);
+        alert('Failed to delete the conversation: ' + error.message);
     }
 }
 
@@ -6977,7 +6980,7 @@ async function showAttackChain(conversationId) {
         // 如果模态框已经打开且显示的是同一个对话，不重复打开
         const modal = document.getElementById('attack-chain-modal');
         if (modal && isAppModalOpen('attack-chain-modal')) {
-            console.log('攻击链正在加载中，模态框已打开');
+            console.log('The attack chain is loading; the modal is open');
             return;
         }
     }
@@ -6990,7 +6993,7 @@ async function showAttackChain(conversationId) {
     resetAttackChainContext();
     const modal = document.getElementById('attack-chain-modal');
     if (!modal) {
-        console.error('攻击链模态框未找到');
+        console.error('Attack-chain modal not found');
         return;
     }
 
@@ -7000,7 +7003,7 @@ async function showAttackChain(conversationId) {
     // 清空容器
     const container = document.getElementById('attack-chain-container');
     if (container) {
-        container.innerHTML = '<div class="loading-spinner">' + (typeof window.t === 'function' ? window.t('chat.loading') : '加载中...') + '</div>';
+        container.innerHTML = '<div class="loading-spinner">' + (typeof window.t === 'function' ? window.t('chat.loading') : 'Loading...') + '</div>';
     }
 
     // 隐藏详情面板
@@ -7035,7 +7038,7 @@ async function loadAttackChain(conversationId) {
         resetAttackChainContext();
         const container = document.getElementById('attack-chain-container');
         if (container) {
-            container.innerHTML = '<div class="loading-spinner">' + (typeof window.t === 'function' ? window.t('chat.loading') : '加载中...') + '</div>';
+            container.innerHTML = '<div class="loading-spinner">' + (typeof window.t === 'function' ? window.t('chat.loading') : 'Loading...') + '</div>';
         }
     }
 
@@ -7056,10 +7059,10 @@ async function loadAttackChain(conversationId) {
                         <div style="text-align: center; padding: 28px 24px; color: var(--text-secondary);">
                             <div style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.95rem; color: var(--text-primary);">
                                 <span role="presentation" aria-hidden="true">⏳</span>
-                                <span>攻击链生成中，请稍候</span>
+                                <span> The attack chain is being generated; please wait</span>
                             </div>
                             <button class="btn-secondary" onclick="refreshAttackChain()" style="margin-top: 12px; font-size: 0.78rem; padding: 4px 12px;">
-                                刷新
+                                Refresh
                             </button>
                         </div>
                     `;
@@ -7086,14 +7089,14 @@ async function loadAttackChain(conversationId) {
             }
 
             const error = await response.json();
-            throw new Error(error.error || '加载攻击链失败');
+            throw new Error(error.error || 'Failed to load the attack chain');
         }
 
         const chainData = await response.json();
 
         // 检查当前显示的对话ID是否匹配，防止串台
         if (!isCurrentAttackChainRequest(conversationId, requestSequence)) {
-            console.log('攻击链数据已返回，但当前显示的对话已切换，忽略此次渲染', {
+            console.log('Attack-chain data returned, but the displayed conversation has changed; ignoring this render', {
                 returned: conversationId,
                 current: currentAttackChainConversationId
             });
@@ -7111,13 +7114,13 @@ async function loadAttackChain(conversationId) {
         finishAttackChainRequest(conversationId, requestSequence);
 
     } catch (error) {
-        console.error('加载攻击链失败:', error);
+        console.error('Failed to load the attack chain:', error);
         // 错误时也重置加载状态
         finishAttackChainRequest(conversationId, requestSequence);
         if (!isCurrentAttackChainRequest(conversationId, requestSequence)) return;
         resetAttackChainContext();
         renderAttackChainError(document.getElementById('attack-chain-container'),
-            attackChainFailureText('chat.loadFailed', '加载失败: ', error.message));
+            attackChainFailureText('chat.loadFailed', 'Load failed: ', error.message));
     } finally {
         // 恢复重新生成按钮
         const regenerateBtn = document.querySelector('button[onclick="regenerateAttackChain()"]');
@@ -7146,7 +7149,7 @@ function renderAttackChain(chainData) {
     container.innerHTML = '';
 
     if (!chainData.nodes || chainData.nodes.length === 0) {
-        container.innerHTML = '<div class="empty-message">' + (typeof window.t === 'function' ? window.t('chat.noAttackChainData') : '暂无攻击链数据') + '</div>';
+        container.innerHTML = '<div class="empty-message">' + (typeof window.t === 'function' ? window.t('chat.noAttackChainData') : 'No attack-chain data') + '</div>';
         return;
     }
 
@@ -7189,7 +7192,7 @@ function renderAttackChain(chainData) {
         const metadata = node.metadata || {};
 
         // 统一的主题系统（与导出一致）
-        let typeLabel = '节点';
+        let typeLabel = 'Node';
         let typeEn = 'NODE';
         let typeColor = '#334155';      // 主文字色
         let accentColor = '#94a3b8';    // 强调色（图标/边框）
@@ -7199,7 +7202,7 @@ function renderAttackChain(chainData) {
         let iconType = 'default';       // 图标类型
 
         if (nodeType === 'target') {
-            typeLabel = '目标';
+            typeLabel = 'Target';
             typeEn = 'TARGET';
             typeColor = '#312E81';
             accentColor = '#4F46E5';
@@ -7208,7 +7211,7 @@ function renderAttackChain(chainData) {
             bgGradientEnd = '#F5F3FF';
             iconType = 'target';
         } else if (nodeType === 'action') {
-            typeLabel = '行动';
+            typeLabel = 'Action';
             typeEn = 'ACTION';
             const findings = metadata.findings || [];
             const hasFindings = Array.isArray(findings) && findings.length > 0;
@@ -7228,7 +7231,7 @@ function renderAttackChain(chainData) {
             }
             iconType = 'action';
         } else if (nodeType === 'vulnerability') {
-            typeLabel = '漏洞';
+            typeLabel = 'Vulnerability';
             typeEn = 'VULNERABILITY';
             if (riskScore >= 80) {
                 typeColor = '#881337';
@@ -7287,17 +7290,17 @@ function renderAttackChain(chainData) {
         // 计算徽章文本（右上角）
         let badgeText = '';
         if (nodeType === 'vulnerability' && riskScore > 0) {
-            const rl = riskScore >= 80 ? '严重' : riskScore >= 60 ? '高' : riskScore >= 40 ? '中' : '低';
+            const rl = riskScore >= 80 ? 'Critical' : riskScore >= 60 ? 'High' : riskScore >= 40 ? 'Medium' : 'Low';
             badgeText = rl + ' · ' + riskScore;
         } else if (nodeType === 'action') {
             const findings = metadata.findings || [];
             if (Array.isArray(findings) && findings.length > 0 && metadata.status !== 'failed_insight') {
-                badgeText = '发现 ' + findings.length;
+                badgeText = 'Findings ' + findings.length;
             } else if (metadata.status === 'failed_insight') {
-                badgeText = '有线索';
+                badgeText = 'Has leads';
             }
         } else if (nodeType === 'target') {
-            badgeText = '主目标';
+            badgeText = 'Main target';
         }
 
         elements.push({
@@ -7342,7 +7345,7 @@ function renderAttackChain(chainData) {
                 }
             });
         } else {
-            console.warn('跳过无效的边：源节点或目标节点不存在', {
+            console.warn('Skipping an invalid edge: the source or target node does not exist', {
                 edgeId: edge.id,
                 source: edge.source,
                 target: edge.target,
@@ -7538,7 +7541,7 @@ function renderAttackChain(chainData) {
         try {
             elkInstance = new ELK();
         } catch (e) {
-            console.warn('ELK初始化失败:', e);
+            console.warn('ELK Initialization failed:', e);
         }
     }
 
@@ -7614,10 +7617,10 @@ function renderAttackChain(chainData) {
                         centerAttackChain();
                     }, 150);
                 } else {
-                    throw new Error('ELK布局返回无效结果');
+                    throw new Error('ELK Layout returned an invalid result');
                 }
             }).catch(err => {
-                console.warn('ELK布局计算失败，使用默认布局:', err);
+                console.warn('ELK Layout calculation failed; using the default layout:', err);
                 // 回退到默认布局
                 const layout = attackChainCytoscape.layout(layoutOptions);
                 layout.one('layoutstop', () => {
@@ -7628,7 +7631,7 @@ function renderAttackChain(chainData) {
                 layout.run();
             });
         } catch (e) {
-            console.warn('ELK布局初始化失败，使用默认布局:', e);
+            console.warn('ELK Layout initialization failed; using the default layout:', e);
             // 回退到默认布局
             const layout = attackChainCytoscape.layout(layoutOptions);
             layout.one('layoutstop', () => {
@@ -7639,7 +7642,7 @@ function renderAttackChain(chainData) {
             layout.run();
         }
     } else {
-        console.warn('ELK.js未加载，使用默认布局。请检查elkjs库是否正确加载。');
+        console.warn('ELK.js not loaded; using the default layout. Please check whether the elkjs library is loaded correctly.');
         // 使用默认布局
         const layout = attackChainCytoscape.layout(layoutOptions);
         layout.one('layoutstop', () => {
@@ -7699,7 +7702,7 @@ function renderAttackChain(chainData) {
                 attackChainCytoscape.center();
             }, 60);
         } catch (error) {
-            console.warn('居中图表时出错:', error);
+            console.warn('Error centering the chart:', error);
         }
     }
 
@@ -7764,7 +7767,7 @@ function getEdgeNodes(edge) {
 
         return { source: source, target: target, valid: true };
     } catch (error) {
-        console.warn('获取边的节点时出错:', error, edge.id());
+        console.warn('Error getting the nodes of an edge:', error, edge.id());
         return { source: null, target: null, valid: false };
     }
 }
@@ -7978,16 +7981,16 @@ function showNodeDetails(nodeData) {
 
     let html = `
         <div class="node-detail-item">
-            <strong>节点ID:</strong> <code>${nodeData.id}</code>
+            <strong> NodeID:</strong> <code>${nodeData.id}</code>
         </div>
         <div class="node-detail-item">
-            <strong>类型:</strong> ${getNodeTypeLabel(nodeData.type)}
+            <strong> Type:</strong> ${getNodeTypeLabel(nodeData.type)}
         </div>
         <div class="node-detail-item">
-            <strong>标签:</strong> ${escapeHtml(nodeData.originalLabel || nodeData.label)}
+            <strong> Tag:</strong> ${escapeHtml(nodeData.originalLabel || nodeData.label)}
         </div>
         <div class="node-detail-item">
-            <strong>风险评分:</strong> ${nodeData.riskScore}/100
+            <strong> Risk score:</strong> ${nodeData.riskScore}/100
         </div>
     `;
 
@@ -7996,35 +7999,35 @@ function showNodeDetails(nodeData) {
         if (nodeData.metadata.tool_name) {
             html += `
                 <div class="node-detail-item">
-                    <strong>工具名称:</strong> <code>${escapeHtml(nodeData.metadata.tool_name)}</code>
+                    <strong> Tool name:</strong> <code>${escapeHtml(nodeData.metadata.tool_name)}</code>
                 </div>
             `;
         }
         if (nodeData.metadata.tool_intent) {
             html += `
                 <div class="node-detail-item">
-                    <strong>工具意图:</strong> <span style="color: #0066ff; font-weight: bold;">${escapeHtml(nodeData.metadata.tool_intent)}</span>
+                    <strong> Tool intent:</strong> <span style="color: #0066ff; font-weight: bold;">${escapeHtml(nodeData.metadata.tool_intent)}</span>
                 </div>
             `;
         }
         if (nodeData.metadata.status === 'failed_insight') {
             html += `
                 <div class="node-detail-item">
-                    <strong>执行状态:</strong> <span style="color: #ff9800; font-weight: bold;">失败但有线索</span>
+                    <strong> Execution status:</strong> <span style="color: #ff9800; font-weight: bold;"> Failed but has leads</span>
                 </div>
             `;
         }
         if (nodeData.metadata.ai_analysis) {
             html += `
                 <div class="node-detail-item">
-                    <strong>AI分析:</strong> <div class="node-detail-ai-analysis">${escapeHtml(nodeData.metadata.ai_analysis)}</div>
+                    <strong>AI Analysis:</strong> <div class="node-detail-ai-analysis">${escapeHtml(nodeData.metadata.ai_analysis)}</div>
                 </div>
             `;
         }
         if (nodeData.metadata.findings && Array.isArray(nodeData.metadata.findings) && nodeData.metadata.findings.length > 0) {
             html += `
                 <div class="node-detail-item">
-                    <strong>关键发现:</strong>
+                    <strong> Key findings:</strong>
                     <ul style="margin: 5px 0; padding-left: 20px;">
                         ${nodeData.metadata.findings.map(f => `<li>${escapeHtml(f)}</li>`).join('')}
                     </ul>
@@ -8037,7 +8040,7 @@ function showNodeDetails(nodeData) {
     if (nodeData.type === 'target' && nodeData.metadata && nodeData.metadata.target) {
         html += `
             <div class="node-detail-item">
-                <strong>测试目标:</strong> <code>${escapeHtml(nodeData.metadata.target)}</code>
+                <strong> Test target:</strong> <code>${escapeHtml(nodeData.metadata.target)}</code>
             </div>
         `;
     }
@@ -8047,28 +8050,28 @@ function showNodeDetails(nodeData) {
         if (nodeData.metadata.vulnerability_type) {
             html += `
                 <div class="node-detail-item">
-                    <strong>漏洞类型:</strong> ${escapeHtml(nodeData.metadata.vulnerability_type)}
+                    <strong> Vulnerability type:</strong> ${escapeHtml(nodeData.metadata.vulnerability_type)}
                 </div>
             `;
         }
         if (nodeData.metadata.description) {
             html += `
                 <div class="node-detail-item">
-                    <strong>描述:</strong> ${escapeHtml(nodeData.metadata.description)}
+                    <strong> Description:</strong> ${escapeHtml(nodeData.metadata.description)}
                 </div>
             `;
         }
         if (nodeData.metadata.severity) {
             html += `
                 <div class="node-detail-item">
-                    <strong>严重程度:</strong> <span style="color: ${getSeverityColor(nodeData.metadata.severity)}; font-weight: bold;">${escapeHtml(nodeData.metadata.severity)}</span>
+                    <strong> Severity:</strong> <span style="color: ${getSeverityColor(nodeData.metadata.severity)}; font-weight: bold;">${escapeHtml(nodeData.metadata.severity)}</span>
                 </div>
             `;
         }
         if (nodeData.metadata.location) {
             html += `
                 <div class="node-detail-item">
-                    <strong>位置:</strong> <code>${escapeHtml(nodeData.metadata.location)}</code>
+                    <strong> Location:</strong> <code>${escapeHtml(nodeData.metadata.location)}</code>
                 </div>
             `;
         }
@@ -8077,7 +8080,7 @@ function showNodeDetails(nodeData) {
     if (nodeData.toolExecutionId) {
         html += `
             <div class="node-detail-item">
-                <strong>工具执行ID:</strong> <code>${nodeData.toolExecutionId}</code>
+                <strong> Tool executionID:</strong> <code>${nodeData.toolExecutionId}</code>
             </div>
         `;
     }
@@ -8111,9 +8114,9 @@ function getSeverityColor(severity) {
 // 获取节点类型标签
 function getNodeTypeLabel(type) {
     const labels = {
-        'action': '行动',
-        'vulnerability': '漏洞',
-        'target': '目标'
+        'action': 'Action',
+        'vulnerability': 'Vulnerability',
+        'target': 'Target'
     };
     return labels[type] || type;
 }
@@ -8210,7 +8213,7 @@ async function regenerateAttackChain() {
 
     // 防止重复点击（只检查当前对话的加载状态）
     if (isAttackChainLoading(currentAttackChainConversationId)) {
-        console.log('攻击链正在生成中，请稍候...');
+        console.log('The attack chain is being generated; please wait...');
         return;
     }
 
@@ -8222,7 +8225,7 @@ async function regenerateAttackChain() {
 
     const container = document.getElementById('attack-chain-container');
     if (container) {
-        container.innerHTML = '<div class="loading-spinner">重新生成中...</div>';
+        container.innerHTML = '<div class="loading-spinner"> Regenerating...</div>';
     }
 
     // 禁用重新生成按钮
@@ -8247,12 +8250,12 @@ async function regenerateAttackChain() {
                 if (container) {
                     container.innerHTML = `
                         <div class="loading-spinner" style="text-align: center; padding: 40px;">
-                            <div style="margin-bottom: 16px;">⏳ 攻击链正在生成中...</div>
+                            <div style="margin-bottom: 16px;">⏳ The attack chain is being generated...</div>
                             <div style="color: var(--text-secondary); font-size: 0.875rem;">
-                                请稍候，生成完成后将自动显示
+                                Please wait; it will display automatically once generation is complete
                             </div>
                             <button class="btn-secondary" onclick="refreshAttackChain()" style="margin-top: 16px;">
-                                刷新查看进度
+                                Refresh to view progress
                             </button>
                         </div>
                     `;
@@ -8269,14 +8272,14 @@ async function regenerateAttackChain() {
             }
 
             const error = await response.json();
-            throw new Error(error.error || '重新生成攻击链失败');
+            throw new Error(error.error || 'Failed to regenerate the attack chain');
         }
 
         const chainData = await response.json();
 
         // 检查当前显示的对话ID是否匹配，防止串台
         if (!isCurrentAttackChainRequest(savedConversationId, requestSequence)) {
-            console.log('攻击链数据已返回，但当前显示的对话已切换，忽略此次渲染', {
+            console.log('Attack-chain data returned, but the displayed conversation has changed; ignoring this render', {
                 returned: savedConversationId,
                 current: currentAttackChainConversationId
             });
@@ -8291,11 +8294,11 @@ async function regenerateAttackChain() {
         updateAttackChainStats(chainData);
 
     } catch (error) {
-        console.error('重新生成攻击链失败:', error);
+        console.error('Failed to regenerate the attack chain:', error);
         if (!isCurrentAttackChainRequest(savedConversationId, requestSequence)) return;
         resetAttackChainContext();
         renderAttackChainError(container,
-            attackChainFailureText('attackChainModal.regenerateFailed', '重新生成失败: ', error.message));
+            attackChainFailureText('attackChainModal.regenerateFailed', 'Regeneration failed: ', error.message));
     } finally {
         finishAttackChainRequest(savedConversationId, requestSequence);
 
@@ -8471,17 +8474,17 @@ function _acGetNodeIconPath(type) {
 
 // 获取节点风险等级标签（漏洞节点用）
 function _acGetRiskLabel(score) {
-    if (score >= 80) return '严重';
-    if (score >= 60) return '高';
-    if (score >= 40) return '中';
-    if (score > 0) return '低';
+    if (score >= 80) return 'Critical';
+    if (score >= 60) return 'High';
+    if (score >= 40) return 'Medium';
+    if (score > 0) return 'Low';
     return '';
 }
 
 // 生成精美 SVG 字符串（高端商业报告风格）
 function _acBuildSvgString() {
     const data = _acCollectExportData();
-    if (!data || data.nodes.length === 0) throw new Error('没有可导出的数据');
+    if (!data || data.nodes.length === 0) throw new Error('No data to export');
 
     const { nodes, edges } = data;
 
@@ -8559,13 +8562,13 @@ function _acBuildSvgString() {
 
     // 类型主题色（高级感配色）
     const typeTheme = {
-        'target': { primary: '#4F46E5', light: '#EEF2FF', dark: '#3730A3', text: '#312E81', label: '目标' },
-        'action-success': { primary: '#10B981', light: '#ECFDF5', dark: '#047857', text: '#064E3B', label: '行动' },
-        'action-neutral': { primary: '#64748B', light: '#F8FAFC', dark: '#475569', text: '#334155', label: '行动' },
-        'vuln-critical': { primary: '#E11D48', light: '#FFF1F2', dark: '#BE123C', text: '#881337', label: '漏洞' },
-        'vuln-high': { primary: '#EA580C', light: '#FFF7ED', dark: '#C2410C', text: '#7C2D12', label: '漏洞' },
-        'vuln-med': { primary: '#CA8A04', light: '#FEFCE8', dark: '#A16207', text: '#713F12', label: '漏洞' },
-        'vuln-low': { primary: '#0D9488', light: '#F0FDFA', dark: '#0F766E', text: '#134E4A', label: '漏洞' }
+        'target': { primary: '#4F46E5', light: '#EEF2FF', dark: '#3730A3', text: '#312E81', label: 'Target' },
+        'action-success': { primary: '#10B981', light: '#ECFDF5', dark: '#047857', text: '#064E3B', label: 'Action' },
+        'action-neutral': { primary: '#64748B', light: '#F8FAFC', dark: '#475569', text: '#334155', label: 'Action' },
+        'vuln-critical': { primary: '#E11D48', light: '#FFF1F2', dark: '#BE123C', text: '#881337', label: 'Vulnerability' },
+        'vuln-high': { primary: '#EA580C', light: '#FFF7ED', dark: '#C2410C', text: '#7C2D12', label: 'Vulnerability' },
+        'vuln-med': { primary: '#CA8A04', light: '#FEFCE8', dark: '#A16207', text: '#713F12', label: 'Vulnerability' },
+        'vuln-low': { primary: '#0D9488', light: '#F0FDFA', dark: '#0F766E', text: '#134E4A', label: 'Vulnerability' }
     };
 
     function themeFor(n) {
@@ -8703,7 +8706,7 @@ function _acBuildSvgString() {
     parts.push(`</g>`);
 
     // 主标题（超大、粗体）
-    parts.push(`<text x="${tX + 56}" y="${tY + 26}" font-size="26" font-weight="800" fill="#0F172A" letter-spacing="-0.6px">攻击链可视化报告</text>`);
+    parts.push(`<text x="${tX + 56}" y="${tY + 26}" font-size="26" font-weight="800" fill="#0F172A" letter-spacing="-0.6px"> Attack-chain visualization report</text>`);
 
     // 副标题（小字、次要色）
     parts.push(`<text x="${tX + 56}" y="${tY + 50}" font-size="13" font-weight="500" fill="#64748B" letter-spacing="0.1px">Attack Chain Analysis · ${_acEscapeXml(ts)}</text>`);
@@ -8714,9 +8717,9 @@ function _acBuildSvgString() {
     const kpiGap = 12;
     const kpiW = 110;
     const kpiItems = [
-        { label: '节点', value: nodeCount, color: '#4F46E5' },
-        { label: '连线', value: edgeCount, color: '#06B6D4' },
-        { label: '严重漏洞', value: criticalCount, color: criticalCount > 0 ? '#E11D48' : '#94A3B8' }
+        { label: 'Node', value: nodeCount, color: '#4F46E5' },
+        { label: 'Connection', value: edgeCount, color: '#06B6D4' },
+        { label: 'Critical vulnerability', value: criticalCount, color: criticalCount > 0 ? '#E11D48' : '#94A3B8' }
     ];
     let kpiXStart = OUTER_PAD + contentW - 40 - (kpiW * kpiItems.length + kpiGap * (kpiItems.length - 1));
     kpiItems.forEach((kpi, i) => {
@@ -8839,7 +8842,7 @@ function _acBuildSvgString() {
             const hasFindings = Array.isArray(findings) && findings.length > 0;
             const isFailed = m.status === 'failed_insight';
             if (hasFindings || isFailed) {
-                const text = isFailed ? '有线索' : `发现 ${findings.length}`;
+                const text = isFailed ? 'Has leads' : `Findings ${findings.length}`;
                 const badgeW = 70;
                 const bx = x + n.w - badgeW - padX;
                 parts.push(`<rect x="${bx}" y="${badgeY}" width="${badgeW}" height="${badgeH}" rx="${badgeH / 2}" fill="${theme.primary}" fill-opacity="0.12" stroke="${theme.primary}" stroke-opacity="0.4" stroke-width="1"/>`);
@@ -8852,7 +8855,7 @@ function _acBuildSvgString() {
             const badgeW = 60;
             const bx = x + n.w - badgeW - padX;
             parts.push(`<rect x="${bx}" y="${badgeY}" width="${badgeW}" height="${badgeH}" rx="${badgeH / 2}" fill="${theme.primary}" fill-opacity="0.12" stroke="${theme.primary}" stroke-opacity="0.4" stroke-width="1"/>`);
-            parts.push(`<text x="${bx + badgeW / 2}" y="${badgeY + badgeH / 2 + 4.5}" text-anchor="middle" font-size="11.5" font-weight="700" fill="${theme.dark}" letter-spacing="0.3px">主目标</text>`);
+            parts.push(`<text x="${bx + badgeW / 2}" y="${badgeY + badgeH / 2 + 4.5}" text-anchor="middle" font-size="11.5" font-weight="700" fill="${theme.dark}" letter-spacing="0.3px"> Main target</text>`);
         }
 
         // ========== 主标题 ==========
@@ -8937,16 +8940,16 @@ function _acBuildSvgString() {
     let curY = ly + 26;
 
     // --- 节点类型 ---
-    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">NODE TYPES · 节点类型</text>`);
+    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">NODE TYPES · Node type</text>`);
     curY += 22;
     const typeSummary = [
-        { key: 'target', count: targetNodes.length, text: '目标' },
-        { key: 'action-success', count: actionNodes.filter(a => { const m = a.metadata || {}; return Array.isArray(m.findings) && m.findings.length > 0 && m.status !== 'failed_insight'; }).length, text: '行动（有发现）' },
-        { key: 'action-neutral', count: actionNodes.filter(a => { const m = a.metadata || {}; const f = Array.isArray(m.findings) ? m.findings : []; return f.length === 0 || m.status === 'failed_insight'; }).length, text: '行动（其他）' },
-        { key: 'vuln-critical', count: criticalCount, text: '严重漏洞' },
-        { key: 'vuln-high', count: highCount, text: '高风险漏洞' },
-        { key: 'vuln-med', count: medCount, text: '中风险漏洞' },
-        { key: 'vuln-low', count: lowCount, text: '低风险漏洞' }
+        { key: 'target', count: targetNodes.length, text: 'Target' },
+        { key: 'action-success', count: actionNodes.filter(a => { const m = a.metadata || {}; return Array.isArray(m.findings) && m.findings.length > 0 && m.status !== 'failed_insight'; }).length, text: 'Action (has findings)' },
+        { key: 'action-neutral', count: actionNodes.filter(a => { const m = a.metadata || {}; const f = Array.isArray(m.findings) ? m.findings : []; return f.length === 0 || m.status === 'failed_insight'; }).length, text: 'Action (other)' },
+        { key: 'vuln-critical', count: criticalCount, text: 'Critical vulnerability' },
+        { key: 'vuln-high', count: highCount, text: 'High-risk vulnerability' },
+        { key: 'vuln-med', count: medCount, text: 'Medium-risk vulnerability' },
+        { key: 'vuln-low', count: lowCount, text: 'Low-risk vulnerability' }
     ];
     typeSummary.forEach(item => {
         const t = typeTheme[item.key];
@@ -8962,13 +8965,13 @@ function _acBuildSvgString() {
     curY += 10;
 
     // --- 连线含义 ---
-    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">CONNECTIONS · 连线含义</text>`);
+    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">CONNECTIONS · Connection meaning</text>`);
     curY += 22;
     const lineItems = [
-        { label: '行动发现漏洞', color: '#4F46E5', dash: '' },
-        { label: '使能 / 促成关系', color: '#E11D48', dash: '' },
-        { label: '逻辑顺序', color: '#64748B', dash: '' },
-        { label: '目标定位', color: '#4F46E5', dash: '6,3' }
+        { label: 'Action found a vulnerability', color: '#4F46E5', dash: '' },
+        { label: 'Enabling / facilitating relationship', color: '#E11D48', dash: '' },
+        { label: 'Logical order', color: '#64748B', dash: '' },
+        { label: 'Target positioning', color: '#4F46E5', dash: '6,3' }
     ];
     lineItems.forEach(l => {
         const dashAttr = l.dash ? `stroke-dasharray="${l.dash}"` : '';
@@ -8980,20 +8983,20 @@ function _acBuildSvgString() {
     curY += 10;
 
     // --- 风险等级条 ---
-    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">RISK LEVELS · 风险等级</text>`);
+    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">RISK LEVELS · Risk level</text>`);
     curY += 22;
     const riskBar = [
-        { label: '严重', range: '80-100', color: '#E11D48' },
-        { label: '高', range: '60-79', color: '#EA580C' },
-        { label: '中', range: '40-59', color: '#CA8A04' },
-        { label: '低', range: '0-39', color: '#0D9488' }
+        { label: 'Critical', range: '80-100', color: '#E11D48' },
+        { label: 'High', range: '60-79', color: '#EA580C' },
+        { label: 'Medium', range: '40-59', color: '#CA8A04' },
+        { label: 'Low', range: '0-39', color: '#0D9488' }
     ];
     riskBar.forEach(r => {
         // 风险等级胶囊
         parts.push(`<rect x="${lx + 24}" y="${curY - 10}" width="46" height="18" rx="9" fill="${r.color}"/>`);
         parts.push(`<text x="${lx + 47}" y="${curY + 2}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#FFFFFF" letter-spacing="0.3px">${_acEscapeXml(r.label)}</text>`);
         // 分数范围
-        parts.push(`<text x="${lx + 80}" y="${curY + 1}" font-size="12" font-weight="500" fill="#64748B">分数 ${_acEscapeXml(r.range)}</text>`);
+        parts.push(`<text x="${lx + 80}" y="${curY + 1}" font-size="12" font-weight="500" fill="#64748B"> Score ${_acEscapeXml(r.range)}</text>`);
         curY += 26;
     });
 
@@ -9049,7 +9052,7 @@ function _acSvgToPng(svgString, scale) {
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     URL.revokeObjectURL(url);
                     canvas.toBlob(pngBlob => {
-                        if (!pngBlob) reject(new Error('PNG 生成失败'));
+                        if (!pngBlob) reject(new Error('PNG Generation failed'));
                         else resolve(pngBlob);
                     }, 'image/png', 0.95);
                 } catch (err) {
@@ -9059,7 +9062,7 @@ function _acSvgToPng(svgString, scale) {
             };
             img.onerror = function (e) {
                 URL.revokeObjectURL(url);
-                reject(new Error('SVG 加载失败'));
+                reject(new Error('SVG Load failed'));
             };
             img.src = url;
         } catch (e) {
@@ -9071,7 +9074,7 @@ function _acSvgToPng(svgString, scale) {
 // 导出攻击链（美化版）
 function exportAttackChain(format) {
     if (!attackChainCytoscape) {
-        alert(typeof window.t === 'function' ? window.t('chat.pleaseLoadAttackChainFirst', {}, '请先加载攻击链') : '请先加载攻击链');
+        alert(typeof window.t === 'function' ? window.t('chat.pleaseLoadAttackChainFirst', {}, 'Please load the attack chain first') : 'Please load the attack chain first');
         return;
     }
 
@@ -9089,28 +9092,28 @@ function exportAttackChain(format) {
                 _acSvgToPng(svgString, 2)
                     .then(pngBlob => _acDownloadBlob(pngBlob, `attack-chain-${convId}-${tsName}.png`))
                     .catch(err => {
-                        console.error('导出 PNG 失败，回退到 Cytoscape 原生导出:', err);
+                        console.error('PNG export failed; falling back to the native Cytoscape export:', err);
                         // 回退方案：使用 Cytoscape 自带导出
                         try {
                             const p = attackChainCytoscape.png({ output: 'blob', bg: '#ffffff', full: true, scale: 2 });
                             if (p && typeof p.then === 'function') {
                                 p.then(b => _acDownloadBlob(b, `attack-chain-${convId}-${tsName}.png`))
-                                    .catch(e => alert('导出 PNG 失败: ' + (e && e.message || e)));
+                                    .catch(e => alert('PNG export failed: ' + (e && e.message || e)));
                             } else if (p) {
                                 _acDownloadBlob(p, `attack-chain-${convId}-${tsName}.png`);
                             } else {
-                                alert('导出 PNG 失败');
+                                alert('PNG export failed');
                             }
                         } catch (e2) {
-                            alert('导出 PNG 失败: ' + (e2 && e2.message || e2));
+                            alert('PNG export failed: ' + (e2 && e2.message || e2));
                         }
                     });
             } else {
-                alert('不支持的导出格式: ' + format);
+                alert('Unsupported export format: ' + format);
             }
         } catch (error) {
-            console.error('导出失败:', error);
-            alert('导出失败: ' + (error && error.message || '未知错误'));
+            console.error('Export failed:', error);
+            alert('Export failed: ' + (error && error.message || 'Unknown error'));
         }
     }, 80);
 }
@@ -9171,7 +9174,7 @@ function ensureProjectFilterSearchUi(reg) {
     searchInput.setAttribute('autocomplete', 'off');
     searchInput.setAttribute('data-i18n', 'chat.filterProjectSearch');
     searchInput.setAttribute('data-i18n-attr', 'placeholder');
-    searchInput.placeholder = projectFilterT('chat.filterProjectSearch', '搜索项目…');
+    searchInput.placeholder = projectFilterT('chat.filterProjectSearch', 'Search projects…');
     searchWrap.appendChild(searchInput);
     dropdown.appendChild(searchWrap);
     reg.searchInput = searchInput;
@@ -9257,7 +9260,7 @@ async function loadProjectFilterLocalOptions(selectId) {
         loadingEl = appendProjectFilterStatusMessage(
             reg.optionsList,
             'conversation-project-filter-status',
-            projectFilterT('common.loading', '加载中…')
+            projectFilterT('common.loading', 'Loading…')
         );
     }
 
@@ -9288,7 +9291,7 @@ async function loadProjectFilterLocalOptions(selectId) {
             appendProjectFilterStatusMessage(
                 reg.optionsList,
                 'conversation-project-filter-empty',
-                projectFilterT('chat.filterProjectSearchEmpty', '没有匹配的项目')
+                projectFilterT('chat.filterProjectSearchEmpty', 'No matching projects')
             );
         }
     } catch (e) {
@@ -9297,7 +9300,7 @@ async function loadProjectFilterLocalOptions(selectId) {
         appendProjectFilterStatusMessage(
             reg.optionsList,
             'conversation-project-filter-empty',
-            projectFilterT('chat.filterProjectSearchFailed', '加载项目失败，请重试')
+            projectFilterT('chat.filterProjectSearchFailed', 'Failed to load the project; please retry')
         );
     } finally {
         if (loadingEl && loadingEl.parentNode) loadingEl.remove();
@@ -9531,8 +9534,8 @@ function setConversationProjectFilter(projectId) {
 
 function appendProjectFilterPinnedNativeOptions(sel) {
     const tFn = typeof window.t === 'function' ? window.t.bind(window) : null;
-    const allLabel = tFn ? tFn('chat.filterAllProjects') : '全部项目';
-    const unboundLabel = tFn ? tFn('chat.filterUnboundProjects') : '未绑定项目';
+    const allLabel = tFn ? tFn('chat.filterAllProjects') : 'All projects';
+    const unboundLabel = tFn ? tFn('chat.filterUnboundProjects') : 'No project bound';
     sel.innerHTML = '';
     const allOpt = document.createElement('option');
     allOpt.value = '';
@@ -9602,13 +9605,13 @@ function updateConversationSidebarFilterUI() {
     const tFn = typeof window.t === 'function' ? window.t.bind(window) : null;
     if (filter && filter !== CONVERSATION_PROJECT_FILTER_NONE) {
         const name = (window.projectNameById && window.projectNameById[filter]) || filter;
-        const fullTitle = tFn ? tFn('chat.projectConversationsTitle', { name }) : `${name} · 对话`;
+        const fullTitle = tFn ? tFn('chat.projectConversationsTitle', { name }) : `${name} · Conversation`;
         titleEl.textContent = fullTitle;
         titleEl.title = fullTitle;
         titleEl.classList.add('section-title--filtered');
         titleEl.removeAttribute('data-i18n');
     } else if (filter === CONVERSATION_PROJECT_FILTER_NONE) {
-        const fullTitle = tFn ? tFn('chat.unboundConversationsTitle') : '未绑定项目';
+        const fullTitle = tFn ? tFn('chat.unboundConversationsTitle') : 'No project bound';
         titleEl.textContent = fullTitle;
         titleEl.title = fullTitle;
         titleEl.classList.add('section-title--filtered');
@@ -10124,10 +10127,10 @@ async function loadConversations(searchQuery = '', options = {}) {
 
         const tFn = typeof window.t === 'function' ? window.t.bind(window) : null;
         const groupOrder = [
-            { key: 'today', label: tFn ? tFn('chat.historyGroupToday') : '今天' },
-            { key: 'yesterday', label: tFn ? tFn('chat.yesterday') : '昨天' },
-            { key: 'last7Days', label: tFn ? tFn('chat.historyGroupLast7Days') : '过去七天' },
-            { key: 'earlier', label: tFn ? tFn('chat.historyGroupEarlier') : '更早' },
+            { key: 'today', label: tFn ? tFn('chat.historyGroupToday') : 'Today' },
+            { key: 'yesterday', label: tFn ? tFn('chat.yesterday') : 'Yesterday' },
+            { key: 'last7Days', label: tFn ? tFn('chat.historyGroupLast7Days') : 'Past seven days' },
+            { key: 'earlier', label: tFn ? tFn('chat.historyGroupEarlier') : 'Earlier' },
         ];
 
         const groups = {
@@ -10205,7 +10208,7 @@ async function loadConversations(searchQuery = '', options = {}) {
         }
     } catch (error) {
         if (isStaleConversationListLoad(loadSeq, intentPage, navigateGenAtStart, activePage)) return;
-        console.error('加载对话列表失败:', error);
+        console.error('Failed to load the conversation list:', error);
         // 错误时显示空状态，而不是错误提示（更友好的用户体验）
         const listContainer = document.getElementById('conversations-list');
         if (listContainer) {
@@ -10236,7 +10239,7 @@ function createConversationListItemWithMenu(conversation, isPinned) {
 
     const title = document.createElement('div');
     title.className = 'conversation-title';
-    const titleText = conversation.title || '未命名对话';
+    const titleText = conversation.title || 'Untitled conversation';
     title.textContent = safeTruncateText(titleText, 60);
     title.title = titleText; // 设置完整标题以便悬停查看
     titleWrapper.appendChild(title);
@@ -10245,7 +10248,7 @@ function createConversationListItemWithMenu(conversation, isPinned) {
         const pinIcon = document.createElement('span');
         pinIcon.className = 'conversation-item-pinned';
         pinIcon.innerHTML = '📌';
-        pinIcon.title = '已置顶';
+        pinIcon.title = 'Pinned';
         titleWrapper.appendChild(pinIcon);
     }
 
@@ -10318,7 +10321,7 @@ function updateConversationContextPinText(isPinned) {
     if (typeof window.t === 'function') {
         pinMenuText.textContent = isPinned ? window.t('contextMenu.unpinConversation') : window.t('contextMenu.pinConversation');
     } else {
-        pinMenuText.textContent = isPinned ? '取消置顶' : '置顶此对话';
+        pinMenuText.textContent = isPinned ? 'Unpin' : 'Pin this conversation';
     }
 }
 
@@ -10333,7 +10336,7 @@ async function refreshConversationContextPinText(convId) {
         const conv = await response.json();
         updateConversationContextPinText(!!conv.pinned);
     } catch (error) {
-        console.error('获取对话置顶状态失败:', error);
+        console.error('Failed to fetch the conversation pin status:', error);
     }
 }
 
@@ -10363,18 +10366,18 @@ async function showConversationContextMenu(event) {
                 attackChainMenuItem.style.opacity = '0.5';
                 attackChainMenuItem.style.cursor = 'not-allowed';
                 attackChainMenuItem.onclick = null;
-                attackChainMenuItem.title = '当前对话正在执行，请稍后再生成攻击链';
+                attackChainMenuItem.title = 'The current conversation is running; generate the attack chain later';
             } else {
                 attackChainMenuItem.style.opacity = '1';
                 attackChainMenuItem.style.cursor = 'pointer';
                 attackChainMenuItem.onclick = showAttackChainFromContext;
-                attackChainMenuItem.title = (typeof window.t === 'function' ? window.t('chat.viewAttackChainCurrentConv') : '查看当前对话的攻击链');
+                attackChainMenuItem.title = (typeof window.t === 'function' ? window.t('chat.viewAttackChainCurrentConv') : 'View the attack chain for the current conversation');
             }
         } else {
             attackChainMenuItem.style.opacity = '0.5';
             attackChainMenuItem.style.cursor = 'not-allowed';
             attackChainMenuItem.onclick = null;
-            attackChainMenuItem.title = (typeof window.t === 'function' ? window.t('chat.viewAttackChainSelectConv') : '请选择一个对话以查看攻击链');
+            attackChainMenuItem.title = (typeof window.t === 'function' ? window.t('chat.viewAttackChainSelectConv') : 'Select a conversation to view the attack chain');
         }
     }
 
@@ -10477,21 +10480,21 @@ function ensureConversationRenameModal() {
             <div class="projects-modal-header">
                 <div class="projects-modal-header-text">
                     <div>
-                        <h3 id="conversation-rename-title" data-i18n="chat.renameConversationTitle">重命名对话</h3>
-                        <p class="projects-modal-subtitle" data-i18n="chat.renameConversationSubtitle">修改后会同步更新项目文件夹和最近对话中的名称</p>
+                        <h3 id="conversation-rename-title" data-i18n="chat.renameConversationTitle"> Rename conversation</h3>
+                        <p class="projects-modal-subtitle" data-i18n="chat.renameConversationSubtitle"> After the change, the name is synced to the project folder and recent conversations</p>
                     </div>
                 </div>
-                <button type="button" class="projects-modal-close" data-conversation-rename-close aria-label="关闭" data-i18n="common.close" data-i18n-attr="aria-label" data-i18n-skip-text="true">&times;</button>
+                <button type="button" class="projects-modal-close" data-conversation-rename-close aria-label="Close" data-i18n="common.close" data-i18n-attr="aria-label" data-i18n-skip-text="true">&times;</button>
             </div>
             <div class="projects-modal-body">
                 <div class="projects-form-field">
-                    <label for="conversation-rename-input" data-i18n="chat.conversationTitleLabel">对话名称</label>
-                    <input type="text" id="conversation-rename-input" class="form-input" maxlength="200" autocomplete="off" data-i18n="chat.conversationTitlePlaceholder" data-i18n-attr="placeholder" placeholder="请输入对话名称">
+                    <label for="conversation-rename-input" data-i18n="chat.conversationTitleLabel"> Conversation name</label>
+                    <input type="text" id="conversation-rename-input" class="form-input" maxlength="200" autocomplete="off" data-i18n="chat.conversationTitlePlaceholder" data-i18n-attr="placeholder" placeholder="Please enter a conversation name">
                 </div>
             </div>
             <div class="projects-modal-footer">
-                <button class="btn-secondary" type="button" data-conversation-rename-close data-i18n="common.cancel">取消</button>
-                <button class="btn-primary" type="button" id="conversation-rename-submit" data-i18n="contextMenu.rename">重命名</button>
+                <button class="btn-secondary" type="button" data-conversation-rename-close data-i18n="common.cancel"> Cancel</button>
+                <button class="btn-primary" type="button" id="conversation-rename-submit" data-i18n="contextMenu.rename"> Rename</button>
             </div>
         </div>`;
     modal.addEventListener('click', (event) => {
@@ -10557,7 +10560,7 @@ async function saveConversationRename() {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || '更新失败');
+            throw new Error(error.error || 'Update failed');
         }
 
         // 更新前端显示
@@ -10582,9 +10585,9 @@ async function saveConversationRename() {
         }
         closeConversationRenameModal();
     } catch (error) {
-        console.error('重命名对话失败:', error);
-        const failedLabel = typeof window.t === 'function' ? window.t('chat.renameFailed') : '重命名失败';
-        const unknownErr = '未知错误';
+        console.error('Failed to rename the conversation:', error);
+        const failedLabel = typeof window.t === 'function' ? window.t('chat.renameFailed') : 'Rename failed';
+        const unknownErr = 'Unknown error';
         alert(failedLabel + ': ' + (error.message || unknownErr));
     } finally {
         if (submitButton) submitButton.disabled = false;
@@ -10618,7 +10621,7 @@ async function pinConversation() {
 
     try {
         const response = await apiFetch(`/api/conversations/${convId}`);
-        await assertConversationActionResponse(response, '获取对话失败');
+        await assertConversationActionResponse(response, 'Failed to fetch the conversation');
         const conv = await response.json();
         const newPinned = !conv.pinned;
 
@@ -10629,13 +10632,13 @@ async function pinConversation() {
             },
             body: JSON.stringify({ pinned: newPinned }),
         });
-        await assertConversationActionResponse(updateResponse, '更新置顶状态失败');
+        await assertConversationActionResponse(updateResponse, 'Failed to update the pin status');
 
         notifyConversationPinnedChanged(convId, newPinned);
         loadConversations();
     } catch (error) {
-        console.error('置顶对话失败:', error);
-        alert('置顶失败: ' + (error.message || '未知错误'));
+        console.error('Failed to pin the conversation:', error);
+        alert('Pin failed: ' + (error.message || 'Unknown error'));
     }
 
 }
@@ -10784,8 +10787,8 @@ async function downloadConversationMarkdownFromContext(includeToolDetails = fals
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
     } catch (error) {
-        console.error('下载对话 Markdown 失败:', error);
-        const failedLabel = typeof window.t === 'function' ? window.t('chat.downloadConversationFailed') : '下载失败';
+        console.error('Failed to download the conversation Markdown:', error);
+        const failedLabel = typeof window.t === 'function' ? window.t('chat.downloadConversationFailed') : 'Download failed';
         const errMsg = error && error.message ? error.message : 'unknown error';
         alert(failedLabel + ': ' + errMsg);
     }
@@ -10810,7 +10813,7 @@ function deleteConversationFromContext() {
     const convId = contextMenuConversationId;
     if (!convId) return;
 
-    const confirmMsg = typeof window.t === 'function' ? window.t('chat.deleteConversationConfirm') : '确定要删除此对话吗？';
+    const confirmMsg = typeof window.t === 'function' ? window.t('chat.deleteConversationConfirm') : 'Are you sure you want to delete this conversation?';
     if (confirm(confirmMsg)) {
         deleteConversation(convId, true); // 跳过内部确认，因为这里已经确认过了
     }
@@ -10843,11 +10846,11 @@ function getConversationProjectId(conv) {
 function getConversationProjectLabel(conv) {
     const pid = getConversationProjectId(conv);
     if (!pid) {
-        return typeof window.t === 'function' ? window.t('batchManageModal.noProject') : '无项目';
+        return typeof window.t === 'function' ? window.t('batchManageModal.noProject') : 'No project';
     }
     const name = window.projectNameById && window.projectNameById[pid];
     if (name) return name;
-    return typeof window.t === 'function' ? window.t('batchManageModal.unknownProject') : '未知项目';
+    return typeof window.t === 'function' ? window.t('batchManageModal.unknownProject') : 'Unknown project';
 }
 
 async function prefetchProjectNamesForConversations(conversations) {
@@ -10932,7 +10935,7 @@ async function showBatchManageModal() {
         applyBatchConversationFilters();
         openAppModal('batch-manage-modal', { focus: false });
     } catch (error) {
-        console.error('加载对话列表失败:', error);
+        console.error('Failed to load the conversation list:', error);
         initProjectFilterCustomSelect(BATCH_PROJECT_FILTER_SELECT_ID);
         allConversationsForBatch = [];
         await refreshBatchProjectFilter();
@@ -11005,7 +11008,7 @@ function renderBatchConversations(filtered = null) {
 
         const name = document.createElement('div');
         name.className = 'batch-table-col-name';
-        const originalTitle = conv.title || (typeof window.t === 'function' ? window.t('batchManageModal.unnamedConversation') : '未命名对话');
+        const originalTitle = conv.title || (typeof window.t === 'function' ? window.t('batchManageModal.unnamedConversation') : 'Untitled conversation');
         const truncatedTitle = safeTruncateText(originalTitle, 36);
         name.textContent = truncatedTitle;
         name.title = originalTitle;
@@ -11023,7 +11026,7 @@ function renderBatchConversations(filtered = null) {
         const time = document.createElement('div');
         time.className = 'batch-table-col-time';
         const dateObj = conv.updatedAt ? new Date(conv.updatedAt) : new Date();
-        const locale = (typeof i18next !== 'undefined' && i18next.language) ? i18next.language : 'zh-CN';
+        const locale = (typeof i18next !== 'undefined' && i18next.language) ? i18next.language : 'en-US';
         time.textContent = dateObj.toLocaleString(locale, {
             year: 'numeric',
             month: '2-digit',
@@ -11043,7 +11046,7 @@ function renderBatchConversations(filtered = null) {
                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
         `;
-        const deleteLabel = typeof window.t === 'function' ? window.t('contextMenu.deleteConversation') : '删除此对话';
+        const deleteLabel = typeof window.t === 'function' ? window.t('contextMenu.deleteConversation') : 'Delete this conversation';
         deleteBtn.title = deleteLabel;
         deleteBtn.setAttribute('aria-label', deleteLabel);
         deleteBtn.onclick = (e) => {
@@ -11107,11 +11110,11 @@ async function deleteSelectedConversations() {
     if (typeof requirePermission === 'function' && !requirePermission('chat:delete')) return;
     const checkboxes = document.querySelectorAll('.batch-conversation-checkbox:checked');
     if (checkboxes.length === 0) {
-        alert(typeof window.t === 'function' ? window.t('batchManageModal.confirmDeleteNone') : '请先选择要删除的对话');
+        alert(typeof window.t === 'function' ? window.t('batchManageModal.confirmDeleteNone') : 'Please select the conversation to delete first');
         return;
     }
 
-    const confirmMsg = typeof window.t === 'function' ? window.t('batchManageModal.confirmDeleteN', { count: checkboxes.length }) : '确定要删除选中的 ' + checkboxes.length + ' 条对话吗？';
+    const confirmMsg = typeof window.t === 'function' ? window.t('batchManageModal.confirmDeleteN', { count: checkboxes.length }) : 'Are you sure you want to delete the selected ' + checkboxes.length + ' conversations??';
     if (!confirm(confirmMsg)) {
         return;
     }
@@ -11129,9 +11132,9 @@ async function deleteSelectedConversations() {
             selectAll.indeterminate = false;
         }
     } catch (error) {
-        console.error('删除失败:', error);
-        const failedMsg = typeof window.t === 'function' ? window.t('batchManageModal.deleteFailed') : '删除失败';
-        const unknownErr = '未知错误';
+        console.error('Delete failed:', error);
+        const failedMsg = typeof window.t === 'function' ? window.t('batchManageModal.deleteFailed') : 'Delete failed';
+        const unknownErr = 'Unknown error';
         alert(failedMsg + ': ' + (error.message || unknownErr));
     }
 }

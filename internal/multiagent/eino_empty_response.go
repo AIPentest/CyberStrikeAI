@@ -23,7 +23,7 @@ func isEinoEmptyResponseText(s string) bool {
 		return false
 	}
 	return strings.Contains(s, "no assistant text was captured") ||
-		strings.Contains(s, "未捕获到助手文本输出")
+		strings.Contains(s, "No assistant text output was captured")
 }
 
 // HasEinoResumeTrace 轨迹非空，续跑才有上下文可恢复。

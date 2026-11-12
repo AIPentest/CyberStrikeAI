@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
    否则手机上会出现「点开关却看到 mobile.openNav」这类内部键名裸露。
    遍历域 = 传播域：凡是能写出 data-i18n 的三种入口都要抽，缺一个入口就会漏检。 */
 
-const LOCALES = ['zh-CN', 'en-US', 'ru-RU'];
+const LOCALES = ['en-US', 'ru-RU'];
 const js = fs.readFileSync('web/static/js/mobile-ui.js', 'utf8');
 
 function lookup(dict, key) {
@@ -47,8 +47,7 @@ for (const locale of LOCALES) {
 
 test('三种语言的 mobile 命名空间键集完全一致', () => {
     const sets = LOCALES.map(l => Object.keys(JSON.parse(fs.readFileSync(`web/static/i18n/${l}.json`, 'utf8')).mobile).sort());
-    assert.deepEqual(sets[1], sets[0], 'en-US 与 zh-CN 键集不同');
-    assert.deepEqual(sets[2], sets[0], 'ru-RU 与 zh-CN 键集不同');
+    assert.deepEqual(sets[1], sets[0], 'ru-RU 与 en-US 键集不同');
 });
 
 test('带插值的文案在三种语言里都保留占位符', () => {

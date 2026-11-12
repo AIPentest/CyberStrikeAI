@@ -5,7 +5,7 @@
 # CyberStrikeAI
 
 
-[中文](README_CN.md) | [English](README.md)
+[Chinese](README_CN.md) | [English](README.md)
 
 **The system of action for AI-native cybersecurity—where intent becomes governed execution, evidence becomes operational memory, and every operation improves the next.**
 

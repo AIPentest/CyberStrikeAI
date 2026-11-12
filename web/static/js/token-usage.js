@@ -33,13 +33,13 @@ async function refreshTokenUsage() {
     const controller = new AbortController();
     tokenUsageState.controller = controller;
     host.setAttribute('aria-busy', 'true');
-    host.textContent = tokenUsageText('common.loading', null, '加载中…');
+    host.textContent = tokenUsageText('common.loading', null, 'Loading…');
     const select = document.getElementById('settings-token-days');
     if (select) select.value = String(tokenUsageState.days);
     let url = '/api/usage/tokens?days=' + tokenUsageState.days + '&limit=20';
     const projectId = typeof getActiveProjectId === 'function' ? getActiveProjectId() : '';
     const scope = document.getElementById('settings-token-scope');
-    if (scope) scope.textContent = tokenUsageText('tokenUsageUI.' + (projectId ? 'scopeProject' : 'scopeAccessible'), null, projectId ? '当前项目' : '可访问会话');
+    if (scope) scope.textContent = tokenUsageText('tokenUsageUI.' + (projectId ? 'scopeProject' : 'scopeAccessible'), null, projectId ? 'Current project' : 'Accessible sessions');
     if (projectId) url += '&project_id=' + encodeURIComponent(projectId);
     try {
         const response = await apiFetch(url, { signal: controller.signal });
@@ -139,7 +139,7 @@ function renderTokenUsageAnalysis(res) {
     host.replaceChildren();
     const label = key => tokenUsageText('dashboard.' + key, null, key);
     const ui = key => tokenUsageText('tokenUsageUI.' + key, null, key);
-    const exact = value => tokenUsageCount(value).toLocaleString(window.__locale || 'zh-CN');
+    const exact = value => tokenUsageCount(value).toLocaleString(window.__locale || 'en-US');
     if (!res || !res.summary) {
         const empty = tokenUsageNode('div', 'token-usage-empty', label('usageUnavailable'));
         host.append(empty);
@@ -208,7 +208,7 @@ function renderTokenUsageAnalysis(res) {
     days.forEach((row, index) => {
         const x = 54 + slot * (index + .5);
         const height = valueOf(row) / peak * 176;
-        const detail = row.key + ' · ' + label('usageTotal') + ' ' + exact(row.totalTokens) + ' · ' + label('usageCalls') + ' ' + exact(row.modelCalls) + ' · ' + label('usageCacheRate') + ' ' + tokenUsageCacheRate(row);
+        const detail = row.key + '  -  ' + label('usageTotal') + ' ' + exact(row.totalTokens) + '  -  ' + label('usageCalls') + ' ' + exact(row.modelCalls) + '  -  ' + label('usageCacheRate') + ' ' + tokenUsageCacheRate(row);
         const bar = element('rect', { x: x - Math.min(24, slot * .55) / 2, y: 194 - height, width: Math.min(24, slot * .55), height: Math.max(height, 1), rx: 3, class: 'token-usage-chart-bar', tabindex: 0, 'aria-label': detail });
         bar.append(element('title', {}, detail));
         for (const event of ['mouseenter', 'focus']) bar.addEventListener(event, () => { tooltip.textContent = detail; });
@@ -286,6 +286,6 @@ function renderTokenUsageAnalysis(res) {
         const time = new Date(row.createdAt);
         const status = tokenUsageNode('span', 'token-usage-status', row.reason === 'final' ? label('usageFinal') : row.reason === 'partial' ? label('usagePartial') : (row.reason || '—'));
         if (row.reason === 'final' || row.reason === 'partial') status.classList.add('is-' + row.reason);
-        return [Number.isFinite(time.getTime()) ? time.toLocaleString(window.__locale || 'zh-CN') : '—', row.model || '—', status, exact(row.totalTokens), exact(row.modelCalls)];
+        return [Number.isFinite(time.getTime()) ? time.toLocaleString(window.__locale || 'en-US') : '—', row.model || '—', status, exact(row.totalTokens), exact(row.modelCalls)];
     }));
 }

@@ -1,4 +1,4 @@
-// 角色管理相关功能
+// Role-management functions
 function _t(key, opts) {
     if (typeof window.t === 'function') {
         try {
@@ -8,11 +8,11 @@ function _t(key, opts) {
             }
         } catch (e) { /* ignore */ }
     }
-    // i18n 未就绪或词条缺失时避免把 key 暴露给用户（与 zh-CN 默认一致）
-    if (key === 'roles.noDescription') return '暂无描述';
-    if (key === 'roles.noDescriptionShort') return '无描述';
+    // i18n When not ready or an entry is missing, avoid exposing the key to the user (consistent with the former zh-CN default)
+    if (key === 'roles.noDescription') return 'No description';
+    if (key === 'roles.noDescriptionShort') return 'No description';
     if (key === 'roles.defaultRoleDescription') {
-        return '默认角色，不额外携带用户提示词，使用默认MCP';
+        return 'Default role; carries no extra user prompt, uses the defaultMCP';
     }
     return key;
 }
@@ -166,7 +166,7 @@ function refreshRoleModalSelects() {
     }
 }
 
-/** 角色配置中的描述：trim，并把误存为 i18n key 的字面量视为空 */
+/** The description in the role config: trimmed, treating a literal mistakenly stored as an i18n key as empty */
 function rolePlainDescription(role) {
     const raw = typeof role.description === 'string' ? role.description.trim() : '';
     if (!raw) return '';
@@ -248,21 +248,21 @@ if (typeof document !== 'undefined') {
 
 let currentRole = localStorage.getItem('currentRole') || '';
 let roles = [];
-let rolesSearchKeyword = ''; // 角色搜索关键词
-let rolesSearchTimeout = null; // 搜索防抖定时器
-let allRoleTools = []; // 存储所有工具列表（用于角色工具选择）
-// 与 MCP 工具配置共用 localStorage，便于统一运维习惯
+let rolesSearchKeyword = ''; // Role search keyword
+let rolesSearchTimeout = null; // Search debounce timer
+let allRoleTools = []; // Store the full tool list (used for role tool selection)
+// Shares localStorage with the MCP tool config, for consistent operations habits
 function getRoleToolsPageSize() {
     const saved = localStorage.getItem('toolsPageSize');
     const n = saved ? parseInt(saved, 10) : 20;
     return isNaN(n) || n < 1 ? 20 : n;
 }
-// 本角色关联筛选: '' = 全部, 'role_on' = 本角色已勾选关联, 'role_off' = 本角色未关联
+// Filter by this role association: '' = All, 'role_on' = This role is checked as associated, 'role_off' = This role is not associated
 let roleToolsStatusFilter = '';
-/** 按角色关联筛选时缓存全量列表（匹配当前搜索），避免翻页丢状态 */
+/** When filtering by role association, cache the full list (matching the current search) to avoid losing state when paging */
 let roleToolsListCacheFull = [];
 let roleToolsListCacheSearch = '';
-/** 是否使用客户端分页（角色关联筛选模式下为 true） */
+/** Whether to use client-side pagination (true in role-association filter mode true) */
 let roleToolsClientMode = false;
 let roleToolsPagination = {
     page: 1,
@@ -270,35 +270,35 @@ let roleToolsPagination = {
     total: 0,
     totalPages: 1
 };
-let roleToolsSearchKeyword = ''; // 工具搜索关键词
-let roleToolStateMap = new Map(); // 工具状态映射：toolKey -> { enabled: boolean, ... }
-let roleUsesAllTools = false; // 标记角色是否使用所有工具（当没有配置tools时）
-let totalEnabledToolsInMCP = 0; // 已启用的工具总数（从MCP管理中获取，从API响应中获取）
-// 仅在「无状态筛选、无搜索」的请求结果上更新，供统计条分母使用（避免筛选后 total 变小导致 25/9 这类错误）
-let roleToolsStatsGrandTotal = 0; // 工具总条数（与 MCP 列表「全部」一致）
-let roleToolsStatsMcpEnabledTotal = 0; // MCP 全局已启用工具数
-let roleConfiguredTools = new Set(); // 角色配置的工具列表（用于确定哪些工具应该被选中）
+let roleToolsSearchKeyword = ''; // Tool search keyword
+let roleToolStateMap = new Map(); // Tool state map: toolKey -> { enabled: boolean, ... }
+let roleUsesAllTools = false; // Mark whether the role uses all tools (when tools is not configured)
+let totalEnabledToolsInMCP = 0; // Total number of enabled tools (obtained from MCP management, from the API response)
+// Only update on request results with no status filter and no search, used as the denominator of the stats bar (to avoid total shrinking after filtering and causing errors like 25/9)
+let roleToolsStatsGrandTotal = 0; // Total number of tools (consistent with All in the MCP list)
+let roleToolsStatsMcpEnabledTotal = 0; // MCP Globally enabled tool count
+let roleConfiguredTools = new Set(); // The role config tool list (used to decide which tools should be selected)
 
-// 对角色列表进行排序：默认角色排在第一个，其他按名称排序
+// Sort the role list: the default role comes first, the rest sorted by name
 function sortRoles(rolesArray) {
     const sortedRoles = [...rolesArray];
-    // 将"默认"角色分离出来
-    const defaultRole = sortedRoles.find(r => r.name === '默认');
-    const otherRoles = sortedRoles.filter(r => r.name !== '默认');
+    // will"Default"separate the role out
+    const defaultRole = sortedRoles.find(r => r.name === 'Default');
+    const otherRoles = sortedRoles.filter(r => r.name !== 'Default');
     
-    // 其他角色按名称排序，保持固定顺序
+    // Other roles are sorted by name, keeping a fixed order
     otherRoles.sort((a, b) => {
         const nameA = a.name || '';
         const nameB = b.name || '';
-        return nameA.localeCompare(nameB, 'zh-CN');
+        return nameA.localeCompare(nameB, 'en-US');
     });
     
-    // 将"默认"角色放在第一个，其他角色按排序后的顺序跟在后面
+    // will"Default"Put this role first; the other roles follow in sorted order
     const result = defaultRole ? [defaultRole, ...otherRoles] : otherRoles;
     return result;
 }
 
-// 加载所有角色
+// Load all roles
 async function loadRoles() {
     if (window.i18nReady && typeof window.i18nReady.then === 'function') {
         try {
@@ -308,41 +308,41 @@ async function loadRoles() {
     try {
         const response = await apiFetch('/api/roles');
         if (!response.ok) {
-            throw new Error('加载角色失败');
+            throw new Error('Failed to load roles');
         }
         const data = await response.json();
         roles = data.roles || [];
         updateRoleSelectorDisplay();
-        renderRoleSelectionSidebar(); // 渲染侧边栏角色列表
+        renderRoleSelectionSidebar(); // Render the sidebar role list
         return roles;
     } catch (error) {
-        console.error('加载角色失败:', error);
-        // 提示文案使用 i18n；若此时 i18n 尚未初始化，则回退为可读中文，而不是暴露 key（roles.loadFailed）
+        console.error('Failed to load roles:', error);
+        // The hint text uses i18n; if i18n is not yet initialized, fall back to readable text rather than exposing key (roles.loadFailed)
         var loadFailedLabel = (typeof window !== 'undefined' && typeof window.t === 'function')
             ? window.t('roles.loadFailed')
-            : '加载角色失败';
+            : 'Failed to load roles';
         showNotification(loadFailedLabel + ': ' + error.message, 'error');
         return [];
     }
 }
 
-// 处理角色变更
+// Handle role changes
 function handleRoleChange(roleName) {
     const oldRole = currentRole;
     currentRole = roleName || '';
     localStorage.setItem('currentRole', currentRole);
     updateRoleSelectorDisplay();
-    renderRoleSelectionSidebar(); // 更新侧边栏选中状态
+    renderRoleSelectionSidebar(); // Update the sidebar selected state
     
-    // 当角色切换时，如果工具列表已加载，标记为需要重新加载
-    // 这样下次触发@工具建议时会使用新的角色重新加载工具列表
+    // When the role switches, if the tool list is loaded, mark it as needing a reload
+    // so the next trigger@Tool suggestions will reload the tool list using the new role
     if (oldRole !== currentRole && typeof window !== 'undefined') {
-        // 通过设置一个标记来通知chat.js需要重新加载工具列表
+        // Notify chat.js that the tool list needs reloading by setting a flag
         window._mentionToolsRoleChanged = true;
     }
 }
 
-// 更新角色选择器显示
+// Update the role-selector display
 function updateRoleSelectorDisplay() {
     const roleSelectorBtn = document.getElementById('role-selector-btn');
     const roleSelectorIcon = document.getElementById('role-selector-icon');
@@ -351,16 +351,16 @@ function updateRoleSelectorDisplay() {
     if (!roleSelectorBtn || !roleSelectorIcon || !roleSelectorText) return;
 
     let selectedRole;
-    if (currentRole && currentRole !== '默认') {
+    if (currentRole && currentRole !== 'Default') {
         selectedRole = roles.find(r => r.name === currentRole);
     } else {
-        selectedRole = roles.find(r => r.name === '默认');
+        selectedRole = roles.find(r => r.name === 'Default');
     }
 
     if (selectedRole) {
-        // 使用配置中的图标，如果没有则使用默认图标
+        // Use the icon from the config; if absent, use the default icon
         let icon = selectedRole.icon || '🔵';
-        // 如果 icon 是 Unicode 转义格式（\U0001F3C6），需要转换为 emoji
+        // If the icon is a Unicode-escape format (\U0001F3C6), needs to be converted to emoji
         if (icon && typeof icon === 'string') {
             const unicodeMatch = icon.match(/^"?\\U([0-9A-F]{8})"?$/i);
             if (unicodeMatch) {
@@ -368,74 +368,74 @@ function updateRoleSelectorDisplay() {
                     const codePoint = parseInt(unicodeMatch[1], 16);
                     icon = String.fromCodePoint(codePoint);
                 } catch (e) {
-                    // 如果转换失败，使用默认图标
-                    console.warn('转换 icon Unicode 转义失败:', icon, e);
+                    // If the conversion fails, use the default icon
+                    console.warn('Failed to convert the icon Unicode escape:', icon, e);
                     icon = '🔵';
                 }
             }
         }
         roleSelectorIcon.textContent = icon;
-        const isDefaultRole = selectedRole.name === '默认' || !selectedRole.name;
+        const isDefaultRole = selectedRole.name === 'Default' || !selectedRole.name;
         const displayName = isDefaultRole && typeof window.t === 'function'
-            ? window.t('chat.defaultRole') : (selectedRole.name || (typeof window.t === 'function' ? window.t('chat.defaultRole') : '默认'));
-        // 非默认角色时避免被 i18n 的 data-i18n 覆盖成“默认”
+            ? window.t('chat.defaultRole') : (selectedRole.name || (typeof window.t === 'function' ? window.t('chat.defaultRole') : 'Default'));
+        // For a non-default role, avoid being overwritten by i18n data-i18n into'Default'
         roleSelectorText.setAttribute('data-i18n-skip-text', isDefaultRole ? 'false' : 'true');
         roleSelectorText.textContent = displayName;
     } else {
-        // 默认角色
+        // Default role
         roleSelectorText.setAttribute('data-i18n-skip-text', 'false');
         roleSelectorIcon.textContent = '🔵';
-        roleSelectorText.textContent = typeof window.t === 'function' ? window.t('chat.defaultRole') : '默认';
+        roleSelectorText.textContent = typeof window.t === 'function' ? window.t('chat.defaultRole') : 'Default';
     }
 }
 
-// 渲染主内容区域角色选择列表
+// Render the role-selection list in the main content area
 function renderRoleSelectionSidebar() {
     const roleList = document.getElementById('role-selection-list');
     if (!roleList) return;
 
-    // 清空列表
+    // Clear the list
     roleList.innerHTML = '';
 
-    // 根据角色配置获取图标，如果没有配置则使用默认图标
+    // Get the icon from the role config; if not configured, use the default icon
     function getRoleIcon(role) {
         if (role.icon) {
-            // 如果 icon 是 Unicode 转义格式（\U0001F3C6），需要转换为 emoji
+            // If the icon is a Unicode-escape format (\U0001F3C6), needs to be converted to emoji
             let icon = role.icon;
-            // 检查是否是 Unicode 转义格式（可能包含引号）
+            // Check whether it is a Unicode-escape format (may contain quotes)
             const unicodeMatch = icon.match(/^"?\\U([0-9A-F]{8})"?$/i);
             if (unicodeMatch) {
                 try {
                     const codePoint = parseInt(unicodeMatch[1], 16);
                     icon = String.fromCodePoint(codePoint);
                 } catch (e) {
-                    // 如果转换失败，使用原值
-                    console.warn('转换 icon Unicode 转义失败:', icon, e);
+                    // If the conversion fails, use the original value
+                    console.warn('Failed to convert the icon Unicode escape:', icon, e);
                 }
             }
             return icon;
         }
-        // 如果没有配置图标，根据角色名称的首字符生成默认图标
-        // 使用一些通用的默认图标
+        // If no icon is configured, generate a default icon from the first character of the role name
+        // Use some generic default icons
         return '👤';
     }
     
-    // 对角色进行排序：默认角色第一个，其他按名称排序
+    // Sort the roles: the default role first, the rest sorted by name
     const sortedRoles = sortRoles(roles);
     
-    // 只显示已启用的角色
+    // Show only enabled roles
     const enabledSortedRoles = sortedRoles.filter(r => r.enabled !== false);
     
     enabledSortedRoles.forEach(role => {
-        const isDefaultRole = role.name === '默认';
-        const isSelected = isDefaultRole ? (currentRole === '' || currentRole === '默认') : (currentRole === role.name);
+        const isDefaultRole = role.name === 'Default';
+        const isSelected = isDefaultRole ? (currentRole === '' || currentRole === 'Default') : (currentRole === role.name);
         const roleItem = document.createElement('div');
         roleItem.className = 'role-selection-item-main' + (isSelected ? ' selected' : '');
         roleItem.setAttribute('role', 'option');
         roleItem.tabIndex = 0;
         roleItem.onclick = () => {
             selectRole(role.name);
-            closeRoleSelectionPanel(); // 选择后自动关闭面板
+            closeRoleSelectionPanel(); // Close the panel automatically after selecting
         };
         roleItem.onkeydown = (event) => {
             if (event.key === 'Enter' || event.key === ' ') {
@@ -445,7 +445,7 @@ function renderRoleSelectionSidebar() {
         };
         const icon = getRoleIcon(role);
         
-        // 处理默认角色的描述
+        // Handle the default role description
         const plainDesc = rolePlainDescription(role);
         let description = plainDesc || _t('roles.noDescription');
         if (isDefaultRole && !plainDesc) {
@@ -465,14 +465,14 @@ function renderRoleSelectionSidebar() {
     });
 }
 
-// 选择角色
+// Select Role
 function selectRole(roleName) {
-    // 将"默认"映射为空字符串（表示默认角色）
-    if (roleName === '默认') {
+    // will"Default"Maps to an empty string (meaning the default role)
+    if (roleName === 'Default') {
         roleName = '';
     }
     handleRoleChange(roleName);
-    renderRoleSelectionSidebar(); // 重新渲染以更新选中状态
+    renderRoleSelectionSidebar(); // Re-render to update the selected state
 }
 
 function getChatRoleSelectorWrapper() {
@@ -486,7 +486,7 @@ function isRoleSelectionPanelOpen() {
     return panel.style.display !== 'none' && panel.style.display !== '';
 }
 
-// 切换角色选择面板显示/隐藏
+// Toggle the role-selection panel visibility
 function toggleRoleSelectionPanel() {
     const panel = document.getElementById('role-selection-panel');
     const roleSelectorBtn = document.getElementById('role-selector-btn');
@@ -505,14 +505,14 @@ function toggleRoleSelectionPanel() {
             closeChatReasoningPanel();
         }
         renderRoleSelectionSidebar();
-        panel.style.display = 'flex'; // 使用flex布局
-        // 添加打开状态的视觉反馈
+        panel.style.display = 'flex'; // Use flex layout
+        // Add visual feedback for the open state
         if (roleSelectorBtn) {
             roleSelectorBtn.classList.add('active');
             roleSelectorBtn.setAttribute('aria-expanded', 'true');
         }
         
-        // 确保面板渲染后再检查位置
+        // Ensure the panel is rendered before checking its position
         setTimeout(() => {
             const wrapper = getChatRoleSelectorWrapper();
             if (wrapper) {
@@ -520,7 +520,7 @@ function toggleRoleSelectionPanel() {
                 const panelHeight = panel.offsetHeight || 400;
                 const viewportHeight = window.innerHeight;
                 
-                // 如果面板顶部超出视窗，滚动到合适位置
+                // If the top of the panel is off-screen, scroll to a suitable position
                 if (rect.top - panelHeight < 0) {
                     const scrollY = window.scrollY + rect.top - panelHeight - 20;
                     window.scrollTo({ top: Math.max(0, scrollY), behavior: 'smooth' });
@@ -532,7 +532,7 @@ function toggleRoleSelectionPanel() {
     }
 }
 
-// 关闭角色选择面板（选择角色后自动调用）
+// Close the role-selection panel (called automatically after selecting a role)
 function closeRoleSelectionPanel() {
     const panel = document.getElementById('role-selection-panel');
     const roleSelectorBtn = document.getElementById('role-selector-btn');
@@ -545,7 +545,7 @@ function closeRoleSelectionPanel() {
     }
 }
 
-// 转义HTML
+// escapeHTML
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -564,25 +564,25 @@ function escapeJsStringAttr(text) {
     return escapeAttr(escapeJsString(text));
 }
 
-// 刷新角色列表
+// Refresh the role list
 async function refreshRoles() {
     await loadRoles();
-    // 检查当前页面是否为角色管理页面
+    // Check whether the current page is the role management page
     const currentPage = typeof window.currentPage === 'function' ? window.currentPage() : (window.currentPage || 'chat');
     if (currentPage === 'roles-management') {
         renderRolesList();
     }
-    // 始终更新侧边栏角色选择列表
+    // Always update the sidebar role-selection list
     renderRoleSelectionSidebar();
-    showNotification('已刷新', 'success');
+    showNotification('Refreshed', 'success');
 }
 
-// 渲染角色列表
+// Render the role list
 function renderRolesList() {
     const rolesList = document.getElementById('roles-list');
     if (!rolesList) return;
 
-    // 过滤角色（根据搜索关键词）
+    // Filter roles (by search keyword)
     let filteredRoles = roles;
     if (rolesSearchKeyword) {
         const keyword = rolesSearchKeyword.toLowerCase();
@@ -599,38 +599,38 @@ function renderRolesList() {
         return;
     }
 
-    // 对角色进行排序：默认角色第一个，其他按名称排序
+    // Sort the roles: the default role first, the rest sorted by name
     const sortedRoles = sortRoles(filteredRoles);
     
     rolesList.innerHTML = sortedRoles.map(role => {
         const plainDesc = rolePlainDescription(role);
-        // 获取角色图标，如果是Unicode转义格式则转换为emoji
+        // Get the role icon; if it is a Unicode-escape format, convert it toemoji
         let roleIcon = role.icon || '👤';
         if (roleIcon && typeof roleIcon === 'string') {
-            // 检查是否是 Unicode 转义格式（可能包含引号）
+            // Check whether it is a Unicode-escape format (may contain quotes)
             const unicodeMatch = roleIcon.match(/^"?\\U([0-9A-F]{8})"?$/i);
             if (unicodeMatch) {
                 try {
                     const codePoint = parseInt(unicodeMatch[1], 16);
                     roleIcon = String.fromCodePoint(codePoint);
                 } catch (e) {
-                    // 如果转换失败，使用默认图标
-                    console.warn('转换 icon Unicode 转义失败:', roleIcon, e);
+                    // If the conversion fails, use the default icon
+                    console.warn('Failed to convert the icon Unicode escape:', roleIcon, e);
                     roleIcon = '👤';
                 }
             }
         }
 
-        // 获取工具列表显示
+        // Get the tool list for display
         let toolsDisplay = '';
         let toolsCount = 0;
-        if (role.name === '默认') {
+        if (role.name === 'Default') {
             toolsDisplay = _t('roleModal.usingAllTools');
         } else if (role.tools && role.tools.length > 0) {
             toolsCount = role.tools.length;
-            // 显示前5个工具名称
+            // Show the first 5 tool names
             const toolNames = role.tools.slice(0, 5).map(tool => {
-                // 如果是外部工具，格式为 external_mcp::tool_name，只显示工具名
+                // If it is an external tool, the format is external_mcp::tool_name, and only the tool name is shown
                 const toolName = tool.includes('::') ? tool.split('::')[1] : tool;
                 return escapeHtml(toolName);
             });
@@ -664,14 +664,14 @@ function renderRolesList() {
             </div>
             <div class="role-card-actions">
                 <button class="btn-secondary btn-small" onclick="editRole(${escapeJsStringAttr(role.name)})">${_t('common.edit')}</button>
-                ${role.name !== '默认' ? `<button class="btn-secondary btn-small btn-danger" onclick="deleteRole(${escapeJsStringAttr(role.name)})">${_t('common.delete')}</button>` : ''}
+                ${role.name !== 'Default' ? `<button class="btn-secondary btn-small btn-danger" onclick="deleteRole(${escapeJsStringAttr(role.name)})">${_t('common.delete')}</button>` : ''}
             </div>
         </div>
     `;
     }).join('');
 }
 
-// 处理角色搜索输入
+// Handle role search input
 function handleRolesSearchInput() {
     clearTimeout(rolesSearchTimeout);
     rolesSearchTimeout = setTimeout(() => {
@@ -679,7 +679,7 @@ function handleRolesSearchInput() {
     }, 300);
 }
 
-// 搜索角色
+// Search roles
 function searchRoles() {
     const searchInput = document.getElementById('roles-search');
     if (!searchInput) return;
@@ -693,7 +693,7 @@ function searchRoles() {
     renderRolesList();
 }
 
-// 清除角色搜索
+// Clear the role search
 function clearRolesSearch() {
     const searchInput = document.getElementById('roles-search');
     if (searchInput) {
@@ -707,17 +707,17 @@ function clearRolesSearch() {
     renderRolesList();
 }
 
-// 生成工具唯一标识符（与settings.js中的getToolKey保持一致）
+// Generate the tool unique identifier (consistent with getToolKey in settings.js)
 function getToolKey(tool) {
-    // 如果是外部工具，使用 external_mcp::tool.name 作为唯一标识符
+    // If it is an external tool, use external_mcp::tool.name as the unique identifier
     if (tool.is_external && tool.external_mcp) {
         return `${tool.external_mcp}::${tool.name}`;
     }
-    // 内置工具直接使用工具名称
+    // Built-in tools use the tool name directly
     return tool.name;
 }
 
-// 将单个工具合并进 roleToolStateMap（与 loadRoleTools 中单条逻辑一致）
+// Merge a single tool into roleToolStateMap (consistent with the single-item logic in loadRoleTools)
 function mergeToolIntoRoleStateMap(tool) {
     const toolKey = getToolKey(tool);
     if (!roleToolStateMap.has(toolKey)) {
@@ -787,7 +787,7 @@ async function fetchAllRoleToolsIntoCache(searchKeyword) {
         }
         const response = await apiFetch(url);
         if (!response.ok) {
-            throw new Error('获取工具列表失败');
+            throw new Error('Failed to get the tool list');
         }
         const result = await response.json();
         const tools = result.tools || [];
@@ -802,7 +802,7 @@ async function fetchAllRoleToolsIntoCache(searchKeyword) {
     totalEnabledToolsInMCP = roleToolsStatsMcpEnabledTotal;
 }
 
-// 保存当前页的工具状态到全局映射
+// Save the current page tool state to the global map
 function saveCurrentRolePageToolStates() {
     document.querySelectorAll('#role-tools-list .role-tool-item').forEach(item => {
         const toolKey = item.dataset.toolKey;
@@ -817,16 +817,16 @@ function saveCurrentRolePageToolStates() {
                 is_external: isExternal,
                 external_mcp: externalMcp,
                 name: toolName,
-                mcpEnabled: existingState ? existingState.mcpEnabled : true // 保留MCP启用状态
+                mcpEnabled: existingState ? existingState.mcpEnabled : true // Keep the MCP enabled state
             });
         }
     });
 }
 
-// 加载所有工具列表（用于角色工具选择）
+// Load the full tool list (used for role tool selection)
 async function loadRoleTools(page = 1, searchKeyword = '') {
     try {
-        // 在加载新页面之前，先保存当前页的状态到全局映射
+        // Before loading a new page, save the current page state to the global map
         saveCurrentRolePageToolStates();
 
         const pageSize = roleToolsPagination.pageSize;
@@ -869,7 +869,7 @@ async function loadRoleTools(page = 1, searchKeyword = '') {
 
             const response = await apiFetch(url);
             if (!response.ok) {
-                throw new Error('获取工具列表失败');
+                throw new Error('Failed to get the tool list');
             }
 
             const result = await response.json();
@@ -896,7 +896,7 @@ async function loadRoleTools(page = 1, searchKeyword = '') {
         renderRoleToolsPagination();
         updateRoleToolsStats();
     } catch (error) {
-        console.error('加载工具列表失败:', error);
+        console.error('Failed to load the tool list:', error);
         const toolsList = document.getElementById('role-tools-list');
         if (toolsList) {
             toolsList.innerHTML = `<div class="tools-error">${_t('roleModal.loadToolsFailed')}: ${escapeHtml(error.message)}</div>`;
@@ -904,12 +904,12 @@ async function loadRoleTools(page = 1, searchKeyword = '') {
     }
 }
 
-// 渲染角色工具选择列表
+// Render the role tool-selection list
 function renderRoleToolsList() {
     const toolsList = document.getElementById('role-tools-list');
     if (!toolsList) return;
     
-    // 清除加载提示和旧内容
+    // Clear the loading hint and old content
     toolsList.innerHTML = '';
 
     if (roleToolsStatusFilter === 'role_on') {
@@ -947,26 +947,26 @@ function renderRoleToolsList() {
         toolItem.dataset.isExternal = tool.is_external ? 'true' : 'false';
         toolItem.dataset.externalMcp = tool.external_mcp || '';
         
-        // 从状态映射获取工具状态
+        // Get the tool state from the state map
         const toolState = roleToolStateMap.get(toolKey) || {
             enabled: tool.enabled,
             is_external: tool.is_external || false,
             external_mcp: tool.external_mcp || ''
         };
         
-        // 外部工具标签
+        // External tool tag
         let externalBadge = '';
         if (toolState.is_external || tool.is_external) {
             const externalMcpName = toolState.external_mcp || tool.external_mcp || '';
-            const badgeText = externalMcpName ? `外部 (${escapeHtml(externalMcpName)})` : '外部';
-            const badgeTitle = externalMcpName ? `外部MCP工具 - 来源：${escapeHtml(externalMcpName)}` : '外部MCP工具';
+            const badgeText = externalMcpName ? `External (${escapeHtml(externalMcpName)})` : 'External';
+            const badgeTitle = externalMcpName ? `External MCP tool - source: ${escapeHtml(externalMcpName)}` : 'External MCP tool';
             externalBadge = `<span class="external-tool-badge" title="${escapeAttr(badgeTitle)}">${badgeText}</span>`;
         }
         let mcpDisabledBadge = '';
         if (tool.enabled === false) {
             mcpDisabledBadge = `<span class="role-tool-mcp-disabled-badge" title="${escapeHtml(_t('roleModal.mcpDisabledBadgeTitle'))}">${escapeHtml(_t('roleModal.mcpDisabledBadge'))}</span>`;
         }
-        // 生成唯一的checkbox id
+        // Generate a uniquecheckbox id
         const checkboxId = `role-tool-${escapeAttr(toolKey).replace(/::/g, '--')}`;
         
         toolItem.innerHTML = `
@@ -979,7 +979,7 @@ function renderRoleToolsList() {
                     ${externalBadge}
                     ${mcpDisabledBadge}
                 </div>
-                <div class="role-tool-item-desc">${escapeHtml(tool.description || '无描述')}</div>
+                <div class="role-tool-item-desc">${escapeHtml(tool.description || 'No description')}</div>
             </div>
         `;
         listContainer.appendChild(toolItem);
@@ -988,12 +988,12 @@ function renderRoleToolsList() {
     toolsList.appendChild(listContainer);
 }
 
-// 渲染工具列表分页控件（始终展示范围与每页条数，便于在仅一页时仍可调整 page size）
+// Render the tool-list pagination control (always shows the range and per-page count, so it can still be adjusted even with a single page page size)
 function renderRoleToolsPagination() {
     const toolsList = document.getElementById('role-tools-list');
     if (!toolsList) return;
     
-    // 移除旧的分页控件
+    // Remove the old pagination control
     const oldPagination = toolsList.querySelector('.role-tools-pagination');
     if (oldPagination) {
         oldPagination.remove();
@@ -1006,7 +1006,7 @@ function renderRoleToolsPagination() {
     const startItem = total === 0 ? 0 : (page - 1) * pageSize + 1;
     const endItem = total === 0 ? 0 : Math.min(page * pageSize, total);
     const savedPageSize = getRoleToolsPageSize();
-    const perPageLabel = typeof window.t === 'function' ? window.t('mcp.perPage') : '每页';
+    const perPageLabel = typeof window.t === 'function' ? window.t('mcp.perPage') : 'per page';
     
     const paginationShowText = _t('roleModal.paginationShow', { start: startItem, end: endItem, total: total }) +
         (roleToolsSearchKeyword ? _t('roleModal.paginationSearch', { keyword: roleToolsSearchKeyword }) : '');
@@ -1072,7 +1072,7 @@ async function changeRoleToolsPageSize() {
     await loadRoleTools(1, roleToolsSearchKeyword);
 }
 
-// 处理工具checkbox状态变化
+// Handle tool checkbox state changes
 function handleRoleToolCheckboxChange(toolKey, enabled) {
     const toolItem = document.querySelector(`.role-tool-item[data-tool-key="${toolKey}"]`);
     if (toolItem) {
@@ -1085,7 +1085,7 @@ function handleRoleToolCheckboxChange(toolKey, enabled) {
             is_external: isExternal,
             external_mcp: externalMcp,
             name: toolName,
-            mcpEnabled: existingState ? existingState.mcpEnabled : true // 保留MCP启用状态
+            mcpEnabled: existingState ? existingState.mcpEnabled : true // Keep the MCP enabled state
         });
     }
     if (
@@ -1098,7 +1098,7 @@ function handleRoleToolCheckboxChange(toolKey, enabled) {
     }
 }
 
-// 全选工具
+// Select all tools
 function selectAllRoleTools() {
     document.querySelectorAll('#role-tools-list input[type="checkbox"]').forEach(checkbox => {
         const toolItem = checkbox.closest('.role-tool-item');
@@ -1109,7 +1109,7 @@ function selectAllRoleTools() {
             const externalMcp = toolItem.dataset.externalMcp || '';
             if (toolKey) {
                 const existingState = roleToolStateMap.get(toolKey);
-                // 只选中在MCP管理中已启用的工具
+                // Only select tools enabled in MCP management
                 const shouldEnable = existingState && existingState.mcpEnabled !== false;
                 checkbox.checked = shouldEnable;
                 roleToolStateMap.set(toolKey, {
@@ -1132,7 +1132,7 @@ function selectAllRoleTools() {
     }
 }
 
-// 全不选工具
+// Deselect all tools
 function deselectAllRoleTools() {
     document.querySelectorAll('#role-tools-list input[type="checkbox"]').forEach(checkbox => {
         checkbox.checked = false;
@@ -1149,7 +1149,7 @@ function deselectAllRoleTools() {
                     is_external: isExternal,
                     external_mcp: externalMcp,
                     name: toolName,
-                    mcpEnabled: existingState ? existingState.mcpEnabled : true // 保留MCP启用状态
+                    mcpEnabled: existingState ? existingState.mcpEnabled : true // Keep the MCP enabled state
                 });
             }
         }
@@ -1164,7 +1164,7 @@ function deselectAllRoleTools() {
     }
 }
 
-// 搜索工具
+// Search tools
 function searchRoleTools(keyword) {
     roleToolsSearchKeyword = keyword;
     const clearBtn = document.getElementById('role-tools-search-clear');
@@ -1174,13 +1174,13 @@ function searchRoleTools(keyword) {
     loadRoleTools(1, keyword);
 }
 
-// 清除搜索
+// Clear search
 function clearRoleToolsSearch() {
     document.getElementById('role-tools-search').value = '';
     searchRoleTools('');
 }
 
-// 更新工具统计信息（口径：分母「可关联上限」= 全库 MCP 已开工具数，与 MCP 管理页筛选「MCP已开」条数一致；勾选=关联本角色）
+// Update the tool statistics (denominator: the associable upper limit'= The number of MCP-enabled tools across the whole store, consistent with the count filtered by MCP-enabled on the MCP management page; checking=Associate this role)
 function updateRoleToolsStats() {
     const statsEl = document.getElementById('role-tools-stats');
     if (!statsEl) return;
@@ -1241,44 +1241,44 @@ function updateRoleToolsStats() {
     `;
 }
 
-// 获取选中的工具列表（返回toolKey数组）
+// Get the selected tool list (returns an array of toolKeys)
 async function getSelectedRoleTools() {
-    // 先保存当前页的状态
+    // Save the current page state first
     saveCurrentRolePageToolStates();
     
-    // 如果没有搜索关键词，需要加载所有页面的工具来确保状态映射完整
-    // 但为了性能，我们可以只从状态映射中获取已选中的工具
-    // 问题是：如果用户只在某些页面选择了工具，其他页面的工具状态可能不在映射中
+    // If there is no search keyword, all pages of tools must be loaded to ensure the state map is complete
+    // But for performance, we can get only the selected tools from the state map
+    // The problem: if the user selected tools only on some pages, the tool state of other pages may not be in the map
     
-    // 如果总工具数大于已加载的工具数，我们需要确保所有未加载页面的工具也被考虑
-    // 但对于角色工具选择，我们只需要获取用户明确选择过的工具
-    // 所以直接从状态映射获取已选中的工具即可
+    // If the total number of tools exceeds the loaded count, we must ensure tools on all unloaded pages are also considered
+    // But for role tool selection, we only need the tools the user has explicitly selected
+    // So we can get the selected tools directly from the state map
     
-    // 从状态映射获取所有选中的工具（只返回在MCP管理中已启用的工具）
+    // Get all selected tools from the state map (returns only tools enabled in MCP management)
     const selectedTools = [];
     roleToolStateMap.forEach((state, toolKey) => {
-        // 只返回在MCP管理中已启用且被角色选中的工具
+        // Return only tools enabled in MCP management and selected by the role
         if (state.enabled && state.mcpEnabled !== false) {
             selectedTools.push(toolKey);
         }
     });
     
-    // 如果用户可能在其他页面选择了工具，我们需要确保当前页的状态也被保存
-    // 但状态映射应该已经包含了所有访问过的页面的状态
+    // If the user may have selected tools on other pages, we must ensure the current page state is also saved
+    // But the state map should already contain the state of all visited pages
     
     return selectedTools;
 }
 
-// 设置选中的工具（用于编辑角色时）
+// Set the selected tools (used when editing a role)
 function setSelectedRoleTools(selectedToolKeys) {
     const selectedSet = new Set(selectedToolKeys || []);
     
-    // 更新状态映射
+    // Update the state map
     roleToolStateMap.forEach((state, toolKey) => {
         state.enabled = selectedSet.has(toolKey);
     });
     
-    // 更新当前页的checkbox状态
+    // Update the checkbox state of the current page
     document.querySelectorAll('#role-tools-list .role-tool-item').forEach(item => {
         const toolKey = item.dataset.toolKey;
         const checkbox = item.querySelector('input[type="checkbox"]');
@@ -1290,7 +1290,7 @@ function setSelectedRoleTools(selectedToolKeys) {
     updateRoleToolsStats();
 }
 
-// 显示添加角色模态框
+// Show the add-role modal
 async function showAddRoleModal() {
     if (typeof requirePermission === 'function' && !requirePermission('roles:write')) return;
     const modal = document.getElementById('role-modal');
@@ -1311,7 +1311,7 @@ async function showAddRoleModal() {
         workflowPolicy.value = 'auto';
     }
 
-    // 添加角色时：显示工具选择界面，隐藏默认角色提示
+    // When adding a role: show the tool-selection UI and hide the default-role hint
     const toolsSection = document.getElementById('role-tools-section');
     const defaultHint = document.getElementById('role-tools-default-hint');
     const toolsControls = document.querySelector('.role-tools-controls');
@@ -1331,10 +1331,10 @@ async function showAddRoleModal() {
         formHint.style.display = 'block';
     }
 
-    // 重置工具状态
+    // Reset the tool state
     roleToolStateMap.clear();
-    roleConfiguredTools.clear(); // 清空角色配置的工具列表
-    roleUsesAllTools = false; // 添加角色时默认不使用所有工具
+    roleConfiguredTools.clear(); // Clear the role config tool list
+    roleUsesAllTools = false; // When adding a role, do not use all tools by default
     roleToolsSearchKeyword = '';
     const searchInput = document.getElementById('role-tools-search');
     if (searchInput) {
@@ -1348,27 +1348,27 @@ async function showAddRoleModal() {
     syncRoleToolsFilterButtons();
     roleToolsPagination.pageSize = getRoleToolsPageSize();
     
-    // 清空工具列表 DOM，避免 loadRoleTools 中的 saveCurrentRolePageToolStates 读取旧状态
+    // Clear the tool-list DOM, to avoid saveCurrentRolePageToolStates in loadRoleTools reading stale state
     if (toolsList) {
         toolsList.innerHTML = '';
     }
 
-    // 加载并渲染工具列表
+    // Load and render the tool list
     await loadRoleTools(1, '');
     
-    // 确保工具列表显示
+    // Ensure the tool list is shown
     if (toolsList) {
         toolsList.style.display = 'block';
     }
     
-    // 确保统计信息正确更新（显示0/108）
+    // Ensure the statistics update correctly (showing0/108)
     updateRoleToolsStats();
 
     refreshRoleModalSelects();
     openAppModal('role-modal');
 }
 
-// 编辑角色
+// Edit role
 async function editRole(roleName) {
     const role = roles.find(r => r.name === roleName);
     if (!role) {
@@ -1381,17 +1381,17 @@ async function editRole(roleName) {
 
     document.getElementById('role-modal-title').textContent = _t('roleModal.editRole');
     document.getElementById('role-name').value = role.name;
-    document.getElementById('role-name').disabled = true; // 编辑时不允许修改名称
+    document.getElementById('role-name').disabled = true; // The name cannot be changed when editing
     document.getElementById('role-description').value = role.description || '';
-    // 处理icon字段：如果是Unicode转义格式，转换为emoji；否则直接使用
+    // Handle the icon field: if it is a Unicode-escape format, convert it to an emoji; otherwise use it directly
     let iconValue = role.icon || '';
     if (iconValue && iconValue.startsWith('\\U')) {
-        // 转换Unicode转义格式（如 \U0001F3C6）为emoji
+        // Convert the Unicode-escape format (e.g. \U0001F3C6)isemoji
         try {
             const codePoint = parseInt(iconValue.substring(2), 16);
             iconValue = String.fromCodePoint(codePoint);
         } catch (e) {
-            // 如果转换失败，使用原值
+            // If the conversion fails, use the original value
         }
     }
     document.getElementById('role-icon').value = iconValue;
@@ -1405,8 +1405,8 @@ async function editRole(roleName) {
         workflowPolicy.value = role.workflow_policy || 'auto';
     }
 
-    // 检查是否为默认角色
-    const isDefaultRole = roleName === '默认';
+    // Check whether it is the default role
+    const isDefaultRole = roleName === 'Default';
     const toolsSection = document.getElementById('role-tools-section');
     const defaultHint = document.getElementById('role-tools-default-hint');
     const toolsControls = document.querySelector('.role-tools-controls');
@@ -1414,7 +1414,7 @@ async function editRole(roleName) {
     const formHint = toolsSection ? toolsSection.querySelector('.form-hint') : null;
     
     if (isDefaultRole) {
-        // 默认角色：隐藏工具选择界面，显示提示信息
+        // Default role: hide the tool-selection UI and show the hint
         if (defaultHint) {
             defaultHint.style.display = 'block';
         }
@@ -1428,7 +1428,7 @@ async function editRole(roleName) {
             formHint.style.display = 'none';
         }
     } else {
-        // 非默认角色：显示工具选择界面，隐藏提示信息
+        // Non-default role: show the tool-selection UI and hide the hint
         if (defaultHint) {
             defaultHint.style.display = 'none';
         }
@@ -1442,9 +1442,9 @@ async function editRole(roleName) {
             formHint.style.display = 'block';
         }
 
-        // 重置工具状态
+        // Reset the tool state
         roleToolStateMap.clear();
-        roleConfiguredTools.clear(); // 清空角色配置的工具列表
+        roleConfiguredTools.clear(); // Clear the role config tool list
         roleToolsSearchKeyword = '';
         const searchInput = document.getElementById('role-tools-search');
         if (searchInput) {
@@ -1458,46 +1458,46 @@ async function editRole(roleName) {
         syncRoleToolsFilterButtons();
         roleToolsPagination.pageSize = getRoleToolsPageSize();
 
-        // 优先使用tools字段，如果没有则使用mcps字段（向后兼容）
+        // Prefer the tools field; if absent use the mcps field (backward compatible)
         const selectedTools = role.tools || (role.mcps && role.mcps.length > 0 ? role.mcps : []);
         
-        // 判断是否使用所有工具：如果没有配置tools（或tools为空数组），表示使用所有工具
+        // Determine whether all tools are used: if tools is not configured (or is an empty array), it means all tools are used
         roleUsesAllTools = !role.tools || role.tools.length === 0;
         
-        // 保存角色配置的工具列表
+        // Save the role config tool list
         if (selectedTools.length > 0) {
             selectedTools.forEach(toolKey => {
                 roleConfiguredTools.add(toolKey);
             });
         }
         
-        // 如果有选中的工具，先初始化状态映射
+        // If there are selected tools, initialize the state map first
         if (selectedTools.length > 0) {
-            roleUsesAllTools = false; // 有配置工具，不使用所有工具
-            // 将选中的工具添加到状态映射（标记为选中）
+            roleUsesAllTools = false; // Has configured tools; does not use all tools
+            // Add the selected tools to the state map (marked as selected)
             selectedTools.forEach(toolKey => {
-                // 如果映射中还没有这个工具，先创建一个默认状态（enabled为true）
+                // If the map does not yet have this tool, create a default state first (enabled istrue)
                 if (!roleToolStateMap.has(toolKey)) {
                     roleToolStateMap.set(toolKey, {
                         enabled: true,
                         is_external: false,
                         external_mcp: '',
-                        name: toolKey.split('::').pop() || toolKey // 从toolKey中提取工具名称
+                        name: toolKey.split('::').pop() || toolKey // Extract the tool name from the toolKey
                     });
                 } else {
-                    // 如果已存在，更新为选中状态
+                    // If it already exists, update it to selected
                     const state = roleToolStateMap.get(toolKey);
                     state.enabled = true;
                 }
             });
         }
 
-        // 加载工具列表（第一页）
+        // Load the tool list (first page)
         await loadRoleTools(1, '');
         
-        // 如果使用所有工具，标记当前页所有已启用的工具为选中
+        // If using all tools, mark all enabled tools on the current page as selected
         if (roleUsesAllTools) {
-            // 标记当前页所有在MCP管理中已启用的工具为选中
+            // Mark all tools on the current page enabled in MCP management as selected
             document.querySelectorAll('#role-tools-list input[type="checkbox"]').forEach(checkbox => {
                 const toolItem = checkbox.closest('.role-tool-item');
                 if (toolItem) {
@@ -1507,29 +1507,29 @@ async function editRole(roleName) {
                     const externalMcp = toolItem.dataset.externalMcp || '';
                     if (toolKey) {
                         const state = roleToolStateMap.get(toolKey);
-                        // 只选中在MCP管理中已启用的工具
-                        // 如果状态存在，使用状态中的 mcpEnabled；否则假设已启用（因为 loadRoleTools 应该已经初始化了所有工具）
+                        // Only select tools enabled in MCP management
+                        // If the state exists, use its mcpEnabled; otherwise assume enabled (since loadRoleTools should already have initialized all tools)
                         const shouldEnable = state ? (state.mcpEnabled !== false) : true;
                         checkbox.checked = shouldEnable;
                         if (state) {
                             state.enabled = shouldEnable;
                         } else {
-                            // 如果状态不存在，创建新状态（这种情况不应该发生，因为 loadRoleTools 应该已经初始化了）
+                            // If the state does not exist, create a new one (this should not happen, since loadRoleTools should have already initialized it)
                             roleToolStateMap.set(toolKey, {
                                 enabled: shouldEnable,
                                 is_external: isExternal,
                                 external_mcp: externalMcp,
                                 name: toolName,
-                                mcpEnabled: true // 假设已启用，实际值会在loadRoleTools中更新
+                                mcpEnabled: true // Assume enabled; the actual value is updated in loadRoleTools
                             });
                         }
                     }
                 }
             });
-            // 更新统计信息，确保显示正确的选中数量
+            // Update the statistics to ensure the correct selected count is shown
             updateRoleToolsStats();
         } else if (selectedTools.length > 0) {
-            // 加载完成后，再次设置选中状态（确保当前页的工具也被正确设置）
+            // After loading, set the selected state again (to ensure the current page tools are also set correctly)
             setSelectedRoleTools(selectedTools);
         }
     }
@@ -1538,7 +1538,7 @@ async function editRole(roleName) {
     openAppModal('role-modal');
 }
 
-// 关闭角色模态框
+// Close the role modal
 function closeRoleModal() {
     closeAllRoleModalSelects();
     closeAppModal('role-modal');
@@ -1548,19 +1548,19 @@ function closeRoleSelectModal() {
     closeAppModal('role-select-modal');
 }
 
-// 获取所有选中的工具（包括未在MCP管理中启用的工具）
+// Get all selected tools (including those not enabled in MCP management)
 function getAllSelectedRoleTools() {
-    // 先保存当前页的状态
+    // Save the current page state first
     saveCurrentRolePageToolStates();
     
-    // 从状态映射获取所有选中的工具（不管是否在MCP管理中启用）
+    // Get all selected tools from the state map (regardless of whether they are enabled in MCP management)
     const selectedTools = [];
     roleToolStateMap.forEach((state, toolKey) => {
         if (state.enabled) {
             selectedTools.push({
                 key: toolKey,
                 name: state.name || toolKey.split('::').pop() || toolKey,
-                mcpEnabled: state.mcpEnabled !== false // mcpEnabled 为 false 时是未启用，其他情况视为已启用
+                mcpEnabled: state.mcpEnabled !== false // mcpEnabled false means disabled; otherwise treated as enabled
             });
         }
     });
@@ -1568,43 +1568,43 @@ function getAllSelectedRoleTools() {
     return selectedTools;
 }
 
-// 检查并获取未在MCP管理中启用的工具
+// Check for and get tools not enabled in MCP management
 function getDisabledTools(selectedTools) {
     return selectedTools.filter(tool => {
         const state = roleToolStateMap.get(tool.key);
-        // 如果 mcpEnabled 明确为 false，则认为是未启用
+        // If mcpEnabled is explicitly false, treat it as disabled
         return state && state.mcpEnabled === false;
     });
 }
 
-// 加载所有工具到状态映射中（用于从使用全部工具切换到部分工具时）
+// Load all tools into the state map (used when switching from all tools to a subset)
 async function loadAllToolsToStateMap() {
     try {
-        const pageSize = 100; // 使用较大的页面大小以减少请求次数
+        const pageSize = 100; // Use a larger page size to reduce the number of requests
         let page = 1;
         let hasMore = true;
         
-        // 遍历所有页面获取所有工具
+        // Iterate over all pages to get all tools
         while (hasMore) {
             const url = `/api/config/tools?page=${page}&page_size=${pageSize}`;
             const response = await apiFetch(url);
             if (!response.ok) {
-                throw new Error('获取工具列表失败');
+                throw new Error('Failed to get the tool list');
             }
             
             const result = await response.json();
             
-            // 将所有工具添加到状态映射中
+            // Add all tools to the state map
             result.tools.forEach(tool => {
                 const toolKey = getToolKey(tool);
                 if (!roleToolStateMap.has(toolKey)) {
-                    // 工具不在映射中，根据当前模式初始化
+                    // The tool is not in the map; initialize it based on the current mode
                     let enabled = false;
                     if (roleUsesAllTools) {
-                        // 如果使用所有工具，且工具在MCP管理中已启用，则标记为选中
+                        // If using all tools and the tool is enabled in MCP management, mark it as selected
                         enabled = tool.enabled ? true : false;
                     } else {
-                        // 如果不使用所有工具，只有工具在角色配置的工具列表中才标记为选中
+                        // If not using all tools, only tools in the role config tool list are marked as selected
                         enabled = roleConfiguredTools.has(toolKey);
                     }
                     roleToolStateMap.set(toolKey, {
@@ -1612,21 +1612,21 @@ async function loadAllToolsToStateMap() {
                         is_external: tool.is_external || false,
                         external_mcp: tool.external_mcp || '',
                         name: tool.name,
-                        mcpEnabled: tool.enabled // 保存MCP管理中的原始启用状态
+                        mcpEnabled: tool.enabled // Save the original enabled state from MCP management
                     });
                 } else {
-                    // 工具已在映射中，更新其他属性但保留enabled状态
+                    // The tool is already in the map; update other properties but keep the enabled state
                     const state = roleToolStateMap.get(toolKey);
                     state.is_external = tool.is_external || false;
                     state.external_mcp = tool.external_mcp || '';
-                    state.mcpEnabled = tool.enabled; // 更新MCP管理中的原始启用状态
+                    state.mcpEnabled = tool.enabled; // Update the original enabled state from MCP management
                     if (!state.name || state.name === toolKey.split('::').pop()) {
-                        state.name = tool.name; // 更新工具名称
+                        state.name = tool.name; // Update the tool name
                     }
                 }
             });
             
-            // 检查是否还有更多页面
+            // Check whether there are more pages
             if (page >= result.total_pages) {
                 hasMore = false;
             } else {
@@ -1634,12 +1634,12 @@ async function loadAllToolsToStateMap() {
             }
         }
     } catch (error) {
-        console.error('加载所有工具到状态映射失败:', error);
+        console.error('Failed to load all tools into the state map:', error);
         throw error;
     }
 }
 
-// 保存角色
+// Save role
 async function saveRole() {
     if (typeof requirePermission === 'function' && !requirePermission('roles:write')) return;
     const name = document.getElementById('role-name').value.trim();
@@ -1650,12 +1650,12 @@ async function saveRole() {
 
     const description = document.getElementById('role-description').value.trim();
     let icon = document.getElementById('role-icon').value.trim();
-    // 将emoji转换为Unicode转义格式以匹配YAML格式（如 \U0001F3C6）
+    // Convert the emoji to a Unicode-escape format to match the YAML format (e.g. \U0001F3C6)
     if (icon) {
-        // 获取第一个字符的Unicode代码点（处理emoji可能是多个字符的情况）
+        // Get the Unicode code point of the first character (handling the case where an emoji may be multiple characters)
         const codePoint = icon.codePointAt(0);
         if (codePoint && codePoint > 0x7F) {
-            // 转换为8位十六进制格式（\U0001F3C6）
+            // Convert to an 8-digit hexadecimal format (\U0001F3C6)
             icon = '\\U' + codePoint.toString(16).toUpperCase().padStart(8, '0');
         }
     }
@@ -1668,50 +1668,50 @@ async function saveRole() {
 
     const isEdit = document.getElementById('role-name').disabled;
     
-    // 检查是否为默认角色
-    const isDefaultRole = name === '默认';
+    // Check whether it is the default role
+    const isDefaultRole = name === 'Default';
     
-    // 检查是否是首次添加角色（排除默认角色后，没有任何用户创建的角色）
-    const isFirstUserRole = !isEdit && !isDefaultRole && roles.filter(r => r.name !== '默认').length === 0;
+    // Check whether this is the first role being added (after excluding the default role, there are no user-created roles)
+    const isFirstUserRole = !isEdit && !isDefaultRole && roles.filter(r => r.name !== 'Default').length === 0;
     
-    // 默认角色不保存tools字段（使用所有工具）
-    // 非默认角色：如果使用所有工具（roleUsesAllTools为true），也不保存tools字段
+    // The default role does not save the tools field (uses all tools)
+    // Non-default role: if it uses all tools (roleUsesAllTools is true), the tools field is also not saved
     let tools = [];
-    let disabledTools = []; // 存储未在MCP管理中启用的工具
+    let disabledTools = []; // Store tools not enabled in MCP management
     
     if (!isDefaultRole) {
-        // 保存当前页的状态
+        // Save the current page state
         saveCurrentRolePageToolStates();
         
-        // 收集所有选中的工具（包括未在MCP管理中启用的）
+        // Collect all selected tools (including those not enabled in MCP management)
         let allSelectedTools = getAllSelectedRoleTools();
         
-        // 如果是首次添加角色且没有选择工具，默认使用全部工具
+        // If adding the first role and no tools are selected, use all tools by default
         if (isFirstUserRole && allSelectedTools.length === 0) {
             roleUsesAllTools = true;
             showNotification(_t('roleModal.firstRoleNoToolsHint'), 'info');
         } else if (roleUsesAllTools) {
-            // 如果当前使用所有工具，需要检查用户是否取消了一些工具
-            // 检查状态映射中是否有未选中的已启用工具
+            // If currently using all tools, check whether the user has deselected some tools
+            // Check whether the state map has any unselected enabled tools
             let hasUnselectedTools = false;
             roleToolStateMap.forEach((state) => {
-                // 如果工具在MCP管理中已启用但未选中，说明用户取消了该工具
+                // If the tool is enabled in MCP management but not selected, the user has deselected it
                 if (state.mcpEnabled !== false && !state.enabled) {
                     hasUnselectedTools = true;
                 }
             });
             
-            // 如果用户取消了一些已启用的工具，切换到部分工具模式
+            // If the user deselected some enabled tools, switch to the subset-of-tools mode
             if (hasUnselectedTools) {
-                // 在切换之前，需要加载所有工具到状态映射中
-                // 这样我们可以正确保存所有工具的状态（除了用户取消的那些）
+                // Before switching, all tools must be loaded into the state map
+                // This way we can correctly save the state of all tools (except those the user deselected)
                 await loadAllToolsToStateMap();
                 
-                // 将所有已启用的工具标记为选中（除了用户已取消的那些）
-                // 用户已取消的工具在状态映射中enabled为false，保持不变
+                // Mark all enabled tools as selected (except those the user already deselected)
+                // Tools the user has deselected have enabled=false in the state map and stay unchanged
                 roleToolStateMap.forEach((state, toolKey) => {
-                    // 如果工具在MCP管理中已启用，且状态映射中没有明确标记为未选中（即enabled不是false）
-                    // 则标记为选中
+                    // If the tool is enabled in MCP management and is not explicitly marked as unselected in the state map (i.e. enabled is notfalse)
+                    // then mark as selected
                     if (state.mcpEnabled !== false && state.enabled !== false) {
                         state.enabled = true;
                     }
@@ -1719,11 +1719,11 @@ async function saveRole() {
                 
                 roleUsesAllTools = false;
             } else {
-                // 即使使用所有工具，也需要加载所有工具到状态映射中，以便检查是否有未启用的工具被选中
-                // 这样可以检测用户是否手动选择了一些未启用的工具
+                // Even when using all tools, all tools must be loaded into the state map so we can check whether any disabled tool is selected
+                // This lets us detect whether the user manually selected some disabled tools
                 await loadAllToolsToStateMap();
                 
-                // 检查是否有未启用的工具被手动选中（enabled为true但mcpEnabled为false）
+                // Check whether any disabled tool was manually selected (enabled is true but mcpEnabled isfalse)
                 let hasDisabledToolsSelected = false;
                 roleToolStateMap.forEach((state) => {
                     if (state.enabled && state.mcpEnabled === false) {
@@ -1731,7 +1731,7 @@ async function saveRole() {
                     }
                 });
                 
-                // 如果没有未启用的工具被选中，将所有已启用的工具标记为选中（这是使用所有工具的默认行为）
+                // If no disabled tool is selected, mark all enabled tools as selected (this is the default behavior of using all tools)
                 if (!hasDisabledToolsSelected) {
                     roleToolStateMap.forEach((state) => {
                         if (state.mcpEnabled !== false) {
@@ -1740,27 +1740,27 @@ async function saveRole() {
                     });
                 }
                 
-                // 更新 allSelectedTools，因为现在状态映射中包含了所有工具
+                // Update allSelectedTools, since the state map now contains all tools
                 allSelectedTools = getAllSelectedRoleTools();
             }
         }
         
-        // 检查哪些工具未在MCP管理中启用（无论是否使用所有工具都要检查）
+        // Check which tools are not enabled in MCP management (checked regardless of whether all tools are used)
         disabledTools = getDisabledTools(allSelectedTools);
         
-        // 如果有未启用的工具，提示用户
+        // If there are disabled tools, notify the user
         if (disabledTools.length > 0) {
-            const toolNames = disabledTools.map(t => t.name).join('、');
-            const message = `以下 ${disabledTools.length} 个工具未在MCP管理中启用，无法在角色中配置：\n\n${toolNames}\n\n请先在"MCP管理"中启用这些工具，然后再在角色中配置。\n\n是否继续保存？（将只保存已启用的工具）`;
+            const toolNames = disabledTools.map(t => t.name).join(', ');
+            const message = `the following ${disabledTools.length} tools are not enabled in MCP management and cannot be configured in the role: \n\n${toolNames}\n\n First, in"MCP Management"enable these tools there, then configure them in the role.\n\n Continue saving? (only enabled tools will be saved)`;
             
             if (!confirm(message)) {
-                return; // 用户取消保存
+                return; // The user cancelled saving
             }
         }
         
-        // 如果使用所有工具，不需要获取工具列表
+        // If using all tools, there is no need to fetch the tool list
         if (!roleUsesAllTools) {
-            // 获取选中的工具列表（只包含在MCP管理中已启用的工具）
+            // Get the selected tool list (only tools enabled in MCP management)
             tools = await getSelectedRoleTools();
         }
     }
@@ -1768,9 +1768,9 @@ async function saveRole() {
     const roleData = {
         name: name,
         description: description,
-        icon: icon || undefined, // 如果为空字符串，则不发送该字段
+        icon: icon || undefined, // If it is an empty string, do not send the field
         user_prompt: userPrompt,
-        tools: tools, // 默认角色为空数组，表示使用所有工具
+        tools: tools, // The default role is an empty array, meaning all tools are used
         enabled: enabled,
         workflow_id: workflowId || undefined,
         workflow_version: workflowId ? 'latest' : undefined,
@@ -1790,40 +1790,40 @@ async function saveRole() {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || '保存角色失败');
+            throw new Error(error.error || 'Failed to save the role');
         }
 
-        // 如果有未启用的工具被过滤掉了，提示用户
+        // If any disabled tools were filtered out, notify the user
         if (disabledTools.length > 0) {
-            let toolNames = disabledTools.map(t => t.name).join('、');
-            // 如果工具名称列表太长，截断显示
+            let toolNames = disabledTools.map(t => t.name).join(', ');
+            // If the tool-name list is too long, truncate the display
             if (toolNames.length > 100) {
                 toolNames = toolNames.substring(0, 100) + '...';
             }
             showNotification(
-                `${isEdit ? '角色已更新' : '角色已创建'}，但已过滤 ${disabledTools.length} 个未在MCP管理中启用的工具：${toolNames}。请先在"MCP管理"中启用这些工具，然后再在角色中配置。`,
+                `${isEdit ? 'Role updated' : 'Role created'}, but filtered ${disabledTools.length} tools not enabled in MCP management: ${toolNames}.First, in"MCP Management"enable these tools there, then configure them in the role.`,
                 'warning'
             );
         } else {
-            showNotification(isEdit ? '角色已更新' : '角色已创建', 'success');
+            showNotification(isEdit ? 'Role updated' : 'Role created', 'success');
         }
         
         closeRoleModal();
         await refreshRoles();
     } catch (error) {
-        console.error('保存角色失败:', error);
-        showNotification('保存角色失败: ' + error.message, 'error');
+        console.error('Failed to save the role:', error);
+        showNotification('Failed to save the role: ' + error.message, 'error');
     }
 }
 
-// 删除角色
+// Delete role
 async function deleteRole(roleName) {
-    if (roleName === '默认') {
+    if (roleName === 'Default') {
         showNotification(_t('roleModal.cannotDeleteDefaultRole'), 'error');
         return;
     }
 
-    if (!confirm(`确定要删除角色"${roleName}"吗？此操作不可撤销。`)) {
+    if (!confirm(`Are you sure you want to delete the role"${roleName}"? This action cannot be undone.`)) {
         return;
     }
 
@@ -1834,24 +1834,24 @@ async function deleteRole(roleName) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || '删除角色失败');
+            throw new Error(error.error || 'Failed to delete the role');
         }
 
-        showNotification('角色已删除', 'success');
+        showNotification('Role deleted', 'success');
         
-        // 如果删除的是当前选中的角色,切换到默认角色
+        // If the deleted role is the currently selected one, switch to the default role
         if (currentRole === roleName) {
             handleRoleChange('');
         }
 
         await refreshRoles();
     } catch (error) {
-        console.error('删除角色失败:', error);
-        showNotification('删除角色失败: ' + error.message, 'error');
+        console.error('Failed to delete the role:', error);
+        showNotification('Failed to delete the role: ' + error.message, 'error');
     }
 }
 
-// 在页面切换时初始化角色列表
+// Initialize the role list on page switch
 if (typeof window.switchPage === 'function') {
     const originalSwitchPage = window.switchPage;
     window.switchPage = function(page) {
@@ -1862,7 +1862,7 @@ if (typeof window.switchPage === 'function') {
     };
 }
 
-// 点击模态框外部关闭
+// Click outside the modal to close
 document.addEventListener('click', (e) => {
     const roleSelectModal = document.getElementById('role-select-modal');
     if (roleSelectModal && e.target === roleSelectModal) {
@@ -1874,7 +1874,7 @@ document.addEventListener('click', (e) => {
         closeRoleModal();
     }
 
-    // 点击角色选择面板外部关闭（须用 #role-selector-wrapper，勿用 .role-selector-wrapper：项目选择器也带该类）
+    // Click outside the role-selection panel to close (must use #role-selector-wrapper, Do not use .role-selector-wrapper: the project selector also carries that class)
     if (isRoleSelectionPanelOpen()) {
         const roleSelectorWrapper = getChatRoleSelectorWrapper();
         if (!roleSelectorWrapper?.contains(e.target)) {
@@ -1883,26 +1883,26 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// 页面加载时初始化
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     loadRoles();
     updateRoleSelectorDisplay();
     refreshRoleModalSelects();
 });
 
-// 语言切换后刷新角色选择器与「选择角色」列表文案
+// After a language switch, refresh the role selector and the Select Role list text
 document.addEventListener('languagechange', () => {
     updateRoleSelectorDisplay();
     renderRoleSelectionSidebar();
     syncAllRoleModalSelects();
 });
 
-// 获取当前选中的角色（供chat.js使用）
+// Get the currently selected role (for chat.js to use)
 function getCurrentRole() {
     return currentRole || '';
 }
 
-// 暴露函数到全局作用域
+// Expose the function to the global scope
 if (typeof window !== 'undefined') {
     window.getCurrentRole = getCurrentRole;
     window.setCurrentRole = handleRoleChange;
@@ -1913,7 +1913,7 @@ if (typeof window !== 'undefined') {
     window.refreshRoleModalSelects = refreshRoleModalSelects;
     window.currentSelectedRole = getCurrentRole();
     
-    // 监听角色变化，更新全局变量
+    // Listen for role changes and update the global variable
     const originalHandleRoleChange = handleRoleChange;
     handleRoleChange = function(roleName) {
         originalHandleRoleChange(roleName);

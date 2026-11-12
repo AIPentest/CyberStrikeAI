@@ -1,6 +1,6 @@
 # Architecture
 
-[中文](../zh-CN/architecture.md)
+[Chinese](../zh-CN/architecture.md)
 
 CyberStrikeAI is a single Go Web application with a static frontend, SQLite persistence, Agent orchestration, MCP tooling, workflow graphs, knowledge retrieval, and optional C2/WebShell subsystems.
 

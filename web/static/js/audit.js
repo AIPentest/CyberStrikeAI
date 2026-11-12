@@ -55,11 +55,11 @@ function auditActionLabel(action) {
 
 /** Stored DB messages that share category+action but need distinct i18n keys. */
 const AUDIT_MSG_BY_STORED_TEXT = {
-    '登录失败：密码错误': 'settingsAudit.msg.auth.login_failed',
-    '修改密码失败：当前密码不正确': 'settingsAudit.msg.auth.change_password_failed',
-    '应用配置失败：初始化知识库': 'settingsAudit.msg.config.apply_fail_kb_init',
-    '应用配置失败：重新初始化知识库': 'settingsAudit.msg.config.apply_fail_kb_reinit',
-    '应用配置失败：C2': 'settingsAudit.msg.config.apply_fail_c2'
+    'Login failed: wrong password': 'settingsAudit.msg.auth.login_failed',
+    'Failed to change the password: the current password is incorrect': 'settingsAudit.msg.auth.change_password_failed',
+    'Failed to apply the config: initializing the knowledge base': 'settingsAudit.msg.config.apply_fail_kb_init',
+    'Failed to apply the config: re-initializing the knowledge base': 'settingsAudit.msg.config.apply_fail_kb_reinit',
+    'Failed to apply the config: C2': 'settingsAudit.msg.config.apply_fail_c2'
 };
 
 function auditMessageLabel(log) {
@@ -93,7 +93,7 @@ function auditResultLabel(result) {
 function auditLocale() {
     if (typeof window.uiLocale === 'function') return window.uiLocale();
     if (typeof window.__locale === 'string' && window.__locale.length) {
-        if (window.__locale.startsWith('zh')) return 'zh-CN';
+        if (window.__locale.startsWith('zh')) return 'en-US';
         if (window.__locale.startsWith('ru')) return 'ru-RU';
         return 'en-US';
     }
@@ -160,7 +160,7 @@ function updateAuditTimezoneHint() {
     }
     el.hidden = false;
     el.textContent = auditT('settingsAudit.filterTimeZone', { tz: tz },
-        '时区：' + tz + '（筛选按浏览器本地时间，API 使用 UTC）');
+        'Time zone: ' + tz + ' (Filtering uses the browser local time; the API uses UTC)');
 }
 
 function initAuditPageSizeFromStorage() {
@@ -194,8 +194,8 @@ function rebuildAuditActionSelect() {
 
     const category = catEl ? catEl.value : '';
     const prev = actEl.value;
-    const allLabel = auditT('settingsAudit.filterAllActions', null, '全部操作');
-    const hint = auditT('settingsAudit.filterCascadeHint', null, '选择类别后可筛选具体操作');
+    const allLabel = auditT('settingsAudit.filterAllActions', null, 'All actions');
+    const hint = auditT('settingsAudit.filterCascadeHint', null, 'After selecting a category you can filter by specific action');
     actEl.innerHTML = '';
     const allOpt = document.createElement('option');
     allOpt.value = '';
@@ -277,7 +277,7 @@ async function loadAuditLogs(page) {
     auditLogsPage = page != null ? page : auditLogsPage;
     const listEl = document.getElementById('audit-log-list');
     if (listEl) {
-        listEl.innerHTML = '<div class="loading-spinner">' + (typeof escapeHtml === 'function' ? escapeHtml(auditT('settingsAudit.loading', null, '加载中...')) : '加载中...') + '</div>';
+        listEl.innerHTML = '<div class="loading-spinner">' + (typeof escapeHtml === 'function' ? escapeHtml(auditT('settingsAudit.loading', null, 'Loading...')) : 'Loading...') + '</div>';
     }
     try {
         const qs = buildAuditQueryParams(false);
@@ -317,7 +317,7 @@ function renderAuditLogs(logs) {
     if (!listEl) return;
     const esc = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
     if (!logs.length) {
-        listEl.innerHTML = '<div class="audit-log-empty">' + esc(auditT('settingsAudit.empty', null, '暂无审计记录')) + '</div>';
+        listEl.innerHTML = '<div class="audit-log-empty">' + esc(auditT('settingsAudit.empty', null, 'No audit records')) + '</div>';
         return;
     }
     const dash = '<span class="audit-log-cell-muted">—</span>';
@@ -325,13 +325,13 @@ function renderAuditLogs(logs) {
         '<div class="audit-log-table-wrap">' +
         '<table class="audit-log-table">' +
         '<thead><tr>' +
-        '<th data-i18n="settingsAudit.colTime">时间</th>' +
-        '<th data-i18n="settingsAudit.colMessage">说明</th>' +
-        '<th data-i18n="settingsAudit.colCategory">类别</th>' +
-        '<th data-i18n="settingsAudit.colAction">操作</th>' +
-        '<th data-i18n="settingsAudit.colResult">结果</th>' +
+        '<th data-i18n="settingsAudit.colTime"> Time</th>' +
+        '<th data-i18n="settingsAudit.colMessage"> Description</th>' +
+        '<th data-i18n="settingsAudit.colCategory"> Category</th>' +
+        '<th data-i18n="settingsAudit.colAction"> Action</th>' +
+        '<th data-i18n="settingsAudit.colResult"> Result</th>' +
         '<th data-i18n="settingsAudit.colIp">IP</th>' +
-        '<th data-i18n="settingsAudit.colResource">资源 ID</th>' +
+        '<th data-i18n="settingsAudit.colResource"> Resource ID</th>' +
         '</tr></thead><tbody>'
     );
     const rows = logs.map(function (log) {
@@ -375,14 +375,14 @@ function renderAuditLogsPagination() {
     const start = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const end = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
     const infoText = auditT('mcpMonitor.paginationInfo', { start: start, end: end, total: total },
-        '显示 ' + start + '-' + end + ' / 共 ' + total + ' 条记录');
-    const perPageLabel = auditT('mcpMonitor.perPageLabel', null, '每页显示');
-    const firstPageLabel = auditT('mcp.firstPage', null, '首页');
-    const prevPageLabel = auditT('mcp.prevPage', null, '上一页');
+        'Show ' + start + '-' + end + ' / total ' + total + ' records');
+    const perPageLabel = auditT('mcpMonitor.perPageLabel', null, 'Per page');
+    const firstPageLabel = auditT('mcp.firstPage', null, 'First');
+    const prevPageLabel = auditT('mcp.prevPage', null, 'Previous');
     const pageInfoText = auditT('mcp.pageInfo', { page: currentPage, total: totalPages },
-        '第 ' + currentPage + ' / ' + totalPages + ' 页');
-    const nextPageLabel = auditT('mcp.nextPage', null, '下一页');
-    const lastPageLabel = auditT('mcp.lastPage', null, '末页');
+        'Page ' + currentPage + ' / ' + totalPages + ' pages');
+    const nextPageLabel = auditT('mcp.nextPage', null, 'Next');
+    const lastPageLabel = auditT('mcp.lastPage', null, 'Last');
     const disabledFirst = currentPage === 1 || total === 0;
     const disabledLast = currentPage >= totalPages || total === 0;
     let html = '<div class="monitor-pagination">';
@@ -505,8 +505,8 @@ function auditResourceMeta(log) {
     const esc = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
     const id = esc(log.resourceId);
     if (auditResourceUnavailable(log)) {
-        const idLabel = esc(auditT('settingsAudit.resourceIdLabel', null, '资源 ID'));
-        const removed = esc(auditT('settingsAudit.resourceRemoved', null, '（关联对象已删除）'));
+        const idLabel = esc(auditT('settingsAudit.resourceIdLabel', null, 'Resource ID'));
+        const removed = esc(auditT('settingsAudit.resourceRemoved', null, ' (The associated object has been deleted)'));
         return '<p class="audit-resource-meta"><strong>' + idLabel + ':</strong> <code>' + id +
             '</code> <span class="audit-resource-removed">' + removed + '</span></p>';
     }
@@ -522,7 +522,7 @@ async function auditOpenConversationChat(conversationId) {
             const r = await apiFetch('/api/conversations/' + encodeURIComponent(id));
             if (!r.ok) {
                 if (typeof showToast === 'function') {
-                    showToast(auditT('settingsAudit.resourceRemoved', null, '（关联对象已删除）'), 'warning');
+                    showToast(auditT('settingsAudit.resourceRemoved', null, ' (The associated object has been deleted)'), 'warning');
                 }
                 return;
             }
@@ -546,9 +546,9 @@ function auditResourceLink(log) {
     const id = log.resourceId || '';
     if (!id) return '';
     const esc = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
-    const label = esc(auditT('settingsAudit.openResource', null, '打开关联资源'));
+    const label = esc(auditT('settingsAudit.openResource', null, 'Open the associated resource'));
     if (type === 'conversation' || (type === '' && id.length > 8 && !id.startsWith('c2_'))) {
-        const chatLabel = esc(auditT('settingsAudit.openResourceChat', null, '打开关联资源（chat）'));
+        const chatLabel = esc(auditT('settingsAudit.openResourceChat', null, 'Open the associated resource (chat)'));
         return '<p><button type="button" class="btn-secondary btn-small audit-open-chat-btn" data-conversation-id="' +
             esc(id) + '">' + chatLabel + '</button></p>';
     }
@@ -641,7 +641,7 @@ async function exportAuditLogs() {
             'audit-logs-' + new Date().toISOString().slice(0, 10) + '.json'
         );
         if (typeof showToast === 'function') {
-            showToast(auditT('settingsAudit.exportDone', null, '导出完成'), 'success');
+            showToast(auditT('settingsAudit.exportDone', null, 'Export complete'), 'success');
         }
     } catch (e) {
         if (typeof showToast === 'function') {
@@ -659,7 +659,7 @@ async function exportAuditLogsCsv() {
             'audit-logs-' + new Date().toISOString().slice(0, 10) + '.csv'
         );
         if (typeof showToast === 'function') {
-            showToast(auditT('settingsAudit.exportDone', null, '导出完成'), 'success');
+            showToast(auditT('settingsAudit.exportDone', null, 'Export complete'), 'success');
         }
     } catch (e) {
         if (typeof showToast === 'function') {
@@ -695,22 +695,22 @@ async function showAuditLogDetail(id) {
             overlay.innerHTML =
                 '<div class="modal-content" style="max-width: 720px;">' +
                 '<div class="modal-header">' +
-                '<h2>' + esc(auditT('settingsAudit.detailTitle', null, '审计详情')) + '</h2>' +
+                '<h2>' + esc(auditT('settingsAudit.detailTitle', null, 'Audit details')) + '</h2>' +
                 '<span class="modal-close" onclick="closeAuditDetailModal()">&times;</span>' +
                 '</div>' +
                 '<div class="modal-body audit-detail-body">' +
-                '<p><strong>' + esc(auditT('settingsAudit.detailTime', null, '时间')) + ':</strong> ' + esc(formatAuditTime(log.createdAt)) + '</p>' +
-                '<p><strong>' + esc(auditT('settingsAudit.detailCategory', null, '类别')) + ':</strong> ' + catAction + '</p>' +
-                '<p><strong>' + esc(auditT('settingsAudit.detailResult', null, '结果')) + ':</strong> ' + esc(auditResultLabel(log.result || '')) + '</p>' +
-                '<p><strong>' + esc(auditT('settingsAudit.detailMessage', null, '说明')) + ':</strong> ' + esc(auditMessageLabel(log)) + '</p>' +
+                '<p><strong>' + esc(auditT('settingsAudit.detailTime', null, 'Time')) + ':</strong> ' + esc(formatAuditTime(log.createdAt)) + '</p>' +
+                '<p><strong>' + esc(auditT('settingsAudit.detailCategory', null, 'Category')) + ':</strong> ' + catAction + '</p>' +
+                '<p><strong>' + esc(auditT('settingsAudit.detailResult', null, 'Result')) + ':</strong> ' + esc(auditResultLabel(log.result || '')) + '</p>' +
+                '<p><strong>' + esc(auditT('settingsAudit.detailMessage', null, 'Description')) + ':</strong> ' + esc(auditMessageLabel(log)) + '</p>' +
                 (log.clientIp ? '<p><strong>IP:</strong> ' + esc(log.clientIp) + '</p>' : '') +
-                (log.sessionHint ? '<p><strong>' + esc(auditT('settingsAudit.detailSession', null, '会话')) + ':</strong> ' + esc(log.sessionHint) + '</p>' : '') +
+                (log.sessionHint ? '<p><strong>' + esc(auditT('settingsAudit.detailSession', null, 'Session')) + ':</strong> ' + esc(log.sessionHint) + '</p>' : '') +
                 (log.userAgent ? '<p><strong>UA:</strong> ' + esc(log.userAgent) + '</p>' : '') +
                 auditResourceMeta(log) +
                 (detail ? '<pre class="audit-detail-pre">' + esc(detail) + '</pre>' : '') +
                 '</div>' +
                 '<div class="modal-footer"><button type="button" class="btn-secondary" onclick="closeAuditDetailModal()">' +
-                esc(auditT('common.close', null, '关闭')) + '</button></div>' +
+                esc(auditT('common.close', null, 'Close')) + '</button></div>' +
                 '</div>';
             const chatBtn = overlay.querySelector('.audit-open-chat-btn');
             if (chatBtn) {

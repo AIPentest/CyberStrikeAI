@@ -19,7 +19,7 @@
             const n = Number(raw);
             if (Number.isFinite(n) && n > 0) return n;
         } catch (e) {
-            console.warn('读取通知已读时间失败:', e);
+            console.warn('Failed to read the notification read-time:', e);
         }
         return 0;
     }
@@ -28,7 +28,7 @@
         try {
             localStorage.setItem(STORAGE_LAST_SEEN_KEY, String(ts));
         } catch (e) {
-            console.warn('保存通知已读时间失败:', e);
+            console.warn('Failed to save the notification read-time:', e);
         }
     }
 
@@ -48,7 +48,7 @@
                 return window.currentLang;
             }
         }
-        return 'zh-CN';
+        return 'en-US';
     }
 
     function formatTime(value) {
@@ -140,8 +140,8 @@
             return;
         }
         if ((item.type === 'task_completed' || item.type === 'long_running_tasks') && item.conversationId) {
-            // 统一走路由提供的会话导航入口。直接修改 hash 会先触发 hashchange
-            // 切页，再由路由延迟加载会话，视觉上会多闪一次。
+            // 统一走路由提供的会话导航入口.直接修改 hash 会先触发 hashchange
+            // 切pages, 再由路由延迟加载会话, 视觉上会多闪一次.
             if (typeof window.navigateToConversation === 'function') {
                 window.navigateToConversation(item.conversationId);
             } else {
@@ -201,7 +201,7 @@
         if (!list) return;
         const renderItems = Array.isArray(items) ? items.slice(0, MAX_RENDER_ITEMS) : [];
         if (!renderItems.length) {
-            list.innerHTML = '<div class="notification-empty">' + htmlEscape(t('notifications.empty', '暂无新事件')) + '</div>';
+            list.innerHTML = '<div class="notification-empty">' + htmlEscape(t('notifications.empty', 'No new events')) + '</div>';
             return;
         }
         const html = renderItems.map(item => {
@@ -210,10 +210,10 @@
             return `
                 <div class="notification-item notification-level-${htmlEscape(item.level || 'p2')}">
                     <div class="notification-item-header">
-                        <div class="notification-item-title">${htmlEscape(item.title || t('notifications.itemDefaultTitle', '通知'))}</div>
+                        <div class="notification-item-title">${htmlEscape(item.title || t('notifications.itemDefaultTitle', 'Notifications'))}</div>
                         <div class="notification-item-actions">
-                            ${canView ? `<button class="notification-item-action-btn notification-item-view-btn" type="button" data-action-id="${htmlEscape(item.id || '')}">${htmlEscape(t('common.view', '查看'))}</button>` : ''}
-                            ${canMarkRead ? `<button class="notification-item-action-btn notification-item-read-btn" type="button" data-notification-id="${htmlEscape(item.id)}">${htmlEscape(t('notifications.markSingleRead', '已读'))}</button>` : ''}
+                            ${canView ? `<button class="notification-item-action-btn notification-item-view-btn" type="button" data-action-id="${htmlEscape(item.id || '')}">${htmlEscape(t('common.view', 'View'))}</button>` : ''}
+                            ${canMarkRead ? `<button class="notification-item-action-btn notification-item-read-btn" type="button" data-notification-id="${htmlEscape(item.id)}">${htmlEscape(t('notifications.markSingleRead', 'Read'))}</button>` : ''}
                         </div>
                     </div>
                     <div class="notification-item-desc">${htmlEscape(item.desc || '')}</div>
@@ -280,7 +280,7 @@
             renderBadge(state.unreadCount);
             renderNotificationList(items);
         } catch (e) {
-            console.warn('刷新通知失败:', e);
+            console.warn('Failed to refresh notifications:', e);
         } finally {
             state.inFlight = false;
         }
@@ -315,8 +315,8 @@
             closeDropdown();
             return;
         }
-        // 从仪表盘「查看全部」等容器外入口打开时，同一 click 会冒泡到 document，
-        // handleDocumentClick 会误判为「点在外面」并立刻关掉。推迟到宏任务再展开即可。
+        // 从仪表盘'View全部'等容器外入口打开时, 同一 click 会冒泡到 document, 
+        // handleDocumentClick 会误判为'点在外面'并立刻关掉.推迟到宏任务再展开即可.
         const runOpen = async function () {
             if (dropdown.style.display !== 'none') return;
             dropdown.style.display = 'block';

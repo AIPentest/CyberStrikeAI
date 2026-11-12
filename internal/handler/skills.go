@@ -616,7 +616,7 @@ func (h *SkillsHandler) saveRolesConfig() error {
 		rolesDir = filepath.Join(configDir, rolesDir)
 	}
 
-	// 确保目录存在
+	// Ensure the directory exists
 	if err := os.MkdirAll(rolesDir, 0755); err != nil {
 		return fmt.Errorf("创建角色目录失败: %w", err)
 	}

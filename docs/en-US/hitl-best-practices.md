@@ -1,6 +1,6 @@
 # Human-in-the-loop (HITL) Best Practices
 
-[中文](../zh-CN/hitl-best-practices.md)
+[Chinese](../zh-CN/hitl-best-practices.md)
 
 HITL reviews tool calls before an Agent executes them. Use it to control high-risk operations, keep an audit trail, and let an Audit Agent take over routine approvals when human reviewers cannot keep up.
 

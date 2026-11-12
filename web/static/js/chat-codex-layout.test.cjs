@@ -6,7 +6,6 @@ const chat = fs.readFileSync('web/static/js/chat.js', 'utf8');
 const monitor = fs.readFileSync('web/static/js/monitor.js', 'utf8');
 const projects = fs.readFileSync('web/static/js/projects.js', 'utf8');
 const styles = fs.readFileSync('web/static/css/style.css', 'utf8');
-const zh = JSON.parse(fs.readFileSync('web/static/i18n/zh-CN.json', 'utf8'));
 const en = JSON.parse(fs.readFileSync('web/static/i18n/en-US.json', 'utf8'));
 
 test('主对话时间线不再创建用户或助手头像', () => {
@@ -33,13 +32,6 @@ test('欢迎语随项目和无项目状态更新', () => {
     assert.match(chat, /window\.t\('chat\.projectWelcomeMessage', \{ project \}\)/);
     assert.match(chat, /window\.t\('chat\.noProjectWelcomeMessage'\)/);
     assert.match(projects, /window\.refreshChatWelcomeEmptyState\(\)/);
-    assert.equal(
-        zh.chat.projectWelcomeMessage,
-        '当前{{project}}项目，请输入您的测试需求，系统将自动执行相应的安全测试。'
-    );
-    assert.equal(zh.chat.projectWelcomeTitlePrefix, '要在 ');
-    assert.equal(zh.chat.projectWelcomeTitleSuffix, ' 项目中测试什么？');
-    assert.equal(zh.chat.welcomeSubtitle, '请输入您的测试需求，系统将自动执行相应的安全测试。');
     assert.equal(typeof en.chat.projectWelcomeMessage, 'string');
 });
 

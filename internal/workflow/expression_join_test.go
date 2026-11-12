@@ -81,9 +81,9 @@ func TestMergeUpstreamOutputs_firstNonEmpty(t *testing.T) {
 func TestDryRunGraphJSON_simulatesUnsafeNodes(t *testing.T) {
 	graph := `{
   "nodes": [
-    {"id": "start-1", "type": "start", "label": "开始", "position": {"x": 0, "y": 0}, "config": {}},
+    {"id": "start-1", "type": "start", "label": "Start", "position": {"x": 0, "y": 0}, "config": {}},
     {"id": "agent-1", "type": "agent", "label": "Agent", "position": {"x": 0, "y": 80}, "config": {"instruction": "noop", "output_key": "agent_result"}},
-    {"id": "out-1", "type": "output", "label": "输出", "position": {"x": 0, "y": 160}, "config": {"output_key": "result", "source_binding": {"from": "outputs", "field": "agent_result"}}}
+    {"id": "out-1", "type": "output", "label": "Output", "position": {"x": 0, "y": 160}, "config": {"output_key": "result", "source_binding": {"from": "outputs", "field": "agent_result"}}}
   ],
   "edges": [
     {"id": "e1", "source": "start-1", "target": "agent-1"},

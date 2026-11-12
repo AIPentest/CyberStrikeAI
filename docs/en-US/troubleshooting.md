@@ -1,6 +1,6 @@
 # Troubleshooting
 
-[中文](../zh-CN/troubleshooting.md)
+[Chinese](../zh-CN/troubleshooting.md)
 
 Debug by layer. Do not change random config before locating the failing layer.
 

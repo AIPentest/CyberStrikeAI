@@ -187,7 +187,7 @@ func isEmptyCandidate(s string) bool {
 		return true
 	}
 	return strings.Contains(s, "no assistant text was captured") ||
-		strings.Contains(s, "未捕获到助手文本输出")
+		strings.Contains(s, "No assistant text output was captured")
 }
 
 func evidenceRefs(ids []string) []string {

@@ -1,6 +1,6 @@
 # Pent Claude Agent MCP
 
-[中文](README_CN.md)
+[Chinese](README_CN.md)
 
 AI-powered **penetration testing engineer** MCP server. CyberStrikeAI can command it to run pentest tasks, analyze vulnerabilities, and perform security diagnostics. The agent runs a Claude-based AI internally and can be configured with its own MCP servers and tools.
 

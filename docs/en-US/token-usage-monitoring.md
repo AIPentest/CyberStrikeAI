@@ -1,6 +1,6 @@
 # Token usage monitoring: research and implementation
 
-[中文](../zh-CN/token-usage-monitoring.md)
+[Chinese](../zh-CN/token-usage-monitoring.md)
 
 Research date: 2026-10-11.
 

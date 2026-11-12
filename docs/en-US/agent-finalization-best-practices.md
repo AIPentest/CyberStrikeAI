@@ -1,6 +1,6 @@
 # Agent final-response governance best practices
 
-[English documentation](README.md) | [中文](../zh-CN/agent-finalization-best-practices.md)
+[English documentation](README.md) | [Chinese](../zh-CN/agent-finalization-best-practices.md)
 
 Research date: 2026-07-28.
 

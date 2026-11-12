@@ -1,6 +1,6 @@
 # MCP Servers
 
-[中文](README_CN.md)
+[Chinese](README_CN.md)
 
 This directory contains **standalone MCP (Model Context Protocol) servers**. They speak the standard MCP protocol over stdio (or HTTP/SSE when a server supports it), so **any MCP client** can use them—not only CyberStrikeAI, but also **Cursor**, **VS Code** (with an MCP extension), **Claude Code**, and other clients that support MCP.
 

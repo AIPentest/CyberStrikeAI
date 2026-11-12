@@ -11,14 +11,14 @@
 //
 // Two properties hold the design down:
 //
-//   - Nothing destructive happens by default. Local source edits, or a tree that has
-//     diverged from the incoming history, stop with the file names and commit counts in
-//     the error instead of being reset to match.
-//   - Content the operator owns is not ours to overwrite. roles/, skills/, tools/,
-//     agents/, bundles/, knowledge_base/, data/, config.yaml and friends are put aside
-//     and restored on top of the merge, so an update moves code while the roles and
-//     skills created from the console last week survive it. The result names what was
-//     kept rather than quietly dropping it on the floor.
+// - Nothing destructive happens by default. Local source edits, or a tree that has
+// diverged from the incoming history, stop with the file names and commit counts in
+// the error instead of being reset to match.
+// - Content the operator owns is not ours to overwrite. roles/, skills/, tools/,
+// agents/, bundles/, knowledge_base/, data/, config.yaml and friends are put aside
+// and restored on top of the merge, so an update moves code while the roles and
+// skills created from the console last week survive it. The result names what was
+// kept rather than quietly dropping it on the floor.
 package update
 
 import (
@@ -277,7 +277,7 @@ func Status(ctx context.Context, opts Options) (*Snapshot, error) {
 		BlockingChanges: []Change{},
 	}
 	if !ValidRemoteURL(snap.Repo) {
-		snap.CheckError = "配置的更新源仓库地址不合法（只允许 https/http/ssh/git/file:// 或本机绝对路径）"
+		snap.CheckError = "The configured update-source repository address is invalid (only https/http/ssh/git/file:// or a local absolute path is allowed)"
 		return snap, nil
 	}
 
@@ -285,7 +285,7 @@ func Status(ctx context.Context, opts Options) (*Snapshot, error) {
 		// Not a git tree: the page still has to say something useful, so this is a
 		// state rather than an error.
 		snap.Installed = false
-		snap.CheckError = "这个目录不是 git 工作树：可以先配置更新源仓库再接入，或按发布包方式更新"
+		snap.CheckError = "This directory is not a git worktree: you can configure the update-source repository and connect it first, or update via a release package"
 		snap.GoToolchain, snap.CanBuild = toolchain(ctx, root)
 		snap.HasBinary = fileExists(filepath.Join(root, opts.binaryName()))
 		return snap, nil
@@ -313,7 +313,7 @@ func Status(ctx context.Context, opts Options) (*Snapshot, error) {
 	var changeErr error
 	snap.LocalChanges, snap.BlockingChanges, changeErr = localChanges(ctx, root)
 	if changeErr != nil {
-		snap.CheckError = "无法检查本地改动：" + changeErr.Error()
+		snap.CheckError = "Could not check for local changes: " + changeErr.Error()
 		return snap, nil
 	}
 	snap.GoToolchain, snap.CanBuild = toolchain(ctx, root)
@@ -326,7 +326,7 @@ func Status(ctx context.Context, opts Options) (*Snapshot, error) {
 		snap.RollbackTo = st.PreviousCommit
 	}
 	if pending, err := readRollbackPending(root); err != nil {
-		snap.CheckError = "回滚恢复记录无法读取：" + err.Error()
+		snap.CheckError = "The rollback restore record could not be read: " + err.Error()
 	} else if pending != nil {
 		snap.HasRollback = true
 		snap.RollbackPending = true
@@ -434,7 +434,7 @@ func check(ctx context.Context, opts Options) (*Snapshot, error) {
 	}
 	var ahead, behind int
 	if _, err := fmt.Sscanf(counts, "%d %d", &ahead, &behind); err != nil {
-		snap.CheckError = "无法解析更新提交差异：" + err.Error()
+		snap.CheckError = "Could not parse the update commit diff: " + err.Error()
 		return snap, nil
 	}
 	snap.Ahead, snap.Behind = ahead, behind
@@ -465,11 +465,11 @@ func check(ctx context.Context, opts Options) (*Snapshot, error) {
 func resolveDefaultBranch(ctx context.Context, root, source string) (string, error) {
 	out, err := gitCmd(ctx, root, "ls-remote", "--symref", source, "HEAD")
 	if err != nil {
-		return "", fmt.Errorf("无法访问更新源仓库 %s：%s", source, strings.TrimSpace(err.Error()))
+		return "", fmt.Errorf("Could not access the update-source repository %s: %s", source, strings.TrimSpace(err.Error()))
 	}
 	branch := parseDefaultBranch(out)
 	if branch == "" {
-		return "", fmt.Errorf("无法确定更新源仓库的默认分支：%s", source)
+		return "", fmt.Errorf("Could not determine the default branch of the update-source repository: %s", source)
 	}
 	return branch, nil
 }
@@ -508,7 +508,7 @@ func repositoryRoot(ctx context.Context, root string) error {
 		return err
 	}
 	if !os.SameFile(actual, expected) {
-		return &Error{Reason: "bad_root", Message: "更新只能操作 git 仓库根目录，请使用：" + top}
+		return &Error{Reason: "bad_root", Message: "Updates can only operate on the git repository root; please use: " + top}
 	}
 	return nil
 }

@@ -6,7 +6,7 @@ import (
 )
 
 func TestTruncateWorkflowToolOutputBoundsBytesAndKeepsExecutionReference(t *testing.T) {
-	out := truncateWorkflowToolOutput(strings.Repeat("响应正文", 1000), 256, "exec-123")
+	out := truncateWorkflowToolOutput(strings.Repeat("Response body", 1000), 256, "exec-123")
 	if len(out) > 256 {
 		t.Fatalf("workflow output bytes=%d, want <=256", len(out))
 	}

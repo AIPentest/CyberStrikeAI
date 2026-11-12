@@ -483,7 +483,7 @@ func (h *ConfigHandler) GetTools(c *gin.Context) {
 	roleName := c.Query("role")
 	var roleToolsSet map[string]bool // 角色配置的工具集合
 	var roleUsesAllTools bool = true // 角色是否使用所有工具（默认角色）
-	if roleName != "" && roleName != "默认" && roles != nil {
+	if roleName != "" && roleName != "Default" && roles != nil {
 		if role, exists := roles[roleName]; exists && role.Enabled {
 			if len(role.Tools) > 0 {
 				// 角色配置了工具列表，只使用这些工具

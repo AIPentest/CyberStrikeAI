@@ -36,7 +36,7 @@ func main() {
 		os.Exit(code)
 	}
 
-	// 环境变量兼容（便于 systemd/docker 等不传参场景）
+	// Environment variable compatibility (for scenarios that do not pass arguments, such as systemd/docker)
 	if *httpsBootstrap && *httpBootstrap {
 		fmt.Fprintln(os.Stderr, "--http and --https cannot be used together")
 		os.Exit(2)
@@ -48,7 +48,7 @@ func main() {
 		}
 	}
 
-	// 加载配置
+	// Load configuration
 	cp := strings.TrimSpace(*configPath)
 	if cp == "" {
 		cp = "config.yaml"
@@ -118,7 +118,7 @@ func main() {
 		HTTPRedirect: scheme == "https" && config.ServerHTTPRedirectEnabled(&cfg.Server),
 	})
 
-	// MCP 启用且 auth_header_value 为空时，自动生成随机密钥并写回配置
+	// When MCP is enabled and auth_header_value is empty, automatically generate a random key and write it back to the config
 	if err := config.EnsureMCPAuth(cp, cfg); err != nil {
 		fmt.Printf("Failed to configure MCP authentication: %v\n", err)
 		return
@@ -127,7 +127,7 @@ func main() {
 		config.PrintMCPConfigJSON(cfg.MCP)
 	}
 
-	// 初始化日志
+	// Initialize logging
 	log := logger.New(cfg.Log.Level, cfg.Log.Output, logger.DiagnosticOptions{
 		Dir:           cfg.Log.DiagnosticDir,
 		Disabled:      cfg.Log.DiagnosticDisabled,
@@ -136,46 +136,46 @@ func main() {
 	defer log.Sync()
 
 	if err := configureProcessIsolation(cfg); err != nil {
-		log.Fatal("进程隔离初始化失败", "error", err)
+		log.Fatal("Process isolation initialization failed", "error", err)
 	}
 
 	probeCtx, probeCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	backend, probeErr := processguard.Check(probeCtx)
 	probeCancel()
 	if probeErr != nil {
-		log.Fatal("进程隔离启动检查失败", "error", probeErr)
+		log.Fatal("Process isolation startup check failed", "error", probeErr)
 	}
-	log.Info("任务进程隔离已就绪", zap.String("backend", backend))
+	log.Info("Task process isolation ready", zap.String("backend", backend))
 
-	// 创建可取消的根 context，用于优雅关闭
+	// Create a cancelable root context for graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// 监听系统信号
+	// Listen for system signals
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	// 创建应用
+	// Create the application
 	application, err := app.New(cfg, log, cp)
 	if err != nil {
-		log.Fatal("应用初始化失败", "error", err)
+		log.Fatal("Application initialization failed", "error", err)
 	}
 
-	// 在后台监听信号
+	// Listen for signals in the background
 	go func() {
 		sig := <-sigCh
-		log.Info("收到系统信号，开始优雅关闭: " + sig.String())
+		log.Info("Received system signal, starting graceful shutdown: " + sig.String())
 		application.Shutdown()
 		cancel()
 	}()
 
-	// 启动服务器（传入 context 以支持优雅关闭）
+	// Start the server (pass in context to support graceful shutdown)
 	if err := application.RunWithContext(ctx); err != nil {
-		// context 取消导致的关闭不视为错误
+		// A shutdown caused by context cancellation is not treated as an error
 		if ctx.Err() != nil {
-			log.Info("服务器已优雅关闭")
+			log.Info("Server shut down gracefully")
 		} else {
-			log.Fatal("服务器启动失败", "error", err)
+			log.Fatal("Server failed to start", "error", err)
 		}
 	}
 }

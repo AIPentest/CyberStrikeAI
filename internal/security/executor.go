@@ -1471,7 +1471,7 @@ func (e *Executor) buildInputSchema(toolConfig *config.ToolConfig) map[string]in
 	return schema
 }
 
-// convertToOpenAIType 将配置中的类型转换为OpenAI/JSON Schema标准类型
+// convertToOpenAIType converts the type in the config to a standard OpenAI/JSON Schema type
 func (e *Executor) convertToOpenAIType(configType string) string {
 	// 空或 null 类型统一视为 string，避免非法 schema 导致工具调用失败
 	if strings.TrimSpace(configType) == "" {

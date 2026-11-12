@@ -1,26 +1,26 @@
 package openai
 
-// eino_sse_sanitizer.go 解决 Eino 走 meguminnnnnnnnn/go-openai SDK 时，
-// 中转站心跳/SSE 控制行累计 > 300 行触发 ErrTooManyEmptyStreamMessages
-// （报错文案: "stream has sent too many empty messages"）的问题。
+// eino_sse_sanitizer.go Resolves the case where Eino goes through the meguminnnnnnnnn/go-openai SDK,
+// A relay station's heartbeat/SSE control lines accumulating to > 300 lines triggers ErrTooManyEmptyStreamMessages
+// (Error message text: "stream has sent too many empty messages")the issue of.
 //
-// 触发链路:
-//   einoopenai.NewChatModel
-//     → eino-ext/libs/acl/openai → meguminnnnnnnnn/go-openai
-//     → streamReader.processLines() 对所有非 "data:" 行计数, > 300 即抛错。
+// Trigger path:
+// einoopenai.NewChatModel
+// → eino-ext/libs/acl/openai → meguminnnnnnnnn/go-openai
+// → streamReader.processLines() For all non- "data:" Line count; it throws once it exceeds 300.
 //
-// 中转站常见的非 data: 行（合法 SSE 但 SDK 不接受）:
-//   ":" / ": keepalive" / ": ping" / "event: ping" / "retry: 3000"
-//   以及思考型模型 prefill 期间穿插的大量心跳。
+// Non-data: lines common to relay stations (valid SSE but not accepted by the SDK):
+// ":" / ": keepalive" / ": ping" / "event: ping" / "retry: 3000"
+// and the large number of heartbeats interleaved during a reasoning model's prefill.
 //
-// 兜底策略: 在 HTTP transport 层把响应 Body 包一层 reader, 只放行 "data:"
-// 开头的行, 把心跳/注释/事件类型行就地吞掉。下游 SDK 永远见不到非 data: 行,
-// 计数器始终为 0, 该错误不可能再发生。
+// Fallback strategy: wrap the response Body in a reader at the HTTP transport layer, passing through only "data:"
+// lines, swallowing heartbeat/comment/event-type lines in place. The downstream SDK never sees a non-data: line,
+// The counter is always 0, so this error can no longer occur.
 //
-// 该层对调用方完全透明:
-//   - 仅当响应 Content-Type 是 text/event-stream 时介入；普通 JSON 响应原样透传
-//   - data: payload 仅补齐 DeepSeek 缓存用量字段，其余内容原样透传
-//   - 上游真断流 (EOF / connection reset / context cancel) 原样透传
+// This layer is completely transparent to the caller:
+// - Only intervenes when the response Content-Type is text/event-stream; plain JSON responses are passed through verbatim
+// - data: payload Only fills in the DeepSeek cache-usage field; everything else is passed through verbatim
+// - A genuine upstream stream end (EOF / connection reset / context cancel) is passed through verbatim
 
 import (
 	"bufio"
@@ -31,12 +31,12 @@ import (
 )
 
 const (
-	// einoSSEReaderBufSize 给 bufio 一个较大的初始缓冲, 避免单行大 JSON chunk
-	// (含工具调用 arguments / reasoning_content) 频繁触发缓冲区扩容。
+	// einoSSEReaderBufSize Gives bufio a large initial buffer, to avoid a single large line JSON chunk
+	// (containing tool-call arguments / reasoning_content) frequently triggers buffer growth.
 	einoSSEReaderBufSize = 64 * 1024
 )
 
-// einoSSESanitizingRoundTripper 包装下游 RoundTripper, 对 SSE 响应做行级清洗。
+// einoSSESanitizingRoundTripper Wraps the downstream RoundTripper, performing line-level cleaning on SSE responses.
 type einoSSESanitizingRoundTripper struct {
 	base http.RoundTripper
 }
@@ -53,8 +53,8 @@ func (rt *einoSSESanitizingRoundTripper) RoundTrip(req *http.Request) (*http.Res
 	return resp, nil
 }
 
-// isSSEResponse 仅对 200 + text/event-stream 的响应做清洗;
-// 错误响应由独立的 einoSSEErrorRoundTripper 处理，此层不改动。
+// isSSEResponse Only for 200 + text/event-stream cleans the response of;
+// Error responses are handled by the separate einoSSEErrorRoundTripper; this layer does not modify them.
 func isSSEResponse(resp *http.Response) bool {
 	if resp.StatusCode != http.StatusOK {
 		return false
@@ -64,16 +64,16 @@ func isSSEResponse(resp *http.Response) bool {
 		return false
 	}
 	ct = strings.ToLower(strings.TrimSpace(ct))
-	// 兼容 "text/event-stream", "text/event-stream; charset=utf-8" 等。
+	// Compatible "text/event-stream", "text/event-stream; charset=utf-8" etc..
 	return strings.HasPrefix(ct, "text/event-stream")
 }
 
-// einoSSESanitizingBody 是包装后的响应体: 只放行 data: 行, 其它行吞掉。
+// einoSSESanitizingBody is the wrapped response body: only data: lines are passed through, other lines are swallowed.
 type einoSSESanitizingBody struct {
 	upstream io.ReadCloser
 	reader   *bufio.Reader
-	pending  []byte // 已清洗、待返回给下游的字节 (永远以 \n 结尾的完整 data: 行)
-	err      error  // upstream 终态错误 (io.EOF 或网络错误)
+	pending  []byte // The cleaned bytes to be returned downstream (always ending with \n a complete data: line ending with)
+	err      error  // upstream A terminal-state error (io.EOF or a network error)
 }
 
 func newEinoSSESanitizingBody(body io.ReadCloser) *einoSSESanitizingBody {
@@ -93,9 +93,9 @@ func (b *einoSSESanitizingBody) Read(p []byte) (int, error) {
 		return n, nil
 	}
 
-	// 从上游读, 直到攒出一行 data: 或拿到终态。
-	// 单次循环可能丢弃任意多行心跳, 但只放行至多一行 data: 后退出,
-	// 避免一次 Read 阻塞过久 / pending 缓冲过大。
+	// Reads from upstream until it accumulates a data: line or reaches a terminal state.
+	// A single loop may discard any number of heartbeat lines, but passes through at most one data: line and then exits,
+	// Avoids a single Read blocking too long / the pending buffer growing too large.
 	for b.err == nil {
 		line, err := b.reader.ReadBytes('\n')
 		if len(line) > 0 {
@@ -114,8 +114,8 @@ func (b *einoSSESanitizingBody) Read(p []byte) (int, error) {
 				}
 				break
 			}
-			// 非 data: 行 (空行 / ":" 注释 / event: / retry: / id: / 任何裸文本)
-			// 全部吞掉, 不向下游透出, 继续循环读下一行。
+			// a non-data: line (an empty line / ":" comments / event: / retry: / id: / any bare text)
+			// Swallows them all, does not pass them downstream, and continues the loop to read the next line.
 		}
 		if err != nil {
 			b.err = err
@@ -135,17 +135,17 @@ func (b *einoSSESanitizingBody) Close() error {
 	return b.upstream.Close()
 }
 
-// isPassThroughSSELine 判定该行是否需要原样放行给下游 SDK。
-// 仅 "data:" (大小写不敏感, 可有任意前导空白) 开头的行需要保留。
-// 注意: 不能用 TrimSpace 去尾部换行后再判, 否则 "  data: x" 会被误判;
-// 我们只 trim 前导空白, 与 SDK 内部 TrimSpace 后再正则 ^data:\s* 的语义一致。
+// isPassThroughSSELine Decides whether the line should be passed through verbatim to downstream SDK.
+// only "data:" (case-insensitive, with any leading whitespace) lines must be kept.
+// Note: you cannot use TrimSpace to strip the trailing newline before checking, otherwise " data: x" would be misjudged;
+// We only trim leading whitespace, matching the SDK's internal TrimSpace-then-regex ^data:\s* has consistent semantics with.
 func isPassThroughSSELine(line []byte) bool {
 	trimmed := bytes.TrimLeft(line, " \t")
 	if len(trimmed) < 5 {
 		return false
 	}
-	// 大小写不敏感比较前 5 字节是否为 "data:"。SSE 规范要求字段名小写,
-	// 但宽松匹配可以兼容个别中转站的非规范实现。
+	// Case-insensitively compares whether the first 5 bytes are "data:".SSE The spec requires field names to be lowercase,
+	// but lenient matching accommodates the non-standard implementations of certain relay stations.
 	return (trimmed[0] == 'd' || trimmed[0] == 'D') &&
 		(trimmed[1] == 'a' || trimmed[1] == 'A') &&
 		(trimmed[2] == 't' || trimmed[2] == 'T') &&

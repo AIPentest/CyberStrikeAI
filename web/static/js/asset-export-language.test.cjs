@@ -11,7 +11,7 @@ function context(locale) {
     vm.runInContext(source.slice(source.indexOf('function assetRiskPresentation('), source.indexOf('function assetOwnershipMarkup(')), c);
     return c;
 }
-for (const locale of ['zh-CN', 'en-US', 'ru-RU']) {
+for (const locale of ['en-US', 'ru-RU']) {
     test(locale + ' export headers and enum values can be imported again', () => {
         const c = context(locale);
         const columns = vm.runInContext('ASSET_IMPORT_COLUMNS.slice()', c);
@@ -37,7 +37,7 @@ test('CSV and XLSX both use localized headers and values', () => {
     assert.match(exportFunction, /XLSX\.utils\.aoa_to_sheet/);
     assert.match(exportFunction, /assetExportValue\(key, row\[key\]\)/);
 });
-for (const locale of ['zh-CN', 'en-US', 'ru-RU']) {
+for (const locale of ['en-US', 'ru-RU']) {
     test(locale + ' actual CSV and XLSX exports round trip through the import parser', async () => {
         const c = context(locale);
         Object.assign(c, { URL, Blob, document: { getElementById: () => null }, alert: message => { throw new Error(message); } });

@@ -7,7 +7,6 @@ const styles = fs.readFileSync('web/static/css/style.css', 'utf8');
 const chat = fs.readFileSync('web/static/js/chat.js', 'utf8');
 const html = fs.readFileSync('web/templates/index.html', 'utf8');
 const rbac = fs.readFileSync('web/static/js/rbac-guards.js', 'utf8');
-const zh = fs.readFileSync('web/static/i18n/zh-CN.json', 'utf8');
 const en = fs.readFileSync('web/static/i18n/en-US.json', 'utf8');
 
 function functionSource(source, name, nextName) {
@@ -111,7 +110,6 @@ test('项目文件夹首批显示 6 个并通过加载更多按批追加', () =>
     assert.match(render, /chatProjectFolderVisibleCount = selectedIndex \+ 1/);
     assert.match(search, /renderChatProjectFolders\(projectsCacheAll\)/);
     assert.match(styles, /\.project-folders-load-more\s*\{/);
-    assert.match(zh, /"projectFoldersLoadMoreRemaining": "加载更多，剩余 \{\{count\}\} 个项目"/);
     assert.match(en, /"projectFoldersLoadMoreRemaining": "Load more, \{\{count\}\} projects remaining"/);
 });
 
@@ -125,7 +123,6 @@ test('对话悬浮预览显示本地年月日时分', () => {
     assert.match(age, /date\.getMinutes\(\)/);
     assert.match(age, /chat\.conversationPreviewDateTime/);
     assert.doesNotMatch(age, /elapsedMs|conversationPreviewDays|conversationPreviewHours/);
-    assert.match(zh, /"conversationPreviewDateTime": "\{\{year\}\}年\{\{month\}\}月\{\{day\}\}日 \{\{hour\}\}:\{\{minute\}\}"/);
     assert.match(en, /"conversationPreviewDateTime": "\{\{year\}\}-\{\{month\}\}-\{\{day\}\} \{\{hour\}\}:\{\{minute\}\}"/);
 });
 

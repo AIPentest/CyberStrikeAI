@@ -270,8 +270,8 @@ func (h *RoleHandler) DeleteRole(c *gin.Context) {
 		return
 	}
 
-	// 不允许删除"默认"角色
-	if roleName == "默认" {
+	// 不允许删除"Default"角色
+	if roleName == "Default" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "不能删除默认角色"})
 		return
 	}
@@ -335,7 +335,7 @@ func (h *RoleHandler) saveConfig() error {
 		rolesDir = filepath.Join(configDir, rolesDir)
 	}
 
-	// 确保目录存在
+	// Ensure the directory exists
 	if err := os.MkdirAll(rolesDir, 0755); err != nil {
 		return fmt.Errorf("创建角色目录失败: %w", err)
 	}

@@ -8,8 +8,8 @@ import (
 	"github.com/skip2/go-qrcode"
 )
 
-// QRCodeDataURL 将扫码内容（一般为 liteapp 链接）编码为 PNG data URL，供 Web 端展示。
-// qrcode_img_content 不是图片直链，不能用作 <img src>。
+// QRCodeDataURL Encodes the QR-code content (usually a liteapp link) as a PNG data URL for display on the web side.
+// qrcode_img_content is not a direct image link and cannot be used as <img src>.
 func QRCodeDataURL(content string, size int) (string, error) {
 	content = strings.TrimSpace(content)
 	if content == "" {

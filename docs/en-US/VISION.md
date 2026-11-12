@@ -1,6 +1,6 @@
 # Vision Analysis
 
-[中文](../zh-CN/VISION.md)
+[Chinese](../zh-CN/VISION.md)
 
 Vision analysis registers the `analyze_image` MCP tool when enabled. It is intended for screenshots, captchas, UI states, and image evidence in authorized workflows.
 
