@@ -12,10 +12,15 @@
         i18nReadyResolve = resolve;
     });
 
+    const SUPPORTED_LANGS = ['en-US', 'ru-RU', 'ar-SA'];
+
     function detectInitialLang() {
         try {
             const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
+            // Only honor a stored preference that still ships. A retired locale
+            // (e.g. a stale zh-CN) falls through to the default so the app never
+            // boots pointing at a language pack that no longer exists.
+            if (stored && SUPPORTED_LANGS.indexOf(stored) !== -1) {
                 return stored;
             }
         } catch (e) {
