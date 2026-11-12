@@ -21,6 +21,7 @@ import (
 	"cyberstrike-ai/internal/c2"
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/database"
+	"cyberstrike-ai/internal/egress"
 	"cyberstrike-ai/internal/einoobserve"
 	"cyberstrike-ai/internal/handler"
 	"cyberstrike-ai/internal/hitl"
@@ -75,6 +76,47 @@ type App struct {
 	c2Handler          *handler.C2Handler        // C2 REST (synchronized with the Manager lifecycle)
 	storageHandler     *handler.StorageHandler   // runtime-workspace usage statistics and garbage cleanup
 	auditSvc           *audit.Service
+	egressGateway      *egress.Gateway // outbound anonymization gateway (hide the operator's real IP)
+}
+
+// egressConfigFromAppConfig translates the user-facing EgressConfig into the
+// self-contained egress.Config consumed by the gateway.
+func egressConfigFromAppConfig(c *config.EgressConfig) egress.Config {
+	var dialTimeout time.Duration
+	if c.DialTimeoutSec > 0 {
+		dialTimeout = time.Duration(c.DialTimeoutSec) * time.Second
+	}
+	return egress.Config{
+		Enabled:         c.Enabled,
+		Mode:            egress.Mode(c.Mode),
+		Address:         c.Address,
+		Username:        c.Username,
+		Password:        c.Password,
+		FailClosed:      c.FailClosed,
+		DNSThroughProxy: c.DNSThroughProxy,
+		DialTimeout:     dialTimeout,
+	}
+}
+
+// startEgressLeakCheck runs a one-shot, non-blocking pre-flight that confirms
+// the platform's outbound traffic is not leaving on the real IP. It only
+// warns; it never blocks startup, so a transient probe failure does not take
+// the server down.
+func startEgressLeakCheck(gateway *egress.Gateway, log *logger.Logger) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		rep, err := gateway.VerifyNoLeak(ctx, nil)
+		if err != nil {
+			log.Logger.Warn("egress leak self-test could not complete", zap.Error(err))
+			return
+		}
+		if rep.Leaking {
+			log.Logger.Warn("egress leak self-test: REAL IP MAY BE EXPOSED", zap.String("detail", rep.Detail))
+			return
+		}
+		log.Logger.Info("egress leak self-test passed", zap.String("detail", rep.Detail))
+	}()
 }
 
 // New creates a new application
@@ -85,6 +127,21 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	}
 	if err := multiagent.InitADK(); err != nil {
 		return nil, fmt.Errorf("initialize Eino ADK: %w", err)
+	}
+
+	// Build the outbound privacy gateway. When enabled, all outbound traffic
+	// routes through the configured proxy so the operator's real IP is hidden.
+	gateway, err := egress.New(egressConfigFromAppConfig(&cfg.Egress))
+	if err != nil {
+		return nil, fmt.Errorf("initialize egress gateway: %w", err)
+	}
+	if gateway.Enabled() {
+		log.Logger.Info("egress privacy gateway active",
+			zap.String("mode", string(gateway.Mode())),
+			zap.Bool("fail_closed", gateway.FailClosed()))
+		startEgressLeakCheck(gateway, log)
+	} else {
+		log.Logger.Warn("egress privacy gateway disabled: outbound traffic uses the real IP")
 	}
 
 	gin.SetMode(gin.ReleaseMode)
@@ -527,6 +584,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 		c2Handler:          c2Handler,
 		storageHandler:     storageHandler,
 		auditSvc:           auditSvc,
+		egressGateway:      gateway,
 	}
 	// Lark/DingTalk long-lived connections (no public network needed), started in the background when enabled; later restarted via RestartRobotConnections when the frontend applies configuration
 	app.startRobotConnections()
