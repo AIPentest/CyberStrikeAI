@@ -97,7 +97,7 @@
                     <h1 class="brand-wordmark brand-wordmark--lg">
                         <span class="brand-wordmark__core">CyberStrike</span><span class="brand-wordmark__ai">AI</span>
                     </h1>
-                    <span class="version-badge" data-i18n="header.version" data-i18n-attr="title" data-i18n-skip-text="true" title="Current version">{{.Version}}</span>
+                    <span class="version-badge" data-i18n="header.version" data-i18n-attr="title" data-i18n-skip-text="true" title="Current version">[[.Version]]</span>
                 </div>
                 <div class="header-right">
                     <div class="header-actions">
@@ -4589,7 +4589,7 @@
                                             </div>
                                             <div class="form-group">
                                                 <label for="robot-allowed-external-users">Allowed platform senders ID</label>
-                                                <textarea id="robot-allowed-external-users" rows="4" placeholder="One per line; send it in the bot"Identity"or obtain it via whoami"></textarea>
+                                                <textarea id="robot-allowed-external-users" rows="4" placeholder="One per line; send the bot the Identity command or obtain it via whoami"></textarea>
                                                 <small class="form-hint">Not supported * wildcard. In service-account mode, only the real senders listed here can execute.</small>
                                             </div>
                                         </div>
@@ -7078,7 +7078,7 @@ Enumerate subdomains of example.com" style="font-family: 'Monaco', 'Menlo', 'Ubu
     <script src="/static/js/tasks.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/workflow-package-client.js"></script>
     <script src="/static/js/workflows.js"></script>
-    <script src="/static/js/update.js?v={{.Version}}"></script>
+    <script src="/static/js/update.js?v=[[.Version]]"></script>
     <script src="/static/js/roles.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/rbac.js"></script>
     <script src="/static/js/c2.js?v=20261027-pagination-custom-select"></script>

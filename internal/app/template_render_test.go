@@ -8,7 +8,9 @@ import (
 )
 
 func TestFrontendTemplatesRender(t *testing.T) {
-	templates, err := template.ParseGlob(filepath.Join("..", "..", "web", "templates", "*"))
+	// Mirror production: setupRoutes loads templates with [[ ]] delimiters so
+	// client-side {{...}} i18n placeholders pass through untouched.
+	templates, err := template.New("").Delims("[[", "]]").ParseGlob(filepath.Join("..", "..", "web", "templates", "*"))
 	if err != nil {
 		t.Fatalf("server template initialization fails: %v", err)
 	}

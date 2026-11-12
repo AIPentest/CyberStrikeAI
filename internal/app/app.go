@@ -1560,6 +1560,10 @@ func setupRoutes(
 
 	// Static files
 	router.Static("/static", "./web/static")
+	// Use [[ ]] as the server-side template delimiters so the many client-side
+	// i18n placeholders written as {{count}}, {{target}}, etc. pass through to
+	// the browser untouched instead of being parsed as Go template actions.
+	router.Delims("[[", "]]")
 	router.LoadHTMLGlob("web/templates/*")
 
 	// Frontend pages
