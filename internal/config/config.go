@@ -61,14 +61,14 @@ type Config struct {
 // With fail_closed set, traffic is blocked outright if the proxy is
 // unreachable instead of leaking out on the real interface.
 type EgressConfig struct {
-	Enabled         bool   `yaml:"enabled" json:"enabled"`                                           // Master switch for the anonymizing gateway
-	Mode            string `yaml:"mode,omitempty" json:"mode,omitempty"`                             // socks5 | tor | http | https | direct
-	Address         string `yaml:"address,omitempty" json:"address,omitempty"`                       // Proxy endpoint as host:port (empty + mode=tor => 127.0.0.1:9050)
-	Username        string `yaml:"username,omitempty" json:"username,omitempty"`                     // Optional proxy username
-	Password        string `yaml:"password,omitempty" json:"password,omitempty"`                     // Optional proxy password
-	FailClosed      bool   `yaml:"fail_closed,omitempty" json:"fail_closed,omitempty"`               // Block outbound traffic if the proxy is down (kill-switch)
-	DNSThroughProxy bool   `yaml:"dns_through_proxy,omitempty" json:"dns_through_proxy,omitempty"`   // Resolve hostnames at the proxy so DNS does not leak (SOCKS5/Tor)
-	DialTimeoutSec  int    `yaml:"dial_timeout_sec,omitempty" json:"dial_timeout_sec,omitempty"`     // Per-dial timeout in seconds (0 => default 30s)
+	Enabled         bool   `yaml:"enabled" json:"enabled"`                                         // Master switch for the anonymizing gateway
+	Mode            string `yaml:"mode,omitempty" json:"mode,omitempty"`                           // socks5 | tor | http | https | direct
+	Address         string `yaml:"address,omitempty" json:"address,omitempty"`                     // Proxy endpoint as host:port (empty + mode=tor => 127.0.0.1:9050)
+	Username        string `yaml:"username,omitempty" json:"username,omitempty"`                   // Optional proxy username
+	Password        string `yaml:"password,omitempty" json:"password,omitempty"`                   // Optional proxy password
+	FailClosed      bool   `yaml:"fail_closed,omitempty" json:"fail_closed,omitempty"`             // Block outbound traffic if the proxy is down (kill-switch)
+	DNSThroughProxy bool   `yaml:"dns_through_proxy,omitempty" json:"dns_through_proxy,omitempty"` // Resolve hostnames at the proxy so DNS does not leak (SOCKS5/Tor)
+	DialTimeoutSec  int    `yaml:"dial_timeout_sec,omitempty" json:"dial_timeout_sec,omitempty"`   // Per-dial timeout in seconds (0 => default 30s)
 }
 
 // UpdateConfig 一键更新的更新源（可选）：一个仓库地址，更新跟随该仓库的默认分支。
