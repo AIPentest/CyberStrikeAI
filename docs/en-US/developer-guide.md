@@ -153,7 +153,7 @@ match the files on disk, recovery refuses to overwrite them.
 ### Switching to the new binary
 
 On macOS and Linux, when started from the `cyberstrike-ai` binary alongside its config, the console
-sends `restart: true` by default. After a successful build and binary swap, the service closes its
+sends `restart: true` as soon as you click **One-Click Update**. After a successful build and binary swap, the service closes its
 application resources and executes the new binary with the same PID, arguments, environment and
 working directory. Installations that cannot switch in place return `400` on an explicit restart
 request. CLI updates and REST updates without `restart: true` only replace files on disk.
@@ -163,11 +163,12 @@ the binary identity captured at startup (size + nanosecond mtime) with what is o
 update, a rollback or a CLI run swapped the file without a restart, `needsRestart` is true,
 `binaryBuiltAt` says when it was built, and the console grows a persistent banner with **Restart now**
 (`POST /api/system/update/restart`; `409 nothing_pending` when there is nothing to activate, `409`
-while a job runs, `400` when unavailable). The console uses the `autoRestart` field as its default.
+while a job runs, `400` when unavailable). The console checks `canRestart` before requesting automatic activation.
 
 **The page reloads automatically.** The console polls the session validation endpoint every two
-seconds for the new boot marker. Sessions live in memory, so users sign in again after the switch.
-Leaving the console stops the polling.
+seconds for the new boot marker. When both versions support session handoff, existing sessions keep
+their original expiration and permissions are loaded from the current RBAC store. The first upgrade
+from an older version may still require sign-in. Leaving the console stops the polling.
 
 ## Adding a Business Module
 

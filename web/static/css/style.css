@@ -47205,25 +47205,6 @@ html[data-theme="dark"] { --tool-blocked-color: #f4bc62; }
     margin: 10px 0;
 }
 
-.update-restart-choice {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    font-size: 13px;
-    color: var(--text-primary);
-    cursor: pointer;
-    margin: 4px 0;
-}
-
-.update-restart-choice input {
-    margin-top: 2px;
-}
-
-.update-restart-preview {
-    border-left: 3px solid var(--border-color);
-    padding-left: 10px;
-}
-
 .update-blocker-list {
     margin: 6px 0 0;
     padding-left: 18px;
