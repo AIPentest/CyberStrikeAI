@@ -134,7 +134,7 @@ func TestPiDeleteTurnExcludesDeletedContentFromNextModelRequest(t *testing.T) {
 	}
 }
 
-func piTestConfig(t *testing.T) *config.Config {
+func piTestWorkerPath(t *testing.T) string {
 	t.Helper()
 	if _, err := exec.LookPath("node"); err != nil {
 		t.Skip("Node not installed")
@@ -146,6 +146,12 @@ func piTestConfig(t *testing.T) *config.Config {
 	if _, err = os.Stat(worker); err != nil {
 		t.Skip("build runtime/pi before SDK integration tests")
 	}
+	return worker
+}
+
+func piTestConfig(t *testing.T) *config.Config {
+	t.Helper()
+	worker := piTestWorkerPath(t)
 	cfg := &config.Config{AgentRuntime: config.AgentRuntimeConfig{Engine: "pi", WorkerPath: worker, SessionDir: t.TempDir()}, OpenAI: config.OpenAIConfig{Provider: "openai", APIKey: "fixture-key", Model: "fixture", MaxTotalTokens: 32000, MaxCompletionTokens: 1024}}
 	cfg.Agent.MaxIterations = 8
 	cfg.MultiAgent.Skills.Disable = true
@@ -248,6 +254,8 @@ func TestPiDeepSeekOutputBudgetAndUsage(t *testing.T) {
 }
 
 func TestPiDeepSeekEconomyDiscoversToolsAndReadsFullEvidence(t *testing.T) {
+	// Skip the parent too: its final assertion compares measurements from both subtests.
+	piTestWorkerPath(t)
 	full := strings.Repeat("fixture output line with details\n", 150) + "MIDDLE_EVIDENCE\n" + strings.Repeat("trailing output line with details\n", 150) + "end"
 	var baselineBytes, optimizedBytes int
 	for _, profile := range []string{"custom", "auto"} {
