@@ -18,6 +18,19 @@ import (
 )
 
 const updateSessionsEnv = "CYBERSTRIKE_UPDATE_SESSIONS_FD"
+const updateActivationEnv = "CYBERSTRIKE_UPDATE_ACTIVATION"
+
+// TakeUpdateActivation identifies the update that launched this process.
+// A fresh start by a supervisor has no activation ID.
+func TakeUpdateActivation() string {
+	value := os.Getenv(updateActivationEnv)
+	_ = os.Unsetenv(updateActivationEnv)
+	pid, id, ok := strings.Cut(value, ":")
+	if !ok || pid != strconv.Itoa(os.Getpid()) {
+		return ""
+	}
+	return id
+}
 
 // TakeUpdateSessionHandoff claims the descriptor left by an in-place exec.
 // Do this before startup runs any subprocesses.
@@ -61,7 +74,7 @@ func writeUpdateSessionHandoff(payload []byte) (*os.File, error) {
 // updateRestart only replaces the executable this instance was started from.
 // For example, go run and installs with a separate config directory must not
 // start a different executable just because the updater wrote one there.
-func (a *App) updateRestart(root string) func() (func(), error) {
+func (a *App) updateRestart(root string) func(string) (func(), error) {
 	dir, err := filepath.Abs(root)
 	if err != nil {
 		return nil
@@ -79,7 +92,7 @@ func (a *App) updateRestart(root string) func() (func(), error) {
 	if err != nil || self != path {
 		return nil
 	}
-	return func() (func(), error) {
+	return func(activationID string) (func(), error) {
 		info, err := os.Lstat(path)
 		if err != nil {
 			return nil, err
@@ -95,7 +108,7 @@ func (a *App) updateRestart(root string) func() (func(), error) {
 			// Keep the same PID, arguments, environment and working directory.
 			// This works both in a terminal and under an existing supervisor.
 			exec := func(payload []byte) error {
-				env := os.Environ()
+				env := append(os.Environ(), fmt.Sprintf("%s=%d:%s", updateActivationEnv, os.Getpid(), activationID))
 				if len(payload) != 0 {
 					f, err := writeUpdateSessionHandoff(payload)
 					if err == nil {

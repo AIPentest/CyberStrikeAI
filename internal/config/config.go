@@ -695,7 +695,7 @@ type ServerConfig struct {
 	// TLSCertPath / TLSKeyPath 非空时从 PEM 文件加载证书（生产环境推荐）。
 	TLSCertPath string `yaml:"tls_cert_path,omitempty" json:"tls_cert_path,omitempty"`
 	TLSKeyPath  string `yaml:"tls_key_path,omitempty" json:"tls_key_path,omitempty"`
-	// TLSAutoSelfSign 为 true 且未配置有效证书路径时，启动时生成内存自签证书（仅本地/测试；浏览器会提示不受信任）。
+	// TLSAutoSelfSign 为 true 且未配置证书路径时，生成并复用安装目录中的自签证书（仅本地/测试）。
 	TLSAutoSelfSign bool `yaml:"tls_auto_self_sign,omitempty" json:"tls_auto_self_sign,omitempty"`
 	// TLSHTTPRedirect 为 false 时禁用 HTTP→HTTPS 跳转；省略或为 true 且已启用 HTTPS 时，明文 HTTP 访问将 308 跳转到 HTTPS（同端口嗅探分流）。
 	TLSHTTPRedirect *bool `yaml:"tls_http_redirect,omitempty" json:"tls_http_redirect,omitempty"`

@@ -96,6 +96,7 @@ function envelope(status, job, canRestart, source, flags) {
         supervised: !!(flags && flags.supervised),
         autoRestart: flags?.autoRestart,
         bootID: flags?.bootID,
+        activationTracking: flags?.activationTracking,
         needsRestart: !!(flags && flags.needsRestart),
         binaryBuiltAt: (flags && flags.binaryBuiltAt) || '',
         source: source || emptySource,
@@ -316,7 +317,11 @@ function harness(options) {
             if (typeof answer === 'object') {
                 return Promise.resolve({
                     status: answer.status,
-                    headers: { get: name => name === 'X-CyberStrike-Boot-ID' ? answer.bootID : null },
+                    headers: { get: name => ({
+                        'X-CyberStrike-Boot-ID': answer.bootID,
+                        'X-CyberStrike-Activation-ID': answer.activationID,
+                        'X-CyberStrike-Build-Revision': answer.revision,
+                    })[name] },
                     json: () => Promise.resolve(answer.body || {}),
                 });
             }
@@ -407,8 +412,8 @@ function harness(options) {
         },
         setConfirm(v) { confirmAnswer = v; },
         liveTimers() { return timers.filter(t => !t.cleared && !t.deferred); },
-        tick() {
-            const live = h.liveTimers();
+        tick(ms) {
+            const live = h.liveTimers().filter(t => ms === undefined || t.ms === ms);
             if (!live.length) throw new Error('no poll timer is armed');
             return live[live.length - 1].fn();
         },
@@ -439,7 +444,7 @@ test('the console lives inside the settings page as its own section', () => {
         'settings-section-update must live inside page-settings');
     assert.match(template, /id="settings-section-update"[\s\S]{0,700}?id="update-console"/);
     assert.match(template, /id="update-console"/);
-    assert.match(template, /<script src="\/static\/js\/update\.js\?v=\{\{\.Version\}\}-auto-switch"><\/script>/);
+    assert.match(template, /<script src="\/static\/js\/update\.js\?v=\{\{\.Version\}\}-activation"><\/script>/);
     assert.match(template, /<div class="settings-section-header update-section-head">/);
     assert.match(template, /<h3 data-i18n="update\.title">/);
 
@@ -825,8 +830,7 @@ test('applying reads the job every 1.5 seconds', async () => {
     assert.ok(apply, 'no apply was posted: ' + h.calls.map(c => c.method + ' ' + c.url));
     assert.deepEqual(JSON.parse(apply.body), { restart: true },
         'the body is one object carrying a restart boolean, not a positional bag');
-    assert.equal(h.liveTimers().length, 1, 'exactly one poller: ' + JSON.stringify(h.timers.map(t => t.ms)));
-    assert.equal(h.liveTimers()[0].ms, 1500, 'progress must be read every 1.5 seconds');
+    assert.deepEqual(h.liveTimers().map(t => t.ms).sort(), [1500, 2000]);
 
     // In the browser the poller runs off the timer; here the test drives the armed callback so the
     // whole progress path is exercised without waiting on wall-clock time.
@@ -836,7 +840,7 @@ test('applying reads the job every 1.5 seconds', async () => {
     assert.deepEqual(h.calls.map(c => c.method + ' ' + c.url), ['GET /api/system/update/job']);
     assert.match(h.html(), /开始拉取更新源/, 'each step line must be rendered as it arrives');
     assert.match(h.html(), /进行中/);
-    assert.equal(h.liveTimers().length, 1);
+    assert.equal(h.liveTimers().filter(t => t.ms === 1500).length, 1);
 
     h.calls.length = 0;
     await h.tick();
@@ -1011,11 +1015,11 @@ test('a 202 that carries an error is not mistaken for success', async () => {
         'a half-finished rollback must not be followed by a victory lap through the status endpoint');
 });
 
-test('leaving the page kills the poller, and reopening arms exactly one', async () => {
+test('leaving the page pauses both timers and returning resumes the accepted update', async () => {
     const h = await harness();
     h.fire('startUpdateApply');
     await h.flush();
-    assert.equal(h.liveTimers().length, 1);
+    assert.equal(h.liveTimers().length, 2);
 
     h.calls.length = 0;
     h.setActive(false);
@@ -1027,7 +1031,7 @@ test('leaving the page kills the poller, and reopening arms exactly one', async 
 
     h.setActive(true);
     await h.api.loadUpdateConsole();
-    assert.equal(h.liveTimers().length, 0, 'a clean open arms nothing');
+    assert.deepEqual(h.liveTimers().map(t => t.ms).sort(), [1500, 2000]);
 
     const busy = await harness({ job: { id: 'upd-3', state: 'running', started: 'x', steps: [] } });
     assert.equal(busy.liveTimers().length, 1, 'opening onto a running job arms the poller');
@@ -1453,8 +1457,54 @@ test('a job poll that dies while the restart is in flight is not a failure', asy
     assert.match(h.html(), /正在重启服务/, 'a dead poll while a restart is requested means the restart is in flight');
     assert.deepEqual(h.toasts.filter(t => t.type === 'error'), [], 'and it must not be toasted as a failure');
 
-    await h.tick();
+    await h.tick(2000);
     await h.flush();
+    assert.equal(h.location.replaced.length, 1);
+});
+
+test('the accepted update reloads even when its final progress response is missed', async () => {
+    const h = await harness({
+        flags: { bootID: 'old', activationTracking: true },
+        responses: {
+            'GET /api/system/update/job': [
+                { body: { job: { ...runningJob, restartRequested: true } } },
+                { body: { job: null } },
+            ],
+        },
+        probes: [
+            { status: 200, bootID: 'old', activationID: '-' },
+            'down',
+            { status: 200, bootID: 'unrelated', activationID: '-' },
+            { status: 200, bootID: 'new', activationID: 'upd-1' },
+        ],
+    });
+    await h.api.startUpdateApply();
+    assert.match(h.html(), /开始拉取更新源/);
+    await h.tick(2000);
+    await h.tick(2000);
+    await h.tick(1500);
+    await h.tick(2000);
+    assert.equal(h.location.replaced.length, 0);
+
+    await h.tick(2000);
+    assert.equal(h.location.replaced.length, 1);
+    assert.match(h.location.replaced[0], /#system-update$/);
+    assert.equal(h.liveTimers().length, 0);
+});
+
+test('a confirmed target commit must match the running build before reloading', async () => {
+    const h = await harness({
+        flags: { bootID: 'old', activationTracking: true },
+        responses: { 'GET /api/system/update/job': [{ body: { job: succeededJob } }] },
+        probes: [
+            { status: 200, bootID: 'new', activationID: 'upd-1', revision: 'a1b2c3d' },
+            { status: 200, bootID: 'new', activationID: 'upd-1', revision: 'f9e8d7c000000' },
+        ],
+    });
+    await h.api.startUpdateApply();
+    await h.tick(2000);
+    assert.equal(h.location.replaced.length, 0);
+    await h.tick(2000);
     assert.equal(h.location.replaced.length, 1);
 });
 
