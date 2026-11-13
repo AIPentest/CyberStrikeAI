@@ -72,9 +72,21 @@ ai:
 | `base_url/api_key/model` | Required. Base URL usually includes a version path such as `/v1`. |
 | `max_total_tokens` | Shared context budget for compression, attack-chain generation, multi-agent summaries, and similar paths. |
 | `max_completion_tokens` | Per-response output cap; default is used when empty. |
+| `context_window` | Runtime context window, or 0 when unknown. Channel saves can fill the detected value and retain a smaller configured window. |
+| `context_profile` | Background policy, default `auto`. Recognized local backends use `local_auto`. Configuration files also accept manual `local`, explicit `economy` savings, and `custom` runtime settings. |
 | `reasoning` | Default reasoning fields for the channel. Gateway support varies; try `mode: off` first when a provider rejects requests. |
 
 The chat page reads saved channels into the “AI Channel” selector. A non-empty request `aiChannelId` selects a channel for that run/session without sending API credentials through the prompt path. Empty `aiChannelId` follows `ai.default_channel`.
+
+### Automatic input savings
+
+DeepSeek endpoints, explicit DeepSeek reasoning profiles and model names containing DeepSeek enable input savings automatically. With at least 16 tools, discovery declares six catalog entries, core tools and explicitly pinned tools. JSON tool results lose formatting whitespace. When an authorized local reader is available, results over 8,000 bytes become previews backed by the full output. Provider-reported reasoning tokens are shown separately within completion usage.
+
+Channel saves and connection tests probe metadata from Ollama, llama.cpp, LM Studio, vLLM and oMLX. oMLX is identified by `owned_by: omlx`. Its matching model or alias in `/v1/models/status` supplies the preferred window, with the model list as a fallback when status access is unavailable. Generic compatible responses and private IP addresses alone do not select local optimization. Failed probes allow the channel to be saved.
+
+The local input budget is capped at 60% of the window and 131,072 tokens, with output room reserved. An unknown window uses 32,768 tokens. Local policies tighten tool discovery and result limits, and use the `max_tokens` output field. New channels reporting only an architecture maximum retain an unknown runtime window. Changing a model or endpoint clears the previous automatic classification. These policies are applied in the background.
+
+Compare complete tasks using input, cache hits, output and call counts to measure savings. Tool discovery and evidence readback may add calls. Explicit configuration-file overrides remain supported.
 
 ### Disabling reasoning by provider and model
 

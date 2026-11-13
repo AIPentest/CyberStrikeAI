@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,9 +18,11 @@ import (
 	"time"
 
 	"cyberstrike-ai/internal/agent"
+	"cyberstrike-ai/internal/authctx"
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/database"
 	"cyberstrike-ai/internal/mcp"
+	"cyberstrike-ai/internal/mcp/builtin"
 	"go.uber.org/zap"
 )
 
@@ -164,6 +168,190 @@ func piReply(w http.ResponseWriter, tool, id string, args map[string]any, text s
 		fmt.Fprintf(w, "data: %s\n\n", b)
 	}
 	fmt.Fprint(w, "data: [DONE]\n\n")
+}
+
+func TestPiDeepSeekOutputBudgetAndUsage(t *testing.T) {
+	for _, tc := range []struct {
+		profile, mode, thinking, effort string
+		reasoning                       int
+	}{
+		{profile: "deepseek", mode: "auto", thinking: "enabled", effort: "low", reasoning: 6},
+		{profile: "deepseek_compat", mode: "off", thinking: "disabled"},
+	} {
+		t.Run(tc.profile, func(t *testing.T) {
+			cfg := piTestConfig(t)
+			cfg.OpenAI.Model = "deepseek-flash"
+			cfg.OpenAI.Reasoning = config.OpenAIReasoningConfig{Profile: tc.profile, Mode: tc.mode, Effort: "low"}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body struct {
+					MaxTokens           int    `json:"max_tokens"`
+					MaxCompletionTokens *int   `json:"max_completion_tokens"`
+					Effort              string `json:"reasoning_effort"`
+					Thinking            struct {
+						Type string `json:"type"`
+					} `json:"thinking"`
+					StreamOptions struct {
+						IncludeUsage bool `json:"include_usage"`
+					} `json:"stream_options"`
+					Tools []struct {
+						Function struct {
+							Name string `json:"name"`
+						} `json:"function"`
+					} `json:"tools"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Error(err)
+					http.Error(w, "invalid fixture request", http.StatusBadRequest)
+					return
+				}
+				if body.MaxTokens != 1024 || body.MaxCompletionTokens != nil || !body.StreamOptions.IncludeUsage {
+					t.Errorf("unexpected budget or usage options: %+v", body)
+				}
+				if body.Thinking.Type != tc.thinking || body.Effort != tc.effort {
+					t.Errorf("unexpected thinking options: %+v", body)
+				}
+				var names []string
+				for _, tool := range body.Tools {
+					names = append(names, tool.Function.Name)
+				}
+				if !slices.Equal(names, []string{"echo", "secret"}) {
+					t.Errorf("unexpected tool catalog: %v", names)
+				}
+				w.Header().Set("Content-Type", "text/event-stream")
+				fmt.Fprint(w, `data: {"id":"fixture","object":"chat.completion.chunk","model":"deepseek-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`+"\n\n")
+				fmt.Fprintf(w, `data: {"id":"fixture","object":"chat.completion.chunk","model":"deepseek-flash","choices":[],"usage":{"prompt_tokens":100,"prompt_cache_hit_tokens":75,"prompt_cache_miss_tokens":25,"completion_tokens":20,"completion_tokens_details":{"reasoning_tokens":%d},"total_tokens":120}}`+"\n\n", tc.reasoning)
+				fmt.Fprint(w, "data: [DONE]\n\n")
+			}))
+			defer server.Close()
+			cfg.OpenAI.BaseURL = server.URL + "/v1"
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			var usage map[string]any
+			result, err := RunSingleAgent(ctx, cfg, &cfg.MultiAgent, piTestAgent(cfg, nil), nil, zap.NewNop(), "", "", "Say ok", nil, nil, func(kind, _ string, data interface{}) {
+				if kind == "agent_usage_summary" {
+					usage = data.(map[string]any)
+				}
+			}, nil, "")
+			if err != nil || result == nil || result.Response != "ok" || result.RuntimeStatus != "completed" {
+				t.Fatalf("result=%+v err=%v", result, err)
+			}
+			for field, want := range map[string]int{
+				"modelCalls": 1, "promptTokens": 100, "completionTokens": 20,
+				"cachedTokens": 75, "cacheWriteTokens": 0, "reasoningTokens": tc.reasoning, "totalTokens": 120,
+			} {
+				if usage[field] != want {
+					t.Errorf("%s=%v, want %d (usage=%v)", field, usage[field], want, usage)
+				}
+			}
+		})
+	}
+}
+
+func TestPiDeepSeekEconomyDiscoversToolsAndReadsFullEvidence(t *testing.T) {
+	full := strings.Repeat("fixture output line with details\n", 150) + "MIDDLE_EVIDENCE\n" + strings.Repeat("trailing output line with details\n", 150) + "end"
+	var baselineBytes, optimizedBytes int
+	for _, profile := range []string{"custom", "auto"} {
+		t.Run(profile, func(t *testing.T) {
+			cfg := piTestConfig(t)
+			cfg.OpenAI.Reasoning.Profile = "deepseek"
+			cfg.OpenAI.ContextProfile = profile
+			cfg.MultiAgent.Skills.Disable = false
+			cfg.MultiAgent.Runtime.ToolSearchEnable = true
+			cfg.MultiAgent.Runtime.ReductionRootDir = t.TempDir()
+			var calls int
+			var originalPath string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				var body struct {
+					Tools    json.RawMessage `json:"tools"`
+					Messages []struct {
+						Role    string
+						Content any
+					} `json:"messages"`
+				}
+				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+					t.Error(err)
+					return
+				}
+				calls++
+				if profile == "custom" {
+					baselineBytes = len(body.Tools)
+					piReply(w, "", "", nil, "baseline")
+					return
+				}
+				switch calls {
+				case 1:
+					optimizedBytes = len(body.Tools)
+					if strings.Contains(string(body.Tools), `"name":"record_vulnerability"`) {
+						t.Error("unused builtin schema was exposed before discovery")
+					}
+					piReply(w, "tool_search", "discover", map[string]any{"query": "record_vulnerability", "limit": 1}, "")
+				case 2:
+					if !strings.Contains(string(body.Tools), `"name":"record_vulnerability"`) {
+						t.Error("discovered tool is unavailable")
+					}
+					if !strings.Contains(string(body.Tools), `"name":"read_file"`) {
+						t.Error("read_file was lost during tool discovery")
+					}
+					piReply(w, "record_vulnerability", "record", map[string]any{"text": "fixture"}, "")
+				case 3:
+					preview, _ := body.Messages[len(body.Messages)-1].Content.(string)
+					match := regexp.MustCompile(`Full output saved to: ([^\n]+)`).FindStringSubmatch(preview)
+					if len(match) != 2 || len(preview) > 8000 || strings.Contains(preview, "MIDDLE_EVIDENCE") {
+						t.Errorf("expected recoverable preview, got %d bytes", len(preview))
+						piReply(w, "", "", nil, "failed preview")
+						return
+					}
+					originalPath = match[1]
+					t.Logf("tool result bytes: full=%d preview=%d", len(full)+1, len(preview))
+					piReply(w, "read_file", "read", map[string]any{"path": originalPath, "offset": 151, "limit": 1}, "")
+				case 4:
+					if got := body.Messages[len(body.Messages)-1].Content; got != "MIDDLE_EVIDENCE" {
+						t.Errorf("evidence readback=%q", got)
+					}
+					piReply(w, "", "", nil, "verified middle evidence")
+				default:
+					t.Error("unexpected retry")
+					piReply(w, "", "", nil, "unexpected")
+				}
+			}))
+			defer server.Close()
+			cfg.OpenAI.BaseURL = server.URL + "/v1"
+			srv := mcp.NewServer(zap.NewNop())
+			srv.ConfigureToolResultSpillRoot(t.TempDir())
+			srv.SetToolAuthorizer(func(context.Context, string, map[string]interface{}) error { return nil })
+			var executed int
+			for _, name := range builtin.GetAllBuiltinTools() {
+				srv.RegisterTool(mcp.Tool{Name: name, Description: "Fixture operation " + name,
+					InputSchema: piToolSchema(map[string]any{"text": map[string]any{"type": "string", "description": "Fixture evidence text"}}, "text")},
+					func(context.Context, map[string]interface{}) (*mcp.ToolResult, error) {
+						executed++
+						return &mcp.ToolResult{Content: []mcp.Content{{Type: "text", Text: full}}}, nil
+					})
+			}
+			ag := agent.NewAgent(&cfg.OpenAI, &cfg.Agent, srv, nil, zap.NewNop(), 8)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			ctx = authctx.WithPrincipal(ctx, authctx.NewPrincipal("fixture", "fixture", "all", map[string]bool{"agent:local-execute": true}))
+			res, err := RunSingleAgent(ctx, cfg, &cfg.MultiAgent, ag, nil, zap.NewNop(), "economy-fixture", "", "Read the evidence", nil, nil, nil, nil, "")
+			if err != nil || res == nil || res.RuntimeStatus != "completed" {
+				t.Fatalf("result=%+v error=%v", res, err)
+			}
+			if profile == "auto" {
+				if calls != 4 || executed != 1 || res.Response != "verified middle evidence" {
+					t.Fatalf("calls=%d executed=%d result=%+v", calls, executed, res)
+				}
+				b, err := os.ReadFile(originalPath)
+				// The host adds a newline after each MCP text block.
+				if err != nil || string(b) != full+"\n" {
+					t.Fatalf("full evidence changed: err=%v got=%d want=%d", err, len(b), len(full)+1)
+				}
+			}
+		})
+	}
+	if optimizedBytes >= baselineBytes/2 {
+		t.Errorf("tool schema savings too small: custom=%d auto=%d", baselineBytes, optimizedBytes)
+	}
+	t.Logf("first-request tool schema bytes: custom=%d auto=%d", baselineBytes, optimizedBytes)
 }
 
 func piTestAgent(cfg *config.Config, handler mcp.ToolHandler) *agent.Agent {

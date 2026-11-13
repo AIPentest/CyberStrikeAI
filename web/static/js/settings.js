@@ -2025,6 +2025,7 @@ async function applySettings() {
         currentConfig.ai = ensureAIConfigShape(currentConfig);
         const activeChannelId = normalizeAIChannelId(selectedAIChannelId || currentConfig.ai.default_channel || 'default');
         currentConfig.ai.channels[activeChannelId] = readAIChannelFromMainForm(activeChannelId);
+        await detectChannelContextForSave(activeChannelId, currentConfig.ai.channels[activeChannelId]);
         currentConfig.ai.default_channel = activeChannelId;
         currentConfig.ai = normalizeAIConfigProviderProfiles(currentConfig.ai);
         renderAIChannelSelect();
@@ -2614,6 +2615,8 @@ function ensureAIConfigShape(cfg) {
             model: oa.model || '',
             max_total_tokens: oa.max_total_tokens || 120000,
             max_completion_tokens: oa.max_completion_tokens || 0,
+            context_window: oa.context_window || 0,
+            context_profile: oa.context_profile || '',
             reasoning: oa.reasoning || {}
         };
     }
@@ -2648,7 +2651,7 @@ function formatCustomHeaders(headers) {
 function readAIChannelFromMainForm(id) {
     const prev = currentConfig?.ai?.channels?.[id] || {};
     const maxCompletionTokens = parseInt(document.getElementById('openai-max-completion-tokens')?.value, 10) || 32768;
-    return normalizeAIChannelProviderProfile({
+    const channel = normalizeAIChannelProviderProfile({
         ...prev,
         name: (document.getElementById('ai-channel-name')?.value || '').trim() || prev.name || id,
         provider: document.getElementById('openai-provider')?.value || 'openai',
@@ -2658,6 +2661,7 @@ function readAIChannelFromMainForm(id) {
         max_total_tokens: parseInt(document.getElementById('openai-max-total-tokens')?.value, 10) || 120000,
         max_completion_tokens: maxCompletionTokens,
         headers: parseCustomHeadersInput(),
+        context_window: parseInt(document.getElementById('openai-context-window')?.value, 10) || 0,
         reasoning: {
             ...(prev.reasoning || {}),
             mode: document.getElementById('openai-reasoning-mode')?.value || 'auto',
@@ -2666,6 +2670,10 @@ function readAIChannelFromMainForm(id) {
             allow_client_reasoning: document.getElementById('openai-reasoning-allow-client')?.checked !== false
         }
     });
+    if (channel.context_profile === 'local_auto' && ['provider', 'base_url', 'model'].some(key => channel[key] !== prev[key])) {
+        channel.context_profile = '';
+    }
+    return channel;
 }
 
 function writeAIChannelToMainForm(id) {
@@ -2692,6 +2700,8 @@ function writeAIChannelToMainForm(id) {
     if (maxCompletionTokensEl) maxCompletionTokensEl.value = ch.max_completion_tokens || 32768;
     const customHeadersEl = document.getElementById('openai-custom-headers');
     if (customHeadersEl) customHeadersEl.value = formatCustomHeaders(ch.headers);
+    const contextWindowEl = document.getElementById('openai-context-window');
+    if (contextWindowEl) contextWindowEl.value = ch.context_window || '';
     const r = ch.reasoning || {};
     const modeEl = document.getElementById('openai-reasoning-mode');
     if (modeEl) {
@@ -2797,7 +2807,10 @@ function bindAIChannelEditorPreviewSync() {
         'openai-api-key',
         'openai-base-url',
         'openai-model',
-        'openai-custom-headers'
+        'openai-custom-headers',
+        'openai-max-total-tokens',
+        'openai-max-completion-tokens',
+        'openai-context-window'
     ];
     ids.forEach((fieldId) => {
         const el = document.getElementById(fieldId);
@@ -3026,6 +3039,7 @@ async function persistAIChannelsToServer(successMessage, options = {}) {
     renderAIChannelSelect();
     showAIChannelSaveHint(settingsT('settingsBasic.aiChannelSaving', '正在保存通道...'), true);
     try {
+        await detectChannelContextForSave(id, channelPayload);
         const shouldMergeLatest = options.mergeLatest !== false;
         const latestResponse = shouldMergeLatest ? await apiFetch('/api/config') : null;
         if (latestResponse && latestResponse.ok) {
@@ -3062,6 +3076,36 @@ async function persistAIChannelsToServer(successMessage, options = {}) {
         showAIChannelSaveHint(error.message || '保存通道失败', false);
         alert(error.message || '保存通道失败');
         return false;
+    }
+}
+
+async function detectChannelContextForSave(id, channel) {
+    if (!['', 'auto', 'local_auto'].includes(channel.context_profile || '') || ['claude', 'anthropic'].includes(channel.provider)) return;
+    // These public services already have a known policy. Unknown endpoints
+    // are identified by metadata, including local services behind proxies.
+    if (['api.deepseek.com', 'api.openai.com', 'api.anthropic.com'].includes(aiChannelBaseURLHost(channel.base_url))) return;
+    try {
+        const response = await apiFetch('/api/config/detect-context', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(9000),
+            body: JSON.stringify({ ...channel, channel_id: id })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) applyChannelContextDetection(channel, result);
+    } catch (_) {
+        // Metadata discovery is best-effort. Saving a working channel is valid
+        // when the server is offline or does not publish runtime metadata.
+    }
+}
+
+function applyChannelContextDetection(channel, result) {
+    if (!channel || !result) return;
+    if (['', 'auto', 'local_auto'].includes(channel.context_profile || '') && ['', 'local_auto'].includes(result.context_profile)) {
+        channel.context_profile = result.context_profile;
+    }
+    if (result.context_window > 0 && !result.context_runtime_unknown &&
+        (!channel.context_window || (channel.context_profile === 'local_auto' && channel.context_window > result.context_window))) {
+        channel.context_window = result.context_window;
     }
 }
 
@@ -3145,6 +3189,8 @@ function createAIChannelFromForm() {
         model: '',
         max_total_tokens: 120000,
         max_completion_tokens: 32768,
+        context_window: 0,
+        context_profile: '',
         reasoning: { mode: 'auto', effort: '', profile: 'auto', allow_client_reasoning: true }
     };
     selectedAIChannelId = id;
@@ -3240,14 +3286,19 @@ async function probeSelectedAIChannels() {
                     base_url: ch.base_url || '',
                     api_key: ch.api_key || '',
                     model: ch.model || '',
-                    headers: ch.headers || {}
+                    headers: ch.headers || {},
+                    max_total_tokens: parseInt(ch.max_total_tokens, 10) || 0,
+                    max_completion_tokens: parseInt(ch.max_completion_tokens, 10) || 0,
+                    context_profile: ch.context_profile || ''
                 })
             });
             const result = await response.json().catch(() => ({}));
             if (response.ok && result.success) {
+                applyChannelContextDetection(ch, result);
                 okCount += 1;
                 const latency = result.latency_ms ? ` ${result.latency_ms}ms` : '';
-                aiChannelProbeResults[id] = { status: 'ready', message: settingsT('settingsBasic.aiChannelReadyWithLatency', '可用{latency}').replace('{latency}', latency) };
+                const context = result.context_window ? ` · ${result.context_window} tokens` : '';
+                aiChannelProbeResults[id] = { status: 'ready', message: settingsT('settingsBasic.aiChannelReadyWithLatency', '可用{latency}').replace('{latency}', latency) + context };
             } else {
                 aiChannelProbeResults[id] = { status: 'failed', message: formatConnectionTestError(result.error || settingsT('settingsBasic.testFailed', '连接失败')).message };
             }
@@ -3309,6 +3360,7 @@ if (typeof window !== 'undefined') {
     window.copyAIChannelFromForm = copyAIChannelFromForm;
     window.deleteSelectedAIChannel = deleteSelectedAIChannel;
     window.probeSelectedAIChannels = probeSelectedAIChannels;
+    window.detectAIContext = detectAIContext;
     window.deleteCheckedAIChannels = deleteCheckedAIChannels;
 }
 
@@ -3903,6 +3955,120 @@ function showConnectionTestFailure(resultEl, errorText) {
 }
 
 // 测试OpenAI连接
+function contextWarningText(code) {
+    const messages = {
+        local_context_window_unknown: settingsT('settingsBasic.contextWarnWindowUnknown', '本地档位未填写窗口，按 32768 估算'),
+        local_context_window_small: settingsT('settingsBasic.contextWarnWindowSmall', '窗口小于 16384，带工具的 agent 可能无法稳定运行'),
+        max_total_tokens_clamped: settingsT('settingsBasic.contextWarnBudgetClamped', '最大上下文预算已按模型窗口收紧'),
+        max_completion_tokens_clamped: settingsT('settingsBasic.contextWarnCompletionClamped', '最大输出 Token 数已按模型窗口收紧'),
+        configured_budget_exceeds_context_window: settingsT('settingsBasic.contextWarnBudgetExceedsWindow', '填写的预算超过模型窗口，运行时会自动收紧'),
+        ollama_v1_ignores_num_ctx: settingsT('settingsBasic.contextWarnOllamaV1', 'Ollama 的 /v1 接口忽略 num_ctx，请在服务端设置 OLLAMA_CONTEXT_LENGTH 或 Modelfile'),
+        ollama_runtime_context_unknown: settingsT('settingsBasic.contextWarnOllamaRuntime', 'Ollama 可能按显存把窗口压到模型上限以下，建议启动后查看 ollama ps'),
+        context_runtime_unknown: settingsT('settingsBasic.contextWarnRuntimeUnknown', '无法确认运行时窗口，可能小于模型上限'),
+        llamacpp_parallel_slots: settingsT('settingsBasic.contextWarnLlamaCppSlots', 'llama.cpp 配置了多个并行槽位，单请求可用窗口可能小于 n_ctx；请按 --parallel/KV 模式确认'),
+        context_window_unknown: settingsT('settingsBasic.contextWarnUnknown', '未检测到上下文窗口，请手动填写')
+    };
+    return messages[code] || code;
+}
+
+function formatDetectedContext(result) {
+    if (!result || !result.context_window) return '';
+    const parts = [settingsT('settingsBasic.detectedContext', '检测到 {tokens} tokens').replace('{tokens}', String(result.context_window))];
+    if (result.effective_max_total_tokens) {
+        parts.push(settingsT('settingsBasic.effectiveBudget', '有效预算 {tokens} tokens').replace('{tokens}', String(result.effective_max_total_tokens)));
+    }
+    if (result.context_backend) parts.push(result.context_backend);
+    if (result.context_source) parts.push(result.context_source);
+    if (Array.isArray(result.context_warnings)) {
+        result.context_warnings.forEach((code) => parts.push(contextWarningText(code)));
+    }
+    return parts.join(' · ');
+}
+
+function applyDetectedContext(result, force) {
+    if (!result) return;
+    const channel = currentConfig?.ai?.channels?.[selectedAIChannelId];
+    applyChannelContextDetection(channel, result);
+    if (!result.context_window) return;
+    const input = document.getElementById('openai-context-window');
+    // Explicit auto-detect overwrites the field so the effective-budget preview
+    // matches what will be saved; a connection test only fills an empty field.
+    if (input && !result.context_runtime_unknown && (force || !String(input.value || '').trim() ||
+        (channel?.context_profile === 'local_auto' && Number(input.value) > result.context_window))) {
+        input.value = String(result.context_window);
+    }
+    const resultEl = document.getElementById('detect-context-result');
+    if (resultEl) {
+        resultEl.textContent = formatDetectedContext(result);
+        resultEl.className = 'form-inline-result is-success';
+    }
+}
+
+async function detectAIContext() {
+    const btn = document.getElementById('detect-context-btn');
+    const resultEl = document.getElementById('detect-context-result');
+    const provider = document.getElementById('openai-provider')?.value || 'openai_compatible';
+    const baseUrl = document.getElementById('openai-base-url')?.value.trim() || '';
+    const apiKey = document.getElementById('openai-api-key')?.value.trim() || '';
+    const model = document.getElementById('openai-model')?.value.trim() || '';
+    const channelId = normalizeAIChannelId(selectedAIChannelId || currentConfig?.ai?.default_channel || 'default');
+    const isCurrentRequest = () => selectedAIChannelId === channelId &&
+        document.getElementById('openai-base-url')?.value.trim() === baseUrl &&
+        document.getElementById('openai-model')?.value.trim() === model;
+    if (!baseUrl || !model) {
+        if (resultEl) {
+            resultEl.textContent = settingsT('settingsBasic.detectContextFillRequired', '请先填写 Base URL 和模型');
+            resultEl.className = 'form-inline-result is-error';
+        }
+        return;
+    }
+    if (btn) {
+        btn.style.pointerEvents = 'none';
+        btn.style.opacity = '0.5';
+    }
+    if (resultEl) {
+        resultEl.textContent = settingsT('settingsBasic.testing', '测试中...');
+        resultEl.className = 'form-inline-result is-muted';
+    }
+    try {
+        const response = await apiFetch('/api/config/detect-context', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                provider: provider,
+                channel_id: channelId,
+                base_url: baseUrl,
+                api_key: apiKey,
+                model: model,
+                headers: parseCustomHeadersInput(),
+                max_total_tokens: parseInt(document.getElementById('openai-max-total-tokens')?.value, 10) || 0,
+                max_completion_tokens: parseInt(document.getElementById('openai-max-completion-tokens')?.value, 10) || 0,
+                context_profile: currentConfig?.ai?.channels?.[channelId]?.context_profile || ''
+            })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!isCurrentRequest()) return;
+        if (result.success) applyDetectedContext(result, true);
+        if (!result.success || !result.context_window) {
+            const message = result.error || contextWarningText('context_window_unknown');
+            if (resultEl) {
+                resultEl.textContent = formatConnectionTestError(message).message;
+                resultEl.className = 'form-inline-result is-error';
+            }
+        }
+    } catch (error) {
+        if (resultEl) {
+            resultEl.textContent = formatConnectionTestError(error.message || '测试出错').message;
+            resultEl.className = 'form-inline-result is-error';
+        }
+    } finally {
+        if (btn) {
+            btn.style.pointerEvents = '';
+            btn.style.opacity = '';
+        }
+    }
+}
+
 async function testOpenAIConnection() {
     const btn = document.getElementById('test-openai-btn');
     const resultEl = document.getElementById('test-openai-result');
@@ -3912,7 +4078,9 @@ async function testOpenAIConnection() {
     const apiKey = document.getElementById('openai-api-key').value.trim();
     const model = document.getElementById('openai-model').value.trim();
     const channelId = normalizeAIChannelId(selectedAIChannelId || currentConfig?.ai?.default_channel || 'default');
-    const isTestingSameChannel = () => normalizeAIChannelId(selectedAIChannelId || currentConfig?.ai?.default_channel || 'default') === channelId;
+    const isTestingSameChannel = () => normalizeAIChannelId(selectedAIChannelId || currentConfig?.ai?.default_channel || 'default') === channelId &&
+        document.getElementById('openai-base-url')?.value.trim() === baseUrl &&
+        document.getElementById('openai-model')?.value.trim() === model;
 
     if (!baseUrl || !apiKey || !model) {
         const message = typeof window.t === 'function' ? window.t('settingsBasic.testFillRequired') : '请先填写 Base URL、API Key 和模型';
@@ -3945,7 +4113,10 @@ async function testOpenAIConnection() {
                 base_url: baseUrl,
                 api_key: apiKey,
                 model: model,
-                headers: currentConfig?.ai?.channels?.[channelId]?.headers || {}
+                headers: currentConfig?.ai?.channels?.[channelId]?.headers || {},
+                max_total_tokens: parseInt(document.getElementById('openai-max-total-tokens')?.value, 10) || 0,
+                max_completion_tokens: parseInt(document.getElementById('openai-max-completion-tokens')?.value, 10) || 0,
+                context_profile: currentConfig?.ai?.channels?.[channelId]?.context_profile || ''
             })
         });
 
@@ -3954,9 +4125,11 @@ async function testOpenAIConnection() {
         if (result.success) {
             const latency = result.latency_ms ? ` (${result.latency_ms}ms)` : '';
             const modelInfo = result.model ? ` [${result.model}]` : '';
-            const message = (typeof window.t === 'function' ? window.t('settingsBasic.testSuccess') : '连接成功') + modelInfo + latency;
+            const contextInfo = result.context_window ? ` · ${result.context_window} tokens` : '';
+            const message = (typeof window.t === 'function' ? window.t('settingsBasic.testSuccess') : '连接成功') + modelInfo + latency + contextInfo;
             aiChannelProbeResults[channelId] = { status: 'ready', message };
             if (isTestingSameChannel()) {
+                applyDetectedContext(result);
                 setConnectionTestResult(resultEl, 'is-success', message);
             }
         } else {

@@ -9,6 +9,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { PROTOCOL_VERSION, RecordReader, send } from "./protocol.js";
 import { installModelFetchPolicy } from "./network.js";
+import { compactToolJSON } from "./tool-output.js";
 
 installModelFetchPolicy();
 
@@ -18,6 +19,7 @@ interface ModelConfig {
   contextWindow: number; maxTokens: number; thinking?: string;
   extraFields?: Record<string, unknown>;
   compat?: Record<string, unknown>; inputBudget?: number;
+  compactToolJSON?: boolean;
 }
 interface RunRequest {
   generateOnly?: boolean;
@@ -201,20 +203,29 @@ async function run(req: RunRequest): Promise<void> {
       modelConfigs.set(provider, config);
     }
     const streamSimple = runtime.streamSimple.bind(runtime);
-    runtime.streamSimple = (m, context, options) => streamSimple(m,
-      m.api === "openai-completions" ? { ...context, messages: pairToolResults(context.messages) } : context, {
-      ...options,
-      transport: "sse",
-      onPayload: async (original, currentModel) => {
-        const transformed = (await options?.onPayload?.(original, currentModel)) ?? original;
-        if (!transformed || typeof transformed !== "object") return transformed;
-        const payload = { ...transformed, ...modelConfigs.get(currentModel.provider)?.extraFields } as Record<string, unknown>;
-        for (const key of ["model", "messages", "tools", "stream"]) {
-          if (key in transformed) payload[key] = (transformed as Record<string, unknown>)[key];
-        }
-        return payload;
-      },
-    });
+    runtime.streamSimple = (m, context, options) => {
+      let messages = context.messages;
+      if (modelConfigs.get(m.provider)?.compactToolJSON) {
+        messages = messages.map(message => message.role === "toolResult" ? {
+          ...message,
+          content: message.content.map(block => block.type === "text" ? { ...block, text: compactToolJSON(block.text) } : block),
+        } : message);
+      }
+      if (m.api === "openai-completions") messages = pairToolResults(messages);
+      return streamSimple(m, { ...context, messages }, {
+        ...options,
+        transport: "sse",
+        onPayload: async (original, currentModel) => {
+          const transformed = (await options?.onPayload?.(original, currentModel)) ?? original;
+          if (!transformed || typeof transformed !== "object") return transformed;
+          const payload = { ...transformed, ...modelConfigs.get(currentModel.provider)?.extraFields } as Record<string, unknown>;
+          for (const key of ["model", "messages", "tools", "stream"]) {
+            if (key in transformed) payload[key] = (transformed as Record<string, unknown>)[key];
+          }
+          return payload;
+        },
+      });
+    };
     let model = physical[0];
     if (physical.length > 1) {
       runtime.registerVirtualModel({ provider: "cyberstrike-router", id: "auto", name: "CyberStrikeAI channels",
@@ -263,7 +274,7 @@ async function run(req: RunRequest): Promise<void> {
     }
     repairInterruptedCalls(manager);
     const searchEnabled = req.toolSearch === true && names.length >= (req.toolSearchMinTools || 20) && !names.includes("tool_search");
-    const always = new Set(["task", "exit", "transfer_to_agent", "write_todos", "TaskCreate", "TaskUpdate", "TaskGet", "TaskList", "skill", "read_file", "execute", "wait_tool_execution", "get_tool_execution", ...(req.alwaysVisibleTools ?? [])]);
+    const always = new Set(["task", "exit", "transfer_to_agent", "write_todos", "TaskCreate", "TaskUpdate", "TaskGet", "TaskList", "skill", "read_file", "execute", "wait_tool_execution", "get_tool_execution", "cancel_tool_execution", ...(req.alwaysVisibleTools ?? [])]);
     const loader = resources(req.systemPrompt + (searchEnabled ? "\nDiscover additional task tools with tool_search. Search results enable matching tools for subsequent calls." : ""));
     if (searchEnabled) {
       const extensions = new DefaultResourceLoader({ cwd: scratch, agentDir: scratch, settingsManager: SettingsManager.inMemory(),

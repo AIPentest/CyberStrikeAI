@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -224,6 +225,11 @@ func runPiMulti(ctx context.Context, cfg *config.Config, ma *config.MultiAgentCo
 
 func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 	defs := r.ag.ToolsForRole(r.roleTools)
+	// MCP catalogs are backed by maps. Keep the tool prefix and the first N
+	// always-visible tools stable across runs with the same catalog.
+	slices.SortFunc(defs, func(a, b agent.Tool) int {
+		return strings.Compare(a.Function.Name, b.Function.Name)
+	})
 	localDefs, localNames, skillPrompt, err := r.piLocalCatalog(ctx)
 	if err != nil {
 		return nil, err
@@ -300,6 +306,9 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 	visibleCount := r.cfg.MultiAgent.Runtime.ToolSearchAlwaysVisible
 	if visibleCount <= 0 {
 		visibleCount = 12
+	}
+	if oa.IsLocalContextProfile() && visibleCount > 6 {
+		visibleCount = 6
 	}
 	for i, t := range tools {
 		if i >= visibleCount {
@@ -397,13 +406,22 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 			result.IsError = true
 		}
 		if r.cfg.MultiAgent.Runtime.ReductionEnable {
-			result.Content = tooloutput.BoundWithSpill(result.Content, r.cfg.MultiAgent.Runtime.ReductionMaxLengthForTruncEffective(), tooloutput.SpillOpts{RootDir: r.cfg.MultiAgent.Runtime.ReductionRootDir, ConversationID: r.conversationID, ExecutionID: result.ExecutionID})
+			limit := r.cfg.MultiAgent.Runtime.ReductionMaxLengthForTruncEffective()
+			opts := tooloutput.SpillOpts{RootDir: r.cfg.MultiAgent.Runtime.ReductionRootDir, ConversationID: r.conversationID, ExecutionID: result.ExecutionID}
+			if oa.IsEconomyContextProfile() {
+				// Automatic previews require an authorized way to read the full evidence.
+				if localNames["read_file"] {
+					result.Content = tooloutput.ReduceForModel(result.Content, limit, opts)
+				}
+			} else {
+				result.Content = tooloutput.BoundWithSpill(result.Content, limit, opts)
+			}
 		}
 		progress("tool_result", result.Content, map[string]any{"toolName": call.Name, "toolCallId": call.ID, "executionId": result.ExecutionID, "result": result.Content, "success": !result.IsError, "isError": result.IsError, "agentFacing": true})
 		return result, err
 	}
 	var text, thought string
-	var modelCalls, promptTokens, completionTokens, cacheRead, cacheWrite int
+	var modelCalls, promptTokens, completionTokens, cacheRead, cacheWrite, reasoningTokens int
 	reasonID := func() string { return fmt.Sprintf("%s-reasoning-%d", runID, iteration.Load()) }
 	emit := func(e agentruntime.Event) {
 		if e.Type == "compaction_end" {
@@ -439,6 +457,7 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 						Output     int `json:"output"`
 						CacheRead  int `json:"cacheRead"`
 						CacheWrite int `json:"cacheWrite"`
+						Reasoning  int `json:"reasoning"`
 					} `json:"usage"`
 				} `json:"message"`
 			}
@@ -448,6 +467,7 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 				completionTokens += d.Message.Usage.Output
 				cacheRead += d.Message.Usage.CacheRead
 				cacheWrite += d.Message.Usage.CacheWrite
+				reasoningTokens += d.Message.Usage.Reasoning
 			}
 		}
 
@@ -505,7 +525,11 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 		progress("reasoning_chain_stream_end", thought, map[string]any{"streamId": reasonID()})
 	}
 	if modelCalls > 0 {
-		progress("agent_usage_summary", "Pi token usage summary", map[string]any{"model": oa.Model, "modelCalls": modelCalls, "promptTokens": promptTokens, "completionTokens": completionTokens, "totalTokens": promptTokens + completionTokens, "cachedTokens": cacheRead, "cacheWriteTokens": cacheWrite})
+		progress("agent_usage_summary", "Pi token usage summary", map[string]any{
+			"model": oa.Model, "modelCalls": modelCalls,
+			"promptTokens": promptTokens, "completionTokens": completionTokens, "totalTokens": promptTokens + completionTokens,
+			"cachedTokens": cacheRead, "cacheWriteTokens": cacheWrite, "reasoningTokens": reasoningTokens,
+		})
 	}
 	if res == nil {
 		return nil, runErr

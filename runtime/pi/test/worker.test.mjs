@@ -251,6 +251,39 @@ test("native tool search loads a deferred host tool without exposing the full ca
   assert.equal(hostCalls, 1);
 });
 
+test("economy compacts persisted tool JSON while preserving reasoning and original session evidence", { timeout: 30000 }, async t => {
+  const raw = '{\n  "id": 9007199254740993,\n  "evidence": "keep  spaces\\n"\n}';
+  const fixture = await startFixture(t, (_, res, count) => {
+    if (count === 1) sse(res, { role: "assistant", reasoning_content: "inspect fixture", tool_calls: [{ index: 0, id: "inspect", type: "function", function: { name: "echo", arguments: '{"text":"fixture"}' } }] }, "tool_calls");
+    else sse(res, { role: "assistant", content: "evidence inspected" }, "stop");
+  });
+  const dir = await mkdtemp(join(tmpdir(), "csai-pi-economy-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const req = request(fixture.url, dir);
+  req.tools.push(...Array.from({ length: 30 }, (_, i) => ({ name: "old_unused_" + i, description: "Unused fixture operation", parameters: { type: "object", properties: {} } })));
+  req.model.thinking = "high";
+  req.model.compat = { thinkingFormat: "deepseek", requiresReasoningContentOnAssistantMessages: true };
+  req.model.extraFields = { thinking: { type: "enabled" }, reasoning_effort: "high" };
+  const first = await invoke(t, req, (r, send) => {
+    if (r.type === "tool_call") send({ type: "tool_result", id: r.call.id, result: { content: raw } });
+  });
+  assert.equal(first.result.status, "completed", first.result.error);
+  assert.equal(fixture.requests[1].messages.find(m => m.role === "tool").content, raw);
+
+  req.model.compactToolJSON = true;
+  const resumed = await invoke(t, { ...req, toolSearch: true, alwaysVisibleTools: ["echo"], runId: "economy-resume", message: "Continue" });
+  assert.equal(resumed.result.status, "completed", resumed.result.error);
+  const body = fixture.requests[2];
+  assert.equal(fixture.requests[0].tools.length, 31);
+  assert.deepEqual(body.tools.map(t => t.function.name).sort(), ["echo", "tool_search"]);
+  assert.equal(body.messages.find(m => m.role === "tool").content, '{"id":9007199254740993,"evidence":"keep  spaces\\n"}');
+  assert.ok(body.messages.some(m => m.reasoning_content === "inspect fixture"));
+  assert.equal(body.reasoning_effort, "high");
+  assert.equal(resumed.result.history.find(m => m.role === "tool").content, raw);
+  const entries = (await readFile(first.result.sessionFile, "utf8")).trim().split("\n").map(line => JSON.parse(line));
+  assert.ok(entries.some(e => e.message?.role === "toolResult" && e.message.content.some(b => b.text === raw)));
+});
+
 test("provider custom credentials never cross a redirect origin", { timeout: 30000 }, async t => {
   let targetCalls = 0;
   const target = createServer((_, res) => { targetCalls++; res.end("unexpected"); });
