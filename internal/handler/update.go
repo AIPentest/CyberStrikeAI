@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -34,8 +35,10 @@ type UpdateHandler struct {
 	logger *zap.Logger
 	audit  *audit.Service
 	// prepareRestart validates the replacement before the running service shuts down.
-	prepareRestart func() (func(), error)
+	prepareRestart func(activationID string) (func(), error)
 	bootID         string
+	activationID   string
+	buildRevision  string
 	// source reports the configured update source (config.yaml update.repo) as the
 	// operator last saved it; an empty string means "not configured" and the official
 	// repository is used. A function rather than a value because the config can change
@@ -82,14 +85,25 @@ func (j *updateJob) view() *updateJob {
 // NewUpdateHandler takes the audit service as a constructor argument rather than through
 // a SetAudit the assembly has to remember: forgetting here is a compile error instead of
 // a privileged endpoint that writes no audit records at all.
-func NewUpdateHandler(root string, logger *zap.Logger, auditSvc *audit.Service, prepareRestart func() (func(), error),
+func NewUpdateHandler(root string, logger *zap.Logger, auditSvc *audit.Service, prepareRestart func(string) (func(), error), activationID string,
 	source func() string, saveSource func(repo string) error) *UpdateHandler {
+	var revision string
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, setting := range info.Settings {
+			if setting.Key == "vcs.revision" {
+				revision = setting.Value
+				break
+			}
+		}
+	}
 	return &UpdateHandler{
 		root:           root,
 		logger:         logger,
 		audit:          auditSvc,
 		prepareRestart: prepareRestart,
 		bootID:         uuid.NewString(),
+		activationID:   activationID,
+		buildRevision:  revision,
 		source:         source,
 		saveSource:     saveSource,
 		baseline:       update.StampBinary(root, update.Options{Root: root}),
@@ -145,6 +159,7 @@ func (h *UpdateHandler) sourceView() gin.H {
 // GetStatus answers GET /api/system/update: the install tree as it is on disk, without a
 // network round trip, so opening the page is never gated on GitHub being reachable.
 func (h *UpdateHandler) GetStatus(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	snap, err := update.Status(c.Request.Context(), h.options())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -152,15 +167,17 @@ func (h *UpdateHandler) GetStatus(c *gin.Context) {
 	}
 	needsRestart, binaryBuiltAt := h.restartPending()
 	c.JSON(http.StatusOK, gin.H{
-		"status":        snap,
-		"job":           h.latest(),
-		"canRestart":    h.prepareRestart != nil,
-		"autoRestart":   h.prepareRestart != nil,
-		"bootID":        h.bootID,
-		"supervised":    restartSupervised(),
-		"needsRestart":  needsRestart,
-		"binaryBuiltAt": binaryBuiltAt,
-		"source":        h.sourceView(),
+		"status":             snap,
+		"job":                h.latest(),
+		"canRestart":         h.prepareRestart != nil,
+		"autoRestart":        h.prepareRestart != nil,
+		"bootID":             h.bootID,
+		"buildRevision":      h.buildRevision,
+		"activationTracking": true,
+		"supervised":         restartSupervised(),
+		"needsRestart":       needsRestart,
+		"binaryBuiltAt":      binaryBuiltAt,
+		"source":             h.sourceView(),
 	})
 }
 
@@ -168,6 +185,12 @@ func (h *UpdateHandler) GetStatus(c *gin.Context) {
 // a new boot from a revoked or expired session on the current boot.
 func (h *UpdateHandler) SetBootHeader(c *gin.Context) {
 	c.Header("X-CyberStrike-Boot-ID", h.bootID)
+	c.Header("X-CyberStrike-Build-Revision", h.buildRevision)
+	activationID := h.activationID
+	if activationID == "" {
+		activationID = "-"
+	}
+	c.Header("X-CyberStrike-Activation-ID", activationID)
 	c.Header("Cache-Control", "no-store")
 }
 
@@ -260,11 +283,11 @@ func (h *UpdateHandler) Adopt(c *gin.Context) {
 	}
 	job, started := h.startJob("adopt", body.Restart)
 	if !started {
-		c.JSON(http.StatusConflict, gin.H{"error": "已有一次更新在进行中", "job": job})
+		c.JSON(http.StatusConflict, gin.H{"error": "已有一次更新在进行中", "job": job, "bootID": h.bootID})
 		return
 	}
 	h.record(c, "update.adopt", "started", "开始把目录接入更新源", map[string]interface{}{"job": job.ID, "restart": body.Restart})
-	c.JSON(http.StatusAccepted, gin.H{"job_id": job.ID, "state": job.State})
+	c.JSON(http.StatusAccepted, gin.H{"job_id": job.ID, "state": job.State, "bootID": h.bootID})
 }
 
 // Apply answers POST /api/system/update/apply. It starts one job and returns immediately;
@@ -287,12 +310,12 @@ func (h *UpdateHandler) Apply(c *gin.Context) {
 
 	job, started := h.startJob("apply", body.Restart)
 	if !started {
-		c.JSON(http.StatusConflict, gin.H{"error": "已有一次更新在进行中", "job": job})
+		c.JSON(http.StatusConflict, gin.H{"error": "已有一次更新在进行中", "job": job, "bootID": h.bootID})
 		return
 	}
 	h.record(c, "update.apply", "started", "开始一键更新源码并重编译", map[string]interface{}{"job": job.ID, "restart": body.Restart})
 
-	c.JSON(http.StatusAccepted, gin.H{"job_id": job.ID, "state": job.State})
+	c.JSON(http.StatusAccepted, gin.H{"job_id": job.ID, "state": job.State, "bootID": h.bootID})
 }
 
 // Restart answers POST /api/system/update/restart: replace this process so the binary
@@ -327,14 +350,15 @@ func (h *UpdateHandler) Restart(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": "磁盘上的二进制不存在，无法重启", "reason": "no_binary"})
 		return
 	}
-	restart, err := h.prepareRestart()
+	activationID := uuid.NewString()
+	restart, err := h.prepareRestart(activationID)
 	if err != nil {
 		failure := &update.Error{Reason: "restart_unavailable", Message: "无法启动磁盘上的二进制：" + err.Error()}
 		c.JSON(statusForError(failure), errorBody(failure))
 		return
 	}
 	h.record(c, "update.restart", "started", "重启安装以运行磁盘上的新二进制", nil)
-	c.JSON(http.StatusAccepted, gin.H{"restarting": true})
+	c.JSON(http.StatusAccepted, gin.H{"restarting": true, "activation_id": activationID, "bootID": h.bootID})
 	scheduled = true
 	time.AfterFunc(updateRestartDelay, func() { defer release(); restart() })
 }
@@ -342,6 +366,7 @@ func (h *UpdateHandler) Restart(c *gin.Context) {
 // Job answers GET /api/system/update/job: the running job, or the most recent one, with
 // every progress line so far.
 func (h *UpdateHandler) Job(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	c.JSON(http.StatusOK, gin.H{"job": h.latest()})
 }
 
@@ -429,7 +454,7 @@ func (h *UpdateHandler) startJob(kind string, restart bool) (*updateJob, bool) {
 		if job.Restart && finish == "succeeded" && res != nil && res.BinaryBuilt && h.prepareRestart != nil {
 			release, lockErr := update.LockInstall(opts)
 			if lockErr == nil {
-				restart, prepareErr := h.prepareRestart()
+				restart, prepareErr := h.prepareRestart(job.ID)
 				if prepareErr == nil {
 					h.mu.Unlock()
 					// Keep both CLI and HTTP writers out until the old executable is replaced.

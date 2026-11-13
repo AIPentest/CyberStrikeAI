@@ -79,7 +79,7 @@ type App struct {
 }
 
 // New 创建新应用
-func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error) {
+func New(cfg *config.Config, log *logger.Logger, configPath, updateActivation string) (*App, error) {
 	toolGuard, err := toolguard.NewManager(cfg.EffectiveToolGuard())
 	if err != nil {
 		return nil, fmt.Errorf("初始化调用拦截规则: %w", err)
@@ -613,7 +613,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	})
 
 	updateHandler := handler.NewUpdateHandler(configDir, log.Logger, auditSvc,
-		app.updateRestart(configDir), configHandler.UpdateSource, configHandler.SetUpdateSource)
+		app.updateRestart(configDir), updateActivation, configHandler.UpdateSource, configHandler.SetUpdateSource)
 
 	// 设置路由（使用 App 实例以便动态获取 handler）
 	setupRoutes(

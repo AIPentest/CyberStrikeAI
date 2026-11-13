@@ -105,6 +105,9 @@ func TestUpdateSessionHandoffChild(t *testing.T) {
 		t.Fatal(err)
 	}
 	if token := os.Getenv("CSAI_RESTART_TEST_TOKEN"); token != "" {
+		if got := TakeUpdateActivation(); got != "upd-session-test" || os.Getenv(updateActivationEnv) != "" {
+			t.Fatalf("replacement did not consume the update activation: %q", got)
+		}
 		if handoff == nil || os.Getenv(updateSessionsEnv) != "" {
 			t.Fatal("replacement did not claim the private handoff")
 		}
@@ -142,7 +145,7 @@ func TestUpdateSessionHandoffChild(t *testing.T) {
 	if err := os.Rename("next", update.Binary); err != nil {
 		t.Fatal(err)
 	}
-	restart, err := prepare()
+	restart, err := prepare("upd-session-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +165,7 @@ func TestUpdateRestartChild(t *testing.T) {
 	if err := os.Rename("next", update.Binary); err != nil {
 		t.Fatal(err)
 	}
-	restart, err := prepare()
+	restart, err := prepare("upd-standalone-test")
 	if err != nil {
 		t.Fatal(err)
 	}

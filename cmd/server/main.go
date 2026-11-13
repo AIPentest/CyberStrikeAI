@@ -22,6 +22,7 @@ import (
 )
 
 func main() {
+	updateActivation := app.TakeUpdateActivation()
 	updateSessions := app.TakeUpdateSessionHandoff()
 	var configPath = flag.String("config", "config.yaml", "Path to the configuration file")
 	var httpsBootstrap = flag.Bool("https", false, "Enable HTTPS for the main site; uses an in-memory self-signed certificate when no cert/key is configured")
@@ -157,7 +158,7 @@ func main() {
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 	// 创建应用
-	application, err := app.New(cfg, log, cp)
+	application, err := app.New(cfg, log, cp, updateActivation)
 	if err != nil {
 		log.Fatal("应用初始化失败", "error", err)
 	}

@@ -36,11 +36,11 @@ func newUpdateRouter(root string, restart func()) (*gin.Engine, *UpdateHandler) 
 func newUpdateRouterWithSource(root string, restart func(),
 	source func() string, save func(string) error) (*gin.Engine, *UpdateHandler) {
 	gin.SetMode(gin.TestMode)
-	var prepare func() (func(), error)
+	var prepare func(string) (func(), error)
 	if restart != nil {
-		prepare = func() (func(), error) { return restart, nil }
+		prepare = func(string) (func(), error) { return restart, nil }
 	}
-	h := NewUpdateHandler(root, nil, nil, prepare, source, save)
+	h := NewUpdateHandler(root, nil, nil, prepare, "", source, save)
 	router := gin.New()
 	router.GET("/api/system/update", h.GetStatus)
 	router.GET("/api/system/update/job", h.Job)
