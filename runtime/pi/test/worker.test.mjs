@@ -4,9 +4,10 @@ import { createServer } from "node:http";
 import { connect } from "node:net";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdtemp, rm, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
+import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { RecordReader } from "../dist/protocol.js";
 
 test("JSONL preserves Unicode separators and fragmented UTF-8", () => {
@@ -73,6 +74,11 @@ function request(url, sessionDir) {
     maxTurns: 8, sessionDir };
 }
 
+function userTexts(body) {
+  return body.messages.filter(m => m.role === "user").map(m =>
+    typeof m.content === "string" ? m.content : m.content.map(block => block.text).join(""));
+}
+
 test("real Pi SDK streams, invokes only host tools and restores persisted sessions", { timeout: 30000 }, async t => {
   const fixture = await startFixture(t, (body, res, count) => {
     if (count === 1) sse(res, { role: "assistant", tool_calls: [{ index: 0, id: "call-1", type: "function", function: { name: "echo", arguments: '{"text":"hello"}' } }] }, "tool_calls");
@@ -96,9 +102,38 @@ test("real Pi SDK streams, invokes only host tools and restores persisted sessio
   assert.ok(fixture.requests[1].messages.some(m => m.role === "tool" && m.content === "hello"));
   assert.ok(first.records.some(r => r.event?.type === "message_update"));
   assert.ok(first.records.filter(r => r.event?.type === "message_update").every(r => !Object.hasOwn(r.event.data.assistantMessageEvent, "partial")));
-  const second = await invoke(t, { ...request(fixture.url, dir), runId: "run-2", message: "summarize prior result" });
+  const second = await invoke(t, { ...request(fixture.url, dir), runId: "run-2", message: "summarize prior result", workingDir: tmpdir() });
   assert.equal(second.result.status, "completed", second.result.error);
+  assert.equal(second.result.sessionFile, first.result.sessionFile);
+  assert.deepEqual(await readdir(dir), [basename(first.result.sessionFile)]);
   assert.ok(fixture.requests[2].messages.some(m => m.role === "tool" && m.content === "hello"));
+});
+
+test("legacy Pi sessions resume in place without invalidating saved evidence paths", { timeout: 30000 }, async t => {
+  const fixture = await startFixture(t, (_, res) => sse(res, { role: "assistant", content: "resumed" }, "stop"));
+  const dir = await mkdtemp(join(tmpdir(), "csai-pi-legacy-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const legacy = SessionManager.create(process.cwd(), dir);
+  const entryId = legacy.appendMessage({ role: "user", content: "legacy conversation history", timestamp: Date.now() });
+  const path = legacy.getSessionFile();
+  await writeFile(join(dir, "current-session"), basename(path));
+
+  const { result } = await invoke(t, { ...request(fixture.url, dir), history: [{ role: "user", content: "database fallback" }] });
+  assert.equal(result.status, "completed", result.error);
+  assert.equal(result.sessionFile, path);
+  assert.ok(SessionManager.open(path).getEntry(entryId));
+  assert.deepEqual(userTexts(fixture.requests[0]), ["legacy conversation history", "echo hello"]);
+});
+
+test("Pi accepts steering while the worker is still preparing its session", { timeout: 30000 }, async t => {
+  const fixture = await startFixture(t, (_, res) => sse(res, { role: "assistant", content: "received" }, "stop"));
+  const req = request(fixture.url);
+  const { result } = await invoke(t, req, (r, send) => {
+    if (r.type === "ready") send({ type: "steer", message: "early steering" });
+  });
+  assert.equal(result.status, "completed", result.error);
+  assert.equal(fixture.requests.length, 1);
+  assert.deepEqual(userTexts(fixture.requests[0]), [req.message, "early steering"]);
 });
 
 test("OpenAI-compatible requests keep historical tool results in their own assistant batch", { timeout: 30000 }, async t => {
