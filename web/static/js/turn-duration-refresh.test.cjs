@@ -14,7 +14,7 @@ function timingSource(source) {
 }
 
 function processDetailFilterSource(source) {
-    const start = source.indexOf('function isEinoAgentHeartbeatProgress(');
+    const start = source.indexOf('function isPiAgentHeartbeatProgress(');
     const end = source.indexOf('function dedupeConsecutiveProcessDetailRows(', start);
     assert.notEqual(start, -1, 'process detail filter should exist');
     assert.notEqual(end, -1, 'dedupe boundary should exist');
@@ -129,13 +129,13 @@ test('助手轮次摘要会显示持久化 token 用量', () => {
     assert.match(message.label.innerHTML, /turn-process-token-chip/);
 });
 
-test('助手轮次可从 Eino usage summary 过程详情提取 token 用量', () => {
+test('助手轮次可从 Pi usage summary 过程详情提取 token 用量', () => {
     const context = createHarness(Date.parse('2026-08-12T02:05:00.000Z'));
 
     const usage = context.extractAssistantTurnTokenUsage([
         { eventType: 'progress', data: { totalTokens: 9999 } },
-        { eventType: 'eino_usage_summary', data: { promptTokens: 400, completionTokens: 100, modelCalls: 1 } },
-        { eventType: 'eino_usage_summary', data: { totalTokens: 25, modelCalls: 1 } },
+        { eventType: 'agent_usage_summary', data: { promptTokens: 400, completionTokens: 100, modelCalls: 1 } },
+        { eventType: 'agent_usage_summary', data: { totalTokens: 25, modelCalls: 1 } },
     ]);
 
     assert.equal(usage.totalTokens, 525);
@@ -166,7 +166,7 @@ test('历史占位消息存在取消事件时不会再判定为运行中', () =>
     assert.match(chat, /status: status/);
 });
 
-test('过程详情隐藏 Eino 内部诊断但保留真实工具调用', () => {
+test('过程详情隐藏 Pi 内部诊断但保留真实工具调用', () => {
     const context = {};
     vm.runInNewContext(
         `${processDetailFilterSource(chat)}; this.filterNoiseProcessDetails = filterNoiseProcessDetails;`,
@@ -193,7 +193,7 @@ test('过程详情隐藏 Eino 内部诊断但保留真实工具调用', () => {
         },
         {
             eventType: 'progress',
-            message: 'Eino TurnLoop 常驻多轮 runtime 已接管本轮会话。',
+            message: 'Pi TurnLoop 常驻多轮 runtime 已接管本轮会话。',
             data: { kind: 'turn_loop_takeover' },
         },
         {

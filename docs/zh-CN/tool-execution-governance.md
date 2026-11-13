@@ -15,7 +15,7 @@
 
 ## 执行模型
 
-普通工具调用仍然对 Eino/Agent 表现为一次标准 tool call，但底层执行分为两段：
+普通工具调用仍然对 Pi/Agent 表现为一次标准 tool call，但底层执行分为两段：
 
 ```text
 Agent 调用工具
@@ -67,7 +67,7 @@ partial output 是“已产生输出的有界预览”，不等同于最终 `res
 4. 仍未完成时可继续等待，或调用 cancel_tool_execution
 ```
 
-`tool_wait_timeout_seconds` 适用于内部 MCP、外部 MCP，以及 Eino filesystem 的流式 `execute`。Eino 的 `ls/read_file/write_file/edit_file/glob/grep` 等非流式 filesystem 工具会写入 execution 监控记录，但不作为后台 worker 做软等待续跑。
+`tool_wait_timeout_seconds` 适用于内部 MCP、外部 MCP，以及 Pi filesystem 的流式 `execute`。Pi 的 `ls/read_file/write_file/edit_file/glob/grep` 等非流式 filesystem 工具会写入 execution 监控记录，但不作为后台 worker 做软等待续跑。
 
 ## 取消和会话清理
 
@@ -98,11 +98,11 @@ agent:
 
 ## 输出兜底
 
-系统使用 `multi_agent.eino_middleware.reduction_max_length_for_trunc` 作为统一工具结果上限。当前示例配置为 50000 bytes。
+系统使用 `multi_agent.runtime.reduction_max_length_for_trunc` 作为统一工具结果上限。当前示例配置为 50000 bytes。
 
 ```yaml
 multi_agent:
-  eino_middleware:
+  runtime:
     reduction_enable: true
     reduction_max_length_for_trunc: 50000
 ```
@@ -114,7 +114,7 @@ multi_agent:
 | Agent 实际拿到的工具结果 | 使用兜底后的 canonical result |
 | DB/监控存储 | 保存同一份 canonical result |
 | `get_tool_execution` / `wait_tool_execution` | 读取同一份 canonical result |
-| Eino `execute` / filesystem 监控记录 | 完成记录前统一兜底 |
+| Pi `execute` / filesystem 监控记录 | 完成记录前统一兜底 |
 | 非流式 `exec` stdout/stderr | 源头 bounded buffer |
 | 流式 `exec` stdout/stderr | 推送给前端的累计输出也受上限控制 |
 | PTY 执行路径 | 同样受上限控制 |
@@ -176,7 +176,7 @@ agent:
   shell_no_output_timeout_seconds: 1200
 
 multi_agent:
-  eino_middleware:
+  runtime:
     reduction_enable: true
     reduction_max_length_for_trunc: 50000
 ```
@@ -226,7 +226,7 @@ PY
 
 每轮任务有独立 `runId`，本地进程与异步 MCP worker 都通过 context 保留归属。取消 context、工具返回、SSE 断线不等于资源已回收。
 
-- `exec ... &` 与 Eino 后台执行立即返回，但仍属于本轮任务；无任务归属的后台启动被拒绝。前台工具退出时清理遗留子进程，跨工具调用运行的任务应使用显式后台入口。
+- `exec ... &` 与 Pi 后台执行立即返回，但仍属于本轮任务；无任务归属的后台启动被拒绝。前台工具退出时清理遗留子进程，跨工具调用运行的任务应使用显式后台入口。
 - 完成、失败、超时收尾、用户停止、服务正常关闭都会封闭启动入口、取消 worker、终止进程并等待回收。“中断并继续”保留本轮归属。
 - Unix 首先给进程组 3 秒退出宽限期，再强制终止并验证；内核隔离、守护进程退出与 worker 收尾各有有界等待。清理期间仍占用本轮任务；失败保留 `cleanup_failed`、进程组/worker ID，每 15 秒巡检重试。
 - 工具 worker 的登记与任务关闭互斥；即使 MCP 使用 `WithoutCancel`，任务也会等待其退出。旧轮次的延迟回调无法接管新轮次的进程或提交新 worker。

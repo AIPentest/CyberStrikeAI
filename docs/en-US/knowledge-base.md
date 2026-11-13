@@ -100,8 +100,8 @@ Use logs to improve content:
 
 - Manager: `internal/knowledge/manager.go`
 - Index pipeline: `internal/knowledge/index_pipeline.go`
-- Chunking: `internal/knowledge/chunk_eino.go`
+- Chunking: `internal/knowledge/splitter.go`
 - Retriever: `internal/knowledge/retriever.go`
-- Eino chain: `internal/knowledge/eino_retrieve_chain.go`
+- Native retrieval pipeline: `internal/knowledge/retrieve_chain.go`
 - Rerank: `internal/knowledge/rerank_http.go`
 - MCP tools: `internal/knowledge/tool.go`

@@ -6,8 +6,8 @@
 //   - Listener 是抽象接口，下挂 tcp_reverse / http_beacon / https_beacon / websocket
 //     等不同传输方式的具体实现，全部通过 listener.Registry 工厂创建。
 //   - 任务调度走数据库（c2_tasks 表）+ 内存事件总线（EventBus）混合：
-//     * 状态变化与历史记录靠 SQLite 实现持久化与重启恢复；
-//     * 高频实时通知（如新任务结果）通过 EventBus 推送给 SSE/WS 订阅者，避免轮询。
+//   - 状态变化与历史记录靠 SQLite 实现持久化与重启恢复；
+//   - 高频实时通知（如新任务结果）通过 EventBus 推送给 SSE/WS 订阅者，避免轮询。
 //   - Crypto 层固定 AES-256-GCM，每个 Listener 独立 32 字节密钥；密钥仅服务端持有
 //     和编译期注入到 implant，事件流不允许导出明文密钥。
 package c2
@@ -22,10 +22,10 @@ import (
 type ListenerType string
 
 const (
-	ListenerTypeTCPReverse   ListenerType = "tcp_reverse"
-	ListenerTypeHTTPBeacon   ListenerType = "http_beacon"
-	ListenerTypeHTTPSBeacon  ListenerType = "https_beacon"
-	ListenerTypeWebSocket    ListenerType = "websocket"
+	ListenerTypeTCPReverse  ListenerType = "tcp_reverse"
+	ListenerTypeHTTPBeacon  ListenerType = "http_beacon"
+	ListenerTypeHTTPSBeacon ListenerType = "https_beacon"
+	ListenerTypeWebSocket   ListenerType = "websocket"
 )
 
 // AllListenerTypes 列出所有受支持的监听器类型，便于校验与前端枚举
@@ -129,9 +129,9 @@ type ListenerConfig struct {
 	BeaconUploadPath  string `json:"beacon_upload_path,omitempty"`   // 默认 "/upload"
 	BeaconFilePath    string `json:"beacon_file_path,omitempty"`     // 默认 "/file/"
 	// HTTPS 专属
-	TLSCertPath string `json:"tls_cert_path,omitempty"`
-	TLSKeyPath  string `json:"tls_key_path,omitempty"`
-	TLSAutoSelfSign bool `json:"tls_auto_self_sign,omitempty"` // true：找不到证书时自动生成自签
+	TLSCertPath     string `json:"tls_cert_path,omitempty"`
+	TLSKeyPath      string `json:"tls_key_path,omitempty"`
+	TLSAutoSelfSign bool   `json:"tls_auto_self_sign,omitempty"` // true：找不到证书时自动生成自签
 	// 客户端默认参数（写到 c2_sessions 初值，beacon 也可在 check-in 时覆写）
 	DefaultSleep  int `json:"default_sleep,omitempty"`  // 秒，默认 5
 	DefaultJitter int `json:"default_jitter,omitempty"` // 0-100，默认 0
@@ -175,28 +175,28 @@ func (c *ListenerConfig) ApplyDefaults() {
 
 // ImplantCheckInRequest beacon → 服务端的注册/心跳请求体（已解密后的明文）
 type ImplantCheckInRequest struct {
-	ImplantUUID  string                 `json:"uuid"`
-	Hostname     string                 `json:"hostname"`
-	Username     string                 `json:"username"`
-	OS           string                 `json:"os"`
-	Arch         string                 `json:"arch"`
-	PID          int                    `json:"pid"`
-	ProcessName  string                 `json:"process_name"`
-	IsAdmin      bool                   `json:"is_admin"`
-	InternalIP   string                 `json:"internal_ip"`
-	UserAgent    string                 `json:"user_agent,omitempty"`
-	SleepSeconds int                    `json:"sleep_seconds"`
-	JitterPercent int                   `json:"jitter_percent"`
-	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	ImplantUUID   string                 `json:"uuid"`
+	Hostname      string                 `json:"hostname"`
+	Username      string                 `json:"username"`
+	OS            string                 `json:"os"`
+	Arch          string                 `json:"arch"`
+	PID           int                    `json:"pid"`
+	ProcessName   string                 `json:"process_name"`
+	IsAdmin       bool                   `json:"is_admin"`
+	InternalIP    string                 `json:"internal_ip"`
+	UserAgent     string                 `json:"user_agent,omitempty"`
+	SleepSeconds  int                    `json:"sleep_seconds"`
+	JitterPercent int                    `json:"jitter_percent"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // ImplantCheckInResponse 服务端回执
 type ImplantCheckInResponse struct {
-	SessionID    string `json:"session_id"`
-	NextSleep    int    `json:"next_sleep"`
-	NextJitter   int    `json:"next_jitter"`
-	HasTasks     bool   `json:"has_tasks"`
-	ServerTime   int64  `json:"server_time"`
+	SessionID  string `json:"session_id"`
+	NextSleep  int    `json:"next_sleep"`
+	NextJitter int    `json:"next_jitter"`
+	HasTasks   bool   `json:"has_tasks"`
+	ServerTime int64  `json:"server_time"`
 }
 
 // TaskEnvelope 服务端 → beacon 的任务派发载体
@@ -214,7 +214,7 @@ type TaskResultReport struct {
 	OutputB64  string `json:"output_b64,omitempty"` // 原始控制台字节（base64），避免 JSON 破坏非 UTF-8 输出
 	Error      string `json:"error,omitempty"`
 	ErrorB64   string `json:"error_b64,omitempty"`
-	BlobBase64 string `json:"blob_b64,omitempty"` // 如截图二进制
+	BlobBase64 string `json:"blob_b64,omitempty"`    // 如截图二进制
 	BlobSuffix string `json:"blob_suffix,omitempty"` // 如 ".png"
 	StartedAt  int64  `json:"started_at"`
 	EndedAt    int64  `json:"ended_at"`

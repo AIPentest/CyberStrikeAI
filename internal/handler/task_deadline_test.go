@@ -42,7 +42,7 @@ func TestBatchTaskDeadlineClassification(t *testing.T) {
 				t.Fatal(err)
 			}
 			manager := NewBatchTaskManager(logger)
-			queue, err := manager.CreateBatchQueue("deadline", "", "eino_single", "manual", "", "", nil, 1, []string{"test"})
+			queue, err := manager.CreateBatchQueue("deadline", "", "single", "manual", "", "", nil, 1, []string{"test"})
 			if err != nil {
 				t.Fatal(err)
 			}

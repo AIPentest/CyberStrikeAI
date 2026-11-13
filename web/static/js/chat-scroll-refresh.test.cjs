@@ -483,16 +483,16 @@ test('刷新运行中回复会复用已持久化 planning 并继续追加未来�
     assert.match(monitor, /item\.dataset\.responseStreamId = String\(options\.data\.streamId\)/);
 });
 
-test('Eino 原生模型 retry/failover 事件在主聊天和 WebShell 中可见', () => {
+test('Pi 原生模型 retry/failover 事件在主聊天和 WebShell 中可见', () => {
     const handleSource = functionSource(monitor, 'handleStreamEvent', 'hitlApprovalTranslate');
-    assert.match(handleSource, /case 'eino_model_retry'/);
-    assert.match(handleSource, /formatEinoModelRetryTitle/);
-    assert.match(handleSource, /case 'eino_model_failover'/);
-    assert.match(handleSource, /formatEinoModelFailoverTitle/);
-    assert.match(monitor, /function formatEinoModelRetryMessage/);
-    assert.match(monitor, /function formatEinoModelFailoverMessage/);
-    assert.match(webshell, /_et === 'eino_model_retry'/);
-    assert.match(webshell, /_et === 'eino_model_failover'/);
+    assert.match(handleSource, /case 'pi_model_retry'/);
+    assert.match(handleSource, /formatPiModelRetryTitle/);
+    assert.match(handleSource, /case 'pi_model_failover'/);
+    assert.match(handleSource, /formatPiModelFailoverTitle/);
+    assert.match(monitor, /function formatPiModelRetryMessage/);
+    assert.match(monitor, /function formatPiModelFailoverMessage/);
+    assert.match(webshell, /_et === 'pi_model_retry'/);
+    assert.match(webshell, /_et === 'pi_model_failover'/);
 });
 
 test('非仪表盘 hash 首屏在路由确定前隐藏默认仪表盘', () => {

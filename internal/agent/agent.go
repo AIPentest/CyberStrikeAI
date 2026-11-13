@@ -115,7 +115,7 @@ type ChatMessage struct {
 	Content    string     `json:"content,omitempty"`
 	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
 	ToolCallID string     `json:"tool_call_id,omitempty"`
-	// ToolName 仅 tool 角色：从 Eino/轨迹 JSON 的 name 或 tool_name 恢复，供续跑构造 ToolMessage。
+	// ToolName 仅 tool 角色：从 Agent/轨迹 JSON 的 name 或 tool_name 恢复，供续跑构造 ToolMessage。
 	ToolName string `json:"tool_name,omitempty"`
 	// ReasoningContent 对应 OpenAI/DeepSeek 的 reasoning_content；思考模式 + 工具调用后续跑须回传（见 DeepSeek 文档）。
 	ReasoningContent string `json:"reasoning_content,omitempty"`
@@ -285,8 +285,8 @@ func (fc *FunctionCall) UnmarshalJSON(data []byte) error {
 // ProgressCallback 进度回调函数类型
 type ProgressCallback func(eventType, message string, data interface{})
 
-// EinoSingleAgentSystemInstruction 供 Eino adk.ChatModelAgent.Instruction 使用（含 system_prompt_path）。
-func (a *Agent) EinoSingleAgentSystemInstruction() string {
+// SystemInstruction returns the native agent prompt, including system_prompt_path overrides.
+func (a *Agent) SystemInstruction() string {
 	systemPrompt := DefaultSingleAgentSystemPrompt()
 	if a.agentConfig != nil {
 		if p := strings.TrimSpace(a.agentConfig.SystemPromptPath); p != "" {
@@ -512,7 +512,7 @@ func (a *Agent) convertToOpenAIType(configType string) string {
 	}
 }
 
-// ToolExecutionResult MCP 工具执行结果（供 Eino 桥与监控落库使用）。
+// ToolExecutionResult MCP 工具执行结果（供 Agent 桥与监控落库使用）。
 type ToolExecutionResult struct {
 	Result      string
 	ExecutionID string
@@ -754,7 +754,7 @@ func (a *Agent) repairOrphanToolMessages(messages *[]ChatMessage) bool {
 	return removed
 }
 
-// ToolsForRole 返回与单 Agent 循环一致的工具定义（OpenAI function 格式），供 Eino DeepAgent 等编排层绑定 MCP 工具。
+// ToolsForRole 返回与单 Agent 循环一致的工具定义（OpenAI function 格式），供 Agent DeepAgent 等编排层绑定 MCP 工具。
 func (a *Agent) ToolsForRole(roleTools []string) []Tool {
 	return a.getAvailableTools(roleTools)
 }
@@ -805,7 +805,7 @@ func (a *Agent) UnregisterLocalToolExecutionCancel(executionID string) {
 }
 
 // RecordLocalToolExecution 将非 CallTool 路径完成的工具调用写入 MCP 监控库（与 CallTool 落库一致），返回 executionId。
-// 用于 Eino filesystem execute 等场景，使助手气泡「渗透测试详情」与常规 MCP 一致可点进监控。
+// 用于 Agent filesystem execute 等场景，使助手气泡「渗透测试详情」与常规 MCP 一致可点进监控。
 func (a *Agent) RecordLocalToolExecution(ctx context.Context, toolName string, args map[string]interface{}, resultText string, invokeErr error) string {
 	return a.FinishLocalToolExecution(ctx, "", toolName, args, resultText, invokeErr)
 }

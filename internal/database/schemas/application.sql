@@ -249,6 +249,7 @@ CREATE TABLE conversations (
     agent_mode TEXT NOT NULL DEFAULT 'eino_single',
     last_react_input TEXT,
     last_react_output TEXT,
+    pi_session_revision INTEGER NOT NULL DEFAULT 0,
     pinned INTEGER DEFAULT 0,
     webshell_connection_id TEXT,
     project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
@@ -861,3 +862,8 @@ CREATE INDEX idx_workflow_runs_workflow ON workflow_runs(workflow_id);
 CREATE UNIQUE INDEX uq_workflow_package_imports_actor_key ON workflow_package_imports(actor_user_id, idempotency_key);
 
 CREATE UNIQUE INDEX uq_workflow_package_imports_inspection_success ON workflow_package_imports(inspection_id) WHERE result IN ('created','overwritten','renamed','kept_existing','skipped_identical');
+
+-- Retain roots across configuration changes so conversation deletion removes all copies.
+CREATE TABLE pi_session_roots (
+    path TEXT PRIMARY KEY
+);

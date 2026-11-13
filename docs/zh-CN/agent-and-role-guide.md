@@ -32,8 +32,8 @@ CyberStrikeAI 的 Agent 行为由三类资源共同决定：角色、子代理�
 
 单代理接口：
 
-- `POST /api/eino-agent`
-- `POST /api/eino-agent/stream`
+- `POST /api/agent`
+- `POST /api/agent/stream`
 
 适合：
 
@@ -151,12 +151,12 @@ max_iterations: 300
 
 | 模式 | 适合 | 不适合 |
 | --- | --- | --- |
-| `eino_single` | 短任务、交互式分析、需要稳定上下文 | 多阶段大任务 |
+| `single` | 短任务、交互式分析、需要稳定上下文 | 多阶段大任务 |
 | `deep` | 主代理动态拆分任务，子代理按需深入 | 需要严格步骤顺序的流程 |
 | `plan_execute` | 有明确阶段、需要执行后复盘和重规划 | 用户频繁打断的即兴对话 |
 | `supervisor` | 专家分工明确，需要主管路由 | 子代理定义含糊或过多 |
 
-经验上，普通安全测试先用 `eino_single`；复杂项目用 `plan_execute`；需要多个专业角色时用 `deep` 或 `supervisor`。
+经验上，普通安全测试先用 `single`；复杂项目用 `plan_execute`；需要多个专业角色时用 `deep` 或 `supervisor`。
 
 ## 工具可见性如何影响行为
 
@@ -192,6 +192,6 @@ max_iterations: 300
 
 - Markdown Agent 解析：`internal/agents/markdown.go`
 - 多代理准备：`internal/handler/multi_agent_prepare.go`
-- 编排实现：`internal/multiagent/eino_orchestration.go`
-- 工具搜索中间件：`internal/multiagent/eino_middleware.go`
+- 编排实现：`internal/multiagent/pi_runner.go`
+- 工具搜索中间件：`internal/multiagent/pi_runner.go`
 - 子代理上下文：`internal/multiagent/sub_agent_context_test.go`

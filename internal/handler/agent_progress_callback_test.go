@@ -52,6 +52,54 @@ func TestCreateProgressCallback_ConcurrentToolEvents(t *testing.T) {
 	wg.Wait()
 }
 
+func TestCreateProgressCallback_RecordsSkillStats(t *testing.T) {
+	logger := zap.NewNop()
+	db, err := database.NewDB(filepath.Join(t.TempDir(), "test.sqlite"), logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	h := &AgentHandler{logger: logger, config: &config.Config{}, db: db}
+	cb := h.createProgressCallback(context.Background(), nil, "conv-skill-stats", "", nil)
+
+	cb("tool_call", "", map[string]interface{}{
+		"toolName": "skill", "toolCallId": "pi-success",
+		"arguments": map[string]interface{}{"name": "demo-skill"},
+	})
+	piSuccess := map[string]interface{}{
+		"toolName": "skill", "toolCallId": "pi-success", "success": true, "isError": false,
+	}
+	cb("tool_result", "loaded", piSuccess)
+	cb("tool_result", "loaded", piSuccess)
+
+	cb("tool_call", "", map[string]interface{}{
+		"toolName": "skill", "toolCallId": "pi-failure",
+		"arguments": map[string]interface{}{"name": "demo-skill"},
+	})
+	cb("tool_result", "failed", map[string]interface{}{
+		"toolName": "skill", "toolCallId": "pi-failure", "success": false, "isError": true,
+	})
+
+	cb("tool_call", "", map[string]interface{}{
+		"toolName": "skill", "toolCallId": "legacy-success",
+		"argumentsObj": map[string]interface{}{"skill": "legacy-skill"},
+	})
+	cb("tool_result", "loaded", map[string]interface{}{
+		"toolName": "skill", "toolCallId": "legacy-success", "success": true,
+	})
+
+	stats, err := db.LoadSkillStats()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := stats["demo-skill"]; got == nil || got.TotalCalls != 2 || got.SuccessCalls != 1 || got.FailedCalls != 1 {
+		t.Errorf("Pi stats = %+v, want two calls with one success and one failure", got)
+	}
+	if got := stats["legacy-skill"]; got == nil || got.TotalCalls != 1 || got.SuccessCalls != 1 || got.FailedCalls != 0 {
+		t.Errorf("legacy stats = %+v, want one successful call", got)
+	}
+}
+
 // TestCreateProgressCallback_MirrorsWebStreamEvents 页面刷新后 task-events 订阅必须
 // 继续收到原 Web SSE 任务的后续事件，不能只等数据库最终结果。
 func TestCreateProgressCallback_MirrorsWebStreamEvents(t *testing.T) {
@@ -79,7 +127,7 @@ func TestCreateProgressCallback_MirrorsWebStreamEvents(t *testing.T) {
 	}
 }
 
-func TestCreateProgressCallback_HidesInternalEinoDiagnostics(t *testing.T) {
+func TestCreateProgressCallback_HidesInternalAgentDiagnostics(t *testing.T) {
 	tmp := t.TempDir()
 	db, err := database.NewDB(filepath.Join(tmp, "test.sqlite"), zap.NewNop())
 	if err != nil {
@@ -106,7 +154,7 @@ func TestCreateProgressCallback_HidesInternalEinoDiagnostics(t *testing.T) {
 	cb("model_output_rejected", "模型工具调用不完整或参数不安全，已阻止执行并要求重写。", map[string]interface{}{
 		"reason": "invalid_tool_arguments_json",
 	})
-	cb("progress", "Eino TurnLoop 常驻多轮 runtime 已接管本轮会话。", map[string]interface{}{
+	cb("progress", "Agent TurnLoop 常驻多轮 runtime 已接管本轮会话。", map[string]interface{}{
 		"kind": "turn_loop_takeover",
 	})
 
@@ -147,8 +195,8 @@ func TestCreateProgressCallback_PersistsRunningResponseBeforeDone(t *testing.T) 
 	cb := h.createProgressCallback(context.Background(), nil, conv.ID, asst.ID, nil)
 	meta := map[string]interface{}{
 		"streamId":      "response-refresh-1",
-		"einoAgent":     "cyberstrike-eino-single",
-		"orchestration": "eino_single",
+		"agentName":     "cyberstrike-eino-single",
+		"orchestration": "single",
 	}
 	cb("response_start", "", meta)
 	cb("response_delta", "刷新前已生成的第一部分", openai.WithSSEAccumulated(meta, "刷新前已生成的第一部分"))

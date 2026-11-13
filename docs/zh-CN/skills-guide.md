@@ -18,7 +18,7 @@ skills/
     SKILL.md
   ssrf-testing/
     SKILL.md
-  cyberstrike-eino-demo/
+  cyberstrike-pi-demo/
     SKILL.md
     REFERENCE.md
     assets/
@@ -45,11 +45,11 @@ description: SSRF 漏洞识别、验证、绕过和修复建议流程
 
 ## 渐进式披露
 
-Eino Skills 支持按需加载。配置：
+Pi Skills 支持按需加载。配置：
 
 ```yaml
 multi_agent:
-  eino_skills:
+  skills:
     disable: false
     filesystem_tools: true
     skill_tool_name: skill
@@ -111,7 +111,7 @@ Skill 没被使用：
 
 - `description` 过窄或过模糊。
 - 任务没有触发关键词。
-- `multi_agent.eino_skills.disable: true`。
+- `multi_agent.skills.disable: true`。
 - Skill 文件 front matter 格式错误。
 
 Skill 读取太多：
@@ -176,5 +176,5 @@ Skill 的核心价值不是“让 Agent 知道一个概念”，而是让 Agent 
 
 - Skill 包校验：`internal/skillpackage/validate.go`
 - Skill 服务：`internal/skillpackage/service.go`
-- Eino Skills 接入：`internal/multiagent/eino_skills.go`
+- Pi Skills 接入：`internal/multiagent/pi_local_tools.go`
 - Skills Handler：`internal/handler/skills.go`

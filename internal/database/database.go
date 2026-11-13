@@ -56,10 +56,10 @@ type DB struct {
 	*sql.DB
 	logger                   *zap.Logger
 	conversationArtifactsDir string
-	einoPlantaskBaseDir      string // skills_dir + plantask_rel_dir (per-conversation subdirs)
-	einoCheckpointBaseDir    string // checkpoint_dir root (per-conversation subdirs)
-	einoReductionRootDir     string // reduction_root_dir or default tmp/reduction (conversations/<id> subdirs)
-	einoWorkspaceRootDir     string // workspace_root_dir or default tmp/workspace (projects|conversations/<id> subdirs)
+	agentPlantaskBaseDir     string // skills_dir + plantask_rel_dir (per-conversation subdirs)
+	agentCheckpointBaseDir   string // checkpoint_dir root (per-conversation subdirs)
+	agentReductionRootDir    string // reduction_root_dir or default tmp/reduction (conversations/<id> subdirs)
+	agentWorkspaceRootDir    string // workspace_root_dir or default tmp/workspace (projects|conversations/<id> subdirs)
 	chatUploadsDir           string // chat_uploads root (<date>/<conversationID> subdirs)
 	checkpointLoopName       string
 	checkpointStop           chan struct{}
@@ -176,18 +176,18 @@ func NewDB(dbPath string, logger *zap.Logger) (*DB, error) {
 	return database, nil
 }
 
-// SetEinoConversationDirs configures best-effort filesystem cleanup on DeleteConversation.
+// SetAgentConversationDirs configures best-effort filesystem cleanup on DeleteConversation.
 // plantaskBase is skills_root/plantask_rel (no conversation id); checkpointBase is checkpoint_dir root.
 // reductionRoot is reduction_root_dir from config; empty uses tmp/reduction (conversation-scoped subdirs only).
 // workspaceRoot is agent.workspace_root_dir from config; empty uses tmp/workspace.
-func (db *DB) SetEinoConversationDirs(plantaskBase, checkpointBase, reductionRoot, workspaceRoot string) {
+func (db *DB) SetAgentConversationDirs(plantaskBase, checkpointBase, reductionRoot, workspaceRoot string) {
 	if db == nil {
 		return
 	}
-	db.einoPlantaskBaseDir = strings.TrimSpace(plantaskBase)
-	db.einoCheckpointBaseDir = strings.TrimSpace(checkpointBase)
-	db.einoReductionRootDir = strings.TrimSpace(reductionRoot)
-	db.einoWorkspaceRootDir = strings.TrimSpace(workspaceRoot)
+	db.agentPlantaskBaseDir = strings.TrimSpace(plantaskBase)
+	db.agentCheckpointBaseDir = strings.TrimSpace(checkpointBase)
+	db.agentReductionRootDir = strings.TrimSpace(reductionRoot)
+	db.agentWorkspaceRootDir = strings.TrimSpace(workspaceRoot)
 }
 
 // SetChatUploadsDir configures the chat_uploads root so DeleteConversation can remove

@@ -18,7 +18,6 @@ import (
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/database"
 	"cyberstrike-ai/internal/knowledge"
-	"cyberstrike-ai/internal/llm"
 	"cyberstrike-ai/internal/mcp"
 	"cyberstrike-ai/internal/mcp/builtin"
 	"cyberstrike-ai/internal/openai"
@@ -26,7 +25,6 @@ import (
 	"cyberstrike-ai/internal/toolguard"
 	"cyberstrike-ai/internal/typesafe"
 
-	"github.com/cloudwego/eino/schema"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -264,21 +262,22 @@ func (h *ConfigHandler) ApplyWechatRobotBinding(wc config.RobotWechatConfig) err
 
 // GetConfigResponse 获取配置响应
 type GetConfigResponse struct {
-	AI         config.AIConfig          `json:"ai"`
-	OpenAI     config.OpenAIConfig      `json:"openai"`
-	Vision     config.VisionConfig      `json:"vision"`
-	FOFA       config.FofaConfig        `json:"fofa"`
-	ZoomEye    config.SpaceSearchConfig `json:"zoomeye"`
-	Quake      config.SpaceSearchConfig `json:"quake"`
-	Shodan     config.SpaceSearchConfig `json:"shodan"`
-	MCP        config.MCPConfig         `json:"mcp"`
-	Tools      []ToolConfigInfo         `json:"tools"`
-	Agent      config.AgentConfig       `json:"agent"`
-	Hitl       config.HitlConfig        `json:"hitl,omitempty"`
-	Knowledge  config.KnowledgeConfig   `json:"knowledge"`
-	Robots     config.RobotsConfig      `json:"robots,omitempty"`
-	MultiAgent config.MultiAgentPublic  `json:"multi_agent,omitempty"`
-	C2         config.C2Public          `json:"c2"`
+	AgentRuntime config.AgentRuntimeConfig `json:"agent_runtime"`
+	AI           config.AIConfig           `json:"ai"`
+	OpenAI       config.OpenAIConfig       `json:"openai"`
+	Vision       config.VisionConfig       `json:"vision"`
+	FOFA         config.FofaConfig         `json:"fofa"`
+	ZoomEye      config.SpaceSearchConfig  `json:"zoomeye"`
+	Quake        config.SpaceSearchConfig  `json:"quake"`
+	Shodan       config.SpaceSearchConfig  `json:"shodan"`
+	MCP          config.MCPConfig          `json:"mcp"`
+	Tools        []ToolConfigInfo          `json:"tools"`
+	Agent        config.AgentConfig        `json:"agent"`
+	Hitl         config.HitlConfig         `json:"hitl,omitempty"`
+	Knowledge    config.KnowledgeConfig    `json:"knowledge"`
+	Robots       config.RobotsConfig       `json:"robots,omitempty"`
+	MultiAgent   config.MultiAgentPublic   `json:"multi_agent,omitempty"`
+	C2           config.C2Public           `json:"c2"`
 }
 
 // ToolConfigInfo 工具配置信息
@@ -351,44 +350,40 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 		subAgentCount = len(agents.MergeYAMLAndMarkdown(h.config.MultiAgent.SubAgents, load.SubAgents))
 	}
 	multiPub := config.MultiAgentPublic{
-		Enabled:                               h.config.MultiAgent.Enabled,
-		RobotDefaultAgentMode:                 config.NormalizeRobotAgentMode(h.config.MultiAgent),
-		BatchUseMultiAgent:                    h.config.MultiAgent.BatchUseMultiAgent,
-		SubAgentCount:                         subAgentCount,
-		Orchestration:                         config.NormalizeMultiAgentOrchestration(h.config.MultiAgent.Orchestration),
-		PlanExecuteLoopMaxIterations:          h.config.MultiAgent.PlanExecuteLoopMaxIterations,
-		SummarizationUserIntentLedgerMaxRunes: h.config.MultiAgent.EinoMiddleware.SummarizationUserIntentLedgerMaxRunesEffective(),
-		SummarizationUserIntentLedgerEntryMaxRunes: h.config.MultiAgent.EinoMiddleware.SummarizationUserIntentLedgerEntryMaxRunesEffective(),
-		LatestUserMessageMaxRunes:                  h.config.MultiAgent.EinoMiddleware.LatestUserMessageMaxRunesEffective(),
-		LatestUserMessageHeadRunes:                 h.config.MultiAgent.EinoMiddleware.LatestUserMessageHeadRunesEffective(),
-		LatestUserMessageTailRunes:                 h.config.MultiAgent.EinoMiddleware.LatestUserMessageTailRunesEffective(),
-		ModelRetryMaxRetries:                       h.config.MultiAgent.EinoMiddleware.ModelRetryMaxRetries,
-		ModelRetryMaxBackoffSec:                    h.config.MultiAgent.EinoMiddleware.ModelRetryMaxBackoffSec,
-		ModelFailoverChannels:                      append([]string(nil), h.config.MultiAgent.EinoMiddleware.ModelFailoverChannels...),
-		ModelFailoverMaxRetries:                    h.config.MultiAgent.EinoMiddleware.ModelFailoverMaxRetries,
-		ToolSearchAlwaysVisibleTools:               append([]string(nil), h.config.MultiAgent.EinoMiddleware.ToolSearchAlwaysVisibleTools...),
+		Enabled:                      h.config.MultiAgent.Enabled,
+		RobotDefaultAgentMode:        config.NormalizeRobotAgentMode(h.config.MultiAgent),
+		BatchUseMultiAgent:           h.config.MultiAgent.BatchUseMultiAgent,
+		SubAgentCount:                subAgentCount,
+		Orchestration:                config.NormalizeMultiAgentOrchestration(h.config.MultiAgent.Orchestration),
+		PlanExecuteLoopMaxIterations: h.config.MultiAgent.PlanExecuteLoopMaxIterations,
+		ModelRetryMaxRetries:         h.config.MultiAgent.Runtime.ModelRetryMaxRetries,
+		ModelRetryMaxBackoffSec:      h.config.MultiAgent.Runtime.ModelRetryMaxBackoffSec,
+		ModelFailoverChannels:        append([]string(nil), h.config.MultiAgent.Runtime.ModelFailoverChannels...),
+		ModelFailoverMaxRetries:      h.config.MultiAgent.Runtime.ModelFailoverMaxRetries,
+		ToolSearchAlwaysVisibleTools: append([]string(nil), h.config.MultiAgent.Runtime.ToolSearchAlwaysVisibleTools...),
 		ToolSearchAlwaysVisibleEffectiveTools: mergeToolNameLists(
-			h.config.MultiAgent.EinoMiddleware.ToolSearchAlwaysVisibleTools,
+			h.config.MultiAgent.Runtime.ToolSearchAlwaysVisibleTools,
 			builtin.GetAllBuiltinTools(),
 		),
 	}
 
 	response, err := maskedConfigResponse(GetConfigResponse{
-		AI:         h.config.AI,
-		OpenAI:     h.config.OpenAI,
-		Vision:     h.config.Vision,
-		FOFA:       h.config.FOFA,
-		ZoomEye:    h.config.ZoomEye,
-		Quake:      h.config.Quake,
-		Shodan:     h.config.Shodan,
-		MCP:        h.config.MCP,
-		Tools:      tools,
-		Agent:      h.config.Agent,
-		Hitl:       h.config.Hitl,
-		Knowledge:  h.config.Knowledge,
-		C2:         h.config.C2.Public(),
-		Robots:     h.config.Robots,
-		MultiAgent: multiPub,
+		AgentRuntime: h.config.AgentRuntime,
+		AI:           h.config.AI,
+		OpenAI:       h.config.OpenAI,
+		Vision:       h.config.Vision,
+		FOFA:         h.config.FOFA,
+		ZoomEye:      h.config.ZoomEye,
+		Quake:        h.config.Quake,
+		Shodan:       h.config.Shodan,
+		MCP:          h.config.MCP,
+		Tools:        tools,
+		Agent:        h.config.Agent,
+		Hitl:         h.config.Hitl,
+		Knowledge:    h.config.Knowledge,
+		C2:           h.config.C2.Public(),
+		Robots:       h.config.Robots,
+		MultiAgent:   multiPub,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "配置序列化失败"})
@@ -723,22 +718,23 @@ func (h *ConfigHandler) GetTools(c *gin.Context) {
 
 // UpdateConfigRequest 更新配置请求
 type UpdateConfigRequest struct {
-	AI         *config.AIConfig            `json:"ai,omitempty"`
-	OpenAI     *config.OpenAIConfig        `json:"openai,omitempty"`
-	Vision     *config.VisionConfig        `json:"vision,omitempty"`
-	FOFA       *config.FofaConfig          `json:"fofa,omitempty"`
-	ZoomEye    *config.SpaceSearchConfig   `json:"zoomeye,omitempty"`
-	Quake      *config.SpaceSearchConfig   `json:"quake,omitempty"`
-	Shodan     *config.SpaceSearchConfig   `json:"shodan,omitempty"`
-	MCP        *config.MCPConfig           `json:"mcp,omitempty"`
-	Tools      []ToolEnableStatus          `json:"tools,omitempty"`
-	Agent      *AgentConfigUpdate          `json:"agent,omitempty"`
-	Hitl       *config.HitlConfig          `json:"hitl,omitempty"`
-	Knowledge  *config.KnowledgeConfig     `json:"knowledge,omitempty"`
-	Robots     *config.RobotsConfig        `json:"robots,omitempty"`
-	MultiAgent *config.MultiAgentAPIUpdate `json:"multi_agent,omitempty"`
-	C2         *config.C2APIUpdate         `json:"c2,omitempty"`
-	Storage    *config.StorageConfig       `json:"storage,omitempty"`
+	AgentRuntime *AgentRuntimeUpdate         `json:"agent_runtime,omitempty"`
+	AI           *config.AIConfig            `json:"ai,omitempty"`
+	OpenAI       *config.OpenAIConfig        `json:"openai,omitempty"`
+	Vision       *config.VisionConfig        `json:"vision,omitempty"`
+	FOFA         *config.FofaConfig          `json:"fofa,omitempty"`
+	ZoomEye      *config.SpaceSearchConfig   `json:"zoomeye,omitempty"`
+	Quake        *config.SpaceSearchConfig   `json:"quake,omitempty"`
+	Shodan       *config.SpaceSearchConfig   `json:"shodan,omitempty"`
+	MCP          *config.MCPConfig           `json:"mcp,omitempty"`
+	Tools        []ToolEnableStatus          `json:"tools,omitempty"`
+	Agent        *AgentConfigUpdate          `json:"agent,omitempty"`
+	Hitl         *config.HitlConfig          `json:"hitl,omitempty"`
+	Knowledge    *config.KnowledgeConfig     `json:"knowledge,omitempty"`
+	Robots       *config.RobotsConfig        `json:"robots,omitempty"`
+	MultiAgent   *config.MultiAgentAPIUpdate `json:"multi_agent,omitempty"`
+	C2           *config.C2APIUpdate         `json:"c2,omitempty"`
+	Storage      *config.StorageConfig       `json:"storage,omitempty"`
 }
 
 // AgentConfigUpdate 用于 PATCH /api/config 的 agent 段：仅 JSON 中出现的字段（指针非 nil）覆盖内存配置。
@@ -805,6 +801,29 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 	if err := restoreConfigRequestSecrets(&req, h.config); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+	if req.AgentRuntime != nil {
+		updated := h.config.AgentRuntime
+		applyAgentRuntimeUpdate(&updated, req.AgentRuntime)
+		if err := updated.Validate(); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if h.db != nil {
+			// Keep both roots even if a later save fails: active workers may still
+			// write to the previous root while new requests use the updated one.
+			if err := h.db.SetAgentSessionDir(h.config.AgentSessionDir()); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			candidate := *h.config
+			candidate.AgentRuntime = updated
+			if err := h.db.SetAgentSessionDir(candidate.AgentSessionDir()); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+		h.config.AgentRuntime = updated
 	}
 
 	// 更新OpenAI配置
@@ -880,19 +899,19 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 			h.agent.UpdateMaxIterations(h.config.Agent.MaxIterations)
 		}
 		if h.executor != nil {
-			h.executor.SetToolOutputMaxBytes(h.config.MultiAgent.EinoMiddleware.ReductionMaxLengthForTruncEffective())
-			h.executor.SetToolOutputSpillRoot(h.config.MultiAgent.EinoMiddleware.ReductionRootDir)
+			h.executor.SetToolOutputMaxBytes(h.config.MultiAgent.Runtime.ReductionMaxLengthForTruncEffective())
+			h.executor.SetToolOutputSpillRoot(h.config.MultiAgent.Runtime.ReductionRootDir)
 		}
 		if h.mcpServer != nil {
 			h.mcpServer.ConfigureHTTPToolCallTimeoutFromAgentMinutes(h.config.Agent.ToolTimeoutMinutes)
 			h.mcpServer.ConfigureToolWaitTimeoutSeconds(h.config.Agent.ToolWaitTimeoutSeconds)
-			h.mcpServer.ConfigureToolResultMaxBytes(h.config.MultiAgent.EinoMiddleware.ReductionMaxLengthForTruncEffective())
-			h.mcpServer.ConfigureToolResultSpillRoot(h.config.MultiAgent.EinoMiddleware.ReductionRootDir)
+			h.mcpServer.ConfigureToolResultMaxBytes(h.config.MultiAgent.Runtime.ReductionMaxLengthForTruncEffective())
+			h.mcpServer.ConfigureToolResultSpillRoot(h.config.MultiAgent.Runtime.ReductionRootDir)
 		}
 		if h.externalMCPMgr != nil {
 			h.externalMCPMgr.ConfigureToolWaitTimeoutSeconds(h.config.Agent.ToolWaitTimeoutSeconds)
-			h.externalMCPMgr.ConfigureToolResultMaxBytes(h.config.MultiAgent.EinoMiddleware.ReductionMaxLengthForTruncEffective())
-			h.externalMCPMgr.ConfigureToolResultSpillRoot(h.config.MultiAgent.EinoMiddleware.ReductionRootDir)
+			h.externalMCPMgr.ConfigureToolResultMaxBytes(h.config.MultiAgent.Runtime.ReductionMaxLengthForTruncEffective())
+			h.externalMCPMgr.ConfigureToolResultSpillRoot(h.config.MultiAgent.Runtime.ReductionRootDir)
 			h.externalMCPMgr.ConfigureResilience(mcp.ExternalMCPResilienceConfig{
 				MaxConcurrentPerServer:  h.config.Agent.ExternalMCPMaxConcurrentPerServer,
 				MaxConcurrentTotal:      h.config.Agent.ExternalMCPMaxConcurrentTotal,
@@ -1051,88 +1070,54 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 		if mode := strings.TrimSpace(req.MultiAgent.RobotDefaultAgentMode); mode != "" {
 			h.config.MultiAgent.RobotDefaultAgentMode = mode
 		} else {
-			h.config.MultiAgent.RobotDefaultAgentMode = "eino_single"
+			h.config.MultiAgent.RobotDefaultAgentMode = "single"
 		}
 		if req.MultiAgent.PlanExecuteLoopMaxIterations != nil {
 			h.config.MultiAgent.PlanExecuteLoopMaxIterations = *req.MultiAgent.PlanExecuteLoopMaxIterations
 		}
-		if req.MultiAgent.SummarizationUserIntentLedgerMaxRunes != nil {
-			v := *req.MultiAgent.SummarizationUserIntentLedgerMaxRunes
-			if v < 0 {
-				v = 0
-			}
-			h.config.MultiAgent.EinoMiddleware.SummarizationUserIntentLedgerMaxRunes = v
-		}
-		if req.MultiAgent.SummarizationUserIntentLedgerEntryMaxRunes != nil {
-			v := *req.MultiAgent.SummarizationUserIntentLedgerEntryMaxRunes
-			if v < 0 {
-				v = 0
-			}
-			h.config.MultiAgent.EinoMiddleware.SummarizationUserIntentLedgerEntryMaxRunes = v
-		}
-		if req.MultiAgent.LatestUserMessageMaxRunes != nil {
-			v := *req.MultiAgent.LatestUserMessageMaxRunes
-			if v < 0 {
-				v = 0
-			}
-			h.config.MultiAgent.EinoMiddleware.LatestUserMessageMaxRunes = v
-		}
-		if req.MultiAgent.LatestUserMessageHeadRunes != nil {
-			v := *req.MultiAgent.LatestUserMessageHeadRunes
-			if v < 0 {
-				v = 0
-			}
-			h.config.MultiAgent.EinoMiddleware.LatestUserMessageHeadRunes = v
-		}
-		if req.MultiAgent.LatestUserMessageTailRunes != nil {
-			v := *req.MultiAgent.LatestUserMessageTailRunes
-			if v < 0 {
-				v = 0
-			}
-			h.config.MultiAgent.EinoMiddleware.LatestUserMessageTailRunes = v
-		}
+
 		if req.MultiAgent.ModelRetryMaxRetries != nil {
 			v := *req.MultiAgent.ModelRetryMaxRetries
 			if v < 0 {
 				v = 0
 			}
-			h.config.MultiAgent.EinoMiddleware.ModelRetryMaxRetries = v
+			h.config.MultiAgent.Runtime.ModelRetryMaxRetries = v
 		}
 		if req.MultiAgent.ModelRetryMaxBackoffSec != nil {
 			v := *req.MultiAgent.ModelRetryMaxBackoffSec
 			if v < 0 {
 				v = 0
 			}
-			h.config.MultiAgent.EinoMiddleware.ModelRetryMaxBackoffSec = v
+			h.config.MultiAgent.Runtime.ModelRetryMaxBackoffSec = v
 		}
 		if req.MultiAgent.ModelFailoverChannels != nil {
-			h.config.MultiAgent.EinoMiddleware.ModelFailoverChannels = dedupeTrimmedStringList(*req.MultiAgent.ModelFailoverChannels)
+			h.config.MultiAgent.Runtime.ModelFailoverChannels = dedupeTrimmedStringList(*req.MultiAgent.ModelFailoverChannels)
 		}
 		if req.MultiAgent.ModelFailoverMaxRetries != nil {
 			v := *req.MultiAgent.ModelFailoverMaxRetries
 			if v < 0 {
 				v = 0
 			}
-			h.config.MultiAgent.EinoMiddleware.ModelFailoverMaxRetries = v
+			h.config.MultiAgent.Runtime.ModelFailoverMaxRetries = v
 		}
 		if req.MultiAgent.ToolSearchAlwaysVisibleTools != nil {
-			h.config.MultiAgent.EinoMiddleware.ToolSearchAlwaysVisibleTools = dedupeToolNameList(*req.MultiAgent.ToolSearchAlwaysVisibleTools)
+			h.config.MultiAgent.Runtime.ToolSearchAlwaysVisibleTools = dedupeToolNameList(*req.MultiAgent.ToolSearchAlwaysVisibleTools)
 		}
 		h.logger.Info("更新多代理配置",
 			zap.Bool("enabled", h.config.MultiAgent.Enabled),
 			zap.String("robot_default_agent_mode", config.NormalizeRobotAgentMode(h.config.MultiAgent)),
 			zap.Bool("batch_use_multi_agent", h.config.MultiAgent.BatchUseMultiAgent),
 			zap.Int("plan_execute_loop_max_iterations", h.config.MultiAgent.PlanExecuteLoopMaxIterations),
-			zap.Int("summarization_user_intent_ledger_max_runes", h.config.MultiAgent.EinoMiddleware.SummarizationUserIntentLedgerMaxRunesEffective()),
-			zap.Int("summarization_user_intent_ledger_entry_max_runes", h.config.MultiAgent.EinoMiddleware.SummarizationUserIntentLedgerEntryMaxRunesEffective()),
-			zap.Int("latest_user_message_max_runes", h.config.MultiAgent.EinoMiddleware.LatestUserMessageMaxRunesEffective()),
-			zap.Int("latest_user_message_head_runes", h.config.MultiAgent.EinoMiddleware.LatestUserMessageHeadRunesEffective()),
-			zap.Int("latest_user_message_tail_runes", h.config.MultiAgent.EinoMiddleware.LatestUserMessageTailRunesEffective()),
-			zap.Int("model_retry_max_retries", h.config.MultiAgent.EinoMiddleware.ModelRetryMaxRetries),
-			zap.Int("model_retry_max_backoff_sec", h.config.MultiAgent.EinoMiddleware.ModelRetryMaxBackoffSec),
-			zap.Int("model_failover_channels", len(h.config.MultiAgent.EinoMiddleware.ModelFailoverChannels)),
-			zap.Int("model_failover_max_retries", h.config.MultiAgent.EinoMiddleware.ModelFailoverMaxRetries),
-			zap.Int("tool_search_always_visible_tools", len(h.config.MultiAgent.EinoMiddleware.ToolSearchAlwaysVisibleTools)),
+			zap.Int("summarization_user_intent_ledger_max_runes", h.config.MultiAgent.Runtime.SummarizationUserIntentLedgerMaxRunesEffective()),
+			zap.Int("summarization_user_intent_ledger_entry_max_runes", h.config.MultiAgent.Runtime.SummarizationUserIntentLedgerEntryMaxRunesEffective()),
+			zap.Int("latest_user_message_max_runes", h.config.MultiAgent.Runtime.LatestUserMessageMaxRunesEffective()),
+			zap.Int("latest_user_message_head_runes", h.config.MultiAgent.Runtime.LatestUserMessageHeadRunesEffective()),
+			zap.Int("latest_user_message_tail_runes", h.config.MultiAgent.Runtime.LatestUserMessageTailRunesEffective()),
+			zap.Int("model_retry_max_retries", h.config.MultiAgent.Runtime.ModelRetryMaxRetries),
+			zap.Int("model_retry_max_backoff_sec", h.config.MultiAgent.Runtime.ModelRetryMaxBackoffSec),
+			zap.Int("model_failover_channels", len(h.config.MultiAgent.Runtime.ModelFailoverChannels)),
+			zap.Int("model_failover_max_retries", h.config.MultiAgent.Runtime.ModelFailoverMaxRetries),
+			zap.Int("tool_search_always_visible_tools", len(h.config.MultiAgent.Runtime.ToolSearchAlwaysVisibleTools)),
 		)
 	}
 
@@ -1317,7 +1302,7 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 		"max_completion_tokens": 5,
 	}
 
-	// OpenAI-compatible 通道使用内部客户端；Claude 通道在下方直接使用 Eino agenticclaude。
+	// OpenAI-compatible 通道使用内部客户端；Claude 通道在下方直接使用 Agent agenticclaude。
 	tmpCfg := &config.OpenAIConfig{
 		Provider: req.Provider,
 		BaseURL:  baseURL,
@@ -1334,27 +1319,6 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 	ctx = openai.WithSessionID(ctx, "connect-test")
 
 	start := time.Now()
-	if llm.IsClaudeProvider(req.Provider) {
-		nativeModel, err := llm.NewClaudeAgenticModel(ctx, *tmpCfg, nil, 5, nil)
-		if err == nil {
-			_, err = nativeModel.Generate(ctx, []*schema.AgenticMessage{
-				schema.UserAgenticMessage("Hi"),
-			})
-		}
-		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"error":   "连接失败: " + err.Error(),
-			})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"success":    true,
-			"model":      tmpCfg.Model,
-			"latency_ms": time.Since(start).Milliseconds(),
-		})
-		return
-	}
 
 	var chatResp struct {
 		ID      string `json:"id"`
@@ -1773,8 +1737,8 @@ func (h *ConfigHandler) ApplyConfig(c *gin.Context) {
 	h.mcpServer.ClearTools()
 
 	// 重新注册安全工具
-	h.executor.SetToolOutputMaxBytes(h.config.MultiAgent.EinoMiddleware.ReductionMaxLengthForTruncEffective())
-	h.executor.SetToolOutputSpillRoot(h.config.MultiAgent.EinoMiddleware.ReductionRootDir)
+	h.executor.SetToolOutputMaxBytes(h.config.MultiAgent.Runtime.ReductionMaxLengthForTruncEffective())
+	h.executor.SetToolOutputSpillRoot(h.config.MultiAgent.Runtime.ReductionRootDir)
 	h.executor.RegisterTools(h.mcpServer)
 	mcp.RegisterExecutionControlTools(h.mcpServer, h.externalMCPMgr)
 
@@ -1848,17 +1812,17 @@ func (h *ConfigHandler) ApplyConfig(c *gin.Context) {
 	if h.mcpServer != nil {
 		h.mcpServer.ConfigureHTTPToolCallTimeoutFromAgentMinutes(h.config.Agent.ToolTimeoutMinutes)
 		h.mcpServer.ConfigureToolWaitTimeoutSeconds(h.config.Agent.ToolWaitTimeoutSeconds)
-		h.mcpServer.ConfigureToolResultMaxBytes(h.config.MultiAgent.EinoMiddleware.ReductionMaxLengthForTruncEffective())
-		h.mcpServer.ConfigureToolResultSpillRoot(h.config.MultiAgent.EinoMiddleware.ReductionRootDir)
+		h.mcpServer.ConfigureToolResultMaxBytes(h.config.MultiAgent.Runtime.ReductionMaxLengthForTruncEffective())
+		h.mcpServer.ConfigureToolResultSpillRoot(h.config.MultiAgent.Runtime.ReductionRootDir)
 	}
 	if h.executor != nil {
-		h.executor.SetToolOutputMaxBytes(h.config.MultiAgent.EinoMiddleware.ReductionMaxLengthForTruncEffective())
-		h.executor.SetToolOutputSpillRoot(h.config.MultiAgent.EinoMiddleware.ReductionRootDir)
+		h.executor.SetToolOutputMaxBytes(h.config.MultiAgent.Runtime.ReductionMaxLengthForTruncEffective())
+		h.executor.SetToolOutputSpillRoot(h.config.MultiAgent.Runtime.ReductionRootDir)
 	}
 	if h.externalMCPMgr != nil {
 		h.externalMCPMgr.ConfigureToolWaitTimeoutSeconds(h.config.Agent.ToolWaitTimeoutSeconds)
-		h.externalMCPMgr.ConfigureToolResultMaxBytes(h.config.MultiAgent.EinoMiddleware.ReductionMaxLengthForTruncEffective())
-		h.externalMCPMgr.ConfigureToolResultSpillRoot(h.config.MultiAgent.EinoMiddleware.ReductionRootDir)
+		h.externalMCPMgr.ConfigureToolResultMaxBytes(h.config.MultiAgent.Runtime.ReductionMaxLengthForTruncEffective())
+		h.externalMCPMgr.ConfigureToolResultSpillRoot(h.config.MultiAgent.Runtime.ReductionRootDir)
 		h.externalMCPMgr.ConfigureResilience(mcp.ExternalMCPResilienceConfig{
 			MaxConcurrentPerServer:  h.config.Agent.ExternalMCPMaxConcurrentPerServer,
 			MaxConcurrentTotal:      h.config.Agent.ExternalMCPMaxConcurrentTotal,
@@ -1966,6 +1930,7 @@ func (h *ConfigHandler) saveConfig() error {
 	}
 
 	updateAgentConfig(root, h.config.Agent)
+	updateAgentRuntimeConfig(root, h.config.AgentRuntime)
 	updateMCPConfig(root, h.config.MCP)
 	updateAIConfig(root, h.config.AI)
 	removeKeyFromMap(root.Content[0], "openai")
@@ -2516,17 +2481,18 @@ func updateMultiAgentConfig(doc *yaml.Node, cfg config.MultiAgentConfig) {
 	setStringInMap(maNode, "robot_default_agent_mode", config.NormalizeRobotAgentMode(cfg))
 	setBoolInMap(maNode, "batch_use_multi_agent", cfg.BatchUseMultiAgent)
 	setIntInMap(maNode, "plan_execute_loop_max_iterations", cfg.PlanExecuteLoopMaxIterations)
-	mwNode := ensureMap(maNode, "eino_middleware")
-	setIntInMap(mwNode, "summarization_user_intent_ledger_max_runes", cfg.EinoMiddleware.SummarizationUserIntentLedgerMaxRunesEffective())
-	setIntInMap(mwNode, "summarization_user_intent_ledger_entry_max_runes", cfg.EinoMiddleware.SummarizationUserIntentLedgerEntryMaxRunesEffective())
-	setIntInMap(mwNode, "latest_user_message_max_runes", cfg.EinoMiddleware.LatestUserMessageMaxRunesEffective())
-	setIntInMap(mwNode, "latest_user_message_head_runes", cfg.EinoMiddleware.LatestUserMessageHeadRunesEffective())
-	setIntInMap(mwNode, "latest_user_message_tail_runes", cfg.EinoMiddleware.LatestUserMessageTailRunesEffective())
-	setIntInMap(mwNode, "model_retry_max_retries", cfg.EinoMiddleware.ModelRetryMaxRetries)
-	setIntInMap(mwNode, "model_retry_max_backoff_sec", cfg.EinoMiddleware.ModelRetryMaxBackoffSec)
-	setFlowStringSliceInMap(mwNode, "model_failover_channels", dedupeTrimmedStringList(cfg.EinoMiddleware.ModelFailoverChannels))
-	setIntInMap(mwNode, "model_failover_max_retries", cfg.EinoMiddleware.ModelFailoverMaxRetries)
-	setFlowStringSliceInMap(mwNode, "tool_search_always_visible_tools", dedupeToolNameList(cfg.EinoMiddleware.ToolSearchAlwaysVisibleTools))
+	migrateConfigMapKey(maNode, "eino_middleware", "runtime")
+	migrateConfigMapKey(maNode, "eino_skills", "skills")
+	removeKeyFromMap(maNode, "eino_callbacks")
+	mwNode := ensureMap(maNode, "runtime")
+	for _, key := range []string{"summarization_user_intent_ledger_max_runes", "summarization_user_intent_ledger_entry_max_runes", "latest_user_message_max_runes", "latest_user_message_head_runes", "latest_user_message_tail_runes"} {
+		removeKeyFromMap(mwNode, key)
+	}
+	setIntInMap(mwNode, "model_retry_max_retries", cfg.Runtime.ModelRetryMaxRetries)
+	setIntInMap(mwNode, "model_retry_max_backoff_sec", cfg.Runtime.ModelRetryMaxBackoffSec)
+	setFlowStringSliceInMap(mwNode, "model_failover_channels", dedupeTrimmedStringList(cfg.Runtime.ModelFailoverChannels))
+	setIntInMap(mwNode, "model_failover_max_retries", cfg.Runtime.ModelFailoverMaxRetries)
+	setFlowStringSliceInMap(mwNode, "tool_search_always_visible_tools", dedupeToolNameList(cfg.Runtime.ToolSearchAlwaysVisibleTools))
 }
 
 func dedupeToolNameList(in []string) []string {

@@ -1,5 +1,5 @@
 // Package skillpackage provides filesystem-backed Agent Skills layout (SKILL.md + package files)
-// for HTTP admin APIs. Runtime discovery and progressive loading for agents use Eino ADK skill middleware.
+// for HTTP admin APIs. Runtime discovery and progressive loading for agents use Pi skill middleware.
 package skillpackage
 
 // SkillManifest is parsed from SKILL.md front matter (https://agentskills.io/specification.md).

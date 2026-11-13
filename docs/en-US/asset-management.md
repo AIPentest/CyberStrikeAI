@@ -176,7 +176,7 @@ Scan prompts support `{{asset_id}}`, `{{target}}`, `{{host}}`, `{{ip}}`, `{{doma
 
 Select multiple assets and choose **Create Scan Task**. The system creates one subtask per asset and links each asset to its queue and subtask.
 
-The current defaults use manual scheduling, one concurrent task, and Eino single-Agent mode to limit load on targets and the local host. You must still confirm the test window, request rate, permitted validation methods, and approval requirements.
+The current defaults use manual scheduling, one concurrent task, and Pi single-Agent mode to limit load on targets and the local host. You must still confirm the test window, request rate, permitted validation methods, and approval requirements.
 
 ### Risk calculation
 

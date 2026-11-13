@@ -42,7 +42,7 @@ func TestGetConversationPlanTasksRequiresAccessAndReportsProgress(t *testing.T) 
 		t.Fatalf("CreateRBACUser: %v", err)
 	}
 	base := filepath.Join(tmp, "plantask")
-	db.SetEinoConversationDirs(base, "", "", "")
+	db.SetAgentConversationDirs(base, "", "", "")
 	dir := filepath.Join(base, conversation.ID)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
@@ -118,7 +118,7 @@ func TestGetConversationPlanTasksReportsStoppedLiveTask(t *testing.T) {
 		t.Fatalf("AssignResourceToUser: %v", err)
 	}
 	base := filepath.Join(tmp, "plantask")
-	db.SetEinoConversationDirs(base, "", "", "")
+	db.SetAgentConversationDirs(base, "", "", "")
 	dir := filepath.Join(base, conversation.ID)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)

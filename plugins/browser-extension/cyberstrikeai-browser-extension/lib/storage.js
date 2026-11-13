@@ -144,7 +144,7 @@ async function loadConfig() {
     tokenExpiresAt: sess[SESSION_TOKEN_EXPIRY_KEY] || '',
     lastProjectId: data[STORAGE_KEYS.lastProjectId] || '',
     lastRole: data[STORAGE_KEYS.lastRole] || '',
-    lastAgentMode: data[STORAGE_KEYS.lastAgentMode] || 'eino_single',
+    lastAgentMode: data[STORAGE_KEYS.lastAgentMode] || 'single',
     lastInstruction: data[STORAGE_KEYS.lastInstruction] || DEFAULTS.lastInstruction,
     filterApiOnly: data[STORAGE_KEYS.filterApiOnly] !== false,
     captureEnabled: data[STORAGE_KEYS.captureEnabled] !== false,

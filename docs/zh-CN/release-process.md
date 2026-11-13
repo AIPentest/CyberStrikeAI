@@ -8,7 +8,7 @@
 
 - `README.md` 和 `README_CN.md` 的功能说明是否更新。
 - `docs/` 是否补充新功能文档。
-- `config.yaml` 示例是否包含新增配置。
+- `config.example.yaml` 示例是否包含新增配置。
 - OpenAPI 是否包含新增接口。
 - 中英文 i18n 是否同步。
 - 高风险功能是否有安全说明。
@@ -25,6 +25,7 @@ go test ./internal/...
 
 ```bash
 go test ./cmd/...
+bash scripts/build-pi-runtime.sh
 go build -o cyberstrike-ai ./cmd/server
 ```
 
@@ -39,6 +40,7 @@ go build -o cyberstrike-ai ./cmd/server
 ## 构建
 
 ```bash
+bash scripts/build-pi-runtime.sh
 go build -o cyberstrike-ai ./cmd/server
 ```
 
@@ -47,7 +49,7 @@ go build -o cyberstrike-ai ./cmd/server
 - `cyberstrike-ai`
 - `web/templates/`
 - `web/static/`
-- `config.yaml` 示例。
+- `config.example.yaml` 示例。
 - `tools/`
 - `roles/`
 - `skills/`
@@ -157,6 +159,7 @@ SQLite 迁移要考虑：
 ```bash
 go test ./internal/...
 go test ./cmd/...
+bash scripts/build-pi-runtime.sh
 go build -o cyberstrike-ai ./cmd/server
 ```
 

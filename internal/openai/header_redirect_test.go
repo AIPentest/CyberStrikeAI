@@ -12,7 +12,7 @@ import (
 )
 
 func TestCustomHeadersDoNotCrossRedirectOrigin(t *testing.T) {
-	for _, kind := range []string{"eino", "builtin"} {
+	for _, kind := range []string{"openai", "claude"} {
 		t.Run(kind, func(t *testing.T) {
 			targetCalls := 0
 			dest := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { targetCalls++; w.Write([]byte(`{}`)) }))
@@ -31,18 +31,11 @@ func TestCustomHeadersDoNotCrossRedirectOrigin(t *testing.T) {
 						src = httptest.NewServer(handler)
 					}
 					defer src.Close()
-					cfg := &config.OpenAIConfig{BaseURL: src.URL, APIKey: "test-key", Headers: map[string]string{"Authorization": "Bearer test-private", "X-Private-Key": "private"}}
+					cfg := &config.OpenAIConfig{Provider: kind, BaseURL: src.URL, APIKey: "test-key", Headers: map[string]string{"Authorization": "Bearer test-private", "X-Private-Key": "private"}}
 					var err error
-					if kind == "eino" {
-						var resp *http.Response
-						resp, err = NewEinoHTTPClient(cfg, src.Client()).Get(src.URL)
-						if resp != nil {
-							resp.Body.Close()
-						}
-					} else {
-						var out interface{}
-						err = NewClient(cfg, src.Client(), nil).ChatCompletion(context.Background(), map[string]string{}, &out)
-					}
+					var out interface{}
+					err = NewClient(cfg, src.Client(), nil).ChatCompletion(context.Background(), map[string]any{"model": "fixture", "messages": []map[string]string{{"role": "user", "content": "hello"}}}, &out)
+
 					if err == nil || !strings.Contains(err.Error(), "cross-origin") {
 						t.Fatalf("expected blocked redirect: %v", err)
 					}
@@ -72,11 +65,12 @@ func TestCustomHeadersSameOriginRedirectAndClientIsolation(t *testing.T) {
 	base := srv.Client()
 	callbacks := 0
 	base.CheckRedirect = func(req *http.Request, via []*http.Request) error { callbacks++; return nil }
-	resp, err := NewEinoHTTPClient(cfg, base).Get(srv.URL)
+	var firstOut interface{}
+	err := NewClient(cfg, base, nil).ChatCompletion(context.Background(), map[string]string{}, &firstOut)
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp.Body.Close()
+
 	var out interface{}
 	if err = NewClient(cfg, base, nil).ChatCompletion(context.Background(), map[string]string{}, &out); err != nil {
 		t.Fatal(err)
@@ -86,7 +80,7 @@ func TestCustomHeadersSameOriginRedirectAndClientIsolation(t *testing.T) {
 	}
 	// Existing callbacks are preserved; they can decline a redirect without a request.
 	base.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	resp, err = NewEinoHTTPClient(cfg, base).Get(srv.URL)
+	resp, err := customHeaderHTTPClient(base, cfg).Get(srv.URL)
 	if err != nil || resp.StatusCode != 307 {
 		t.Fatalf("callback not preserved: %v", err)
 	}
@@ -94,16 +88,7 @@ func TestCustomHeadersSameOriginRedirectAndClientIsolation(t *testing.T) {
 	if customHeaderHTTPClient(base, nil) != base {
 		t.Fatal("no-header client changed")
 	}
-	// RoundTrip must not mutate a request owned by the caller.
-	req, _ := http.NewRequest("GET", srv.URL+"/final", nil)
-	resp, err = NewEinoHTTPClient(cfg, base).Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp.Body.Close()
-	if req.Header.Get("Authorization") != "" {
-		t.Fatal("request mutated")
-	}
+
 }
 func TestHeaderRedirectPolicyLimitsAndCallbackMutation(t *testing.T) {
 	cfg := &config.OpenAIConfig{Headers: map[string]string{"X-Private": "value"}}

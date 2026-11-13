@@ -81,7 +81,7 @@ func RegisterKnowledgeTool(
 	// 注册第二个工具：搜索知识库（保持原有功能）
 	searchTool := mcp.Tool{
 		Name:             builtin.ToolSearchKnowledgeBase,
-		Description:      "在知识库中搜索相关的安全知识。当你需要了解特定漏洞类型、攻击技术、检测方法等安全知识时，可以使用此工具进行检索。工具基于向量嵌入与余弦相似度检索（与 Eino retriever 语义一致）。建议：在搜索前可以先调用 " + builtin.ToolListKnowledgeRiskTypes + " 工具获取可用的风险类型，然后使用正确的 risk_type 参数进行精确搜索，这样可以大幅减少检索时间。",
+		Description:      "在知识库中搜索相关的安全知识。当你需要了解特定漏洞类型、攻击技术、检测方法等安全知识时，可以使用此工具进行检索。工具基于向量嵌入与余弦相似度检索（与 Agent retriever 语义一致）。建议：在搜索前可以先调用 " + builtin.ToolListKnowledgeRiskTypes + " 工具获取可用的风险类型，然后使用正确的 risk_type 参数进行精确搜索，这样可以大幅减少检索时间。",
 		ShortDescription: "搜索知识库中的安全知识（向量语义检索）",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -123,7 +123,7 @@ func RegisterKnowledgeTool(
 			zap.String("riskType", riskType),
 		)
 
-		// 检索统一走 Retriever.Search → VectorEinoRetriever（Eino retriever 语义）。
+		// 检索统一走 Retriever.Search → VectorRetriever（Agent retriever 语义）。
 		searchReq := &SearchRequest{
 			Query:    query,
 			RiskType: riskType,

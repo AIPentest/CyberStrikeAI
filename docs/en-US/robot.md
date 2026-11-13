@@ -566,4 +566,4 @@ Check in this order:
 - All platforms: **text messages only**; other types (e.g. image, voice) are not supported and may be ignored.  
 - Personal WeChat: **private chat only**—group @-bot is not supported.  
 - Bot data is shared with the web UI: under `user_binding` it belongs to the bound user; under `service_account` it belongs to the service account and is shared by allowlisted senders.  
-- Bot execution uses the same **Eino single/multi-agent** path as the web UI (`ProcessMessageForRobot`, with progress callbacks and process details stored in the DB); only the final reply is sent back to personal WeChat/DingTalk/Lark/WeCom in one message (no SSE). Default: `robot_default_agent_mode: eino_single`.
+- Bot execution uses the same **Pi single/multi-agent** path as the web UI (`ProcessMessageForRobot`, with progress callbacks and process details stored in the DB); only the final reply is sent back to personal WeChat/DingTalk/Lark/WeCom in one message (no SSE). Default: `robot_default_agent_mode: single`.

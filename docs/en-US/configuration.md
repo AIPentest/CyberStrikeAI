@@ -68,7 +68,7 @@ ai:
 | `ai.default_channel` | Default channel ID for new conversations and requests without an explicit channel. |
 | `ai.channels.<id>` | Channel config. IDs are normalized to lowercase letters, digits, and hyphens. |
 | `name` | Display name in the Web UI; falls back to the ID. |
-| `provider` | `openai_compatible` or `claude`. OpenAI-compatible channels map to runtime `openai`; Claude channels use Eino's native Anthropic Messages API component. |
+| `provider` | `openai_compatible` or `claude`. OpenAI-compatible channels map to runtime `openai`; Claude channels use Pi's native Anthropic Messages API component. |
 | `base_url/api_key/model` | Required. Base URL usually includes a version path such as `/v1`. |
 | `max_total_tokens` | Shared context budget for compression, attack-chain generation, multi-agent summaries, and similar paths. |
 | `max_completion_tokens` | Per-response output cap; default is used when empty. |
@@ -162,7 +162,7 @@ Reclaims disk space used by runtime artifacts. Manage it from **System settings 
 | `workspace` | 30 days | agent workspaces, `tmp/workspace` |
 | `reduction` | 7 days | oversized tool-output spill, `tmp/reduction` |
 | `conversation_artifacts` | 30 days | summaries and user-input ledger, `data/conversation_artifacts` |
-| `plantask` | 30 days | multi-agent plan boards, `skills/.eino/plantask` |
+| `plantask` | 30 days | multi-agent plan boards, `skills/.pi/plantask` |
 | `c2_artifacts` | 30 days | C2 results/uploads/downstream/payloads, `tmp/c2` (cleaning a payload invalidates its download link) |
 | `chat_uploads` | 90 days | conversation attachments, `chat_uploads` |
 | `workflow_checkpoints` | 7 days | workflow run checkpoints, `data/workflow-checkpoints` |

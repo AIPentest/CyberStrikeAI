@@ -524,7 +524,7 @@ func summarizeProcessDetailData(eventType string, data interface{}) interface{} 
 		"toolName": true, "toolCallId": true, "index": true, "total": true,
 		"arguments": true, "argumentsObj": true,
 		"success": true, "isError": true, "executionId": true,
-		"einoAgent": true, "einoRole": true, "einoScope": true, "orchestration": true,
+		"agentName": true, "agentRole": true, "agentScope": true, "orchestration": true,
 		"agentFacing": true,
 		"status":      true, "modelFacingIsError": true, "resultPreview": true,
 	}
@@ -625,6 +625,13 @@ func (h *ConversationHandler) DeleteConversationTurn(c *gin.Context) {
 	if _, err := h.db.GetConversation(conversationID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "对话不存在"})
 		return
+	}
+
+	if h.taskState != nil {
+		if running, _ := h.taskState.ConversationTaskRuntimeState(conversationID); running {
+			c.JSON(http.StatusConflict, gin.H{"error": "请先停止当前任务，再删除对话轮次"})
+			return
+		}
 	}
 
 	deletedIDs, err := h.db.DeleteConversationTurn(conversationID, req.MessageID)

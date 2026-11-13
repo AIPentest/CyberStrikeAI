@@ -1223,19 +1223,19 @@
                                                 </button>
                                             </div>
                                             <div class="agent-mode-options">
-                                                <button type="button" class="role-selection-item-main agent-mode-option" data-value="eino_single" role="option" onclick="selectAgentMode('eino_single')" data-agent-mode-detail="CloudWeGo Eino ChatModelAgent + Runner，MCP 工具（/api/eino-agent）" data-i18n="chat.agentModeEinoSingleHint" data-i18n-attr="data-agent-mode-detail" data-i18n-skip-text="true">
-                                                    <div class="role-selection-item-icon-main agent-mode-logo agent-mode-logo--eino" aria-hidden="true"><svg class="agent-mode-logo__svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><path d="M8 16h.01"/><path d="M16 16h.01"/></svg></div>
+                                                <button type="button" class="role-selection-item-main agent-mode-option" data-value="single" role="option" onclick="selectAgentMode('single')" data-agent-mode-detail="Pi AgentSession，MCP 工具（/api/agent）" data-i18n="chat.agentModePiSingleHint" data-i18n-attr="data-agent-mode-detail" data-i18n-skip-text="true">
+                                                    <div class="role-selection-item-icon-main agent-mode-logo agent-mode-logo--pi" aria-hidden="true"><svg class="agent-mode-logo__svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><path d="M8 16h.01"/><path d="M16 16h.01"/></svg></div>
                                                     <div class="role-selection-item-content-main">
-                                                        <div class="role-selection-item-name-main" data-i18n="chat.agentModeEinoSingle">Eino 单代理（ADK）</div>
-                                                        <div class="role-selection-item-description-main" data-i18n="chat.agentModeEinoSingleHint">CloudWeGo Eino ChatModelAgent + Runner，MCP 工具（/api/eino-agent）</div>
+                                                        <div class="role-selection-item-name-main" data-i18n="chat.agentModePiSingle">Pi 单代理</div>
+                                                        <div class="role-selection-item-description-main" data-i18n="chat.agentModePiSingleHint">Pi AgentSession，MCP 工具（/api/agent）</div>
                                                     </div>
-                                                    <div class="role-selection-checkmark-main agent-mode-check" data-agent-mode-check="eino_single">✓</div>
+                                                    <div class="role-selection-checkmark-main agent-mode-check" data-agent-mode-check="single">✓</div>
                                                 </button>
-                                                <button type="button" class="role-selection-item-main agent-mode-option" data-value="deep" role="option" onclick="selectAgentMode('deep')" data-agent-mode-detail="Eino DeepAgent，适合复杂安全测试、多阶段 task 子代理委派与汇总" data-i18n="chat.agentModeDeepHint" data-i18n-attr="data-agent-mode-detail" data-i18n-skip-text="true">
+                                                <button type="button" class="role-selection-item-main agent-mode-option" data-value="deep" role="option" onclick="selectAgentMode('deep')" data-agent-mode-detail="Pi 多代理，适合复杂安全测试、多阶段 task 子代理委派与汇总" data-i18n="chat.agentModeDeepHint" data-i18n-attr="data-agent-mode-detail" data-i18n-skip-text="true">
                                                     <div class="role-selection-item-icon-main agent-mode-logo agent-mode-logo--deep" aria-hidden="true"><svg class="agent-mode-logo__svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><path d="M8 16h.01"/><path d="M16 16h.01"/></svg></div>
                                                     <div class="role-selection-item-content-main">
                                                         <div class="role-selection-item-name-main" data-i18n="chat.agentModeDeep">Deep（DeepAgent）</div>
-                                                        <div class="role-selection-item-description-main" data-i18n="chat.agentModeDeepHint">Eino DeepAgent，适合复杂安全测试、多阶段 task 子代理委派与汇总</div>
+                                                        <div class="role-selection-item-description-main" data-i18n="chat.agentModeDeepHint">Pi 多代理，适合复杂安全测试、多阶段 task 子代理委派与汇总</div>
                                                     </div>
                                                     <div class="role-selection-checkmark-main agent-mode-check" data-agent-mode-check="deep">✓</div>
                                                 </button>
@@ -1258,7 +1258,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <input type="hidden" id="agent-mode-select" value="eino_single" autocomplete="off">
+                                    <input type="hidden" id="agent-mode-select" value="single" autocomplete="off">
                                 </div>
                                 </div>
                                 </div>
@@ -3956,19 +3956,19 @@
                                             <label class="checkbox-label">
                                                 <input type="checkbox" id="multi-agent-enabled" class="modern-checkbox" />
                                                 <span class="checkbox-custom"></span>
-                                                <span class="checkbox-text" data-i18n="settingsBasic.enableMultiAgent">启用 Eino 多代理</span>
+                                                <span class="checkbox-text" data-i18n="settingsBasic.enableMultiAgent">启用 Pi 多代理</span>
                                             </label>
                                             <small class="form-hint" data-i18n="settingsBasic.enableMultiAgentHint">开启后对话页可选「多代理」模式；子代理在 config.yaml 的 multi_agent.sub_agents 或 agents 目录中配置。</small>
                                         </div>
                                         <div class="form-group">
                                             <label for="multi-agent-pe-loop" data-i18n="settingsBasic.multiAgentPeLoop">plan_execute 外层循环上限</label>
-                                            <input type="number" id="multi-agent-pe-loop" min="0" step="1" value="0" data-i18n="settingsBasic.multiAgentPeLoopPlaceholder" data-i18n-attr="placeholder" placeholder="0 表示 Eino 默认 10" />
+                                            <input type="number" id="multi-agent-pe-loop" min="0" step="1" value="0" data-i18n="settingsBasic.multiAgentPeLoopPlaceholder" data-i18n-attr="placeholder" placeholder="0 表示 Pi 默认 10" />
                                             <small class="form-hint" data-i18n="settingsBasic.multiAgentPeLoopHint">仅 orchestration=plan_execute 时有效；execute 与 replan 之间的最大轮次。</small>
                                         </div>
                                         <div class="form-group">
                                             <label for="multi-agent-robot-mode" data-i18n="settingsBasic.multiAgentRobotMode">机器人默认对话模式</label>
                                             <select id="multi-agent-robot-mode" class="form-select">
-                                                <option value="eino_single" data-i18n="chat.agentModeEinoSingle">Eino 单代理（ADK）</option>
+                                                <option value="single" data-i18n="chat.agentModePiSingle">Pi 单代理</option>
                                                 <option value="deep" data-i18n="chat.agentModeDeep">Deep（DeepAgent）</option>
                                                 <option value="plan_execute" data-i18n="chat.agentModePlanExecuteLabel">Plan-Execute</option>
                                                 <option value="supervisor" data-i18n="chat.agentModeSupervisorLabel">Supervisor</option>
@@ -3979,49 +3979,24 @@
                                             <summary data-i18n="settingsBasic.agentAdvanced">高级设置</summary>
                                             <div class="settings-form" style="margin-top: 0.75rem;">
                                                 <div class="form-group">
-                                                    <label for="eino-model-retry-max-retries" data-i18n="settingsBasic.einoModelRetryMaxRetries">Eino 原生模型最大重试次数</label>
-                                                    <input type="number" id="eino-model-retry-max-retries" min="0" step="1" placeholder="0" />
-                                                    <small class="form-hint" data-i18n="settingsBasic.einoModelRetryMaxRetriesHint">ChatModelAgent 原生 ModelRetry 次数；0 使用后端默认 4。用于 429/5xx/网络抖动和空模型输出。</small>
+                                                    <label for="pi-model-retry-max-retries" data-i18n="settingsBasic.piModelRetryMaxRetries">Pi 原生模型最大重试次数</label>
+                                                    <input type="number" id="pi-model-retry-max-retries" min="0" step="1" placeholder="0" />
+                                                    <small class="form-hint" data-i18n="settingsBasic.piModelRetryMaxRetriesHint">Pi 模型请求重试次数；0 使用后端默认值。用于 429/5xx/网络抖动和空模型输出。</small>
                                                 </div>
                                                 <div class="form-group">
-                                                    <label for="eino-model-retry-max-backoff-sec" data-i18n="settingsBasic.einoModelRetryMaxBackoffSec">Eino 原生模型最大退避秒数</label>
-                                                    <input type="number" id="eino-model-retry-max-backoff-sec" min="0" step="1" placeholder="0" />
-                                                    <small class="form-hint" data-i18n="settingsBasic.einoModelRetryMaxBackoffSecHint">模型原生重试的指数退避上限；0 使用后端默认 30 秒。</small>
+                                                    <label for="pi-model-retry-max-backoff-sec" data-i18n="settingsBasic.piModelRetryMaxBackoffSec">Pi 原生模型最大退避秒数</label>
+                                                    <input type="number" id="pi-model-retry-max-backoff-sec" min="0" step="1" placeholder="0" />
+                                                    <small class="form-hint" data-i18n="settingsBasic.piModelRetryMaxBackoffSecHint">模型原生重试的指数退避上限；0 使用后端默认 30 秒。</small>
                                                 </div>
                                                 <div class="form-group">
-                                                    <label for="eino-model-failover-channels" data-i18n="settingsBasic.einoModelFailoverChannels">Eino 模型 Failover 备用通道</label>
-                                                    <textarea id="eino-model-failover-channels" rows="3" placeholder="backup-openai&#10;backup-claude" data-i18n="settingsBasic.einoModelFailoverChannelsPlaceholder" data-i18n-attr="placeholder"></textarea>
-                                                    <small class="form-hint" data-i18n="settingsBasic.einoModelFailoverChannelsHint">主通道原生重试耗尽后按顺序切换 ai.channels 中的通道 ID；每行一个，也支持逗号分隔。</small>
+                                                    <label for="pi-model-failover-channels" data-i18n="settingsBasic.piModelFailoverChannels">Pi 模型 Failover 备用通道</label>
+                                                    <textarea id="pi-model-failover-channels" rows="3" placeholder="backup-openai&#10;backup-claude" data-i18n="settingsBasic.piModelFailoverChannelsPlaceholder" data-i18n-attr="placeholder"></textarea>
+                                                    <small class="form-hint" data-i18n="settingsBasic.piModelFailoverChannelsHint">主通道原生重试耗尽后按顺序切换 ai.channels 中的通道 ID；每行一个，也支持逗号分隔。</small>
                                                 </div>
                                                 <div class="form-group">
-                                                    <label for="eino-model-failover-max-retries" data-i18n="settingsBasic.einoModelFailoverMaxRetries">Eino 模型 Failover 最大切换次数</label>
-                                                    <input type="number" id="eino-model-failover-max-retries" min="0" step="1" placeholder="0" />
-                                                    <small class="form-hint" data-i18n="settingsBasic.einoModelFailoverMaxRetriesHint">0 表示尝试全部已配置备用通道；大于 0 时限制最多切换几个通道。</small>
-                                                </div>
-	                                                <div class="form-group">
-	                                                    <label for="summarization-user-ledger-max-runes" data-i18n="settingsBasic.userLedgerMaxRunes">用户原文账本总字符上限</label>
-	                                                    <input type="number" id="summarization-user-ledger-max-runes" min="0" step="1000" placeholder="96000" />
-	                                                    <small class="form-hint" data-i18n="settingsBasic.userLedgerMaxRunesHint">压缩后注入模型上下文的原始用户输入账本总上限；0 使用后端默认值。DB 原始消息不裁剪。</small>
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="summarization-user-ledger-entry-max-runes" data-i18n="settingsBasic.userLedgerEntryMaxRunes">单条用户原文字符上限</label>
-                                                    <input type="number" id="summarization-user-ledger-entry-max-runes" min="0" step="1000" placeholder="16000" />
-                                                    <small class="form-hint" data-i18n="settingsBasic.userLedgerEntryMaxRunesHint">账本中单条用户消息的模型可见上限；0 使用后端默认值，不影响 DB 原文。</small>
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="latest-user-message-max-runes" data-i18n="settingsBasic.latestUserMaxRunes">最新用户输入字符上限</label>
-                                                    <input type="number" id="latest-user-message-max-runes" min="0" step="1000" placeholder="48000" />
-                                                    <small class="form-hint" data-i18n="settingsBasic.latestUserMaxRunesHint">本轮最新 user 进入模型上下文的上限；超出时全文落盘，只注入预览。0 使用后端默认值。</small>
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="latest-user-message-head-runes" data-i18n="settingsBasic.latestUserHeadRunes">最新用户输入头部预览</label>
-                                                    <input type="number" id="latest-user-message-head-runes" min="0" step="1000" placeholder="24000" />
-                                                    <small class="form-hint" data-i18n="settingsBasic.latestUserHeadRunesHint">超长最新 user 保留给模型看的头部字符数。</small>
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="latest-user-message-tail-runes" data-i18n="settingsBasic.latestUserTailRunes">最新用户输入尾部预览</label>
-                                                    <input type="number" id="latest-user-message-tail-runes" min="0" step="1000" placeholder="24000" />
-                                                    <small class="form-hint" data-i18n="settingsBasic.latestUserTailRunesHint">超长最新 user 保留给模型看的尾部字符数。</small>
+                                                    <label for="pi-model-failover-max-retries" data-i18n="settingsBasic.piModelFailoverMaxRetries">Pi 模型 Failover 最大切换次数</label>
+                                                    <input type="number" id="pi-model-failover-max-retries" min="0" step="1" placeholder="0" />
+                                                    <small class="form-hint" data-i18n="settingsBasic.piModelFailoverMaxRetriesHint">0 表示尝试全部已配置备用通道；大于 0 时限制最多切换几个通道。</small>
                                                 </div>
                                             </div>
                                         </details>
@@ -4343,7 +4318,7 @@
                                                 <option value="markdown_then_recursive" data-i18n="settingsBasic.chunkStrategyMarkdownRecursive">Markdown 标题切分后递归（推荐）</option>
                                                 <option value="recursive" data-i18n="settingsBasic.chunkStrategyRecursive">仅递归切分</option>
                                             </select>
-                                            <small class="form-hint" data-i18n="settingsBasic.chunkStrategyHint">与 Eino 官方索引链一致：技术文档建议 Markdown 标题 + 递归；纯文本可仅用递归。</small>
+                                            <small class="form-hint" data-i18n="settingsBasic.chunkStrategyHint">与 Pi 官方索引链一致：技术文档建议 Markdown 标题 + 递归；纯文本可仅用递归。</small>
                                         </div>
                                         <div class="form-group">
                                             <label for="knowledge-indexing-request-timeout" data-i18n="settingsBasic.requestTimeoutSeconds">嵌入 HTTP 超时（秒）</label>
@@ -4358,12 +4333,12 @@
                                         <div class="form-group">
                                             <label class="checkbox-label">
                                                 <input type="checkbox" id="knowledge-indexing-prefer-source-file" />
-                                                <span data-i18n="settingsBasic.preferSourceFile">索引时优先从磁盘源文件读取（Eino FileLoader）</span>
+                                                <span data-i18n="settingsBasic.preferSourceFile">索引时优先从磁盘源文件读取（Pi FileLoader）</span>
                                             </label>
                                             <small class="form-hint" data-i18n="settingsBasic.preferSourceFileHint">开启后以 file_path 为准；读取失败时回退数据库中的 content。</small>
                                         </div>
                                         <div class="form-group">
-                                            <label for="knowledge-indexing-sub-indexes" data-i18n="settingsBasic.subIndexes">Eino 子索引（逗号分隔）</label>
+                                            <label for="knowledge-indexing-sub-indexes" data-i18n="settingsBasic.subIndexes">Pi 子索引（逗号分隔）</label>
                                             <input type="text" id="knowledge-indexing-sub-indexes" data-i18n="settingsBasic.subIndexesPlaceholder" data-i18n-attr="placeholder" placeholder="例如: prod, knowledge" />
                                             <small class="form-hint" data-i18n="settingsBasic.subIndexesHint">传入 indexer.WithSubIndexes，写入向量行的 sub_indexes 字段（逻辑分区标记）。</small>
                                         </div>
@@ -6325,12 +6300,12 @@
                 <div class="form-group">
                     <label for="batch-queue-agent-mode" data-i18n="batchImportModal.agentMode">代理模式</label>
                     <select id="batch-queue-agent-mode">
-                        <option value="eino_single" data-i18n="chat.agentModeEinoSingle">Eino 单代理（ADK）</option>
+                        <option value="single" data-i18n="chat.agentModePiSingle">Pi 单代理</option>
                         <option value="deep" data-i18n="chat.agentModeDeep">Deep（DeepAgent）</option>
                         <option value="plan_execute" data-i18n="chat.agentModePlanExecuteLabel">Plan-Execute</option>
                         <option value="supervisor" data-i18n="chat.agentModeSupervisorLabel">Supervisor</option>
                     </select>
-                    <div class="form-hint" style="margin-top: 4px;" data-i18n="batchImportModal.agentModeHint">与对话页一致：Eino 单代理（ADK），或 Deep / Plan-Execute / Supervisor（后三种需已启用多代理）。</div>
+                    <div class="form-hint" style="margin-top: 4px;" data-i18n="batchImportModal.agentModeHint">与对话页一致：Pi 单代理，或 Deep / Plan-Execute / Supervisor（后三种需已启用多代理）。</div>
                 </div>
                 <div class="form-group">
                     <label for="batch-queue-hitl-policy" data-i18n="batchImportModal.hitlPolicy">工具审批</label>

@@ -526,7 +526,7 @@ func (h *KnowledgeHandler) Search(c *gin.Context) {
 		return
 	}
 
-	// Retriever.Search 经 Eino VectorEinoRetriever，与 MCP 工具链一致。
+	// Retriever.Search 经 Agent VectorRetriever，与 MCP 工具链一致。
 	results, err := h.retriever.Search(c.Request.Context(), &req)
 	if err != nil {
 		h.logger.Error("搜索知识库失败", zap.Error(err))

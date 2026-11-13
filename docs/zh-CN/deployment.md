@@ -10,7 +10,7 @@
 - Python：部分 MCP 服务或工具脚本需要 Python 运行环境。
 - SQLite：默认使用文件型数据库，无需单独服务。
 - 安全工具：`tools/` 中的 YAML 只是工具定义，实际命令如 `nmap`、`sqlmap`、`nuclei` 仍需安装到系统 PATH。
-- 模型服务：至少配置一个 `ai.channels` 通道；`provider: openai_compatible` 适用于 OpenAI 兼容 API，`provider: claude` 使用 Eino 原生 Claude 组件。
+- 模型服务：至少配置一个 `ai.channels` 通道；`provider: openai_compatible` 适用于 OpenAI 兼容 API，`provider: claude` 使用 Pi 原生 Claude 组件。
 
 建议目录：
 
@@ -171,7 +171,7 @@ sudo journalctl -u cyberstrikeai -f
 - `config.yaml`
 - `data/conversations.db`
 - `data/knowledge.db`
-- `data/eino-checkpoints/`
+- `data/pi-sessions/`
 - 自定义 `tools/roles/skills/agents/knowledge_base`
 - 上传文件目录 `chat_uploads/`
 
@@ -254,7 +254,7 @@ Python 依赖方面：`venv/` 由 `run.sh` 自动创建和管理，保留它就�
 
 - 可替换：二进制、`web/`、默认 `tools/roles/skills/agents/docs`。
 - 必须保留：`config.yaml`、`data/`、自定义工具/角色/技能/子代理、`knowledge_base/`、`chat_uploads/`。
-- 可清理但要谨慎：`data/eino-checkpoints/`、临时 workspace、旧 payload、旧工具执行记录。
+- `data/pi-sessions/` 是会话数据，应与数据库共同备份，通过对话删除机制清理，不能当作缓存直接删除。临时 workspace、旧 payload 和工具记录按保留策略处理。
 
 升级时如果覆盖整个目录，应先把自定义目录和 `data/` 移出或备份。很多“升级后配置丢了”的问题，本质是把运行态文件当成发布包的一部分覆盖掉。
 
