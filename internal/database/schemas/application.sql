@@ -528,6 +528,9 @@ CREATE TABLE vulnerabilities (
     status TEXT NOT NULL DEFAULT 'open',
     vulnerability_type TEXT,
     target TEXT,
+    targets_json TEXT NOT NULL DEFAULT '[]',
+    targets_version INTEGER NOT NULL DEFAULT 0,
+    case_id TEXT REFERENCES vulnerability_cases(id) ON DELETE SET NULL,
     preconditions TEXT,
     reproduction_steps TEXT,
     evidence TEXT,
@@ -573,8 +576,40 @@ CREATE TABLE vulnerability_retests (
     source_conversation_id TEXT NOT NULL,
     vulnerability_id TEXT NOT NULL,
     source_project_id TEXT NOT NULL DEFAULT '',
-    pending_prompt TEXT NOT NULL DEFAULT ''
+    pending_prompt TEXT NOT NULL DEFAULT '',
+    snapshot_json TEXT NOT NULL DEFAULT ''
 );
+
+CREATE TABLE vulnerability_cases (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL DEFAULT '',
+    title TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE vulnerability_case_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    actor TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    finding_ids TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE vulnerability_retest_results (
+    id TEXT PRIMARY KEY,
+    vulnerability_id TEXT NOT NULL REFERENCES vulnerabilities(id) ON DELETE CASCADE,
+    conversation_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    evidence TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_vulnerability_case ON vulnerabilities(case_id);
+CREATE INDEX idx_vulnerability_case_events ON vulnerability_case_events(case_id);
+CREATE INDEX idx_vulnerability_retest_results ON vulnerability_retest_results(vulnerability_id, created_at);
 
 CREATE TABLE webshell_connection_states (
     connection_id TEXT PRIMARY KEY,
