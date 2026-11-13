@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { InMemoryCredentialStore, type Model, type Api, type Message } from "@earendil-works/pi-ai";
@@ -38,7 +38,7 @@ let canceled = false;
 let activeRunId = "";
 let toolSequence = 0;
 const generationAbort = new AbortController();
-const queuedSteering: string[] = [];
+let steeringBeforeSession: string[] | undefined = [];
 const pending = new Map<string, { resolve: (r: ToolReply) => void; reject: (e: Error) => void }>();
 const scratch = mkdtempSync(join(process.env.CYBERSTRIKE_PI_TMP_PARENT || tmpdir(), "cyberstrike-pi-"));
 
@@ -160,13 +160,20 @@ function pairToolResults(messages: readonly Message[]): Message[] {
   return paired;
 }
 
-function publishSession(manager: SessionManager, dir?: string): void {
-  const path = manager.getSessionFile();
-  if (!dir || !path || !existsSync(path)) return;
-  const file = path.split(/[\\/]/).pop()!;
-  const pointer = join(dir, "current-session");
-  writeFileSync(pointer + ".tmp", file, { mode: 0o600 });
-  renameSync(pointer + ".tmp", pointer);
+function openSession(workingDir: string, sessionDir?: string): SessionManager {
+  if (!sessionDir) return SessionManager.inMemory(workingDir);
+  const dir = resolve(sessionDir);
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  let file = "session.jsonl";
+  // Earlier workers selected a timestamped Pi file via this pointer. Keep
+  // opening that file in place so existing evidence links remain valid.
+  try {
+    file = readFileSync(join(dir, "current-session"), "utf8").trim();
+    if (!/^\d{4}.*\.jsonl$/.test(file) || file.includes("/") || file.includes("\\")) throw new Error("Invalid session pointer");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  return SessionManager.open(join(dir, file), dir, workingDir);
 }
 
 async function run(req: RunRequest): Promise<void> {
@@ -244,23 +251,8 @@ async function run(req: RunRequest): Promise<void> {
       directResult = { response: answer.content.filter(b => b.type === "text").map(b => b.text).join(""), history: exportHistory([answer]), totalTokens: answer.usage.totalTokens };
       return;
     }
-    if (req.sessionDir) {
-      const dir = resolve(req.sessionDir);
-      mkdirSync(dir, { recursive: true, mode: 0o700 });
-      const pointer = join(dir, "current-session");
-      if (existsSync(pointer)) {
-        const file = readFileSync(pointer, "utf8").trim();
-        if (!/^\d{4}.*\.jsonl$/.test(file) || file.includes("/") || file.includes("\\")) throw new Error("Invalid session pointer");
-        manager = SessionManager.open(join(dir, file), dir, workingDir);
-      } else {
-        manager = SessionManager.create(workingDir, dir);
-        importHistory(manager, req.history ?? [], req.model);
-      }
-      // Session files materialize when Pi appends its first entry; the pointer is published after prompting.
-    } else {
-      manager = SessionManager.inMemory(workingDir);
-      importHistory(manager, req.history ?? [], req.model);
-    }
+    manager = openSession(workingDir, req.sessionDir);
+    if (manager.getEntryCount() === 0) importHistory(manager, req.history ?? [], req.model);
     repairInterruptedCalls(manager);
     const searchEnabled = req.toolSearch === true && names.length >= (req.toolSearchMinTools || 20) && !names.includes("tool_search");
     const always = new Set(["task", "exit", "transfer_to_agent", "write_todos", "TaskCreate", "TaskUpdate", "TaskGet", "TaskList", "skill", "read_file", "execute", "wait_tool_execution", "get_tool_execution", ...(req.alwaysVisibleTools ?? [])]);
@@ -283,7 +275,6 @@ async function run(req: RunRequest): Promise<void> {
     }));
     if (searchEnabled) await session.bindExtensions({});
     session.agent.toolExecution = "sequential";
-    publishSession(manager, req.sessionDir);
     let turns = 0;
     const previousFinish = session.agent.finishTurn;
     session.agent.finishTurn = async (turn, signal) => {
@@ -293,8 +284,6 @@ async function run(req: RunRequest): Promise<void> {
     };
     session.subscribe(event => {
       const e = event as any;
-      if (e.type === "agent_start") for (const note of queuedSteering.splice(0)) void session?.steer(note).catch(fatal);
-      if (e.type === "message_end") publishSession(manager!, req.sessionDir);
       let data: unknown = e;
       if (e.type === "compaction_end") data = { ...e, sessionFile: manager?.getSessionFile(), sessionEntryId: manager?.getLeafId() };
       if (e.type === "message_update") {
@@ -304,12 +293,14 @@ async function run(req: RunRequest): Promise<void> {
       if (e.type === "agent_end") data = {};
       void send({ type: "event", event: { type: e.type, data } }).catch(() => session?.abort());
     });
+    // Pi accepts steering before prompt() and drains it during the run.
+    for (const note of steeringBeforeSession ?? []) await session.steer(note);
+    steeringBeforeSession = undefined;
     if (canceled) throw new Error("Run canceled before start");
     await session.prompt(req.message, { expandPromptTemplates: false });
     const last = [...session.messages].reverse().find(m => m.role === "assistant") as any;
     if (canceled || last?.stopReason === "aborted") status = "canceled";
     else if (last?.stopReason === "error") { status = "failed"; failure = last.errorMessage || "Model request failed"; }
-    publishSession(manager, req.sessionDir);
   } catch (error) {
     status = canceled ? "canceled" : "failed";
     failure = error instanceof Error ? error.message : String(error);
@@ -339,8 +330,8 @@ async function command(record: any): Promise<void> {
     await session?.abort();
   } else if (record.type === "steer") {
     if (canceled || typeof record.message !== "string") throw new Error("Invalid steering request");
-    if (!session || !session.isStreaming) queuedSteering.push(record.message);
-    else await session.steer(record.message);
+    if (steeringBeforeSession) steeringBeforeSession.push(record.message);
+    else await session!.steer(record.message);
   } else throw new Error("Unknown protocol command");
 }
 
