@@ -2720,6 +2720,7 @@
     "errorGeneric": "حدث خطأ ما. يُرجى المحاولة مرة أخرى."
   },
   "vulnerabilityPage": {
+    "viewFinding": "عرض التفاصيل",
     "taskSearch": "البحث في المهام أو قوائم الانتظار أو الوسوم…",
     "allTasks": "جميع المهام",
     "clearTaskSelection": "مسح مرشح المهام",

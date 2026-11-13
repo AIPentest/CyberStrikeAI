@@ -2850,6 +2850,7 @@
     "errorGeneric": "操作失败，请稍后重试。"
   },
   "vulnerabilityPage": {
+    "viewFinding": "查看详情",
     "taskSearch": "搜索任务、队列或标签…",
     "allTasks": "全部任务",
     "clearTaskSelection": "清除任务筛选",

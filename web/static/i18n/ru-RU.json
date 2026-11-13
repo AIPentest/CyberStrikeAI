@@ -2875,6 +2875,7 @@
     "errorGeneric": "Что-то пошло не так. Повторите попытку."
   },
   "vulnerabilityPage": {
+    "viewFinding": "Подробнее",
     "taskSearch": "Поиск задач, очередей или тегов…",
     "allTasks": "Все задачи",
     "clearTaskSelection": "Сбросить фильтр задач",

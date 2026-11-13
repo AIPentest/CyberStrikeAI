@@ -2862,6 +2862,7 @@
     "errorGeneric": "Something went wrong. Please try again."
   },
   "vulnerabilityPage": {
+    "viewFinding": "View details",
     "taskSearch": "Search tasks, queues or tags…",
     "allTasks": "All tasks",
     "clearTaskSelection": "Clear task filter",
