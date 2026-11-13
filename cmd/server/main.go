@@ -25,7 +25,7 @@ func main() {
 	updateActivation := app.TakeUpdateActivation()
 	updateSessions := app.TakeUpdateSessionHandoff()
 	var configPath = flag.String("config", "config.yaml", "Path to the configuration file")
-	var httpsBootstrap = flag.Bool("https", false, "Enable HTTPS for the main site; uses an in-memory self-signed certificate when no cert/key is configured")
+	var httpsBootstrap = flag.Bool("https", false, "Enable HTTPS for the main site; creates and reuses a local self-signed certificate when no cert/key is configured")
 	var httpBootstrap = flag.Bool("http", false, "Force plain HTTP for the main site, overriding TLS settings in the configuration file")
 	var resetAdminPassword = flag.Bool("reset-admin-password", false, "Interactively reset the built-in admin password and exit")
 	checkIsolation := flag.Bool("check-process-isolation", false, "Probe task containment and cleanup, then exit without starting services")

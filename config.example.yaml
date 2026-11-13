@@ -28,7 +28,7 @@ server:
   # 方式 A（推荐生产）：PEM 证书与私钥路径
   # tls_cert_path: /path/to/fullchain.pem
   # tls_key_path: /path/to/privkey.pem
-  # 方式 B（仅本地/测试）：无证书文件时内存自签（浏览器会提示不受信任；SAN 含 localhost / 127.0.0.1）
+  # 方式 B（仅本地/测试）：在配置目录的 data/tls/self-signed.pem 保存并复用自签证书和私钥（SAN 含 localhost / 127.0.0.1）。
   tls_auto_self_sign: true
 # 认证配置
 auth:
