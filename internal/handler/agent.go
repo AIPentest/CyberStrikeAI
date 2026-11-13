@@ -1057,6 +1057,15 @@ func (h *AgentHandler) createProgressCallback(runCtx context.Context, cancelRun 
 		}
 		return ""
 	}
+	skillNameFromEvent := func(data map[string]interface{}) string {
+		for _, field := range []string{"argumentsObj", "arguments"} {
+			args, _ := data[field].(map[string]interface{})
+			if name := extractSkillName(args); name != "" {
+				return name
+			}
+		}
+		return ""
+	}
 
 	// thinking_stream_*（ReAct 等助手正文流）与 reasoning_chain_stream_*（Agent ReasoningContent）：
 	// 不逐条落库，按 streamId 聚合，flush 时分别落 thinking / reasoning_chain。
@@ -1213,10 +1222,8 @@ func (h *AgentHandler) createProgressCallback(runCtx context.Context, cancelRun 
 				if strings.EqualFold(strings.TrimSpace(toolName), skillToolName) {
 					toolCallID, _ := dataMap["toolCallId"].(string)
 					if toolCallID != "" {
-						if argumentsObj, ok := dataMap["argumentsObj"].(map[string]interface{}); ok {
-							if skillName := extractSkillName(argumentsObj); skillName != "" {
-								skillCallCache[toolCallID] = skillName
-							}
+						if skillName := skillNameFromEvent(dataMap); skillName != "" {
+							skillCallCache[toolCallID] = skillName
 						}
 					}
 				}
@@ -1364,9 +1371,7 @@ func (h *AgentHandler) createProgressCallback(runCtx context.Context, cancelRun 
 						delete(skillCallCache, toolCallID)
 					}
 					if skillName == "" {
-						if argumentsObj, ok := dataMap["argumentsObj"].(map[string]interface{}); ok {
-							skillName = strings.TrimSpace(extractSkillName(argumentsObj))
-						}
+						skillName = skillNameFromEvent(dataMap)
 					}
 					if skillName != "" {
 						success, ok := dataMap["success"].(bool)
