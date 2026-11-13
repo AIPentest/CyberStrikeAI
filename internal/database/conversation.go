@@ -398,12 +398,12 @@ func normalizeConversationRoleName(roleName string) string {
 
 func normalizeConversationAgentMode(agentMode string) string {
 	agentMode = strings.ToLower(strings.TrimSpace(agentMode))
-	agentMode = strings.ReplaceAll(agentMode, "-", "_")
+	agentMode = strings.TrimPrefix(strings.ReplaceAll(agentMode, "-", "_"), "eino_")
 	switch agentMode {
 	case "deep", "plan_execute", "supervisor":
 		return agentMode
 	default:
-		return "eino_single"
+		return "single"
 	}
 }
 
@@ -729,6 +729,9 @@ func (db *DB) UpdateConversationTime(id string) error {
 // 漏洞记录会保留：vulnerabilities.conversation_id 使用 ON DELETE SET NULL，仅解除与会话的关联。
 // 注意：knowledge_retrieval_logs 在删除前会被显式清理。
 func (db *DB) DeleteConversation(id string) error {
+	if err := db.removePiSessions(id); err != nil {
+		return err
+	}
 	// 删除对话前补全漏洞来源标签，便于在漏洞库中追溯已删除会话的发现。
 	_, err := db.Exec(`
 		UPDATE vulnerabilities
@@ -791,19 +794,19 @@ func (db *DB) removeConversationScopedDir(base, conversationID, label string) {
 	}
 }
 
-func (db *DB) einoReductionBaseDir() string {
+func (db *DB) agentReductionBaseDir() string {
 	if db == nil {
 		return ""
 	}
-	if base := strings.TrimSpace(db.einoReductionRootDir); base != "" {
+	if base := strings.TrimSpace(db.agentReductionRootDir); base != "" {
 		return base
 	}
 	return filepath.Join("tmp", "reduction")
 }
 
-// EinoReductionBaseDir returns the configured reduction cache root.
-func (db *DB) EinoReductionBaseDir() string {
-	return db.einoReductionBaseDir()
+// AgentReductionBaseDir returns the configured reduction cache root.
+func (db *DB) AgentReductionBaseDir() string {
+	return db.agentReductionBaseDir()
 }
 
 // ConversationArtifactsBaseDir returns the conversation-scoped artifacts root.
@@ -814,16 +817,16 @@ func (db *DB) ConversationArtifactsBaseDir() string {
 	return strings.TrimSpace(db.conversationArtifactsDir)
 }
 
-// EinoWorkspaceBaseDir returns the configured agent workspace root.
-func (db *DB) EinoWorkspaceBaseDir() string {
-	return db.einoWorkspaceBaseDir()
+// AgentWorkspaceBaseDir returns the configured agent workspace root.
+func (db *DB) AgentWorkspaceBaseDir() string {
+	return db.agentWorkspaceBaseDir()
 }
 
-func (db *DB) einoWorkspaceBaseDir() string {
+func (db *DB) agentWorkspaceBaseDir() string {
 	if db == nil {
 		return ""
 	}
-	if base := strings.TrimSpace(db.einoWorkspaceRootDir); base != "" {
+	if base := strings.TrimSpace(db.agentWorkspaceRootDir); base != "" {
 		return base
 	}
 	return filepath.Join("tmp", "workspace")
@@ -832,18 +835,18 @@ func (db *DB) einoWorkspaceBaseDir() string {
 func (db *DB) removeConversationScopedDirs(conversationID, projectID string) {
 	// summarization transcript, etc.
 	db.removeConversationScopedDir(db.conversationArtifactsDir, conversationID, "conversation_artifacts")
-	// Eino plantask JSON boards (skills_dir/.eino/plantask/<id>/).
-	db.removeConversationScopedDir(db.einoPlantaskBaseDir, conversationID, "plantask")
-	// Eino ADK runner checkpoints (checkpoint_dir/<id>/).
-	db.removeConversationScopedDir(db.einoCheckpointBaseDir, conversationID, "eino_checkpoint")
+	// Agent plantask JSON boards (skills_dir/.pi/plantask/<id>/).
+	db.removeConversationScopedDir(db.agentPlantaskBaseDir, conversationID, "plantask")
+	// Pi runner checkpoints (checkpoint_dir/<id>/).
+	db.removeConversationScopedDir(db.agentCheckpointBaseDir, conversationID, "legacy_checkpoint")
 	// 上传附件始终归属单个会话，项目绑定的会话也要删，故放在 projectID 判断之外。
 	db.removeChatUploadDirs(conversationID)
-	// Eino reduction persisted tool outputs (tmp/reduction/conversations/<id>/).
+	// Agent reduction persisted tool outputs (tmp/reduction/conversations/<id>/).
 	// Project-bound sessions share projects/<id>/ — skip on single conversation delete.
 	if strings.TrimSpace(projectID) == "" {
-		reductionBase := filepath.Join(db.einoReductionBaseDir(), "conversations")
+		reductionBase := filepath.Join(db.agentReductionBaseDir(), "conversations")
 		db.removeConversationScopedDir(reductionBase, conversationID, "reduction")
-		workspaceBase := filepath.Join(db.einoWorkspaceBaseDir(), "conversations")
+		workspaceBase := filepath.Join(db.agentWorkspaceBaseDir(), "conversations")
 		db.removeConversationScopedDir(workspaceBase, conversationID, "workspace")
 	}
 }
@@ -876,11 +879,11 @@ func (db *DB) removeChatUploadDirs(conversationID string) {
 }
 
 func (db *DB) removeProjectScopedDirs(projectID string) {
-	// Eino reduction persisted tool outputs (tmp/reduction/projects/<id>/).
-	reductionBase := filepath.Join(db.einoReductionBaseDir(), "projects")
+	// Agent reduction persisted tool outputs (tmp/reduction/projects/<id>/).
+	reductionBase := filepath.Join(db.agentReductionBaseDir(), "projects")
 	db.removeConversationScopedDir(reductionBase, projectID, "reduction")
 	// Agent download/analysis workspace (tmp/workspace/projects/<id>/).
-	workspaceBase := filepath.Join(db.einoWorkspaceBaseDir(), "projects")
+	workspaceBase := filepath.Join(db.agentWorkspaceBaseDir(), "projects")
 	db.removeConversationScopedDir(workspaceBase, projectID, "workspace")
 }
 
@@ -1191,13 +1194,18 @@ func (db *DB) DeleteConversationTurn(conversationID, anchorMessageID string) (de
 	}
 
 	_, err = tx.Exec(
-		`UPDATE conversations SET last_react_input = NULL, last_react_output = NULL, updated_at = ? WHERE id = ?`,
+		`UPDATE conversations SET last_react_input = NULL, last_react_output = NULL, pi_session_revision = pi_session_revision + 1, updated_at = ? WHERE id = ?`,
 		time.Now(), conversationID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("clear react data: %w", err)
 	}
 
+	// Invalidate every mode/child session before acknowledging deletion. If cleanup
+	// fails, roll back the messages instead of reporting a misleading success.
+	if err := db.removePiSessions(conversationID); err != nil {
+		return nil, err
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit: %w", err)
 	}

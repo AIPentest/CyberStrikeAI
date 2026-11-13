@@ -44,26 +44,25 @@ func TestApplyCustomHeadersNilConfigIsNoop(t *testing.T) {
 	}
 }
 
-func TestHeadersRoundTripperInjectsHeaders(t *testing.T) {
+func TestNativeClientInjectsHeaders(t *testing.T) {
 	var auth, provider string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth = r.Header.Get("Authorization")
 		provider = r.Header.Get("X-Provider")
-		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{}`))
 	}))
 	defer srv.Close()
 
-	cfg := &config.OpenAIConfig{Headers: map[string]string{
+	cfg := &config.OpenAIConfig{BaseURL: srv.URL, APIKey: "fixture-key", Headers: map[string]string{
 		"Authorization": "Bearer from-headers",
 		"X-Provider":    "opencode",
 	}}
-	client := NewEinoHTTPClient(cfg, srv.Client())
-	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/v1/chat/completions", nil)
-	resp, err := client.Do(req)
+	var out interface{}
+	err := NewClient(cfg, srv.Client(), nil).ChatCompletion(context.Background(), map[string]string{}, &out)
 	if err != nil {
-		t.Fatalf("do: %v", err)
+		t.Fatal(err)
 	}
-	resp.Body.Close()
+
 	if auth != "Bearer from-headers" {
 		t.Fatalf("Authorization = %q", auth)
 	}

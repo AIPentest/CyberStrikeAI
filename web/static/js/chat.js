@@ -129,15 +129,15 @@ function isInterruptContinueInjectChatMessage(content) {
 let chatAttachments = [];
 let chatAttachmentSeq = 0;
 
-// 对话模式：eino_single = Eino ADK 单代理（/api/eino-agent/stream）；deep / plan_execute / supervisor = Eino 多代理（/api/multi-agent/stream，请求体 orchestration）
+// 对话模式：single = Pi ADK 单代理（/api/agent/stream）；deep / plan_execute / supervisor = Pi 多代理（/api/multi-agent/stream，请求体 orchestration）
 const AGENT_MODE_STORAGE_KEY = 'cyberstrike-chat-agent-mode';
 const AGENT_MODE_CONVERSATION_STORAGE_PREFIX = 'cyberstrike-chat-agent-mode:conversation';
 const AI_CHANNEL_STORAGE_KEY = 'cyberstrike-chat-ai-channel';
 const REASONING_MODE_LS = 'cyberstrike-chat-reasoning-mode';
 const REASONING_EFFORT_LS = 'cyberstrike-chat-reasoning-effort';
 const CHAT_AI_CHANNEL_SUMMARY_NAME_MAX = 10;
-const CHAT_AGENT_MODE_EINO_SINGLE = 'eino_single';
-const CHAT_AGENT_EINO_MODES = ['deep', 'plan_execute', 'supervisor'];
+const CHAT_AGENT_MODE_SINGLE = 'single';
+const CHAT_AGENT_MULTI_MODES = ['deep', 'plan_execute', 'supervisor'];
 let multiAgentAPIEnabled = false;
 let chatAIChannels = {};
 let chatDefaultAIChannel = '';
@@ -406,12 +406,12 @@ function normalizeOrchestrationClient(s) {
     return 'deep';
 }
 
-function chatAgentModeIsEino(mode) {
-    return CHAT_AGENT_EINO_MODES.indexOf(mode) >= 0;
+function chatAgentModeIsPi(mode) {
+    return CHAT_AGENT_MULTI_MODES.indexOf(mode) >= 0;
 }
 
-function chatAgentModeIsEinoSingle(mode) {
-    return mode === CHAT_AGENT_MODE_EINO_SINGLE;
+function chatAgentModeIsPiSingle(mode) {
+    return mode === CHAT_AGENT_MODE_SINGLE;
 }
 
 function normalizeHitlMode(mode) {
@@ -810,23 +810,23 @@ function bindHitlSensitiveToolsAutosaveListener() {
     });
 }
 
-/** 将 localStorage 规范为 eino_single | deep | plan_execute | supervisor */
+/** 将 localStorage 规范为 single | deep | plan_execute | supervisor */
 function chatAgentModeNormalizeStored(stored, cfg) {
     const pub = cfg && cfg.multi_agent ? cfg.multi_agent : null;
     const multiOn = !!(pub && pub.enabled);
-    const s = stored;
-    if (chatAgentModeIsEinoSingle(s)) return s;
-    if (chatAgentModeIsEino(s)) {
-        return multiOn ? s : CHAT_AGENT_MODE_EINO_SINGLE;
+    const s = String(stored || '').replace(/^eino_/, '');
+    if (chatAgentModeIsPiSingle(s)) return s;
+    if (chatAgentModeIsPi(s)) {
+        return multiOn ? s : CHAT_AGENT_MODE_SINGLE;
     }
-    return CHAT_AGENT_MODE_EINO_SINGLE;
+    return CHAT_AGENT_MODE_SINGLE;
 }
 
 function normalizeConversationAgentModeForUI(mode) {
-    const v = String(mode || '').trim().toLowerCase().replace(/-/g, '_');
-    if (chatAgentModeIsEinoSingle(v)) return v;
-    if (chatAgentModeIsEino(v)) {
-        return multiAgentAPIEnabled ? v : CHAT_AGENT_MODE_EINO_SINGLE;
+    const v = String(mode || '').trim().toLowerCase().replace(/-/g, '_').replace(/^eino_/, '');
+    if (chatAgentModeIsPiSingle(v)) return v;
+    if (chatAgentModeIsPi(v)) {
+        return multiAgentAPIEnabled ? v : CHAT_AGENT_MODE_SINGLE;
     }
     return '';
 }
@@ -869,10 +869,10 @@ if (typeof window !== 'undefined') {
     };
     window.csaiHitlDefaultReviewer = window.csaiHitlDefaultReviewer || 'human';
     window.csaiChatAgentMode = {
-        EINO_MODES: CHAT_AGENT_EINO_MODES,
-        EINO_SINGLE: CHAT_AGENT_MODE_EINO_SINGLE,
-        isEino: chatAgentModeIsEino,
-        isEinoSingle: chatAgentModeIsEinoSingle,
+        MULTI_MODES: CHAT_AGENT_MULTI_MODES,
+        SINGLE: CHAT_AGENT_MODE_SINGLE,
+        isPi: chatAgentModeIsPi,
+        isPiSingle: chatAgentModeIsPiSingle,
         normalizeStored: chatAgentModeNormalizeStored,
         normalizeOrchestration: normalizeOrchestrationClient
     };
@@ -939,14 +939,14 @@ function getAgentModeLabelForValue(mode) {
                 return window.t('chat.agentModePlanExecuteLabel');
             case 'supervisor':
                 return window.t('chat.agentModeSupervisorLabel');
-            case CHAT_AGENT_MODE_EINO_SINGLE:
-                return window.t('chat.agentModeEinoSingle');
+            case CHAT_AGENT_MODE_SINGLE:
+                return window.t('chat.agentModePiSingle');
             default:
                 return mode;
         }
     }
     switch (mode) {
-        case CHAT_AGENT_MODE_EINO_SINGLE: return 'Eino 单代理';
+        case CHAT_AGENT_MODE_SINGLE: return 'Pi 单代理';
         case 'deep': return 'Deep';
         case 'plan_execute': return 'Plan-Execute';
         case 'supervisor': return 'Supervisor';
@@ -956,7 +956,7 @@ function getAgentModeLabelForValue(mode) {
 
 function getAgentModeIconClassForValue(mode) {
     switch (mode) {
-        case CHAT_AGENT_MODE_EINO_SINGLE: return 'eino';
+        case CHAT_AGENT_MODE_SINGLE: return 'pi';
         case 'deep': return 'deep';
         case 'plan_execute': return 'plan';
         case 'supervisor': return 'supervisor';
@@ -989,7 +989,7 @@ function syncReasoningRowVisibility(modeVal) {
     mountChatSessionSettingsPopover();
     const wrap = document.getElementById('chat-reasoning-wrapper');
     if (!wrap) return;
-    const show = modeVal === CHAT_AGENT_MODE_EINO_SINGLE || (multiAgentAPIEnabled && chatAgentModeIsEino(modeVal));
+    const show = modeVal === CHAT_AGENT_MODE_SINGLE || (multiAgentAPIEnabled && chatAgentModeIsPi(modeVal));
     wrap.style.display = show ? '' : 'none';
     if (!show) {
         closeChatReasoningPanel();
@@ -1974,7 +1974,7 @@ function persistChatReasoningPrefs() {
     } catch (err) { /* ignore */ }
 }
 
-/** 供 WebShell 等复用：在 Eino 路径下返回 reasoning 请求片段或 undefined */
+/** 供 WebShell 等复用：在 Pi 路径下返回 reasoning 请求片段或 undefined */
 function buildReasoningRequestPayload() {
     const wrap = document.getElementById('chat-reasoning-wrapper');
     if (!wrap || wrap.style.display === 'none') {
@@ -2046,7 +2046,7 @@ function toggleAgentModePanel() {
 }
 
 function selectAgentMode(mode) {
-    const ok = chatAgentModeIsEinoSingle(mode) || chatAgentModeIsEino(mode);
+    const ok = chatAgentModeIsPiSingle(mode) || chatAgentModeIsPi(mode);
     if (!ok) return;
     saveConversationAgentModePreference(currentConversationId, mode);
     try {
@@ -2064,8 +2064,8 @@ async function initChatAgentModeFromConfig() {
     // 先展示基础模式，避免首次登录时配置接口短暂失败导致入口被隐藏。
     wrap.style.display = '';
     let stored = localStorage.getItem(AGENT_MODE_STORAGE_KEY);
-    if (!(chatAgentModeIsEinoSingle(stored) || chatAgentModeIsEino(stored))) {
-        stored = CHAT_AGENT_MODE_EINO_SINGLE;
+    if (!(chatAgentModeIsPiSingle(stored) || chatAgentModeIsPi(stored))) {
+        stored = CHAT_AGENT_MODE_SINGLE;
     }
     sel.value = stored;
     syncAgentModeFromValue(stored);
@@ -2139,7 +2139,7 @@ document.addEventListener('languagechange', function () {
     const hid = document.getElementById('agent-mode-select');
     if (!hid) return;
     const v = hid.value;
-    if (chatAgentModeIsEinoSingle(v) || chatAgentModeIsEino(v)) {
+    if (chatAgentModeIsPiSingle(v) || chatAgentModeIsPi(v)) {
         syncAgentModeFromValue(v);
     }
     if (typeof updateChatReasoningSummary === 'function') {
@@ -2420,10 +2420,10 @@ async function sendMessage(options = {}) {
 
     try {
         const modeSel = document.getElementById('agent-mode-select');
-        let modeVal = modeSel ? modeSel.value : CHAT_AGENT_MODE_EINO_SINGLE;
+        let modeVal = modeSel ? modeSel.value : CHAT_AGENT_MODE_SINGLE;
         saveConversationAgentModePreference(streamConversationId || currentConversationId, modeVal);
-        const useMulti = multiAgentAPIEnabled && chatAgentModeIsEino(modeVal);
-        const streamPath = useMulti ? '/api/multi-agent/stream' : '/api/eino-agent/stream';
+        const useMulti = multiAgentAPIEnabled && chatAgentModeIsPi(modeVal);
+        const streamPath = useMulti ? '/api/multi-agent/stream' : '/api/agent/stream';
         if (useMulti && modeVal) {
             body.orchestration = modeVal;
         }
@@ -3892,10 +3892,10 @@ window.mergeMessageReasoningContentIntoProcessDetails = mergeMessageReasoningCon
 window.syncAssistantReasoningContentFromServer = syncAssistantReasoningContentFromServer;
 
 /** 相邻且类型/正文/data 完全一致的过程详情只保留一条（与后端去重一致，避免时间线叠多条相同块） */
-function isEinoAgentHeartbeatProgress(detail) {
+function isPiAgentHeartbeatProgress(detail) {
     if (!detail || detail.eventType !== 'progress') return false;
     const msg = String(detail.message != null ? detail.message : '').trim();
-    return /^\[Eino\]\s+\S/.test(msg);
+    return /^\[Pi\]\s+\S/.test(msg);
 }
 
 function hasModelOutputRecoveryMarker(value) {
@@ -3941,14 +3941,14 @@ function isAnonymousTaskFragmentToolCallDetail(detail) {
     return !(raw.startsWith('{') && raw.endsWith('}'));
 }
 
-function isInternalEinoDiagnosticDetail(detail) {
+function isInternalPiDiagnosticDetail(detail) {
     if (!detail) return false;
     if (detail.eventType === 'model_output_rejected') return true;
     if (detail.eventType !== 'progress') return false;
     const msg = String(detail.message != null ? detail.message : '').trim();
-    if (msg === 'Eino TurnLoop 常驻多轮 runtime 已接管本轮会话。' ||
-        msg === 'Eino TurnLoop 已在安全点切换到用户补充后的下一轮。' ||
-        msg === '已将用户补充推入 Eino TurnLoop，正在等待安全点切换…') {
+    if (msg === 'Pi TurnLoop 常驻多轮 runtime 已接管本轮会话。' ||
+        msg === 'Pi TurnLoop 已在安全点切换到用户补充后的下一轮。' ||
+        msg === '已将用户补充推入 Pi TurnLoop，正在等待安全点切换…') {
         return true;
     }
     const data = detail.data && typeof detail.data === 'object' ? detail.data : {};
@@ -3959,10 +3959,10 @@ function isInternalEinoDiagnosticDetail(detail) {
 function filterNoiseProcessDetails(details) {
     if (!Array.isArray(details)) return details;
     return details.filter(function (d) {
-        if (isEinoAgentHeartbeatProgress(d)) return false;
+        if (isPiAgentHeartbeatProgress(d)) return false;
         if (isModelOutputRecoveryToolCallDetail(d)) return false;
         if (isAnonymousTaskFragmentToolCallDetail(d)) return false;
-        if (isInternalEinoDiagnosticDetail(d)) return false;
+        if (isInternalPiDiagnosticDetail(d)) return false;
         return !(d && d.eventType === 'tool_calls_detected');
     });
 }
@@ -4067,6 +4067,10 @@ window.bindProcessDetailsLazyHint = bindProcessDetailsLazyHint;
 // 渲染过程详情
 // options.append=true 时分页追加；options.markLoaded=false 时保留 lazy 标记（分页加载中）
 function renderProcessDetails(messageId, processDetails, options) {
+    if (Array.isArray(processDetails)) processDetails = processDetails.map(detail => ({...detail,
+        eventType: String(detail.eventType || '').replace(/^eino_agent_reply/, 'agent_reply').replace(/^eino_/, 'agent_'),
+        data: detail.data ? {...detail.data, agentName: detail.data.agentName ?? detail.data.einoAgent, agentRole: detail.data.agentRole ?? detail.data.einoRole} : detail.data
+    }));
     const renderOpts = options || {};
     const appendMode = !!renderOpts.append;
     const prependMode = !!renderOpts.prepend;
@@ -4201,10 +4205,7 @@ function renderProcessDetails(messageId, processDetails, options) {
         return;
     }
 
-    const prependAnchor = prependMode ? timeline.firstChild : null;
-    const prependScrollBox = prependMode ? document.getElementById('chat-messages') : null;
-    const prependScrollHeight = prependScrollBox ? prependScrollBox.scrollHeight : 0;
-    const prependScrollTop = prependScrollBox ? prependScrollBox.scrollTop : 0;
+    const prependAnchor = prependMode ? timeline.querySelector(':scope > .timeline-item') : null;
     const prependedIds = [];
 
     if (!appendMode && !prependMode) {
@@ -4213,14 +4214,14 @@ function renderProcessDetails(messageId, processDetails, options) {
 
 
     function processDetailAgentPrefix(d) {
-        if (!d || d.einoAgent == null) return '';
-        const s = String(d.einoAgent).trim();
+        if (!d || d.agentName == null) return '';
+        const s = String(d.agentName).trim();
         return s ? ('[' + s + '] ') : '';
     }
 
-    function formatProcessDetailEinoRunRetryKind(kind) {
-        if (typeof window.formatEinoRunRetryKind === 'function') {
-            return window.formatEinoRunRetryKind(kind);
+    function formatProcessDetailPiRunRetryKind(kind) {
+        if (typeof window.formatPiRunRetryKind === 'function') {
+            return window.formatPiRunRetryKind(kind);
         }
         const key = String(kind || '').trim();
         if (!key) return '';
@@ -4235,19 +4236,19 @@ function renderProcessDetails(messageId, processDetails, options) {
             transient: '临时异常'
         };
         if (typeof window.t === 'function') {
-            const translated = window.t('chat.einoRunRetryKind_' + key);
-            if (translated && translated !== 'chat.einoRunRetryKind_' + key) return translated;
+            const translated = window.t('chat.piRunRetryKind_' + key);
+            if (translated && translated !== 'chat.piRunRetryKind_' + key) return translated;
         }
         return labels[key] || key;
     }
 
-    function formatProcessDetailEinoRunRetryTitle(data) {
-        if (typeof window.formatEinoRunRetryTitle === 'function') {
-            return window.formatEinoRunRetryTitle(data);
+    function formatProcessDetailPiRunRetryTitle(data) {
+        if (typeof window.formatPiRunRetryTitle === 'function') {
+            return window.formatPiRunRetryTitle(data);
         }
         const d = data && typeof data === 'object' ? data : {};
         const base = typeof window.t === 'function'
-            ? window.t('chat.einoRunRetryTitle')
+            ? window.t('chat.piRunRetryTitle')
             : '🔁 临时错误重试';
         const attempt = Number(d.attempt || 0);
         const maxAttempts = Number(d.maxAttempts || 0);
@@ -4257,9 +4258,9 @@ function renderProcessDetails(messageId, processDetails, options) {
         return base;
     }
 
-    function formatProcessDetailEinoRunRetryMessage(message, data) {
-        if (typeof window.formatEinoRunRetryMessage === 'function') {
-            return window.formatEinoRunRetryMessage(message, data);
+    function formatProcessDetailPiRunRetryMessage(message, data) {
+        if (typeof window.formatPiRunRetryMessage === 'function') {
+            return window.formatPiRunRetryMessage(message, data);
         }
         const d = data && typeof data === 'object' ? data : {};
         const base = String(message || '').trim();
@@ -4271,10 +4272,10 @@ function renderProcessDetails(messageId, processDetails, options) {
         const attempt = Number(d.attempt || 0);
         const maxAttempts = Number(d.maxAttempts || 0);
         const backoffSec = Number(d.backoffSec || 0);
-        const kind = formatProcessDetailEinoRunRetryKind(d.errorKind);
+        const kind = formatProcessDetailPiRunRetryKind(d.errorKind);
         if (Number.isFinite(attempt) && attempt > 0 && Number.isFinite(maxAttempts) && maxAttempts > 0) {
             const retryPlan = typeof window.t === 'function'
-                ? window.t('chat.einoRunRetryPlan', { attempt: attempt, maxAttempts: maxAttempts, backoffSec: Number.isFinite(backoffSec) && backoffSec > 0 ? backoffSec : '-' })
+                ? window.t('chat.piRunRetryPlan', { attempt: attempt, maxAttempts: maxAttempts, backoffSec: Number.isFinite(backoffSec) && backoffSec > 0 ? backoffSec : '-' })
                 : ('重试进度：第 ' + attempt + '/' + maxAttempts + ' 次，等待 ' + (Number.isFinite(backoffSec) && backoffSec > 0 ? backoffSec : '-') + ' 秒');
             if (!base || base.indexOf(String(attempt) + '/' + String(maxAttempts)) === -1) {
                 lines.push(retryPlan);
@@ -4282,13 +4283,13 @@ function renderProcessDetails(messageId, processDetails, options) {
         }
         if (kind) {
             const kindLabel = typeof window.t === 'function'
-                ? window.t('chat.einoRunRetryReasonKind')
+                ? window.t('chat.piRunRetryReasonKind')
                 : '原因类型';
             lines.push(kindLabel + '：' + kind);
         }
         if (errRaw && (!base || base.indexOf(errRaw) === -1)) {
             const detailLabel = typeof window.t === 'function'
-                ? window.t('chat.einoRunRetryErrorDetail')
+                ? window.t('chat.piRunRetryErrorDetail')
                 : '错误详情';
             lines.push(detailLabel + '：' + errRaw);
         }
@@ -4341,20 +4342,20 @@ function renderProcessDetails(messageId, processDetails, options) {
             itemTitle = '⏸️ 工作流已暂停';
         } else if (eventType === 'iteration') {
             const n = data.iteration || 1;
-            if (data.orchestration === 'plan_execute' && data.einoScope === 'main') {
+            if (data.orchestration === 'plan_execute' && data.piScope === 'main') {
                 const phase = typeof window.translatePlanExecuteAgentName === 'function'
-                    ? window.translatePlanExecuteAgentName(data.einoAgent) : (data.einoAgent || '');
+                    ? window.translatePlanExecuteAgentName(data.agentName) : (data.agentName || '');
                 itemTitle = (typeof window.t === 'function'
-                    ? window.t('chat.einoPlanExecuteRound', { n: n, phase: phase })
+                    ? window.t('chat.piPlanExecuteRound', { n: n, phase: phase })
                     : ('Plan-Execute · 第 ' + n + ' 轮 · ' + phase));
-            } else if (data.einoScope === 'main') {
+            } else if (data.piScope === 'main') {
                 itemTitle = agPx + (typeof window.t === 'function'
-                    ? window.t('chat.einoOrchestratorRound', { n: n })
+                    ? window.t('chat.piOrchestratorRound', { n: n })
                     : ('主代理 · 第 ' + n + ' 轮'));
-            } else if (data.einoScope === 'sub') {
-                const agent = data.einoAgent != null ? String(data.einoAgent).trim() : '';
+            } else if (data.piScope === 'sub') {
+                const agent = data.agentName != null ? String(data.agentName).trim() : '';
                 itemTitle = agPx + (typeof window.t === 'function'
-                    ? window.t('chat.einoSubAgentStep', { n: n, agent: agent })
+                    ? window.t('chat.piSubAgentStep', { n: n, agent: agent })
                     : ('子代理 · ' + agent + ' · 第 ' + n + ' 步'));
             } else {
                 itemTitle = agPx + (typeof window.t === 'function' ? window.t('chat.iterationRound', { n: n }) : '第 ' + n + ' 轮迭代');
@@ -4364,8 +4365,8 @@ function renderProcessDetails(messageId, processDetails, options) {
         } else if (eventType === 'reasoning_chain') {
             itemTitle = agPx + '🔗 ' + (typeof window.t === 'function' ? window.t('chat.reasoningChain') : '推理过程');
         } else if (eventType === 'planning') {
-            if (typeof window.einoMainStreamPlanningTitle === 'function') {
-                itemTitle = window.einoMainStreamPlanningTitle(data);
+            if (typeof window.piMainStreamPlanningTitle === 'function') {
+                itemTitle = window.piMainStreamPlanningTitle(data);
             } else {
                 itemTitle = agPx + '📝 ' + (typeof window.t === 'function' ? window.t('chat.planning') : '规划中');
             }
@@ -4400,15 +4401,15 @@ function renderProcessDetails(messageId, processDetails, options) {
                 execLine = '📚 ' + execLine + ' - ' + (typeof window.t === 'function' ? window.t('chat.knowledgeRetrievalTag') : '知识检索');
             }
             itemTitle = agPx + execLine;
-        } else if (eventType === 'eino_agent_reply') {
-            itemTitle = agPx + '💬 ' + (typeof window.t === 'function' ? window.t('chat.einoAgentReplyTitle') : '子代理回复');
-        } else if (eventType === 'eino_empty_response_continue') {
+        } else if (eventType === 'agent_reply') {
+            itemTitle = agPx + '💬 ' + (typeof window.t === 'function' ? window.t('chat.agentNameReplyTitle') : '子代理回复');
+        } else if (eventType === 'agent_empty_response_continue') {
             itemTitle = typeof window.t === 'function'
-                ? window.t('chat.einoEmptyResponseContinueTitle')
+                ? window.t('chat.piEmptyResponseContinueTitle')
                 : '🔁 自动续跑（无助手正文）';
-        } else if (eventType === 'eino_run_retry') {
-            itemTitle = formatProcessDetailEinoRunRetryTitle(data);
-            detail.message = formatProcessDetailEinoRunRetryMessage(title, data);
+        } else if (eventType === 'agent_run_retry') {
+            itemTitle = formatProcessDetailPiRunRetryTitle(data);
+            detail.message = formatProcessDetailPiRunRetryMessage(title, data);
         } else if (eventType === 'knowledge_retrieval') {
             itemTitle = '📚 ' + (typeof window.t === 'function' ? window.t('chat.knowledgeRetrieval') : '知识检索');
         } else if (eventType === 'error') {
@@ -4502,10 +4503,13 @@ function renderProcessDetails(messageId, processDetails, options) {
             const node = document.getElementById(id);
             if (node) fragment.appendChild(node);
         });
-        timeline.insertBefore(fragment, prependAnchor || timeline.firstChild);
-        if (prependScrollBox) {
-            const delta = prependScrollBox.scrollHeight - prependScrollHeight;
-            prependScrollBox.scrollTop = prependScrollTop + delta;
+        // 过程详情独立滚动。分帧渲染期间外层对话可能已被用户滚到别处。
+        const anchor = prependAnchor && prependAnchor.parentNode === timeline ? prependAnchor : null;
+        const anchorTop = anchor ? anchor.getBoundingClientRect().top : 0;
+        timeline.insertBefore(fragment, anchor || timeline.firstChild);
+        if (anchor && timeline.classList.contains('expanded')) {
+            const delta = anchor.getBoundingClientRect().top - anchorTop;
+            if (delta) timeline.scrollTo({ top: timeline.scrollTop + delta, behavior: 'instant' });
         }
     }
 
@@ -4982,7 +4986,7 @@ function extractAssistantTurnTokenUsage(processDetails) {
     if (!Array.isArray(processDetails)) return null;
     let total = null;
     processDetails.forEach((detail) => {
-        if (!detail || String(detail.eventType || '').trim() !== 'eino_usage_summary') return;
+        if (!detail || String(detail.eventType || '').trim() !== 'agent_usage_summary') return;
         const usage = normalizeAssistantTurnTokenUsage(detail.data);
         total = mergeAssistantTurnTokenUsage(total, usage);
     });
@@ -6619,11 +6623,6 @@ async function loadConversation(conversationId) {
                         if (offset < rest.length) {
                             requestAnimationFrame(renderNextBatch);
                         } else {
-                            if (window.CyberStrikeChatScroll) {
-                                window.CyberStrikeChatScroll.forceScrollToBottom(false);
-                            } else {
-                                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                            }
                             resolve();
                         }
                     };
@@ -6632,7 +6631,7 @@ async function loadConversation(conversationId) {
             }
 
             if (window.CyberStrikeChatScroll) {
-                window.CyberStrikeChatScroll.forceScrollToBottom(false);
+                window.CyberStrikeChatScroll.forceScrollToBottom();
             } else {
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }
@@ -6649,6 +6648,9 @@ async function loadConversation(conversationId) {
             if (currentConversationId === conversationId && typeof window.restoreHitlInlineForConversation === 'function') {
                 await window.restoreHitlInlineForConversation(conversationId);
             }
+            if (seq !== loadConversationRequestSeq || currentConversationId !== conversationId) {
+                return;
+            }
             if (
                 window.CyberStrikeChatScroll &&
                 typeof window.CyberStrikeChatScroll.settleConversationRestoreToBottom === 'function'
@@ -6658,7 +6660,7 @@ async function loadConversation(conversationId) {
         } else {
             renderChatWelcomeEmptyState();
             if (window.CyberStrikeChatScroll) {
-                window.CyberStrikeChatScroll.forceScrollToBottom(false);
+                window.CyberStrikeChatScroll.forceScrollToBottom();
             } else {
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }

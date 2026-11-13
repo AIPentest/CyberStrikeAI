@@ -11,7 +11,7 @@
   - 弹出发送对话框，可针对**当前流量**选择：
     - **项目**（`GET /api/projects`，新建对话时绑定 `projectId`）
     - **角色**（`GET /api/roles`）
-    - **对话模式**（Eino 单代理 / Deep / Plan-Execute / Supervisor，按次选择并记住上次取值）
+    - **对话模式**（单代理 / Deep / Plan-Execute / Supervisor，按次选择并记住上次取值）
     - **测试指令**（可编辑 prompt 前缀）
   - 选择会记住上次取值，便于连续测同类流量
 - **测试历史侧边栏（可搜索）**：每次发送都会新增一条记录，方便回看与对比

@@ -30,7 +30,7 @@ curl -k https://127.0.0.1:8080/api/auth/validate \
 最简单方式是不先创建空对话，直接调用 Agent：
 
 ```bash
-curl -k https://127.0.0.1:8080/api/eino-agent \
+curl -k https://127.0.0.1:8080/api/agent \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"message":"对 127.0.0.1 做授权的基础信息收集，只做只读操作"}'
@@ -50,7 +50,7 @@ curl -k https://127.0.0.1:8080/api/conversations \
 ## Recipe 3：流式调用 Agent
 
 ```bash
-curl -k -N https://127.0.0.1:8080/api/eino-agent/stream \
+curl -k -N https://127.0.0.1:8080/api/agent/stream \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"message":"总结当前项目事实并列出下一步，只读"}'

@@ -453,6 +453,8 @@ main() {
         exit 1
     fi
     check_go
+    info "Preparing Pi agent runtime..."
+    bash "$ROOT_DIR/scripts/build-pi-runtime.sh"
     echo ""
     
     # Python setup

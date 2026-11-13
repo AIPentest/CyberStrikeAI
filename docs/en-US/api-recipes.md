@@ -30,7 +30,7 @@ curl -k https://127.0.0.1:8080/api/auth/validate \
 Simplest path: call Agent without pre-creating an empty conversation.
 
 ```bash
-curl -k https://127.0.0.1:8080/api/eino-agent \
+curl -k https://127.0.0.1:8080/api/agent \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"message":"Run authorized basic read-only recon against 127.0.0.1"}'
@@ -50,7 +50,7 @@ Then pass `conversationId` to the Agent request.
 ## Recipe 3: Stream Agent Output
 
 ```bash
-curl -k -N https://127.0.0.1:8080/api/eino-agent/stream \
+curl -k -N https://127.0.0.1:8080/api/agent/stream \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"message":"Summarize current project facts and propose read-only next steps"}'

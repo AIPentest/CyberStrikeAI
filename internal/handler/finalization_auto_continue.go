@@ -38,11 +38,11 @@ func (h *AgentHandler) tryAutoContinueAfterFinalization(
 	curFinalMessage *string,
 	progressCallback func(eventType, message string, data interface{}),
 ) bool {
-	if !shouldAutoContinueAfterFinalization(decision, *attempt) || result == nil || !multiagent.HasEinoResumeTrace(result) {
+	if !shouldAutoContinueAfterFinalization(decision, *attempt) || result == nil || !multiagent.HasResumeTrace(result) {
 		return false
 	}
 	*attempt++
-	h.persistEinoAgentTraceForResume(conversationID, result)
+	h.persistAgentAgentTraceForResume(conversationID, result)
 	if hist, err := h.loadHistoryFromAgentTrace(conversationID); err == nil && len(hist) > 0 {
 		*curHistory = hist
 	} else if h.logger != nil {

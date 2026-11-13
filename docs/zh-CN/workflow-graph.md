@@ -248,7 +248,7 @@ jq({{outputs.scan}}, ".severity") == "high"
 
 | 字段 | 说明 | 默认值 |
 |------|------|--------|
-| Agent 模式 | `eino_single` / `deep` / `plan_execute` / `supervisor` | `eino_single` |
+| Agent 模式 | `single` / `deep` / `plan_execute` / `supervisor` | `single` |
 | 输入来源 | 上游数据的模板表达式 | `{{previous.output}}` |
 | 节点指令 | 本节点要完成的任务描述 | 空 |
 | 输出变量名 | 写入 `outputs` 的键名 | `agent_result` |
@@ -264,7 +264,7 @@ Agent 节点执行后：
 
 - `previous.output` 更新为本节点响应文本  
 - 若配置了 **输出变量名**，同时写入 `outputs[输出变量名]`
-- Agent 子图在 Eino 中拆为 `prepare → execute → finalize`，便于 trace 与后续局部 checkpoint
+- Agent 节点通过原生 DAG 调度 Pi 运行时；节点状态与检查点由 Go 保存
 
 ### 5.3 工具（tool）
 
@@ -310,7 +310,7 @@ Agent 节点执行后：
 
 ### 5.5 审批（hitl）
 
-人工确认检查点。流程运行到该节点前会通过 Eino interrupt/checkpoint 暂停，等待 API 或监控面板审批后恢复。
+人工确认检查点。流程运行到该节点前会通过原生 Workflow 检查点暂停，等待 API 或监控面板审批后恢复。
 
 | 字段 | 说明 | 默认值 |
 |------|------|--------|
@@ -576,7 +576,7 @@ token 与成本是否存在取决于底层模型/Agent 事件是否上报 usage�
 | 模块 | 路径 |
 |------|------|
 | 执行引擎 | `internal/workflow/runner.go` |
-| Eino 编译 / checkpoint / HITL | `internal/workflow/eino_compile.go` |
+| 原生 DAG / checkpoint / HITL | `internal/workflow/native_runtime.go` |
 | 图校验 | `internal/workflow/validation.go` |
 | 表达式 / JSONPath / 汇聚 | `internal/workflow/expression.go`、`jsonpath.go`、`join.go` |
 | dry-run / replay 数据 | `internal/workflow/dry_run.go`、`internal/handler/workflow_run.go` |

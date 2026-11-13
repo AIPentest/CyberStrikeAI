@@ -170,7 +170,7 @@ func TestChatUploadsListIncludesAuthorizedProjectWorkspaceFiles(t *testing.T) {
 	fsBase := t.TempDir()
 	workspaceBase := filepath.Join(fsBase, "workspace")
 	reductionBase := filepath.Join(fsBase, "reduction")
-	db.SetEinoConversationDirs("", "", reductionBase, workspaceBase)
+	db.SetAgentConversationDirs("", "", reductionBase, workspaceBase)
 	allowedProject, _ := db.CreateProject(&database.Project{Name: "allowed"})
 	hiddenProject, _ := db.CreateProject(&database.Project{Name: "hidden"})
 	conversation, _ := db.CreateConversation("project conversation", database.ConversationCreateMeta{ProjectID: allowedProject.ID})

@@ -1,9 +1,9 @@
 # 异步对话 API
 
-长任务使用 `POST /api/eino-agent/runs`（单代理）或 `POST /api/multi-agent/runs`（多代理，需启用配置）。请求体与对应同步接口相同；支持已有 conversationId，省略时创建会话。原同步接口仍等待最终结果，连接断开会取消同步执行。
+长任务使用 `POST /api/agent/runs`（单代理）或 `POST /api/multi-agent/runs`（多代理，需启用配置）。请求体与对应同步接口相同；支持已有 conversationId，省略时创建会话。原同步接口仍等待最终结果，连接断开会取消同步执行。
 
 ```sh
-curl -X POST "$CSAI_URL/api/eino-agent/runs" \
+curl -X POST "$CSAI_URL/api/agent/runs" \
   -H "Authorization: Bearer $CSAI_TOKEN" \
   -H 'Content-Type: application/json' \
   -H 'Idempotency-Key: example-task-001' \
@@ -13,7 +13,7 @@ curl -X POST "$CSAI_URL/api/eino-agent/runs" \
 HTTP 202 示例：
 
 ```json
-{"runId":"...","conversationId":"...","assistantMessageId":"...","status":"running","statusUrl":"/api/eino-agent/runs/..."}
+{"runId":"...","conversationId":"...","assistantMessageId":"...","status":"running","statusUrl":"/api/agent/runs/..."}
 ```
 
 收到回执后可关闭连接。`GET statusUrl` 返回 `status`、`result`、标识及时间戳。`result` 为原执行入口的最终响应或错误；任务尚未结束时为空对象。单次任务总预算为600分钟，独立工具和模型限制仍有效。以查询到的终态为准，不以 token usage summary 判断成功。

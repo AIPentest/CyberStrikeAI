@@ -1027,7 +1027,7 @@ func isExecutionControlTool(toolName string) bool {
 	}
 }
 
-// BeginToolExecution 创建 running 状态的执行记录，供 Eino 等非 CallTool 路径在工具开始时落库。
+// BeginToolExecution 创建 running 状态的执行记录，供 Agent 等非 CallTool 路径在工具开始时落库。
 func (s *Server) BeginToolExecution(ctx context.Context, toolName string, args map[string]interface{}) string {
 	if s == nil {
 		return ""
@@ -1171,7 +1171,7 @@ func (s *Server) AppendToolExecutionPartialOutput(executionID, chunk string) {
 }
 
 // RecordCompletedToolInvocation 将已在其它路径完成的工具调用写入监控存储（格式与 CallTool 结束后一致），
-// 用于 Eino ADK filesystem execute 等未经过 CallTool 的场景；返回 executionId 供助手消息 mcpExecutionIds 关联。
+// 用于 Pi filesystem execute 等未经过 CallTool 的场景；返回 executionId 供助手消息 mcpExecutionIds 关联。
 func (s *Server) RecordCompletedToolInvocation(ctx context.Context, toolName string, args map[string]interface{}, resultText string, invokeErr error) string {
 	return s.FinishToolExecution(ctx, "", toolName, args, resultText, invokeErr)
 }
@@ -1258,7 +1258,7 @@ func (s *Server) unregisterRunningCancel(id string) {
 	s.runningCancelsMu.Unlock()
 }
 
-// RegisterToolExecutionCancel lets non-ExecutionService tool paths, such as Eino
+// RegisterToolExecutionCancel lets non-ExecutionService tool paths, such as Agent
 // filesystem execute, participate in cancel_tool_execution by execution_id.
 func (s *Server) RegisterToolExecutionCancel(id string, cancel context.CancelFunc) {
 	id = strings.TrimSpace(id)

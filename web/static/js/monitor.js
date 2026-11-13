@@ -103,7 +103,7 @@ function getTimeFormatOptions() {
 }
 
 // 将后端下发的进度文案转为当前语言的翻译（中英双向映射，切换语言后能跟上）
-/** Plan-Execute：将 Eino 内部 agent 名本地化为进度条标题用语 */
+/** Plan-Execute：将 Pi 内部 agent 名本地化为进度条标题用语 */
 function translatePlanExecuteAgentName(name) {
     const n = String(name || '').trim().toLowerCase();
     if (n === 'planner') return typeof window.t === 'function' ? window.t('progress.peAgentPlanner') : '规划器';
@@ -148,7 +148,7 @@ function formatTimelineStreamBody(raw, meta) {
     if (!raw || !meta || meta.orchestration !== 'plan_execute') {
         return raw;
     }
-    const agent = String(meta.einoAgent || '').trim().toLowerCase();
+    const agent = String(meta.agentName || '').trim().toLowerCase();
     const t = String(raw).trim();
     if (t.length < 2 || t.charAt(0) !== '{') {
         return raw;
@@ -177,9 +177,9 @@ function formatTimelineStreamBody(raw, meta) {
 }
 
 /** 时间线条目：Plan-Execute 主通道流式阶段标题（替代一律「规划中」） */
-function einoMainStreamPlanningTitle(responseData) {
+function piMainStreamPlanningTitle(responseData) {
     const orch = responseData && responseData.orchestration;
-    const agent = responseData && responseData.einoAgent != null ? String(responseData.einoAgent).trim() : '';
+    const agent = responseData && responseData.agentName != null ? String(responseData.agentName).trim() : '';
     const prefix = timelineAgentBracketPrefix(responseData);
     if (orch === 'plan_execute' && agent) {
         const a = agent.toLowerCase();
@@ -190,7 +190,7 @@ function einoMainStreamPlanningTitle(responseData) {
         const label = typeof window.t === 'function' ? window.t(key) : '输出';
         return prefix + '📝 ' + label;
     }
-    // eino_single / deep / supervisor：主通道是模型流式输出，不是「规划」；模型偶发复述工具 stdout 时，旧文案易被误认为工具结果标题。
+    // single / deep / supervisor：主通道是模型流式输出，不是「规划」；模型偶发复述工具 stdout 时，旧文案易被误认为工具结果标题。
     if (orch != null && String(orch).trim() !== '' && orch !== 'plan_execute') {
         const streamLabel = typeof window.t === 'function' ? window.t('chat.assistantStreamPhase') : '助手输出';
         return prefix + '📝 ' + streamLabel;
@@ -200,9 +200,9 @@ function einoMainStreamPlanningTitle(responseData) {
 }
 
 /**
- * Eino 未捕获助手正文占位文案；终态 response 不应覆盖已有流式 buffer。
+ * Pi 未捕获助手正文占位文案；终态 response 不应覆盖已有流式 buffer。
  */
-function isEinoEmptyResponsePlaceholder(text) {
+function isPiEmptyResponsePlaceholder(text) {
     if (text == null) return false;
     const s = String(text);
     return s.indexOf('no assistant text was captured') !== -1
@@ -211,7 +211,7 @@ function isEinoEmptyResponsePlaceholder(text) {
 
 function resolveFinalAssistantResponseText(finalMessage, streamState) {
     const buf = streamState && streamState.buffer != null ? String(streamState.buffer).trim() : '';
-    if (isEinoEmptyResponsePlaceholder(finalMessage) && buf) {
+    if (isPiEmptyResponsePlaceholder(finalMessage) && buf) {
         return streamState.buffer;
     }
     return finalMessage;
@@ -330,13 +330,13 @@ function finalizeMainResponseStreamItem(streamState, finalMessage, responseData)
     if (meta.orchestration != null && String(meta.orchestration).trim() !== '') {
         item.dataset.orchestration = String(meta.orchestration).trim();
     }
-    if (meta.einoAgent != null && String(meta.einoAgent).trim() !== '') {
-        item.dataset.einoAgent = String(meta.einoAgent).trim();
+    if (meta.agentName != null && String(meta.agentName).trim() !== '') {
+        item.dataset.agentName = String(meta.agentName).trim();
     }
 
     const titleEl = item.querySelector('.timeline-item-title');
-    if (titleEl && typeof einoMainStreamPlanningTitle === 'function') {
-        titleEl.textContent = einoMainStreamPlanningTitle(meta);
+    if (titleEl && typeof piMainStreamPlanningTitle === 'function') {
+        titleEl.textContent = piMainStreamPlanningTitle(meta);
     }
 
     let contentEl = item.querySelector('.timeline-item-content');
@@ -366,8 +366,8 @@ function translateProgressMessage(message, data) {
         '达到最大迭代次数，正在生成总结...': 'progress.maxIterSummary',
         '正在分析您的请求...': 'progress.analyzingRequestShort',
         '开始分析请求并制定测试策略': 'progress.analyzingRequestPlanning',
-        '正在启动 Eino DeepAgent...': 'progress.startingEinoDeepAgent',
-        '正在启动 Eino 多代理...': 'progress.startingEinoMultiAgent',
+        '正在启动 Pi 多代理...': 'progress.startingPiDeepAgent',
+        '正在启动 Pi 多代理...': 'progress.startingPiMultiAgent',
         // 英文（与 en-US.json 一致，避免后端/缓存已是英文时无法随语言切换）
         'Calling AI model...': 'progress.callingAI',
         'Last iteration: generating summary and next steps...': 'progress.lastIterSummary',
@@ -376,18 +376,18 @@ function translateProgressMessage(message, data) {
         'Max iterations reached, generating summary...': 'progress.maxIterSummary',
         'Analyzing your request...': 'progress.analyzingRequestShort',
         'Analyzing your request and planning test strategy...': 'progress.analyzingRequestPlanning',
-        'Starting Eino DeepAgent...': 'progress.startingEinoDeepAgent',
-        'Starting Eino multi-agent...': 'progress.startingEinoMultiAgent'
+        'Starting Pi 多代理...': 'progress.startingPiDeepAgent',
+        'Starting Pi multi-agent...': 'progress.startingPiMultiAgent'
     };
     if (map[trim]) return window.t(map[trim]);
-    const einoAgentRe = /^\[Eino\]\s*(.+)$/;
-    const einoM = trim.match(einoAgentRe);
-    if (einoM) {
-        let disp = einoM[1];
+    const agentNameRe = /^\[Pi\]\s*(.+)$/;
+    const piM = trim.match(agentNameRe);
+    if (piM) {
+        let disp = piM[1];
         if (data && data.orchestration === 'plan_execute') {
             disp = translatePlanExecuteAgentName(disp);
         }
-        return window.t('progress.einoAgent', { name: disp });
+        return window.t('progress.agentName', { name: disp });
     }
     const callingToolPrefixCn = '正在调用工具: ';
     const callingToolPrefixEn = 'Calling tool: ';
@@ -404,7 +404,7 @@ function translateProgressMessage(message, data) {
 if (typeof window !== 'undefined') {
     window.translateProgressMessage = translateProgressMessage;
     window.translatePlanExecuteAgentName = translatePlanExecuteAgentName;
-    window.einoMainStreamPlanningTitle = einoMainStreamPlanningTitle;
+    window.piMainStreamPlanningTitle = piMainStreamPlanningTitle;
     window.finalizeMainResponseStreamItem = finalizeMainResponseStreamItem;
     window.formatTimelineStreamBody = formatTimelineStreamBody;
 }
@@ -456,7 +456,7 @@ const mainIterationStateByProgressId = new Map();
 function clearTimelineStreamStates(progressId) {
     responseStreamStateByProgressId.delete(progressId);
     thinkingStreamStateByProgressId.delete(progressId);
-    einoAgentReplyStreamStateByProgressId.delete(progressId);
+    agentNameReplyStreamStateByProgressId.delete(progressId);
     const prefix = String(progressId) + '::';
     for (const key of Array.from(toolResultStreamStateByKey.keys())) {
         if (String(key).startsWith(prefix)) {
@@ -465,11 +465,11 @@ function clearTimelineStreamStates(progressId) {
     }
 }
 
-/** 同一段主通道流式输出（Eino 可能重复 response_start） */
+/** 同一段主通道流式输出（Pi 可能重复 response_start） */
 function sameMainResponseStreamMeta(a, b) {
     if (!a || !b) return false;
-    const agentA = String(a.einoAgent != null ? a.einoAgent : '').trim();
-    const agentB = String(b.einoAgent != null ? b.einoAgent : '').trim();
+    const agentA = String(a.agentName != null ? a.agentName : '').trim();
+    const agentB = String(b.agentName != null ? b.agentName : '').trim();
     if (!agentA || agentA !== agentB) return false;
     const orchA = String(a.orchestration != null ? a.orchestration : '').trim();
     const orchB = String(b.orchestration != null ? b.orchestration : '').trim();
@@ -498,7 +498,7 @@ function resolveMainIterationTag(progressId, responseData) {
 
 function buildMainResponseStreamIdentity(progressId, responseData) {
     const d = responseData || {};
-    const agent = String(d.einoAgent != null ? d.einoAgent : '').trim();
+    const agent = String(d.agentName != null ? d.agentName : '').trim();
     const orch = String(d.orchestration != null ? d.orchestration : '').trim();
     const iterTag = resolveMainIterationTag(progressId, d);
     const nodeId = String(d.workflowNodeId != null ? d.workflowNodeId : '').trim();
@@ -523,7 +523,7 @@ function areMainResponseStreamIterationsCompatible(prevIterTag, streamIterTag, o
     return !prevIterTag || !streamIterTag || prevIterTag === streamIterTag;
 }
 
-/** 仅合并 Eino 对同一段 MessageStream 重复发出的 response_start */
+/** 仅合并 Pi 对同一段 MessageStream 重复发出的 response_start */
 function shouldReuseMainResponseStream(progressId, prevStream, responseData, streamOrch) {
     if (!prevStream || !prevStream.itemId) {
         return false;
@@ -551,7 +551,7 @@ function findRestoredMainResponseStreamItem(timeline, responseData) {
     if (!timeline) return null;
     const data = responseData || {};
     const streamId = data.streamId != null ? String(data.streamId).trim() : '';
-    const agent = data.einoAgent != null ? String(data.einoAgent).trim() : '';
+    const agent = data.agentName != null ? String(data.agentName).trim() : '';
     const orchestration = data.orchestration != null ? String(data.orchestration).trim() : '';
     const items = timeline.querySelectorAll('.timeline-item-planning, .timeline-item-thinking');
     for (let i = items.length - 1; i >= 0; i--) {
@@ -561,7 +561,7 @@ function findRestoredMainResponseStreamItem(timeline, responseData) {
             if (itemStreamId === streamId) return item;
             continue;
         }
-        const itemAgent = String(item.dataset.einoAgent || '').trim();
+        const itemAgent = String(item.dataset.agentName || '').trim();
         const itemOrchestration = String(item.dataset.orchestration || '').trim();
         if (agent && itemAgent === agent && itemOrchestration === orchestration) return item;
     }
@@ -586,8 +586,8 @@ function responseStreamStateFromRestoredItem(progressId, item, responseData) {
 // AI 思考流式输出：progressId -> Map(streamId -> { itemId, buffer })
 const thinkingStreamStateByProgressId = new Map();
 
-// Eino 子代理回复流式：progressId -> Map(streamId -> { itemId, buffer })
-const einoAgentReplyStreamStateByProgressId = new Map();
+// Pi 子代理回复流式：progressId -> Map(streamId -> { itemId, buffer })
+const agentNameReplyStreamStateByProgressId = new Map();
 
 // 工具输出流式增量：progressId::toolCallId -> { itemId, buffer }
 const toolResultStreamStateByKey = new Map();
@@ -598,25 +598,25 @@ function toolResultStreamKey(progressId, toolCallId) {
 const LIVE_TIMELINE_MAX_ITEMS = 150;
 const LIVE_TIMELINE_PRUNE_CHUNK = 50;
 
-/** Eino 多代理：时间线标题前加 [agentId]，标明哪一代理产生该工具调用/结果/回复 */
+/** Pi 多代理：时间线标题前加 [agentId]，标明哪一代理产生该工具调用/结果/回复 */
 function timelineAgentBracketPrefix(data) {
-    if (!data || data.einoAgent == null) return '';
-    const s = String(data.einoAgent).trim();
+    if (!data || data.agentName == null) return '';
+    const s = String(data.agentName).trim();
     return s ? ('[' + s + '] ') : '';
 }
 
 /** 主/子代理视觉区分：左边框与浅底色（与工具黄/绿状态并存时由具体项类型覆盖次要边） */
-function applyEinoTimelineRole(item, data) {
+function applyPiTimelineRole(item, data) {
     if (!item || !data) return;
-    const role = data.einoRole;
+    const role = data.agentRole;
     if (role === 'orchestrator' || role === 'sub') {
-        item.dataset.einoRole = role;
-        item.classList.add('timeline-eino-role-' + role);
+        item.dataset.agentRole = role;
+        item.classList.add('timeline-pi-role-' + role);
     }
-    const scope = data.einoScope;
+    const scope = data.piScope;
     if (scope === 'main' || scope === 'sub') {
-        item.dataset.einoScope = scope;
-        item.classList.add('timeline-eino-scope-' + scope);
+        item.dataset.piScope = scope;
+        item.classList.add('timeline-pi-scope-' + scope);
     }
 }
 
@@ -1878,8 +1878,11 @@ function syncProcessDetailsLatestFollowAfterManualReturn(timeline) {
     processDetailsLatestFollowStates.forEach(function (state) {
         if (!state || state.timeline !== timeline) return;
         state.detached = false;
+        timeline.classList.add('is-following-latest');
         state.hasPendingNewBelow = false;
+        state.userScrollIntentUntil = 0;
         state.lastScrollTop = timeline.scrollTop;
+        state.lastScrollRange = Math.max(0, timeline.scrollHeight - timeline.clientHeight);
         if (!state.stopped && typeof state.scheduleFollowLatest === 'function') {
             state.scheduleFollowLatest();
         }
@@ -1936,20 +1939,10 @@ function ensureProcessDetailsReturnLatestControl(timeline) {
             event.preventDefault();
             event.stopPropagation();
         }
-        const targetTop = Math.max(0, timeline.scrollHeight - timeline.clientHeight);
-        if (typeof timeline.scrollTo === 'function') {
-            timeline.scrollTo({ top: targetTop, behavior: 'smooth' });
-        } else {
-            timeline.scrollTop = targetTop;
-        }
+        timeline.scrollTo({ top: timeline.scrollHeight, behavior: 'instant' });
         state.hasPendingNewBelow = false;
         syncProcessDetailsLatestFollowAfterManualReturn(timeline);
         updateProcessDetailsReturnLatestControl(timeline);
-        setTimeout(function () {
-            if (timeline.isConnected) {
-                updateProcessDetailsReturnLatestControl(timeline);
-            }
-        }, 360);
         button.blur();
     };
     const onScroll = function () {
@@ -2116,11 +2109,7 @@ function scrollProcessDetailsToLatest(assistantMessageId, smooth = true) {
     const timeline = container && container.querySelector('.progress-timeline');
     if (!timeline) return false;
     const targetTop = Math.max(0, timeline.scrollHeight - timeline.clientHeight);
-    if (smooth && typeof timeline.scrollTo === 'function') {
-        timeline.scrollTo({ top: targetTop, behavior: 'smooth' });
-    } else {
-        timeline.scrollTop = targetTop;
-    }
+    timeline.scrollTo({ top: targetTop, behavior: smooth ? 'smooth' : 'instant' });
     const state = processDetailsReturnLatestControls.get(timeline);
     if (state) {
         state.hasPendingNewBelow = false;
@@ -2136,6 +2125,7 @@ function stopProcessDetailsLatestFollow(assistantMessageId) {
     const state = processDetailsLatestFollowStates.get(key);
     if (!state) return false;
     state.stopped = true;
+    state.timeline.classList.remove('has-latest-follow', 'is-following-latest');
     if (state.rafId) cancelAnimationFrame(state.rafId);
     if (state.timeoutId) clearTimeout(state.timeoutId);
     if (state.observer) state.observer.disconnect();
@@ -2167,19 +2157,26 @@ function startProcessDetailsLatestFollow(assistantMessageId, options) {
     const timeline = explicitTimeline || (container && container.querySelector('.progress-timeline'));
     if (!container || !timeline) return false;
 
+    const persistent = !!opts.persistent;
+    const previousState = processDetailsLatestFollowStates.get(key);
+    // 最新页恢复接入补流时保留原状态，避免把正在阅读历史的用户拉到底部。
+    if (previousState && previousState.timeline === timeline && persistent) {
+        clearTimeout(previousState.timeoutId);
+        previousState.timeoutId = 0;
+        return true;
+    }
     stopProcessDetailsLatestFollow(key);
     ensureProcessDetailsReturnLatestControl(timeline);
-    const persistent = !!opts.persistent;
     const durationMs = Number.isFinite(Number(opts.durationMs))
         ? Math.max(250, Number(opts.durationMs))
         : PROCESS_DETAILS_RESTORE_FOLLOW_MS;
     const state = {
         stopped: false,
         detached: false,
-        persistent: persistent,
         timeline: timeline,
         hasPendingNewBelow: false,
         lastScrollTop: timeline.scrollTop,
+        lastScrollRange: Math.max(0, timeline.scrollHeight - timeline.clientHeight),
         userScrollIntentUntil: 0,
         touchLastY: null,
         rafId: 0,
@@ -2189,9 +2186,11 @@ function startProcessDetailsLatestFollow(assistantMessageId, options) {
         cleanup: []
     };
     processDetailsLatestFollowStates.set(key, state);
+    timeline.classList.add('has-latest-follow', 'is-following-latest');
 
     const detachForUserNavigation = function () {
         state.detached = true;
+        timeline.classList.remove('is-following-latest');
         if (state.rafId) {
             cancelAnimationFrame(state.rafId);
             state.rafId = 0;
@@ -2203,7 +2202,12 @@ function startProcessDetailsLatestFollow(assistantMessageId, options) {
         if (Math.abs(event.deltaY) > 1) {
             state.userScrollIntentUntil = Date.now() + 1200;
         }
-        if (event.deltaY < -1) detachForUserNavigation();
+        if (event.deltaY < -1 && timeline.scrollTop > PROCESS_DETAILS_FOLLOW_RESUME_THRESHOLD_PX) {
+            detachForUserNavigation();
+        } else if (event.deltaY > 1 && state.detached &&
+            processDetailsDistanceFromLatest(timeline) <= PROCESS_DETAILS_FOLLOW_RESUME_THRESHOLD_PX) {
+            syncProcessDetailsLatestFollowAfterManualReturn(timeline);
+        }
     };
     const onPointerDown = function (event) {
         if (!event) return;
@@ -2213,11 +2217,12 @@ function startProcessDetailsLatestFollow(assistantMessageId, options) {
         }
     };
     const onKeyDown = function (event) {
-        if (!event) return;
+        if (!event || event.defaultPrevented) return;
         if (['ArrowUp', 'PageUp', 'Home', 'ArrowDown', 'PageDown', 'End', ' '].includes(event.key)) {
             state.userScrollIntentUntil = Date.now() + 1200;
         }
-        if (event.key === 'ArrowUp' || event.key === 'PageUp' || event.key === 'Home') {
+        if ((event.key === 'ArrowUp' || event.key === 'PageUp' || event.key === 'Home' ||
+            (event.key === ' ' && event.shiftKey)) && timeline.scrollTop > PROCESS_DETAILS_FOLLOW_RESUME_THRESHOLD_PX) {
             detachForUserNavigation();
         }
     };
@@ -2230,7 +2235,8 @@ function startProcessDetailsLatestFollow(assistantMessageId, options) {
         if (!event || !event.touches || event.touches.length !== 1) return;
         const nextY = event.touches[0].clientY;
         state.userScrollIntentUntil = Date.now() + 1200;
-        if (state.touchLastY != null && nextY > state.touchLastY + 4) {
+        if (state.touchLastY != null && nextY > state.touchLastY + 4 &&
+            timeline.scrollTop > PROCESS_DETAILS_FOLLOW_RESUME_THRESHOLD_PX) {
             detachForUserNavigation();
         }
         state.touchLastY = nextY;
@@ -2241,30 +2247,31 @@ function startProcessDetailsLatestFollow(assistantMessageId, options) {
     const onScroll = function () {
         if (state.stopped) return;
         const currentTop = timeline.scrollTop;
-        const scrolledUp = currentTop < state.lastScrollTop - 1;
-        const scrolledDown = currentTop > state.lastScrollTop + 1;
-        const distance = Math.max(0, timeline.scrollHeight - timeline.clientHeight - timeline.scrollTop);
+        const range = Math.max(0, timeline.scrollHeight - timeline.clientHeight);
+        const topChange = currentTop - state.lastScrollTop;
+        const distance = Math.max(0, range - currentTop);
+        const hasUserScrollIntent = Date.now() <= state.userScrollIntentUntil ||
+            Math.abs(topChange) > Math.abs(range - state.lastScrollRange) + 1;
+        state.lastScrollTop = currentTop;
+        state.lastScrollRange = range;
 
-        // 第一次小幅上滑时仍可能处在“距底部 32px”阈值内，不能在同一个 scroll
-        // 事件里刚脱离又立即恢复，否则持续输出会把视口反复拉回底部。
-        // 刷新后重建历史迭代会引起无用户输入的滚动锚定变化；这种布局滚动
-        // 不能停止内层最新内容跟随，只有明确用户意图或已分离状态才保持分离。
-        if (scrolledUp && (state.detached || Date.now() <= state.userScrollIntentUntil)) {
+        // 用滚动范围的变化区分原生滚动条拖动和详情重绘引起的滚动锚定。
+        if (topChange < -1 && hasUserScrollIntent && distance > PROCESS_DETAILS_FOLLOW_RESUME_THRESHOLD_PX) {
             detachForUserNavigation();
         } else if (
             state.detached &&
-            scrolledDown &&
-            Date.now() <= state.userScrollIntentUntil &&
+            topChange > 1 &&
+            hasUserScrollIntent &&
             distance <= PROCESS_DETAILS_FOLLOW_RESUME_THRESHOLD_PX
         ) {
             state.detached = false;
+            timeline.classList.add('is-following-latest');
             state.hasPendingNewBelow = false;
             scheduleFollowLatest();
         }
         if (distance <= PROCESS_DETAILS_FOLLOW_RESUME_THRESHOLD_PX) {
             state.hasPendingNewBelow = false;
         }
-        state.lastScrollTop = currentTop;
         updateProcessDetailsReturnLatestControl(timeline);
     };
     timeline.addEventListener('wheel', onWheel, { passive: true });
@@ -2289,19 +2296,13 @@ function startProcessDetailsLatestFollow(assistantMessageId, options) {
             return;
         }
         if (state.detached) return;
-        if (typeof opts.scrollToLatest === 'function') {
-            opts.scrollToLatest(timeline);
-        } else {
-            scrollProcessDetailsToLatest(String(assistantMessageId || ''), false);
+        if (processDetailsDistanceFromLatest(timeline) > PROCESS_DETAILS_FOLLOW_RESUME_THRESHOLD_PX) {
+            timeline.scrollTo({ top: timeline.scrollHeight, behavior: 'instant' });
         }
         state.hasPendingNewBelow = false;
         state.lastScrollTop = timeline.scrollTop;
+        state.lastScrollRange = Math.max(0, timeline.scrollHeight - timeline.clientHeight);
         updateProcessDetailsReturnLatestControl(timeline);
-        // 内层迭代区与外层对话区分别粘底；用户上滑内层后，本状态会暂停两者的自动跟随。
-        if (window.CyberStrikeChatScroll &&
-            typeof window.CyberStrikeChatScroll.scrollIfPinned === 'function') {
-            window.CyberStrikeChatScroll.scrollIfPinned(true);
-        }
     };
     const scheduleFollowLatest = function () {
         if (state.stopped || state.rafId) return;
@@ -2317,7 +2318,13 @@ function startProcessDetailsLatestFollow(assistantMessageId, options) {
     state.observer = new MutationObserver(scheduleFollowLatest);
     state.observer.observe(timeline, { childList: true, subtree: true, characterData: true });
     if (typeof ResizeObserver === 'function') {
-        state.resizeObserver = new ResizeObserver(scheduleFollowLatest);
+        state.resizeObserver = new ResizeObserver(function () {
+            scheduleFollowLatest();
+            // 展开、收起和尺寸过渡会改变外层对话高度，且可能没有新增 DOM。
+            if (timeline.closest('#chat-messages')) {
+                window.CyberStrikeChatScroll?.scrollIfPinned(true);
+            }
+        });
         state.resizeObserver.observe(timeline);
     }
     scheduleFollowLatest();
@@ -2341,10 +2348,7 @@ function startLiveProgressLatestFollow(progressId) {
     return startProcessDetailsLatestFollow(id, {
         stateKey: liveProgressLatestFollowKey(id),
         timeline: timeline,
-        persistent: true,
-        scrollToLatest: function (target) {
-            target.scrollTop = Math.max(0, target.scrollHeight - target.clientHeight);
-        }
+        persistent: true
     });
 }
 
@@ -2461,17 +2465,13 @@ async function loadProcessDetailsPaginated(assistantMessageId, backendMessageId,
             durationMs: PROCESS_DETAILS_RESTORE_FOLLOW_MS
         });
         requestAnimationFrame(function () {
-            scrollProcessDetailsToLatest(assistantMessageId, false);
             if (detailsContainer) {
                 delete detailsContainer.dataset.autoLoadSuspended;
             }
         });
     } else if (opts.initialStart) {
-        requestAnimationFrame(function () {
-            const container = document.getElementById('process-details-' + assistantMessageId);
-            const timeline = container && container.querySelector('.progress-timeline');
-            if (timeline) timeline.scrollTop = 0;
-        });
+        const timeline = detailsContainer && detailsContainer.querySelector('.progress-timeline');
+        if (timeline) timeline.scrollTo({ top: 0, behavior: 'instant' });
     }
 }
 
@@ -2625,13 +2625,11 @@ function toggleProcessDetails(progressId, assistantMessageId) {
     
     // 滚动到展开的详情位置（流式且用户上滑阅读时不抢主列表滚动）
     if (timeline && timeline.classList.contains('expanded')) {
-        setTimeout(() => {
-            if (window.CyberStrikeChatScroll && typeof window.CyberStrikeChatScroll.scrollIntoViewIfFollowing === 'function') {
-                window.CyberStrikeChatScroll.scrollIntoViewIfFollowing(detailsContainer, { behavior: 'smooth', block: 'nearest' });
-            } else if (typeof window.captureScrollPinState === 'function' ? window.captureScrollPinState() : true) {
-                detailsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-        }, 100);
+        if (window.CyberStrikeChatScroll && typeof window.CyberStrikeChatScroll.scrollIntoViewIfFollowing === 'function') {
+            window.CyberStrikeChatScroll.scrollIntoViewIfFollowing(detailsContainer);
+        } else if (typeof window.captureScrollPinState === 'function' ? window.captureScrollPinState() : true) {
+            detailsContainer.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+        }
     }
 }
 
@@ -2728,7 +2726,7 @@ function mergeMcpExecutionIDLists(prev, next) {
     return out;
 }
 
-function formatEinoRunRetryMessage(message, data) {
+function formatPiRunRetryMessage(message, data) {
     const d = data && typeof data === 'object' ? data : {};
     const base = String(message || '').trim();
     const errRaw = d.errorSummary != null && String(d.errorSummary).trim() !== ''
@@ -2739,10 +2737,10 @@ function formatEinoRunRetryMessage(message, data) {
     const attempt = Number(d.attempt || 0);
     const maxAttempts = Number(d.maxAttempts || 0);
     const backoffSec = Number(d.backoffSec || 0);
-    const kind = formatEinoRunRetryKind(d.errorKind);
+    const kind = formatPiRunRetryKind(d.errorKind);
     if (Number.isFinite(attempt) && attempt > 0 && Number.isFinite(maxAttempts) && maxAttempts > 0) {
         const retryPlan = typeof window.t === 'function'
-            ? window.t('chat.einoRunRetryPlan', { attempt: attempt, maxAttempts: maxAttempts, backoffSec: Number.isFinite(backoffSec) && backoffSec > 0 ? backoffSec : '-' })
+            ? window.t('chat.piRunRetryPlan', { attempt: attempt, maxAttempts: maxAttempts, backoffSec: Number.isFinite(backoffSec) && backoffSec > 0 ? backoffSec : '-' })
             : ('重试进度：第 ' + attempt + '/' + maxAttempts + ' 次，等待 ' + (Number.isFinite(backoffSec) && backoffSec > 0 ? backoffSec : '-') + ' 秒');
         if (!base || base.indexOf(String(attempt) + '/' + String(maxAttempts)) === -1) {
             lines.push(retryPlan);
@@ -2750,7 +2748,7 @@ function formatEinoRunRetryMessage(message, data) {
     }
     if (kind) {
         const kindLabel = typeof window.t === 'function'
-            ? window.t('chat.einoRunRetryReasonKind')
+            ? window.t('chat.piRunRetryReasonKind')
             : '原因类型';
         lines.push(kindLabel + '：' + kind);
     }
@@ -2758,7 +2756,7 @@ function formatEinoRunRetryMessage(message, data) {
         return lines.join('\n');
     }
     const detailLabel = typeof window.t === 'function'
-        ? window.t('chat.einoRunRetryErrorDetail')
+        ? window.t('chat.piRunRetryErrorDetail')
         : '错误详情';
     if (!base || base.indexOf(errRaw) === -1) {
         lines.push(detailLabel + '：' + errRaw);
@@ -2766,7 +2764,7 @@ function formatEinoRunRetryMessage(message, data) {
     return lines.join('\n');
 }
 
-function formatEinoRunRetryKind(kind) {
+function formatPiRunRetryKind(kind) {
     const key = String(kind || '').trim();
     if (!key) return '';
     const labels = {
@@ -2780,16 +2778,16 @@ function formatEinoRunRetryKind(kind) {
         transient: '临时异常'
     };
     if (typeof window.t === 'function') {
-        const translated = window.t('chat.einoRunRetryKind_' + key);
-        if (translated && translated !== 'chat.einoRunRetryKind_' + key) return translated;
+        const translated = window.t('chat.piRunRetryKind_' + key);
+        if (translated && translated !== 'chat.piRunRetryKind_' + key) return translated;
     }
     return labels[key] || key;
 }
 
-function formatEinoRunRetryTitle(data) {
+function formatPiRunRetryTitle(data) {
     const d = data && typeof data === 'object' ? data : {};
     const base = typeof window.t === 'function'
-        ? window.t('chat.einoRunRetryTitle')
+        ? window.t('chat.piRunRetryTitle')
         : '🔁 临时错误重试';
     const attempt = Number(d.attempt || 0);
     const maxAttempts = Number(d.maxAttempts || 0);
@@ -2799,10 +2797,10 @@ function formatEinoRunRetryTitle(data) {
     return base;
 }
 
-function formatEinoModelRetryTitle(data) {
+function formatPiModelRetryTitle(data) {
     const d = data && typeof data === 'object' ? data : {};
     const base = typeof window.t === 'function'
-        ? window.t('chat.einoModelRetryTitle')
+        ? window.t('chat.piModelRetryTitle')
         : '🔁 模型调用重试';
     const attempt = Number(d.attempt || 0);
     if (Number.isFinite(attempt) && attempt > 0) {
@@ -2811,7 +2809,7 @@ function formatEinoModelRetryTitle(data) {
     return base;
 }
 
-function formatEinoModelRetryMessage(message, data) {
+function formatPiModelRetryMessage(message, data) {
     const d = data && typeof data === 'object' ? data : {};
     const lines = [];
     const base = String(message || '').trim();
@@ -2825,10 +2823,10 @@ function formatEinoModelRetryMessage(message, data) {
     return lines.join('\n');
 }
 
-function formatEinoModelFailoverTitle(data) {
+function formatPiModelFailoverTitle(data) {
     const d = data && typeof data === 'object' ? data : {};
     const base = typeof window.t === 'function'
-        ? window.t('chat.einoModelFailoverTitle')
+        ? window.t('chat.piModelFailoverTitle')
         : '🔀 切换备用模型';
     const attempt = Number(d.attempt || 0);
     if (Number.isFinite(attempt) && attempt > 0) {
@@ -2837,7 +2835,7 @@ function formatEinoModelFailoverTitle(data) {
     return base;
 }
 
-function formatEinoModelFailoverMessage(message, data) {
+function formatPiModelFailoverMessage(message, data) {
     const d = data && typeof data === 'object' ? data : {};
     const lines = [];
     const base = String(message || '').trim();
@@ -2861,10 +2859,10 @@ function formatCompactInteger(value) {
     }
 }
 
-function formatEinoUsageSummaryTitle(data) {
+function formatPiUsageSummaryTitle(data) {
     const d = data && typeof data === 'object' ? data : {};
     const base = typeof window.t === 'function'
-        ? window.t('chat.einoUsageSummaryTitle')
+        ? window.t('chat.piUsageSummaryTitle')
         : 'Token 用量汇总';
     const total = Number(d.totalTokens || 0);
     if (Number.isFinite(total) && total > 0) {
@@ -2873,7 +2871,7 @@ function formatEinoUsageSummaryTitle(data) {
     return base;
 }
 
-function formatEinoUsageSummaryMessage(data) {
+function formatPiUsageSummaryMessage(data) {
     const d = data && typeof data === 'object' ? data : {};
     const label = function (key, fallback) {
         if (typeof window.t !== 'function') return fallback;
@@ -2881,19 +2879,19 @@ function formatEinoUsageSummaryMessage(data) {
         return translated && translated !== key ? translated : fallback;
     };
     const rows = [
-        [label('chat.einoUsageModelCalls', '模型调用'), d.modelCalls],
-        [label('chat.einoUsagePromptTokens', '输入 tokens'), d.promptTokens],
-        [label('chat.einoUsageCompletionTokens', '输出 tokens'), d.completionTokens],
-        [label('chat.einoUsageTotalTokens', '总 tokens'), d.totalTokens]
+        [label('chat.piUsageModelCalls', '模型调用'), d.modelCalls],
+        [label('chat.piUsagePromptTokens', '输入 tokens'), d.promptTokens],
+        [label('chat.piUsageCompletionTokens', '输出 tokens'), d.completionTokens],
+        [label('chat.piUsageTotalTokens', '总 tokens'), d.totalTokens]
     ];
     if (Number(d.cachedTokens || 0) > 0) {
-        rows.push([label('chat.einoUsageCachedTokens', '缓存 tokens'), d.cachedTokens]);
+        rows.push([label('chat.piUsageCachedTokens', '缓存 tokens'), d.cachedTokens]);
     }
     if (Number(d.cacheWriteTokens || 0) > 0) {
-        rows.push([label('chat.einoUsageCacheWriteTokens', '缓存写入 tokens'), d.cacheWriteTokens]);
+        rows.push([label('chat.piUsageCacheWriteTokens', '缓存写入 tokens'), d.cacheWriteTokens]);
     }
     if (Number(d.reasoningTokens || 0) > 0) {
-        rows.push([label('chat.einoUsageReasoningTokens', '推理 tokens'), d.reasoningTokens]);
+        rows.push([label('chat.piUsageReasoningTokens', '推理 tokens'), d.reasoningTokens]);
     }
     return rows.map(function (row) {
         return row[0] + ': ' + formatCompactInteger(row[1]);
@@ -3029,7 +3027,7 @@ function handleStreamEvent(event, progressElement, progressId,
         case 'iteration': {
             const d = event.data || {};
             const n = d.iteration != null ? d.iteration : 1;
-            const scope = d.einoScope != null ? String(d.einoScope).trim() : '';
+            const scope = d.piScope != null ? String(d.piScope).trim() : '';
             if (scope !== 'sub') {
                 const prevMainIter = mainIterationStateByProgressId.get(String(progressId));
                 const prevN = prevMainIter && prevMainIter.iteration != null ? prevMainIter.iteration : null;
@@ -3037,10 +3035,10 @@ function handleStreamEvent(event, progressElement, progressId,
                     ? String(prevMainIter.workflowNodeId).trim()
                     : '';
                 const curNode = d.workflowNodeId != null ? String(d.workflowNodeId).trim() : '';
-                const prevAgent = prevMainIter && prevMainIter.einoAgent != null
-                    ? String(prevMainIter.einoAgent).trim()
+                const prevAgent = prevMainIter && prevMainIter.agentName != null
+                    ? String(prevMainIter.agentName).trim()
                     : '';
-                const curAgent = d.einoAgent != null ? String(d.einoAgent).trim() : '';
+                const curAgent = d.agentName != null ? String(d.agentName).trim() : '';
                 const prevOrchestration = prevMainIter && prevMainIter.orchestration != null
                     ? String(prevMainIter.orchestration).trim()
                     : '';
@@ -3052,7 +3050,7 @@ function handleStreamEvent(event, progressElement, progressId,
                     iteration: n,
                     orchestration: d.orchestration != null ? d.orchestration : '',
                     workflowNodeId: curNode,
-                    einoAgent: curAgent
+                    agentName: curAgent
                 });
                 // 主通道进入新轮次或工作流切换到新 Agent 节点后，不复用上一段的流式时间线条目
                 if (prevN != null && (n < prevN || prevN !== n || (curNode && prevNode && curNode !== prevNode))) {
@@ -3063,19 +3061,19 @@ function handleStreamEvent(event, progressElement, progressId,
                 if (duplicateMainIteration) break;
             }
             let iterTitle;
-            if (d.orchestration === 'plan_execute' && d.einoScope === 'main') {
-                const phase = translatePlanExecuteAgentName(d.einoAgent != null ? d.einoAgent : '');
+            if (d.orchestration === 'plan_execute' && d.piScope === 'main') {
+                const phase = translatePlanExecuteAgentName(d.agentName != null ? d.agentName : '');
                 iterTitle = typeof window.t === 'function'
-                    ? window.t('chat.einoPlanExecuteRound', { n: n, phase: phase })
+                    ? window.t('chat.piPlanExecuteRound', { n: n, phase: phase })
                     : ('Plan-Execute · 第 ' + n + ' 轮 · ' + phase);
-            } else if (d.einoScope === 'main') {
+            } else if (d.piScope === 'main') {
                 iterTitle = typeof window.t === 'function'
-                    ? window.t('chat.einoOrchestratorRound', { n: n })
+                    ? window.t('chat.piOrchestratorRound', { n: n })
                     : ('主代理 · 第 ' + n + ' 轮');
-            } else if (d.einoScope === 'sub') {
-                const ag = d.einoAgent != null ? String(d.einoAgent).trim() : '';
+            } else if (d.piScope === 'sub') {
+                const ag = d.agentName != null ? String(d.agentName).trim() : '';
                 iterTitle = typeof window.t === 'function'
-                    ? window.t('chat.einoSubAgentStep', { n: n, agent: ag })
+                    ? window.t('chat.piSubAgentStep', { n: n, agent: ag })
                     : ('子代理 · ' + ag + ' · 第 ' + n + ' 步');
             } else {
                 iterTitle = typeof window.t === 'function'
@@ -3232,19 +3230,19 @@ function handleStreamEvent(event, progressElement, progressId,
             break;
         }
 
-        case 'eino_trace_run':
-        case 'eino_trace_start':
-        case 'eino_trace_end':
-        case 'eino_trace_error': {
+        case 'agent_trace_run':
+        case 'agent_trace_start':
+        case 'agent_trace_end':
+        case 'agent_trace_error': {
             const d = event.data || {};
             const comp = d.component != null ? String(d.component) : '';
             const name = d.name != null ? String(d.name) : '';
             let glyph = '◆';
-            if (event.type === 'eino_trace_run') glyph = '●';
-            else if (event.type === 'eino_trace_start') glyph = '▶';
-            else if (event.type === 'eino_trace_end') glyph = '■';
-            else if (event.type === 'eino_trace_error') glyph = '✖';
-            const title = '[Eino] ' + glyph + ' ' + (comp || 'component') + (name ? '/' + name : '');
+            if (event.type === 'agent_trace_run') glyph = '●';
+            else if (event.type === 'agent_trace_start') glyph = '▶';
+            else if (event.type === 'agent_trace_end') glyph = '■';
+            else if (event.type === 'agent_trace_error') glyph = '✖';
+            const title = '[Pi] ' + glyph + ' ' + (comp || 'component') + (name ? '/' + name : '');
             const parts = [];
             if (d.runId) parts.push('run=' + String(d.runId));
             if (d.spanId) parts.push('span=' + String(d.spanId));
@@ -3506,73 +3504,73 @@ function handleStreamEvent(event, progressElement, progressId,
             break;
         }
 
-        case 'eino_stream_error': {
+        case 'pi_stream_error': {
             const d = event.data || {};
-            const agent = d.einoAgent ? String(d.einoAgent) : '';
+            const agent = d.agentName ? String(d.agentName) : '';
             const title = typeof window.t === 'function'
-                ? window.t('chat.einoStreamErrorTitle', { agent: agent || '-' })
-                : (agent ? ('⚠️ Eino 流式中断（' + agent + '）') : '⚠️ Eino 流式中断');
+                ? window.t('chat.piStreamErrorTitle', { agent: agent || '-' })
+                : (agent ? ('⚠️ Pi 流式中断（' + agent + '）') : '⚠️ Pi 流式中断');
             addTimelineItem(timeline, 'warning', {
                 title: title,
                 message: event.message || (typeof window.t === 'function'
-                    ? window.t('chat.einoStreamErrorMessage')
+                    ? window.t('chat.piStreamErrorMessage')
                     : '流式读取异常，系统将按策略重试或结束。'),
                 data: d
             });
             break;
         }
 
-        case 'eino_empty_response_continue': {
+        case 'agent_empty_response_continue': {
             const d = event.data || {};
             const title = typeof window.t === 'function'
-                ? window.t('chat.einoEmptyResponseContinueTitle')
+                ? window.t('chat.piEmptyResponseContinueTitle')
                 : '🔁 自动续跑（无助手正文）';
             addTimelineItem(timeline, 'warning', {
                 title: title,
                 message: event.message || (typeof window.t === 'function'
-                    ? window.t('chat.einoEmptyResponseContinueMessage')
+                    ? window.t('chat.piEmptyResponseContinueMessage')
                     : '会话已结束但未捕获到助手正文，正在基于轨迹自动续跑…'),
                 data: d
             });
             break;
         }
 
-        case 'eino_run_retry': {
+        case 'agent_run_retry': {
             const d = event.data || {};
-            const msg = formatEinoRunRetryMessage(event.message, d);
+            const msg = formatPiRunRetryMessage(event.message, d);
             addTimelineItem(timeline, 'warning', {
-                title: formatEinoRunRetryTitle(d),
+                title: formatPiRunRetryTitle(d),
                 message: msg,
                 data: d
             });
             break;
         }
 
-        case 'eino_model_retry': {
+        case 'pi_model_retry': {
             const d = event.data || {};
             addTimelineItem(timeline, 'warning', {
-                title: formatEinoModelRetryTitle(d),
-                message: formatEinoModelRetryMessage(event.message, d),
+                title: formatPiModelRetryTitle(d),
+                message: formatPiModelRetryMessage(event.message, d),
                 data: d
             });
             break;
         }
 
-        case 'eino_model_failover': {
+        case 'pi_model_failover': {
             const d = event.data || {};
             addTimelineItem(timeline, 'warning', {
-                title: formatEinoModelFailoverTitle(d),
-                message: formatEinoModelFailoverMessage(event.message, d),
+                title: formatPiModelFailoverTitle(d),
+                message: formatPiModelFailoverMessage(event.message, d),
                 data: d
             });
             break;
         }
 
-        case 'eino_usage_summary': {
+        case 'agent_usage_summary': {
             const d = event.data || {};
-            addTimelineItem(timeline, 'eino_usage_summary', {
-                title: formatEinoUsageSummaryTitle(d),
-                message: formatEinoUsageSummaryMessage(d),
+            addTimelineItem(timeline, 'agent_usage_summary', {
+                title: formatPiUsageSummaryTitle(d),
+                message: formatPiUsageSummaryMessage(d),
                 data: d,
                 expanded: false
             });
@@ -3591,14 +3589,14 @@ function handleStreamEvent(event, progressElement, progressId,
             break;
         }
 
-        case 'eino_pending_orphaned': {
+        case 'pi_pending_orphaned': {
             const d = event.data || {};
             const count = Number(d.pendingCount || 0);
             const countText = Number.isFinite(count) && count > 0 ? String(count) : '?';
             addTimelineItem(timeline, 'warning', {
-                title: typeof window.t === 'function' ? window.t('chat.einoPendingOrphanedTitle') : '🧹 工具调用收尾补偿',
+                title: typeof window.t === 'function' ? window.t('chat.piPendingOrphanedTitle') : '🧹 工具调用收尾补偿',
                 message: event.message || (typeof window.t === 'function'
-                    ? window.t('chat.einoPendingOrphanedMessage', { count: countText })
+                    ? window.t('chat.piPendingOrphanedMessage', { count: countText })
                     : ('检测到 ' + countText + ' 个未闭合工具调用，已自动标记为失败并收尾。')),
                 data: d
             });
@@ -3707,14 +3705,14 @@ function handleStreamEvent(event, progressElement, progressId,
             });
             break;
 
-        case 'eino_agent_reply_stream_start': {
+        case 'agent_reply_stream_start': {
             const d = event.data || {};
             const streamId = d.streamId || null;
             if (!streamId) break;
-            let stateMap = einoAgentReplyStreamStateByProgressId.get(progressId);
+            let stateMap = agentNameReplyStreamStateByProgressId.get(progressId);
             if (!stateMap) {
                 stateMap = new Map();
-                einoAgentReplyStreamStateByProgressId.set(progressId, stateMap);
+                agentNameReplyStreamStateByProgressId.set(progressId, stateMap);
             }
             if (stateMap.has(streamId)) {
                 const ex = stateMap.get(streamId);
@@ -3729,8 +3727,8 @@ function handleStreamEvent(event, progressElement, progressId,
                 break;
             }
             const streamingLabel = typeof window.t === 'function' ? window.t('timeline.running') : '执行中...';
-            const replyTitleBase = typeof window.t === 'function' ? window.t('chat.einoAgentReplyTitle') : '子代理回复';
-            const itemId = addTimelineItem(timeline, 'eino_agent_reply', {
+            const replyTitleBase = typeof window.t === 'function' ? window.t('chat.agentNameReplyTitle') : '子代理回复';
+            const itemId = addTimelineItem(timeline, 'agent_reply', {
                 title: timelineAgentBracketPrefix(d) + '💬 ' + replyTitleBase + ' · ' + streamingLabel,
                 message: ' ',
                 data: d,
@@ -3740,13 +3738,13 @@ function handleStreamEvent(event, progressElement, progressId,
             break;
         }
 
-        case 'eino_agent_reply_stream_delta': {
+        case 'agent_reply_stream_delta': {
             const d = event.data || {};
             const streamId = d.streamId || null;
             if (!streamId) break;
             const delta = event.message || '';
             if (!delta && streamBufferFromAccumulated(d) === null) break;
-            const stateMap = einoAgentReplyStreamStateByProgressId.get(progressId);
+            const stateMap = agentNameReplyStreamStateByProgressId.get(progressId);
             if (!stateMap || !stateMap.has(streamId)) break;
             const s = stateMap.get(streamId);
             s.buffer = mergeStreamBuffer(s.buffer, delta, d);
@@ -3768,10 +3766,10 @@ function handleStreamEvent(event, progressElement, progressId,
             break;
         }
 
-        case 'eino_agent_reply_stream_end': {
+        case 'agent_reply_stream_end': {
             const d = event.data || {};
             const streamId = d.streamId || null;
-            const stateMap = einoAgentReplyStreamStateByProgressId.get(progressId);
+            const stateMap = agentNameReplyStreamStateByProgressId.get(progressId);
             if (streamId && stateMap && stateMap.has(streamId)) {
                 const s = stateMap.get(streamId);
                 const full = (event.message != null && event.message !== '') ? String(event.message) : s.buffer;
@@ -3780,7 +3778,7 @@ function handleStreamEvent(event, progressElement, progressId,
                 if (item) {
                     const titleEl = item.querySelector('.timeline-item-title');
                     if (titleEl) {
-                        const replyTitleBase = typeof window.t === 'function' ? window.t('chat.einoAgentReplyTitle') : '子代理回复';
+                        const replyTitleBase = typeof window.t === 'function' ? window.t('chat.agentNameReplyTitle') : '子代理回复';
                         titleEl.textContent = timelineAgentBracketPrefix(d) + '💬 ' + replyTitleBase;
                     }
                     let contentEl = item.querySelector('.timeline-item-content');
@@ -3791,8 +3789,8 @@ function handleStreamEvent(event, progressElement, progressId,
                     }
                     flushStreamPlainTextUpdate(contentEl);
                     setTimelineItemContentStreamPlain(contentEl, full);
-                    if (d.einoAgent != null && String(d.einoAgent).trim() !== '') {
-                        item.dataset.einoAgent = String(d.einoAgent).trim();
+                    if (d.agentName != null && String(d.agentName).trim() !== '') {
+                        item.dataset.agentName = String(d.agentName).trim();
                     }
                 }
                 stateMap.delete(streamId);
@@ -3800,10 +3798,10 @@ function handleStreamEvent(event, progressElement, progressId,
             break;
         }
 
-        case 'eino_agent_reply': {
+        case 'agent_reply': {
             const replyData = event.data || {};
-            const replyTitleBase = typeof window.t === 'function' ? window.t('chat.einoAgentReplyTitle') : '子代理回复';
-            addTimelineItem(timeline, 'eino_agent_reply', {
+            const replyTitleBase = typeof window.t === 'function' ? window.t('chat.agentNameReplyTitle') : '子代理回复';
+            addTimelineItem(timeline, 'agent_reply', {
                 title: timelineAgentBracketPrefix(replyData) + '💬 ' + replyTitleBase,
                 message: event.message || '',
                 data: replyData,
@@ -3909,7 +3907,7 @@ function handleStreamEvent(event, progressElement, progressId,
                 ? responseData.orchestration
                 : (prevStream && prevStream.streamMeta ? prevStream.streamMeta.orchestration : '');
             if (shouldReuseMainResponseStream(progressId, prevStream, responseData, streamOrch)) {
-                // Eino 可能对同一段流重复发 response_start；复用已有条目与 buffer，避免多条「助手输出」
+                // Pi 可能对同一段流重复发 response_start；复用已有条目与 buffer，避免多条「助手输出」
                 prevStream.streamMeta = Object.assign({}, prevStream.streamMeta || {}, responseData);
                 prevStream.streamIdentity = streamIdentity;
                 if (responseData.streamId != null) {
@@ -3926,7 +3924,7 @@ function handleStreamEvent(event, progressElement, progressId,
                 );
                 break;
             }
-            const title = einoMainStreamPlanningTitle(responseData);
+            const title = piMainStreamPlanningTitle(responseData);
             const itemId = addTimelineItem(timeline, 'thinking', {
                 title: title,
                 message: ' ',
@@ -3964,7 +3962,7 @@ function handleStreamEvent(event, progressElement, progressId,
                 state = responseStreamStateFromRestoredItem(progressId, restoredItem, responseData);
                 if (!state) {
                     const itemId = addTimelineItem(timeline, 'thinking', {
-                        title: einoMainStreamPlanningTitle(responseData),
+                        title: piMainStreamPlanningTitle(responseData),
                         message: ' ',
                         data: Object.assign({}, responseData, { responseStreamPlaceholder: true })
                     });
@@ -3978,7 +3976,7 @@ function handleStreamEvent(event, progressElement, progressId,
                     };
                 }
                 responseStreamStateByProgressId.set(progressId, state);
-            } else if (!state.streamMeta && responseData && (responseData.einoAgent || responseData.orchestration)) {
+            } else if (!state.streamMeta && responseData && (responseData.agentName || responseData.orchestration)) {
                 state.streamMeta = responseData;
             }
             if (incomingStreamId && state.streamId && state.streamId !== incomingStreamId) {
@@ -4054,10 +4052,10 @@ function handleStreamEvent(event, progressElement, progressId,
             // 将 response_start/response_delta 占位固化为 planning，与后端落库一致后再快照过程详情
             if (streamState && streamState.itemId) {
                 finalizeMainResponseStreamItem(streamState, responseFinalized ? event.message : '', responseData);
-            } else if (timeline && responseFinalized && bubbleText && String(bubbleText).trim() && !isEinoEmptyResponsePlaceholder(event.message)) {
+            } else if (timeline && responseFinalized && bubbleText && String(bubbleText).trim() && !isPiEmptyResponsePlaceholder(event.message)) {
                 addTimelineItem(timeline, 'planning', {
-                    title: typeof einoMainStreamPlanningTitle === 'function'
-                        ? einoMainStreamPlanningTitle(responseData)
+                    title: typeof piMainStreamPlanningTitle === 'function'
+                        ? piMainStreamPlanningTitle(responseData)
                         : ('📝 ' + (typeof window.t === 'function' ? window.t('chat.planning') : '规划中')),
                     message: event.message,
                     data: responseData,
@@ -4183,7 +4181,7 @@ function handleStreamEvent(event, progressElement, progressId,
             responseStreamStateByProgressId.delete(progressId);
             mainIterationStateByProgressId.delete(String(progressId));
             thinkingStreamStateByProgressId.delete(progressId);
-            einoAgentReplyStreamStateByProgressId.delete(progressId);
+            agentNameReplyStreamStateByProgressId.delete(progressId);
             // 清理工具流式输出占位
             const prefix = String(progressId) + '::';
             for (const key of Array.from(toolResultStreamStateByKey.keys())) {
@@ -5330,13 +5328,6 @@ function expandProcessDetailsTimeline(assistantMessageId) {
     if (typeof window.syncAssistantTurnSummary === 'function') {
         window.syncAssistantTurnSummary(document.getElementById(assistantMessageId));
     }
-    setTimeout(function () {
-        if (window.CyberStrikeChatScroll && typeof window.CyberStrikeChatScroll.scrollIntoViewIfFollowing === 'function') {
-            window.CyberStrikeChatScroll.scrollIntoViewIfFollowing(detailsContainer, { behavior: 'smooth', block: 'nearest' });
-        } else if (typeof window.captureScrollPinState === 'function' ? window.captureScrollPinState() : true) {
-            detailsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-    }, 100);
 }
 
 function findLastAssistantMessageElInChat() {
@@ -6620,7 +6611,7 @@ function pruneLiveTimelineIfNeeded(timeline) {
     for (let i = 0; i < removeCount; i++) {
         const removed = removable[i];
         if (removed && removed.dataset && removed.dataset.timelineType === 'iteration' &&
-            removed.dataset.einoScope !== 'sub') {
+            removed.dataset.piScope !== 'sub') {
             const iteration = parseInt(removed.dataset.iterationN || '0', 10) || 0;
             if (iteration > 0) {
                 if (prunedMainIterationMin === 0 || iteration < prunedMainIterationMin) {
@@ -6650,7 +6641,7 @@ function addTimelineItem(timeline, type, options) {
     const itemId = 'timeline-item-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     item.id = itemId;
     item.className = `timeline-item timeline-item-${type}`;
-    if (type === 'eino_run_retry') {
+    if (type === 'agent_run_retry') {
         item.classList.add('timeline-item-warning');
     }
     // 记录类型与参数，便于 languagechange 时刷新标题文案
@@ -6658,8 +6649,8 @@ function addTimelineItem(timeline, type, options) {
     if (type === 'iteration') {
         const n = options.iterationN != null ? options.iterationN : (options.data && options.data.iteration != null ? options.data.iteration : 1);
         item.dataset.iterationN = String(n);
-        if (options.data && options.data.einoScope) {
-            item.dataset.einoScope = String(options.data.einoScope);
+        if (options.data && options.data.piScope) {
+            item.dataset.piScope = String(options.data.piScope);
         }
     }
     if (type === 'progress' && options.message) {
@@ -6735,7 +6726,7 @@ function addTimelineItem(timeline, type, options) {
             item.dataset.toolExecutionId = String(d.executionId).trim();
         }
     }
-    if (type === 'eino_usage_summary' && options.data) {
+    if (type === 'agent_usage_summary' && options.data) {
         const d = options.data;
         ['modelCalls', 'promptTokens', 'completionTokens', 'totalTokens', 'cachedTokens', 'cacheWriteTokens', 'reasoningTokens'].forEach(function (key) {
             if (d[key] != null) {
@@ -6743,8 +6734,8 @@ function addTimelineItem(timeline, type, options) {
             }
         });
     }
-    if (options.data && options.data.einoAgent != null && String(options.data.einoAgent).trim() !== '') {
-        item.dataset.einoAgent = String(options.data.einoAgent).trim();
+    if (options.data && options.data.agentName != null && String(options.data.agentName).trim() !== '') {
+        item.dataset.agentName = String(options.data.agentName).trim();
     }
     if (options.data && options.data.orchestration != null && String(options.data.orchestration).trim() !== '') {
         item.dataset.orchestration = String(options.data.orchestration).trim();
@@ -6827,7 +6818,7 @@ function addTimelineItem(timeline, type, options) {
             payloadDeferred: data._payloadDeferred === true || (merged && merged._payloadDeferred === true),
             payloadLoaded: !(data._payloadDeferred === true || (merged && merged._payloadDeferred === true))
         });
-    } else if ((type === 'eino_agent_reply' || type === 'workflow_agent_output') && options.message) {
+    } else if ((type === 'agent_reply' || type === 'workflow_agent_output') && options.message) {
         let prefix = '';
         if (type === 'workflow_agent_output' && options.data) {
             const source = options.data.inputSource || '';
@@ -6884,15 +6875,15 @@ function addTimelineItem(timeline, type, options) {
                 ${escapeHtml(options.message || taskCancelledLabel)}
             </div>
         `;
-    } else if ((type === 'warning' || type === 'eino_run_retry') && options.message) {
+    } else if ((type === 'warning' || type === 'agent_run_retry') && options.message) {
         const streamBody = typeof formatTimelineStreamBody === 'function'
             ? formatTimelineStreamBody(options.message, options.data)
             : options.message;
         content += `<div class="timeline-item-content timeline-stream-plain">${formatTimelinePlainTextHtml(streamBody)}</div>`;
-    } else if (type === 'eino_usage_summary' && options.message) {
+    } else if (type === 'agent_usage_summary' && options.message) {
         content += `<div class="timeline-item-content timeline-stream-plain timeline-usage-summary">${formatTimelinePlainTextHtml(options.message)}</div>`;
     } else if (type === 'progress' && options.message) {
-        content += `<div class="timeline-item-content timeline-eino-trace"><pre class="tool-result">${escapeHtml(options.message)}</pre></div>`;
+        content += `<div class="timeline-item-content timeline-pi-trace"><pre class="tool-result">${escapeHtml(options.message)}</pre></div>`;
     } else if (type === 'user_interrupt_continue' && options.message) {
         const streamBody = typeof formatTimelineStreamBody === 'function'
             ? formatTimelineStreamBody(options.message, options.data)
@@ -6911,8 +6902,8 @@ function addTimelineItem(timeline, type, options) {
         }
     }
     if (type === 'iteration') {
-        const scope = options.data && options.data.einoScope != null
-            ? String(options.data.einoScope).trim()
+        const scope = options.data && options.data.piScope != null
+            ? String(options.data.piScope).trim()
             : '';
         // 主代理每次重新进入模型才形成一轮；子代理的步骤保留普通时间线样式，
         // 避免把同一轮中的专家调用误显示成新的主迭代分组。
@@ -6926,7 +6917,7 @@ function addTimelineItem(timeline, type, options) {
         updateToolDetailToggleLabel(item);
     }
     if (options.data) {
-        applyEinoTimelineRole(item, options.data);
+        applyPiTimelineRole(item, options.data);
     }
     timeline.appendChild(item);
     pruneLiveTimelineIfNeeded(timeline);
@@ -9584,32 +9575,32 @@ function refreshProgressAndTimelineI18n() {
         const titleSpan = item.querySelector('.timeline-item-title');
         const timeSpan = item.querySelector('.timeline-item-time');
         if (!titleSpan) return;
-        const ap = (item.dataset.einoAgent && item.dataset.einoAgent !== '') ? ('[' + item.dataset.einoAgent + '] ') : '';
+        const ap = (item.dataset.agentName && item.dataset.agentName !== '') ? ('[' + item.dataset.agentName + '] ') : '';
         if (type === 'iteration' && item.dataset.iterationN) {
             const n = parseInt(item.dataset.iterationN, 10) || 1;
-            const scope = item.dataset.einoScope;
+            const scope = item.dataset.piScope;
             if (item.dataset.orchestration === 'plan_execute' && scope === 'main') {
                 const phase = typeof translatePlanExecuteAgentName === 'function'
-                    ? translatePlanExecuteAgentName(item.dataset.einoAgent) : (item.dataset.einoAgent || '');
-                titleSpan.textContent = _t('chat.einoPlanExecuteRound', { n: n, phase: phase });
+                    ? translatePlanExecuteAgentName(item.dataset.agentName) : (item.dataset.agentName || '');
+                titleSpan.textContent = _t('chat.piPlanExecuteRound', { n: n, phase: phase });
             } else if (scope === 'main') {
-                titleSpan.textContent = _t('chat.einoOrchestratorRound', { n: n });
+                titleSpan.textContent = _t('chat.piOrchestratorRound', { n: n });
             } else if (scope === 'sub') {
-                const agent = item.dataset.einoAgent || '';
-                titleSpan.textContent = _t('chat.einoSubAgentStep', { n: n, agent: agent });
+                const agent = item.dataset.agentName || '';
+                titleSpan.textContent = _t('chat.piSubAgentStep', { n: n, agent: agent });
             } else {
                 titleSpan.textContent = ap + _t('chat.iterationRound', { n: n });
             }
         } else if (type === 'thinking') {
-            if (item.dataset.responseStreamPlaceholder === '1' && typeof einoMainStreamPlanningTitle === 'function') {
-                titleSpan.textContent = einoMainStreamPlanningTitle({
+            if (item.dataset.responseStreamPlaceholder === '1' && typeof piMainStreamPlanningTitle === 'function') {
+                titleSpan.textContent = piMainStreamPlanningTitle({
                     orchestration: item.dataset.orchestration || '',
-                    einoAgent: item.dataset.einoAgent || ''
+                    agentName: item.dataset.agentName || ''
                 });
-            } else if (item.dataset.orchestration === 'plan_execute' && item.dataset.einoAgent && typeof einoMainStreamPlanningTitle === 'function') {
-                titleSpan.textContent = einoMainStreamPlanningTitle({
+            } else if (item.dataset.orchestration === 'plan_execute' && item.dataset.agentName && typeof piMainStreamPlanningTitle === 'function') {
+                titleSpan.textContent = piMainStreamPlanningTitle({
                     orchestration: 'plan_execute',
-                    einoAgent: item.dataset.einoAgent
+                    agentName: item.dataset.agentName
                 });
             } else {
                 titleSpan.textContent = ap + '\uD83E\uDD14 ' + _t('chat.aiThinking');
@@ -9617,10 +9608,10 @@ function refreshProgressAndTimelineI18n() {
         } else if (type === 'reasoning_chain') {
             titleSpan.textContent = ap + '\uD83D\uDD17 ' + _t('chat.reasoningChain');
         } else if (type === 'planning') {
-            if (item.dataset.orchestration && typeof einoMainStreamPlanningTitle === 'function') {
-                titleSpan.textContent = einoMainStreamPlanningTitle({
+            if (item.dataset.orchestration && typeof piMainStreamPlanningTitle === 'function') {
+                titleSpan.textContent = piMainStreamPlanningTitle({
                     orchestration: item.dataset.orchestration,
-                    einoAgent: item.dataset.einoAgent || ''
+                    agentName: item.dataset.agentName || ''
                 });
             } else {
                 titleSpan.textContent = ap + '\uD83D\uDCDD ' + _t('chat.planning');
@@ -9646,9 +9637,9 @@ function refreshProgressAndTimelineI18n() {
             const success = item.dataset.toolSuccess === '1';
             const icon = displayStatus === 'blocked' ? '🛡 ' : (backgroundRunning ? '\u23F3 ' : (success ? '\u2705 ' : '\u274C '));
             titleSpan.textContent = ap + icon + (displayStatus === 'blocked' ? _t('chat.toolExecBlocked', { name: name }) : backgroundRunning ? (getBackgroundRunningToolLabel() + ': ' + name) : (success ? _t('chat.toolExecComplete', { name: name }) : _t('chat.toolExecFailed', { name: name })));
-        } else if (type === 'eino_agent_reply') {
-            titleSpan.textContent = ap + '\uD83D\uDCAC ' + _t('chat.einoAgentReplyTitle');
-        } else if (type === 'eino_usage_summary') {
+        } else if (type === 'agent_reply') {
+            titleSpan.textContent = ap + '\uD83D\uDCAC ' + _t('chat.agentNameReplyTitle');
+        } else if (type === 'agent_usage_summary') {
             const usageData = {
                 modelCalls: item.dataset.modelCalls,
                 promptTokens: item.dataset.promptTokens,
@@ -9658,10 +9649,10 @@ function refreshProgressAndTimelineI18n() {
                 cacheWriteTokens: item.dataset.cacheWriteTokens,
                 reasoningTokens: item.dataset.reasoningTokens
             };
-            titleSpan.textContent = formatEinoUsageSummaryTitle(usageData);
+            titleSpan.textContent = formatPiUsageSummaryTitle(usageData);
             const contentEl = item.querySelector('.timeline-usage-summary');
             if (contentEl) {
-                setTimelineItemContentStreamPlain(contentEl, formatEinoUsageSummaryMessage(usageData));
+                setTimelineItemContentStreamPlain(contentEl, formatPiUsageSummaryMessage(usageData));
             }
         } else if (type === 'cancelled') {
             titleSpan.textContent = '\u26D4 ' + _t('chat.taskCancelled');

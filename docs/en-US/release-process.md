@@ -53,6 +53,7 @@ SQLite migrations must be:
 ```bash
 go test ./internal/...
 go test ./cmd/...
+bash scripts/build-pi-runtime.sh
 go build -o cyberstrike-ai ./cmd/server
 ```
 

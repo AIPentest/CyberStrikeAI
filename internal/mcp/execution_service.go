@@ -74,7 +74,7 @@ type executionEntry struct {
 	err                 error
 }
 
-// ExecutionService keeps Eino-facing tool calls synchronous while moving the
+// ExecutionService keeps Agent-facing tool calls synchronous while moving the
 // untrusted blocking work into cancellable workers with explicit execution IDs.
 type ExecutionService struct {
 	storage MonitorStorage

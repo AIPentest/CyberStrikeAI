@@ -199,7 +199,7 @@ func TestProcessDetailsFullBackfillsEmptyToolCallArgumentsFromExecution(t *testi
 	}
 }
 
-func TestProcessDetailsPageBackfillsEinoFilesystemArgumentsFromPrefixedExecution(t *testing.T) {
+func TestProcessDetailsPageBackfillsAgentFilesystemArgumentsFromPrefixedExecution(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db, err := database.NewDB(filepath.Join(t.TempDir(), "process-details-eino-fs-args.db"), zap.NewNop())
 	if err != nil {

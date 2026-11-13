@@ -171,7 +171,7 @@ func (h *ChatUploadsHandler) absRoot() (string, error) {
 
 func (h *ChatUploadsHandler) absReductionRoot() (string, error) {
 	if h.db != nil {
-		if base := strings.TrimSpace(h.db.EinoReductionBaseDir()); base != "" {
+		if base := strings.TrimSpace(h.db.AgentReductionBaseDir()); base != "" {
 			if filepath.IsAbs(base) {
 				return filepath.Abs(base)
 			}
@@ -191,7 +191,7 @@ func (h *ChatUploadsHandler) absReductionRoot() (string, error) {
 
 func (h *ChatUploadsHandler) absWorkspaceRoot() (string, error) {
 	if h.db != nil {
-		if base := strings.TrimSpace(h.db.EinoWorkspaceBaseDir()); base != "" {
+		if base := strings.TrimSpace(h.db.AgentWorkspaceBaseDir()); base != "" {
 			if filepath.IsAbs(base) {
 				return filepath.Abs(base)
 			}

@@ -5,22 +5,9 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-
-	"github.com/cloudwego/eino/schema"
 )
 
-func init() {
-	schema.RegisterName[*WorkflowLocalState]("_cyberstrike_workflow_local_state")
-	schema.RegisterName[NodeOutputEnvelope]("_cyberstrike_workflow_node_output_envelope")
-	schema.RegisterName[StartOutput]("_cyberstrike_workflow_start_output")
-	schema.RegisterName[ConditionOutput]("_cyberstrike_workflow_condition_output")
-	schema.RegisterName[ToolOutput]("_cyberstrike_workflow_tool_output")
-	schema.RegisterName[AgentOutput]("_cyberstrike_workflow_agent_output")
-	schema.RegisterName[HITLOutput]("_cyberstrike_workflow_hitl_output")
-	schema.RegisterName[OutputNodeOutput]("_cyberstrike_workflow_output_node_output")
-}
-
-// WorkflowLocalState is the Eino WithGenLocalState payload (checkpoint-serializable).
+// WorkflowLocalState is the Agent WithGenLocalState payload (checkpoint-serializable).
 type WorkflowLocalState struct {
 	Inputs              map[string]any            `json:"inputs,omitempty"`
 	Outputs             map[string]any            `json:"outputs,omitempty"`

@@ -248,7 +248,7 @@ Runs an LLM Agent task. Supports multiple modes.
 
 | Field | Description | Default |
 |-------|-------------|---------|
-| Agent mode | `eino_single` / `deep` / `plan_execute` / `supervisor` | `eino_single` |
+| Agent mode | `single` / `deep` / `plan_execute` / `supervisor` | `single` |
 | Input source | Template for upstream data | `{{previous.output}}` |
 | Node instruction | Task description for this node | empty |
 | Output variable name | Key written into `outputs` | `agent_result` |
@@ -264,7 +264,7 @@ After execution:
 
 - `previous.output` becomes this node’s response text  
 - If **Output variable name** is set, the value is also stored in `outputs[variable_name]`
-- In the Eino graph, the Agent node is split into `prepare → execute → finalize` for clearer trace and future checkpointing
+- The native DAG invokes Pi for Agent nodes and persists node state in Go checkpoints
 
 ### 5.3 Tool
 
@@ -310,7 +310,7 @@ Edge condition examples (select an edge, configure in the right panel):
 
 ### 5.5 HITL (human-in-the-loop)
 
-Human approval checkpoint. The run pauses before this node through Eino interrupt/checkpoint and resumes after approval via API or the monitor panel.
+Human approval checkpoint. The run pauses before this node through the native Workflow checkpoint and resumes after approval via API or the monitor panel.
 
 | Field | Description | Default |
 |-------|-------------|---------|
@@ -576,7 +576,7 @@ On save, the system checks:
 | Module | Path |
 |--------|------|
 | Execution engine | `internal/workflow/runner.go` |
-| Eino compile / checkpoint / HITL | `internal/workflow/eino_compile.go` |
+| Native DAG / checkpoint / HITL | `internal/workflow/native_runtime.go` |
 | Graph validation | `internal/workflow/validation.go` |
 | Expressions / JSONPath / joins | `internal/workflow/expression.go`, `jsonpath.go`, `join.go` |
 | Dry-run / replay data | `internal/workflow/dry_run.go`, `internal/handler/workflow_run.go` |

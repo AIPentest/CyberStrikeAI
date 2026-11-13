@@ -3514,6 +3514,12 @@ html[data-theme="dark"] .sidebar-content:hover::-webkit-scrollbar-thumb:hover {
     scrollbar-color: color-mix(in srgb, var(--text-muted) 55%, transparent) transparent;
 }
 
+/* 贴底时由滚动控制器定位；浏览历史时保留浏览器的锚定。 */
+#chat-messages.is-following-latest,
+#chat-messages .progress-timeline.is-following-latest {
+    overflow-anchor: none;
+}
+
 .chat-messages::-webkit-scrollbar {
     width: 4px;
     height: 4px;
@@ -4568,7 +4574,7 @@ html[data-theme="dark"] .sidebar-content:hover::-webkit-scrollbar-thumb:hover {
     flex-shrink: 0;
 }
 
-/* Eino：模型推理在对话列表侧栏底部，默认折叠 */
+/* Pi：模型推理在对话列表侧栏底部，默认折叠 */
 .conversation-sidebar .chat-reasoning-wrapper {
     width: 100%;
     box-sizing: border-box;
@@ -7719,15 +7725,15 @@ html[data-theme="dark"] .login-card .login-submit:disabled {
 }
 
 /*
- * Eino 主/子代理：保留 timeline-eino-role-* class（由 applyEinoTimelineRole 写入），
+ * Pi 主/子代理：保留 timeline-pi-role-* class（由 applyPiTimelineRole 写入），
  * 但不再在此处整卡铺色 + !important，否则会盖住工具调用/结果/思考的类型色。
- * 主编排 vs 子代理的区分由「迭代轮次」上的 timeline-eino-scope-* 负责。
+ * 主编排 vs 子代理的区分由「迭代轮次」上的 timeline-pi-scope-* 负责。
  */
-.timeline-item.timeline-item-iteration.timeline-eino-scope-main {
+.timeline-item.timeline-item-iteration.timeline-pi-scope-main {
     border-left-color: #b8956a;
     background: rgba(184, 149, 106, 0.05);
 }
-.timeline-item.timeline-item-iteration.timeline-eino-scope-sub {
+.timeline-item.timeline-item-iteration.timeline-pi-scope-sub {
     border-left-color: #a6896c;
     background: rgba(166, 137, 108, 0.045);
 }
@@ -7750,7 +7756,7 @@ html[data-theme="dark"] .login-card .login-submit:disabled {
     border-color: rgba(59, 130, 246, 0.16);
 }
 
-/* Eino single/deep/supervisor 的主通道是助手正文，不使用 planning 的青绿色卡片 */
+/* Pi single/deep/supervisor 的主通道是助手正文，不使用 planning 的青绿色卡片 */
 .timeline-item-planning[data-orchestration]:not([data-orchestration="plan_execute"]) {
     border-left-color: #3b82f6;
     background: rgba(59, 130, 246, 0.055);
@@ -7814,7 +7820,7 @@ html[data-theme="dark"] .login-card .login-submit:disabled {
     background: rgba(220, 53, 69, 0.07);
 }
 
-.timeline-item-eino_agent_reply {
+.timeline-item-agent_agent_reply {
     border-left-color: #6a1b9a;
     background: rgba(106, 27, 154, 0.07);
 }
@@ -7824,7 +7830,7 @@ html[data-theme="dark"] .login-card .login-submit:disabled {
     background: rgba(96, 125, 139, 0.08);
 }
 
-.timeline-item-eino_usage_summary {
+.timeline-item-agent_usage_summary {
     border-left-color: #0f766e;
     background: rgba(20, 184, 166, 0.07);
 }
@@ -7948,6 +7954,11 @@ html[data-theme="dark"] .login-card .login-submit:disabled {
 .progress-timeline .timeline-item {
     content-visibility: auto;
     contain-intrinsic-size: auto 72px;
+}
+
+/* 跟随中的时间线使用实际高度，避免滚到底后才展开估算高度并把最新内容推出视口。 */
+#chat-messages .progress-timeline.has-latest-follow > .timeline-item {
+    content-visibility: visible;
 }
 
 .timeline-live-pruned-marker {
@@ -22920,7 +22931,7 @@ tr.mcp-stats-tool-row[data-tool-name]:focus-visible {
     font-weight: 600;
 }
 
-.webshell-ai-timeline-eino_usage_summary {
+.webshell-ai-timeline-agent_usage_summary {
     border-left: 3px solid #0f766e;
     padding-left: 10px;
     background: rgba(20, 184, 166, 0.06);
@@ -23081,7 +23092,7 @@ tr.mcp-stats-tool-row[data-tool-name]:focus-visible {
     border-left-color: #f57c00;
     background: rgba(245, 124, 0, 0.08);
 }
-.webshell-ai-process-block .webshell-ai-timeline-eino_usage_summary {
+.webshell-ai-process-block .webshell-ai-timeline-agent_usage_summary {
     border-left-color: #0f766e;
     background: rgba(20, 184, 166, 0.06);
 }
@@ -36270,8 +36281,8 @@ html[data-theme="dark"] .timeline-item-content {
 }
 
 html[data-theme="dark"] .timeline-item-iteration,
-html[data-theme="dark"] .timeline-item.timeline-item-iteration.timeline-eino-scope-main,
-html[data-theme="dark"] .timeline-item.timeline-item-iteration.timeline-eino-scope-sub {
+html[data-theme="dark"] .timeline-item.timeline-item-iteration.timeline-pi-scope-main,
+html[data-theme="dark"] .timeline-item.timeline-item-iteration.timeline-pi-scope-sub {
     background: #101a2b !important;
 }
 
@@ -36309,12 +36320,12 @@ html[data-theme="dark"] .timeline-item-progress {
     background: rgba(148, 163, 184, 0.075);
 }
 
-html[data-theme="dark"] .timeline-item-eino_usage_summary {
+html[data-theme="dark"] .timeline-item-agent_usage_summary {
     border-left-color: #2dd4bf;
     background: rgba(45, 212, 191, 0.085);
 }
 
-html[data-theme="dark"] .timeline-item-eino_agent_reply {
+html[data-theme="dark"] .timeline-item-agent_agent_reply {
     background: rgba(168, 85, 247, 0.1);
 }
 
@@ -36405,8 +36416,8 @@ html[data-theme="dark"] .webshell-ai-timeline-finalization_check .webshell-ai-ti
     color: #fbbf24;
 }
 
-html[data-theme="dark"] .webshell-ai-timeline-eino_usage_summary,
-html[data-theme="dark"] .webshell-ai-process-block .webshell-ai-timeline-eino_usage_summary {
+html[data-theme="dark"] .webshell-ai-timeline-agent_usage_summary,
+html[data-theme="dark"] .webshell-ai-process-block .webshell-ai-timeline-agent_usage_summary {
     border-left-color: #2dd4bf;
     background: rgba(45, 212, 191, 0.08);
 }

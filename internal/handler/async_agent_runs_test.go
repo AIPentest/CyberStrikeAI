@@ -51,7 +51,7 @@ func TestAsyncAdmissionDisconnectIdempotencyAndAccess(t *testing.T) {
 	submit := func(ctx context.Context, key, body string, multi bool) *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request = httptest.NewRequest("POST", "/api/eino-agent/runs", strings.NewReader(body)).WithContext(ctx)
+		c.Request = httptest.NewRequest("POST", "/api/agent/runs", strings.NewReader(body)).WithContext(ctx)
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Request.Header.Set("Idempotency-Key", key)
 		c.Set(security.ContextSessionKey, session)
@@ -183,7 +183,7 @@ func TestOpenAPIAsyncRunEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 	paths := spec["paths"].(map[string]interface{})
-	for _, path := range []string{"/api/eino-agent/runs", "/api/multi-agent/runs", "/api/eino-agent/runs/{runId}", "/api/multi-agent/runs/{runId}"} {
+	for _, path := range []string{"/api/agent/runs", "/api/multi-agent/runs", "/api/agent/runs/{runId}", "/api/multi-agent/runs/{runId}"} {
 		if paths[path] == nil {
 			t.Errorf("missing %s", path)
 		}

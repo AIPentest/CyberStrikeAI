@@ -45,7 +45,7 @@ func (db *DB) GetRobotSessionBinding(sessionKey string) (*RobotSessionBinding, e
 		b.RoleName = "默认"
 	}
 	if strings.TrimSpace(b.AgentMode) == "" {
-		b.AgentMode = "eino_single"
+		b.AgentMode = "single"
 	}
 	return &b, nil
 }
@@ -63,7 +63,7 @@ func (db *DB) UpsertRobotSessionBinding(sessionKey, conversationID, roleName, ag
 		roleName = "默认"
 	}
 	if agentMode == "" {
-		agentMode = "eino_single"
+		agentMode = "single"
 	}
 	_, err := db.Exec(`
 		INSERT INTO robot_user_sessions (session_key, conversation_id, role_name, agent_mode, updated_at)

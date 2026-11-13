@@ -27,8 +27,7 @@
     let hasPendingNewBelow = false;
     let listenersBound = false;
     let lastScrollTop = 0;
-    let lastScrollHeight = 0;
-    let programmaticScroll = false;
+    let lastScrollRange = 0;
     let detachLockUntil = 0;
     /** 最近一次由用户发起的滚动意图；布局变化或脚本滚动不得据此恢复粘底。 */
     let userScrollIntentUntil = 0;
@@ -214,19 +213,16 @@
         const messagesEl = getChatMessagesEl();
         const turn = collectConversationTurns()[index];
         if (!messagesEl || !turn || !turn.user) return;
+        userScrollIntentUntil = 0;
         setScrollDetached();
-        programmaticScroll = true;
         messagesEl.scrollTo({
             top: Math.max(0, turn.user.offsetTop - 20),
-            behavior: 'smooth'
+            behavior: 'instant'
         });
+        rememberScrollPosition(messagesEl);
         setActiveTurnMarker(index);
         hideTurnPreview();
-        window.setTimeout(function () {
-            programmaticScroll = false;
-            lastScrollTop = messagesEl.scrollTop;
-            updateTurnRailActive();
-        }, 420);
+        updateReturnLatestButton();
     }
 
     function focusTurnMarker(index) {
@@ -344,10 +340,18 @@
         }
     }
 
+    function scrollRange(el) {
+        return Math.max(0, el.scrollHeight - el.clientHeight);
+    }
+
+    function rememberScrollPosition(el) {
+        lastScrollTop = el.scrollTop;
+        lastScrollRange = scrollRange(el);
+    }
+
     function distanceFromBottom(el) {
         if (!el) return 0;
-        const { scrollTop, scrollHeight, clientHeight } = el;
-        return scrollHeight - clientHeight - scrollTop;
+        return scrollRange(el) - el.scrollTop;
     }
 
     function isNearBottom(thresholdPx) {
@@ -383,6 +387,7 @@
 
     function setScrollFollowing() {
         scrollMode = 'following';
+        getChatMessagesEl()?.classList.add('is-following-latest');
         detachLockUntil = 0;
         userScrollIntentUntil = 0;
         hasPendingNewBelow = false;
@@ -397,8 +402,12 @@
 
     function setScrollDetached() {
         scrollMode = 'detached';
+        getChatMessagesEl()?.classList.remove('is-following-latest');
         detachLockUntil = Date.now() + DETACH_LOCK_MS;
         cancelAnimationFrame(scrollFollowRaf);
+        scrollFollowRaf = 0;
+        scrollSettleGeneration += 1;
+        conversationRestoreGeneration += 1;
         if (isStreamActive()) {
             hasPendingNewBelow = true;
         }
@@ -409,28 +418,11 @@
         if (scrollMode !== 'following') return;
         const el = getChatMessagesEl();
         if (!el) return;
-        programmaticScroll = true;
-        el.scrollTop = el.scrollHeight;
-        lastScrollTop = el.scrollTop;
-        lastScrollHeight = el.scrollHeight;
-        requestAnimationFrame(function () {
-            programmaticScroll = false;
-        });
-    }
-
-    function scrollChatToBottomSmooth() {
-        const el = getChatMessagesEl();
-        if (!el) return;
-        programmaticScroll = true;
-        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-        requestAnimationFrame(function () {
-            programmaticScroll = false;
-            const node = getChatMessagesEl();
-            if (node) {
-                lastScrollTop = node.scrollTop;
-                lastScrollHeight = node.scrollHeight;
-            }
-        });
+        const bottom = scrollRange(el);
+        if (bottom - el.scrollTop > CHAT_SCROLL_FOLLOW_RESUME_THRESHOLD_PX) {
+            el.scrollTo({ top: bottom, behavior: 'instant' });
+            rememberScrollPosition(el);
+        }
     }
 
     function updateTurnRailState() {
@@ -443,10 +435,7 @@
         const messagesEl = getChatMessagesEl();
         if (!button || !messagesEl) return;
         const scrollable = messagesEl.scrollHeight > messagesEl.clientHeight + 2;
-        const atLatest = isNearBottom(CHAT_SCROLL_FOLLOW_RESUME_THRESHOLD_PX);
-        const readingDetachedHistory = scrollMode === 'detached' && !atLatest;
-        const farFromLatestFallback = !isNearBottom(CHAT_SCROLL_NAV_BOTTOM_THRESHOLD_PX);
-        const shouldShow = scrollable && (readingDetachedHistory || farFromLatestFallback);
+        const shouldShow = scrollable && !isNearBottom(CHAT_SCROLL_FOLLOW_RESUME_THRESHOLD_PX);
         const streaming = shouldShow && isVisibleConversationTaskActive();
         button.hidden = !shouldShow;
         button.classList.toggle('is-streaming', streaming);
@@ -465,12 +454,9 @@
             event.preventDefault();
             event.stopPropagation();
         }
-        forceScrollChatToBottom(true);
+        forceScrollChatToBottom();
         const button = getReturnLatestButton();
-        if (button) {
-            button.hidden = true;
-            button.blur();
-        }
+        if (button) button.blur();
     }
 
     function canAutoScrollNow(wasPinnedBeforeDomUpdate) {
@@ -485,8 +471,11 @@
             markPendingNewBelow();
             return;
         }
-        cancelAnimationFrame(scrollFollowRaf);
-        scrollFollowRaf = requestAnimationFrame(scrollChatToBottomInstant);
+        if (scrollFollowRaf) return;
+        scrollFollowRaf = requestAnimationFrame(function () {
+            scrollFollowRaf = 0;
+            scrollChatToBottomInstant();
+        });
     }
 
     /**
@@ -518,11 +507,10 @@
 
     /**
      * 刷新恢复长会话时，消息、详情和审批卡会跨多帧继续增高。
-     * 进入恢复流程时明确回到 following；用户随后若主动上滑，既有输入监听会立即
-     * 切换为 detached，并使后续校准帧停止，不会抢回阅读位置。
+     * 批次与审批恢复完成时沿用当前跟随状态。用户可以在此之前开始阅读历史。
      */
     function settleConversationRestoreToBottom(frameCount) {
-        setScrollFollowing();
+        if (!captureScrollPinState()) return;
         const requestedFrames = Number.isFinite(Number(frameCount))
             ? Math.max(1, Math.floor(Number(frameCount)))
             : 30;
@@ -567,19 +555,16 @@
         scheduleChatScrollToBottomIfFollowing(wasPinned);
     }
 
-    function forceScrollChatToBottom(smooth) {
-        setScrollFollowing();
+    function forceScrollChatToBottom() {
         cancelAnimationFrame(scrollFollowRaf);
-        if (smooth) {
-            scrollChatToBottomSmooth();
-        } else {
-            scrollChatToBottomInstant();
-        }
+        scrollFollowRaf = 0;
+        setScrollFollowing();
+        scrollChatToBottomInstant();
+        updateTurnRailState();
     }
 
     function onUserSendMessage() {
-        setScrollFollowing();
-        scrollChatToBottomInstant();
+        forceScrollChatToBottom();
     }
 
     function clearAllStreamingMarkers() {
@@ -648,16 +633,19 @@
         const opt = (options && options.scroll) || 'follow';
         if (opt === 'none') return;
         if (opt === 'force') {
-            forceScrollChatToBottom(false);
+            forceScrollChatToBottom();
             return;
         }
         scheduleChatScrollToBottomIfFollowing(captureScrollPinState());
     }
 
-    /** 流式/用户未跟随时禁止 scrollIntoView 抢滚动 */
-    function scrollElementIntoViewIfFollowing(el, options) {
-        if (!el || !captureScrollPinState()) return;
-        el.scrollIntoView(options || { behavior: 'smooth', block: 'nearest' });
+    /** 手动展开详情时同步滚动，随后记录位置供滚动事件区分用户拖动。 */
+    function scrollElementIntoViewIfFollowing(el) {
+        const messagesEl = getChatMessagesEl();
+        if (!el || !messagesEl || !captureScrollPinState()) return;
+        el.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+        rememberScrollPosition(messagesEl);
+        updateTurnRailState();
     }
 
     function onChatMessagesScroll() {
@@ -665,50 +653,31 @@
         if (!el) return;
 
         const st = el.scrollTop;
-        const sh = el.scrollHeight;
-        const hasUserScrollIntent = Date.now() <= userScrollIntentUntil;
-
-        if (programmaticScroll) {
-            // 正在执行恢复/流式粘底时，用户仍可能反向滚轮或拖动滚动条。
-            // 脚本滚底只会让 scrollTop 增大；此处出现减小必定是用户在中断跟随。
-            if (st < lastScrollTop - 1 && (scrollMode === 'detached' || hasUserScrollIntent)) {
-                setScrollDetached();
-            }
-            lastScrollTop = st;
-            lastScrollHeight = sh;
-            updateTurnRailState();
-            return;
-        }
-
-        const scrolledUp = st < lastScrollTop - 1;
-        const scrolledDown = st > lastScrollTop + 1;
-        const contentShrank = sh < lastScrollHeight - 1;
-
-        // 刷新/终态重绘会先清空或折叠旧 DOM，浏览器会被动把 scrollTop 压小。
-        // 这不是用户上滑，不应错误退出 following。
-        if (contentShrank) {
-            lastScrollTop = st;
-            lastScrollHeight = sh;
-            updateTurnRailState();
-            return;
-        }
-
-        // 刷新恢复会重建消息和详情，滚动锚定可能在没有用户输入时让 scrollTop
-        // 暂时减小。只有明确的滚轮、触控、键盘或滚动条意图才解除粘底。
-        if (scrolledUp && (scrollMode === 'detached' || hasUserScrollIntent)) {
-            setScrollDetached();
-        } else if (
-            scrolledDown &&
-            hasUserScrollIntent &&
-            resumeFollowingIfAtBottom(CHAT_SCROLL_FOLLOW_RESUME_THRESHOLD_PX, true)
-        ) {
-            // 仅在用户明确向下滚动并到达真实底部时恢复跟随，不主动改写 scrollTop。
-            // 后续新增内容再按 following 状态自然粘底，避免接近底部时突然跳动。
-        }
-
+        const range = scrollRange(el);
+        const topChange = st - lastScrollTop;
+        // 原生滚动条可能不派发指针事件。移动超出布局变化能够解释的距离时，
+        // 也视为用户滚动。脚本主动定位后会同步记录位置。
+        const hasUserScrollIntent = Date.now() <= userScrollIntentUntil ||
+            Math.abs(topChange) > Math.abs(range - lastScrollRange) + 1;
+        const scrolledUp = topChange < -1 && range - st > CHAT_SCROLL_FOLLOW_RESUME_THRESHOLD_PX;
+        const scrolledDown = topChange > 1;
         lastScrollTop = st;
-        lastScrollHeight = sh;
+        lastScrollRange = range;
+
+        if (scrolledUp && hasUserScrollIntent) {
+            setScrollDetached();
+        } else if (scrolledDown && hasUserScrollIntent) {
+            resumeFollowingIfAtBottom(CHAT_SCROLL_FOLLOW_RESUME_THRESHOLD_PX, true);
+        }
         updateTurnRailState();
+    }
+
+    function nestedTimelineCanScroll(target, direction) {
+        const timeline = target?.closest?.('.progress-timeline.expanded');
+        if (!timeline || scrollRange(timeline) <= CHAT_SCROLL_FOLLOW_RESUME_THRESHOLD_PX) return false;
+        return direction < 0
+            ? timeline.scrollTop > CHAT_SCROLL_FOLLOW_RESUME_THRESHOLD_PX
+            : distanceFromBottom(timeline) > CHAT_SCROLL_FOLLOW_RESUME_THRESHOLD_PX;
     }
 
     function bindChatScrollListeners() {
@@ -716,10 +685,12 @@
         const el = getChatMessagesEl();
         if (!el) return;
         listenersBound = true;
-        lastScrollTop = el.scrollTop;
-        lastScrollHeight = el.scrollHeight;
+        el.classList.toggle('is-following-latest', scrollMode === 'following');
+        rememberScrollPosition(el);
 
         el.addEventListener('wheel', function (e) {
+            // 只有内层到达边界后，滚轮才会传给外层对话区。
+            if (nestedTimelineCanScroll(e.target, e.deltaY)) return;
             if (Math.abs(e.deltaY) > 1) {
                 userScrollIntentUntil = Date.now() + 1200;
             }
@@ -738,22 +709,25 @@
 
         el.addEventListener('keydown', function (e) {
             const scrollKeys = ['ArrowUp', 'PageUp', 'Home', 'ArrowDown', 'PageDown', 'End', ' '];
-            if (scrollKeys.includes(e.key)) {
-                userScrollIntentUntil = Date.now() + 1200;
-            }
-            if (e.key === 'ArrowUp' || e.key === 'PageUp' || e.key === 'Home' || (e.key === ' ' && e.shiftKey)) {
+            if (e.defaultPrevented || !scrollKeys.includes(e.key)) return;
+            const upwards = e.key === 'ArrowUp' || e.key === 'PageUp' || e.key === 'Home' || (e.key === ' ' && e.shiftKey);
+            if (nestedTimelineCanScroll(e.target, upwards ? -1 : 1)) return;
+            userScrollIntentUntil = Date.now() + 1200;
+            if (upwards) {
                 setScrollDetached();
             }
         });
 
         el.addEventListener('touchmove', function (e) {
             if (e.touches && e.touches.length === 1) {
+                const y = e.touches[0].clientY;
+                const delta = (el._csTouchLastY ?? y) - y;
+                el._csTouchLastY = y;
+                if (nestedTimelineCanScroll(e.target, delta)) return;
                 userScrollIntentUntil = Date.now() + 1200;
-                el._csTouchLastY = el._csTouchLastY != null ? el._csTouchLastY : e.touches[0].clientY;
-                if (e.touches[0].clientY > el._csTouchLastY + 4) {
+                if (delta < -4) {
                     setScrollDetached();
                 }
-                el._csTouchLastY = e.touches[0].clientY;
             }
         }, { passive: true });
         el.addEventListener('touchstart', function (e) {
@@ -823,10 +797,7 @@
     function initChatScroll() {
         bindChatScrollListeners();
         const el = getChatMessagesEl();
-        if (el) {
-            lastScrollTop = el.scrollTop;
-            lastScrollHeight = el.scrollHeight;
-        }
+        if (el) rememberScrollPosition(el);
         scheduleTurnRailRefresh(true);
         updateTurnRailState();
     }
