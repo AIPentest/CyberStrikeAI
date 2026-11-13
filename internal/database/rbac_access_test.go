@@ -220,8 +220,8 @@ func TestRBACVulnerabilityAccessInheritsProject(t *testing.T) {
 	if err := db.AssignResourceToUser(user.ID, "project", p1.ID); err != nil {
 		t.Fatal(err)
 	}
-	v1, _ := db.CreateVulnerability(&Vulnerability{ProjectID: p1.ID, Title: "v1", Severity: "high"})
-	v2, _ := db.CreateVulnerability(&Vulnerability{ProjectID: p2.ID, Title: "v2", Severity: "high"})
+	v1, _ := db.CreateVulnerability(&Vulnerability{ProjectID: p1.ID, Title: "v1", Severity: "high", Target: "https://example.com/visible"})
+	v2, _ := db.CreateVulnerability(&Vulnerability{ProjectID: p2.ID, Title: "v2", Severity: "high", Target: "https://example.com/hidden"})
 
 	items, err := db.ListVulnerabilitiesForAccess(50, 0, VulnerabilityListFilter{}, RBACListAccess{UserID: user.ID, Scope: RBACScopeAssigned})
 	if err != nil {
@@ -229,6 +229,13 @@ func TestRBACVulnerabilityAccessInheritsProject(t *testing.T) {
 	}
 	if len(items) != 1 || items[0].ID != v1.ID {
 		t.Fatalf("vulnerabilities = %#v, want only %s; hidden %s", items, v1.ID, v2.ID)
+	}
+	for _, group := range []string{"host", "task"} {
+		access := RBACListAccess{UserID: user.ID, Scope: RBACScopeAssigned}
+		items, err := db.ListVulnerabilitiesByGroupForAccess(1, 0, VulnerabilityListFilter{}, access, group, "severity")
+		if err != nil || len(items) != 1 || items[0].ID != v1.ID {
+			t.Fatalf("group %s returned %#v, %v; want only %s", group, items, err, v1.ID)
+		}
 	}
 	if !db.UserCanAccessResource(user.ID, RBACScopeAssigned, "vulnerability", v1.ID) {
 		t.Fatalf("expected project assignment to allow vulnerability detail")

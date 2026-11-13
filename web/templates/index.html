@@ -39,7 +39,7 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="/static/css/style.css?v=20261027-pagination-custom-select-20261113-chat-scroll">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261113-vulnerability-domain-browser">
     <link rel="stylesheet" href="/static/css/vulnerability-download.css?v=20261030-2">
     <link rel="stylesheet" href="/static/css/tool-guard.css?v=20260907-7">
     <link rel="stylesheet" href="/static/css/chat-plan-progress.css?v=20260813-4">
@@ -47,6 +47,8 @@
     <link rel="stylesheet" href="/static/vendor/xterm.css">
     <!-- 移动端样式层：全部规则限定在 767.98px 以下，桌面端零影响 -->
     <link rel="stylesheet" href="/static/css/mobile.css?v=20261015-project-table-3">
+    <link rel="stylesheet" href="/static/css/vulnerability-workspace.css?v=20261113-aligned-overview">
+    <link rel="stylesheet" href="/static/css/vulnerability-list.css?v=20261113-compact-rows">
     <script src="/static/js/router.js?v=20261011-token-settings"></script>
 </head>
 <body>
@@ -2688,7 +2690,15 @@
                 <!-- 漏洞管理页面 -->
                 <div id="page-vulnerabilities" class="page">
                     <div class="page-header">
-                        <h2 data-i18n="vulnerability.title">漏洞管理</h2>
+                        <div class="vulnerability-header-start">
+                            <h2 data-i18n="vulnerability.title">漏洞管理</h2>
+                            <div id="vulnerability-view-switch" class="vulnerability-view-switch" role="group"
+                                 aria-label="漏洞视图" data-i18n="vulnerabilityPage.viewLabel" data-i18n-attr="aria-label">
+                                <button type="button" data-vuln-view="host" aria-pressed="true" data-i18n="vulnerabilityPage.viewHost">按域名</button>
+                                <button type="button" data-vuln-view="task" aria-pressed="false" data-i18n="vulnerabilityPage.viewTask">按任务</button>
+                                <button type="button" data-vuln-view="none" aria-pressed="false" data-i18n="vulnerabilityPage.viewRaw">原始漏洞</button>
+                            </div>
+                        </div>
                         <div class="page-header-actions">
                             <button class="btn-secondary" data-require-permission="vulnerability:read" onclick="exportVulnerabilityReports()" data-i18n="vulnerabilityPage.batchExport">批量导出</button>
                             <button class="btn-secondary btn-delete" data-require-permission="vulnerability:delete" onclick="batchDeleteVulnerabilityReports()" data-i18n="vulnerabilityPage.batchDelete">批量删除</button>
@@ -2699,10 +2709,13 @@
                     <div class="page-content">
                         <!-- 统计看板：点击卡片筛选严重度，与下方下拉/地址栏 hash 同步 -->
                         <div class="vulnerability-dashboard" id="vulnerability-dashboard">
+                            <div class="vulnerability-workspace-caption">
+                                <span data-i18n="vulnerabilityPage.workspaceSubtitle">资产、上报与处置进展</span>
+                            </div>
                             <div class="dashboard-stats" id="vulnerability-stat-cards" role="group" aria-label="漏洞严重度统计">
                                 <div class="stat-card stat-card-total is-clickable is-active" data-severity="" role="button" tabindex="0"
                                      data-i18n="vulnerabilityPage.statClickAll" data-i18n-attr="title" title="查看全部（清除严重度筛选）">
-                                    <div class="stat-label" data-i18n="vulnerabilityPage.statTotal">总漏洞数</div>
+                                    <div class="stat-label" data-i18n="vulnerabilityPage.statReports">上报记录</div>
                                     <div class="stat-value" id="stat-total">-</div>
                                     <div class="stat-stacked-bar" id="stat-stacked-bar" aria-hidden="true">
                                         <span class="stat-stacked-seg critical" data-sev="critical"></span>
@@ -2842,6 +2855,21 @@
                         </div>
 
                         <!-- 漏洞列表 -->
+                        <div id="vulnerability-list-toolbar" class="vulnerability-list-toolbar">
+                            <span id="vulnerability-page-summary" aria-live="polite"></span>
+                            <div class="vulnerability-list-tools">
+                                <button type="button" id="vulnerability-merge-selected" class="btn-secondary" data-require-permission="vulnerability:write" disabled onclick="openVulnerabilityMergeDialog()" data-i18n="vulnerabilityPage.mergeSelected">归并所选</button>
+                                <label class="vulnerability-sort-label">
+                                    <span data-i18n="vulnerabilityPage.sortLabel">排序</span>
+                                    <select id="vulnerability-sort" onchange="changeVulnerabilitySort(this.value)">
+                                        <option value="" data-i18n="vulnerabilityPage.sortDefault">默认顺序</option>
+                                        <option value="severity" data-i18n="vulnerabilityPage.sortSeverity">高危优先</option>
+                                        <option value="latest" data-i18n="vulnerabilityPage.sortLatest">最新发现</option>
+                                    </select>
+                                </label>
+
+                            </div>
+                        </div>
                         <div id="vulnerabilities-list" class="vulnerabilities-list">
                             <div class="loading-spinner" data-i18n="vulnerabilityPage.loading">加载中...</div>
                         </div>
@@ -6411,6 +6439,29 @@
         </div>
     </div>
 
+    <div id="vulnerability-inspector" class="modal" role="dialog" aria-modal="true" aria-labelledby="vulnerability-inspector-title">
+        <div class="modal-content vulnerability-inspector-panel">
+            <header class="vulnerability-inspector-header">
+                <div><span class="vulnerability-inspector-eyebrow" data-i18n="vulnerabilityPage.inspectorTitle">漏洞工作台</span><h2 id="vulnerability-inspector-title"></h2></div>
+                <button type="button" class="modal-close" onclick="closeAppModal('vulnerability-inspector')" aria-label="关闭">&times;</button>
+            </header>
+            <div id="vulnerability-inspector-body"></div>
+        </div>
+    </div>
+    <div id="vulnerability-merge-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="vulnerability-merge-title">
+        <div class="modal-content vulnerability-merge-panel">
+            <header class="modal-header"><h2 id="vulnerability-merge-title"></h2><button type="button" class="modal-close" onclick="closeAppModal('vulnerability-merge-modal')" aria-label="关闭">&times;</button></header>
+            <form onsubmit="event.preventDefault(); saveVulnerabilityMerge()">
+                <div class="modal-body">
+                    <p id="vulnerability-merge-description"></p>
+                    <label id="vulnerability-merge-name-label"><span data-i18n="vulnerabilityPage.tableTitle">漏洞名称</span><input id="vulnerability-merge-name" maxlength="500"></label>
+                    <label><span data-i18n="vulnerabilityPage.mergeReason">操作理由</span><textarea id="vulnerability-merge-reason" required maxlength="4000" rows="4"></textarea></label>
+                    <p id="vulnerability-merge-error" role="alert"></p>
+                </div>
+                <footer class="modal-footer"><button type="button" class="btn-secondary" onclick="closeAppModal('vulnerability-merge-modal')" data-i18n="common.cancel">取消</button><button type="submit" id="vulnerability-merge-save" class="btn-primary" data-i18n="common.confirm">确认</button></footer>
+            </form>
+        </div>
+    </div>
     <div id="vulnerability-retest-modal" class="modal">
         <div class="modal-content" style="max-width: 720px;">
             <div class="modal-header">
@@ -7055,7 +7106,8 @@
     <script src="/static/js/skills.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/fact-graph.js"></script>
     <script src="/static/js/projects.js?v=20260819-1-pagination-20261027"></script>
-    <script src="/static/js/vulnerability.js?v=20261030-format-download"></script>
+    <script src="/static/js/vulnerability.js?v=20261113-aligned-overview"></script>
+    <script src="/static/js/vulnerability-workspace.js?v=20261113-compact-rows"></script>
     <script src="/static/js/vulnerability-download.js?v=20261030-2"></script>
     <script src="/static/js/webshell.js?v=20261011-token-usage"></script>
     <script src="/static/js/chat-files.js?v=20261027-pagination-custom-select"></script>

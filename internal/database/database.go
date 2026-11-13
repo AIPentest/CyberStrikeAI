@@ -212,6 +212,9 @@ func (db *DB) initTables() error {
 	if err := db.migrateVulnerabilitiesConversationFK(); err != nil {
 		return fmt.Errorf("迁移漏洞会话外键失败: %w", err)
 	}
+	if err := db.backfillVulnerabilityTargets(); err != nil {
+		return fmt.Errorf("回填漏洞目标失败: %w", err)
+	}
 	if err := db.BackfillModelTokenUsageFromProcessDetails(); err != nil {
 		return fmt.Errorf("回填模型Token用量失败: %w", err)
 	}
