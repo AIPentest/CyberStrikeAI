@@ -3514,6 +3514,12 @@ html[data-theme="dark"] .sidebar-content:hover::-webkit-scrollbar-thumb:hover {
     scrollbar-color: color-mix(in srgb, var(--text-muted) 55%, transparent) transparent;
 }
 
+/* 贴底时由滚动控制器定位；浏览历史时保留浏览器的锚定。 */
+#chat-messages.is-following-latest,
+#chat-messages .progress-timeline.is-following-latest {
+    overflow-anchor: none;
+}
+
 .chat-messages::-webkit-scrollbar {
     width: 4px;
     height: 4px;
@@ -7948,6 +7954,11 @@ html[data-theme="dark"] .login-card .login-submit:disabled {
 .progress-timeline .timeline-item {
     content-visibility: auto;
     contain-intrinsic-size: auto 72px;
+}
+
+/* 跟随中的时间线使用实际高度，避免滚到底后才展开估算高度并把最新内容推出视口。 */
+#chat-messages .progress-timeline.has-latest-follow > .timeline-item {
+    content-visibility: visible;
 }
 
 .timeline-live-pruned-marker {
