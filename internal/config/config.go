@@ -728,7 +728,12 @@ type OpenAIConfig struct {
 	// Headers 追加或覆盖发给模型网关的 HTTP 请求头，值支持 ${ENV_VAR} 展开。
 	// 用于兼容要求私有鉴权头、版本头或组织头的第三方 OpenAI 兼容供应商。
 	Headers map[string]string `yaml:"headers,omitempty" json:"headers,omitempty"`
-	// Reasoning 控制 Agent ChatModel 的 thinking / reasoning_effort / output_config 等（单/多代理路径生效）。
+	// ContextWindow 是模型原生上下文窗口（token）；0 表示未知。用于校验/压缩 max_total_tokens。
+	ContextWindow int `yaml:"context_window,omitempty" json:"context_window,omitempty"`
+	// ContextProfile selects auto, economy, custom or local; local_auto records
+	// a local backend identified through the model metadata probe.
+	ContextProfile string `yaml:"context_profile,omitempty" json:"context_profile,omitempty"`
+	// Reasoning 控制 Agent ChatModel 的 thinking / reasoning_effort / output_config 等（Agent 单/多代理路径生效）。
 	Reasoning OpenAIReasoningConfig `yaml:"reasoning,omitempty" json:"reasoning,omitempty"`
 }
 
@@ -748,6 +753,8 @@ type AIChannelConfig struct {
 	MaxTotalTokens      int                   `yaml:"max_total_tokens,omitempty" json:"max_total_tokens,omitempty"`
 	MaxCompletionTokens int                   `yaml:"max_completion_tokens,omitempty" json:"max_completion_tokens,omitempty"`
 	Headers             map[string]string     `yaml:"headers,omitempty" json:"headers,omitempty"`
+	ContextWindow       int                   `yaml:"context_window,omitempty" json:"context_window,omitempty"`
+	ContextProfile      string                `yaml:"context_profile,omitempty" json:"context_profile,omitempty"`
 	Reasoning           OpenAIReasoningConfig `yaml:"reasoning,omitempty" json:"reasoning,omitempty"`
 }
 
@@ -764,6 +771,8 @@ func (c AIChannelConfig) ToOpenAIConfig() OpenAIConfig {
 		MaxTotalTokens:      c.MaxTotalTokens,
 		MaxCompletionTokens: c.MaxCompletionTokens,
 		Headers:             ExpandHeaderMap(c.Headers),
+		ContextWindow:       c.ContextWindow,
+		ContextProfile:      NormalizeContextProfile(c.ContextProfile),
 		Reasoning:           c.Reasoning,
 	}
 }
@@ -781,6 +790,8 @@ func AIChannelFromOpenAI(id, name string, oa OpenAIConfig) AIChannelConfig {
 		MaxTotalTokens:      oa.MaxTotalTokens,
 		MaxCompletionTokens: oa.MaxCompletionTokens,
 		Headers:             ExpandHeaderMap(oa.Headers),
+		ContextWindow:       oa.ContextWindow,
+		ContextProfile:      oa.ContextProfile,
 		Reasoning:           oa.Reasoning,
 	}
 }
@@ -862,10 +873,14 @@ func (c *Config) ApplyDefaultAIChannel() {
 }
 
 func (c OpenAIConfig) MaxCompletionTokensEffective() int {
-	if c.MaxCompletionTokens > 0 {
-		return c.MaxCompletionTokens
+	out := c.MaxCompletionTokens
+	if out <= 0 {
+		out = DefaultMaxCompletionTokens
 	}
-	return DefaultMaxCompletionTokens
+	if window := c.EffectiveContextWindow(); window > 0 && out > window/2 {
+		out = window / 2
+	}
+	return out
 }
 
 // IsDeepSeekEndpointOrModel reports whether the channel targets DeepSeek's
@@ -1561,6 +1576,11 @@ func Load(path string) (*Config, error) {
 	if err := validateOpenAIOutputLimits(cfg.OpenAI); err != nil {
 		return nil, err
 	}
+	for id, ch := range cfg.AI.Channels {
+		if err := ValidateContextSettings("ai.channels."+id, ch.ContextWindow, ch.ContextProfile); err != nil {
+			return nil, err
+		}
+	}
 	// 如果配置了工具目录，从目录加载工具配置
 	if cfg.Security.ToolsDir != "" {
 		inlineTools := append([]ToolConfig(nil), cfg.Security.Tools...)
@@ -1626,6 +1646,22 @@ func Load(path string) (*Config, error) {
 func validateOpenAIOutputLimits(openAI OpenAIConfig) error {
 	if openAI.MaxCompletionTokens < 0 {
 		return fmt.Errorf("openai.max_completion_tokens 必须为正数")
+	}
+	return ValidateContextSettings("openai", openAI.ContextWindow, openAI.ContextProfile)
+}
+
+// ValidateContextSettings 校验主通道与 ai.channels 共用的上下文配置。
+func ValidateContextSettings(prefix string, window int, profile string) error {
+	prefix = strings.TrimSpace(prefix)
+	if prefix == "" {
+		prefix = "openai"
+	}
+	if window < 0 {
+		return fmt.Errorf("%s.context_window 不能为负数", prefix)
+	}
+	if raw := strings.TrimSpace(profile); raw != "" &&
+		!strings.EqualFold(raw, "auto") && NormalizeContextProfile(raw) == "" {
+		return fmt.Errorf("%s.context_profile 只支持 auto、economy、custom、local 或 local_auto", prefix)
 	}
 	return nil
 }

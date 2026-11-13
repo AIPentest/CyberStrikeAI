@@ -9,18 +9,19 @@ import (
 const ProtocolVersion = 1
 
 type Model struct {
-	Provider      string            `json:"provider"`
-	API           string            `json:"api,omitempty"`
-	ID            string            `json:"id"`
-	BaseURL       string            `json:"baseUrl"`
-	APIKey        string            `json:"apiKey"`
-	Headers       map[string]string `json:"headers,omitempty"`
-	ContextWindow int               `json:"contextWindow"`
-	MaxTokens     int               `json:"maxTokens"`
-	Thinking      string            `json:"thinking,omitempty"`
-	ExtraFields   map[string]any    `json:"extraFields,omitempty"`
-	Compat        map[string]any    `json:"compat,omitempty"`
-	InputBudget   int               `json:"inputBudget,omitempty"`
+	Provider        string            `json:"provider"`
+	API             string            `json:"api,omitempty"`
+	ID              string            `json:"id"`
+	BaseURL         string            `json:"baseUrl"`
+	APIKey          string            `json:"apiKey"`
+	Headers         map[string]string `json:"headers,omitempty"`
+	ContextWindow   int               `json:"contextWindow"`
+	MaxTokens       int               `json:"maxTokens"`
+	Thinking        string            `json:"thinking,omitempty"`
+	ExtraFields     map[string]any    `json:"extraFields,omitempty"`
+	Compat          map[string]any    `json:"compat,omitempty"`
+	InputBudget     int               `json:"inputBudget,omitempty"`
+	CompactToolJSON bool              `json:"compactToolJSON,omitempty"`
 }
 
 type Tool struct {

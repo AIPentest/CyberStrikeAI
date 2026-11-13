@@ -3766,6 +3766,15 @@
                                                                 <input type="number" id="openai-max-completion-tokens" data-i18n="settingsBasic.maxCompletionTokensPlaceholder" data-i18n-attr="placeholder" placeholder="16384" min="1" step="256" />
                                                                 <small class="form-hint" data-i18n="settingsBasic.maxCompletionTokensHint">单次模型回复的输出上限，默认 16384</small>
                                                             </div>
+                                                            <div class="form-group">
+                                                                <label for="openai-context-window"><span data-i18n="settingsBasic.contextWindow">模型上下文窗口（Token）</span></label>
+                                                                <div class="model-pick-row">
+                                                                    <input type="number" id="openai-context-window" data-i18n="settingsBasic.contextWindowPlaceholder" data-i18n-attr="placeholder" placeholder="131072" min="0" step="1024" />
+                                                                    <a href="javascript:void(0)" id="detect-context-btn" class="model-pick-fetch-link" onclick="detectAIContext()" data-i18n="settingsBasic.detectContext">自动检测</a>
+                                                                </div>
+                                                                <small class="form-hint" data-i18n="settingsBasic.contextWindowHint">模型原生窗口；用于校验并收紧预算。本地模型请按服务端 num_ctx/ctx-size 填写。</small>
+                                                                <span id="detect-context-result" class="form-inline-result"></span>
+                                                            </div>
                                                         </div>
                                                     </section>
 
@@ -7034,7 +7043,7 @@
     <script src="/static/js/hitl.js?v=20260819-1-pagination-20261027"></script>
     <script src="/static/js/tool-guard.js?v=20261010-conflict"></script>
     <script src="/static/js/token-usage.js?v=20261012-token-analytics"></script>
-    <script src="/static/js/settings.js?v=20261011-token-settings-pagination-20261027"></script>
+    <script src="/static/js/settings.js?v=20261113-auto-context"></script>
     <script src="/static/js/audit-datetime-picker.js"></script>
     <script src="/static/js/audit.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/storage.js"></script>

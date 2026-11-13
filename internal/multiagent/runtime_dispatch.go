@@ -30,6 +30,9 @@ func RunSingleAgent(
 		if err := appCfg.AgentRuntime.Validate(); err != nil {
 			return nil, err
 		}
+		copyConfig := *appCfg
+		copyConfig.MultiAgent.Runtime = config.EffectiveRuntimeForChannel(appCfg.MultiAgent.Runtime, appCfg.OpenAI)
+		appCfg = &copyConfig
 		return runPiSingle(ctx, appCfg, ag, db, logger, conversationID, projectID, userMessage, history, roleTools, progress, reasoningClient, systemPromptExtra)
 	}
 	return nil, fmt.Errorf("agent configuration is nil")
@@ -56,6 +59,9 @@ func RunMultiAgent(
 		if err := appCfg.AgentRuntime.Validate(); err != nil {
 			return nil, err
 		}
+		copyConfig := *appCfg
+		copyConfig.MultiAgent.Runtime = config.EffectiveRuntimeForChannel(appCfg.MultiAgent.Runtime, appCfg.OpenAI)
+		appCfg = &copyConfig
 		return runPiMulti(ctx, appCfg, ma, ag, db, logger, conversationID, projectID, userMessage, history, roleTools, progress, agentsMarkdownDir, orchestrationOverride, reasoningClient, systemPromptExtra)
 	}
 	return nil, fmt.Errorf("agent configuration is nil")

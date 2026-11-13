@@ -30,19 +30,25 @@ func piModelConfig(oa config.OpenAIConfig, intent *reasoning.ClientIntent, conve
 		}
 		headers[key] = strings.ReplaceAll(value, "%session_id%", conversationID)
 	}
-	budget := oa.MaxTotalTokens
-	if budget <= 0 {
-		budget = oa.MaxCompletionTokensEffective()
+	budget := oa.EffectiveMaxTotalTokens()
+	window := oa.EffectiveContextWindow()
+	if window <= 0 {
+		window = budget + oa.MaxCompletionTokensEffective()
 	}
-	window := budget + oa.MaxCompletionTokensEffective()
 	extra := reasoning.ProviderExtraFields(&oa, intent)
 	if api == "openai-responses" {
 		extra = oa.Reasoning.ExtraRequestFields
 	}
 	compat := map[string]any{}
-	if oa.Reasoning.ProfileEffective() == "deepseek_compat" || (oa.Reasoning.ProfileEffective() == "auto" && oa.IsDeepSeekEndpointOrModel()) {
+	if oa.IsLocalContextProfile() {
+		compat["maxTokensField"] = "max_tokens"
+		compat["supportsStore"] = false
+	}
+	profile := oa.Reasoning.ProfileEffective()
+	if api == "openai-completions" && (profile == "deepseek" || profile == "deepseek_compat" || (profile == "auto" && oa.IsDeepSeekEndpointOrModel())) {
 		compat["thinkingFormat"] = "deepseek"
 		compat["requiresReasoningContentOnAssistantMessages"] = true
+		compat["maxTokensField"] = "max_tokens"
 	}
-	return agentruntime.Model{Provider: provider, API: api, ID: oa.Model, BaseURL: base, APIKey: oa.APIKey, Headers: headers, ContextWindow: window, InputBudget: budget, MaxTokens: oa.MaxCompletionTokensEffective(), Thinking: thinking, ExtraFields: extra, Compat: compat}
+	return agentruntime.Model{Provider: provider, API: api, ID: oa.Model, BaseURL: base, APIKey: oa.APIKey, Headers: headers, ContextWindow: window, InputBudget: budget, MaxTokens: oa.MaxCompletionTokensEffective(), Thinking: thinking, ExtraFields: extra, Compat: compat, CompactToolJSON: oa.IsEconomyContextProfile()}
 }

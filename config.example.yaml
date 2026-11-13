@@ -120,6 +120,8 @@ ai:
       # HITL 审计仅在未显式配置 provider/base_url/api_key 时继承主渠道 headers；
       # 独立审计身份如需请求头，请在 hitl.audit_model.headers 中单独配置。
       # 空 headers 与未配置等价；所有自定义头值在设置接口中均按敏感值脱敏。
+      context_window: 0 # 0=未知；保存通道时按服务元数据自动检测
+      context_profile: auto # 默认自动优化；识别本地服务后保存为 local_auto；custom 可使用手动运行时参数
       # Pi 路径模型推理：DeepSeek/OpenAI 为 thinking / reasoning_effort；Claude 4.6+ 为 adaptive + output_config.effort（仅显式配置 effort 时下发）；3.7 为 enabled+budget_tokens:10000（文档示例），effort 不映射，自定义预算用 extra_request_fields
       reasoning:
         mode: on # auto | on | off；off：OpenAI/Claude 不附加推理字段，DeepSeek 发送 thinking.type=disabled（其默认开启思考）
