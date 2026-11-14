@@ -129,6 +129,8 @@ ai:
         allow_client_reasoning: true # false 时忽略对话请求体 reasoning，仅以下方为准
         profile: openai_compat # auto | deepseek_compat | openai_compat | output_config_effort
         # extra_request_fields: {} # 可选：管理员自定义根级 JSON 片段（高级）
+        # 仅当 Chat Completions 网关明确拒绝 store 字段时，设置 {store: null} 省略该字段。
+        # 未配置时保留 Pi 默认行为；store: false/true 仍原样发送。
     # qwen-plus:
     #   name: Qwen Plus Fallback
     #   provider: openai_compatible
