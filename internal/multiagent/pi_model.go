@@ -40,6 +40,13 @@ func piModelConfig(oa config.OpenAIConfig, intent *reasoning.ClientIntent, conve
 		extra = oa.Reasoning.ExtraRequestFields
 	}
 	compat := map[string]any{}
+	// Omission is opt-in: removing an explicit store:false globally could
+	// change retention behavior on otherwise working compatible gateways.
+	// ProviderExtraFields returns a copy, so this cannot mutate channel config.
+	if value, exists := extra["store"]; api == "openai-completions" && exists && value == nil {
+		compat["supportsStore"] = false
+		delete(extra, "store")
+	}
 	if oa.IsLocalContextProfile() {
 		compat["maxTokensField"] = "max_tokens"
 		compat["supportsStore"] = false
