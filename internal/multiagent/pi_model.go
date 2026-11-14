@@ -4,6 +4,7 @@ import (
 	"cyberstrike-ai/internal/agentruntime"
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/reasoning"
+	"net/url"
 	"strings"
 )
 
@@ -40,6 +41,15 @@ func piModelConfig(oa config.OpenAIConfig, intent *reasoning.ClientIntent, conve
 		extra = oa.Reasoning.ExtraRequestFields
 	}
 	compat := map[string]any{}
+	if api == "openai-completions" {
+		// Pi assumes unknown gateways support OpenAI's optional storage field.
+		// Strict compatible providers may reject even store:false. Keep the
+		// explicit opt-out on OpenAI itself, but omit it on other endpoints.
+		endpoint, err := url.Parse(base)
+		if err != nil || !strings.EqualFold(endpoint.Hostname(), "api.openai.com") {
+			compat["supportsStore"] = false
+		}
+	}
 	if oa.IsLocalContextProfile() {
 		compat["maxTokensField"] = "max_tokens"
 		compat["supportsStore"] = false
