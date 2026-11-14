@@ -152,3 +152,39 @@ func TestDecideJevPolicyChoiceRejectsEvenIfPentest(t *testing.T) {
 		t.Fatalf("comment=%s", comment)
 	}
 }
+
+func TestDecideJevRejectsEmptyAnswers(t *testing.T) {
+	dec, comment := DecideJev(&typesafe.Result{Answers: map[string]map[string]any{}})
+	if dec != "reject" {
+		t.Fatalf("decision=%s comment=%s", dec, comment)
+	}
+	if !strings.Contains(comment, "裁决不完整") {
+		t.Fatalf("comment=%s", comment)
+	}
+}
+
+func TestDecideJevRejectsPartialAnswers(t *testing.T) {
+	dec, comment := DecideJev(&typesafe.Result{Answers: map[string]map[string]any{
+		jevQAvailability: {"noul": 0.02},
+	}})
+	if dec != "reject" {
+		t.Fatalf("decision=%s comment=%s", dec, comment)
+	}
+	if !strings.Contains(comment, "裁决不完整") {
+		t.Fatalf("comment=%s", comment)
+	}
+}
+
+func TestDecideJevRejectsMissingNoulValue(t *testing.T) {
+	dec, comment := DecideJev(&typesafe.Result{Answers: map[string]map[string]any{
+		jevQAvailability: {},
+		jevQDataLoss:     {"noul": 0.02},
+		jevQCredentials:  {"noul": 0.02},
+		jevQConfig:       {"noul": 0.02},
+		jevQPentest:      {"noul": 0.9},
+		jevQDecision:     {"choice": "approve", "confidence": 0.95},
+	}})
+	if dec != "reject" {
+		t.Fatalf("decision=%s comment=%s", dec, comment)
+	}
+}

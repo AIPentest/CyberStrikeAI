@@ -138,6 +138,11 @@ func DecideJev(result *typesafe.Result) (decision, comment string) {
 	if result == nil {
 		return "reject", "audit agent: TypeSafe 无有效响应，保守拒绝"
 	}
+	// An empty or partial answer set means the evaluation did not complete. Keep this
+	// check here as well so a result built outside SystemOne cannot be approved by default.
+	if err := result.Validate(JevAuditQuestions("")); err != nil {
+		return "reject", "audit agent: TypeSafe 裁决不完整，保守拒绝"
+	}
 	availability := result.Noul(jevQAvailability)
 	dataLoss := result.Noul(jevQDataLoss)
 	credentials := result.Noul(jevQCredentials)
