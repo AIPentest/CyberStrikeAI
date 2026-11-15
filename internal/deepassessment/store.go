@@ -57,6 +57,12 @@ func (s *Store) Get(id string) (*Task, error) {
 
 // State and lifecycle events commit together, before any dependent run starts.
 func (s *Store) Change(id, step, kind, message string, fn func(*Task) error) error {
+	return s.change(id, step, kind, message, nil, fn)
+}
+func (s *Store) ChangeAtVersion(id, step, kind, message string, version int64, fn func(*Task) error) error {
+	return s.change(id, step, kind, message, &version, fn)
+}
+func (s *Store) change(id, step, kind, message string, version *int64, fn func(*Task) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	tx, err := s.DB.Begin()
@@ -64,6 +70,15 @@ func (s *Store) Change(id, step, kind, message string, fn func(*Task) error) err
 		return err
 	}
 	defer tx.Rollback()
+	if version != nil {
+		var current int64
+		if err = tx.QueryRow("SELECT COALESCE((SELECT version FROM deep_assessment_changes WHERE task_id=?),0)", id).Scan(&current); err != nil {
+			return err
+		}
+		if current != *version {
+			return ErrConflict
+		}
+	}
 	var b string
 	if err = tx.QueryRow(`SELECT payload FROM deep_assessments WHERE id=?`, id).Scan(&b); err != nil {
 		return err

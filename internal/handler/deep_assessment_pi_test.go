@@ -31,6 +31,7 @@ func TestDeepAssessmentNativePiPlanSegmentsEvidenceAndReview(t *testing.T) {
 		t.Skip("build Pi runtime to run SDK integration")
 	}
 	var toolRuns atomic.Int32
+	var plannerRuns atomic.Int32
 	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		var body struct {
 			Messages []struct {
@@ -54,6 +55,12 @@ func TestDeepAssessmentNativePiPlanSegmentsEvidenceAndReview(t *testing.T) {
 		}
 		current, _ := h.deepAssessments.Store.Get(task.ID)
 		if names["submit_plan"] {
+			plannerRuns.Add(1)
+			for _, m := range body.Messages {
+				if m.Role == "assistant" || m.Role == "tool" {
+					t.Error("fresh planner inherited an earlier transcript")
+				}
+			}
 			steps := []map[string]any{}
 			if len(current.Steps) == 0 {
 				steps = append(steps, map[string]any{"id": "one", "title": "Inspect fixture", "instruction": "Read the isolated fixture and save the execution receipt", "depends_on": []string{}})
@@ -88,6 +95,10 @@ func TestDeepAssessmentNativePiPlanSegmentsEvidenceAndReview(t *testing.T) {
 			deepAssessmentReply(w, "assessment_checkpoint", "checkpoint", map[string]any{"summary": "saved-checkpoint"}, "")
 			return
 		}
+		if !strings.Contains(combined, "original-fact") {
+			deepAssessmentReply(w, "assessment_fact", "fact", map[string]any{"confidence": "observed", "summary": "original-fact", "body": "fixture-evidence", "evidence": []string{receipt[1]}, "source_ids": []string{"goal"}}, "")
+			return
+		}
 		deepAssessmentReply(w, "assessment_result", "result", map[string]any{"status": "completed", "summary": "Verified fixture-evidence; no remaining gaps.", "evidence": []string{receipt[1]}}, "")
 	}))
 	defer model.Close()
@@ -119,7 +130,7 @@ func TestDeepAssessmentNativePiPlanSegmentsEvidenceAndReview(t *testing.T) {
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	if got.Status != "completed" || toolRuns.Load() != 1 || len(got.Steps) != 1 || got.Steps[0].Attempts != 3 || len(got.Steps[0].Conversations) != 1 || len(got.Steps[0].Evidence) != 1 {
+	if got.Status != "completed" || toolRuns.Load() != 1 || len(got.Steps) != 1 || got.Steps[0].Attempts != 4 || len(got.Steps[0].Conversations) != 1 || len(got.Steps[0].Evidence) != 1 {
 		if len(got.Steps) > 0 {
 			groups, _ := h.db.GetProcessDetailsByConversation(got.Steps[0].ConversationID)
 			for _, group := range groups {
@@ -135,6 +146,10 @@ func TestDeepAssessmentNativePiPlanSegmentsEvidenceAndReview(t *testing.T) {
 			t.Logf("%s: %s", event.Kind, event.Message)
 		}
 		t.Fatalf("native assessment lifecycle failed: %+v steps=%+v tools=%d", got, got.Steps, toolRuns.Load())
+	}
+	facts, factErr := h.deepAssessments.Store.Facts(task.ID, "observed", 0)
+	if factErr != nil || len(facts) != 1 || plannerRuns.Load() < 2 {
+		t.Fatalf("missing durable fact/fresh replanning: facts=%+v err=%v planners=%d", facts, factErr, plannerRuns.Load())
 	}
 	if len(got.Metrics) < 3 {
 		t.Fatal(fmt.Sprintf("missing planner/worker/reviewer telemetry: %+v", got.Metrics))

@@ -2,10 +2,14 @@
 (function () {
     'use strict';
     let chart = null, host = null, key = '', onSelect = null, observer = null, theme = '';
-    const colors = { goal: '#6366f1', step: '#3b82f6', observation: '#14b8a6', receipt: '#64748b', memory: '#a855f7', digest: '#d97706', guidance: '#0891b2' };
+    const colors = { fact:'#0d9488',finding:'#e11d48',domain:'#6366f1',subdomain:'#818cf8',ip:'#0891b2',service:'#2563eb',application:'#c026d3',endpoint:'#0d9488', goal: '#6366f1', step: '#3b82f6', observation: '#14b8a6', receipt: '#64748b', memory: '#a855f7', digest: '#d97706', guidance: '#0891b2' };
     function destroy() {
         observer?.disconnect(); observer = null;
         chart?.destroy(); chart = null; host = null; key = ''; theme = '';
+    }
+    function relationLabel(key) {
+        const path='deepAssessments.graphRelations.'+key,value=window.t?.(path);
+        return value && value!==path ? value : ({plans:'规划',depends_on:'依赖',informs:'派生',derives:'推导',produces:'产出',supports:'支持',reviews:'复核',executes:'执行',records:'记录',summarizes:'摘要',archives:'归档',contains:'包含',guides:'指导',exposes:'提供',associated_with:'关联',serves:'承载'})[key] || key;
     }
     function styles() {
         const css = getComputedStyle(document.documentElement);
@@ -17,7 +21,7 @@
             { selector: 'node[kind = "digest"]', style: { 'border-style': 'dashed' } },
             { selector: 'node[state = "running"]', style: { 'background-color': '#dbeafe', color: '#172033' } },
             { selector: 'node:selected', style: { 'border-width': 4, 'overlay-opacity': .08, 'overlay-color': '#3b82f6' } },
-            { selector: 'edge', style: { width: 1.5, 'line-color': '#94a3b8', 'target-arrow-color': '#94a3b8', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier' } },
+            { selector: 'edge', style: { width: 1.5, 'line-color': '#94a3b8', 'target-arrow-color': '#94a3b8', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', label: 'data(relationLabel)', 'font-size': 10, color: text, 'text-background-color': surface, 'text-background-opacity': .8 } },
             { selector: 'edge[relation = "supports"], edge[relation = "informs"]', style: { 'line-style': 'dashed' } },
         ];
     }
@@ -60,7 +64,7 @@
         const elements = nodes.map(node => ({ data: { id: node.id, kind: node.kind, state: node.state, label: label(node.kind) + '\n' + (Array.from(node.title).length > 28 ? Array.from(node.title).slice(0, 28).join('') + '…' : node.title), color: colors[node.kind] || colors.step } }));
         const ids = new Set(nodes.map(n => n.id));
         for (const edge of graph.edges || []) if (ids.has(edge.source) && ids.has(edge.target)) {
-            elements.push({ data: { id: 'edge:' + JSON.stringify([edge.source, edge.relation, edge.target]), ...edge } });
+            elements.push({ data: { id: 'edge:' + JSON.stringify([edge.source, edge.relation, edge.target]), ...edge, relationLabel: relationLabel(edge.relation) } });
         }
         if (!chart) {
             chart = window.cytoscape({ container: host, elements, style: styles(), layout: { name: 'preset' }, minZoom: .12, maxZoom: 2.2, wheelSensitivity: .25 });

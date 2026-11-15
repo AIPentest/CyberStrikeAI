@@ -13,10 +13,10 @@ const navOrder = [...template.slice(template.indexOf('<nav class="main-sidebar-n
 assert.equal(navOrder[navOrder.indexOf('chat') + 1], 'deep-assessments');
 const sample = id => ({ id, name: '隔离样例 ' + id, status: 'draft', revision: 0, objective: '检查本地夹具', scope: '仅本地', criteria: '引用真实证据', strategy: '', summary: '', question: '', concurrency: 2, remaining_seconds: 172800, token_budget: 2000000, tokens_used: 0, max_rounds: 512, rounds: 0, updated_at: new Date().toISOString(), steps: [], metrics: {}, auto_resume: true });
 async function fixture(t) {
- const state = { tasks: new Map(Array.from({ length: 24 }, (_, i) => ['t' + i, sample('t' + i)])), requests: [], errors: [] };
+ const state = { tasks: new Map(Array.from({ length: 24 }, (_, i) => ['t' + i, sample('t' + i)])), requests: [], errors: [], sharedAssets: [], linkedAssets: new Map() };
  const locale = JSON.stringify(JSON.parse(read('web/static/i18n/zh-CN.json'))).replaceAll('<', '\\u003c');
- const scripts = ['router', 'auth', 'deep-assessment-graph', 'deep-assessments'].map(x => `<script src="/static/js/${x}.js"></script>`).join('');
- const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${['style', 'mobile', 'deep-assessments'].map(x=>`<link rel="stylesheet" href="/static/css/${x}.css">`).join('')}</head><body><div class="container"><main class="main-layout"><section class="content-area">${region}<div class="page" id="page-chat"></div><div class="page" id="page-tasks"></div></section></main></div><script>window.t=k=>k.split('.').reduce((o,p)=>o&&o[p],${locale})||k;window.loadConversation=async id=>{window.visitedConversation=id};window.initializeChatUI=()=>{};window.refreshAppData=async()=>{};</script><script src="/static/vendor/cytoscape.min.js"></script>${scripts}<script>document.removeEventListener('DOMContentLoaded',initializeApp);saveAuth('fixture-token',new Date(Date.now()+3600000),{user:{id:'fixture',username:'fixture'},permissions:['assessments:read','assessments:write','assessments:delete','agent:execute','chat:read','chat:write','tasks:read'],scope:'own'});</script></body></html>`;
+ const scripts = ['router', 'auth', 'assessment-exploration-views','deep-assessment-graph', 'deep-assessments'].map(x => `<script src="/static/js/${x}.js"></script>`).join('');
+ const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${['style', 'mobile', 'deep-assessments'].map(x=>`<link rel="stylesheet" href="/static/css/${x}.css">`).join('')}</head><body><div class="container"><main class="main-layout"><section class="content-area">${region}<div class="page" id="page-chat"></div><div class="page" id="page-tasks"></div></section></main></div><script>window.t=k=>k.split('.').reduce((o,p)=>o&&o[p],${locale})||k;window.loadConversation=async id=>{window.visitedConversation=id};window.initializeChatUI=()=>{};window.refreshAppData=async()=>{};</script><script src="/static/vendor/cytoscape.min.js"></script>${scripts}<script>document.removeEventListener('DOMContentLoaded',initializeApp);saveAuth('fixture-token',new Date(Date.now()+3600000),{user:{id:'fixture',username:'fixture'},permissions:['assessments:read','assessments:write','assessments:delete','agent:execute','chat:read','chat:write','tasks:read','asset:read'],scope:'own'});</script></body></html>`;
  const server = http.createServer(async (req,res)=>{
   const url = new URL(req.url,'http://fixture');
   const send=(code,body)=>{res.statusCode=code;res.setHeader('Content-Type','application/json; charset=utf-8');res.end(JSON.stringify(body));};
@@ -36,6 +36,14 @@ async function fixture(t) {
   if(!match)return send(404,{error:'unhandled route'});
   const task=state.tasks.get(match[1]);if(!task)return send(404,{error:'missing task'});
   const graph=task.graph||{nodes:[{id:'goal',kind:'goal',state:task.status,title:task.name,body:task.objective,source:{}}],edges:[],total:0,folded:0,next_offset:0,has_more:false};
+  if(match[2]==='assets'){
+   if(req.method==='POST'){state.linkedAssets.set(task.id,body.asset_ids);return send(200,{saved:true});}
+   if(url.searchParams.get('asset_id')){const offset=Number(url.searchParams.get('offset')||0),rows=Array.from({length:51},(_,i)=>({id:'ep-'+i,method:'GET',path:'/endpoint/'+i,title:'fixture'}));return send(200,{endpoints:rows.slice(offset,offset+50),has_more:offset+50<rows.length,next_offset:offset+50});}
+   const assets=state.sharedAssets.filter(a=>url.searchParams.get('scope')==='all'||(state.linkedAssets.get(task.id)||[]).includes(a.id));
+   return send(200,{assets,nodes:assets.flatMap(a=>[{id:'domain:example.test',kind:'domain',title:'example.test',body:'',asset_ids:[a.id]},{id:'asset:'+a.id,kind:'service',title:a.host,body:JSON.stringify(a),asset_ids:[a.id]},{id:'endpoint:'+a.id,kind:'endpoint',title:'GET /fixture',body:'original endpoint',asset_ids:[a.id]}]),edges:assets.flatMap(a=>[{source:'domain:example.test',target:'asset:'+a.id,relation:'exposes'},{source:'asset:'+a.id,target:'endpoint:'+a.id,relation:'contains'}]),total:assets.length,next_offset:assets.length,has_more:false});
+  }
+  if(match[2]==='facts'){const facts=(task.facts||[]).filter(f=>!url.searchParams.get('confidence')||f.confidence===url.searchParams.get('confidence'));return send(200,{facts,next_offset:facts.length,has_more:false});}
+  if(match[2]?.startsWith('steps/'))return send(200,{step:task.steps.find(s=>s.id===match[2].slice(6))});
   if(match[2]==='graph')return send(200,graph);
   if(match[2]==='graph/node'){const node=graph.nodes.find(n=>n.id===url.searchParams.get('node_id'));if(!node)return send(404,{error:'missing node'});return send(200,{node,next_offset:node.body.length,has_more:false});}
   if(match[2]==='events')return send(200,{events:[]});
@@ -149,4 +157,58 @@ test('continuous assessment graph shows durable memories and keeps drawer contro
  await page.keyboard.press('Escape');await inspector.waitFor({state:'hidden'});
  assert.equal(state.requests.filter(r=>r.method==='POST').length,0);
  assert.deepEqual(state.errors,[]);
+});
+
+
+test('shared assets, intent priorities and observed facts stay linked across navigation',async t=>{
+ const {page,state}=await fixture(t);
+ state.sharedAssets=[{id:'shared-asset',host:'https://app.example.test',title:'<img src=x onerror="window.injected=1">'}];
+ const task=state.tasks.get('t0');task.steps=[{id:'inspect',title:'Inspect fixture intent',instruction:'Read fixture',priority:1,asset_ids:['shared-asset'],source_ids:['fact:inferred'],status:'completed',evidence:['receipt-own']}];
+ task.facts=[{id:'fact:observed',step_id:'inspect',confidence:'observed',summary:'Observed fixture',body:'Original <script>window.injected=1</script>',evidence:['receipt-own']},{id:'fact:inferred',step_id:'inspect',confidence:'inferred',summary:'Hypothesis',body:'Needs independent evidence',evidence:[]}];
+ await page.locator('[data-da-action="select"][data-id="t0"]').click();
+ await page.locator('[data-da-action="tab"][data-tab="assets"]').click();
+ await page.locator('[data-da-action="asset-all"]').click();
+ await page.locator('[data-da-action="asset-attach"]').click();
+ await page.waitForFunction(()=>document.querySelector('[data-da-action="asset-linked"]').getAttribute('aria-pressed')==='true');
+ assert.deepEqual(state.linkedAssets.get('t0'),['shared-asset']);
+ assert.ok(await page.locator('#da-asset-canvas canvas').count()>0);
+ await page.locator('#da-asset-select').selectOption('endpoint:shared-asset');
+ assert.match(await page.locator('#da-asset-detail').innerText(),/GET \/fixture/);
+ await page.reload();await page.locator('#da-asset-canvas canvas').first().waitFor();
+ await page.locator('#da-asset-select').selectOption('asset:shared-asset');
+ await page.locator('[data-da-action="asset-endpoints"]').click();
+ await page.waitForFunction(()=>document.querySelectorAll('.da-endpoint-list p').length===50);
+ await page.locator('[data-da-action="asset-endpoints-next"]').click();
+ await page.waitForFunction(()=>document.querySelectorAll('.da-endpoint-list p').length===1);
+ assert.match(await page.locator('.da-endpoint-list').innerText(),/endpoint\/50/);
+ await page.locator('[data-da-action="tab"][data-tab="plan"]').click();
+ await page.locator('.da-step summary').click();
+ assert.match(await page.locator('.da-step').innerText(),/优先级: 1/);
+ await page.locator('[data-da-action="intent-asset"]').click();
+ await page.waitForFunction(()=>location.hash.includes('tab=assets')&&location.hash.includes('asset_id=shared-asset'));
+ await page.locator('[data-da-action="asset-intents"]').click();
+ await page.waitForFunction(()=>location.hash.includes('tab=plan'));
+ await page.locator('#da-intent-status').waitFor();
+ assert.ok(state.requests.some(r=>r.query.step_asset==='shared-asset'));
+
+ await page.locator('#da-intent-status').selectOption('pending');
+ await page.waitForFunction(()=>location.hash.includes('tab=plan'));
+ assert.ok(state.requests.some(r=>r.query.step_order==='queue'&&r.query.step_status==='pending'));
+ await page.locator('[data-da-action="tab"][data-tab="facts"]').click();
+ await page.waitForFunction(()=>document.querySelectorAll('.da-finding').length===2);
+ assert.equal(await page.locator('.da-finding').count(),2);
+ await page.locator('[data-da-action="fact-filter"][data-confidence="inferred"]').click();
+ await page.waitForFunction(()=>document.querySelectorAll('.da-finding').length===1);
+ assert.match(await page.locator('.da-finding').innerText(),/推断待证/);
+ await page.locator('[data-da-action="fact-proof"]').click();
+ await page.waitForFunction(()=>location.hash.includes('tab=evidence')&&location.hash.includes('step_id=inspect'));
+ assert.match(await page.locator('.da-source-banner').innerText(),/Inspect fixture intent/);
+ await page.locator('[data-da-action="tab"][data-tab="assets"]').click();
+ await page.setViewportSize({width:390,height:844});
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ const box=await page.locator('#da-asset-canvas').boundingBox();assert.ok(box.height>=300);
+ const output='/tmp/csai-intents-ui';fs.mkdirSync(output,{recursive:true});await page.screenshot({path:output+'/shared-assets-mobile.png'});
+ assert.equal(await page.evaluate(()=>window.injected),undefined);
+ assert.deepEqual(state.errors,[]);
+ assert.equal(state.requests.filter(r=>r.method==='POST'&&!r.path.endsWith('/assets')).length,0);
 });

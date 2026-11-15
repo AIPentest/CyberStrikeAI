@@ -5,13 +5,15 @@ package deepassessment
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
 
 type Task struct {
-	ActiveSeconds int64 `json:"active_seconds"`
+	PlannedGraphVersion int64 `json:"planned_graph_version"`
+	ActiveSeconds       int64 `json:"active_seconds"`
 	// Legacy budget fields are decoded only to normalize old saved tasks.
 
 	Deadline         *time.Time                `json:"deadline,omitempty"`
@@ -50,6 +52,8 @@ type Task struct {
 }
 
 type Step struct {
+	AssetIDs        []string `json:"asset_ids,omitempty"`
+	Priority        int      `json:"priority,omitempty"`
 	Sources         []string `json:"source_ids,omitempty"`
 	Evidence        []string `json:"evidence,omitempty"`
 	LastProgress    string   `json:"last_progress,omitempty"`
@@ -145,6 +149,19 @@ func Active(status string) bool {
 	return status == "running" || status == "pausing" || status == "cancelling"
 }
 
+// Queue is independent of planner transcripts. Equal priorities keep insertion order.
+func (t *Task) Queue() []Step {
+	steps := append([]Step(nil), t.Steps...)
+	sort.SliceStable(steps, func(i, j int) bool { return stepPriority(steps[i]) < stepPriority(steps[j]) })
+	return steps
+}
+func stepPriority(s Step) int {
+	if s.Priority == 0 {
+		return 100
+	}
+	return s.Priority
+}
+
 // ApplyProposal only adds work or retires unstarted branches. It cannot rewrite
 // observations, active work, user criteria, or user intent.
 func ApplyProposal(t *Task, p Proposal) error {
@@ -168,7 +185,7 @@ func ApplyProposal(t *Task, p Proposal) error {
 				return fmt.Errorf("duplicate step ID: %s", s.ID)
 			}
 		}
-		if strings.TrimSpace(s.Title) == "" || len(s.Title) > 600 || strings.TrimSpace(s.Instruction) == "" || len(s.Instruction) > 16000 || len(s.DependsOn) > 16 || len(s.Sources) > 16 {
+		if strings.TrimSpace(s.Title) == "" || len(s.Title) > 600 || strings.TrimSpace(s.Instruction) == "" || len(s.Instruction) > 16000 || len(s.DependsOn) > 16 || len(s.Sources) > 16 || len(s.AssetIDs) > 32 || s.Priority < 0 || s.Priority > 1000 {
 			return fmt.Errorf("invalid step: %s", s.ID)
 		}
 		key := strings.Join(strings.Fields(strings.ToLower(s.Instruction)), " ")

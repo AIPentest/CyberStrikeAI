@@ -5279,7 +5279,7 @@
     "delete": "删除",
     "report": "下载报告",
     "overview": "概览",
-    "plan": "步骤清单",
+    "plan": "意图队列",
     "evidence": "证据回执",
     "activity": "运行记录",
     "quality": "上下文与用量",
@@ -5351,12 +5351,14 @@
     "graphMore": "继续读取原文",
     "graphKinds": {
       "goal": "目标",
-      "step": "探索步骤",
+      "step": "探索意图",
       "observation": "观察",
       "receipt": "执行回执",
       "memory": "Pi 摘要",
       "digest": "历史归档",
-      "guidance": "人工线索"
+      "guidance": "人工线索",
+      "fact": "事实",
+      "finding": "漏洞"
     },
     "graphStates": {
       "summary": "压缩摘要",
@@ -5372,7 +5374,12 @@
     "findingEvidence": "复现证据",
     "sourceStep": "来源步骤",
     "allSteps": "显示全部步骤与回执",
-    "sourceFinding": "关联漏洞"
+    "sourceFinding": "关联漏洞",
+    "assets": "资产图",
+    "facts": "事实",
+    "priority": "优先级",
+    "linkedAssets": "目标资产",
+    "intentSources": "来源节点"
   },
   "assessmentFindingLinks": {
     "source": "来源深度测评",

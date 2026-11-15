@@ -56,6 +56,8 @@ type Asset struct {
 }
 
 type AssetListFilter struct {
+	ID                 string
+	AssessmentID       string
 	Search             string
 	Status             string
 	Protocol           string
@@ -415,6 +417,10 @@ func (db *DB) upsertAssets(assets []*Asset, ownerUserID string, global bool, pro
 func assetWhere(filter AssetListFilter, access RBACListAccess) (string, []interface{}) {
 	query := " WHERE 1=1"
 	args := []interface{}{}
+	if filter.ID != "" {
+		query += " AND assets.id=?"
+		args = append(args, filter.ID)
+	}
 	if q := strings.TrimSpace(filter.Search); q != "" {
 		pattern := "%" + escapeAssetLike(strings.ToLower(q)) + "%"
 		query += ` AND (LOWER(assets.host) LIKE ? ESCAPE '\' OR LOWER(assets.ip) LIKE ? ESCAPE '\' OR LOWER(assets.domain) LIKE ? ESCAPE '\'
@@ -435,6 +441,10 @@ func assetWhere(filter AssetListFilter, access RBACListAccess) (string, []interf
 	if filter.ProjectID != "" {
 		query += " AND assets.project_id = ?"
 		args = append(args, filter.ProjectID)
+	}
+	if filter.AssessmentID != "" {
+		query += " AND EXISTS(SELECT 1 FROM deep_assessment_assets da WHERE da.asset_id=assets.id AND da.task_id=?)"
+		args = append(args, filter.AssessmentID)
 	}
 	if filter.Source != "" {
 		query += " AND LOWER(assets.source) = LOWER(?)"

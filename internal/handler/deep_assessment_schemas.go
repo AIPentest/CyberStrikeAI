@@ -13,7 +13,7 @@ func assessmentStrings() map[string]any {
 	return map[string]any{"type": "array", "items": assessmentString()}
 }
 func assessmentPlanSchema() map[string]any {
-	return assessmentObject(map[string]any{"strategy": assessmentString(), "summary": assessmentString(), "question": assessmentString(), "retire": assessmentStrings(), "steps": map[string]any{"type": "array", "maxItems": 8, "items": assessmentObject(map[string]any{"id": assessmentString(), "title": assessmentString(), "instruction": assessmentString(), "depends_on": assessmentStrings(), "source_ids": assessmentStrings()}, "id", "title", "instruction", "depends_on")}}, "strategy", "summary", "steps", "retire", "question")
+	return assessmentObject(map[string]any{"strategy": assessmentString(), "summary": assessmentString(), "question": assessmentString(), "retire": assessmentStrings(), "steps": map[string]any{"type": "array", "maxItems": 8, "items": assessmentObject(map[string]any{"id": assessmentString(), "title": assessmentString(), "instruction": assessmentString(), "depends_on": assessmentStrings(), "source_ids": assessmentStrings(), "asset_ids": assessmentStrings(), "priority": map[string]any{"type": "integer", "minimum": 1, "maximum": 1000}}, "id", "title", "instruction", "depends_on")}}, "strategy", "summary", "steps", "retire", "question")
 }
 func assessmentReviewSchema() map[string]any {
 	return assessmentObject(map[string]any{"complete": map[string]any{"type": "boolean"}, "summary": assessmentString(), "missing": assessmentString(), "evidence": assessmentStrings()}, "complete", "summary", "missing", "evidence")

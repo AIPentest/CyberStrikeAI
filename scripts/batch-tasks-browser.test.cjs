@@ -26,6 +26,9 @@ test('original batch task page loads, filters and paginates existing queues', as
 test('original creation and detail dialogs retain batch controls without automatically starting work', async t => {
     const { page, state } = await fixture(t);
     await page.locator('#page-tasks button[onclick="showBatchImportModal()"]').click();
+    // The existing modal focuses its initial field on the next animation frame.
+    // Wait for that frame before filling another field, especially in parallel CI.
+    await page.waitForFunction(() => document.activeElement === document.getElementById('batch-tasks-input'));
     await page.locator('#batch-tasks-input').fill('Read local fixture A\nRead local fixture B');
     await page.locator('#batch-queue-title').fill('Restored batch workflow');
     assert.equal(await page.locator('#batch-queue-execute-now').isChecked(), false);

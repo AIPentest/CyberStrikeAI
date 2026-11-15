@@ -953,3 +953,38 @@ CREATE TABLE IF NOT EXISTS vulnerability_assessment_sources (
  conversation_id TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_vulnerability_assessment_sources_task ON vulnerability_assessment_sources(assessment_id,step_id);
+
+CREATE TABLE IF NOT EXISTS deep_assessment_assets (
+ task_id TEXT NOT NULL REFERENCES deep_assessments(id) ON DELETE CASCADE,
+ asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+ PRIMARY KEY(task_id,asset_id)
+);
+CREATE TABLE IF NOT EXISTS deep_assessment_changes (
+ task_id TEXT PRIMARY KEY REFERENCES deep_assessments(id) ON DELETE CASCADE,
+ version INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS deep_assessment_asset_snapshots (
+ task_id TEXT NOT NULL REFERENCES deep_assessments(id) ON DELETE CASCADE,
+ step_id TEXT NOT NULL, asset_id TEXT NOT NULL, snapshot TEXT NOT NULL,
+ PRIMARY KEY(task_id,step_id,asset_id)
+);
+CREATE TABLE IF NOT EXISTS deep_assessment_facts (
+ id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES deep_assessments(id) ON DELETE CASCADE,
+ step_id TEXT NOT NULL, confidence TEXT NOT NULL CHECK(confidence IN ('observed','inferred')),
+ summary TEXT NOT NULL, body TEXT NOT NULL, evidence_json TEXT NOT NULL,
+ assets_json TEXT NOT NULL, sources_json TEXT NOT NULL, created_at DATETIME NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_assessment_facts_task ON deep_assessment_facts(task_id,created_at,id);
+CREATE TABLE IF NOT EXISTS asset_endpoints (
+ id TEXT PRIMARY KEY, asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+ method TEXT NOT NULL, path TEXT NOT NULL, title TEXT NOT NULL DEFAULT '',
+ first_seen_at DATETIME NOT NULL, last_seen_at DATETIME NOT NULL,
+ UNIQUE(asset_id,method,path)
+);
+CREATE TABLE IF NOT EXISTS deep_assessment_finding_reviews (
+ id TEXT PRIMARY KEY, vulnerability_id TEXT NOT NULL REFERENCES vulnerabilities(id) ON DELETE CASCADE,
+ task_id TEXT NOT NULL, step_id TEXT NOT NULL,
+ verdict TEXT NOT NULL CHECK(verdict IN ('reported','confirmed','refuted','inconclusive')),
+ reason TEXT NOT NULL, evidence_json TEXT NOT NULL, created_at DATETIME NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_assessment_finding_reviews ON deep_assessment_finding_reviews(vulnerability_id,created_at,id);

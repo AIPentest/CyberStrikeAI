@@ -133,13 +133,14 @@ func (e *Engine) Delete(id string) error {
 }
 
 type result struct {
-	kind, id string
-	proposal Proposal
-	outcome  Outcome
-	verdict  Verdict
-	err      error
-	guidance int
-	revision int64
+	changeVersion int64
+	kind, id      string
+	proposal      Proposal
+	outcome       Outcome
+	verdict       Verdict
+	err           error
+	guidance      int
+	revision      int64
 }
 
 func (e *Engine) run(parent context.Context, id string) {
@@ -185,6 +186,10 @@ func (e *Engine) run(parent context.Context, id string) {
 	defer ticker.Stop()
 	workers := map[string]bool{}
 	planning, reviewing, needPlan := false, false, true
+	lastChange, changeErr := e.Store.ChangeVersion(id)
+	if changeErr != nil {
+		return
+	}
 	noProgress := 0
 	waitForProgress := func(message string) {
 		_ = e.Store.Change(id, "", "waiting_progress", message, func(t *Task) error {
@@ -231,9 +236,20 @@ func (e *Engine) run(parent context.Context, id string) {
 		if ctx.Err() != nil || t.Status != "running" {
 			return
 		}
+		// A durable revision coalesces graph changes between ticks, including
+		// changes committed while a planner or worker is still running.
+		change, err := e.Store.ChangeVersion(id)
+		if err != nil {
+			stop("blocked", err.Error())
+			return
+		}
+		if change != lastChange {
+			lastChange = change
+			needPlan = true
+		}
 		// A worker completion makes dependent work runnable immediately, even
 		// while another worker or the planner is still waiting for a model.
-		for _, step := range t.Steps {
+		for _, step := range t.Queue() {
 			if len(workers) >= t.Concurrency {
 				break
 			}
@@ -349,7 +365,7 @@ func (e *Engine) run(parent context.Context, id string) {
 			needPlan = false
 			launch(func() result {
 				p, err := e.Runtime.Plan(ctx, snapshot)
-				return result{kind: "plan", proposal: p, err: err, guidance: len(snapshot.Guidance), revision: snapshot.Revision}
+				return result{kind: "plan", proposal: p, err: err, guidance: len(snapshot.Guidance), revision: snapshot.Revision, changeVersion: change}
 			})
 		}
 		if len(workers) == 0 && !planning && !reviewing && !needPlan {
@@ -377,7 +393,7 @@ func (e *Engine) run(parent context.Context, id string) {
 			reviewing = true
 			launch(func() result {
 				v, err := e.Runtime.Review(ctx, t)
-				return result{kind: "review", verdict: v, err: err, guidance: len(t.Guidance)}
+				return result{kind: "review", verdict: v, err: err, guidance: len(t.Guidance), changeVersion: change}
 			})
 		}
 		select {
@@ -411,11 +427,12 @@ func (e *Engine) run(parent context.Context, id string) {
 					stop("blocked", "规划失败: "+r.err.Error())
 					return
 				}
-				err = e.Store.Change(id, "", "plan_updated", r.proposal.Summary, func(current *Task) error {
+				err = e.Store.ChangeAtVersion(id, "", "plan_updated", r.proposal.Summary, r.changeVersion, func(current *Task) error {
 					if current.Status != "running" || len(current.Guidance) != r.guidance {
 						return ErrConflict
 					}
 					current.RetryCount = 0
+					current.PlannedGraphVersion = r.changeVersion
 					err := ApplyProposal(current, r.proposal)
 					if err != nil && current.Revision != r.revision {
 						return ErrConflict
@@ -444,12 +461,17 @@ func (e *Engine) run(parent context.Context, id string) {
 				if err != nil {
 					return
 				}
-				if len(current.Guidance) != r.guidance {
+				latestChange, err := e.Store.ChangeVersion(id)
+				if err != nil {
+					stop("blocked", err.Error())
+					return
+				}
+				if len(current.Guidance) != r.guidance || latestChange != r.changeVersion {
 					needPlan = true
 					continue
 				}
 				if AcceptVerdict(current, r.verdict) {
-					err = e.Store.Change(id, "", "completed", r.verdict.Summary, func(latest *Task) error {
+					err = e.Store.ChangeAtVersion(id, "", "completed", r.verdict.Summary, r.changeVersion, func(latest *Task) error {
 						if latest.Status != "running" || latest.Revision != current.Revision {
 							return ErrConflict
 						}
@@ -518,7 +540,15 @@ func (e *Engine) StartRecovery() {
 					return
 				}
 				t, err := e.Store.Get(row.ID)
-				if err != nil || (t.NextWake != nil && time.Now().Before(*t.NextWake)) {
+				if err != nil {
+					continue
+				}
+				changed := false
+				if t.Status == "waiting_progress" {
+					version, err := e.Store.ChangeVersion(t.ID)
+					changed = err == nil && version > t.PlannedGraphVersion
+				}
+				if !changed && t.NextWake != nil && time.Now().Before(*t.NextWake) {
 					continue
 				}
 				if err = e.Start(t.ID, t.ExecutorID, t.Revision); err != nil && !errors.Is(err, ErrConflict) && !errors.Is(err, ErrBusy) {

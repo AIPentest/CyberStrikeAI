@@ -67,7 +67,12 @@ func syncGraph(tx *sql.Tx, t *Task, step, kind, message string, eventID int64) e
 		}
 	}
 	for _, st := range t.Steps {
-		source, _ := json.Marshal(map[string]any{"conversation_id": st.ConversationID, "evidence": st.Evidence, "depends_on": st.DependsOn, "source_ids": st.Sources})
+		source, _ := json.Marshal(map[string]any{"conversation_id": st.ConversationID, "evidence": st.Evidence, "depends_on": st.DependsOn, "source_ids": st.Sources, "asset_ids": st.AssetIDs, "priority": stepPriority(st)})
+		for _, asset := range st.AssetIDs {
+			if _, err := tx.Exec("INSERT OR IGNORE INTO deep_assessment_assets(task_id,asset_id) SELECT ?,id FROM assets WHERE id=?", t.ID, asset); err != nil {
+				return err
+			}
+		}
 		if err := graphNode(tx, t.ID, Node{ID: stepNode(st.ID), StepID: st.ID, Kind: "step", State: st.Status, Title: st.Title, Body: st.Summary + "\n\nInstruction: " + st.Instruction, Source: source, Round: t.Rounds}); err != nil {
 			return err
 		}
@@ -301,6 +306,10 @@ func hotGraph(nodes []Node, edges []Edge) map[string]bool {
 }
 
 func (s *Store) Graph(id, scope string, limit, offset int) (Graph, error) {
+	return s.GraphVisible(id, scope, limit, offset, nil)
+}
+
+func (s *Store) GraphVisible(id, scope string, limit, offset int, allow func(Node) bool) (Graph, error) {
 	if limit < 1 || limit > 200 {
 		limit = 80
 	}
@@ -313,6 +322,24 @@ func (s *Store) Graph(id, scope string, limit, offset int) (Graph, error) {
 	nodes, edges, err := readGraph(s.DB, id)
 	if err != nil {
 		return Graph{}, err
+	}
+	if allow != nil {
+		kept := []Node{}
+		ids := map[string]bool{}
+		for _, n := range nodes {
+			if allow(n) {
+				kept = append(kept, n)
+				ids[n.ID] = true
+			}
+		}
+		nodes = kept
+		keptEdges := []Edge{}
+		for _, edge := range edges {
+			if ids[edge.Source] && ids[edge.Target] {
+				keptEdges = append(keptEdges, edge)
+			}
+		}
+		edges = keptEdges
 	}
 	hot := hotGraph(nodes, edges)
 	byID := map[string]Node{}
@@ -480,7 +507,7 @@ func (s *Store) SearchNodes(task, query, step string, offset int) ([]Node, error
 	if offset < 0 {
 		return nil, fmt.Errorf("invalid offset")
 	}
-	rows, err := s.DB.Query(`SELECT id,step_id,kind,state,title,substr(body,max(1,instr(lower(body),lower(?))-200),1600),source,updated_round,updated_at FROM deep_assessment_nodes WHERE task_id=? AND (?='' OR step_id=?) AND (instr(lower(title),lower(?))>0 OR instr(lower(body),lower(?))>0) ORDER BY updated_at DESC,id LIMIT 20 OFFSET ?`, query, task, step, step, query, query, offset)
+	rows, err := s.DB.Query(`SELECT id,step_id,kind,state,title,substr(body,max(1,instr(lower(body),lower(?))-200),1600),source,updated_round,updated_at FROM deep_assessment_nodes WHERE task_id=? AND kind<>'finding' AND (?='' OR step_id=?) AND (instr(lower(title),lower(?))>0 OR instr(lower(body),lower(?))>0) ORDER BY updated_at DESC,id LIMIT 20 OFFSET ?`, query, task, step, step, query, query, offset)
 	if err != nil {
 		return nil, err
 	}

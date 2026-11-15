@@ -234,15 +234,42 @@ func deepAssessmentView(c *gin.Context, t *deepassessment.Task) gin.H {
 	if offset < 0 {
 		offset = 0
 	}
-	total := len(t.Steps)
+	steps := t.Steps
+	counts := map[string]int{}
+	for _, step := range t.Steps {
+		counts[step.Status]++
+	}
+	queue := c.Query("step_order") == "queue"
+	if queue {
+		steps = []deepassessment.Step{}
+		for _, step := range t.Queue() {
+			if asset := c.Query("step_asset"); asset != "" {
+				found := false
+				for _, id := range step.AssetIDs {
+					found = found || id == asset
+				}
+				if !found {
+					continue
+				}
+			}
+			if c.Query("step_status") == "" || step.Status == c.Query("step_status") {
+				steps = append(steps, step)
+			}
+		}
+	}
+	total := len(steps)
 	offset = min(offset, total)
 	end := min(total, offset+limit)
 	view := *t
 	view.Steps = []deepassessment.Step{}
 	for i := offset; i < end; i++ {
-		view.Steps = append(view.Steps, t.Steps[total-1-i])
+		if queue {
+			view.Steps = append(view.Steps, steps[i])
+		} else {
+			view.Steps = append(view.Steps, steps[total-1-i])
+		}
 	}
-	return gin.H{"task": &view, "step_total": total, "step_next_offset": end, "step_has_more": end < total}
+	return gin.H{"task": &view, "step_total": total, "step_next_offset": end, "step_has_more": end < total, "intent_counts": counts}
 }
 
 func (h *AgentHandler) GetDeepAssessment(c *gin.Context) {
@@ -404,6 +431,19 @@ func (h *AgentHandler) DeepAssessmentReport(c *gin.Context) {
 	fmt.Fprintf(&b, "\n## 运行记录\n\n模式：持续执行\n\n累计规划：%d\n\n累计 Token：%d\n", t.Rounds, t.TokensUsed)
 	for _, s := range t.Steps {
 		fmt.Fprintf(&b, "\n## %s · %s [%s]\n\n%s\n\n前置：%s\n\n%s\n\n执行会话：%s\n\n证据回执：%s\n", s.ID, s.Title, s.Status, s.Instruction, strings.Join(s.DependsOn, ", "), s.Summary, s.ConversationID, strings.Join(s.Evidence, ", "))
+	}
+	for offset := 0; ; offset += 20 {
+		facts, err := h.deepAssessments.Store.Facts(t.ID, "", offset)
+		if err != nil {
+			deepAssessmentError(c, err)
+			return
+		}
+		for _, fact := range facts {
+			fmt.Fprintf(&b, "\n## 事实 %s · %s [%s]\n\n%s\n\n来源意图：%s\n\n原始回执：%s\n", fact.ID, fact.Summary, fact.Confidence, fact.Body, fact.StepID, strings.Join(fact.Evidence, ", "))
+		}
+		if len(facts) < 20 {
+			break
+		}
 	}
 	c.Header("Content-Disposition", `attachment; filename="task-`+t.ID+`.md"`)
 	c.Data(200, "text/markdown; charset=utf-8", []byte(b.String()))
