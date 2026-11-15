@@ -107,6 +107,12 @@ const server = http.createServer((req, res) => {
             w: r.width,
             h: r.height,
             bg: s.backgroundColor,
+            corners: [
+              s.borderTopLeftRadius,
+              s.borderTopRightRadius,
+              s.borderBottomRightRadius,
+              s.borderBottomLeftRadius,
+            ],
             overflow: b ? b.scrollWidth > b.clientWidth + 2 : false,
             footer: p
               .querySelector(
@@ -134,7 +140,8 @@ const server = http.createServer((req, res) => {
           Math.abs(info.x + info.w - width) > 2 ||
           Math.abs(info.h - height) > 2 ||
           info.footer > height + 1 ||
-          info.overflow
+          info.overflow ||
+          info.corners.some((radius) => radius !== "0px")
         )
           findings.push({ width, theme, ...info });
         if (

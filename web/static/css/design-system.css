@@ -93,7 +93,7 @@ html body [data-ui-surface="drawer"] > :is(.modal-content, .projects-modal-dialo
     padding: 0 !important;
     border: 0;
     border-inline-start: 1px solid var(--ui-border);
-    border-radius: var(--ui-radius-card) 0 0 var(--ui-radius-card) !important;
+    border-radius: 0 !important;
     display: flex;
     flex-direction: column;
     overflow: hidden !important;
@@ -101,9 +101,6 @@ html body [data-ui-surface="drawer"] > :is(.modal-content, .projects-modal-dialo
     color: var(--text-primary);
     box-shadow: var(--ui-panel-shadow);
     animation: app-panel-in .18s ease-out !important;
-}
-html[dir="rtl"] body [data-ui-surface="drawer"] > :is(.modal-content, .projects-modal-dialog, .c2-modal) {
-    border-radius: 0 var(--ui-radius-card) var(--ui-radius-card) 0 !important;
 }
 html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .vulnerability-inspector-header) {
     display: flex;
