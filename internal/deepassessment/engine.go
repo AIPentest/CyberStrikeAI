@@ -32,6 +32,15 @@ func (e *Engine) Start(id, executor string, revision int64) error {
 }
 
 func (e *Engine) start(id, executor string, revision int64, automatic bool) error {
+	return e.startWithReopen(id, executor, revision, automatic, false)
+}
+
+// Only an explicit user continuation may reopen a stopped assessment.
+func (e *Engine) ContinueStopped(id, executor string, revision int64) error {
+	return e.startWithReopen(id, executor, revision, false, true)
+}
+
+func (e *Engine) startWithReopen(id, executor string, revision int64, automatic, reopen bool) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.closed {
@@ -47,7 +56,7 @@ func (e *Engine) start(id, executor string, revision int64, automatic bool) erro
 	if err != nil {
 		return err
 	}
-	if current.Revision != revision || current.Archived || Active(current.Status) || current.Status == "completed" || current.Status == "cancelled" {
+	if current.Revision != revision || current.Archived || Active(current.Status) || current.Status == "completed" || current.Status == "cancelled" && !reopen || reopen && current.Status != "cancelled" {
 		return ErrConflict
 	}
 	if automatic && current.Status != "recovering" && current.Status != "waiting_retry" && current.Status != "waiting_progress" {
@@ -61,11 +70,17 @@ func (e *Engine) start(id, executor string, revision int64, automatic bool) erro
 	if err != nil {
 		return err
 	}
-	err = e.Store.Change(id, "", "started", "开始/继续任务", func(t *Task) error {
+	kind, message := "started", "开始/继续任务"
+	if reopen {
+		kind = "reopened"
+		message = "用户继续已停止的测评，保留原进度与会话。"
+	}
+	waitingForAnswer := false
+	err = e.Store.Change(id, "", kind, message, func(t *Task) error {
 		if t.Archived {
 			return fmt.Errorf("请先恢复归档，再开始任务")
 		}
-		if t.Revision != revision || Active(t.Status) || t.Status == "completed" || t.Status == "cancelled" {
+		if t.Revision != revision || Active(t.Status) || t.Status == "completed" || t.Status == "cancelled" && !reopen || reopen && t.Status != "cancelled" {
 			return ErrConflict
 		}
 		if automatic && t.Status != "recovering" && t.Status != "waiting_retry" && t.Status != "waiting_progress" {
@@ -77,6 +92,13 @@ func (e *Engine) start(id, executor string, revision int64, automatic bool) erro
 		repairedStep := false
 		for i := range t.Steps {
 			step := &t.Steps[i]
+			if reopen && step.Status == "reconciled" {
+				repairedStep = true
+				step.Status = "pending"
+				if step.UserPaused {
+					step.Status = "paused"
+				}
+			}
 			if step.Status == "uncertain" && resolved[step.ID] && !unknown[step.ID] {
 				step.Status = "pending"
 				if step.UserPaused {
@@ -91,6 +113,14 @@ func (e *Engine) start(id, executor string, revision int64, automatic bool) erro
 			}
 		}
 		if t.Question != "" {
+			if reopen {
+				t.Status = "waiting_input"
+				t.ExecutorID = executor
+				t.RestartPending = false
+				t.NextWake = nil
+				waitingForAnswer = true
+				return nil
+			}
 			return fmt.Errorf("answer the pending question before continuing")
 		}
 		if t.Status != "waiting_retry" && t.Status != "recovering" {
@@ -109,6 +139,9 @@ func (e *Engine) start(id, executor string, revision int64, automatic bool) erro
 	})
 	if err != nil {
 		return err
+	}
+	if waitingForAnswer {
+		return nil
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	e.active[id] = cancel

@@ -84,7 +84,8 @@ func deepAssessmentError(c *gin.Context, err error) {
 		code = 404
 	}
 	if errors.Is(err, deepassessment.ErrConflict) {
-		code = 409
+		c.JSON(409, gin.H{"error": "测评状态已更新，请刷新后重试。", "code": "task_changed"})
+		return
 	}
 	c.JSON(code, gin.H{"error": err.Error()})
 }
@@ -227,6 +228,14 @@ func (h *AgentHandler) ListDeepAssessments(c *gin.Context) {
 
 // Explicit paging keeps long-lived workspaces small without limiting stored work.
 func deepAssessmentView(c *gin.Context, t *deepassessment.Task) gin.H {
+	copy := *t
+	copy.ReviewCount = 0
+	for _, step := range t.Steps {
+		if step.Status == "uncertain" || step.Status == "cleanup_unconfirmed" {
+			copy.ReviewCount++
+		}
+	}
+	t = &copy
 	limit, _ := strconv.Atoi(c.Query("step_limit"))
 	offset, _ := strconv.Atoi(c.Query("step_offset"))
 	if limit <= 0 {
@@ -383,6 +392,19 @@ func (h *AgentHandler) ControlDeepAssessment(c *gin.Context) {
 		deepAssessmentError(c, err)
 		return
 	}
+	// Old clients used retry for the acknowledgement button. Keep those clicks
+	// compatible while treating them as review-only, even on stopped tasks.
+	if action == "retry" && (req.Reconciled || req.CleanupConfirmed) {
+		if step := t.Step(req.StepID); step != nil {
+			if step.Status == "uncertain" && req.Reconciled {
+				action = "reconcile"
+			}
+			if step.Status == "cleanup_unconfirmed" {
+				action = "reconcile"
+				req.Reconciled = req.Reconciled || req.CleanupConfirmed
+			}
+		}
+	}
 	if t.Archived && action != "restore" {
 		deepAssessmentError(c, fmt.Errorf("请先恢复归档，再操作测评"))
 		return
@@ -398,14 +420,22 @@ func (h *AgentHandler) ControlDeepAssessment(c *gin.Context) {
 			return
 		}
 	}
-	if action == "start" || action == "answer" || action == "guidance" {
+	if action == "start" || action == "continue-stopped" || action == "answer" || action == "guidance" {
+		if action == "continue-stopped" && !security.SessionHasPermission(c, "agent:execute") {
+			c.JSON(403, gin.H{"error": "缺少执行权限"})
+			return
+		}
 		t.ExecutorID = session.UserID
 		if _, err = h.deepAssessmentRuntime.principal(t); err != nil {
 			c.JSON(403, gin.H{"error": err.Error()})
 			return
 		}
 	}
-	if action == "retry" {
+	if action == "retry" || action == "reconcile" {
+		if action == "reconcile" && !req.Reconciled {
+			deepAssessmentError(c, fmt.Errorf("请确认已核对调用结果与执行资源状态"))
+			return
+		}
 		if step := t.Step(req.StepID); step != nil && step.Status == "uncertain" && !req.Reconciled {
 			deepAssessmentError(c, fmt.Errorf("请核对上次工具回执，并明确确认已处理结果不明的调用"))
 			return
@@ -415,7 +445,13 @@ func (h *AgentHandler) ControlDeepAssessment(c *gin.Context) {
 				deepAssessmentError(c, fmt.Errorf("请先确认上次执行资源已停止"))
 				return
 			}
+		}
+		if action == "reconcile" || t.Step(req.StepID) != nil && t.Step(req.StepID).Status == "cleanup_unconfirmed" {
 			for _, running := range h.tasks.GetActiveTasks() {
+				step := t.Step(req.StepID)
+				if step == nil {
+					break
+				}
 				if running.ConversationID == step.ConversationID {
 					deepAssessmentError(c, fmt.Errorf("原执行仍在清理，请先在工具监控中确认停止"))
 					return
@@ -436,10 +472,14 @@ func (h *AgentHandler) ControlDeepAssessment(c *gin.Context) {
 		err = h.deepAssessments.SetArchived(id, *req.Revision, action == "archive")
 	case "start":
 		err = h.deepAssessments.Start(id, session.UserID, *req.Revision)
+	case "continue-stopped":
+		err = h.deepAssessments.ContinueStopped(id, session.UserID, *req.Revision)
 	case "pause", "cancel":
 		err = h.deepAssessments.Stop(id, *req.Revision, action == "cancel")
 	case "retry":
 		err = h.deepAssessments.Store.RetryStep(id, req.StepID, *req.Revision, req.Reconciled || req.CleanupConfirmed)
+	case "reconcile":
+		err = h.deepAssessments.Store.ReconcileStep(id, req.StepID, *req.Revision, req.Reconciled)
 	case "budget":
 		c.JSON(410, gin.H{"error": "深度测评已改为持续执行，不再设置任务预算"})
 		return
@@ -485,6 +525,12 @@ func (h *AgentHandler) ControlDeepAssessment(c *gin.Context) {
 		h.deepAssessmentRuntime.steer(id, req.Message)
 	}
 	response := deepAssessmentView(c, t)
+	if action == "continue-stopped" && t.Status == "waiting_input" {
+		response["start_error"] = "测评已恢复，待答复：" + t.Question
+	}
+	if req.StepID != "" {
+		response["step"] = t.Step(req.StepID)
+	}
 	if action == "intent-guidance" {
 		delivered, deliveryErr := h.deepAssessmentRuntime.steerStep(id, req.StepID)
 		response["guidance_delivered"] = delivered

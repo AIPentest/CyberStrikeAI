@@ -80,5 +80,5 @@ func (h *AgentHandler) DeepAssessmentStep(c *gin.Context) {
 		deepAssessmentError(c, sql.ErrNoRows)
 		return
 	}
-	c.JSON(200, gin.H{"step": step})
+	c.JSON(200, gin.H{"step": step, "revision": task.Revision, "task_status": task.Status})
 }

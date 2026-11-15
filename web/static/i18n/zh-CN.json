@@ -5531,7 +5531,9 @@
         "retry_scheduled": "稍后重试模型",
         "review_gap": "验收仍有缺口",
         "shutdown": "保存进度并关闭",
-        "retry": "步骤已重新排队"
+        "retry": "步骤已重新排队",
+        "reconciled": "已确认核对",
+        "reopened": "继续已停止的测评"
       },
       "native_model": "模型处理中",
       "native_tool": "工具处理中",
@@ -5544,7 +5546,13 @@
       "via_archive": "经归档",
       "via_details": "经执行记录"
     },
-    "liveUpdates": "有更新，查看最新"
+    "liveUpdates": "有更新，查看最新",
+    "continueStopped": "继续测评",
+    "continueStoppedHint": "从原进度继续已停止的测评，保留已完成步骤和证据",
+    "closedReviewHint": "测评已结束。核对仅更新历史记录，不会启动测评；已停止的测评可通过“继续测评”恢复。",
+    "reviewSaved": "已记录核对，待核对列表已更新",
+    "conflict": "测评状态已更新，请刷新后重试。",
+    "stepChanged": "此步骤在核对期间发生了新的执行，请重新查看最新回执后确认。"
   },
   "assessmentFindingLinks": {
     "source": "来源深度测评",

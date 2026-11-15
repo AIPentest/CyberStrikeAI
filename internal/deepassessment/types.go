@@ -12,6 +12,8 @@ import (
 )
 
 type Task struct {
+	// Derived by list/detail projections; never used as an execution authority.
+	ReviewCount         int        `json:"review_count,omitempty"`
 	Archived            bool       `json:"archived"`
 	ArchivedAt          *time.Time `json:"archived_at,omitempty"`
 	PlannedGraphVersion int64      `json:"planned_graph_version"`

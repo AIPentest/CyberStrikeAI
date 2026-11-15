@@ -125,7 +125,7 @@ func (s *Store) change(id, step, kind, message string, version *int64, fn func(*
 
 func (s *Store) List(user, scope, status, query string, limit, offset int, archived ...bool) ([]*Task, error) {
 	showArchived := len(archived) > 0 && archived[0]
-	q := `SELECT json_remove(payload,'$.steps','$.guidance','$.scope','$.criteria','$.objective','$.strategy','$.question','$.metrics') FROM deep_assessments t WHERE COALESCE(json_extract(payload,'$.archived'),0)=?`
+	q := `SELECT json_set(json_remove(payload,'$.steps','$.guidance','$.scope','$.criteria','$.objective','$.strategy','$.question','$.metrics'),'$.review_count',(SELECT COUNT(*) FROM json_each(t.payload,'$.steps') st WHERE json_extract(st.value,'$.status') IN ('uncertain','cleanup_unconfirmed'))) FROM deep_assessments t WHERE COALESCE(json_extract(payload,'$.archived'),0)=?`
 	args := []any{showArchived}
 	if scope != database.RBACScopeAll {
 		assignment := `EXISTS(SELECT 1 FROM rbac_resource_assignments r WHERE r.user_id=? AND r.resource_type='deep_assessment' AND r.resource_id=t.id)`

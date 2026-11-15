@@ -5591,7 +5591,9 @@
         "retry_scheduled": "Model retry scheduled",
         "review_gap": "Acceptance gaps remain",
         "shutdown": "Saving progress and shutting down",
-        "retry": "Step requeued"
+        "retry": "Step requeued",
+        "reconciled": "Review acknowledged",
+        "reopened": "Stopped assessment continued"
       },
       "native_model": "Model processing",
       "native_tool": "Processing tool call",
@@ -5600,7 +5602,13 @@
       "native_idle": "Waiting for next turn",
       "lastNative": "Last activity"
     },
-    "liveUpdates": "Updates available — view latest"
+    "liveUpdates": "Updates available — view latest",
+    "continueStopped": "Continue assessment",
+    "continueStoppedHint": "Continue the stopped assessment from saved progress; keep completed steps and evidence",
+    "closedReviewHint": "This assessment has ended. Acknowledgement only updates its history and does not start work. Use Continue assessment to reopen a stopped assessment.",
+    "reviewSaved": "Review recorded; pending-review list updated",
+    "conflict": "The assessment changed. Refresh and try again.",
+    "stepChanged": "This step executed again during review. Check its latest receipts before confirming."
   },
   "assessmentFindingLinks": {
     "source": "Source assessment",

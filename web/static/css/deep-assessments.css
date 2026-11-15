@@ -361,3 +361,5 @@ body.da-drawer-open { overflow: hidden; }
 #da-workspace { position:relative; }
 #da-overview-updates { position:absolute; z-index:4; right:28px; bottom:62px; border-color:var(--accent-color); color:var(--accent-color); box-shadow:0 3px 12px #0002; }
 #da-overview-updates[hidden] { display:none; }
+
+.da-review-count { display:block; margin-top:4px; color:#b45309; font-size:11px; }

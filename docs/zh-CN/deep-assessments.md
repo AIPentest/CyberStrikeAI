@@ -126,6 +126,10 @@ Pi `SessionManager` 管理会话上下文、原生压缩、工具搜索、Skills
 
 点击「开始 / 继续」后自动规划并执行本测评的待办步骤；点击「暂停」后停止新派发，取消规划器与全部在执行的步骤，等待所管执行资源收尾后显示「已暂停」。自动重试、等待新进展和待恢复状态也可暂停；手动暂停后不会被后台恢复队列或服务重启重新启动。打开页面、查看详情和刷新均不会启动任务。
 
+已停止的测评提供独立的「继续测评」入口，保留已完成步骤、原 Pi 会话及证据；只有用户明确点击才会恢复。仍有结果不明或执行资源尚未确认停止的步骤时，先处理待核对项；仍有待答复问题时进入「待答复」，不派发工作。已完成的测评不能重新执行。
+
+「确认已核对」是独立的核对操作，已停止、已完成的测评也可保存。核对后该步骤从「待核对」筛选中移出，历史记录和原始回执保留，任务保持停止或完成状态。确认窗口打开期间若任务有其他更新，页面会重新读取版本；若该步骤已进入另一轮执行，则要求重新查看回执，避免核对到新的执行。
+
 1. 工具派发前提交调用意图，结果落库后才交还 Pi。
 2. 已确认回执关联原生助手条目与 tool-call ID。若回执已提交而 Pi 记录未写入就退出，恢复时补回已确认结果。
 3. 暂停与停止等待本地执行资源收尾，再从同任务、步骤、会话及工具的终态执行记录核对回执。取消信号本身不等于结果不明；确认已取消的调用保存为取消及错误回执，续跑时交回原 Pi 会话，不伪装为成功。旧版误标的记录在点击开始时同样自动核对。
@@ -147,7 +151,7 @@ Pi `SessionManager` 管理会话上下文、原生压缩、工具搜索、Skills
 | `GET / POST /api/deep-assessments` | 查询列表（`archived=true` 查看归档）/ 创建草稿 |
 | `GET / DELETE /api/deep-assessments/:id` | 详情 / 删除非活动测评 |
 | `GET /api/deep-assessments/:id?step_limit=50&step_offset=0&runtime=true` | 分页详情与运行概览；`step_order=queue&step_status=needs_review` 定位待核对步骤 |
-| `POST /api/deep-assessments/:id/control/:action` | start、pause、cancel、guidance、answer、retry、archive、restore，以及 intent-pause、intent-resume、intent-priority、intent-guidance |
+| `POST /api/deep-assessments/:id/control/:action` | start、continue-stopped、pause、cancel、guidance、answer、retry、reconcile、archive、restore，以及 intent-pause、intent-resume、intent-priority、intent-guidance |
 | `GET / POST /api/deep-assessments/:id/assets` | 查看共享/关联资产图，或关联资产；`asset_id` 查询服务端点 |
 | `GET /api/deep-assessments/:id/intents?status=&offset=0` | 优先级队列和状态计数 |
 | `GET /api/deep-assessments/:id/facts?confidence=&offset=0` | 分页读取观察/推断事实 |
@@ -160,7 +164,7 @@ Pi `SessionManager` 管理会话上下文、原生压缩、工具搜索、Skills
 | `GET /api/deep-assessments/:id/receipts?offset=0` | 工具回执 |
 | `GET /api/deep-assessments/:id/report` | 包含当前状态及缺口的阶段报告 |
 
-控制请求携带 `revision`；结果不明的步骤重试另需 `reconciled:true`，资源清理未确认另需 `cleanup_confirmed:true`。
+控制请求携带 `revision`。核对使用 `reconcile`，传 `step_id` 和 `reconciled:true`；资源清理未确认另需 `cleanup_confirmed:true`。兼容旧客户端通过 `retry` 提交核对，但不会自动开始执行。`continue-stopped` 仅用于用户明确继续已停止测评，另检查执行权限。
 
 单条意图操作另传 `step_id`；调整优先级传 `priority`（1–1000），定向补充传 `message`。响应的 `guidance_delivered` 表示是否已投递到当前 Pi 会话；未投递时已保存，后续继续生效。
 

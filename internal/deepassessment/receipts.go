@@ -11,6 +11,28 @@ import (
 )
 
 func (s *Store) RetryStep(id, step string, revision int64, reconciled bool) error {
+	return s.recoverStep(id, step, revision, reconciled, false)
+}
+
+// Reconciliation records the operator's acknowledgement. It is not a restart,
+// including when the assessment has already been stopped or completed.
+func (s *Store) ReconcileStep(id, step string, revision int64, confirmed bool) error {
+	current, err := s.Get(id)
+	if err != nil {
+		return err
+	}
+	if current.Revision != revision || current.Archived || Active(current.Status) {
+		return ErrConflict
+	}
+	if confirmed {
+		if _, err = s.ReconcileKnownCalls(id, step); err != nil {
+			return err
+		}
+	}
+	return s.recoverStep(id, step, revision, confirmed, true)
+}
+
+func (s *Store) recoverStep(id, step string, revision int64, reconciled, acknowledgement bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	tx, err := s.DB.Begin()
@@ -26,12 +48,24 @@ func (s *Store) RetryStep(id, step string, revision int64, reconciled bool) erro
 	if err = json.Unmarshal([]byte(raw), &t); err != nil {
 		return err
 	}
-	if t.Revision != revision || Active(t.Status) || t.Status == "completed" || t.Status == "cancelled" {
+	closed := t.Status == "completed" || t.Status == "cancelled"
+	if t.Archived || t.Revision != revision || Active(t.Status) || closed && !acknowledgement {
 		return ErrConflict
 	}
 	st := t.Step(step)
 	if st == nil {
 		return fmt.Errorf("unknown step")
+	}
+	if acknowledgement {
+		if !reconciled {
+			return fmt.Errorf("请明确确认已核对调用结果及执行资源状态")
+		}
+		if st.Status == "reconciled" {
+			return nil
+		}
+		if st.Status != "uncertain" && st.Status != "cleanup_unconfirmed" {
+			return ErrConflict
+		}
 	}
 	if st.Status != "failed" && st.Status != "blocked" && st.Status != "interrupted" && st.Status != "uncertain" && st.Status != "cleanup_unconfirmed" {
 		return ErrConflict
@@ -46,21 +80,26 @@ func (s *Store) RetryStep(id, step string, revision int64, reconciled bool) erro
 	if st.UserPaused {
 		st.Status = "paused"
 	}
-	st.StalledSegments = 0
-	t.Status = "paused"
-	if t.Question != "" {
-		t.Status = "waiting_input"
+	if closed {
+		st.Status = "reconciled"
 	}
-	for _, pending := range t.Steps {
-		if pending.Status == "uncertain" || pending.Status == "cleanup_unconfirmed" {
-			t.Status = "needs_review"
-			break
+	st.StalledSegments = 0
+	if !closed {
+		t.Status = "paused"
+		if t.Question != "" {
+			t.Status = "waiting_input"
+		}
+		for _, pending := range t.Steps {
+			if pending.Status == "uncertain" || pending.Status == "cleanup_unconfirmed" {
+				t.Status = "needs_review"
+				break
+			}
 		}
 	}
 	// Acknowledging one receipt is not an instruction to restart the assessment.
 	t.RestartPending = false
 	t.NextWake = nil
-	if reconciled {
+	if reconciled && !closed {
 		if t.Status == "needs_review" {
 			t.Summary = "仍有步骤的执行结果待核对，请继续查看回执。"
 		} else {
@@ -77,7 +116,18 @@ func (s *Store) RetryStep(id, step string, revision int64, reconciled bool) erro
 	if _, err = tx.Exec(`UPDATE deep_assessments SET status=?,payload=?,updated_at=? WHERE id=?`, t.Status, string(body), t.UpdatedAt, id); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(`INSERT INTO deep_assessment_events(task_id,step_id,kind,message,created_at) VALUES(?,?,'retry','步骤已重新排队，保留原会话；等待手动开始。',?)`, id, step, t.UpdatedAt); err != nil {
+	kind, message := "retry", "步骤已重新排队，保留原会话；等待手动开始。"
+	if acknowledgement {
+		kind = "reconciled"
+		message = "已记录人工核对，原始回执与证据保留；未启动测评。"
+	}
+	if _, err = tx.Exec(`INSERT INTO deep_assessment_events(task_id,step_id,kind,message,created_at) VALUES(?,?,?,?,?)`, id, step, kind, message, t.UpdatedAt); err != nil {
+		return err
+	}
+	if err = syncGraph(tx, &t, step, kind, message, 0); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(`UPDATE deep_assessment_nodes SET state='reconciled' WHERE task_id=? AND step_id=? AND kind='receipt' AND state IN ('running','uncertain') AND id IN (SELECT 'receipt:'||id FROM deep_assessment_calls WHERE task_id=? AND step_id=? AND status='reconciled')`, id, step, id, step); err != nil {
 		return err
 	}
 	return tx.Commit()
