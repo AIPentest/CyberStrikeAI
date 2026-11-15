@@ -26,6 +26,7 @@
     "chatModuleMissing": "Chat module not loaded yet"
   },
   "common": {
+        "expandPanel": "Expand panel",
     "ok": "OK",
     "cancel": "Cancel",
     "refresh": "Refresh",
