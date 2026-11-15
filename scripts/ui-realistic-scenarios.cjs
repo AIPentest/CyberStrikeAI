@@ -86,7 +86,15 @@ module.exports = async function ({ page, width, height, theme, out }) {
           skill: {
             id: "review-skill",
             description: "多文件技能包编辑测试",
-            content: "# 审核步骤\n" + "核对已有证据。\n".repeat(40),
+            name: "review-skill",
+            path: "skills/review-skill",
+            scripts: [
+              { rel_path: "scripts/check.py", description: "离线证据校核" },
+            ],
+            content:
+              url.searchParams.get("depth") === "summary"
+                ? "# 技能摘要\n按需加载正文。"
+                : "# 审核步骤\n" + "核对已有证据。\n".repeat(40),
           },
         };
       else if (url.pathname === "/api/deep-assessments/options")
@@ -340,7 +348,76 @@ module.exports = async function ({ page, width, height, theme, out }) {
   assert.equal(await page.locator("#role-modal-title").innerText(), "添加角色");
   await page.evaluate(() => closeRoleModal());
   await activate("page-skills-management");
-  await page.evaluate(() => editSkill("review-skill"));
+  // View is dynamically created and must use the same square drawer as Edit.
+  await page.evaluate(() => viewSkill("review-skill"));
+  await page.locator("#skill-view-modal").waitFor();
+  await page.waitForTimeout(220);
+  const skillView = await page.locator("#skill-view-modal").evaluate((e) => {
+    const p = e.querySelector(".modal-content"),
+      r = p.getBoundingClientRect(),
+      s = getComputedStyle(p);
+    return {
+      surface: e.dataset.uiSurface,
+      width: r.width,
+      right: r.right,
+      height: r.height,
+      radius: s.borderRadius,
+      bg: s.backgroundColor,
+      footer: e.querySelector(".modal-footer").getBoundingClientRect().bottom,
+    };
+  });
+  assert.equal(skillView.surface, "drawer");
+  assert.equal(skillView.radius, "0px");
+  assert(
+    Math.abs(skillView.right - width) < 2 &&
+      Math.abs(skillView.height - height) < 2,
+    JSON.stringify(skillView),
+  );
+  assert(
+    Math.abs(
+      skillView.width - (width < 768 ? width : Math.min(960, width - 48)),
+    ) < 2,
+    JSON.stringify(skillView),
+  );
+  assert(skillView.footer <= height + 1, JSON.stringify(skillView));
+  assert.equal(
+    skillView.bg,
+    theme === "dark" ? "rgb(17, 24, 39)" : "rgb(255, 255, 255)",
+  );
+  assert.equal(
+    await page.locator("#skill-view-body").innerText(),
+    "# 技能摘要\n按需加载正文。",
+  );
+  await shot("skill-view-summary");
+  await page.locator("#skill-view-modal [data-skill-load-full]").click();
+  await page.waitForFunction(() =>
+    document
+      .getElementById("skill-view-body")
+      .textContent.startsWith("# 审核步骤"),
+  );
+  if (width >= 768) {
+    await page.locator("#skill-view-modal .app-drawer-expand").click();
+    assert(
+      (await page.locator("#skill-view-modal .modal-content").boundingBox())
+        .width >= skillView.width,
+    );
+  }
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator("#skill-view-modal").count(), 0);
+  assert.equal(
+    await page.evaluate(() =>
+      document.body.classList.contains("app-modal-open"),
+    ),
+    false,
+  );
+  await page.evaluate(() => viewSkill("review-skill"));
+  await page.locator("#skill-view-modal [data-skill-view-edit]").click();
+  assert.equal(await page.locator("#skill-view-modal").count(), 0);
+  await page.locator("#skill-modal").waitFor();
+  assert.equal(
+    await page.locator("#skill-modal").getAttribute("data-ui-surface"),
+    "drawer",
+  );
   await page.locator("#skill-content").waitFor();
   await page.evaluate(() => applyTranslations(document));
   assert.equal(
