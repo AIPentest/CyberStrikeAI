@@ -43,6 +43,9 @@ func (s *Store) RetryStep(id, step string, revision int64, reconciled bool) erro
 		return err
 	}
 	st.Status = "pending"
+	if st.UserPaused {
+		st.Status = "paused"
+	}
 	st.StalledSegments = 0
 	t.Status = "paused"
 	if t.Question != "" {

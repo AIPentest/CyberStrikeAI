@@ -54,6 +54,8 @@ type Task struct {
 }
 
 type Step struct {
+	UserPaused      bool     `json:"user_paused,omitempty"`
+	Guidance        []string `json:"guidance,omitempty"`
 	AssetIDs        []string `json:"asset_ids,omitempty"`
 	Priority        int      `json:"priority,omitempty"`
 	Sources         []string `json:"source_ids,omitempty"`
@@ -211,11 +213,13 @@ func ApplyProposal(t *Task, p Proposal) error {
 		s.Evidence = nil
 		s.LastProgress = ""
 		s.StalledSegments = 0
+		s.UserPaused = false
+		s.Guidance = nil
 		all = append(all, s)
 	}
 	for _, id := range p.Retire {
 		s := t.Step(id)
-		if s == nil || s.Status == "running" || s.Status == "completed" || (s.Status == "cleanup_unconfirmed" || s.Status == "uncertain") {
+		if s == nil || s.UserPaused || s.Status == "pausing" || s.Status == "running" || s.Status == "completed" || (s.Status == "cleanup_unconfirmed" || s.Status == "uncertain") {
 			return fmt.Errorf("cannot retire step %s", id)
 		}
 	}

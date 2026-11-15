@@ -17,7 +17,7 @@ func (h *AgentHandler) DeepAssessmentGraph(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "80"))
 	offset, _ := strconv.Atoi(c.Query("offset"))
 	session, _ := security.CurrentSession(c)
-	graph, err := h.deepAssessments.Store.GraphVisible(c.Param("id"), c.Query("scope"), limit, offset, func(n deepassessment.Node) bool {
+	graph, err := h.deepAssessments.Store.GraphViewVisible(c.Param("id"), c.Query("scope"), c.Query("view"), limit, offset, func(n deepassessment.Node) bool {
 		return n.Kind != "finding" || security.SessionHasPermission(c, "vulnerability:read") && h.db.UserCanAccessResource(session.UserID, session.ScopeFor("vulnerability:read"), "vulnerability", findingNodeID(n.ID))
 	})
 	if err != nil {
@@ -39,6 +39,18 @@ func (h *AgentHandler) DeepAssessmentNode(c *gin.Context) {
 	if err != nil {
 		deepAssessmentError(c, err)
 		return
+	}
+	linksOffset, _ := strconv.Atoi(c.Query("links_offset"))
+	session, _ := security.CurrentSession(c)
+	links, err := h.deepAssessments.Store.RelationsVisible(c.Param("id"), c.Query("node_id"), linksOffset, func(n deepassessment.Node) bool {
+		return n.Kind != "finding" || security.SessionHasPermission(c, "vulnerability:read") && h.db.UserCanAccessResource(session.UserID, session.ScopeFor("vulnerability:read"), "vulnerability", findingNodeID(n.ID))
+	})
+	if err != nil {
+		deepAssessmentError(c, err)
+		return
+	}
+	for key, value := range links {
+		node[key] = value
 	}
 	c.JSON(200, node)
 }

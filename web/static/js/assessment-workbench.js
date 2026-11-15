@@ -1,0 +1,36 @@
+/* Live task presentation and per-intent controls. Execution stays in the host/Pi. */
+(function(){
+ 'use strict';
+ const labels={native_model:'模型处理中',native_tool:'工具处理中',native_compacting:'Pi 正在压缩上下文',native_retrying:'Pi 正在重试模型请求',native_idle:'等待下一轮',lastNative:'最近活动',live:'运行态势',planning:'规划中',reviewing:'独立验收中',executing:'执行中',scheduling:'正在调度',draining:'正在停止并收尾',waiting:'等待新进展',retrying:'等待模型恢复',nextWake:'下次唤醒',recent:'最近进展',noRecent:'暂无新进展记录',active:'当前意图',noActive:'当前没有在执行的意图',tools:'工具活动',noTools:'等待模型或下一次工具调用',facts:'事实',findings:'关联漏洞',queue:'意图队列',openStep:'查看此意图',conversation:'执行会话',pause:'暂停此意图',resume:'继续此意图',priority:'意图优先级',urgent:'优先',high:'较高',normal:'普通',low:'较低',guidance:'给此意图补充方向',targetHint:'只发送给此意图；意图暂停时保存，继续后生效。',send:'提交给此意图',lastDirection:'最近补充',manualPause:'此意图已手动暂停',brief:'目标与测评要求',route:'最近规划路线',summary:'当前结论 / 缺口',output:'已有输出',linkedAssets:'关联资产',elapsed:'已持续',min:'分钟',sec:'秒',emptyReview:'无待核对步骤'};
+ const L=k=>{const path='deepAssessments.workbench.'+k,v=window.t?.(path);return v&&v!==path?v:labels[k]||k;};
+ const eventLabels={started:'开始/继续测评',step_started:'意图开始执行',planning:'更新计划',plan_updated:'计划已更新',checkpoint:'已保存进展',step_result:'意图执行结果',settled:'调度已结束',stop_requested:'暂停/停止请求',intent_pause:'暂停此意图',intent_resume:'意图已恢复排队',intent_priority:'优先级已调整',intent_guidance:'收到定向补充',waiting_progress:'等待新进展',waiting_retry:'等待模型恢复',waiting_input:'等待答复',blocked:'执行受阻',guidance:'收到补充方向',retry_scheduled:'稍后重试模型',review_gap:'验收仍有缺口',shutdown:'保存进度并关闭',retry:'步骤已重新排队'};
+ const eventLabel=kind=>{const key='deepAssessments.workbench.events.'+kind,v=window.t?.(key);return v&&v!==key?v:eventLabels[kind]||L('recent');};
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+ const button=(action,label,attrs='')=>`<button type="button" class="btn-secondary" data-da-action="${action}" ${attrs}>${esc(label)}</button>`;
+ const time=v=>v?new Date(v).toLocaleString():'—';
+ const elapsed=v=>{const n=Math.max(0,Math.floor((Date.now()-Date.parse(v))/1000));return Number.isFinite(n)?(n>=60?Math.floor(n/60)+' '+L('min'):n+' '+L('sec')):'—';};
+ function overview(task,data,status){
+  if(!data)return '';
+  const live=data.live||{},counts=data.counts||{},tools=data.tools||[];
+  let phase=status(task.status);
+  if(['pausing','cancelling'].includes(task.status))phase=L('draining');else if(task.status==='running')phase=[live.planning?L('planning'):'',live.reviewing?L('reviewing'):'',live.workers?L('executing'):''].filter(Boolean).join(' · ')||L('scheduling');
+  else if(task.status==='waiting_progress')phase=L('waiting');else if(task.status==='waiting_retry')phase=L('retrying');
+  const cards=(data.intents||[]).map(st=>{
+   const activity=tools.filter(t=>t.step_id===st.id),native=data.sessions?.[st.id];
+   const names=(st.asset_ids||[]).filter(id=>data.asset_names?.[id]);
+   return `<article class="da-live-intent"><div class="da-live-intent-head"><strong>${esc(st.title)}</strong><span class="da-badge da-${esc(st.status)}">${esc(status(st.status))}</span></div>${names.length?`<p>${names.map(id=>button('intent-asset',data.asset_names[id],`data-asset="${esc(id)}"`)).join(' ')}</p>`:(st.asset_ids||[]).length?`<p class="da-muted">${L('linkedAssets')} · ${st.asset_ids.length}</p>`:''}${native?.stage?`<p class="da-live-native">${esc(L('native_'+native.stage))}${native.tool?' · '+esc(native.tool):''} · ${esc(L('lastNative'))} ${esc(time(native.updated_at))}</p>`:''}<div class="da-live-tools">${activity.length?activity.map(call=>`<p><code>${esc(call.tool)}</code> · ${esc(status(call.status==='queued'?'pending':call.status))} · ${esc(L('elapsed'))} <span class="da-live-age" data-started="${esc(call.started_at)}">${esc(elapsed(call.started_at))}</span>${call.output_bytes?` · ${esc(L('output'))} ${Math.ceil(call.output_bytes/1024)} KB`:''}</p>`).join(''):native?.stage?'':`<p class="da-muted">${esc(L('noTools'))}</p>`}</div>${st.summary?`<p class="da-live-summary">${esc(st.summary)}</p>`:''}<div class="da-controls">${button('show-step',L('openStep'),`data-step="${esc(st.id)}"`)}${st.conversation_id?button('conversation',L('conversation'),`data-conversation="${esc(st.conversation_id)}"`):''}</div></article>`;
+  }).join('');
+  return `<section class="da-live-board"><div class="da-live-heading"><h3>${esc(L('live'))}</h3><strong>${esc(phase)}</strong>${task.next_wake?`<span>${esc(L('nextWake'))}：${esc(time(task.next_wake))}</span>`:''}</div><div class="da-live-counts">${['running','pending','paused','completed','blocked','uncertain'].map(k=>button('queue-status',status(k)+' '+(counts[k]||0),`data-status="${k}"`)).join('')}<span>${esc(L('facts'))} ${data.facts||0}</span>${data.findings_visible?button('tab',L('findings')+' '+(data.findings||0),'data-tab="findings"'):''}</div><h4>${esc(L('active'))}</h4><div class="da-live-intents">${cards||`<p class="da-muted">${esc(L('noActive'))}</p>`}</div><h4>${esc(L('recent'))}</h4><div class="da-live-events">${(data.recent||[]).map(event=>`<article><small>${esc(time(event.created_at))} · ${esc(eventLabel(event.kind))}</small><p>${esc(event.message)}</p>${event.step_id?button('show-step',L('openStep'),`data-step="${esc(event.step_id)}"`):''}</article>`).join('')||`<p class="da-muted">${esc(L('noRecent'))}</p>`}</div></section>`;
+ }
+ function controls(step,task,write,draft){
+  if(!write||task.archived||['completed','cancelled'].includes(task.status)||['completed','retired'].includes(step.status))return '';
+  const attr=`data-step="${esc(step.id)}"`,busy=['pausing','cancelling'].includes(task.status);
+  let actions='';
+  if(['running','pending','failed','blocked'].includes(step.status))actions+=button('intent-pause',L('pause'),attr+(busy?' disabled':''));
+  if(step.status==='paused')actions+=button('intent-resume',L('resume'),attr+(busy?' disabled':''));
+  const priority=step.priority||100,options=[1,10,100,500];if(!options.includes(priority))options.push(priority);
+  actions+=`<label>${esc(L('priority'))}<select class="form-control" data-da-intent-priority="${esc(step.id)}" aria-label="${esc(L('priority'))}" ${busy?'disabled':''}>${options.sort((a,b)=>a-b).map(p=>`<option value="${p}" ${p===priority?'selected':''}>${p} · ${esc(({1:L('urgent'),10:L('high'),100:L('normal'),500:L('low')})[p]||p)}</option>`).join('')}</select></label>`;
+  return `<section class="da-intent-controls"><div class="da-controls">${actions}</div>${step.user_paused?`<p class="da-muted">${esc(L('manualPause'))}</p>`:''}<details data-da-detail="intent-guidance:${esc(step.id)}"><summary>${esc(L('guidance'))}</summary><p class="da-muted">${esc(L('targetHint'))}</p>${step.guidance?.length?`<p>${esc(L('lastDirection'))}：${esc(step.guidance.at(-1))}</p>`:''}<form data-da-intent-guidance="${esc(step.id)}"><textarea class="form-control" aria-label="${esc(L('guidance'))}" rows="3" maxlength="8000" required>${esc(draft||'')}</textarea><button type="submit" class="btn-secondary" ${busy?'disabled':''}>${esc(L('send'))}</button></form></details></section>`;
+ }
+ window.AssessmentWorkbench={overview,controls,text:L,refreshClocks(root){root.querySelectorAll('.da-live-age').forEach(el=>el.textContent=elapsed(el.dataset.started));}};
+})();

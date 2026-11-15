@@ -15,7 +15,7 @@ const sample = id => ({ id, name: '隔离样例 ' + id, status: 'draft', revisio
 async function fixture(t) {
  const state = { tasks: new Map(Array.from({ length: 24 }, (_, i) => ['t' + i, sample('t' + i)])), requests: [], errors: [], sharedAssets: [], linkedAssets: new Map() };
  const locale = JSON.stringify(JSON.parse(read('web/static/i18n/zh-CN.json'))).replaceAll('<', '\\u003c');
- const scripts = ['router', 'auth', 'assessment-node-panel','assessment-exploration-views','deep-assessment-graph', 'deep-assessments'].map(x => `<script src="/static/js/${x}.js"></script>`).join('');
+ const scripts = ['router', 'auth', 'assessment-workbench','assessment-node-panel','assessment-exploration-views','deep-assessment-graph', 'deep-assessments'].map(x => `<script src="/static/js/${x}.js"></script>`).join('');
  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${['style', 'mobile', 'deep-assessments', 'design-system'].map(x=>`<link rel="stylesheet" href="/static/css/${x}.css">`).join('')}</head><body><div class="container"><main class="main-layout"><section class="content-area">${region}<div class="page" id="page-chat"></div><div class="page" id="page-tasks"></div></section></main></div><script>window.t=k=>k.split('.').reduce((o,p)=>o&&o[p],${locale})||k;window.loadConversation=async id=>{window.visitedConversation=id};window.initializeChatUI=()=>{};window.refreshAppData=async()=>{};</script><script src="/static/vendor/cytoscape.min.js"></script><script>const originalGraph=window.cytoscape;window.cytoscape=(...args)=>{const chart=originalGraph(...args);window.fixtureGraph=chart;return chart};</script>${scripts}<script>document.removeEventListener('DOMContentLoaded',initializeApp);saveAuth('fixture-token',new Date(Date.now()+3600000),{user:{id:'fixture',username:'fixture'},permissions:['assessments:read','assessments:write','assessments:delete','agent:execute','chat:read','chat:write','tasks:read','asset:read'],scope:'own'});</script></body></html>`;
  const server = http.createServer(async (req,res)=>{
   const url = new URL(req.url,'http://fixture');
@@ -44,8 +44,8 @@ async function fixture(t) {
   }
   if(match[2]==='facts'){const facts=(task.facts||[]).filter(f=>!url.searchParams.get('confidence')||f.confidence===url.searchParams.get('confidence'));return send(200,{facts,next_offset:facts.length,has_more:false});}
   if(match[2]?.startsWith('steps/'))return send(200,{step:task.steps.find(s=>s.id===match[2].slice(6))});
-  if(match[2]==='graph')return send(200,graph);
-  if(match[2]==='graph/node'){const node=graph.nodes.find(n=>n.id===url.searchParams.get('node_id'));if(!node)return send(404,{error:'missing node'});return send(200,{node,next_offset:node.body.length,has_more:false});}
+  if(match[2]==='graph'){const summary=url.searchParams.get('view')==='summary';const nodes=summary?graph.nodes.filter(n=>!['receipt','observation'].includes(n.kind)):graph.nodes;const ids=new Set(nodes.map(n=>n.id));return send(200,{...graph,nodes,edges:graph.edges.filter(e=>ids.has(e.source)&&ids.has(e.target)),primary_count:nodes.filter(n=>!n.boundary).length-1,details_hidden:graph.nodes.length-nodes.length,boundary_total:graph.boundary_total||0});}
+  if(match[2]==='graph/node'){const node=graph.nodes.find(n=>n.id===url.searchParams.get('node_id'));if(!node)return send(404,{error:'missing node'});const refs=graph.edges.flatMap(e=>e.target===node.id?[{direction:'upstream',relation:e.relation,node:graph.nodes.find(n=>n.id===e.source)}]:e.source===node.id?[{direction:'downstream',relation:e.relation,node:graph.nodes.find(n=>n.id===e.target)}]:[]).filter(r=>r.node);return send(200,{node,next_offset:node.body.length,has_more:false,relations:refs,relations_next_offset:refs.length,relations_has_more:false});}
   if(match[2]==='events')return send(200,{events:[]});
   if(match[2]==='receipts')return send(200,{receipts:[],next_offset:0,has_more:false});
   if(match[2]==='report'){res.setHeader('Content-Type','text/markdown');return res.end('# fixture report');}
@@ -56,6 +56,10 @@ async function fixture(t) {
     task.steps.forEach(s=>{if(s.status==='uncertain')s.status='pending';});
    }
    const action=match[2].split('/')[1];if(action==='start')task.status='running';if(action==='pause')task.status='paused';if(action==='archive'){task.archived=true;if(!['draft','completed','cancelled'].includes(task.status))task.status='paused';}if(action==='restore')task.archived=false;if(action==='guidance')task.summary=body.message;if(action==='budget')Object.assign(task,body);task.revision++;
+   if(action==='intent-pause'){const st=task.steps.find(s=>s.id===body.step_id);st.status='paused';st.user_paused=true;}
+   if(action==='intent-resume'){const st=task.steps.find(s=>s.id===body.step_id);st.status='pending';st.user_paused=false;}
+   if(action==='intent-priority')task.steps.find(s=>s.id===body.step_id).priority=body.priority;
+   if(action==='intent-guidance'){const st=task.steps.find(s=>s.id===body.step_id);(st.guidance||=[]).push(body.message);}
    if(action==='retry'){
     const step=task.steps.find(s=>s.id===body.step_id);if(!step||!body.reconciled)return send(400,{error:'review required'});
     step.status='pending';task.status=task.steps.some(s=>['uncertain','cleanup_unconfirmed'].includes(s.status))?'needs_review':'paused';
@@ -65,7 +69,7 @@ async function fixture(t) {
   const queue=url.searchParams.get('step_order')==='queue',filter=url.searchParams.get('step_status');
   const steps=(task.steps||[]).filter(s=>!queue||!filter||s.status===filter||filter==='needs_review'&&['uncertain','cleanup_unconfirmed'].includes(s.status));
   const stepOffset=Number(url.searchParams.get('step_offset')||0),stepLimit=Number(url.searchParams.get('step_limit')||steps.length);
-  return send(200,{task:{...task,steps:steps.slice(stepOffset,stepOffset+stepLimit)},intent_counts:counts,step_total:steps.length,step_has_more:stepOffset+stepLimit<steps.length});
+  return send(200,{runtime:{live:{active:task.status==='running',planning:false,workers:counts.running||0},counts,intents:(task.steps||[]).filter(s=>s.status==='running'),tools:[],recent:[],facts:0,findings:0,findings_visible:true,asset_names:{},...task.runtime},guidance_delivered:match[2]==='control/intent-guidance'&&task.status==='running'&&task.steps.find(s=>s.id===body?.step_id)?.status==='running',task:{...task,steps:steps.slice(stepOffset,stepOffset+stepLimit)},intent_counts:counts,step_total:steps.length,step_has_more:stepOffset+stepLimit<steps.length});
  });
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  const executablePath=process.env.CHROME_PATH||(process.platform==='darwin'?'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome':undefined);
@@ -161,6 +165,7 @@ test('continuous assessment workspace shows graph memories and returns to the li
  const pager=await page.locator('.da-pagination').boundingBox();assert.ok(pager.y+pager.height<=1000);
  await page.locator('[data-da-action="select"][data-id="t0"]').click();
  const inspector=page.locator('#da-workspace');await inspector.waitFor({state:'visible'});
+ await page.locator('[data-da-action="tab"][data-tab="graph"]').click();
  await page.locator('#da-graph-select option[value="memory:pi1"]').waitFor({state:'attached'});
  assert.ok(await page.locator('#da-graph-canvas canvas').count()>0);
  await page.locator('#da-graph-select').selectOption('memory:pi1');
@@ -278,6 +283,7 @@ test('detail is a full page and browser back restores the filtered task list',as
  assert.ok(Math.abs(detail.width-root.width)<2);assert.equal(await page.locator('dialog[open]').count(),0);
  assert.equal(await page.locator('#da-list-view').isVisible(),false);
  assert.equal(await page.locator('#da-guidance').isVisible(),false);
+ await page.locator('[data-da-action="tab"][data-tab="graph"]').click();
  const canvas=await page.locator('#da-graph-canvas').boundingBox();assert.ok(canvas.width>1000&&canvas.height>=400);
  await page.goBack();await page.locator('#da-list-view').waitFor();
  assert.equal(await page.locator('#da-search').inputValue(),'隔离样例 t0');
@@ -294,6 +300,7 @@ test('graph preserves the viewport through polling, side panel resize and tab ch
  // A review/proof cycle must not flatten the entire graph into one column.
  task.graph.edges.push({source:'step:s6',target:'step:s3',relation:'supports'});
  await page.locator('[data-da-action="details"][data-id="t0"]').click();
+ await page.locator('[data-da-action="tab"][data-tab="graph"]').click();
  await page.locator('#da-graph-select option[value="step:s3"]').waitFor({state:'attached'});
  const before=await page.locator('#da-graph-canvas').boundingBox();
  const navigator=page.locator('.da-graph-minimap');await navigator.waitFor({state:'visible'});
@@ -303,7 +310,7 @@ test('graph preserves the viewport through polling, side panel resize and tab ch
  const positions=await page.evaluate(()=>Object.fromEntries(fixtureGraph.nodes().map(n=>[n.id(),n.position()])));
  assert.ok(new Set(Object.values(positions).map(p=>p.x)).size>2);
  await page.locator('#da-graph-select').selectOption('step:s3');
- await page.locator('#da-graph-node h4').waitFor();
+ await page.locator('#da-graph-node .da-node-heading h3').waitFor();
  await page.waitForFunction(width=>document.getElementById('da-graph-canvas').clientWidth<width-200,before.width);
  assert.equal(await page.evaluate(()=>fixtureGraph.zoom()),.8);
  await page.locator('[data-da-action="graph-details"]').click();
@@ -336,6 +343,7 @@ test('long node details have an adjustable reader and keep their position throug
   {id:'receipt:sample',kind:'receipt',step_id:'read',title:'本地样例回执',state:'completed',body:Array.from({length:120},(_,i)=>`record ${i}: example.test /fixture — verified fixture`).join('\n'),source:{tool:'fixture'}}
  ],edges:[{source:'goal',target:'step:read',relation:'plans'},{source:'step:read',target:'receipt:sample',relation:'executes'}],total:2,folded:0,has_more:false};
  await page.locator('[data-da-action="details"][data-id="t0"]').click();
+ await page.locator('[data-da-action="tab"][data-tab="graph"]').click();await page.locator('[data-da-action="graph-view"][data-view="full"]').click();
  await page.locator('#da-graph-select').selectOption('step:read');
  await page.locator('.da-node-heading h3').waitFor();
  const panel=page.locator('#da-graph-node'),content=panel.locator('.da-node-content'),bar=page.getByRole('separator');
@@ -439,7 +447,9 @@ test('large cyclic evidence graphs keep lineage and focus a selected node at rea
  }
  task.graph={nodes,edges,total:nodes.length-1,folded:0,has_more:false};
  await page.locator('[data-da-action="details"][data-id="t0"]').click();
+ await page.locator('[data-da-action="tab"][data-tab="graph"]').click();
  await page.locator('#da-graph-select option[value="step:5"]').waitFor({state:'attached'});
+ await page.locator('[data-da-action="graph-view"][data-view="full"]').click();await page.waitForFunction(()=>fixtureGraph.nodes().length===73);
  const graphState=await page.evaluate(()=>({nodes:fixtureGraph.nodes().length,edges:fixtureGraph.edges().length,columns:new Set(fixtureGraph.nodes().map(n=>n.position().x)).size}));
  assert.equal(graphState.nodes,nodes.length);assert.equal(graphState.edges,edges.length);assert.ok(graphState.columns>5);
  await page.locator('#da-graph-select').selectOption('step:5');
@@ -528,4 +538,62 @@ test('start resumes confirmed cancellations and pause also stops scheduled retri
  await page.reload();await page.locator('#da-controls [data-da-action="start"]').waitFor();
  assert.equal(task.status,'paused');assert.equal(state.requests.filter(r=>r.path.endsWith('/control/start')).length,1);
  assert.deepEqual(state.errors,[]);
+});
+
+test('live overview and intent controls keep sibling work and scoped guidance independent',async t=>{
+ const {page,state}=await fixture(t),task=state.tasks.get('t0');
+ task.name='持续测评工作台样例';task.status='running';task.steps=[{id:'one',title:'核对应用入口',status:'running',instruction:'本地样例步骤',priority:100,asset_ids:['asset-one'],conversation_id:'conv-one'},{id:'two',title:'整理服务证据',status:'running',instruction:'另一条本地样例步骤',priority:100,asset_ids:['asset-two'],conversation_id:'conv-two'}];
+ task.runtime={sessions:{two:{stage:'compacting',updated_at:new Date().toISOString()}},tools:[{id:'exec-one',step_id:'one',tool:'fixture_read',status:'running',started_at:new Date(Date.now()-90000).toISOString(),output_bytes:2048}],recent:[{id:1,step_id:'one',kind:'checkpoint',message:'已保存样例观察，等待原始回执。',created_at:new Date().toISOString()}],facts:3,findings:1,findings_visible:true,asset_names:{'asset-one':'app.example.test','asset-two':'service.example.test'}};
+ await page.locator('[data-da-action="details"][data-id="t0"]').click();
+ await page.locator('.da-live-board').waitFor();
+ assert.match(await page.locator('.da-live-board').innerText(),/fixture_read/);assert.match(await page.locator('.da-live-board').innerText(),/app.example.test/);
+ assert.equal(await page.locator('.da-live-intent').count(),2);assert.match(await page.locator('.da-live-intent').nth(1).innerText(),/Pi 正在压缩上下文/);assert.equal(state.requests.filter(r=>r.method==='POST').length,0);
+ if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'workbench-live-overview.png'),fullPage:true});
+ task.runtime.recent=Array.from({length:8},(_,i)=>({id:i+1,step_id:'one',kind:'checkpoint',message:'较早的进展记录。'.repeat(20),created_at:new Date().toISOString()}));await page.evaluate(()=>DeepAssessments.refresh());
+ await page.locator('.da-detail-scroll').evaluate(el=>el.scrollTop=240);
+ const reading=await page.locator('.da-detail-scroll').evaluate(el=>el.scrollTop);
+ task.runtime.recent.unshift({id:9,step_id:'one',kind:'checkpoint',message:'NEW_PROGRESS_FOR_READER',created_at:new Date().toISOString()});await page.evaluate(()=>DeepAssessments.refresh());
+ assert.equal(await page.locator('#da-overview-updates').isVisible(),true);assert.doesNotMatch(await page.locator('.da-live-events').innerText(),/NEW_PROGRESS_FOR_READER/);assert.equal(await page.locator('.da-detail-scroll').evaluate(el=>el.scrollTop),reading);
+ await page.locator('#da-overview-updates').click();assert.match(await page.locator('.da-live-events').innerText(),/NEW_PROGRESS_FOR_READER/);
+ await page.locator('.da-live-intent').first().getByRole('button',{name:'查看此意图',exact:true}).click();
+ const step=page.locator('.da-step[data-step="one"]');await step.waitFor();
+ await step.getByRole('button',{name:'暂停此意图',exact:true}).click();await step.getByRole('button',{name:'继续此意图',exact:true}).waitFor();
+ assert.equal(task.status,'running');assert.equal(task.steps[0].status,'paused');assert.equal(task.steps[1].status,'running');
+ await step.getByRole('combobox',{name:'意图优先级',exact:true}).selectOption('10');await page.waitForFunction(()=>document.querySelector('[data-da-intent-priority="one"]').value==='10');
+ await step.locator('details[data-da-detail="intent-guidance:one"] > summary').click();
+ let input=step.getByRole('textbox',{name:'给此意图补充方向',exact:true});await input.fill('只调整这一条意图的方向');
+ await page.evaluate(()=>DeepAssessments.refresh());assert.equal(await input.inputValue(),'只调整这一条意图的方向');
+ await input.evaluate(el=>{el.dataset.fixture='same';el.focus();el.setSelectionRange(3,3);});await page.evaluate(()=>DeepAssessments.refresh());
+ assert.equal(await input.getAttribute('data-fixture'),'same');
+ task.steps[1].summary='Sibling progress changed';await page.evaluate(()=>DeepAssessments.refresh());
+ assert.equal(await input.inputValue(),'只调整这一条意图的方向');assert.equal(await input.evaluate(el=>el===document.activeElement&&el.selectionStart===3),true);
+ await step.getByRole('button',{name:'提交给此意图',exact:true}).click();await page.waitForFunction(()=>document.querySelector('[data-da-intent-guidance="one"] textarea').value==='');
+ assert.deepEqual(task.steps[0].guidance,['只调整这一条意图的方向']);assert.equal(task.steps[1].guidance,undefined);assert.deepEqual(task.guidance||[],[]);
+ const sent=state.requests.find(r=>r.path.endsWith('/control/intent-guidance'));assert.equal(sent.body.step_id,'one');
+ assert.equal(state.requests.filter(r=>r.path.endsWith('/control/start')||r.path.endsWith('/control/pause')).length,0);
+ await step.getByRole('button',{name:'继续此意图',exact:true}).click();await step.getByRole('button',{name:'暂停此意图',exact:true}).waitFor();
+ assert.equal(task.steps[0].status,'pending');assert.equal(task.steps[1].status,'running');
+ await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ await page.locator('#page-deep-assessments').evaluate(async el=>{await Promise.all(el.getAnimations({subtree:true}).filter(a=>a.effect?.getComputedTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})));});
+ if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'workbench-intent-mobile.png'),fullPage:true});
+ assert.deepEqual(state.errors,[]);
+});
+
+test('main graph exposes cross-page references and drills into original execution records',async t=>{
+ const {page,state}=await fixture(t),task=state.tasks.get('t0');
+ task.graph={nodes:[{id:'goal',kind:'goal',title:'样例目标',body:'goal',source:{}},{id:'step:one',kind:'step',step_id:'one',title:'当前意图',body:'current intent',source:{}},{id:'step:outside',kind:'step',step_id:'outside',title:'其他页面的上游意图',body:'upstream original',boundary:true,source:{}},{id:'receipt:one',kind:'receipt',step_id:'one',title:'原始执行回执',body:'original fixture output',source:{}}],edges:[{source:'goal',target:'step:outside',relation:'plans'},{source:'step:outside',target:'step:one',relation:'depends_on'},{source:'step:one',target:'receipt:one',relation:'executes'}],total:2,boundary_total:1,folded:0,has_more:false};
+ await page.locator('[data-da-action="details"][data-id="t0"]').click();await page.getByRole('tab',{name:'探索图',exact:true}).click();
+ await page.locator('#da-graph-select').selectOption('step:one');await page.locator('.da-node-relations').first().waitFor();
+ assert.equal(await page.evaluate(()=>fixtureGraph.getElementById('receipt:one').length),0);
+ assert.match(await page.locator('#da-graph-meta').innerText(),/跨页引用/);
+ await page.locator('#da-graph-node [data-da-action="graph-open"][data-node="step:outside"]').click();
+ await page.waitForFunction(()=>location.hash.includes('graph_scope=step%3Aoutside'));
+ await page.waitForFunction(()=>document.querySelector('#da-graph-node').textContent.includes('upstream original'));
+ await page.locator('#da-graph-select').selectOption('step:one');
+ await page.locator('#da-graph-node [data-da-action="graph-open"][data-node="receipt:one"]').click();
+ await page.waitForFunction(()=>document.querySelector('#da-graph-node').textContent.includes('original fixture output'));
+ assert.match(page.url(),/graph_view=full/);assert.equal(await page.evaluate(()=>fixtureGraph.getElementById('receipt:one').length),1);
+ await page.reload();await page.locator('#da-graph-select').waitFor();
+ assert.ok(state.requests.some(r=>r.path.endsWith('/graph')&&r.query.scope==='receipt:one'&&r.query.view==='full'));
+ assert.equal(state.requests.filter(r=>r.method==='POST').length,0);assert.deepEqual(state.errors,[]);
 });

@@ -30,6 +30,14 @@ type deepAssessmentRuntime struct {
 	snapshot func() (*config.Config, error)
 }
 
+type assessmentStepControl struct {
+	mu         sync.Mutex
+	activityMu sync.RWMutex
+	native     agentruntime.Control
+	sent       int
+	activity   deepassessment.SessionActivity
+}
+
 func (r *deepAssessmentRuntime) principal(t *deepassessment.Task) (authctx.Principal, error) {
 	access, err := r.h.db.ResolveRBACAccess(t.ExecutorID)
 	if err != nil || access == nil || !access.User.Enabled {
@@ -231,7 +239,7 @@ func transientDeepAssessmentModelError(err error) bool {
 func (r *deepAssessmentRuntime) Plan(ctx context.Context, t *deepassessment.Task) (deepassessment.Proposal, error) {
 	var p deepassessment.Proposal
 	err := r.generate(ctx, t, `你是深度测评的规划器。本轮是全新的 Pi 会话，决策只依赖持久态势、队列、事实和原始回执，不依赖前一轮对话。只规划，不执行探测。
-步骤就是意图：一句话的开放方向，大于命令、小于整个任务。具体资产须填写 asset_ids（先查询 assessment_assets）；来源事实填 source_ids；priority 为 1–1000，数字越小越优先，默认 100。方向先入队，执行并行数不会限制保存的方向总量。
+步骤就是意图：一句话的开放方向，大于命令、小于整个任务。具体资产须填写 asset_ids（先查询 assessment_assets）；来源事实填 source_ids；priority 为 1–1000，数字越小越优先，默认 100。方向先入队，执行并行数不会限制保存的方向总量。用户手动暂停的意图（user_paused=true 或 paused/pausing）只能由用户继续；不得退休、重命名或复制方向绕过暂停，其他可行意图照常推进。每条意图的 guidance 只约束该意图。
 先用 assessment_intents 检查未执行及在跑方向，禁止换措辞重复派发。查看 observed/inferred 事实及真实回执；失败状态、负面推断、版本号不能自动证明方向封死。reported 漏洞需派另一条独立意图实际复现并提交 assessment_review_finding，不能只读报告自证。发现高价值入口应深入，覆盖统计用于验收而非浅测刷数。
 只在有材料性新事实、资产或不同验证机理时重新探索旧方向；没有新方向时提交空增量等待，禁止为保持运行编造方向。强依赖方向保留在队列中等前置完成。
 每次只增加 0 到 8 个具体、有边界的步骤（单次增量，不限制累计数量）。参考探索图与 Pi 历史摘要，先展开相关历史、核对原证据；source_ids 可引用启发本步骤的图节点 ID，留下复用链路。保留一条清楚的长期路线，按依赖逐步推进。可并行的步骤没有依赖；需要前一步结果的步骤必须 depends_on。每一步由完整 Pi Agent 执行，不要拆成单条命令。
@@ -306,7 +314,15 @@ func (r *deepAssessmentRuntime) Run(ctx context.Context, t *deepassessment.Task,
 	if err = checkpoint(conv.ID, initialSummary); err != nil {
 		return out, err
 	}
+	if latest, readErr := h.deepAssessments.Store.Get(t.ID); readErr == nil {
+		if current := latest.Step(step.ID); current != nil {
+			step.Guidance = current.Guidance
+		}
+	}
 	contract := fmt.Sprintf("Assessment mandate (authoritative user task):\nGoal: %s\nScope: %s\nAcceptance: %s\nThis step [%s]: %s\n%s", t.Objective, t.Scope, t.Criteria, step.ID, step.Title, step.Instruction)
+	for _, note := range step.Guidance[max(0, len(step.Guidance)-12):] {
+		contract += "\nUser direction for this intent: " + note
+	}
 	snapshot, snapshotErr := r.intentSnapshot(t, step)
 	if snapshotErr != nil {
 		return out, snapshotErr
@@ -412,6 +428,7 @@ func (r *deepAssessmentRuntime) Run(ctx context.Context, t *deepassessment.Task,
 	}
 	runCtx = multiagent.WithPiRunOptions(runCtx, multiagent.PiRunOptions{Native: native,
 		Event: func(e agentruntime.Event) {
+			r.trackStepActivity(t.ID, step.ID, e)
 			if err := r.piSummary(t.ID, step.ID, e); err != nil {
 				cancel(err)
 			}
@@ -425,7 +442,8 @@ func (r *deepAssessmentRuntime) Run(ctx context.Context, t *deepassessment.Task,
 		},
 		Bind: func(control agentruntime.Control) func() {
 			key := t.ID + "/" + step.ID
-			r.controls.Store(key, control)
+			r.controls.Store(key, &assessmentStepControl{native: control, sent: len(step.Guidance)})
+			_, _ = r.steerStep(t.ID, step.ID)
 			return func() { r.controls.Delete(key) }
 		},
 		BeforeTool: func(c context.Context, call agentruntime.ToolCall) error {
@@ -436,7 +454,8 @@ func (r *deepAssessmentRuntime) Run(ctx context.Context, t *deepassessment.Task,
 			if err != nil {
 				return err
 			}
-			if current.Status != "running" {
+			currentStep := current.Step(step.ID)
+			if current.Status != "running" || currentStep == nil || currentStep.Status != "running" || currentStep.UserPaused || c.Err() != nil {
 				return fmt.Errorf("assessment stopped")
 			}
 			if assessmentInternalTool(call.Name) {
@@ -788,8 +807,87 @@ func assessmentInternalTool(name string) bool {
 func (r *deepAssessmentRuntime) steer(task, note string) {
 	r.controls.Range(func(key, value any) bool {
 		if strings.HasPrefix(key.(string), task+"/") {
-			_ = value.(agentruntime.Control).Steer(note)
+			if value.(*assessmentStepControl).native.Steer != nil {
+				_ = value.(*assessmentStepControl).native.Steer(note)
+			}
 		}
 		return true
 	})
+}
+
+func (r *deepAssessmentRuntime) steerStep(task, step string) (bool, error) {
+	value, ok := r.controls.Load(task + "/" + step)
+	if !ok {
+		return false, nil
+	}
+	control := value.(*assessmentStepControl)
+	control.mu.Lock()
+	defer control.mu.Unlock()
+	if control.native.Steer == nil {
+		return false, nil
+	}
+	t, err := r.h.deepAssessments.Store.Get(task)
+	if err != nil {
+		return false, err
+	}
+	st := t.Step(step)
+	if st == nil {
+		return false, fmt.Errorf("unknown intent")
+	}
+	if t.Status != "running" || st.Status != "running" || st.UserPaused {
+		return false, nil
+	}
+	for control.sent < len(st.Guidance) {
+		if err = control.native.Steer(st.Guidance[control.sent]); err != nil {
+			return false, err
+		}
+		control.sent++
+	}
+	return true, nil
+}
+
+func (r *deepAssessmentRuntime) trackStepActivity(task, step string, event agentruntime.Event) {
+	value, ok := r.controls.Load(task + "/" + step)
+	if !ok {
+		return
+	}
+	control := value.(*assessmentStepControl)
+	stage := ""
+	tool := ""
+	switch event.Type {
+	case "agent_start", "turn_start", "message_start", "message_update", "compaction_end":
+		stage = "model"
+	case "tool_execution_start", "tool_execution_update":
+		stage = "tool"
+		var data struct {
+			ToolName string `json:"toolName"`
+		}
+		_ = json.Unmarshal(event.Data, &data)
+		tool = data.ToolName
+	case "compaction_start":
+		stage = "compacting"
+	case "auto_retry_start":
+		stage = "retrying"
+	case "tool_execution_end", "agent_end", "agent_settled":
+		stage = "idle"
+	default:
+		return
+	}
+	control.activityMu.Lock()
+	control.activity = deepassessment.SessionActivity{Stage: stage, Tool: tool, UpdatedAt: time.Now().UTC()}
+	control.activityMu.Unlock()
+}
+func (r *deepAssessmentRuntime) sessionActivity(task string) map[string]deepassessment.SessionActivity {
+	out := map[string]deepassessment.SessionActivity{}
+	r.controls.Range(func(key, value any) bool {
+		prefix := task + "/"
+		if strings.HasPrefix(key.(string), prefix) {
+			control := value.(*assessmentStepControl)
+			control.activityMu.RLock()
+			out[strings.TrimPrefix(key.(string), prefix)] = control.activity
+			control.activityMu.RUnlock()
+		}
+		return true
+	})
+	return out
 }

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"cyberstrike-ai/internal/config"
+	"cyberstrike-ai/internal/database"
 	"cyberstrike-ai/internal/deepassessment"
 	"cyberstrike-ai/internal/security"
 	"github.com/gin-gonic/gin"
@@ -283,9 +284,60 @@ func (h *AgentHandler) GetDeepAssessment(c *gin.Context) {
 		deepAssessmentError(c, err)
 		return
 	}
-	c.JSON(200, deepAssessmentView(c, t))
+	view := deepAssessmentView(c, t)
+	if c.Query("runtime") == "true" {
+		live, readErr := h.deepAssessments.Store.RuntimeOverview(t)
+		if readErr != nil {
+			deepAssessmentError(c, readErr)
+			return
+		}
+		live.Live = h.deepAssessments.Live(t.ID)
+		live.Sessions = h.deepAssessmentRuntime.sessionActivity(t.ID)
+		session, _ := security.CurrentSession(c)
+		if security.SessionHasPermission(c, "vulnerability:read") {
+			live.FindingsVisible = true
+			live.Findings, readErr = h.db.CountVulnerabilitiesForAccess(database.VulnerabilityListFilter{AssessmentID: t.ID}, database.RBACListAccess{UserID: session.UserID, Scope: session.ScopeFor("vulnerability:read")})
+			if readErr != nil {
+				deepAssessmentError(c, readErr)
+				return
+			}
+		}
+		if security.SessionHasPermission(c, "asset:read") {
+			for _, step := range t.Steps {
+				if step.Status != "running" && step.Status != "pausing" {
+					continue
+				}
+				for i, id := range step.AssetIDs {
+					if i >= 3 {
+						break
+					}
+					a, readErr := h.db.GetAsset(id, database.RBACListAccess{UserID: session.UserID, Scope: session.ScopeFor("asset:read")})
+					if readErr == nil {
+						live.AssetNames[id] = a.Host
+						if a.Host == "" {
+							live.AssetNames[id] = a.IP
+						}
+					}
+				}
+			}
+		}
+		view["runtime"] = live
+	}
+	c.JSON(200, view)
 }
 func (h *AgentHandler) DeepAssessmentEvents(c *gin.Context) {
+	if c.Query("latest") == "true" {
+		events, err := h.deepAssessments.Store.RecentEvents(c.Param("id"), 100)
+		if err != nil {
+			deepAssessmentError(c, err)
+			return
+		}
+		for i, j := 0, len(events)-1; i < j; i, j = i+1, j-1 {
+			events[i], events[j] = events[j], events[i]
+		}
+		c.JSON(200, gin.H{"events": events})
+		return
+	}
 	after, _ := strconv.ParseInt(c.Query("after"), 10, 64)
 	list, err := h.deepAssessments.Store.Events(c.Param("id"), after)
 	if err != nil {
@@ -315,6 +367,7 @@ func (h *AgentHandler) ControlDeepAssessment(c *gin.Context) {
 		Message          string `json:"message"`
 		StepID           string `json:"step_id"`
 		Reconciled       bool   `json:"reconciled"`
+		Priority         int    `json:"priority"`
 	}
 	if !deepAssessmentBody(c, &req) {
 		return
@@ -334,9 +387,16 @@ func (h *AgentHandler) ControlDeepAssessment(c *gin.Context) {
 		deepAssessmentError(c, fmt.Errorf("请先恢复归档，再操作测评"))
 		return
 	}
-	if action == "guidance" && deepassessment.Active(t.Status) && t.ExecutorID != session.UserID {
+	automaticPending := deepassessment.Active(t.Status) || t.Status == "recovering" || t.Status == "waiting_retry" || t.Status == "waiting_progress"
+	if (action == "guidance" || action == "intent-guidance" || action == "intent-resume") && automaticPending && t.ExecutorID != session.UserID {
 		c.JSON(403, gin.H{"error": "请先暂停，再以当前账号继续任务后补充方向"})
 		return
+	}
+	if action == "intent-guidance" && automaticPending {
+		if _, err = h.deepAssessmentRuntime.principal(t); err != nil {
+			c.JSON(403, gin.H{"error": err.Error()})
+			return
+		}
 	}
 	if action == "start" || action == "answer" || action == "guidance" {
 		t.ExecutorID = session.UserID
@@ -364,6 +424,14 @@ func (h *AgentHandler) ControlDeepAssessment(c *gin.Context) {
 		}
 	}
 	switch action {
+	case "intent-pause", "intent-resume", "intent-priority", "intent-guidance":
+		if action == "intent-resume" && automaticPending {
+			if _, err = h.deepAssessmentRuntime.principal(t); err != nil {
+				c.JSON(403, gin.H{"error": err.Error()})
+				return
+			}
+		}
+		err = h.deepAssessments.ControlStepAs(id, req.StepID, strings.TrimPrefix(action, "intent-"), req.Message, req.Priority, *req.Revision, session.UserID)
 	case "archive", "restore":
 		err = h.deepAssessments.SetArchived(id, *req.Revision, action == "archive")
 	case "start":
@@ -417,6 +485,13 @@ func (h *AgentHandler) ControlDeepAssessment(c *gin.Context) {
 		h.deepAssessmentRuntime.steer(id, req.Message)
 	}
 	response := deepAssessmentView(c, t)
+	if action == "intent-guidance" {
+		delivered, deliveryErr := h.deepAssessmentRuntime.steerStep(id, req.StepID)
+		response["guidance_delivered"] = delivered
+		if deliveryErr != nil {
+			response["guidance_queued"] = true
+		}
+	}
 	if action == "answer" {
 		if err = h.deepAssessments.Start(id, session.UserID, t.Revision); err != nil {
 			response["start_error"] = err.Error()
@@ -438,10 +513,28 @@ func (h *AgentHandler) DeepAssessmentReport(c *gin.Context) {
 		return
 	}
 	var b strings.Builder
+	fmt.Fprintf(&b, "生成时间：%s\n\n[打开本次测评](%s)\n\n", time.Now().UTC().Format(time.RFC3339), assessmentReportLink(c, t.ID, "", "overview"))
 	fmt.Fprintf(&b, "# %s\n\n状态：%s\n\n## 目标\n%s\n\n## 范围\n%s\n\n## 验收条件\n%s\n\n## 当前结论\n%s\n\n## 路线\n%s\n", t.Name, t.Status, t.Objective, t.Scope, t.Criteria, t.Summary, t.Strategy)
-	fmt.Fprintf(&b, "\n## 运行记录\n\n模式：持续执行\n\n累计规划：%d\n\n累计 Token：%d\n", t.Rounds, t.TokensUsed)
+	fmt.Fprintf(&b, "\n## 运行记录\n\n类型：长程测评（当前状态见上方）\n\n累计规划：%d\n\n累计 Token：%d\n", t.Rounds, t.TokensUsed)
+	if len(t.Guidance) > 0 {
+		b.WriteString("\n## 人工补充\n")
+		for _, note := range t.Guidance {
+			reportLiteral(&b, note)
+		}
+	}
 	for _, s := range t.Steps {
 		fmt.Fprintf(&b, "\n## %s · %s [%s]\n\n%s\n\n前置：%s\n\n%s\n\n执行会话：%s\n\n证据回执：%s\n", s.ID, s.Title, s.Status, s.Instruction, strings.Join(s.DependsOn, ", "), s.Summary, s.ConversationID, strings.Join(s.Evidence, ", "))
+		priority := s.Priority
+		if priority == 0 {
+			priority = 100
+		}
+		fmt.Fprintf(&b, "\n优先级：%d · 用户暂停：%t\n\n[打开来源意图与回执](%s)\n", priority, s.UserPaused, assessmentReportLink(c, t.ID, s.ID, "evidence"))
+		if len(s.Guidance) > 0 {
+			b.WriteString("\n### 对此意图的人工补充\n")
+			for _, note := range s.Guidance {
+				reportLiteral(&b, note)
+			}
+		}
 	}
 	for offset := 0; ; offset += 20 {
 		facts, err := h.deepAssessments.Store.Facts(t.ID, "", offset)
@@ -455,6 +548,10 @@ func (h *AgentHandler) DeepAssessmentReport(c *gin.Context) {
 		if len(facts) < 20 {
 			break
 		}
+	}
+	if err = h.appendAssessmentFindingsReport(c, t, &b); err != nil {
+		deepAssessmentError(c, err)
+		return
 	}
 	c.Header("Content-Disposition", `attachment; filename="task-`+t.ID+`.md"`)
 	c.Data(200, "text/markdown; charset=utf-8", []byte(b.String()))

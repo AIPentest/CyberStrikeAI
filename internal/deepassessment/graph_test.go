@@ -29,6 +29,9 @@ func TestGraphFoldsColdHistoryAndRevivesActiveDependencies(t *testing.T) {
 	if err := s.SavePiSummary(task.ID, "0", "fixture-session", "entry", full); err != nil {
 		t.Fatal(err)
 	}
+	if err := s.PrepareGraph(task.ID); err != nil {
+		t.Fatal(err)
+	}
 	if err := s.Change(task.ID, "", "planning", "advance", func(v *Task) error { v.Rounds = 10; return nil }); err != nil {
 		t.Fatal(err)
 	}

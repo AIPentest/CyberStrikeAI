@@ -5,34 +5,42 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 )
 
 type Node struct {
-	ID        string          `json:"id"`
-	StepID    string          `json:"step_id,omitempty"`
-	Kind      string          `json:"kind"`
-	State     string          `json:"state"`
-	Title     string          `json:"title"`
-	Body      string          `json:"body"`
-	Source    json.RawMessage `json:"source"`
-	Round     int             `json:"updated_round"`
-	UpdatedAt time.Time       `json:"updated_at"`
+	Boundary    bool            `json:"boundary,omitempty"`
+	DetailCount int             `json:"detail_count,omitempty"`
+	ID          string          `json:"id"`
+	StepID      string          `json:"step_id,omitempty"`
+	Kind        string          `json:"kind"`
+	State       string          `json:"state"`
+	Title       string          `json:"title"`
+	Body        string          `json:"body"`
+	Source      json.RawMessage `json:"source"`
+	Round       int             `json:"updated_round"`
+	UpdatedAt   time.Time       `json:"updated_at"`
 }
 type Edge struct {
-	Source   string `json:"source"`
-	Target   string `json:"target"`
-	Relation string `json:"relation"`
+	Source     string `json:"source"`
+	Target     string `json:"target"`
+	Relation   string `json:"relation"`
+	Projection string `json:"projection,omitempty"`
+	References int    `json:"references,omitempty"`
 }
 type Graph struct {
-	Nodes      []Node `json:"nodes"`
-	Edges      []Edge `json:"edges"`
-	Total      int    `json:"total"`
-	Folded     int    `json:"folded"`
-	NextOffset int    `json:"next_offset"`
-	HasMore    bool   `json:"has_more"`
+	View          string `json:"view,omitempty"`
+	PrimaryCount  int    `json:"primary_count"`
+	BoundaryTotal int    `json:"boundary_total"`
+	BoundaryMore  int    `json:"boundary_more"`
+	DetailsHidden int    `json:"details_hidden"`
+	Nodes         []Node `json:"nodes"`
+	Edges         []Edge `json:"edges"`
+	Total         int    `json:"total"`
+	Folded        int    `json:"folded"`
+	NextOffset    int    `json:"next_offset"`
+	HasMore       bool   `json:"has_more"`
 }
 
 func graphNode(tx *sql.Tx, task string, n Node) error {
@@ -67,7 +75,7 @@ func syncGraph(tx *sql.Tx, t *Task, step, kind, message string, eventID int64) e
 		}
 	}
 	for _, st := range t.Steps {
-		source, _ := json.Marshal(map[string]any{"conversation_id": st.ConversationID, "evidence": st.Evidence, "depends_on": st.DependsOn, "source_ids": st.Sources, "asset_ids": st.AssetIDs, "priority": stepPriority(st)})
+		source, _ := json.Marshal(map[string]any{"conversation_id": st.ConversationID, "evidence": st.Evidence, "depends_on": st.DependsOn, "source_ids": st.Sources, "asset_ids": st.AssetIDs, "priority": stepPriority(st), "user_paused": st.UserPaused, "guidance_count": len(st.Guidance)})
 		for _, asset := range st.AssetIDs {
 			if _, err := tx.Exec("INSERT OR IGNORE INTO deep_assessment_assets(task_id,asset_id) SELECT ?,id FROM assets WHERE id=?", t.ID, asset); err != nil {
 				return err
@@ -109,6 +117,16 @@ func syncGraph(tx *sql.Tx, t *Task, step, kind, message string, eventID int64) e
 					return err
 				}
 			}
+		}
+	}
+	if eventID > 0 && kind == "intent_guidance" && step != "" {
+		id := fmt.Sprintf("guidance:intent:%d", eventID)
+		source, _ := json.Marshal(map[string]any{"provenance": "authenticated_user", "event_id": eventID})
+		if err := graphNode(tx, t.ID, Node{ID: id, StepID: step, Kind: "guidance", State: "user", Title: Clip(message, 100), Body: message, Source: source, Round: t.Rounds}); err != nil {
+			return err
+		}
+		if err := graphEdge(tx, t.ID, id, stepNode(step), "guides"); err != nil {
+			return err
 		}
 	}
 	if eventID > 0 && strings.TrimSpace(message) != "" && (kind == "checkpoint" || kind == "step_result" || kind == "review_gap") {
@@ -194,33 +212,84 @@ func (s *Store) PrepareGraph(id string) error {
 		return err
 	}
 	hot := hotGraph(nodes, edges)
+	active := map[string]bool{}
+	for _, n := range nodes {
+		if n.Kind != "digest" {
+			continue
+		}
+		var source struct {
+			Version int `json:"archive_version"`
+		}
+		_ = json.Unmarshal(n.Source, &source)
+		if source.Version != 2 && n.State != "superseded" {
+			// Preserve old archive IDs and membership for existing links, but stop
+			// treating unrelated ID batches as a single current branch.
+			n.State = "superseded"
+			if err = graphNode(tx, id, n); err != nil {
+				return err
+			}
+		}
+		if source.Version == 2 && n.State == "folded" {
+			active[n.ID] = true
+		}
+	}
 	covered := map[string]bool{}
 	for _, edge := range edges {
-		if edge.Relation == "contains" {
+		if edge.Relation == "contains" && active[edge.Source] {
 			covered[edge.Target] = true
 		}
 	}
 	var cold []Node
+	stamps := map[string]int{}
+	stampRows, stampErr := tx.Query("SELECT node_id,since_round FROM deep_assessment_cold WHERE task_id=?", id)
+	if stampErr != nil {
+		return stampErr
+	}
+	for stampRows.Next() {
+		var key string
+		var round int
+		if stampErr = stampRows.Scan(&key, &round); stampErr != nil {
+			stampRows.Close()
+			return stampErr
+		}
+		stamps[key] = round
+	}
+	stampErr = stampRows.Err()
+	stampRows.Close()
+	if stampErr != nil {
+		return stampErr
+	}
 	for _, n := range nodes {
-		if n.Kind == "step" && (n.State == "completed" || n.State == "retired") && !hot[n.ID] && !covered[n.ID] && task.Rounds-n.Round >= 6 {
-			cold = append(cold, n)
+		if n.Kind != "step" {
+			continue
+		}
+		if (n.State == "completed" || n.State == "retired") && !hot[n.ID] {
+			since, ok := stamps[n.ID]
+			if !ok || since > task.Rounds {
+				since = task.Rounds
+				if _, err = tx.Exec("INSERT INTO deep_assessment_cold(task_id,node_id,since_round) VALUES(?,?,?) ON CONFLICT(task_id,node_id) DO UPDATE SET since_round=excluded.since_round", id, n.ID, since); err != nil {
+					return err
+				}
+			}
+			if !covered[n.ID] && task.Rounds-since >= 6 {
+				cold = append(cold, n)
+			}
+		} else if _, ok := stamps[n.ID]; ok {
+			if _, err = tx.Exec("DELETE FROM deep_assessment_cold WHERE task_id=? AND node_id=?", id, n.ID); err != nil {
+				return err
+			}
 		}
 	}
-	sort.Slice(cold, func(i, j int) bool { return cold[i].ID < cold[j].ID })
-	// A batch size is a compaction granularity, not a lifetime step limit.
-	for len(cold) >= 4 {
-		n := min(20, len(cold))
-		members := cold[:n]
-		cold = cold[n:]
+	for _, members := range coldBranches(cold, nodes, edges) {
 		ids := []string{}
 		var summary strings.Builder
 		for _, member := range members {
 			ids = append(ids, member.ID)
 			fmt.Fprintf(&summary, "[%s] %s · %s\n%s\n", member.ID, member.State, member.Title, Clip(member.Body, 240))
 		}
-		sum := sha256.Sum256([]byte(strings.Join(ids, "\x00")))
+		sum := sha256.Sum256([]byte("branch-v2\x00" + strings.Join(ids, "\x00")))
 		digest := fmt.Sprintf("digest:%x", sum[:12])
-		src, _ := json.Marshal(map[string]any{"members": ids, "member_count": len(ids), "provenance": "lossless-index; expand original nodes; Pi summaries are separate memory nodes"})
+		src, _ := json.Marshal(map[string]any{"archive_version": 2, "members": ids, "member_count": len(ids), "provenance": "connected-branch reference index; original records and Pi summaries retained"})
 		if err = graphNode(tx, id, Node{ID: digest, Kind: "digest", State: "folded", Title: fmt.Sprintf("历史分支 · %d", len(ids)), Body: summary.String(), Source: src, Round: task.Rounds}); err != nil {
 			return err
 		}
@@ -310,139 +379,7 @@ func (s *Store) Graph(id, scope string, limit, offset int) (Graph, error) {
 }
 
 func (s *Store) GraphVisible(id, scope string, limit, offset int, allow func(Node) bool) (Graph, error) {
-	if limit < 1 || limit > 200 {
-		limit = 80
-	}
-	if offset < 0 {
-		return Graph{}, fmt.Errorf("invalid offset")
-	}
-	if err := s.PrepareGraph(id); err != nil {
-		return Graph{}, err
-	}
-	nodes, edges, err := readGraph(s.DB, id)
-	if err != nil {
-		return Graph{}, err
-	}
-	if allow != nil {
-		kept := []Node{}
-		ids := map[string]bool{}
-		for _, n := range nodes {
-			if allow(n) {
-				kept = append(kept, n)
-				ids[n.ID] = true
-			}
-		}
-		nodes = kept
-		keptEdges := []Edge{}
-		for _, edge := range edges {
-			if ids[edge.Source] && ids[edge.Target] {
-				keptEdges = append(keptEdges, edge)
-			}
-		}
-		edges = keptEdges
-	}
-	hot := hotGraph(nodes, edges)
-	byID := map[string]Node{}
-	for _, n := range nodes {
-		byID[n.ID] = n
-	}
-	hiddenSteps := map[string]bool{}
-	for _, e := range edges {
-		if e.Relation == "contains" && !hot[e.Target] {
-			hiddenSteps[byID[e.Target].StepID] = true
-		}
-	}
-	selected := map[string]bool{}
-	if scope != "" {
-		node, ok := byID[scope]
-		if !ok {
-			return Graph{}, sql.ErrNoRows
-		}
-		selected[scope] = true
-		if node.Kind == "digest" {
-			for _, e := range edges {
-				if e.Source == scope && e.Relation == "contains" {
-					selected[e.Target] = true
-				}
-			}
-		} else if node.StepID != "" {
-			selected[stepNode(node.StepID)] = true
-		}
-	}
-	visible := []Node{}
-	folded := 0
-	for _, n := range nodes {
-		if n.ID == "goal" {
-			continue
-		}
-		include := true
-		if scope != "" {
-			include = selected[n.ID] || selected[stepNode(n.StepID)]
-		} else if n.StepID != "" && hiddenSteps[n.StepID] {
-			include = false
-			folded++
-		}
-		if include && scope == "" && n.Kind == "digest" {
-			count := 0
-			for _, e := range edges {
-				if e.Source == n.ID && e.Relation == "contains" && !hot[e.Target] {
-					count++
-				}
-			}
-			if count == 0 {
-				include = false
-			} else {
-				n.Title = fmt.Sprintf("历史分支 · %d", count)
-			}
-		}
-		if include {
-			visible = append(visible, n)
-		}
-	}
-	priority := func(n Node) int {
-		if n.Kind == "step" && hot[n.ID] {
-			return 0
-		}
-		if n.Kind == "digest" {
-			return 1
-		}
-		if n.Kind == "step" {
-			return 2
-		}
-		if n.Kind == "memory" {
-			return 3
-		}
-		if n.Kind == "observation" {
-			return 4
-		}
-		return 5
-	}
-	sort.SliceStable(visible, func(i, j int) bool { return priority(visible[i]) < priority(visible[j]) })
-	out := Graph{Nodes: []Node{}, Edges: []Edge{}, Total: len(visible), Folded: folded}
-	root := byID["goal"]
-	root.Body = Clip(root.Body, 240)
-	out.Nodes = append(out.Nodes, root)
-	offset = min(offset, len(visible))
-	end := min(len(visible), offset+limit)
-	if offset < len(visible) {
-		for _, n := range visible[offset:end] {
-			n.Body = Clip(n.Body, 400)
-			n.Source = json.RawMessage(`{}`)
-			out.Nodes = append(out.Nodes, n)
-		}
-	}
-	out.NextOffset = end
-	out.HasMore = end < len(visible)
-	included := map[string]bool{}
-	for _, n := range out.Nodes {
-		included[n.ID] = true
-	}
-	for _, e := range edges {
-		if included[e.Source] && included[e.Target] {
-			out.Edges = append(out.Edges, e)
-		}
-	}
-	return out, nil
+	return s.GraphViewVisible(id, scope, "", limit, offset, allow)
 }
 
 func (s *Store) Node(id, nodeID string, offset int) (map[string]any, error) {
@@ -507,7 +444,7 @@ func (s *Store) SearchNodes(task, query, step string, offset int) ([]Node, error
 	if offset < 0 {
 		return nil, fmt.Errorf("invalid offset")
 	}
-	rows, err := s.DB.Query(`SELECT id,step_id,kind,state,title,substr(body,max(1,instr(lower(body),lower(?))-200),1600),source,updated_round,updated_at FROM deep_assessment_nodes WHERE task_id=? AND kind<>'finding' AND (?='' OR step_id=?) AND (instr(lower(title),lower(?))>0 OR instr(lower(body),lower(?))>0) ORDER BY updated_at DESC,id LIMIT 20 OFFSET ?`, query, task, step, step, query, query, offset)
+	rows, err := s.DB.Query(`SELECT id,step_id,kind,state,title,substr(body,max(1,instr(lower(body),lower(?))-200),1600),source,updated_round,updated_at FROM deep_assessment_nodes WHERE task_id=? AND kind<>'finding' AND NOT(kind='digest' AND state='superseded') AND (?='' OR step_id=?) AND (instr(lower(title),lower(?))>0 OR instr(lower(body),lower(?))>0) ORDER BY updated_at DESC,id LIMIT 20 OFFSET ?`, query, task, step, step, query, query, offset)
 	if err != nil {
 		return nil, err
 	}

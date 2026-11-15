@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -112,6 +113,11 @@ func (s *Store) change(id, step, kind, message string, version *int64, fn func(*
 		}
 		if err = syncGraph(tx, &t, step, kind, message, eventID); err != nil {
 			return err
+		}
+		if strings.HasPrefix(kind, "intent_") {
+			if err = Signal(tx, id); err != nil {
+				return err
+			}
 		}
 	}
 	return tx.Commit()
@@ -246,6 +252,11 @@ func (s *Store) Recover() error {
 					st.Status = "uncertain"
 				} else if st.Status == "running" || st.Status == "interrupted" {
 					st.Status = "pending"
+					if st.UserPaused {
+						st.Status = "paused"
+					}
+				} else if st.Status == "pausing" && st.UserPaused {
+					st.Status = "paused"
 				}
 			}
 			if len(unknown) > 0 {

@@ -6,6 +6,7 @@ module.exports = async function ({ page, width, height, theme, out }) {
   for (const script of [
     "tasks",
     "skills",
+    "assessment-workbench",
     "assessment-node-panel",
     "assessment-exploration-views",
     "deep-assessment-graph",

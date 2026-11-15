@@ -909,6 +909,11 @@ CREATE TABLE IF NOT EXISTS deep_assessments (
  name TEXT NOT NULL, status TEXT NOT NULL, payload TEXT NOT NULL, updated_at DATETIME NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_deep_assessments_status ON deep_assessments(status,updated_at);
+CREATE TABLE IF NOT EXISTS deep_assessment_cold (
+ task_id TEXT NOT NULL REFERENCES deep_assessments(id) ON DELETE CASCADE,
+ node_id TEXT NOT NULL, since_round INTEGER NOT NULL,
+ PRIMARY KEY(task_id,node_id)
+);
 CREATE TABLE IF NOT EXISTS deep_assessment_events (
  id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL REFERENCES deep_assessments(id) ON DELETE CASCADE,
  step_id TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL, message TEXT NOT NULL, created_at DATETIME NOT NULL

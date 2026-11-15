@@ -4,12 +4,16 @@
     const labels = { reader: '展开阅读', back: '返回图', close: '关闭节点详情', source: '证据与来源', summary: '结果摘要', instruction: '执行说明', content: '节点内容', output: '执行回执' };
     const text = key => { const path='deepAssessments.nodeReader.'+key, value=window.t?.(path); return value && value!==path ? value : labels[key] || key; };
     const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+    const rendered=new WeakMap();
     function sections(node) {
         const body=String(node.body||''), delimiter='\n\nInstruction: ', split=node.kind==='step'?body.indexOf(delimiter):-1;
         if(split>=0) return [{label:text('summary'),body:body.slice(0,split)},{label:text('instruction'),body:body.slice(split+delimiter.length)}].filter(section=>section.body.trim());
         return [{label:text(node.kind==='receipt'?'output':'content'),body,code:node.kind==='receipt'}];
     }
     function render(panel, options) {
+        const signature=JSON.stringify(options);
+        if(rendered.get(panel)===signature){window.DeepAssessments?.syncDetailPanels();return;}
+        rendered.set(panel,signature);
         const key=options.key||options.id||'';
         const same=panel.dataset.nodeKey===key;
         const scroll=same?(panel.querySelector('.da-node-content')?.scrollTop||0):0;

@@ -8,6 +8,8 @@
 
 工作区提供返回列表入口，保留列表筛选、分页和已有深链。资产图和探索图使用更大的画布，节点详情可收起；自动刷新、切换视图和画布尺寸变化会保留缩放与位置。「适应画布」查看全图，「整理布局」重新排列节点。长中文标签自动换行，完整内容在节点详情中查看。
 
+点击详情默认进入运行概览。概览展示规划/独立验收阶段、当前意图、工具运行及已有输出、Pi 原生模型/工具/压缩状态、队列计数、最近进展和下次唤醒。数据来自现有执行回执、Pi 事件及任务账本；刷新不会额外调用模型或启动任务。无变化时不重建正文，定向补充的草稿、焦点和阅读位置保留。
+
 节点详情默认使用较宽的阅读栏，可拖动图与详情之间的分隔线调整宽度；键盘聚焦分隔线后，左右方向键调整，Home 或双击恢复默认宽度。「展开阅读」将当前节点铺满工作区，点击「返回图」恢复分栏。摘要、执行说明、原始回执和来源分别展示；正文独立滚动，自动刷新保留阅读位置和已展开的来源，切换节点从顶部开始。窄屏改为上下布局，也可展开阅读。
 
 较大图显示缩略导航，可点击定位，也可聚焦后用方向键平移。节点类型和状态、关系颜色帮助区分链路；选中节点显示其相连关系的文字，位于画布外或缩得过小时自动定位到可读尺度。循环引用的回边保留，只在计算层级时避开，避免整组挤成单列。多个目标资产链接在正文中折叠展示，不占据固定底部操作区。全图仍按节点分页，大图概览不能保证每个节点的文字同时清晰，可选中节点或展开关联分支阅读。
@@ -45,6 +47,10 @@
 步骤通过 `depends_on` 建立执行依赖，通过 `source_ids` 引用启发本次探索的观察、回执或摘要。源节点必须属于同一测评。状态变化和观察节点在同一 SQLite 事务提交；原始调用回执和对应节点也在同一事务提交。
 
 借鉴 ARTEX 的冷热分层：活跃方向及其依赖、证据祖先保持可见。已经完成或撤下、连续多轮不参与活跃链路的历史步骤，按引用折叠为归档节点。新方向再次依赖旧步骤或旧证据时，相关链路会重新显示。折叠不删除原步骤、原始观察或工具结果，不改变完成条件。
+
+归档按真实依赖/证据分支分组，并持久化连续冷却的起始轮次；重新被引用后重新计时。已登记漏洞、目标和人工线索不会因来源步骤归档而隐藏，归档的对外关系标明「经归档」。旧版按 ID 批次建立的归档改标「已替代」，原 ID 和成员仍可展开，不删除历史记录。
+
+默认「主链路」收起观察和工具回执，关系标明「经执行记录」；切换「执行记录」或展开分支可查看原文。分页保留跨页引用节点，当前页最多展示 80 个引用；更多关联会明确计数，节点详情提供独立分页的完整上下游列表。跨页引用与归档投影都是视图，原始节点和边保持不变；显示与导航均遵守漏洞读取权限。
 
 会话摘要由 **Pi 原生压缩**生成并沉淀为图中的记忆节点。业务图的冷分支归档保存成员索引及已有结果摘录，不另起一套模型压缩循环。摘要是模型派生的续接材料，证据仍应回查执行回执。
 
@@ -110,6 +116,12 @@ Pi `SessionManager` 管理会话上下文、原生压缩、工具搜索、Skills
 
 运行中补充方向先入库，再通过 Pi 原生 `steer()` 投递给活跃执行步骤，恢复后也可回查。协作者需以自己的执行身份继续任务。
 
+意图队列支持单条暂停/继续、优先级调整和定向补充。暂停一条意图只取消其执行上下文，其他意图和规划器继续工作；用户暂停标记持久保存，整任务继续和重启不会自动解除，规划器也不能退休该意图来绕过暂停。继续只恢复这一条的排队状态；整任务若已暂停，仍需手动开始整任务。优先级调整不抢占正在执行的步骤。
+
+「给此意图补充方向」先保存到该意图及探索图，再通过对应 Pi 会话的原生 `steer()` 投递；暂停、排队或尚未绑定会话时保存供续跑使用。定向补充不广播给其他 worker。活跃及自动恢复中的测评只允许当前执行账号定向继续或发送执行指令，协作者可先暂停并以自己的账号继续。
+
+下载的 Markdown 报告包含目标、步骤、事实、人工补充，以及当前账号有权读取的关联漏洞、复现内容和完整复核历史。每条复核绑定其原始回执摘录和可返回测评的链接；摘录不替代完整执行会话。运行中导出属于阶段报告，已登记与已独立确认分别标识。
+
 ## 恢复语义
 
 点击「开始 / 继续」后自动规划并执行本测评的待办步骤；点击「暂停」后停止新派发，取消规划器与全部在执行的步骤，等待所管执行资源收尾后显示「已暂停」。自动重试、等待新进展和待恢复状态也可暂停；手动暂停后不会被后台恢复队列或服务重启重新启动。打开页面、查看详情和刷新均不会启动任务。
@@ -134,13 +146,13 @@ Pi `SessionManager` 管理会话上下文、原生压缩、工具搜索、Skills
 | `GET /api/deep-assessments/options` | 可用项目、角色与模型渠道 |
 | `GET / POST /api/deep-assessments` | 查询列表（`archived=true` 查看归档）/ 创建草稿 |
 | `GET / DELETE /api/deep-assessments/:id` | 详情 / 删除非活动测评 |
-| `GET /api/deep-assessments/:id?step_limit=50&step_offset=0` | 最近步骤的分页详情 |
-| `POST /api/deep-assessments/:id/control/:action` | start、pause、cancel、guidance、answer、retry、archive、restore |
+| `GET /api/deep-assessments/:id?step_limit=50&step_offset=0&runtime=true` | 分页详情与运行概览；`step_order=queue&step_status=needs_review` 定位待核对步骤 |
+| `POST /api/deep-assessments/:id/control/:action` | start、pause、cancel、guidance、answer、retry、archive、restore，以及 intent-pause、intent-resume、intent-priority、intent-guidance |
 | `GET / POST /api/deep-assessments/:id/assets` | 查看共享/关联资产图，或关联资产；`asset_id` 查询服务端点 |
 | `GET /api/deep-assessments/:id/intents?status=&offset=0` | 优先级队列和状态计数 |
 | `GET /api/deep-assessments/:id/facts?confidence=&offset=0` | 分页读取观察/推断事实 |
-| `GET /api/deep-assessments/:id/graph?scope=&limit=80&offset=0` | 折叠图或展开指定节点 |
-| `GET /api/deep-assessments/:id/graph/node?node_id=…&offset=0` | 节点原文 |
+| `GET /api/deep-assessments/:id/graph?scope=&view=summary&limit=80&offset=0` | 主链路或 `view=full` 执行记录；包含分页边界计数及引用 |
+| `GET /api/deep-assessments/:id/graph/node?node_id=…&offset=0&links_offset=0` | 原文及独立分页的上下游关系 |
 | `GET /api/deep-assessments/:id/vulnerabilities?limit=20&offset=0` | 当前账号可读的关联漏洞 |
 | `GET /api/deep-assessments/:id/vulnerabilities/:vulnerabilityId` | 属于该测评的漏洞详情和来源步骤 |
 | `GET /api/deep-assessments/:id/steps/:stepId` | 单个步骤，用于跨分页定位 |
@@ -149,6 +161,8 @@ Pi `SessionManager` 管理会话上下文、原生压缩、工具搜索、Skills
 | `GET /api/deep-assessments/:id/report` | 包含当前状态及缺口的阶段报告 |
 
 控制请求携带 `revision`；结果不明的步骤重试另需 `reconciled:true`，资源清理未确认另需 `cleanup_confirmed:true`。
+
+单条意图操作另传 `step_id`；调整优先级传 `priority`（1–1000），定向补充传 `message`。响应的 `guidance_delivered` 表示是否已投递到当前 Pi 会话；未投递时已保存，后续继续生效。
 
 ## 验证边界
 

@@ -17,12 +17,14 @@ type Engine struct {
 	Runtime         Runtime
 	mu              sync.Mutex
 	active          map[string]context.CancelFunc
+	workers         map[string]map[string]context.CancelFunc
+	phases          map[string]LivePhase
 	closed          bool
 	wg              sync.WaitGroup
 }
 
 func NewEngine(s *Store, r Runtime) *Engine {
-	return &Engine{Store: s, Runtime: r, active: map[string]context.CancelFunc{}}
+	return &Engine{Store: s, Runtime: r, active: map[string]context.CancelFunc{}, workers: map[string]map[string]context.CancelFunc{}, phases: map[string]LivePhase{}}
 }
 
 func (e *Engine) Start(id, executor string, revision int64) error {
@@ -77,6 +79,9 @@ func (e *Engine) start(id, executor string, revision int64, automatic bool) erro
 			step := &t.Steps[i]
 			if step.Status == "uncertain" && resolved[step.ID] && !unknown[step.ID] {
 				step.Status = "pending"
+				if step.UserPaused {
+					step.Status = "paused"
+				}
 				repairedStep = true
 			}
 		}
@@ -111,7 +116,7 @@ func (e *Engine) start(id, executor string, revision int64, automatic bool) erro
 	go func() {
 		defer e.wg.Done()
 		defer cancel()
-		defer func() { e.mu.Lock(); delete(e.active, id); e.mu.Unlock() }()
+		defer func() { e.mu.Lock(); delete(e.active, id); delete(e.workers, id); delete(e.phases, id); e.mu.Unlock() }()
 		e.run(ctx, id)
 	}()
 	return nil
@@ -339,6 +344,8 @@ func (e *Engine) run(parent context.Context, id string) {
 			if workers[step.ID] || !t.Ready(step) {
 				continue
 			}
+			workerCtx, workerCancel := context.WithCancel(ctx)
+			e.mu.Lock()
 			err = e.Store.Change(id, step.ID, "step_started", step.Title, func(current *Task) error {
 				s := current.Step(step.ID)
 				if current.Status != "running" || ctx.Err() != nil || s == nil || !current.Ready(*s) {
@@ -348,16 +355,26 @@ func (e *Engine) run(parent context.Context, id string) {
 				s.Attempts++
 				return nil
 			})
+			if err == nil {
+				if e.workers[id] == nil {
+					e.workers[id] = map[string]context.CancelFunc{}
+				}
+				e.workers[id][step.ID] = workerCancel
+			}
+			e.mu.Unlock()
 			if err != nil {
+				workerCancel()
 				stop("blocked", err.Error())
 				return
 			}
 			workers[step.ID] = true
 			launch(func() result {
-				out, runErr := e.Runtime.Run(ctx, t, step, func(conversation, summary string) error {
+				defer workerCancel()
+				defer func() { e.mu.Lock(); delete(e.workers[id], step.ID); e.mu.Unlock() }()
+				out, runErr := e.Runtime.Run(workerCtx, t, step, func(conversation, summary string) error {
 					return e.Store.Change(id, step.ID, "checkpoint", summary, func(current *Task) error {
 						s := current.Step(step.ID)
-						if s == nil || s.Status != "running" {
+						if s == nil || (s.Status != "running" && !(s.Status == "pausing" && s.UserPaused)) {
 							return ErrConflict
 						}
 						if conversation != "" {
@@ -377,11 +394,13 @@ func (e *Engine) run(parent context.Context, id string) {
 				if runErr != nil {
 					resultMessage = runErr.Error()
 				}
+				userPausedResult := false
 				persistErr := e.Store.Change(id, step.ID, "step_result", resultMessage, func(current *Task) error {
 					s := current.Step(step.ID)
-					if s == nil || s.Status != "running" {
+					if s == nil || (s.Status != "running" && !(s.Status == "pausing" && s.UserPaused)) {
 						return ErrConflict
 					}
+					userPausedResult = s.UserPaused
 					if len(out.Evidence) > 0 {
 						s.Evidence = out.Evidence
 					}
@@ -396,6 +415,10 @@ func (e *Engine) run(parent context.Context, id string) {
 						if runErr != nil {
 							s.Summary = runErr.Error()
 						}
+					} else if out.Status == "completed" && out.Summary != "" && runErr == nil && workerCtx.Err() == nil && !s.UserPaused {
+						s.Status = "completed"
+					} else if s.UserPaused {
+						s.Status = "paused"
 					} else if ctx.Err() != nil {
 						s.Status = "pending"
 					} else if errors.Is(runErr, ErrRetryable) {
@@ -423,7 +446,7 @@ func (e *Engine) run(parent context.Context, id string) {
 					}
 					return nil
 				})
-				if persistErr == nil && errors.Is(runErr, ErrRetryable) {
+				if persistErr == nil && !userPausedResult && errors.Is(runErr, ErrRetryable) {
 					persistErr = runErr
 				}
 				return result{kind: "worker", id: step.ID, err: persistErr}
@@ -445,8 +468,10 @@ func (e *Engine) run(parent context.Context, id string) {
 				return
 			}
 			planning = true
+			e.setPhase(id, "planning", true)
 			needPlan = false
 			launch(func() result {
+				defer e.setPhase(id, "planning", false)
 				p, err := e.Runtime.Plan(ctx, snapshot)
 				return result{kind: "plan", proposal: p, err: err, guidance: len(snapshot.Guidance), revision: snapshot.Revision, changeVersion: change}
 			})
@@ -474,7 +499,9 @@ func (e *Engine) run(parent context.Context, id string) {
 				}
 			}
 			reviewing = true
+			e.setPhase(id, "reviewing", true)
 			launch(func() result {
+				defer e.setPhase(id, "reviewing", false)
 				v, err := e.Runtime.Review(ctx, t)
 				return result{kind: "review", verdict: v, err: err, guidance: len(t.Guidance), changeVersion: change}
 			})

@@ -28,7 +28,7 @@
     }
     function relationLabel(key) {
         const path='deepAssessments.graphRelations.'+key,value=window.t?.(path);
-        return value && value!==path ? value : ({plans:'规划',depends_on:'依赖',informs:'派生',derives:'推导',produces:'产出',supports:'支持',reviews:'复核',executes:'执行',records:'记录',summarizes:'摘要',archives:'归档',contains:'包含',guides:'指导',exposes:'提供',associated_with:'关联',serves:'承载'})[key] || key;
+        return value && value!==path ? value : ({via_archive:'经归档',via_details:'经执行记录',plans:'规划',depends_on:'依赖',informs:'派生',derives:'推导',produces:'产出',supports:'支持',reviews:'复核',executes:'执行',records:'记录',summarizes:'摘要',archives:'归档',contains:'包含',guides:'指导',exposes:'提供',associated_with:'关联',serves:'承载'})[key] || key;
     }
     function styles() {
         const css = getComputedStyle(document.documentElement);
@@ -37,11 +37,13 @@
         return [
             { selector: 'node', style: { shape: 'round-rectangle', label: 'data(label)', width: 224, height: 88, 'background-color': surface, 'border-width': 2, 'border-color': 'data(color)', color: text, 'font-size': 14, 'text-wrap': 'wrap', 'text-max-width': 208, 'text-overflow-wrap':'anywhere', 'text-valign': 'center', 'text-halign': 'center', padding: 9 } },
             { selector: 'node[kind = "goal"]', style: { 'border-width': 3 } },
+            {selector:'node[?boundary]',style:{'border-style':'dashed','background-opacity':.6}},
             { selector: 'node[kind = "digest"]', style: { 'border-style': 'dashed' } },
             { selector: 'node[state = "running"]', style: { 'background-color': '#dbeafe', color: '#172033' } },
             { selector: 'node:selected', style: { 'border-width': 4, 'overlay-opacity': .08, 'overlay-color': '#3b82f6' } },
             { selector: 'edge', style: { width: 1.5, 'line-color': 'data(relationColor)', 'target-arrow-color': 'data(relationColor)', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', label: '', opacity:.65, 'font-size': 10, color: text, 'text-background-color': surface, 'text-background-opacity': .9 } },
             { selector: 'edge.da-connected', style: { label:'data(relationLabel)',width:2.5,opacity:1 } },
+            {selector:'edge[projection]',style:{'line-style':'dashed'}},
             { selector: 'edge[relation = "supports"], edge[relation = "informs"]', style: { 'line-style': 'dashed' } },
         ];
     }
@@ -157,11 +159,11 @@
             }
             return;
         }
-        const elements = nodes.map(node => ({ data: { id: node.id, kind: node.kind, state: node.state, label: label(node.kind) + (node.state?' · '+stateLabel(node.state):'') + '\n' + (Array.from(node.title).length > 42 ? Array.from(node.title).slice(0, 42).join('') + '…' : node.title), color: colors[node.kind] || colors.step } }));
+        const elements = nodes.map(node => ({ data: { id: node.id, kind: node.kind, state: node.state, boundary:!!node.boundary,label: label(node.kind) + (node.state&&stateLabel(node.state)?' · '+stateLabel(node.state):'') + '\n' + (Array.from(node.title).length > 42 ? Array.from(node.title).slice(0, 42).join('') + '…' : node.title), color: colors[node.kind] || colors.step } }));
         const ids = new Set(nodes.map(n => n.id));
         for (const edge of graph.edges || []) if (ids.has(edge.source) && ids.has(edge.target)) {
             const relationColor=({plans:'#6366f1',depends_on:'#6366f1',informs:'#059669',derives:'#059669',produces:'#d97706',supports:'#e11d48',reviews:'#e11d48',summarizes:'#a855f7',archives:'#a855f7'})[edge.relation]||'#94a3b8';
-            elements.push({ data: { id: 'edge:' + JSON.stringify([edge.source, edge.relation, edge.target]), ...edge, relationLabel: relationLabel(edge.relation),relationColor } });
+            elements.push({ data: { id: 'edge:' + JSON.stringify([edge.source, edge.relation, edge.target,edge.projection||'']), ...edge, relationLabel: relationLabel(edge.relation)+(edge.projection?' · '+relationLabel('via_'+edge.projection):'')+(edge.references>1?' ×'+edge.references:''),relationColor } });
         }
         if (!chart) {
             chart = window.cytoscape({ container: host, elements, style: styles(), layout: { name: 'preset' }, minZoom: .12, maxZoom: 2.2, wheelSensitivity: .25 });
