@@ -335,6 +335,7 @@
             if (epoch !== S.epoch || S.busy) return;
             if (list) { S.more=list.has_more; S.listTasks=list.tasks||[]; renderList(); }
             if (detail && (!S.task || detail.task.revision >= S.task.revision)) S.task = detail.task;
+            if (detail) S.stepOffset=detail.step_offset??S.stepOffset;
             if (detail) { S.runtime=detail.runtime||null; S.intentCounts = detail.intent_counts || {}; S.stepTotal = detail.step_total ?? detail.task.steps?.length ?? 0; S.stepMore = !!detail.step_has_more; }
             if (id && S.originFindingId && canFindings()) {
                 const data = await json('/' + encodeURIComponent(id) + '/vulnerabilities/' + encodeURIComponent(S.originFindingId)); if (epoch !== S.epoch) return;
@@ -392,27 +393,33 @@
     }
     async function mutate(action, values = {}, expectedStep=null) {
         if (S.busy || !S.task || !can('write')) return false;
-        S.busy = true; ++S.epoch; renderTask();
+        const taskId=S.id;
+        S.busy = true; const epoch=++S.epoch; renderTask();
+        const stillCurrent=()=>S.id===taskId&&S.epoch===epoch&&S.detailVisible;
         try {
             let revision=S.task.revision;
             if(expectedStep){
-                const fresh=await json('/'+encodeURIComponent(S.id)+'/steps/'+encodeURIComponent(values.step_id));
+                const fresh=await json('/'+encodeURIComponent(taskId)+'/steps/'+encodeURIComponent(values.step_id));
+                if(!stillCurrent())return false;
                 if((fresh.step.attempts||0)!==expectedStep.attempts||(fresh.step.conversation_id||'')!==expectedStep.conversation)throw new Error(L('stepChanged'));
                 revision=fresh.revision??revision;
                 if(action==='reconcile'&&!['uncertain','cleanup_unconfirmed'].includes(fresh.step.status)){
                     if(['running','pausing'].includes(fresh.step.status))throw new Error(L('stepChanged'));
                     notice(L('reviewSaved'));return true;
                 }
-            }else if(action.startsWith('intent-')||action==='continue-stopped'){revision=(await json('/'+encodeURIComponent(S.id)+'?step_limit=1')).task.revision;}
+            }else if(action.startsWith('intent-')||action==='continue-stopped'){revision=(await json('/'+encodeURIComponent(taskId)+'?step_limit=1')).task.revision;}
+            if(!stillCurrent())return false;
             const query=new URLSearchParams({step_limit:50,step_offset:S.stepOffset});
             if(S.tab==='plan'){query.set('step_order','queue');query.set('step_status',S.intentStatus);query.set('step_asset',S.intentAsset);}
-            const data = await json('/' + encodeURIComponent(S.id) + '/control/' + action + '?'+query, { method: 'POST', body: JSON.stringify({ revision, ...values }) });
+            const data = await json('/' + encodeURIComponent(taskId) + '/control/' + action + '?'+query, { method: 'POST', body: JSON.stringify({ revision, ...values }) });
+            if(!stillCurrent())return false;
             if(data.step&&S.focusStepId===data.step.id)S.focusedStep=data.step;
             S.intentCounts=data.intent_counts||S.intentCounts;
+            S.stepOffset=data.step_offset??S.stepOffset;
             if(action==='reconcile'&&S.tab==='plan'&&S.intentStatus==='needs_review'){S.focusStepId='';S.focusedStep=null;writeRoute();}
 
             S.guidanceDelivered=!!data.guidance_delivered;S.task = data.task; S.stepTotal = data.step_total ?? data.task.steps?.length ?? 0; S.stepMore = !!data.step_has_more; notice(data.start_error || L(action==='reconcile'?'reviewSaved':'updated'), !!data.start_error);if(action==='continue-stopped'&&data.task.status==='waiting_input')$('da-guidance-panel').open=true; return !data.start_error;
-        } catch (error) { notice(error.message, true); return false; }
+        } catch (error) { if(stillCurrent())notice(error.message, true); return false; }
         finally { S.busy = false; renderTask(); void refresh(); }
     }
     function showForm(title, html) {

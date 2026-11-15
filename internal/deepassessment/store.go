@@ -215,7 +215,8 @@ func (s *Store) Delete(id string) error {
 // Recover prepares safe segments for automatic continuation. A call with no
 // committed receipt remains uncertain and is never automatically replayed.
 func (s *Store) Recover() error {
-	rows, err := s.DB.Query(`SELECT id FROM deep_assessments WHERE status IN ('running','pausing','cancelling','recovering','waiting_retry','waiting_progress')`)
+	rows, err := s.DB.Query(`SELECT id FROM deep_assessments t WHERE status IN ('running','pausing','cancelling','recovering','waiting_retry','waiting_progress')
+ OR (status='cancelled' AND EXISTS(SELECT 1 FROM json_each(t.payload,'$.steps') st WHERE json_extract(st.value,'$.status') IN ('running','pausing','interrupted')))`)
 	if err != nil {
 		return err
 	}
@@ -234,6 +235,10 @@ func (s *Store) Recover() error {
 		return err
 	}
 	for _, id := range ids {
+		resolved, err := s.ReconcileKnownCalls(id, "")
+		if err != nil {
+			return err
+		}
 		unknown, err := s.UncertainSteps(id)
 		if err != nil {
 			return err
@@ -241,31 +246,44 @@ func (s *Store) Recover() error {
 		if err = s.Change(id, "", "recovered", "已恢复任务记录和 Pi 会话引用，检查未完成调用。", func(t *Task) error {
 			accountTime(t)
 			prior := t.Status
+			restart := t.RestartPending
 			t.Status = "paused"
-			if prior == "cancelling" {
-				t.Status = "cancelled"
-				return nil
-			}
+			t.RestartPending = false
+			review := len(unknown) > 0
 			for i := range t.Steps {
 				st := &t.Steps[i]
-				if unknown[st.ID] {
+				if unknown[st.ID] && st.Status != "cleanup_unconfirmed" {
 					st.Status = "uncertain"
-				} else if st.Status == "running" || st.Status == "interrupted" {
+				} else if st.Status == "running" || st.Status == "interrupted" || st.Status == "pausing" || st.Status == "uncertain" && resolved[st.ID] {
 					st.Status = "pending"
 					if st.UserPaused {
 						st.Status = "paused"
 					}
-				} else if st.Status == "pausing" && st.UserPaused {
-					st.Status = "paused"
 				}
+				review = review || st.Status == "uncertain" || st.Status == "cleanup_unconfirmed"
 			}
-			if len(unknown) > 0 {
-				t.Status = "needs_review"
-				t.Summary = "存在执行结果不明的工具调用，请核对回执后继续。"
+			// A restart may interrupt cancellation before workers save their final
+			// state. Normalize those steps, but retain the user's stop decision.
+			if prior == "cancelling" || prior == "cancelled" {
+				t.Status = "cancelled"
+				t.NextWake = nil
 				return nil
 			}
-			if t.AutoResume && (prior != "pausing" || t.RestartPending) {
+			if review {
+				t.Status = "needs_review"
+				t.Summary = "存在执行结果或资源停止状态待核对，请查看回执后继续。"
+				t.NextWake = nil
+				return nil
+			}
+			if t.Question != "" {
+				t.Status = "waiting_input"
+				t.NextWake = nil
+				return nil
+			}
+			if !t.Archived && t.AutoResume && (prior != "pausing" || restart) {
 				t.Status = "recovering"
+			} else {
+				t.NextWake = nil
 			}
 			return nil
 		}); err != nil {

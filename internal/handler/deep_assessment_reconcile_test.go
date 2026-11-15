@@ -8,7 +8,22 @@ import (
 	"testing"
 
 	"cyberstrike-ai/internal/deepassessment"
+	"github.com/gin-gonic/gin"
 )
+
+func TestReviewPagingReturnsToRemainingPageAfterLastItemIsAcknowledged(t *testing.T) {
+	task := &deepassessment.Task{Status: "cancelled"}
+	for i := 0; i < 51; i++ {
+		task.Steps = append(task.Steps, deepassessment.Step{ID: fmt.Sprint(i), Status: "uncertain"})
+	}
+	task.Steps[50].Status = "reconciled"
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest("GET", "/?step_limit=50&step_offset=50&step_order=queue&step_status=needs_review", nil)
+	view := deepAssessmentView(c, task)
+	if view["step_total"] != 50 || view["step_offset"] != 0 || len(view["task"].(*deepassessment.Task).Steps) != 50 {
+		t.Fatal(view)
+	}
+}
 
 func TestDeepAssessmentStoppedReviewIsMetadataOnlyAndLegacyClickWorks(t *testing.T) {
 	h, task := deepAssessmentFixture(t)

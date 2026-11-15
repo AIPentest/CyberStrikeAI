@@ -81,7 +81,7 @@ func TestArchiveRejectsActiveAndUncertainExecution(t *testing.T) {
 	s, task := fixture(t)
 	e := NewEngine(s, fakeRuntime{})
 	t.Cleanup(e.Close)
-	for _, state := range []string{"running", "uncertain", "cleanup_unconfirmed"} {
+	for _, state := range []string{"running", "pausing", "uncertain", "cleanup_unconfirmed"} {
 		s.Change(task.ID, "", "fixture", "", func(v *Task) error { v.Status = "paused"; v.Steps = []Step{{ID: "one", Status: state}}; return nil })
 		current, _ := s.Get(task.ID)
 		if err := e.SetArchived(task.ID, current.Revision, true); err == nil {

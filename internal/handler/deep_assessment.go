@@ -273,7 +273,11 @@ func deepAssessmentView(c *gin.Context, t *deepassessment.Task) gin.H {
 		}
 	}
 	total := len(steps)
-	offset = min(offset, total)
+	if total > 0 && offset >= total {
+		offset = (total - 1) / limit * limit
+	} else {
+		offset = min(offset, total)
+	}
 	end := min(total, offset+limit)
 	view := *t
 	view.Steps = []deepassessment.Step{}
@@ -284,7 +288,7 @@ func deepAssessmentView(c *gin.Context, t *deepassessment.Task) gin.H {
 			view.Steps = append(view.Steps, steps[total-1-i])
 		}
 	}
-	return gin.H{"task": &view, "step_total": total, "step_next_offset": end, "step_has_more": end < total, "intent_counts": counts}
+	return gin.H{"task": &view, "step_total": total, "step_offset": offset, "step_next_offset": end, "step_has_more": end < total, "intent_counts": counts}
 }
 
 func (h *AgentHandler) GetDeepAssessment(c *gin.Context) {

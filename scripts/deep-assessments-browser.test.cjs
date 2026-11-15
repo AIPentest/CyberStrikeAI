@@ -68,8 +68,9 @@ async function fixture(t) {
   const counts={};for(const step of task.steps||[])counts[step.status]=(counts[step.status]||0)+1;counts.needs_review=(counts.uncertain||0)+(counts.cleanup_unconfirmed||0);
   const queue=url.searchParams.get('step_order')==='queue',filter=url.searchParams.get('step_status');
   const steps=(task.steps||[]).filter(s=>!queue||!filter||s.status===filter||filter==='needs_review'&&['uncertain','cleanup_unconfirmed'].includes(s.status));
-  const stepOffset=Number(url.searchParams.get('step_offset')||0),stepLimit=Number(url.searchParams.get('step_limit')||steps.length);
-  return send(200,{runtime:{live:{active:task.status==='running',planning:false,workers:counts.running||0},counts,intents:(task.steps||[]).filter(s=>s.status==='running'),tools:[],recent:[],facts:0,findings:0,findings_visible:true,asset_names:{},...task.runtime},guidance_delivered:match[2]==='control/intent-guidance'&&task.status==='running'&&task.steps.find(s=>s.id===body?.step_id)?.status==='running',step:body?.step_id?task.steps.find(s=>s.id===body.step_id):undefined,task:{...task,review_count:counts.needs_review,steps:steps.slice(stepOffset,stepOffset+stepLimit)},intent_counts:counts,step_total:steps.length,step_has_more:stepOffset+stepLimit<steps.length});
+  const stepLimit=Number(url.searchParams.get('step_limit')||steps.length)||50;
+  const requestedOffset=Number(url.searchParams.get('step_offset')||0),stepOffset=requestedOffset>=steps.length?(steps.length?Math.floor((steps.length-1)/stepLimit)*stepLimit:0):requestedOffset;
+  return send(200,{runtime:{live:{active:task.status==='running',planning:false,workers:counts.running||0},counts,intents:(task.steps||[]).filter(s=>s.status==='running'),tools:[],recent:[],facts:0,findings:0,findings_visible:true,asset_names:{},...task.runtime},guidance_delivered:match[2]==='control/intent-guidance'&&task.status==='running'&&task.steps.find(s=>s.id===body?.step_id)?.status==='running',step:body?.step_id?task.steps.find(s=>s.id===body.step_id):undefined,task:{...task,review_count:counts.needs_review,steps:steps.slice(stepOffset,stepOffset+stepLimit)},intent_counts:counts,step_total:steps.length,step_offset:stepOffset,step_has_more:stepOffset+stepLimit<steps.length});
  });
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  const executablePath=process.env.CHROME_PATH||(process.platform==='darwin'?'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome':undefined);
@@ -621,4 +622,34 @@ test('review preflight refuses to acknowledge a newer execution attempt',async t
  page.removeAllListeners('dialog');page.on('dialog',async dialog=>{task.steps[0].attempts=2;task.revision++;await dialog.accept();});
  await page.locator('[data-da-action="reconcile"]').click();await page.waitForFunction(()=>document.querySelector('#da-detail-notice').textContent.includes('新的执行'));
  assert.equal(state.requests.filter(r=>r.method==='POST').length,0);assert.equal(task.steps[0].status,'uncertain');assert.deepEqual(state.errors,[]);
+});
+
+test('navigation during a control preflight cannot redirect it to another assessment',async t=>{
+ const {page,state}=await fixture(t);state.tasks.get('t0').status='cancelled';
+ await page.evaluate(()=>DeepAssessments.refresh());await page.locator('.da-list-item[data-id="t0"] [data-da-action="details"]').click();
+ await page.locator('#da-controls [data-da-action="continue-stopped"]').waitFor();
+ let release,started;const gate=new Promise(r=>release=r),reached=new Promise(r=>started=r);
+ await page.route('**/api/deep-assessments/t0?step_limit=1',async route=>{started();await gate;await route.continue();});
+ await page.locator('#da-controls [data-da-action="continue-stopped"]').click();await reached;
+ await page.evaluate(()=>{location.hash='#deep-assessments?assessment_id=t1&tab=overview';DeepAssessments.fromLocation();});
+ release();await page.waitForFunction(()=>document.querySelector('#da-title').textContent.includes('t1'));
+ assert.equal(state.requests.filter(r=>r.method==='POST').length,0);assert.equal(state.tasks.get('t0').status,'cancelled');assert.equal(state.tasks.get('t1').status,'draft');assert.deepEqual(state.errors,[]);
+});
+
+test('a control response cannot overwrite a different assessment opened while waiting',async t=>{
+ const {page,state}=await fixture(t);await page.locator('.da-list-item[data-id="t0"] [data-da-action="details"]').click();
+ let release,started;const gate=new Promise(r=>release=r),reached=new Promise(r=>started=r);
+ await page.route('**/api/deep-assessments/t0/control/start?*',async route=>{const response=await route.fetch();started();await gate;await route.fulfill({response});});
+ await page.locator('#da-controls [data-da-action="start"]').click();await reached;
+ await page.evaluate(()=>{location.hash='#deep-assessments?assessment_id=t1&tab=overview';DeepAssessments.fromLocation();});
+ release();await page.waitForFunction(()=>document.querySelector('#da-title').textContent.includes('t1'));
+ assert.equal(state.tasks.get('t0').status,'running');assert.equal(state.tasks.get('t1').status,'draft');assert.equal(state.requests.filter(r=>r.method==='POST').length,1);assert.deepEqual(state.errors,[]);
+});
+
+test('reviewing the last item on a later page returns to the remaining review items',async t=>{
+ const {page,state}=await fixture(t),task=state.tasks.get('t0');task.status='cancelled';task.steps=Array.from({length:51},(_,i)=>({id:'review-'+i,title:'待核对 '+i,status:'uncertain'}));
+ await page.evaluate(()=>DeepAssessments.refresh());await page.locator('.da-list-item[data-id="t0"] [data-da-action="review"]').click();
+ await page.locator('[data-da-action="step-next"]').click();await page.locator('.da-step[data-step="review-50"]').waitFor();
+ await page.locator('.da-step[data-step="review-50"] [data-da-action="reconcile"]').click();
+ await page.locator('.da-step[data-step="review-0"]').waitFor();assert.equal(await page.locator('.da-step').count(),50);assert.equal(task.status,'cancelled');assert.equal(await page.locator('[data-da-action="step-previous"]').count(),0);assert.deepEqual(state.errors,[]);
 });

@@ -160,7 +160,7 @@ func (e *Engine) Stop(id string, revision int64, cancelTask bool) error {
 	defer e.mu.Unlock()
 	cancel, running := e.active[id]
 	err := e.Store.Change(id, "", "stop_requested", "停止派发新步骤，等待执行资源收尾。", func(t *Task) error {
-		if revision > t.Revision || t.Status == "completed" || t.Status == "cancelled" {
+		if t.Archived || revision > t.Revision || t.Status == "completed" || t.Status == "cancelled" || t.Status == "cancelling" && !cancelTask {
 			return ErrConflict
 		}
 		t.RestartPending = false
@@ -231,7 +231,7 @@ func (e *Engine) SetArchived(id string, revision int64, archived bool) error {
 		}
 		if archived {
 			for _, step := range t.Steps {
-				if step.Status == "running" || step.Status == "uncertain" || step.Status == "cleanup_unconfirmed" {
+				if step.Status == "running" || step.Status == "pausing" || step.Status == "uncertain" || step.Status == "cleanup_unconfirmed" {
 					return fmt.Errorf("请先核对执行结果并确认资源已停止，再归档")
 				}
 			}
