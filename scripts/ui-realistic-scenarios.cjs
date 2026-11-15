@@ -387,9 +387,11 @@ module.exports = async function ({ page, width, height, theme, out }) {
   const native = await page.locator("#da-form-drawer").evaluate((e) => ({
     rect: e.getBoundingClientRect().toJSON(),
     bg: getComputedStyle(e).backgroundColor,
+    radius: getComputedStyle(e).borderRadius,
     expand: !!e.querySelector(".app-drawer-expand"),
   }));
   assert(native.expand);
+  assert.equal(native.radius, "0px");
   assert(Math.abs(native.rect.right - width) < 2, JSON.stringify(native));
   assert(Math.abs(native.rect.height - height) < 2);
   assert.equal(
@@ -426,6 +428,12 @@ module.exports = async function ({ page, width, height, theme, out }) {
   assert.equal(
     await page.locator("#da-inspector .app-drawer-expand").count(),
     1,
+  );
+  assert.equal(
+    await page
+      .locator("#da-inspector")
+      .evaluate((e) => getComputedStyle(e).borderRadius),
+    "0px",
   );
   await shot("assessment-detail");
   await page.keyboard.press("Escape");
