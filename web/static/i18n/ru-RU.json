@@ -5320,10 +5320,10 @@
     "retry": "Resume step",
     "conversation": "Open execution conversation",
     "unknown": "Review the previous execution receipts and confirm the outcome and resource cleanup.",
-    "reconcile": "I have checked the previous calls and allow continuation from this session.",
+    "reconcile": "Я проверил результат и подтвердил остановку ресурсов. Снять проверку с этого шага; запуск оценки остаётся ручным.",
     "confirmStop": "Stop this assessment and retain existing results?",
     "confirmDelete": "Delete this assessment? Linked execution conversations will remain.",
-    "strategy": "Current strategy",
+    "strategy": "Последний план",
     "summary": "Current findings / gaps",
     "question": "Information needed",
     "dependencies": "Dependencies",
@@ -5514,7 +5514,19 @@
       "content": "Содержание узла",
       "output": "Результат выполнения"
     },
-    "graphNavigator": "Навигация по графу: нажмите для перехода, стрелки для перемещения"
+    "graphNavigator": "Навигация по графу: нажмите для перехода, стрелки для перемещения",
+    "review": "Проверить результаты",
+    "reviewTitle": "Новые шаги не запускаются; результаты вызовов требуют подтверждения",
+    "reviewHint": "Запуск проверяет сохранённые результаты и продолжает завершённые вызовы. Неизвестные результаты требуют проверки.",
+    "reviewStepHint": "Подтверждение снимает проверку только с этого шага, не запускает его и сохраняет прогресс и доказательства.",
+    "reviewAcknowledge": "Подтвердить проверку",
+    "reviewDone": "Шагов для проверки нет. Текущий статус выполнения указан вверху страницы.",
+    "viewReceipts": "Результаты вызовов",
+    "notRunning": "Не выполняется; пауза не требуется",
+    "autoResumeState": "Возобновление после перезапуска сервиса",
+    "enabled": "Включено",
+    "disabled": "Выключено",
+    "autoResumeHint": "Открытие страницы не запускает работу. Автовосстановление применяется к работе до перезапуска, но не к черновикам, ручной паузе или ожидающим проверки задачам."
   },
   "assessmentFindingLinks": {
     "source": "Исходная оценка",

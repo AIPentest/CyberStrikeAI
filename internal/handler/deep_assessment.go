@@ -242,6 +242,7 @@ func deepAssessmentView(c *gin.Context, t *deepassessment.Task) gin.H {
 	for _, step := range t.Steps {
 		counts[step.Status]++
 	}
+	counts["needs_review"] = counts["uncertain"] + counts["cleanup_unconfirmed"]
 	queue := c.Query("step_order") == "queue"
 	if queue {
 		steps = []deepassessment.Step{}
@@ -255,7 +256,8 @@ func deepAssessmentView(c *gin.Context, t *deepassessment.Task) gin.H {
 					continue
 				}
 			}
-			if c.Query("step_status") == "" || step.Status == c.Query("step_status") {
+			filter := c.Query("step_status")
+			if filter == "" || step.Status == filter || filter == "needs_review" && (step.Status == "uncertain" || step.Status == "cleanup_unconfirmed") {
 				steps = append(steps, step)
 			}
 		}

@@ -295,6 +295,10 @@ body.da-drawer-open { overflow: hidden; }
 .da-node-properties dt { color:var(--text-secondary); }.da-node-properties dd { margin:0; overflow-wrap:anywhere; }
 .da-node-actions { flex-shrink:0; padding:12px 18px; max-height:30%; overflow:auto; border-top:1px solid var(--border-color); background:var(--bg-primary); }
 .da-node-actions button { font-size:13px; }
+.da-recovery-notice { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-shrink:0; margin-bottom:12px; padding:12px 14px; border:1px solid #d9770638; border-radius:8px; background:#d977060d; font-size:14px; line-height:1.65; }
+.da-recovery-notice[hidden] { display:none; }.da-recovery-notice p { margin:4px 0 0; color:var(--text-secondary); }
+.da-recovery-notice button { flex-shrink:0; }.da-review-step-note { color:var(--text-secondary); font-size:13px; line-height:1.7; }
+@media(max-width:650px) { .da-recovery-notice { flex-direction:column; align-items:stretch; gap:8px; } }
 .da-node-links { margin:16px 0; font-size:13px; }
 .da-node-links > summary { cursor:pointer; margin-bottom:10px; }
 .da-node-asset-links { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:8px; }
@@ -339,3 +343,6 @@ body.da-drawer-open { overflow: hidden; }
  #da-workspace.da-node-reader .da-graph-workspace { flex:1; }
  #da-workspace.da-node-reader #da-graph-node, #da-workspace.da-node-reader #da-asset-detail { height:100%; max-height:none; }
 }
+
+.da-review-status { border:0; padding:0; background:transparent; cursor:pointer; }
+.da-review-status:hover .da-badge { text-decoration:underline; }

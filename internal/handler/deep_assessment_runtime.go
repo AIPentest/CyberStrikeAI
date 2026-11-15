@@ -349,6 +349,8 @@ func (r *deepAssessmentRuntime) Run(ctx context.Context, t *deepassessment.Task,
 		if cleanup := h.tasks.FinishTaskRun(conv.ID, active.RunID, finishStatus); cleanup != nil {
 			out.Status = "cleanup_unconfirmed"
 			err = fmt.Errorf("执行资源清理未完成: %w", cleanup)
+		} else if _, repairErr := h.deepAssessments.Store.ReconcileKnownCalls(t.ID, step.ID); repairErr != nil {
+			err = fmt.Errorf("保存已结束的工具回执失败: %w", repairErr)
 		}
 	}()
 	runCtx = h.tasks.BindProcessScope(runCtx, conv.ID, active.RunID)

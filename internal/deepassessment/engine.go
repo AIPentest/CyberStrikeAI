@@ -26,6 +26,10 @@ func NewEngine(s *Store, r Runtime) *Engine {
 }
 
 func (e *Engine) Start(id, executor string, revision int64) error {
+	return e.start(id, executor, revision, false)
+}
+
+func (e *Engine) start(id, executor string, revision int64, automatic bool) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.closed {
@@ -37,12 +41,44 @@ func (e *Engine) Start(id, executor string, revision int64) error {
 	if len(e.active) >= 8 {
 		return ErrBusy
 	}
-	err := e.Store.Change(id, "", "started", "开始/继续任务", func(t *Task) error {
+	current, err := e.Store.Get(id)
+	if err != nil {
+		return err
+	}
+	if current.Revision != revision || current.Archived || Active(current.Status) || current.Status == "completed" || current.Status == "cancelled" {
+		return ErrConflict
+	}
+	if automatic && current.Status != "recovering" && current.Status != "waiting_retry" && current.Status != "waiting_progress" {
+		return ErrConflict
+	}
+	resolved, err := e.Store.ReconcileKnownCalls(id, "")
+	if err != nil {
+		return err
+	}
+	unknown, err := e.Store.UncertainSteps(id)
+	if err != nil {
+		return err
+	}
+	err = e.Store.Change(id, "", "started", "开始/继续任务", func(t *Task) error {
 		if t.Archived {
 			return fmt.Errorf("请先恢复归档，再开始任务")
 		}
 		if t.Revision != revision || Active(t.Status) || t.Status == "completed" || t.Status == "cancelled" {
 			return ErrConflict
+		}
+		if automatic && t.Status != "recovering" && t.Status != "waiting_retry" && t.Status != "waiting_progress" {
+			return ErrConflict
+		}
+		if len(unknown) > 0 {
+			return fmt.Errorf("仍有结果不明的工具调用，请先查看待核对步骤和回执")
+		}
+		repairedStep := false
+		for i := range t.Steps {
+			step := &t.Steps[i]
+			if step.Status == "uncertain" && resolved[step.ID] && !unknown[step.ID] {
+				step.Status = "pending"
+				repairedStep = true
+			}
 		}
 		for _, step := range t.Steps {
 			if step.Status == "cleanup_unconfirmed" || step.Status == "uncertain" {
@@ -56,6 +92,9 @@ func (e *Engine) Start(id, executor string, revision int64) error {
 			t.RetryCount = 0
 		}
 		t.Status = "running"
+		if repairedStep {
+			t.Summary = "已核对已结束的工具回执，正从原会话继续。"
+		}
 		t.ExecutorID = executor
 		now := time.Now().UTC()
 		t.RunStartedAt = &now
@@ -87,6 +126,7 @@ func (e *Engine) Stop(id string, revision int64, cancelTask bool) error {
 			return ErrConflict
 		}
 		t.RestartPending = false
+		t.NextWake = nil
 		if cancelTask {
 			t.Status = "cancelled"
 			if running {
@@ -447,6 +487,9 @@ func (e *Engine) run(parent context.Context, id string) {
 		case r := <-results:
 			if errors.Is(r.err, ErrRetryable) {
 				_ = e.Store.Change(id, "", "retry_scheduled", r.err.Error(), func(t *Task) error {
+					if t.Status != "running" || ctx.Err() != nil {
+						return ErrConflict
+					}
 					t.RetryCount++
 					t.Status = "waiting_retry"
 					wake := time.Now().UTC().Add(time.Duration(min(t.RetryCount, 5)) * 30 * time.Second)
@@ -594,7 +637,7 @@ func (e *Engine) StartRecovery() {
 				if !changed && t.NextWake != nil && time.Now().Before(*t.NextWake) {
 					continue
 				}
-				if err = e.Start(t.ID, t.ExecutorID, t.Revision); err != nil && !errors.Is(err, ErrConflict) && !errors.Is(err, ErrBusy) {
+				if err = e.start(t.ID, t.ExecutorID, t.Revision, true); err != nil && !errors.Is(err, ErrConflict) && !errors.Is(err, ErrBusy) {
 					if ctx.Err() != nil {
 						return
 					}

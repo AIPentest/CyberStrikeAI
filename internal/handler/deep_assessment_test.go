@@ -49,6 +49,28 @@ func deepAssessmentFixture(t *testing.T) (*AgentHandler, *deepassessment.Task) {
 	}
 	return h, task
 }
+
+func TestReviewFilterFindsOlderStepsBeforePagination(t *testing.T) {
+	task := &deepassessment.Task{Status: "needs_review", Steps: []deepassessment.Step{{ID: "older-unknown", Status: "uncertain"}}}
+	for i := 0; i < 80; i++ {
+		task.Steps = append(task.Steps, deepassessment.Step{ID: fmt.Sprint(i), Status: "completed"})
+	}
+	task.Steps = append(task.Steps, deepassessment.Step{ID: "cleanup", Status: "cleanup_unconfirmed"})
+	seen := map[string]bool{}
+	for offset := 0; offset < 2; offset++ {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest("GET", fmt.Sprintf("/?step_limit=1&step_offset=%d&step_order=queue&step_status=needs_review", offset), nil)
+		result := deepAssessmentView(c, task)
+		view := result["task"].(*deepassessment.Task)
+		if result["step_total"] != 2 || len(view.Steps) != 1 || result["intent_counts"].(map[string]int)["needs_review"] != 2 {
+			t.Fatal(result)
+		}
+		seen[view.Steps[0].ID] = true
+	}
+	if !seen["older-unknown"] || !seen["cleanup"] || len(task.Steps) != 82 {
+		t.Fatal(seen)
+	}
+}
 func assessmentRouter(h *AgentHandler, user string) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()

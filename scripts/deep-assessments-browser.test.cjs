@@ -51,9 +51,21 @@ async function fixture(t) {
   if(match[2]==='report'){res.setHeader('Content-Type','text/markdown');return res.end('# fixture report');}
   if(match[2]?.startsWith('control/')){
    if(body.revision!==task.revision)return send(409,{error:'stale revision'});
+   if(match[2]==='control/start'&&task.steps.some(s=>['uncertain','cleanup_unconfirmed'].includes(s.status))){
+    if(!task.known_cancellation)return send(400,{error:'仍有结果不明的工具调用，请先查看待核对步骤和回执'});
+    task.steps.forEach(s=>{if(s.status==='uncertain')s.status='pending';});
+   }
    const action=match[2].split('/')[1];if(action==='start')task.status='running';if(action==='pause')task.status='paused';if(action==='archive'){task.archived=true;if(!['draft','completed','cancelled'].includes(task.status))task.status='paused';}if(action==='restore')task.archived=false;if(action==='guidance')task.summary=body.message;if(action==='budget')Object.assign(task,body);task.revision++;
+   if(action==='retry'){
+    const step=task.steps.find(s=>s.id===body.step_id);if(!step||!body.reconciled)return send(400,{error:'review required'});
+    step.status='pending';task.status=task.steps.some(s=>['uncertain','cleanup_unconfirmed'].includes(s.status))?'needs_review':'paused';
+   }
   } else if(req.method==='DELETE') state.tasks.delete(task.id);
-  return send(200,{task});
+  const counts={};for(const step of task.steps||[])counts[step.status]=(counts[step.status]||0)+1;counts.needs_review=(counts.uncertain||0)+(counts.cleanup_unconfirmed||0);
+  const queue=url.searchParams.get('step_order')==='queue',filter=url.searchParams.get('step_status');
+  const steps=(task.steps||[]).filter(s=>!queue||!filter||s.status===filter||filter==='needs_review'&&['uncertain','cleanup_unconfirmed'].includes(s.status));
+  const stepOffset=Number(url.searchParams.get('step_offset')||0),stepLimit=Number(url.searchParams.get('step_limit')||steps.length);
+  return send(200,{task:{...task,steps:steps.slice(stepOffset,stepOffset+stepLimit)},intent_counts:counts,step_total:steps.length,step_has_more:stepOffset+stepLimit<steps.length});
  });
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  const executablePath=process.env.CHROME_PATH||(process.platform==='darwin'?'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome':undefined);
@@ -443,4 +455,77 @@ test('large cyclic evidence graphs keep lineage and focus a selected node at rea
  await page.locator('[data-da-action="tab"][data-tab="graph"]').click();await page.locator('#da-graph-select').waitFor();
  assert.equal(await page.locator('#da-graph-node').isVisible(),false,'switching graphs must not expose an empty inherited panel');
  assert.deepEqual(state.errors,[]);assert.equal(state.requests.filter(r=>r.method==='POST').length,0);
+});
+
+test('unknown results remain reviewable without automatically starting the assessment',async t=>{
+ const {page,state}=await fixture(t),task=state.tasks.get('t0');
+ task.status='needs_review';task.auto_resume=true;
+ task.steps=[{id:'old-unknown',title:'较早的待核对步骤',status:'uncertain',instruction:'核对本地样例回执',conversation_id:'fixture-one'},...Array.from({length:65},(_,i)=>({id:'done-'+i,title:'已完成样例 '+i,status:'completed'})),{id:'cleanup',title:'等待资源核对的步骤',status:'cleanup_unconfirmed',instruction:'核对执行是否结束',conversation_id:'fixture-two'}];
+ await page.evaluate(()=>DeepAssessments.refresh());
+ const row=page.locator('.da-list-item[data-id="t0"]');
+ assert.equal(await row.locator('[data-da-action="row-start"]').isEnabled(),true);
+ assert.equal(await row.locator('[data-da-action="row-pause"]').isEnabled(),false);
+ assert.match(await row.locator('[data-da-action="row-pause"]').getAttribute('title'),/当前未在执行/);
+ await row.getByRole('button',{name:'处理待核对',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelectorAll('#da-body .da-step').length===2);
+ assert.match(page.url(),/step_status=needs_review/);
+ assert.equal(await page.locator('#da-intent-status').inputValue(),'needs_review');
+ assert.match(await page.locator('#da-recovery-notice').innerText(),/未派发新步骤/);
+ assert.equal(await page.locator('.da-step[open]').count(),2);
+ assert.equal(state.requests.filter(r=>r.method==='POST').length,0);
+ await page.reload();await page.locator('.da-step[data-step="old-unknown"]').waitFor();
+ assert.equal(await page.locator('.da-step').count(),2);
+ await page.locator('[data-da-action="tab"][data-tab="overview"]').click();
+ await page.locator('.da-stats').waitFor();
+ assert.match(await page.locator('.da-stats').innerText(),/待核对/);
+ assert.doesNotMatch(await page.locator('.da-stats').innerText(),/持续执行/);
+ assert.match(await page.locator('#da-body').innerText(),/打开页面不会启动任务/);
+ if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'review-overview.png'),fullPage:true});
+ await page.locator('#da-recovery-notice [data-da-action="review"]').click();await page.locator('.da-step[data-step="old-unknown"]').waitFor();
+ await page.locator('.da-step[data-step="old-unknown"]').getByRole('button',{name:'查看回执',exact:true}).click();
+ await page.waitForFunction(()=>location.hash.includes('tab=evidence'));
+ await page.locator('.da-source-banner').waitFor();
+ assert.ok(state.requests.some(r=>r.path.endsWith('/receipts')&&r.query.step_id==='old-unknown'));
+ await page.locator('#da-recovery-notice [data-da-action="review"]').click();await page.locator('.da-step[data-step="old-unknown"]').waitFor();
+ page.removeAllListeners('dialog');page.once('dialog',d=>d.dismiss());
+ await page.locator('.da-step[data-step="old-unknown"] [data-da-action="retry"]').click();
+ assert.equal(state.requests.filter(r=>r.method==='POST').length,0);
+ page.on('dialog',d=>d.accept());
+ await page.locator('.da-step[data-step="old-unknown"] [data-da-action="retry"]').click();
+ await page.waitForFunction(()=>document.querySelectorAll('.da-step').length===1);
+ assert.equal(task.status,'needs_review');assert.equal(await page.locator('#da-controls [data-da-action="start"]').isEnabled(),true);
+ await page.setViewportSize({width:390,height:844});
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'review-mobile.png'),fullPage:true});
+ await page.locator('.da-step[data-step="cleanup"] [data-da-action="retry"]').click();
+ await page.waitForFunction(()=>document.querySelector('#da-controls [data-da-action="start"]')?.disabled===false);
+ assert.equal(task.status,'paused');assert.equal(await page.locator('#da-recovery-notice').isVisible(),false);
+ assert.equal(state.requests.filter(r=>r.path.endsWith('/control/start')).length,0);
+ assert.equal(state.requests.filter(r=>r.method==='POST').length,2);
+ assert.deepEqual(state.errors,[]);
+});
+
+test('start resumes confirmed cancellations and pause also stops scheduled retries',async t=>{
+ const {page,state}=await fixture(t),task=state.tasks.get('t0');
+ task.status='needs_review';task.known_cancellation=true;task.steps=[{id:'one',status:'uncertain',title:'已确认取消的样例'}];
+ await page.evaluate(()=>DeepAssessments.refresh());
+ const row=page.locator('.da-list-item[data-id="t0"]');
+ await row.locator('[data-da-action="row-start"]').click();
+ await page.waitForFunction(()=>document.querySelector('.da-list-item[data-id="t0"] [data-da-action="row-pause"]').disabled===false);
+ assert.equal(task.status,'running');assert.equal(task.steps[0].status,'pending');
+ await row.locator('[data-da-action="row-pause"]').click();
+ await page.waitForFunction(()=>document.querySelector('.da-list-item[data-id="t0"] [data-da-action="row-start"]').disabled===false);
+ assert.equal(task.status,'paused');
+ for(const status of ['recovering','waiting_retry','waiting_progress']){
+  task.status=status;await page.evaluate(()=>DeepAssessments.refresh());
+  assert.equal(await row.locator('[data-da-action="row-pause"]').isEnabled(),true);
+  await row.locator('[data-da-action="row-pause"]').click();await page.waitForFunction(()=>document.querySelector('.da-list-item[data-id="t0"] .da-paused'));
+  assert.equal(task.status,'paused');
+ }
+ await row.locator('[data-da-action="details"]').click();await page.locator('#da-controls [data-da-action="start"]').waitFor();
+ assert.equal(await page.locator('#da-controls [data-da-action="start"]').isEnabled(),true);
+ assert.equal(await page.locator('#da-controls [data-da-action="pause"]').isEnabled(),false);
+ await page.reload();await page.locator('#da-controls [data-da-action="start"]').waitFor();
+ assert.equal(task.status,'paused');assert.equal(state.requests.filter(r=>r.path.endsWith('/control/start')).length,1);
+ assert.deepEqual(state.errors,[]);
 });

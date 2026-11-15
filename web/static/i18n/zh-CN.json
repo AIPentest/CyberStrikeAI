@@ -5295,10 +5295,10 @@
     "retry": "恢复此步骤",
     "conversation": "查看执行会话",
     "unknown": "请先核对回执，确认上次操作结果及执行资源状态。",
-    "reconcile": "我已核对上次调用结果，允许从原会话继续",
+    "reconcile": "我已核对调用结果并确认执行资源已停止，解除本步骤的待核对状态。任务仍需手动开始。",
     "confirmStop": "停止后将保留已有结果，结束本次测评。",
     "confirmDelete": "删除本条测评？关联执行会话仍保留。",
-    "strategy": "当前路线",
+    "strategy": "最近规划路线",
     "summary": "当前结论 / 缺口",
     "question": "待补充信息",
     "dependencies": "前置步骤",
@@ -5443,7 +5443,19 @@
       "active": "活跃",
       "inactive": "停用"
     },
-    "graphNavigator": "图导航：点击定位，方向键平移"
+    "graphNavigator": "图导航：点击定位，方向键平移",
+    "review": "处理待核对",
+    "reviewTitle": "未派发新步骤，有工具结果待确认",
+    "reviewHint": "点击“开始 / 继续”会先核对已保存的执行回执，已确认结束的步骤可直接续跑；仍有结果不明的调用时，保持停止并提示核对。",
+    "reviewStepHint": "确认只解除本步骤的待核对状态，不会自动执行；原有进度和证据保留。",
+    "reviewAcknowledge": "确认已核对",
+    "reviewDone": "没有待核对步骤。当前执行状态见页面顶部。",
+    "viewReceipts": "查看回执",
+    "notRunning": "当前未在执行，无需暂停",
+    "autoResumeState": "服务重启后自动续跑",
+    "enabled": "已开启",
+    "disabled": "已关闭",
+    "autoResumeHint": "打开页面不会启动任务；自动续跑只针对重启前的执行，草稿、手动暂停和待核对任务不会自动开始。"
   },
   "assessmentFindingLinks": {
     "source": "来源深度测评",

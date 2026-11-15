@@ -5307,10 +5307,10 @@
     "retry": "Resume step",
     "conversation": "Open execution conversation",
     "unknown": "Review the previous execution receipts and confirm the outcome and resource cleanup.",
-    "reconcile": "I have checked the previous calls and allow continuation from this session.",
+    "reconcile": "I have reviewed the outcome and confirmed execution resources have stopped. Clear review for this step; the assessment still requires a manual start.",
     "confirmStop": "Stop this assessment and retain existing results?",
     "confirmDelete": "Delete this assessment? Linked execution conversations will remain.",
-    "strategy": "Current strategy",
+    "strategy": "Last planned approach",
     "summary": "Current findings / gaps",
     "question": "Information needed",
     "dependencies": "Dependencies",
@@ -5501,7 +5501,19 @@
       "content": "Node content",
       "output": "Execution receipt"
     },
-    "graphNavigator": "Graph navigator: click to locate, arrow keys to pan"
+    "graphNavigator": "Graph navigator: click to locate, arrow keys to pan",
+    "review": "Review pending results",
+    "reviewTitle": "No new steps are being dispatched; tool outcomes need confirmation",
+    "reviewHint": "Start / Continue checks stored execution receipts and resumes settled work. Calls with unknown outcomes remain stopped for review.",
+    "reviewStepHint": "This clears review for this step without starting it. Existing progress and evidence are retained.",
+    "reviewAcknowledge": "Confirm reviewed",
+    "reviewDone": "No steps need review. See the current execution status at the top of the page.",
+    "viewReceipts": "View receipts",
+    "notRunning": "Not running; no pause is needed",
+    "autoResumeState": "Resume after service restart",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "autoResumeHint": "Opening the page does not start work. Automatic recovery applies to work running before restart, not drafts, manually paused assessments, or pending reviews."
   },
   "assessmentFindingLinks": {
     "source": "Source assessment",

@@ -80,6 +80,92 @@ func TestSafeRestartAutomaticallyResumesOriginalSession(t *testing.T) {
 	}
 }
 
+func TestMultipleReviewsRemainBlockedAndNeverStartOnAcknowledgement(t *testing.T) {
+	s, task := fixture(t)
+	if err := s.Change(task.ID, "", "", "", func(v *Task) error {
+		v.Status, v.AutoResume, v.RestartPending = "running", true, true
+		v.Steps = []Step{{ID: "done", Status: "completed", ConversationID: "completed-session"}, {ID: "one", Status: "running", ConversationID: "session-one"}, {ID: "two", Status: "running", ConversationID: "session-two"}}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"one", "two"} {
+		if err := s.BeginCall(task.ID, id, agentruntime.ToolCall{ID: "call-" + id, Name: "fixture_action", Arguments: map[string]any{}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Recover(); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := s.Get(task.ID)
+	if err := s.RetryStep(task.ID, "one", got.Revision, true); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = s.Get(task.ID)
+	if got.Status != "needs_review" || got.Step("one").Status != "pending" || got.Step("two").Status != "uncertain" || got.RestartPending {
+		t.Fatalf("remaining review lost: %+v", got)
+	}
+	if err := s.Recover(); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = s.Get(task.ID)
+	if got.Status != "needs_review" {
+		t.Fatal(got.Status)
+	}
+	if err := s.RetryStep(task.ID, "two", got.Revision, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Recover(); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = s.Get(task.ID)
+	if got.Status != "paused" || got.RestartPending || got.NextWake != nil || got.Step("one").ConversationID != "session-one" || got.Step("done").Status != "completed" {
+		t.Fatalf("review should preserve history and await manual start: %+v", got)
+	}
+	unknown, err := s.UncertainSteps(task.ID)
+	if err != nil || len(unknown) != 0 {
+		t.Fatal(unknown, err)
+	}
+}
+
+func TestRecoveryDoesNotRestartUserControlledStates(t *testing.T) {
+	for _, status := range []string{"draft", "paused", "needs_review", "waiting_input", "completed", "cancelled"} {
+		t.Run(status, func(t *testing.T) {
+			s, task := fixture(t)
+			if err := s.Change(task.ID, "", "", "", func(v *Task) error { v.Status = status; v.AutoResume = true; return nil }); err != nil {
+				t.Fatal(err)
+			}
+			before, _ := s.Get(task.ID)
+			if err := s.Recover(); err != nil {
+				t.Fatal(err)
+			}
+			after, _ := s.Get(task.ID)
+			if after.Status != status || after.Revision != before.Revision {
+				t.Fatalf("unexpected automatic transition: %+v", after)
+			}
+		})
+	}
+}
+
+func TestReviewedStepRetainsPendingQuestion(t *testing.T) {
+	s, task := fixture(t)
+	if err := s.Change(task.ID, "", "", "", func(v *Task) error {
+		v.Status, v.Question = "needs_review", "Clarify the fixture requirement"
+		v.Steps = []Step{{ID: "one", Status: "cleanup_unconfirmed"}}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := s.Get(task.ID)
+	if err := s.RetryStep(task.ID, "one", got.Revision, true); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = s.Get(task.ID)
+	if got.Status != "waiting_input" || got.Question == "" {
+		t.Fatal(got)
+	}
+}
+
 func TestSegmentYieldsContinueWithPersistedProgress(t *testing.T) {
 	s, task := fixture(t)
 	var runs atomic.Int32
