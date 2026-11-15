@@ -317,3 +317,19 @@ html body dialog.da-drawer .da-drawer-close::before {
     mask: var(--icon-close-mask) center / contain no-repeat;
     -webkit-mask: var(--icon-close-mask) center / contain no-repeat;
 }
+
+/* Queue primary actions keep their semantic fill even with .btn-small.
+ * Mobile's dark foreground assumes an accent fill, never a translucent gray. */
+html body #batch-queue-detail-modal .modal-header-actions .btn-primary {
+    background: var(--accent-color) !important;
+    border-color: var(--accent-color);
+    color: #fff !important;
+}
+html[data-theme="dark"] body #batch-queue-detail-modal .modal-header-actions .btn-primary {
+    color: #0b1120 !important;
+}
+html body #batch-queue-detail-modal .modal-header-actions .btn-primary:is(:hover, :focus-visible, :active):not(:disabled) {
+    background: var(--accent-hover) !important;
+    border-color: var(--accent-hover);
+}
+html body #batch-queue-detail-modal #batch-queue-detail-title { display: block; }

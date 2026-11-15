@@ -65,19 +65,6 @@ const server = http.createServer((req, res) => {
       );
       await page.goto("http://127.0.0.1:" + server.address().port);
       await page.evaluate(() => window.i18nReady);
-      await page.evaluate(
-        (catalog) => {
-          window.t = (key, opts = {}) => {
-            let value = key.split(".").reduce((o, k) => o && o[k], catalog);
-            return typeof value === "string"
-              ? value.replace(/\{\{(\w+)\}\}/g, (_, k) => opts[k] ?? "")
-              : key;
-          };
-        },
-        JSON.parse(
-          fs.readFileSync(root + "/web/static/i18n/zh-CN.json", "utf8"),
-        ),
-      );
       await page.evaluate((t) => {
         document.documentElement.dataset.theme = t;
         document

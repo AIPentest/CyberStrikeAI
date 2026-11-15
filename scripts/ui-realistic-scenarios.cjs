@@ -121,10 +121,30 @@ module.exports = async function ({ page, width, height, theme, out }) {
       animations: "disabled",
       path: `${out}/real-${name}-${width}-${theme}.png`,
     });
+  const contrastResults = [];
   await activate("page-tasks");
-  for (const state of ["paused", "running", "completed"]) {
+  const states = [
+    { status: "paused", scheduleMode: "manual", label: "继续执行" },
+    { status: "pending", scheduleMode: "manual", label: "开始执行" },
+    {
+      status: "pending",
+      scheduleMode: "cron",
+      scheduleEnabled: true,
+      label: "立即执行一轮",
+    },
+    {
+      status: "pending",
+      scheduleMode: "cron",
+      scheduleEnabled: false,
+      label: "开始执行",
+    },
+    { status: "running", scheduleMode: "manual" },
+    { status: "completed", scheduleMode: "manual" },
+    { status: "cancelled", scheduleMode: "manual" },
+  ];
+  for (const state of states) {
     await page.evaluate(async (state) => {
-      fixtureQueue.status = state;
+      Object.assign(fixtureQueue, state);
       await showBatchQueueDetail("ui-fixture");
     }, state);
     await page
@@ -157,21 +177,159 @@ module.exports = async function ({ page, width, height, theme, out }) {
     assert(layout.titleWidth > 200, JSON.stringify(layout));
     assert(layout.headerHeight < 190, JSON.stringify(layout));
     assert(layout.allInside && !layout.titleOverlaps, JSON.stringify(layout));
-    if (state === "paused") await shot("queue");
+    await page.evaluate(() => applyTranslations(document.body));
+    const assertLabels = async () => {
+      const text = await page.locator("#batch-queue-detail-title").innerText();
+      assert.equal(text, "批量任务队列 - 多目标授权评估回归队列");
+      if (state.label)
+        assert.equal(
+          await page.locator("#batch-queue-start-btn").innerText(),
+          state.label,
+        );
+      else
+        assert.equal(
+          await page.locator("#batch-queue-start-btn").isVisible(),
+          false,
+        );
+    };
+    await assertLabels();
+    // Real breakpoint transitions call mobile boot, which reapplies all translations.
+    if (width === 1440 && state.label) {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.waitForTimeout(150);
+      await assertLabels();
+      await page.setViewportSize({ width, height });
+      await page.waitForTimeout(150);
+      await assertLabels();
+    }
+    for (const button of await page
+      .locator(
+        "#batch-queue-detail-modal .modal-header-actions .btn-primary:visible",
+      )
+      .all()) {
+      for (const appearance of ["normal", "hover", "focus"]) {
+        if (appearance === "normal")
+          await page.mouse.move(width - 4, height - 4);
+        if (appearance === "hover") await button.hover();
+        if (appearance === "focus") {
+          await page.mouse.move(width - 4, height - 4);
+          await button.focus();
+          await page.keyboard.press("Tab");
+          await page.keyboard.press("Shift+Tab");
+          assert(
+            await button.evaluate((e) => e.matches(":focus-visible")),
+            "Keyboard focus indicator missing",
+          );
+        }
+        await page.waitForTimeout(220);
+        const colors = await button.evaluate((e) => ({
+          foreground: getComputedStyle(e).color,
+          background: getComputedStyle(e).backgroundColor,
+          disabled: e.disabled,
+          text: e.textContent,
+        }));
+        assert(!colors.disabled);
+        const rgb = (value) => {
+          assert(/^rgb/.test(value), JSON.stringify(colors));
+          const values = value.match(/[\d.]+/g).map(Number);
+          assert(
+            values.length === 3 || values[3] === 1,
+            "Primary background must be opaque",
+          );
+          return values.slice(0, 3).map((v) => {
+            const c = v / 255;
+            return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+          });
+        };
+        const lum = (value) => {
+          const [r, g, b] = rgb(value);
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        const a = lum(colors.foreground),
+          b = lum(colors.background);
+        const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+        contrastResults.push({
+          state: state.status,
+          label: state.label,
+          appearance,
+          ratio,
+          ...colors,
+        });
+        assert(
+          ratio >= 4.5,
+          JSON.stringify({ width, theme, appearance, ratio, ...colors }),
+        );
+      }
+    }
+    if (state.status === "paused") await shot("queue");
     await page.evaluate(() => closeBatchQueueDetailModal());
   }
+  // Queue names are literal content, including characters that look like markup.
+  await page.evaluate(async () => {
+    fixtureQueue.title = "复核 & <说明>";
+    fixtureQueue.status = "paused";
+    await showBatchQueueDetail("ui-fixture");
+    applyTranslations(document.body);
+  });
+  assert.equal(
+    await page.locator("#batch-queue-detail-title").innerText(),
+    "批量任务队列 - 复核 & <说明>",
+  );
+  assert.equal(await page.locator("#batch-queue-detail-title > *").count(), 1);
+  await page.evaluate(async () => {
+    fixtureQueue.title = "";
+    await showBatchQueueDetail("ui-fixture");
+    applyTranslations(document.body);
+  });
+  assert.equal(
+    await page.locator("#batch-queue-detail-title").innerText(),
+    "批量任务队列",
+  );
+  await page.evaluate(() => {
+    fixtureQueue.title = "多目标授权评估回归队列";
+  });
+  require("node:fs").writeFileSync(
+    `${out}/queue-contrast-${width}-${theme}.json`,
+    JSON.stringify(contrastResults, null, 2),
+  );
+  // A real language change translates the prefix and action, but never the queue name.
+  await page.evaluate(async () => {
+    fixtureQueue.status = "paused";
+    await showBatchQueueDetail("ui-fixture");
+    onLanguageSelect("en-US");
+  });
+  await page.waitForFunction(
+    () =>
+      document.documentElement.lang === "en-US" &&
+      document.getElementById("batch-queue-start-btn").textContent === "Resume",
+  );
+  assert(
+    (await page.locator("#batch-queue-detail-title").innerText()).endsWith(
+      " - 多目标授权评估回归队列",
+    ),
+  );
+  await page.evaluate(() => onLanguageSelect("zh-CN"));
+  await page.waitForFunction(
+    () =>
+      document.documentElement.lang === "zh-CN" &&
+      document.getElementById("batch-queue-start-btn").textContent ===
+        "继续执行",
+  );
+  assert.equal(
+    await page.locator("#batch-queue-detail-title").innerText(),
+    "批量任务队列 - 多目标授权评估回归队列",
+  );
+  await page.evaluate(() => closeBatchQueueDetailModal());
   await activate("page-roles-management");
   await page.evaluate(() => editRole("界面回归角色"));
   await page.locator("#role-tools-list input").first().waitFor();
   await page.evaluate(() => applyTranslations(document));
   assert.equal(await page.locator("#role-modal-title").innerText(), "编辑角色");
-  const stats = await page
-    .locator("#role-tools-stats")
-    .evaluate((e) => ({
-      width: e.clientWidth,
-      scroll: e.scrollWidth,
-      text: e.textContent,
-    }));
+  const stats = await page.locator("#role-tools-stats").evaluate((e) => ({
+    width: e.clientWidth,
+    scroll: e.scrollWidth,
+    text: e.textContent,
+  }));
   assert(stats.text.includes("614") && stats.text.includes("626"), stats.text);
   assert(stats.scroll <= stats.width + 2, JSON.stringify(stats));
   await page.locator("#role-tools-stats").scrollIntoViewIfNeeded();
@@ -226,13 +384,11 @@ module.exports = async function ({ page, width, height, theme, out }) {
   await page.locator('[data-da-action="create"]').click();
   await page.locator("#da-form-drawer[open]").waitFor();
   await page.waitForTimeout(220);
-  const native = await page
-    .locator("#da-form-drawer")
-    .evaluate((e) => ({
-      rect: e.getBoundingClientRect().toJSON(),
-      bg: getComputedStyle(e).backgroundColor,
-      expand: !!e.querySelector(".app-drawer-expand"),
-    }));
+  const native = await page.locator("#da-form-drawer").evaluate((e) => ({
+    rect: e.getBoundingClientRect().toJSON(),
+    bg: getComputedStyle(e).backgroundColor,
+    expand: !!e.querySelector(".app-drawer-expand"),
+  }));
   assert(native.expand);
   assert(Math.abs(native.rect.right - width) < 2, JSON.stringify(native));
   assert(Math.abs(native.rect.height - height) < 2);

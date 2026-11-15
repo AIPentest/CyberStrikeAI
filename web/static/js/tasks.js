@@ -1798,8 +1798,14 @@ async function showBatchQueueDetail(queueId) {
         const allowSubtaskMutation = batchQueueAllowsSubtaskMutation(queue);
 
         if (title) {
-            // textContent 本身会做转义；这里不要再 escapeHtml，否则会把 && 显示成 &amp;...（看起来像“变形/乱码”）
-            title.textContent = queue.title ? _t('tasks.batchQueueTitle') + ' - ' + String(queue.title) : _t('tasks.batchQueueTitle');
+            // Translate only the label. The queue name is literal user content and
+            // must survive mobile boot / language refresh without being replaced.
+            title.removeAttribute('data-i18n');
+            const label = document.createElement('span');
+            label.setAttribute('data-i18n', 'tasks.batchQueueTitle');
+            label.textContent = _t('tasks.batchQueueTitle');
+            title.replaceChildren(label);
+            if (queue.title) title.appendChild(document.createTextNode(' - ' + String(queue.title)));
         }
         
         // 更新按钮显示
@@ -1810,14 +1816,11 @@ async function showBatchQueueDetail(queueId) {
         if (startBtn) {
             // pending状态显示"开始执行"，paused状态显示"继续执行"
             startBtn.style.display = (queue.status === 'pending' || queue.status === 'paused') ? 'inline-block' : 'none';
-            if (startBtn && queue.status === 'paused') {
-                startBtn.textContent = _t('tasks.resumeExecute');
-            } else if (startBtn && queue.status === 'pending') {
-                const isCronPending = queue.scheduleMode === 'cron' && queue.scheduleEnabled !== false;
-                startBtn.textContent = isCronPending
-                    ? _t('batchQueueDetailModal.startExecuteNow')
-                    : _t('batchQueueDetailModal.startExecute');
-            }
+            const isCronPending = queue.status === 'pending' && queue.scheduleMode === 'cron' && queue.scheduleEnabled !== false;
+            const startLabelKey = queue.status === 'paused' ? 'tasks.resumeExecute'
+                : isCronPending ? 'batchQueueDetailModal.startExecuteNow' : 'batchQueueDetailModal.startExecute';
+            startBtn.setAttribute('data-i18n', startLabelKey);
+            startBtn.textContent = _t(startLabelKey);
         }
         const rerunBtn = document.getElementById('batch-queue-rerun-btn');
         if (rerunBtn) {
