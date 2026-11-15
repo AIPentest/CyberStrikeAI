@@ -48,7 +48,7 @@
     <!-- 移动端样式层：全部规则限定在 767.98px 以下，桌面端零影响 -->
     <link rel="stylesheet" href="/static/css/mobile.css?v=20261015-project-table-3">
     <link rel="stylesheet" href="/static/css/vulnerability-workspace.css?v=20261113-aligned-overview">
-    <link rel="stylesheet" href="/static/css/vulnerability-list.css?v=20261113-compact-rows">
+    <link rel="stylesheet" href="/static/css/vulnerability-list.css?v=20261115-timestamps">
     <script src="/static/js/router.js?v=20261011-token-settings"></script>
 </head>
 <body>
@@ -2864,7 +2864,8 @@
                                     <select id="vulnerability-sort" onchange="changeVulnerabilitySort(this.value)">
                                         <option value="" data-i18n="vulnerabilityPage.sortDefault">默认顺序</option>
                                         <option value="severity" data-i18n="vulnerabilityPage.sortSeverity">高危优先</option>
-                                        <option value="latest" data-i18n="vulnerabilityPage.sortLatest">最新发现</option>
+                                        <option value="latest" data-i18n="vulnerabilityPage.sortLatest">创建时间：最新优先</option>
+                                        <option value="oldest" data-i18n="vulnerabilityPage.sortOldest">创建时间：最早优先</option>
                                     </select>
                                 </label>
 
@@ -7106,8 +7107,8 @@
     <script src="/static/js/skills.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/fact-graph.js"></script>
     <script src="/static/js/projects.js?v=20260819-1-pagination-20261027"></script>
-    <script src="/static/js/vulnerability.js?v=20261113-aligned-overview"></script>
-    <script src="/static/js/vulnerability-workspace.js?v=20261113-compact-rows"></script>
+    <script src="/static/js/vulnerability.js?v=20261115-timestamps"></script>
+    <script src="/static/js/vulnerability-workspace.js?v=20261115-timestamps"></script>
     <script src="/static/js/vulnerability-download.js?v=20261030-2"></script>
     <script src="/static/js/webshell.js?v=20261011-token-usage"></script>
     <script src="/static/js/chat-files.js?v=20261027-pagination-custom-select"></script>
