@@ -1,8 +1,8 @@
 /* Independent assessment workspace. Batch task routes and controllers are untouched. */
 (function () {
     'use strict';
-    const S = { detailVisible: false, detailsOpen: false, listTasks: [], rowBusy: new Set(), extra: null, intentAsset: '', intentStatus: '', intentCounts: {}, routeKey: '', focusStepId: '', focusedStep: null, originFindingId: '', originFinding: null, findings: [], findingOffset: 0, findingMore: false, findingTotal: 0, id: '', task: null, tab: 'graph', graph: null, graphScope: '', graphOffset: 0, graphNode: null, nodeOffset: 0, nodeMore: false, nodeRequest: 0, stepOffset: 0, stepTotal: 0, stepMore: false, page: 0, more: false, busy: false, epoch: 0, timer: null, mounted: false, drawerEpoch: 0, events: [], receipts: [], receiptOffset: 0, receiptMore: false };
-    const labels = { backToList:'返回测评列表', details:'详情', actions:'操作', archive:'归档', restore:'恢复到列表', currentTasks:'当前任务', archivedTasks:'已归档', archiveFilter:'归档状态', restoreHint:'恢复只回到列表，不会自动执行。', archiveHint:'归档保留进度与证据；执行中的任务请先暂停。', showDetails:'显示节点详情', hideDetails:'收起节点详情', scopeOptional: "补充限制与排除项（选填）", criteriaOptional: "验收条件（选填）", scopeHint: "仅补充目标中未说明的限制；留空沿用目标。", scopeExample: "例如：排除支付接口；不修改生产数据；不做压力测试。", criteriaHint: "说明什么结果算完成；留空沿用目标。", criteriaExample: "例如：报告列明已测范围、未测部分及原因；确认的漏洞附复现步骤和原始证据。", assets: '资产图', facts: '事实', priority: '优先级', linkedAssets: '目标资产', intentSources: '来源节点', findings: '关联漏洞', noFindings: '暂未登记漏洞。', openFinding: '在漏洞管理查看', allFindings: '在漏洞管理查看本次测评', reproduction: '复现步骤', findingEvidence: '复现证据', sourceStep: '来源步骤', allSteps: '显示全部步骤与回执', sourceFinding: '关联漏洞', graph: '探索图', continuous: '持续执行', mode: '运行模式', elapsed: '已运行', graphHint: '摘要用于续接；原始观察和执行回执可随时展开。', graphVisible: '当前页节点', graphFolded: '已折叠节点', graphHome: '全图概览', graphExpand: '展开关联节点', graphLayout: '整理布局', graphFit: '适应画布', graphSelect: '点击节点查看原始内容与来源。', graphMore: '继续读取原文', status: '状态', updatedAt: '更新时间', loading: '正在读取测评…', contextUsage:'上下文 / 窗口', toolDefinitions:'工具定义', title: '深度测评', subtitle: '围绕一个目标持续探索，保存证据与进度，跨会话继续执行。', create: '新建测评', refresh: '刷新', search: '搜索测评名称', all: '全部状态', empty: '暂无测评，先创建一个目标。', select: '选择测评，查看探索进度与证据。', previous: '上一页', next: '下一页', name: '测评名称', objective: '目标', scope: '补充限制与排除项', criteria: '验收条件', model: '模型渠道', project: '关联项目', role: '角色', default: '系统默认', none: '不关联', tokens: '累计 Token', rounds: '规划轮次', concurrency: '并行步骤', autoResume: '服务重启后自动恢复结果明确的步骤', save: '保存草稿', close: '关闭', start: '开始 / 继续', pause: '暂停', cancel: '停止', delete: '删除', report: '下载报告', overview: '概览', plan: '意图队列', evidence: '证据回执', activity: '运行记录', quality: '上下文与用量', guidance: '补充线索或调整方向', send: '提交方向', answer: '答复并继续', retry: '恢复此步骤', conversation: '查看执行会话', unknown: '请先核对回执，确认上次操作结果及执行资源状态。', reconcile: '我已核对上次调用结果，允许从原会话继续', confirmStop: '停止后将保留已有结果，结束本次测评。', confirmDelete: '删除本条测评？关联执行会话仍保留。', strategy: '当前路线', summary: '当前结论 / 缺口', question: '待补充信息', dependencies: '前置步骤', segments: '执行分段', evidenceIDs: '证据引用', noSteps: '开始后由规划器逐步生成探索方向。', noRecords: '暂无记录', calls: '工具调用', compactions: '上下文压缩', activeTools: '当前可见工具', session: '会话', tokenNote: '累计用量包含 Pi 压缩，不作为任务自动结束条件。', recoveryNote: '结果不明的调用会暂停等待核对，已完成步骤不会自动重做。', saved: '已保存', updated: '已更新', retryNote: '恢复会保留原 Pi 会话及历史证据。' };
+    const S = { readerExpanded: false, noticeTimer: null, detailVisible: false, detailsOpen: false, listTasks: [], rowBusy: new Set(), extra: null, intentAsset: '', intentStatus: '', intentCounts: {}, routeKey: '', focusStepId: '', focusedStep: null, originFindingId: '', originFinding: null, findings: [], findingOffset: 0, findingMore: false, findingTotal: 0, id: '', task: null, tab: 'graph', graph: null, graphScope: '', graphOffset: 0, graphNode: null, nodeOffset: 0, nodeMore: false, nodeRequest: 0, stepOffset: 0, stepTotal: 0, stepMore: false, page: 0, more: false, busy: false, epoch: 0, timer: null, mounted: false, drawerEpoch: 0, events: [], receipts: [], receiptOffset: 0, receiptMore: false };
+    const labels = { readerExpand:'展开阅读', readerBack:'返回图', resizeDetails:'调整节点详情宽度', graphHelp:'图例与说明', backToList:'返回测评列表', details:'详情', actions:'操作', archive:'归档', restore:'恢复到列表', currentTasks:'当前任务', archivedTasks:'已归档', archiveFilter:'归档状态', restoreHint:'恢复只回到列表，不会自动执行。', archiveHint:'归档保留进度与证据；执行中的任务请先暂停。', showDetails:'显示节点详情', hideDetails:'收起节点详情', scopeOptional: "补充限制与排除项（选填）", criteriaOptional: "验收条件（选填）", scopeHint: "仅补充目标中未说明的限制；留空沿用目标。", scopeExample: "例如：排除支付接口；不修改生产数据；不做压力测试。", criteriaHint: "说明什么结果算完成；留空沿用目标。", criteriaExample: "例如：报告列明已测范围、未测部分及原因；确认的漏洞附复现步骤和原始证据。", assets: '资产图', facts: '事实', priority: '优先级', linkedAssets: '目标资产', intentSources: '来源节点', findings: '关联漏洞', noFindings: '暂未登记漏洞。', openFinding: '在漏洞管理查看', allFindings: '在漏洞管理查看本次测评', reproduction: '复现步骤', findingEvidence: '复现证据', sourceStep: '来源步骤', allSteps: '显示全部步骤与回执', sourceFinding: '关联漏洞', graph: '探索图', continuous: '持续执行', mode: '运行模式', elapsed: '已运行', graphHint: '摘要用于续接；原始观察和执行回执可随时展开。', graphVisible: '当前页节点', graphFolded: '已折叠节点', graphHome: '全图概览', graphExpand: '展开关联节点', graphLayout: '整理布局', graphFit: '适应画布', graphSelect: '点击节点查看原始内容与来源。', graphMore: '继续读取原文', status: '状态', updatedAt: '更新时间', loading: '正在读取测评…', contextUsage:'上下文 / 窗口', toolDefinitions:'工具定义', title: '深度测评', subtitle: '围绕一个目标持续探索，保存证据与进度，跨会话继续执行。', create: '新建测评', refresh: '刷新', search: '搜索测评名称', all: '全部状态', empty: '暂无测评，先创建一个目标。', select: '选择测评，查看探索进度与证据。', previous: '上一页', next: '下一页', name: '测评名称', objective: '目标', scope: '补充限制与排除项', criteria: '验收条件', model: '模型渠道', project: '关联项目', role: '角色', default: '系统默认', none: '不关联', tokens: '累计 Token', rounds: '规划轮次', concurrency: '并行步骤', autoResume: '服务重启后自动恢复结果明确的步骤', save: '保存草稿', close: '关闭', start: '开始 / 继续', pause: '暂停', cancel: '停止', delete: '删除', report: '下载报告', overview: '概览', plan: '意图队列', evidence: '证据回执', activity: '运行记录', quality: '上下文与用量', guidance: '补充线索或调整方向', send: '提交方向', answer: '答复并继续', retry: '恢复此步骤', conversation: '查看执行会话', unknown: '请先核对回执，确认上次操作结果及执行资源状态。', reconcile: '我已核对上次调用结果，允许从原会话继续', confirmStop: '停止后将保留已有结果，结束本次测评。', confirmDelete: '删除本条测评？关联执行会话仍保留。', strategy: '当前路线', summary: '当前结论 / 缺口', question: '待补充信息', dependencies: '前置步骤', segments: '执行分段', evidenceIDs: '证据引用', noSteps: '开始后由规划器逐步生成探索方向。', noRecords: '暂无记录', calls: '工具调用', compactions: '上下文压缩', activeTools: '当前可见工具', session: '会话', tokenNote: '累计用量包含 Pi 压缩，不作为任务自动结束条件。', recoveryNote: '结果不明的调用会暂停等待核对，已完成步骤不会自动重做。', saved: '已保存', updated: '已更新', retryNote: '恢复会保留原 Pi 会话及历史证据。' };
     const states = { archived: '已归档', draft: '草稿', running: '执行中', pending: '待执行', completed: '已完成', blocked: '受阻', failed: '失败', paused: '已暂停', pausing: '暂停中', cancelling: '停止中', cancelled: '已停止', recovering: '待恢复', waiting_retry: '等待模型恢复', waiting_input: '待答复', needs_review: '待核对', uncertain: '结果不明', waiting_progress: '等待新进展', interrupted: '已中断', cleanup_unconfirmed: '待确认资源停止', retired: '已撤下', reconciled: '已核对', yielded: '分段完成' };
     const tr = (key, fallback) => { const v = typeof window.t === 'function' ? window.t('deepAssessments.' + key) : ''; return v && v !== 'deepAssessments.' + key ? v : fallback; };
     const L = key => tr(key, labels[key] || key);
@@ -14,10 +14,12 @@
     const canFindings = () => typeof window.hasPermission !== 'function' || window.hasPermission('vulnerability:read');
     const can = action => typeof window.hasPermission !== 'function' || window.hasPermission('assessments:' + action);
     function notice(message, error = false) {
+        clearTimeout(S.noticeTimer);
         ['da-notice', 'da-detail-notice', 'da-form-notice'].forEach(id => {
             const el = $(id);
             if (el) { el.textContent = message; el.classList.toggle('is-error', error); el.hidden = !message; }
         });
+        if(message && !error) S.noticeTimer=setTimeout(()=>notice(''),4500);
     }
     function syncDrawerLock() {
         document.body.classList.toggle('da-drawer-open', !!$('da-form-drawer')?.open);
@@ -86,12 +88,57 @@
     }
     function syncDetailPanels() {
         $('da-workspace').classList.toggle('da-node-details-hidden', !S.detailsOpen);
+        $('da-workspace').classList.toggle('da-node-reader', S.detailsOpen && S.readerExpanded);
         $('da-body').querySelectorAll('[data-da-action="graph-details"]').forEach(b => {
+            if(b.classList.contains('da-node-close')) return;
             b.textContent = L(S.detailsOpen ? 'hideDetails' : 'showDetails');
             b.setAttribute('aria-expanded',String(S.detailsOpen));
         });
+        $('da-body').querySelectorAll('[data-da-action="graph-reader"]').forEach(b => {
+            b.textContent=L(S.readerExpanded?'readerBack':'readerExpand');
+            b.setAttribute('aria-expanded',String(S.readerExpanded));
+        });
+        $('da-body').querySelectorAll('.da-panel-resize').forEach(bar=>{
+            if(!bar.getClientRects().length)return;
+            const width=Math.round(bar.nextElementSibling.getBoundingClientRect().width);
+            bar.setAttribute('aria-controls',bar.nextElementSibling.id);
+            bar.setAttribute('aria-valuemin','320');
+            bar.setAttribute('aria-valuemax',String(Math.max(320,Math.min(760,bar.parentElement.clientWidth-360))));
+            bar.setAttribute('aria-valuenow',String(width));bar.setAttribute('aria-valuetext',width+' px');
+        });
     }
+
+    function hideNodeDetails() { S.detailsOpen=false;S.readerExpanded=false;syncDetailPanels(); }
     function showNodeDetails() { S.detailsOpen=true; syncDetailPanels(); }
+    function separator() { return '<div class="da-panel-resize" role="separator" aria-orientation="vertical" tabindex="0" aria-label="'+esc(L('resizeDetails'))+'"></div>'; }
+    function installPanelResize(root) {
+        const workspace=$('da-workspace');let drag=null;
+        const persist=()=>{try{const width=workspace.style.getPropertyValue('--da-node-panel-width');if(width)sessionStorage.setItem('csai-assessment-node-width',width);else sessionStorage.removeItem('csai-assessment-node-width');}catch{}};
+        const apply=(bar,width)=>{
+            const frame=bar.closest('.da-graph-workspace');
+            if(!frame || !bar.getClientRects().length)return;
+            const max=Math.max(320,Math.min(760,frame.clientWidth-360));
+            const value=Math.round(Math.max(320,Math.min(max,width)));
+            workspace.style.setProperty('--da-node-panel-width',value+'px');
+            bar.setAttribute('aria-valuemin','320');bar.setAttribute('aria-valuemax',String(max));bar.setAttribute('aria-valuenow',String(value));bar.setAttribute('aria-valuetext',value+' px');
+        };
+        try{const width=sessionStorage.getItem('csai-assessment-node-width');if(/^\d{3}px$/.test(width||'')&&parseInt(width)>=320&&parseInt(width)<=760)workspace.style.setProperty('--da-node-panel-width',width);}catch{}
+        root.addEventListener('pointerdown',event=>{
+            const bar=event.target.closest('.da-panel-resize');if(!bar || event.button!==0 || !bar.getClientRects().length)return;
+            const panel=bar.nextElementSibling;drag={bar,id:event.pointerId,x:event.clientX,width:panel.getBoundingClientRect().width};
+            bar.focus({preventScroll:true});bar.setPointerCapture(event.pointerId);workspace.classList.add('da-resizing');event.preventDefault();
+        });
+        root.addEventListener('pointermove',event=>{if(drag&&event.pointerId===drag.id)apply(drag.bar,drag.width-(event.clientX-drag.x));});
+        const finish=event=>{if(!drag||event.pointerId!==drag.id)return;const previous=drag;drag=null;workspace.classList.remove('da-resizing');if(previous.bar.hasPointerCapture(previous.id))previous.bar.releasePointerCapture(previous.id);persist();};
+        root.addEventListener('pointerup',finish);root.addEventListener('pointercancel',finish);root.addEventListener('lostpointercapture',finish);
+        const barReset=bar=>requestAnimationFrame(()=>{if(bar?.isConnected){const width=Math.round(bar.nextElementSibling.getBoundingClientRect().width);bar.setAttribute('aria-valuenow',String(width));bar.setAttribute('aria-valuetext',width+' px');}});
+        root.addEventListener('dblclick',event=>{if(event.target.closest('.da-panel-resize')){workspace.style.removeProperty('--da-node-panel-width');persist();barReset(event.target.closest('.da-panel-resize'));}});
+        root.addEventListener('keydown',event=>{
+            const bar=event.target.closest('.da-panel-resize');if(!bar||!bar.getClientRects().length)return;
+            if(event.key==='Home'){workspace.style.removeProperty('--da-node-panel-width');persist();barReset(event.target.closest('.da-panel-resize'));event.preventDefault();}
+            else if(['ArrowLeft','ArrowRight'].includes(event.key)){apply(bar,bar.nextElementSibling.getBoundingClientRect().width+(event.key==='ArrowLeft'?32:-32));persist();event.preventDefault();}
+        });
+    }
     function listHash() {
         const params = new URLSearchParams();
         if ($('da-search').value) params.set('q',$('da-search').value);
@@ -144,7 +191,7 @@
         if(params.has('archived'))$('da-archive-filter').value=params.get('archived')==='true'?'archived':'current';
         if(params.has('list_page'))S.page=Math.max(0,Number(params.get('list_page'))||0);
         const changed = S.id !== id;
-        S.id = id; window.AssessmentExplorationViews?.reset(id); if (changed) { S.task = null; S.detailsOpen=false; $('da-guidance').value = '';  }
+        S.id = id; window.AssessmentExplorationViews?.reset(id); if (changed) { S.task = null; S.readerExpanded=false; S.detailsOpen=false; $('da-guidance').value = '';  }
         S.intentAsset = params.get('asset_id') || ''; S.focusStepId = params.get('step_id') || ''; S.originFindingId = params.get('vulnerability_id') || '';
         S.focusedStep = null; S.originFinding = null; S.findings = []; S.findingOffset = 0; S.receiptOffset = 0; S.stepOffset = 0;
         S.tab = ['overview','graph','plan','evidence','activity','quality','findings','assets','facts'].includes(params.get('tab')) ? params.get('tab') : (S.focusStepId ? 'plan' : 'graph');
@@ -172,8 +219,7 @@
             </section>
             </div>
             <section id="da-workspace" class="da-workspace da-node-details-hidden" aria-labelledby="da-title" hidden>
-                <div class="da-workspace-nav">${button('back-list','← '+L('backToList'))}</div>
-                <header class="da-workspace-header"><div id="da-title" tabindex="-1"></div><div id="da-controls" class="da-controls"></div></header>
+                <header class="da-workspace-header"><div class="da-workspace-heading">${button('back-list','←','aria-label="'+esc(L('backToList'))+'" title="'+esc(L('backToList'))+'"')}<div class="da-title-stack"><div id="da-title" tabindex="-1"></div><div id="da-task-meta" class="da-muted"></div></div></div><div id="da-controls" class="da-controls"></div></header>
                 <div id="da-detail-notice" class="da-notice" role="status" hidden></div>
                 <div id="da-tabs" class="da-tabs" role="tablist"></div>
                 <div class="da-detail-scroll"><div id="da-body"></div></div>
@@ -184,6 +230,7 @@
                 <div id="da-form-notice" class="da-notice" role="alert" hidden></div><div id="da-form-content"></div>
             </dialog>`;
         bindDrawer('da-form-drawer');
+        installPanelResize(root);
         window.addEventListener('hashchange', () => {
             if (window.location.hash.slice(1).split('?')[0] !== 'deep-assessments') { closeDrawer('da-form-drawer'); hideWorkspace(); } else if (applyRoute()) void refresh();
         });
@@ -227,8 +274,9 @@
         if(!S.detailVisible)return;
         $('da-workspace').dataset.view=S.tab;
         const task = S.task;
-        if (!task) { $('da-title').textContent = L('title'); $('da-controls').innerHTML = ''; $('da-tabs').innerHTML = ''; $('da-body').textContent = L(S.id ? 'loading' : 'select'); $('da-guidance-form').hidden = true; $('da-guidance-panel').hidden = true; return; }
+        if (!task) { $('da-task-meta').textContent=''; $('da-title').textContent = L('title'); $('da-controls').innerHTML = ''; $('da-tabs').innerHTML = ''; $('da-body').textContent = L(S.id ? 'loading' : 'select'); $('da-guidance-form').hidden = true; $('da-guidance-panel').hidden = true; return; }
         $('da-title').innerHTML = `<h2>${esc(task.name)} ${badge(task.status)} ${task.archived?badge('archived'):''}</h2>`;
+        $('da-task-meta').textContent=[L('model')+' '+(task.model||L('default')),L('role')+' '+(task.role||L('default')),L('rounds')+' '+(task.rounds||0),L('tokens')+' '+Number(task.tokens_used||0).toLocaleString()].join(' · ');
         $('da-controls').innerHTML = `${can('write') && !terminal(task) && !task.archived ? (!active(task) ? button('start', L('start'), !canStart(task) ? 'disabled' : '') : button('pause', L('pause'), task.status !== 'running' ? 'disabled' : '')) + button('cancel', L('cancel')) : ''}${can('write') ? button(task.archived?'restore':'archive',L(task.archived?'restore':'archive'),!task.archived && !canArchive(task)?'disabled title="'+esc(L('archiveHint'))+'"':'') : ''}${button('report', L('report'))}${can('delete') && !active(task) ? button('delete', L('delete')) : ''}`;
         $('da-tabs').innerHTML = ['overview', ...(window.AssessmentExplorationViews?.canAssets() ? ['assets'] : []), 'graph', 'plan', 'facts', ...(canFindings() ? ['findings'] : []), 'evidence', 'activity', 'quality'].map(tab => `<button type="button" role="tab" aria-selected="${S.tab === tab}" data-da-action="tab" data-tab="${tab}" class="${S.tab === tab ? 'active' : ''}">${esc(L(tab))}</button>`).join('');
         const body = $('da-body'), scroller = $('da-workspace').querySelector('.da-detail-scroll'), scroll = scroller.scrollTop;
@@ -295,7 +343,7 @@
     function renderGraph(body) {
         if (!body.querySelector('#da-graph-canvas')) {
             window.DeepAssessmentGraph?.destroy();
-            body.innerHTML = `<div class="da-graph-toolbar">${button('graph-home', L('graphHome'))}${button('graph-fit', L('graphFit'))}${button('graph-details',L(S.detailsOpen?'hideDetails':'showDetails'),'aria-expanded="'+S.detailsOpen+'"')}${button('graph-layout',L('graphLayout'))}${button('graph-in', '+', 'aria-label="Zoom in"')}${button('graph-out', '−', 'aria-label="Zoom out"')}<span id="da-graph-meta"></span></div><p class="da-muted">${esc(L('graphHint'))}</p><div class="da-graph-legend">${['goal','step','fact','finding','observation','receipt','memory','digest','guidance'].map(k => `<span class="da-kind-${k}">${esc(graphKind(k))}</span>`).join('')}</div><select id="da-graph-select" class="form-control" aria-label="${esc(L('graphSelect'))}"></select><div class="da-graph-workspace"><div id="da-graph-canvas" role="img" aria-label="${esc(L('graph'))}"></div><section id="da-graph-node" aria-live="polite"></section></div><div id="da-graph-pages" class="da-controls"></div>`;
+            body.innerHTML = `<div class="da-graph-toolbar">${button('graph-home', L('graphHome'))}${button('graph-fit', L('graphFit'))}${button('graph-details',L(S.detailsOpen?'hideDetails':'showDetails'),'aria-expanded="'+S.detailsOpen+'"')}${button('graph-layout',L('graphLayout'))}${button('graph-in', '+', 'aria-label="Zoom in"')}${button('graph-out', '−', 'aria-label="Zoom out"')}<span id="da-graph-meta"></span></div><div class="da-graph-navigation"><select id="da-graph-select" class="form-control" aria-label="${esc(L('graphSelect'))}"></select><details class="da-view-help" data-da-detail="graph-help"><summary>${esc(L('graphHelp'))}</summary><p class="da-muted">${esc(L('graphHint'))}</p><div class="da-graph-legend">${['goal','step','fact','finding','observation','receipt','memory','digest','guidance'].map(k => `<span class="da-kind-${k}">${esc(graphKind(k))}</span>`).join('')}</div></details></div><div class="da-graph-workspace"><div id="da-graph-canvas" role="img" aria-label="${esc(L('graph'))}"></div>${separator()}<section id="da-graph-node" aria-live="polite"></section></div><div id="da-graph-pages" class="da-controls"></div>`;
         }
         if (!S.graph) { $('da-graph-meta').textContent = L('loading'); return; }
         $('da-graph-meta').textContent = `${L('graphVisible')} ${Math.max(0, S.graph.nodes.length - 1)} / ${S.graph.total} · ${L('graphFolded')} ${S.graph.folded}`;
@@ -307,12 +355,11 @@
     }
     const graphState = state => tr('graphStates.' + state, { observed: '直接观察', inferred: '推断待证', reported: '待独立复核', confirmed: '复核确认', refuted: '复核否定', inconclusive: '复核未定', unreviewed: '历史记录待核对', summary: '压缩摘要', note: '观察记录', user: '用户提供', folded: '已折叠' }[state] || status(state));
     function renderGraphNode() {
-        const panel = $('da-graph-node'); if (!panel) return;
-        const n = S.graphNode;
-        const expandedSource = panel.querySelector('details[data-da-detail][open]')?.dataset.daDetail;
-        panel.innerHTML = n ? `<small>${esc(graphKind(n.kind))} · ${esc(graphState(n.state))}</small><h4>${esc(n.title)}</h4><code>${esc(n.id)}</code><pre>${esc(n.body)}</pre><details data-da-detail="graph-source:${esc(n.id)}"><summary>${esc(L('evidenceIDs'))}</summary><pre>${esc(JSON.stringify(n.source || {}, null, 2))}</pre></details><div class="da-controls">${window.AssessmentExplorationViews?.canAssets()?(n.source?.asset_ids||[]).map(id=>button('intent-asset',L('linkedAssets')+' '+id,`data-asset="${esc(id)}"`)).join(''):''}${n.kind === 'finding' ? button('open-finding',L('openFinding'),`data-vulnerability="${esc(n.id.slice(8))}"`) : ''}${n.step_id ? button('fact-proof',L('sourceStep'),`data-step="${esc(n.step_id)}"`) : ''}${['step','digest'].includes(n.kind) ? button('graph-expand', L('graphExpand'), `data-node="${esc(n.id)}"`) : ''}${S.nodeMore ? button('graph-more', L('graphMore')) : ''}</div>` : `<p class="da-muted">${esc(L('graphSelect'))}</p>`;
-        const source = panel.querySelector('details[data-da-detail]');
-        if (source && source.dataset.daDetail === expandedSource) source.open = true;
+        const panel=$('da-graph-node');if(!panel)return;
+        const n=S.graphNode;
+        if(!window.AssessmentNodePanel){panel.textContent=n?n.title+'\n'+n.body:L('graphSelect');return;}
+        const actions=n?`${window.AssessmentExplorationViews?.canAssets()?(n.source?.asset_ids||[]).map(id=>button('intent-asset',L('linkedAssets')+' '+id,`data-asset="${esc(id)}"`)).join(''):''}${n.kind==='finding'?button('open-finding',L('openFinding'),`data-vulnerability="${esc(n.id.slice(8))}"`):''}${n.step_id?button('fact-proof',L('sourceStep'),`data-step="${esc(n.step_id)}"`):''}${['step','digest'].includes(n.kind)?button('graph-expand',L('graphExpand'),`data-node="${esc(n.id)}"`):''}${S.nodeMore?button('graph-more',L('graphMore')):''}`:'';
+        window.AssessmentNodePanel.render(panel,n?{id:n.id,key:S.id+'/'+n.id,title:n.title,kind:graphKind(n.kind),state:graphState(n.state),sections:window.AssessmentNodePanel.sections(n),source:n.source,actionsHTML:actions}:{emptyText:L('graphSelect')});
     }
     async function selectGraphNode(node, append = false) {
         const task = S.id, request = ++S.nodeRequest;
@@ -353,7 +400,7 @@
         const values = Object.fromEntries(new FormData(form));
         values.concurrency = Number(values.concurrency); values.auto_resume = form.elements.auto_resume.checked;
         S.busy = true; ++S.epoch; form.querySelector('button[type="submit"]').disabled = true;
-        try { const data = await json('', { method: 'POST', body: JSON.stringify(values) }); S.id = data.task.id; S.detailsOpen=false; S.intentAsset=''; S.extra=null; window.AssessmentExplorationViews?.reset(S.id); S.task = data.task; S.focusStepId = ''; S.focusedStep = null; S.originFindingId = ''; S.originFinding = null; S.findingOffset = 0; S.tab = 'graph'; S.stepOffset = 0; S.stepMore = false; S.stepTotal = 0; S.graph = null; S.graphScope = ''; S.graphOffset = 0; S.graphNode = null; S.events = []; S.receipts = []; S.receiptOffset = 0; closeDrawer('da-form-drawer');writeRoute(true);if ($('page-deep-assessments')?.classList.contains('active')) showWorkspace(); notice(L('saved')); }
+        try { const data = await json('', { method: 'POST', body: JSON.stringify(values) }); S.id = data.task.id; S.readerExpanded=false; S.detailsOpen=false; S.intentAsset=''; S.extra=null; window.AssessmentExplorationViews?.reset(S.id); S.task = data.task; S.focusStepId = ''; S.focusedStep = null; S.originFindingId = ''; S.originFinding = null; S.findingOffset = 0; S.tab = 'graph'; S.stepOffset = 0; S.stepMore = false; S.stepTotal = 0; S.graph = null; S.graphScope = ''; S.graphOffset = 0; S.graphNode = null; S.events = []; S.receipts = []; S.receiptOffset = 0; closeDrawer('da-form-drawer');writeRoute(true);if ($('page-deep-assessments')?.classList.contains('active')) showWorkspace(); notice(L('saved')); }
         catch (error) { notice(error.message, true); }
         finally { S.busy = false; form.querySelector('button[type="submit"]').disabled = false; await refresh(); }
     }
@@ -361,7 +408,7 @@
     async function action(name, data = {}) {
         if (S.busy) return;
         try {
-            if (await window.AssessmentExplorationViews?.action(name,data,json)) { if(['asset-linked','asset-all','asset-search'].includes(name)){S.intentAsset='';writeRoute();} return await refresh(); }
+            if (await window.AssessmentExplorationViews?.action(name,data,json)) { if(['asset-linked','asset-all','asset-browse','asset-search','asset-clear'].includes(name)){S.intentAsset='';S.detailsOpen=false;S.readerExpanded=false;writeRoute();} return await refresh(); }
             if (name === 'intent-asset') { S.intentAsset=data.asset; S.detailsOpen=true; window.AssessmentExplorationViews.focusAsset(data.asset); S.tab='assets'; writeRoute(); return await refresh(); }
             if (name === 'asset-intents') { S.focusStepId='';S.focusedStep=null;S.originFindingId='';S.originFinding=null;S.intentAsset=data.asset;S.intentStatus='';S.stepOffset=0;S.tab='plan';writeRoute();return await refresh(); }
             if (name === 'clear-intent-asset') { S.intentAsset='';S.stepOffset=0;return await refresh(); }
@@ -371,19 +418,21 @@
             if (name === 'create') return await create();
             if (name === 'refresh') return await refresh();
             if (name === 'previous' || name === 'next') { S.page += name === 'previous' ? -1 : 1; S.page = Math.max(0, S.page); writeListRoute();return await refresh(); }
-            if (name === 'select' || name === 'details') { ++S.drawerEpoch; S.focusStepId = ''; S.focusedStep = null; S.originFindingId = ''; S.originFinding = null; S.findingOffset = 0; if (S.id !== data.id) { S.id = data.id; S.detailsOpen=false; S.extra=null; S.intentAsset=''; S.intentStatus=''; window.AssessmentExplorationViews?.reset(S.id); S.task = null; S.tab = 'graph'; S.stepOffset = 0; S.stepMore = false; S.stepTotal = 0; S.graph = null; S.graphScope = ''; S.graphOffset = 0; S.graphNode = null; ++S.nodeRequest; S.events = []; S.receipts = []; S.receiptOffset = 0; $('da-guidance').value = ''; $('da-workspace').querySelector('.da-detail-scroll').scrollTop = 0; } writeListRoute();writeRoute(true);showWorkspace();return await refresh(); }
-            if (name === 'tab') { S.tab = data.tab; writeRoute(); $('da-workspace').querySelector('.da-detail-scroll').scrollTop = 0; return await refresh(); }
+            if (name === 'select' || name === 'details') { ++S.drawerEpoch; S.focusStepId = ''; S.focusedStep = null; S.originFindingId = ''; S.originFinding = null; S.findingOffset = 0; if (S.id !== data.id) { S.id = data.id; S.readerExpanded=false; S.detailsOpen=false; S.extra=null; S.intentAsset=''; S.intentStatus=''; window.AssessmentExplorationViews?.reset(S.id); S.task = null; S.tab = 'graph'; S.stepOffset = 0; S.stepMore = false; S.stepTotal = 0; S.graph = null; S.graphScope = ''; S.graphOffset = 0; S.graphNode = null; ++S.nodeRequest; S.events = []; S.receipts = []; S.receiptOffset = 0; $('da-guidance').value = ''; $('da-workspace').querySelector('.da-detail-scroll').scrollTop = 0; } writeListRoute();writeRoute(true);showWorkspace();return await refresh(); }
+            if (name === 'tab') { if(S.tab!==data.tab)S.readerExpanded=false;S.tab = data.tab; writeRoute(); $('da-workspace').querySelector('.da-detail-scroll').scrollTop = 0; return await refresh(); }
             if (name === 'open-finding' || name === 'all-findings') { closeDrawer('da-form-drawer'); hideWorkspace(); window.AssessmentFindingLinks?.openFinding(name === 'open-finding' ? data.vulnerability : '', S.id); return; }
             if (name === 'finding-evidence') { S.originFindingId = data.vulnerability; S.focusStepId = data.step; S.focusedStep = null; S.originFinding = null; S.tab = 'evidence'; S.receiptOffset = 0; writeRoute(); return await refresh(); }
             if (name === 'clear-source') { S.focusStepId = ''; S.focusedStep = null; S.originFindingId = ''; S.originFinding = null; S.receiptOffset = 0; writeRoute(); return await refresh(); }
             if (name === 'next-findings' || name === 'previous-findings') { S.findingOffset = Math.max(0, S.findingOffset + (name === 'next-findings' ? 20 : -20)); return await refresh(); }
             if (name === 'step-next' || name === 'step-previous') { S.stepOffset = Math.max(0, S.stepOffset + (name === 'step-next' ? 50 : -50)); return await refresh(); }
-            if (name === 'graph-details') { S.detailsOpen=!S.detailsOpen;syncDetailPanels();return; }
+            if (name === 'node-close') { hideNodeDetails();return; }
+            if (name === 'graph-reader') { S.readerExpanded=!S.readerExpanded;S.detailsOpen=true;syncDetailPanels();$('da-workspace').querySelector('.da-detail-scroll').scrollTop=0;return; }
+            if (name === 'graph-details') { S.detailsOpen=!S.detailsOpen;if(!S.detailsOpen)S.readerExpanded=false;syncDetailPanels();return; }
             if (name === 'graph-layout') return window.DeepAssessmentGraph?.relayout();
             if (name === 'graph-fit') return window.DeepAssessmentGraph?.fit();
             if (name === 'graph-in') return window.DeepAssessmentGraph?.zoomIn();
             if (name === 'graph-out') return window.DeepAssessmentGraph?.zoomOut();
-            if (name === 'graph-home' || name === 'graph-expand') { S.graphScope = name === 'graph-home' ? '' : data.node; S.graphOffset = 0; S.graphNode = null; ++S.nodeRequest; return await refresh(); }
+            if (name === 'graph-home' || name === 'graph-expand') { S.graphScope = name === 'graph-home' ? '' : data.node; S.graphOffset = 0; S.graphNode = null; S.detailsOpen=false;S.readerExpanded=false;++S.nodeRequest; return await refresh(); }
             if (name === 'graph-next' || name === 'graph-previous') { S.graphOffset = Math.max(0, S.graphOffset + (name === 'graph-next' ? 80 : -80)); return await refresh(); }
             if (name === 'graph-more' && S.graphNode) return await selectGraphNode(S.graphNode.id, true);
             if (name.startsWith('row-')) return await rowControl(data.id,name.slice(4));
@@ -407,5 +456,5 @@
         applyRoute();
         void refresh();
     }
-    window.DeepAssessments = { afterAuthentication, showNodeDetails, init() { mount(); applyRoute(); void refresh(); if (!S.timer) S.timer = setInterval(() => { if ($('page-deep-assessments')?.classList.contains('active') && !document.hidden) void refresh(); }, 4000); }, fromLocation() { mount(); if (applyRoute()) void refresh(); }, refresh };
+    window.DeepAssessments = { afterAuthentication, showNodeDetails, hideNodeDetails, syncDetailPanels, separator, init() { mount(); applyRoute(); void refresh(); if (!S.timer) S.timer = setInterval(() => { if ($('page-deep-assessments')?.classList.contains('active') && !document.hidden) void refresh(); }, 4000); }, fromLocation() { mount(); if (applyRoute()) void refresh(); }, refresh };
 })();

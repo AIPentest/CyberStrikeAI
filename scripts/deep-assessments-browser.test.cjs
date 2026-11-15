@@ -15,8 +15,8 @@ const sample = id => ({ id, name: '隔离样例 ' + id, status: 'draft', revisio
 async function fixture(t) {
  const state = { tasks: new Map(Array.from({ length: 24 }, (_, i) => ['t' + i, sample('t' + i)])), requests: [], errors: [], sharedAssets: [], linkedAssets: new Map() };
  const locale = JSON.stringify(JSON.parse(read('web/static/i18n/zh-CN.json'))).replaceAll('<', '\\u003c');
- const scripts = ['router', 'auth', 'assessment-exploration-views','deep-assessment-graph', 'deep-assessments'].map(x => `<script src="/static/js/${x}.js"></script>`).join('');
- const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${['style', 'mobile', 'deep-assessments'].map(x=>`<link rel="stylesheet" href="/static/css/${x}.css">`).join('')}</head><body><div class="container"><main class="main-layout"><section class="content-area">${region}<div class="page" id="page-chat"></div><div class="page" id="page-tasks"></div></section></main></div><script>window.t=k=>k.split('.').reduce((o,p)=>o&&o[p],${locale})||k;window.loadConversation=async id=>{window.visitedConversation=id};window.initializeChatUI=()=>{};window.refreshAppData=async()=>{};</script><script src="/static/vendor/cytoscape.min.js"></script><script>const originalGraph=window.cytoscape;window.cytoscape=(...args)=>{const chart=originalGraph(...args);window.fixtureGraph=chart;return chart};</script>${scripts}<script>document.removeEventListener('DOMContentLoaded',initializeApp);saveAuth('fixture-token',new Date(Date.now()+3600000),{user:{id:'fixture',username:'fixture'},permissions:['assessments:read','assessments:write','assessments:delete','agent:execute','chat:read','chat:write','tasks:read','asset:read'],scope:'own'});</script></body></html>`;
+ const scripts = ['router', 'auth', 'assessment-node-panel','assessment-exploration-views','deep-assessment-graph', 'deep-assessments'].map(x => `<script src="/static/js/${x}.js"></script>`).join('');
+ const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${['style', 'mobile', 'deep-assessments', 'design-system'].map(x=>`<link rel="stylesheet" href="/static/css/${x}.css">`).join('')}</head><body><div class="container"><main class="main-layout"><section class="content-area">${region}<div class="page" id="page-chat"></div><div class="page" id="page-tasks"></div></section></main></div><script>window.t=k=>k.split('.').reduce((o,p)=>o&&o[p],${locale})||k;window.loadConversation=async id=>{window.visitedConversation=id};window.initializeChatUI=()=>{};window.refreshAppData=async()=>{};</script><script src="/static/vendor/cytoscape.min.js"></script><script>const originalGraph=window.cytoscape;window.cytoscape=(...args)=>{const chart=originalGraph(...args);window.fixtureGraph=chart;return chart};</script>${scripts}<script>document.removeEventListener('DOMContentLoaded',initializeApp);saveAuth('fixture-token',new Date(Date.now()+3600000),{user:{id:'fixture',username:'fixture'},permissions:['assessments:read','assessments:write','assessments:delete','agent:execute','chat:read','chat:write','tasks:read','asset:read'],scope:'own'});</script></body></html>`;
  const server = http.createServer(async (req,res)=>{
   const url = new URL(req.url,'http://fixture');
   const send=(code,body)=>{res.statusCode=code;res.setHeader('Content-Type','application/json; charset=utf-8');res.end(JSON.stringify(body));};
@@ -309,4 +309,94 @@ test('graph preserves the viewport through polling, side panel resize and tab ch
  await page.setViewportSize({width:390,height:844});
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'assessment-workspace-mobile.png'),fullPage:true});
+});
+
+test('long node details have an adjustable reader and keep their position through refreshes',async t=>{
+ const {page,state}=await fixture(t),task=state.tasks.get('t0');
+ const instruction=Array.from({length:45},(_,i)=>`${i+1}. 检查本地样例记录，保存观察结果并注明来源。这里是用于验证长文本阅读布局的内容，不会执行网络操作。`).join('\n\n');
+ task.name='长文本阅读示例';task.graph={nodes:[
+  {id:'goal',kind:'goal',title:'整理样例证据',state:'running',body:'整理本地样例证据并形成可核对记录。',source:{}},
+  {id:'step:read',kind:'step',step_id:'read',title:'核对样例记录与证据来源',state:'running',body:'已整理记录，正在核对原始回执。\n\nInstruction: '+instruction,source:{evidence:['receipt:sample']}},
+  {id:'receipt:sample',kind:'receipt',step_id:'read',title:'本地样例回执',state:'completed',body:Array.from({length:120},(_,i)=>`record ${i}: example.test /fixture — verified fixture`).join('\n'),source:{tool:'fixture'}}
+ ],edges:[{source:'goal',target:'step:read',relation:'plans'},{source:'step:read',target:'receipt:sample',relation:'executes'}],total:2,folded:0,has_more:false};
+ await page.locator('[data-da-action="details"][data-id="t0"]').click();
+ await page.locator('#da-graph-select').selectOption('step:read');
+ await page.locator('.da-node-heading h3').waitFor();
+ const panel=page.locator('#da-graph-node'),content=panel.locator('.da-node-content'),bar=page.getByRole('separator');
+ assert.match(await panel.locator('.da-node-heading').innerText(),/核对样例记录/);
+ assert.deepEqual(await panel.locator('.da-node-section h4').allTextContents(),['结果摘要','执行说明']);
+ assert.equal(await panel.locator('.da-node-prose').nth(1).textContent(),instruction);
+ const bounds=await panel.boundingBox();assert.ok(bounds.width>=400,JSON.stringify(bounds));
+ const geometry=await content.evaluate(el=>({height:el.clientHeight,total:el.scrollHeight,font:parseFloat(getComputedStyle(el.querySelector('.da-node-prose')).fontSize),family:getComputedStyle(el.querySelector('.da-node-prose')).fontFamily}));
+ assert.ok(geometry.height>=200&&geometry.total>geometry.height,JSON.stringify(geometry));
+ assert.ok(geometry.font>=14);assert.doesNotMatch(geometry.family,/monospace/i);
+ await content.evaluate(el=>el.scrollTop=480);
+ const scroll=await content.evaluate(el=>el.scrollTop);
+ await page.evaluate(()=>DeepAssessments.refresh());
+ assert.equal(await content.evaluate(el=>el.scrollTop),scroll);
+ await page.evaluate(()=>fixtureGraph.zoom(.75));
+ const separator=await bar.boundingBox();
+ await page.mouse.move(separator.x+separator.width/2,separator.y+40);await page.mouse.down();await page.mouse.move(separator.x-100,separator.y+40);await page.mouse.up();
+ assert.ok((await panel.boundingBox()).width>bounds.width+90);
+ assert.equal(await page.evaluate(()=>fixtureGraph.zoom()),.75);
+ const dragged=(await panel.boundingBox()).width;
+ await bar.press('ArrowRight');assert.ok(Math.abs((await panel.boundingBox()).width-dragged+32)<2);
+ await bar.press('Home');assert.ok(Math.abs((await panel.boundingBox()).width-bounds.width)<2);
+ await content.evaluate(el=>el.scrollTop=0);
+ if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'node-reader-split.png'),fullPage:true});
+ await panel.getByRole('button',{name:'展开阅读',exact:true}).click();
+ assert.equal(await page.locator('#da-graph-canvas').isVisible(),false);
+ assert.ok((await panel.boundingBox()).width>1200);
+ await content.evaluate(el=>el.scrollTop=300);
+ await page.evaluate(()=>DeepAssessments.refresh());
+ assert.equal(await page.locator('#da-graph-canvas').isVisible(),false);
+ assert.equal(await content.evaluate(el=>el.scrollTop),300);
+ if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'node-reader-expanded.png'),fullPage:true});
+ await page.locator('#da-graph-select').selectOption('receipt:sample');
+ await panel.locator('.da-node-code').first().waitFor();
+ assert.equal(await content.evaluate(el=>el.scrollTop),0);
+ assert.match(await panel.locator('.da-node-code').first().textContent(),/record 119/);
+ await panel.getByRole('button',{name:'返回图',exact:true}).click();
+ assert.equal(await page.locator('#da-graph-canvas').isVisible(),true);
+ assert.equal(await page.evaluate(()=>fixtureGraph.zoom()),.75);
+ await page.setViewportSize({width:390,height:844});
+ await panel.getByRole('button',{name:'展开阅读',exact:true}).click();
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ assert.equal(await page.locator('.da-detail-scroll').evaluate(el=>el.scrollTop),0);
+ assert.ok((await content.boundingBox()).height>200);
+ if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'node-reader-mobile.png'),fullPage:true});
+ await panel.getByRole('button',{name:'关闭节点详情',exact:true}).click();
+ assert.equal(await panel.isVisible(),false);assert.equal(await page.locator('#da-graph-canvas').isVisible(),true);
+ assert.deepEqual(state.errors,[]);assert.equal(state.requests.filter(r=>r.method==='POST').length,0);
+});
+
+test('asset search controls have room for focus and empty graphs explain the next step',async t=>{
+ const {page,state}=await fixture(t);
+ await page.locator('[data-da-action="details"][data-id="t0"]').click();
+ await page.locator('[data-da-action="tab"][data-tab="assets"]').click();
+ await page.locator('#da-asset-query').waitFor();
+ assert.match(await page.locator('#da-asset-canvas').innerText(),/本次测评尚未关联资产/);
+ assert.equal(await page.locator('#da-asset-select').isDisabled(),true);
+ for(const width of [1440,1024,390]){
+  await page.setViewportSize({width,height:width===390?844:1000});await page.locator('#da-asset-query').focus();
+  const geometry=await page.evaluate(()=>{
+   const rect=id=>document.querySelector(id).getBoundingClientRect();
+   const search=rect('#da-asset-query'),toolbar=rect('.da-asset-toolbar'),navigation=rect('.da-graph-navigation'),scroll=rect('.da-detail-scroll');
+   return {gap:navigation.top-toolbar.bottom,inset:search.left-scroll.left,right:scroll.right-search.right,height:search.height,overflow:document.documentElement.scrollWidth-innerWidth};
+  });
+  assert.ok(geometry.gap>=10,JSON.stringify(geometry));assert.ok(geometry.inset>=4&&geometry.right>=4,JSON.stringify(geometry));
+  assert.ok(geometry.height>=32);assert.ok(geometry.overflow<=1);
+  if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,`asset-search-${width}.png`),fullPage:true});
+ }
+ await page.setViewportSize({width:1440,height:1000});
+ state.sharedAssets=[{id:'fixture-service',host:'https://app.example.test',port:443,protocol:'https',title:'样例应用',server:'Fixture server',status:'active'}];
+ await page.locator('[data-da-action="asset-browse"]').click();
+ await page.locator('#da-asset-select').selectOption('asset:fixture-service');
+ await page.locator('.da-node-properties').waitFor();
+ assert.match(await page.locator('.da-node-properties').innerText(),/地址\nhttps:\/\/app.example.test/);
+ assert.match(await page.locator('.da-node-properties').innerText(),/端口\n443/);
+ assert.equal(await page.locator('#da-asset-detail .da-node-source').getAttribute('open'),null);
+ assert.ok((await page.locator('#da-asset-detail').boundingBox()).width>=400);
+ if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'asset-reader.png'),fullPage:true});
+ assert.deepEqual(state.errors,[]);assert.equal(state.requests.filter(r=>r.method==='POST').length,0);
 });

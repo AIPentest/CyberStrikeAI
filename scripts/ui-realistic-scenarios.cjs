@@ -2,9 +2,13 @@
 // 614 enabled tools, multi-file skill, 50 long findings. All writes are rejected.
 const assert = require("node:assert/strict");
 module.exports = async function ({ page, width, height, theme, out }) {
+  await page.addScriptTag({ url: "/static/vendor/cytoscape.min.js" });
   for (const script of [
     "tasks",
     "skills",
+    "assessment-node-panel",
+    "assessment-exploration-views",
+    "deep-assessment-graph",
     "deep-assessments",
     "vulnerability",
     "vulnerability-workspace",
@@ -34,6 +38,15 @@ module.exports = async function ({ page, width, height, theme, out }) {
       objective: "检查已有数据的布局",
       scope: "离线界面回归",
       updated_at: "2026-11-15T08:00:00Z",
+    };
+    const graph = {
+      nodes: [
+        { id: "goal", kind: "goal", title: "核对已有证据", body: "整理本地样例记录。", source: {} },
+        { id: "step:fixture", kind: "step", step_id: "fixture", title: "核对记录和原始回执", state: "completed", body: "已整理样例记录，保留原始回执。\n\nInstruction: " + "核对已有证据，记录来源及尚未确认的内容。此段用于验证长文本布局。\n\n".repeat(30), source: { evidence: ["receipt:fixture"] } },
+        { id: "receipt:fixture", kind: "receipt", title: "样例执行回执", body: "example.test /fixture — local sample", source: {} },
+      ],
+      edges: [{ source: "goal", target: "step:fixture", relation: "plans" }, { source: "step:fixture", target: "receipt:fixture", relation: "executes" }],
+      total: 2, folded: 0, has_more: false,
     };
     const queue = {
       id: "ui-fixture",
@@ -108,7 +121,11 @@ module.exports = async function ({ page, width, height, theme, out }) {
       else if (url.pathname === "/api/deep-assessments/assessment-fixture")
         data = { task: assessment };
       else if (url.pathname.endsWith("/graph"))
-        data = { nodes: [], edges: [], total: 0, folded: 0, has_more: false };
+        data = graph;
+      else if (url.pathname.endsWith("/graph/node"))
+        data = { node: graph.nodes.find(n => n.id === url.searchParams.get("node_id")), has_more: false };
+      else if (url.pathname.endsWith("/assets"))
+        data = { nodes: [], edges: [], assets: [], total: 0, has_more: false };
       return { ok: true, json: async () => data };
     };
     window.showNotification = (message, type) => {
@@ -513,6 +530,20 @@ module.exports = async function ({ page, width, height, theme, out }) {
     "0px",
   );
   await shot("assessment-detail");
+  await page.locator('[data-da-action="tab"][data-tab="graph"]').click();
+  await page.locator('#da-graph-select').selectOption('step:fixture');
+  await page.locator('.da-node-prose').first().waitFor();
+  const reader = page.locator('#da-graph-node');
+  if (width >= 1440) assert((await reader.boundingBox()).width >= 400);
+  await shot("assessment-node-split");
+  await reader.getByRole('button', { name: '展开阅读', exact: true }).click();
+  assert.equal(await page.locator('#da-graph-canvas').isVisible(), false);
+  assert((await reader.locator('.da-node-content').boundingBox()).height >= 160);
+  await shot("assessment-node-reader");
+  await page.locator('[data-da-action="tab"][data-tab="assets"]').click();
+  await page.locator('#da-asset-query').focus();
+  assert.equal(await page.locator('.da-empty-state').count(), 1);
+  await shot("assessment-assets");
   await page.locator('[data-da-action="back-list"]').click();
   await activate("page-vulnerabilities");
   await page.evaluate(() => {

@@ -5427,7 +5427,28 @@
       "endpoint": "Endpoint",
       "endpointList": "View all endpoints",
       "coverage": "Assets with observed evidence (not exhaustive testing)",
-      "assetIntents": "View target intents"
+      "assetIntents": "View target intents",
+      "browse": "Browse shared assets",
+      "help": "Asset graph guide",
+      "records": "Asset records",
+      "emptyLinked": "No assets linked to this assessment",
+      "emptyShared": "No matching assets in the current scope",
+      "emptyHint": "Browse the shared library. Assets discovered and recorded by this assessment will also appear here.",
+      "clearSearch": "Clear search",
+      "assetInfo": "Asset details",
+      "host": "Address",
+      "port": "Port",
+      "protocol": "Protocol",
+      "title": "Name",
+      "server": "Fingerprint",
+      "system": "Application",
+      "status": "Status",
+      "sourceName": "Source",
+      "lastSeen": "Last seen",
+      "method": "Method",
+      "path": "Path",
+      "active": "Active",
+      "inactive": "Inactive"
     },
     "graphRelations": {
       "plans": "plans",
@@ -5465,7 +5486,21 @@
     "restoreHint": "Restoring returns the task to the list without starting it.",
     "showDetails": "Show node details",
     "hideDetails": "Hide node details",
-    "graphLayout": "Rearrange"
+    "graphLayout": "Rearrange",
+    "readerExpand": "Expand reader",
+    "readerBack": "Back to graph",
+    "resizeDetails": "Resize node details",
+    "graphHelp": "Legend and guide",
+    "nodeReader": {
+      "reader": "Expand reader",
+      "back": "Back to graph",
+      "close": "Close node details",
+      "source": "Evidence and provenance",
+      "summary": "Result summary",
+      "instruction": "Instructions",
+      "content": "Node content",
+      "output": "Execution receipt"
+    }
   },
   "assessmentFindingLinks": {
     "source": "Source assessment",
