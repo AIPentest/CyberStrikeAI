@@ -25,13 +25,13 @@
         'batch-queue-detail-modal', 'batch-manage-modal', 'batch-import-modal',
         'mcp-detail-modal', 'external-mcp-modal', 'attack-chain-modal',
         'fact-modal', 'fact-detail-modal', 'knowledge-item-modal', 'retrieval-log-details-modal',
-        'audit-detail-modal', 'hitl-log-modal', 'skill-modal', 'agent-md-modal', 'role-modal',
+        'audit-detail-modal', 'hitl-log-modal', 'skill-modal', 'skill-view-modal', 'agent-md-modal', 'role-modal',
         'rbac-user-modal', 'rbac-role-modal', 'chat-files-edit-modal', 'webshell-modal',
         'workflow-package-import-modal', 'workflow-ai-modal', 'robot-commands-modal',
         'robot-account-binding-modal', 'c2-modal',
     ]);
     const WIDE_IDS = new Set([
-        'skill-modal', 'agent-md-modal', 'role-modal', 'fact-modal', 'vulnerability-modal',
+        'skill-modal', 'skill-view-modal', 'agent-md-modal', 'role-modal', 'fact-modal', 'vulnerability-modal',
         'chat-files-edit-modal', 'batch-queue-detail-modal', 'mcp-detail-modal', 'attack-chain-modal',
     ]);
     const returnFocus = new WeakMap();
