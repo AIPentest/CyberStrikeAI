@@ -284,6 +284,9 @@ test('graph preserves the viewport through polling, side panel resize and tab ch
  await page.locator('[data-da-action="details"][data-id="t0"]').click();
  await page.locator('#da-graph-select option[value="step:s3"]').waitFor({state:'attached'});
  const before=await page.locator('#da-graph-canvas').boundingBox();
+ const navigator=page.locator('.da-graph-minimap');await navigator.waitFor({state:'visible'});
+ const panBefore=await page.evaluate(()=>fixtureGraph.pan());await navigator.press('ArrowRight');
+ assert.equal((await page.evaluate(()=>fixtureGraph.pan())).x,panBefore.x-80);
  await page.evaluate(()=>{fixtureGraph.zoom(.8);fixtureGraph.pan({x:70,y:40});});
  const positions=await page.evaluate(()=>Object.fromEntries(fixtureGraph.nodes().map(n=>[n.id(),n.position()])));
  assert.ok(new Set(Object.values(positions).map(p=>p.x)).size>2);
@@ -313,10 +316,11 @@ test('graph preserves the viewport through polling, side panel resize and tab ch
 
 test('long node details have an adjustable reader and keep their position through refreshes',async t=>{
  const {page,state}=await fixture(t),task=state.tasks.get('t0');
+ await page.setViewportSize({width:1572,height:870});
  const instruction=Array.from({length:45},(_,i)=>`${i+1}. 检查本地样例记录，保存观察结果并注明来源。这里是用于验证长文本阅读布局的内容，不会执行网络操作。`).join('\n\n');
  task.name='长文本阅读示例';task.graph={nodes:[
   {id:'goal',kind:'goal',title:'整理样例证据',state:'running',body:'整理本地样例证据并形成可核对记录。',source:{}},
-  {id:'step:read',kind:'step',step_id:'read',title:'核对样例记录与证据来源',state:'running',body:'已整理记录，正在核对原始回执。\n\nInstruction: '+instruction,source:{evidence:['receipt:sample']}},
+  {id:'step:read',kind:'step',step_id:'read',title:'核对样例记录与证据来源',state:'running',body:'已整理记录，正在核对原始回执。\n\nInstruction: '+instruction,source:{evidence:['receipt:sample'],asset_ids:Array.from({length:13},(_,i)=>'fixture-asset-00000000-0000-0000-'+i)}},
   {id:'receipt:sample',kind:'receipt',step_id:'read',title:'本地样例回执',state:'completed',body:Array.from({length:120},(_,i)=>`record ${i}: example.test /fixture — verified fixture`).join('\n'),source:{tool:'fixture'}}
  ],edges:[{source:'goal',target:'step:read',relation:'plans'},{source:'step:read',target:'receipt:sample',relation:'executes'}],total:2,folded:0,has_more:false};
  await page.locator('[data-da-action="details"][data-id="t0"]').click();
@@ -330,10 +334,15 @@ test('long node details have an adjustable reader and keep their position throug
  const geometry=await content.evaluate(el=>({height:el.clientHeight,total:el.scrollHeight,font:parseFloat(getComputedStyle(el.querySelector('.da-node-prose')).fontSize),family:getComputedStyle(el.querySelector('.da-node-prose')).fontFamily}));
  assert.ok(geometry.height>=200&&geometry.total>geometry.height,JSON.stringify(geometry));
  assert.ok(geometry.font>=14);assert.doesNotMatch(geometry.family,/monospace/i);
+ assert.ok((await panel.locator('.da-node-actions').boundingBox()).height<100);
+ assert.equal(await panel.locator('.da-node-actions [data-da-action="intent-asset"]').count(),0);
+ assert.equal(await panel.locator('.da-node-links [data-da-action="intent-asset"]').count(),13);
+ await panel.locator('.da-node-links summary').click();
  await content.evaluate(el=>el.scrollTop=480);
  const scroll=await content.evaluate(el=>el.scrollTop);
  await page.evaluate(()=>DeepAssessments.refresh());
  assert.equal(await content.evaluate(el=>el.scrollTop),scroll);
+ assert.equal(await panel.locator('.da-node-links').getAttribute('open'),'');
  await page.evaluate(()=>fixtureGraph.zoom(.75));
  const separator=await bar.boundingBox();
  await page.mouse.move(separator.x+separator.width/2,separator.y+40);await page.mouse.down();await page.mouse.move(separator.x-100,separator.y+40);await page.mouse.up();
@@ -398,5 +407,40 @@ test('asset search controls have room for focus and empty graphs explain the nex
  assert.equal(await page.locator('#da-asset-detail .da-node-source').getAttribute('open'),null);
  assert.ok((await page.locator('#da-asset-detail').boundingBox()).width>=400);
  if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'asset-reader.png'),fullPage:true});
+ assert.deepEqual(state.errors,[]);assert.equal(state.requests.filter(r=>r.method==='POST').length,0);
+});
+
+test('large cyclic evidence graphs keep lineage and focus a selected node at readable scale',async t=>{
+ const {page,state}=await fixture(t),task=state.tasks.get('t0');
+ await page.setViewportSize({width:1572,height:870});
+ task.name='探索链路布局回归';
+ const nodes=[{id:'goal',kind:'goal',title:'核对样例记录',body:'本地界面夹具',state:'running',source:{}}],edges=[];
+ for(let i=0;i<12;i++){
+  nodes.push({id:'step:'+i,kind:'step',step_id:String(i),title:'核对方向 '+i,state:i===5?'running':'completed',body:'样例记录核对结果。\n\nInstruction: 核对已有记录与证据来源，不发起网络操作。',source:{asset_ids:Array.from({length:13},(_,j)=>'fixture-asset-'+j)}});
+  nodes.push({id:'fact:'+i,kind:'fact',step_id:String(i),title:'样例观察 '+i,state:'observed',body:'记录中的直接观察。',source:{}});
+  nodes.push({id:'observation:'+i,kind:'observation',step_id:String(i),title:'阶段记录 '+i,state:'note',body:'阶段记录',source:{}});
+  edges.push({source:i?'step:'+(i-1):'goal',target:'step:'+i,relation:i?'depends_on':'plans'},{source:'step:'+i,target:'fact:'+i,relation:'produces'},{source:'fact:'+i,target:'step:0',relation:'informs'},{source:'step:'+i,target:'observation:'+i,relation:'records'});
+  for(let j=0;j<3;j++){
+   const id='receipt:'+i+':'+j;nodes.push({id,kind:'receipt',step_id:String(i),title:'样例回执 '+j,state:'completed',body:'fixture output',source:{}});
+   edges.push({source:'step:'+i,target:id,relation:'executes'},{source:id,target:'fact:'+i,relation:'supports'});
+  }
+ }
+ task.graph={nodes,edges,total:nodes.length-1,folded:0,has_more:false};
+ await page.locator('[data-da-action="details"][data-id="t0"]').click();
+ await page.locator('#da-graph-select option[value="step:5"]').waitFor({state:'attached'});
+ const graphState=await page.evaluate(()=>({nodes:fixtureGraph.nodes().length,edges:fixtureGraph.edges().length,columns:new Set(fixtureGraph.nodes().map(n=>n.position().x)).size}));
+ assert.equal(graphState.nodes,nodes.length);assert.equal(graphState.edges,edges.length);assert.ok(graphState.columns>5);
+ await page.locator('#da-graph-select').selectOption('step:5');
+ await page.locator('.da-node-content').waitFor();
+ await page.waitForFunction(()=>fixtureGraph.zoom()>=.65);
+ assert.ok((await page.locator('.da-node-content').boundingBox()).height>=200);
+ const pos=await page.evaluate(()=>({node:fixtureGraph.getElementById('step:5').renderedPosition(),width:fixtureGraph.width(),height:fixtureGraph.height()}));
+ assert.ok(pos.node.x>=0&&pos.node.x<=pos.width&&pos.node.y>=0&&pos.node.y<=pos.height);
+ const zoom=await page.evaluate(()=>fixtureGraph.zoom());
+ await page.evaluate(()=>DeepAssessments.refresh());assert.equal(await page.evaluate(()=>fixtureGraph.zoom()),zoom);
+ if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'large-evidence-graph.png'),fullPage:true});
+ await page.locator('[data-da-action="tab"][data-tab="assets"]').click();await page.locator('#da-asset-select').waitFor();
+ await page.locator('[data-da-action="tab"][data-tab="graph"]').click();await page.locator('#da-graph-select').waitFor();
+ assert.equal(await page.locator('#da-graph-node').isVisible(),false,'switching graphs must not expose an empty inherited panel');
  assert.deepEqual(state.errors,[]);assert.equal(state.requests.filter(r=>r.method==='POST').length,0);
 });

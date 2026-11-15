@@ -5442,7 +5442,8 @@
       "path": "路径",
       "active": "活跃",
       "inactive": "停用"
-    }
+    },
+    "graphNavigator": "图导航：点击定位，方向键平移"
   },
   "assessmentFindingLinks": {
     "source": "来源深度测评",

@@ -1,7 +1,7 @@
 /* Read-only graph renderer; task state and evidence remain owned by the backend. */
 (function () {
     'use strict';
-    let chart = null, host = null, key = '', onSelect = null, observer = null, theme = '', size = null;
+    let chart = null, host = null, key = '', onSelect = null, observer = null, theme = '', size = null, mapElement = null, selectedID = '', mapFrame = null;
     const views = new Map();
     function remember() {
         if(!chart || !key || !size?.width || !size?.height)return;
@@ -22,6 +22,8 @@
     function destroy() {
         remember();
         observer?.disconnect(); observer = null;
+        if(mapFrame!==null)cancelAnimationFrame(mapFrame);mapFrame=null;
+        mapElement?.remove();mapElement=null;selectedID='';
         chart?.destroy(); chart = null; host = null; key = ''; theme = ''; size=null;
     }
     function relationLabel(key) {
@@ -38,45 +40,112 @@
             { selector: 'node[kind = "digest"]', style: { 'border-style': 'dashed' } },
             { selector: 'node[state = "running"]', style: { 'background-color': '#dbeafe', color: '#172033' } },
             { selector: 'node:selected', style: { 'border-width': 4, 'overlay-opacity': .08, 'overlay-color': '#3b82f6' } },
-            { selector: 'edge', style: { width: 1.5, 'line-color': '#94a3b8', 'target-arrow-color': '#94a3b8', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', label: 'data(relationLabel)', 'font-size': 10, color: text, 'text-background-color': surface, 'text-background-opacity': .8 } },
+            { selector: 'edge', style: { width: 1.5, 'line-color': 'data(relationColor)', 'target-arrow-color': 'data(relationColor)', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', label: '', opacity:.65, 'font-size': 10, color: text, 'text-background-color': surface, 'text-background-opacity': .9 } },
+            { selector: 'edge.da-connected', style: { label:'data(relationLabel)',width:2.5,opacity:1 } },
             { selector: 'edge[relation = "supports"], edge[relation = "informs"]', style: { 'line-style': 'dashed' } },
         ];
     }
-    function layout(preferred = new Map()) {
-        if (!chart) return;
-        const nodes=chart.nodes().toArray().sort((a,b)=>a.id().localeCompare(b.id()));
-        const adjacency=new Map(nodes.map(n=>[n.id(),[]]));
-        chart.edges().forEach(e=>adjacency.get(e.source().id()).push(e.target().id()));
-        // Condense evidence/review cycles before assigning columns.
-        let nextIndex=0;const indices=new Map(),low=new Map(),stack=[],onStack=new Set(),components=[],component=new Map();
+    // Only layout ignores DFS back edges. Every original relation remains rendered.
+    // Collapsing a strongly connected component into one rank made real evidence
+    // cycles turn an entire assessment into a single unreadable vertical column.
+    function computeLayout(nodes, edges, preferred = new Map()) {
+        const kindOrder={goal:0,domain:0,step:1,subdomain:1,ip:2,service:3,fact:4,finding:5,memory:6};
+        const ordered=[...nodes].sort((a,b)=>(kindOrder[a.kind]??7)-(kindOrder[b.kind]??7)||a.id.localeCompare(b.id));
+        const ids=new Set(ordered.map(n=>n.id)), outgoing=new Map(ordered.map(n=>[n.id,[]]));
+        const structural=new Set(['plans','depends_on','produces','executes','records','summarizes','exposes','serves','contains','associated_with']);
+        const valid=edges.filter(e=>ids.has(e.source)&&ids.has(e.target)&&e.source!==e.target);
+        for(const edge of [...valid].sort((a,b)=>Number(structural.has(b.relation))-Number(structural.has(a.relation))||a.target.localeCompare(b.target)))outgoing.get(edge.source).push(edge);
+        const state=new Map(),back=new Set();
         const visit=id=>{
-            indices.set(id,nextIndex);low.set(id,nextIndex++);stack.push(id);onStack.add(id);
-            for(const child of adjacency.get(id)){
-                if(!indices.has(child)){visit(child);low.set(id,Math.min(low.get(id),low.get(child)));}
-                else if(onStack.has(child))low.set(id,Math.min(low.get(id),indices.get(child)));
+            state.set(id,1);
+            for(const edge of outgoing.get(id)){
+                if(state.get(edge.target)===1)back.add(edge);
+                else if(!state.has(edge.target))visit(edge.target);
             }
-            if(low.get(id)===indices.get(id)){
-                const members=[];let child;
-                do{child=stack.pop();onStack.delete(child);component.set(child,components.length);members.push(child);}while(child!==id);
-                components.push(members);
-            }
+            state.set(id,2);
         };
-        nodes.forEach(n=>{if(!indices.has(n.id()))visit(n.id());});
-        const outgoing=components.map(()=>new Set()),incoming=components.map(()=>0),depth=components.map(()=>0);
-        chart.edges().forEach(e=>{const from=component.get(e.source().id()),to=component.get(e.target().id());if(from!==to&&!outgoing[from].has(to)){outgoing[from].add(to);incoming[to]++;}});
-        const queue=components.map((_,i)=>i).filter(i=>incoming[i]===0);
-        for(let i=0;i<queue.length;i++)for(const child of outgoing[queue[i]]){depth[child]=Math.max(depth[child],depth[queue[i]]+1);if(--incoming[child]===0)queue.push(child);}
-        const positions=new Map(),occupied=[];
-        for(const node of nodes)if(preferred.has(node.id())){const pos=preferred.get(node.id());positions.set(node.id(),pos);occupied.push(pos);}
-        for(const node of nodes){
-            if(positions.has(node.id()))continue;
-            const x=145+depth[component.get(node.id())]*300;let y=70;
-            while(occupied.some(p=>Math.abs(p.x-x)<250&&Math.abs(p.y-y)<120))y+=132;
-            const pos={x,y};positions.set(node.id(),pos);occupied.push(pos);
+        ordered.forEach(n=>{if(!state.has(n.id))visit(n.id);});
+        const indegree=new Map(ordered.map(n=>[n.id,0])),rank=new Map(ordered.map(n=>[n.id,0]));
+        for(const edge of valid)if(!back.has(edge))indegree.set(edge.target,indegree.get(edge.target)+1);
+        const queue=ordered.filter(n=>!indegree.get(n.id)).map(n=>n.id);
+        for(let i=0;i<queue.length;i++)for(const edge of outgoing.get(queue[i]))if(!back.has(edge)){
+            rank.set(edge.target,Math.max(rank.get(edge.target),rank.get(queue[i])+1));
+            indegree.set(edge.target,indegree.get(edge.target)-1);
+            if(!indegree.get(edge.target))queue.push(edge.target);
         }
+        const columns=[];
+        ordered.forEach(n=>(columns[rank.get(n.id)]??=[]).push(n.id));
+        const neighbors=new Map(ordered.map(n=>[n.id,[]]));
+        for(const e of valid){neighbors.get(e.source).push(e.target);neighbors.get(e.target).push(e.source);}
+        // Stable barycenter sweeps reduce crossings without changing causal ranks.
+        for(let pass=0;pass<4;pass++){
+            const direction=pass%2?-1:1;
+            for(let c=direction>0?1:columns.length-2;c>=0&&c<columns.length;c+=direction){
+                const previous=new Map((columns[c-direction]||[]).map((id,i)=>[id,i]));
+                const scored=(columns[c]||[]).map((id,i)=>{
+                    const positions=neighbors.get(id).filter(n=>previous.has(n)).map(n=>previous.get(n));
+                    return {id,index:i,score:positions.length?positions.reduce((a,b)=>a+b,0)/positions.length:i};
+                });
+                columns[c]=scored.sort((a,b)=>a.score-b.score||a.index-b.index).map(n=>n.id);
+            }
+        }
+        const positions=new Map(),occupied=[],rows=Math.max(6,Math.ceil(Math.sqrt(nodes.length*.75)));
+        for(const node of ordered)if(preferred.has(node.id)){
+            const p=preferred.get(node.id);positions.set(node.id,p);occupied.push(p);
+        }
+        let x=145;
+        for(const column of columns){
+            if(!column?.length)continue;
+            column.forEach((id,i)=>{
+                if(positions.has(id))return;
+                let p={x:x+Math.floor(i/rows)*300,y:70+(i%rows)*140};
+                while(occupied.some(old=>Math.abs(old.x-p.x)<250&&Math.abs(old.y-p.y)<125))p={x:p.x,y:p.y+140};
+                positions.set(id,p);occupied.push(p);
+            });
+            x+=Math.ceil(column.length/rows)*300;
+        }
+        return positions;
+    }
+    function layout(preferred = new Map()) {
+        if(!chart)return;
+        const positions=computeLayout(chart.nodes().map(n=>n.data()),chart.edges().map(e=>e.data()),preferred);
         chart.layout({name:'preset',positions:n=>positions.get(n.id()),fit:false}).run();
     }
-    function render(container, graph, taskKey, select, label) {
+    function updateMap() {
+        if(!chart || !mapElement || !host?.clientWidth)return;
+        mapElement.style.display=chart.nodes().length<8?'none':'';
+        const bounds=chart.nodes().boundingBox(),pad=40;
+        mapElement.setAttribute('viewBox',[bounds.x1-pad,bounds.y1-pad,bounds.w+pad*2,bounds.h+pad*2].join(' '));
+        mapElement.replaceChildren();
+        const rectangle=(x,y,width,height,fill,stroke)=>{
+            const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
+            Object.entries({x,y,width,height,fill,stroke:stroke||'none'}).forEach(([k,v])=>r.setAttribute(k,String(v)));
+            mapElement.append(r);return r;
+        };
+        chart.nodes().forEach(n=>{const p=n.position();rectangle(p.x-112,p.y-44,224,88,n.data('color'));});
+        const e=chart.extent(),viewport=rectangle(e.x1,e.y1,e.w,e.h,'#3b82f61a','#2563eb');
+        viewport.setAttribute('stroke-width','2');viewport.setAttribute('vector-effect','non-scaling-stroke');
+    }
+    function installMap() {
+        mapElement=document.createElementNS('http://www.w3.org/2000/svg','svg');
+        mapElement.classList.add('da-graph-minimap');mapElement.setAttribute('role','button');mapElement.setAttribute('tabindex','0');
+        const path='deepAssessments.graphNavigator',label=window.t?.(path);
+        mapElement.setAttribute('aria-label',label&&label!==path?label:'图导航：点击定位，方向键平移');
+        host.append(mapElement);
+        mapElement.addEventListener('pointerdown',e=>e.stopPropagation());
+        mapElement.addEventListener('click',e=>{
+            e.stopPropagation();const p=mapElement.createSVGPoint();p.x=e.clientX;p.y=e.clientY;
+            const matrix=mapElement.getScreenCTM();if(!matrix)return;
+            const center=p.matrixTransform(matrix.inverse()),zoom=chart.zoom();
+            chart.pan({x:host.clientWidth/2-center.x*zoom,y:host.clientHeight/2-center.y*zoom});remember();
+        });
+        mapElement.addEventListener('keydown',e=>{
+            const directions={ArrowLeft:[80,0],ArrowRight:[-80,0],ArrowUp:[0,80],ArrowDown:[0,-80]};
+            if(directions[e.key]){e.preventDefault();chart.panBy({x:directions[e.key][0],y:directions[e.key][1]});remember();}
+        });
+        chart.on('pan zoom position',()=>{if(mapFrame===null)mapFrame=requestAnimationFrame(()=>{mapFrame=null;updateMap();});});updateMap();
+    }
+    function render(container, graph, taskKey, select, label, stateLabel = () => '') {
         onSelect = select;
         const nodes = graph?.nodes || [];
         if (host !== container || key !== taskKey) { destroy(); host = container; key = taskKey; }
@@ -88,10 +157,11 @@
             }
             return;
         }
-        const elements = nodes.map(node => ({ data: { id: node.id, kind: node.kind, state: node.state, label: label(node.kind) + '\n' + (Array.from(node.title).length > 42 ? Array.from(node.title).slice(0, 42).join('') + '…' : node.title), color: colors[node.kind] || colors.step } }));
+        const elements = nodes.map(node => ({ data: { id: node.id, kind: node.kind, state: node.state, label: label(node.kind) + (node.state?' · '+stateLabel(node.state):'') + '\n' + (Array.from(node.title).length > 42 ? Array.from(node.title).slice(0, 42).join('') + '…' : node.title), color: colors[node.kind] || colors.step } }));
         const ids = new Set(nodes.map(n => n.id));
         for (const edge of graph.edges || []) if (ids.has(edge.source) && ids.has(edge.target)) {
-            elements.push({ data: { id: 'edge:' + JSON.stringify([edge.source, edge.relation, edge.target]), ...edge, relationLabel: relationLabel(edge.relation) } });
+            const relationColor=({plans:'#6366f1',depends_on:'#6366f1',informs:'#059669',derives:'#059669',produces:'#d97706',supports:'#e11d48',reviews:'#e11d48',summarizes:'#a855f7',archives:'#a855f7'})[edge.relation]||'#94a3b8';
+            elements.push({ data: { id: 'edge:' + JSON.stringify([edge.source, edge.relation, edge.target]), ...edge, relationLabel: relationLabel(edge.relation),relationColor } });
         }
         if (!chart) {
             chart = window.cytoscape({ container: host, elements, style: styles(), layout: { name: 'preset' }, minZoom: .12, maxZoom: 2.2, wheelSensitivity: .25 });
@@ -99,6 +169,7 @@
             const saved=views.get(taskKey);
             layout(saved?.positions);size={width:host.clientWidth,height:host.clientHeight};
             if(saved){chart.zoom(saved.zoom);chart.pan({x:size.width/2-saved.center.x*saved.zoom,y:size.height/2-saved.center.y*saved.zoom});}else fit();
+            installMap();
             if (typeof ResizeObserver === 'function') { observer = new ResizeObserver(resize); observer.observe(host); }
         } else {
             const existing = new Set(chart.elements().map(e => e.id()));
@@ -117,7 +188,7 @@
                 layout(positions);
                 chart.zoom(zoom); chart.pan(pan);
             }
-            resize();
+            resize();updateMap();
         }
         const currentTheme = document.documentElement.getAttribute('data-theme') || document.body.className;
         if (theme !== currentTheme) { chart.style(styles()); theme = currentTheme; }
@@ -126,5 +197,17 @@
         if (!chart || !host) return;
         chart.zoom({ level: chart.zoom() * factor, renderedPosition: { x: host.clientWidth / 2, y: host.clientHeight / 2 } });
     }
-    window.DeepAssessmentGraph = { render, destroy, select: id => { if (chart) { chart.nodes().unselect(); chart.getElementById(id).select(); } }, fit, relayout: () => { layout(); fit(); }, zoomIn: () => zoom(1.25), zoomOut: () => zoom(.8) };
+    function selectNode(id) {
+        if(!chart)return;
+        const changed=selectedID!==id;selectedID=id;
+        chart.nodes().unselect();const node=chart.getElementById(id);node.select();
+        chart.edges().removeClass('da-connected');node.connectedEdges().addClass('da-connected');
+        if(changed&&node.length){
+            const p=node.position(),zoom=Math.max(.65,chart.zoom()),rendered=node.renderedPosition();
+            if(chart.zoom()<.65||rendered.x<0||rendered.x>host.clientWidth||rendered.y<0||rendered.y>host.clientHeight){
+                chart.zoom(zoom);chart.pan({x:host.clientWidth/2-p.x*zoom,y:host.clientHeight/2-p.y*zoom});
+            }
+        }
+    }
+    window.DeepAssessmentGraph = { render, destroy, computeLayout, select:selectNode, fit, relayout: () => { layout(); fit(); }, zoomIn: () => zoom(1.25), zoomOut: () => zoom(.8) };
 })();

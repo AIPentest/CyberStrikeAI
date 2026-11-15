@@ -293,8 +293,18 @@ body.da-drawer-open { overflow: hidden; }
 .da-node-properties { margin:0; display:grid; gap:12px; }
 .da-node-properties > div { display:grid; grid-template-columns:90px minmax(0,1fr); gap:12px; font-size:14px; line-height:1.7; }
 .da-node-properties dt { color:var(--text-secondary); }.da-node-properties dd { margin:0; overflow-wrap:anywhere; }
-.da-node-actions { flex-shrink:0; padding:12px 18px; border-top:1px solid var(--border-color); background:var(--bg-primary); }
+.da-node-actions { flex-shrink:0; padding:12px 18px; max-height:30%; overflow:auto; border-top:1px solid var(--border-color); background:var(--bg-primary); }
 .da-node-actions button { font-size:13px; }
+.da-node-links { margin:16px 0; font-size:13px; }
+.da-node-links > summary { cursor:pointer; margin-bottom:10px; }
+.da-node-asset-links { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:8px; }
+.da-node-asset-links button { text-align:left; font-size:12px; overflow-wrap:anywhere; }
+#da-workspace #da-graph-canvas, #da-workspace #da-asset-canvas { position:relative; background-image:radial-gradient(var(--border-color) 1px,transparent 1px); background-size:18px 18px; }
+.da-graph-minimap { position:absolute; right:12px; bottom:12px; z-index:2; width:150px; height:88px; border:1px solid var(--border-color); border-radius:6px; background:var(--bg-primary); box-shadow:0 2px 8px #0001; cursor:crosshair; opacity:.92; }
+.da-graph-minimap:focus-visible { outline:2px solid var(--accent-color); outline-offset:2px; }
+.da-relation-legend { display:flex; gap:16px; flex-wrap:wrap; margin-top:8px; }
+.da-relation-legend span::before { content:""; display:inline-block; width:20px; height:2px; margin-right:6px; vertical-align:middle; background:var(--relation-color); }
+.da-relation-depends_on { --relation-color:#6366f1; }.da-relation-informs { --relation-color:#059669; }.da-relation-produces { --relation-color:#d97706; }.da-relation-supports { --relation-color:#e11d48; }
 .da-node-empty { padding:24px 18px; color:var(--text-secondary); font-size:14px; }
 .da-asset-records { border:1px solid var(--border-color); border-radius:6px; padding:12px; }
 .da-asset-records[hidden] { display:none; }.da-asset-records > summary { cursor:pointer; font-size:13px; font-weight:600; }

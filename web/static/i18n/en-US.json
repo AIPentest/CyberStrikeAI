@@ -5500,7 +5500,8 @@
       "instruction": "Instructions",
       "content": "Node content",
       "output": "Execution receipt"
-    }
+    },
+    "graphNavigator": "Graph navigator: click to locate, arrow keys to pan"
   },
   "assessmentFindingLinks": {
     "source": "Source assessment",
