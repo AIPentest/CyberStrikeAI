@@ -239,6 +239,63 @@ func TestDeepAssessmentCreateOnlySavesDraftAndRejectsOversizedBody(t *testing.T)
 	}
 }
 
+func TestDeepAssessmentOptionalFieldsInheritObjective(t *testing.T) {
+	h, owner := deepAssessmentFixture(t)
+	router := assessmentRouter(h, owner.OwnerID)
+	for _, tc := range []struct {
+		name, objective         string
+		extra                   map[string]string
+		wantScope, wantCriteria string
+		wantStatus              int
+	}{
+		{"omitted", "  inspect fixture  ", nil, "inspect fixture", "inspect fixture", 201},
+		{"whitespace", "inspect fixture", map[string]string{"scope": " \n\t ", "criteria": " \t "}, "inspect fixture", "inspect fixture", 201},
+		{"custom scope", "inspect fixture", map[string]string{"scope": " exclude payments "}, "exclude payments", "inspect fixture", 201},
+		{"custom criteria", "inspect fixture", map[string]string{"criteria": " report evidence "}, "inspect fixture", "report evidence", 201},
+		{"both supplied", "inspect fixture", map[string]string{"scope": " local only ", "criteria": " original evidence "}, "local only", "original evidence", 201},
+		{"long inherited goal", strings.Repeat("目", 9000), nil, strings.Repeat("目", 9000), strings.Repeat("目", 9000), 201},
+		{"missing goal", "", nil, "", "", 400},
+		{"explicit criteria too long", "inspect fixture", map[string]string{"criteria": strings.Repeat("x", 8001)}, "", "", 400},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			values := map[string]string{"name": "optional " + tc.name, "objective": tc.objective}
+			for k, v := range tc.extra {
+				values[k] = v
+			}
+			body, err := json.Marshal(values)
+			if err != nil {
+				t.Fatal(err)
+			}
+			request := httptest.NewRequest("POST", "/api/deep-assessments", strings.NewReader(string(body)))
+			request.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, request)
+			if w.Code != tc.wantStatus {
+				t.Fatalf("status=%d want=%d", w.Code, tc.wantStatus)
+			}
+			if w.Code != 201 {
+				return
+			}
+			var result struct {
+				Task deepassessment.Task `json:"task"`
+			}
+			if err = json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+				t.Fatal(err)
+			}
+			saved, err := h.deepAssessments.Store.Get(result.Task.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if saved.Scope != tc.wantScope || saved.Criteria != tc.wantCriteria || saved.Objective != strings.TrimSpace(tc.objective) {
+				t.Fatal("optional fields were not inherited or explicit values were changed")
+			}
+			if saved.Status != "draft" || saved.Rounds != 0 || len(saved.Steps) != 0 {
+				t.Fatal("creating an optional-fields draft started execution")
+			}
+		})
+	}
+}
+
 func TestDeepAssessmentModelRetryClassification(t *testing.T) {
 	for _, text := range []string{"429 rate limit", "502 upstream", "connection reset"} {
 		if !transientDeepAssessmentModelError(fmt.Errorf("%s", text)) {

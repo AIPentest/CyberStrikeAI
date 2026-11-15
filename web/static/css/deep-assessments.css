@@ -121,6 +121,7 @@ body.da-drawer-open { overflow: hidden; }
 .da-form-body label { display: block; margin: 12px 0; font-size: 14px; }
 .da-form-body label > .form-control { margin-top: 6px; }
 .da-form-body textarea { resize: vertical; }
+.da-form-body .da-field-hint { margin: -4px 0 16px; }
 .da-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
 .da-form-body label.da-check { display: flex; gap: 8px; align-items: flex-start; }
 .da-form-body input[type="checkbox"] { margin-top: 3px; }

@@ -47,7 +47,15 @@ async function fixture(t){
    if(url.pathname==='/api/vulnerabilities/filter-options')return send(200,{vulnerability_ids:['finding-1','batch-finding'],task_ids:['same-id'],queue_ids:['batch-queue'],assessment_ids:['same-id'],conversation_ids:[],conversation_tags:[],task_tags:[]});
    let items=[finding,batch];if(url.searchParams.get('assessment_id'))items=items.filter(v=>v.assessment_id===url.searchParams.get('assessment_id'));if(url.searchParams.get('id'))items=items.filter(v=>v.id===url.searchParams.get('id'));
    if(url.pathname==='/api/vulnerabilities/stats')return send(200,{total:items.length,by_severity:{high:items.filter(v=>v.severity==='high').length,medium:items.filter(v=>v.severity==='medium').length},by_status:{open:items.length}});
-   if(url.pathname==='/api/vulnerabilities')return send(200,{vulnerabilities:items,total:items.length,page:1,page_size:20,total_pages:1});
+   if(url.pathname==='/api/vulnerabilities'){
+    // Full navigation is separate from the selected page of finding records.
+    const navigation=items.map(v=>v.assessment_id
+     ? {key:'assessment:'+v.assessment_id,label:v.assessment_name,count:1,severities:{[v.severity]:1}}
+     : {key:'queue:'+v.task_queue_id,label:v.task_queue_title,count:1,severities:{[v.severity]:1},children:[{key:'task:'+v.task_id,label:v.task_id,count:1,severities:{[v.severity]:1}}]});
+    const selection=url.searchParams.get('selection')||'';
+    if(selection)items=items.filter(v=>selection==='assessment:'+v.assessment_id||selection==='queue:'+v.task_queue_id||selection==='task:'+v.task_id);
+    return send(200,{vulnerabilities:items,total:items.length,page:1,page_size:20,total_pages:1,navigation,selection});
+   }
    if(url.pathname==='/api/vulnerabilities/finding-1/context')return send(200,{vulnerability:{...finding,assessment_can_open:state.canOpen},history:[],members:[],assets:[]});
    if(url.pathname==='/api/vulnerabilities/finding-1')return send(200,{...finding,assessment_can_open:state.canOpen});
    return send(404,{error:'unhandled fixture route '+url.pathname});
@@ -94,7 +102,8 @@ test('task grouping separates assessment IDs from batch IDs and disabled source 
  await page.locator('#vulnerabilities-list [data-host-key="assessment:same-id"]').waitFor();
  assert.match(await page.locator('[data-host-key="assessment:same-id"]').innerText(),/域名深度测评/);
  assert.match(await page.locator('[data-host-key="queue:batch-queue"]').innerText(),/原批量队列/);
- await page.locator('[data-host-key="assessment:same-id"]').click();await page.waitForFunction(()=>document.querySelectorAll('#vulnerability-host-table [data-vuln-id]').length>0);
+ await page.locator('[data-host-key="assessment:same-id"]').click();
+ await page.waitForFunction(()=>document.querySelector('[data-host-key="assessment:same-id"]').getAttribute('aria-pressed')==='true' && document.getElementById('vulnerability-card-finding-1') && !document.getElementById('vulnerability-card-batch-finding'));
  assert.equal(await page.locator('#vulnerability-host-table #vulnerability-card-batch-finding').count(),0);
  state.canOpen=false;
  await page.locator('#vulnerability-host-table #vulnerability-card-finding-1 .vulnerability-record-main').click();

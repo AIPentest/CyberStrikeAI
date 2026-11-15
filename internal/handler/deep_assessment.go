@@ -176,6 +176,9 @@ func (h *AgentHandler) CreateDeepAssessment(c *gin.Context) {
 		c.JSON(403, gin.H{"error": "无权访问项目"})
 		return
 	}
+	if strings.TrimSpace(req.Scope) == "" {
+		req.Scope = req.Objective
+	}
 	if strings.TrimSpace(req.Criteria) == "" {
 		req.Criteria = req.Objective
 	}

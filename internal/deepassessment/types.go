@@ -107,12 +107,17 @@ type Runtime interface {
 }
 
 func (t *Task) Validate() error {
+	criteriaLimit := 8000
+	// Inheriting the objective must not truncate or reject an otherwise valid goal.
+	if t.Criteria == t.Objective {
+		criteriaLimit = 16000
+	}
 	for _, f := range []struct {
 		value string
 		max   int
 		name  string
 	}{
-		{t.Name, 200, "name"}, {t.Objective, 16000, "objective"}, {t.Scope, 16000, "scope"}, {t.Criteria, 8000, "criteria"},
+		{t.Name, 200, "name"}, {t.Objective, 16000, "objective"}, {t.Scope, 16000, "scope"}, {t.Criteria, criteriaLimit, "criteria"},
 	} {
 		if strings.TrimSpace(f.value) == "" || utf8.RuneCountInString(f.value) > f.max {
 			return fmt.Errorf("%s is required (maximum %d characters)", f.name, f.max)
