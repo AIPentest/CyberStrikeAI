@@ -5348,7 +5348,8 @@
       "retired": "Retired",
       "reconciled": "Reconciled",
       "yielded": "Segment saved",
-      "waiting_progress": "Waiting for progress"
+      "waiting_progress": "Waiting for progress",
+      "archived": "Archived"
     },
     "contextUsage": "Context / window",
     "toolDefinitions": "Tool definitions",
@@ -5451,7 +5452,20 @@
     "scopeHint": "Add only restrictions not stated in the objective. Leave blank to use the objective.",
     "scopeExample": "Example: Exclude payment endpoints; do not modify production data or run load tests.",
     "criteriaHint": "Describe what counts as complete. Leave blank to use the objective.",
-    "criteriaExample": "Example: Report tested areas, untested areas and reasons; include reproduction steps and original evidence for confirmed findings."
+    "criteriaExample": "Example: Report tested areas, untested areas and reasons; include reproduction steps and original evidence for confirmed findings.",
+    "backToList": "Back to assessments",
+    "details": "Details",
+    "actions": "Actions",
+    "archive": "Archive",
+    "restore": "Restore to list",
+    "currentTasks": "Current tasks",
+    "archivedTasks": "Archived",
+    "archiveFilter": "Archive status",
+    "archiveHint": "Archiving keeps progress and evidence. Pause running work first.",
+    "restoreHint": "Restoring returns the task to the list without starting it.",
+    "showDetails": "Show node details",
+    "hideDetails": "Hide node details",
+    "graphLayout": "Rearrange"
   },
   "assessmentFindingLinks": {
     "source": "Source assessment",

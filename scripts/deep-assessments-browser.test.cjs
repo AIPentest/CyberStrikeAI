@@ -16,7 +16,7 @@ async function fixture(t) {
  const state = { tasks: new Map(Array.from({ length: 24 }, (_, i) => ['t' + i, sample('t' + i)])), requests: [], errors: [], sharedAssets: [], linkedAssets: new Map() };
  const locale = JSON.stringify(JSON.parse(read('web/static/i18n/zh-CN.json'))).replaceAll('<', '\\u003c');
  const scripts = ['router', 'auth', 'assessment-exploration-views','deep-assessment-graph', 'deep-assessments'].map(x => `<script src="/static/js/${x}.js"></script>`).join('');
- const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${['style', 'mobile', 'deep-assessments'].map(x=>`<link rel="stylesheet" href="/static/css/${x}.css">`).join('')}</head><body><div class="container"><main class="main-layout"><section class="content-area">${region}<div class="page" id="page-chat"></div><div class="page" id="page-tasks"></div></section></main></div><script>window.t=k=>k.split('.').reduce((o,p)=>o&&o[p],${locale})||k;window.loadConversation=async id=>{window.visitedConversation=id};window.initializeChatUI=()=>{};window.refreshAppData=async()=>{};</script><script src="/static/vendor/cytoscape.min.js"></script>${scripts}<script>document.removeEventListener('DOMContentLoaded',initializeApp);saveAuth('fixture-token',new Date(Date.now()+3600000),{user:{id:'fixture',username:'fixture'},permissions:['assessments:read','assessments:write','assessments:delete','agent:execute','chat:read','chat:write','tasks:read','asset:read'],scope:'own'});</script></body></html>`;
+ const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${['style', 'mobile', 'deep-assessments'].map(x=>`<link rel="stylesheet" href="/static/css/${x}.css">`).join('')}</head><body><div class="container"><main class="main-layout"><section class="content-area">${region}<div class="page" id="page-chat"></div><div class="page" id="page-tasks"></div></section></main></div><script>window.t=k=>k.split('.').reduce((o,p)=>o&&o[p],${locale})||k;window.loadConversation=async id=>{window.visitedConversation=id};window.initializeChatUI=()=>{};window.refreshAppData=async()=>{};</script><script src="/static/vendor/cytoscape.min.js"></script><script>const originalGraph=window.cytoscape;window.cytoscape=(...args)=>{const chart=originalGraph(...args);window.fixtureGraph=chart;return chart};</script>${scripts}<script>document.removeEventListener('DOMContentLoaded',initializeApp);saveAuth('fixture-token',new Date(Date.now()+3600000),{user:{id:'fixture',username:'fixture'},permissions:['assessments:read','assessments:write','assessments:delete','agent:execute','chat:read','chat:write','tasks:read','asset:read'],scope:'own'});</script></body></html>`;
  const server = http.createServer(async (req,res)=>{
   const url = new URL(req.url,'http://fixture');
   const send=(code,body)=>{res.statusCode=code;res.setHeader('Content-Type','application/json; charset=utf-8');res.end(JSON.stringify(body));};
@@ -29,7 +29,7 @@ async function fixture(t) {
   if(url.pathname==='/api/deep-assessments/options')return send(200,{models:[{id:'fixture',name:'Fixture'}],roles:['review'],projects:[]});
   if(url.pathname==='/api/deep-assessments'){
    if(req.method==='POST'){const task={...sample('new'),...body};state.tasks.set(task.id,task);return send(201,{task});}
-   const filtered=[...state.tasks.values()].filter(t=>(!url.searchParams.get('q')||t.name.includes(url.searchParams.get('q')))&&(!url.searchParams.get('status')||t.status===url.searchParams.get('status')));
+   const filtered=[...state.tasks.values()].filter(t=>!!t.archived===(url.searchParams.get('archived')==='true')).filter(t=>(!url.searchParams.get('q')||t.name.includes(url.searchParams.get('q')))&&(!url.searchParams.get('status')||t.status===url.searchParams.get('status')));
    const offset=Number(url.searchParams.get('offset')||0),limit=Number(url.searchParams.get('limit')||20);return send(200,{tasks:filtered.slice(offset,offset+limit),has_more:filtered.length>offset+limit});
   }
   const match=url.pathname.match(/^\/api\/deep-assessments\/([^/]+)(?:\/(.*))?$/);
@@ -51,7 +51,7 @@ async function fixture(t) {
   if(match[2]==='report'){res.setHeader('Content-Type','text/markdown');return res.end('# fixture report');}
   if(match[2]?.startsWith('control/')){
    if(body.revision!==task.revision)return send(409,{error:'stale revision'});
-   const action=match[2].split('/')[1];if(action==='start')task.status='running';if(action==='pause')task.status='paused';if(action==='guidance')task.summary=body.message;if(action==='budget')Object.assign(task,body);task.revision++;
+   const action=match[2].split('/')[1];if(action==='start')task.status='running';if(action==='pause')task.status='paused';if(action==='archive'){task.archived=true;if(!['draft','completed','cancelled'].includes(task.status))task.status='paused';}if(action==='restore')task.archived=false;if(action==='guidance')task.summary=body.message;if(action==='budget')Object.assign(task,body);task.revision++;
   } else if(req.method==='DELETE') state.tasks.delete(task.id);
   return send(200,{task});
  });
@@ -86,7 +86,7 @@ test('deep assessment is independent, paginates and only creates drafts',async t
  const create=state.requests.find(r=>r.method==='POST'&&r.path==='/api/deep-assessments');assert.equal(create.body.remaining_seconds,undefined);assert.equal(create.body.token_budget,undefined);assert.equal(create.body.max_rounds,undefined);assert.equal(create.body.auto_resume,true);assert.equal(create.body.scope,'');assert.equal(create.body.criteria,'');
  assert.equal(state.requests.filter(r=>r.path.endsWith('/control/start')).length,0);
  await page.locator('[data-da-action="start"]').click();await page.locator('[data-da-action="pause"]').waitFor();
- await page.locator('#da-guidance').fill('Keep this unsent text');await page.evaluate(()=>DeepAssessments.refresh());assert.equal(await page.locator('#da-guidance').inputValue(),'Keep this unsent text');
+ await page.locator('#da-guidance-panel > summary').click(); await page.locator('#da-guidance').fill('Keep this unsent text');await page.evaluate(()=>DeepAssessments.refresh());assert.equal(await page.locator('#da-guidance').inputValue(),'Keep this unsent text');
  await page.locator('[data-da-action="pause"]').click();await page.locator('[data-da-action="start"]').waitFor();
  const download=page.waitForEvent('download');await page.locator('[data-da-action="report"]').click();assert.match((await download).suggestedFilename(),/^assessment-/);
  assert.ok(state.requests.every(r=>!r.path.startsWith('/api/batch-tasks')&&r.path!=='/api/tasks'));
@@ -98,12 +98,12 @@ test('assessment escapes evidence and fits mobile and dark layouts',async t=>{
  await page.evaluate(()=>DeepAssessments.refresh());await page.locator('[data-da-action="select"][data-id="t0"]').click();
  await page.locator('[data-da-action="tab"][data-tab="plan"]').click();await page.locator('.da-step summary').click();
  assert.equal(await page.evaluate(()=>window.injected),undefined);assert.equal(await page.locator('#da-title img').count(),0);
- await page.locator('#da-guidance').fill('Unsent direction');await page.evaluate(()=>DeepAssessments.refresh());assert.equal(await page.locator('.da-step[open]').count(),1);
+ await page.locator('#da-guidance-panel > summary').click(); await page.locator('#da-guidance').fill('Unsent direction');await page.evaluate(()=>DeepAssessments.refresh());assert.equal(await page.locator('.da-step[open]').count(),1);
  const screenshotRoot=process.env.CSAI_SCREENSHOT_DIR;
  if(screenshotRoot){fs.mkdirSync(screenshotRoot,{recursive:true});await page.screenshot({path:path.join(screenshotRoot,'deep-assessments-desktop.png'),fullPage:true});}
  await page.setViewportSize({width:390,height:844});await page.evaluate(()=>document.documentElement.setAttribute('data-theme','dark'));
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
- await page.locator('[data-da-action="close-detail"]').click();
+ await page.locator('[data-da-action="back-list"]').click();
  await page.locator('[data-da-action="create"]').click();
  await page.locator('#da-form-drawer').waitFor({state:'visible'});
  await page.waitForFunction(()=>Math.abs(document.getElementById('da-form-drawer').getBoundingClientRect().right-innerWidth)<1);
@@ -136,7 +136,7 @@ test('assessment creation uses a right drawer with backdrop, Escape and button d
  assert.deepEqual(state.errors,[]);
 });
 
-test('continuous assessment graph shows durable memories and keeps drawer controls',async t=>{
+test('continuous assessment workspace shows graph memories and returns to the list',async t=>{
  const {page,state}=await fixture(t);
  const task=state.tasks.get('t0');task.graph={nodes:[
   {id:'goal',kind:'goal',state:'running',title:'目标',body:'fixture goal',source:{}},
@@ -144,11 +144,11 @@ test('continuous assessment graph shows durable memories and keeps drawer contro
   {id:'memory:pi1',kind:'memory',step_id:'s1',state:'summary',title:'Pi 摘要',body:'Persisted original summary <script>window.injected=1</script>',source:{session_entry_id:'pi-entry',provenance:'pi_compaction'}},
   {id:'digest:old',kind:'digest',state:'folded',title:'历史归档',body:'eight earlier directions',source:{members:['step:s1']}}
  ],edges:[{source:'goal',target:'digest:old',relation:'archives'},{source:'goal',target:'step:s1',relation:'plans'},{source:'step:s1',target:'memory:pi1',relation:'summarizes'}],total:3,folded:8,next_offset:3,has_more:false};
- assert.equal(await page.locator('#da-inspector').isVisible(),false);
+ assert.equal(await page.locator('#da-workspace').isVisible(),false);
  const list=await page.locator('.da-list-panel').boundingBox();assert.ok(list.width>1300);
  const pager=await page.locator('.da-pagination').boundingBox();assert.ok(pager.y+pager.height<=1000);
  await page.locator('[data-da-action="select"][data-id="t0"]').click();
- const inspector=page.locator('#da-inspector');await inspector.waitFor({state:'visible'});
+ const inspector=page.locator('#da-workspace');await inspector.waitFor({state:'visible'});
  await page.locator('#da-graph-select option[value="memory:pi1"]').waitFor({state:'attached'});
  assert.ok(await page.locator('#da-graph-canvas canvas').count()>0);
  await page.locator('#da-graph-select').selectOption('memory:pi1');
@@ -157,16 +157,17 @@ test('continuous assessment graph shows durable memories and keeps drawer contro
  await page.evaluate(()=>DeepAssessments.refresh());
  assert.equal(await page.locator('#da-graph-node details').getAttribute('open'),'');
  assert.equal(await page.evaluate(()=>window.injected),undefined);
- await page.waitForFunction(()=>document.getElementById('da-inspector').getAnimations().every(a=>a.playState==='finished'));
+ await page.waitForFunction(()=>document.getElementById('da-workspace').getAnimations().every(a=>a.playState==='finished'));
  if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'deep-assessment-graph.png'),fullPage:true});
  await page.locator('#da-graph-select').selectOption('digest:old');await page.locator('[data-da-action="graph-expand"]').click();
  assert.ok(state.requests.some(r=>r.path.endsWith('/graph/node')));
  assert.equal(await page.locator('[data-da-action="budget"]').count(),0);
- await page.locator('#da-guidance').fill('Keep this draft direction');
- await page.mouse.click(20,160);await inspector.waitFor({state:'hidden'});
+ if(!await page.locator('#da-guidance').isVisible())await page.locator('#da-guidance-panel > summary').click(); await page.locator('#da-guidance').fill('Keep this draft direction');
+ await page.locator('[data-da-action="back-list"]').click();await inspector.waitFor({state:'hidden'});
  await page.evaluate(()=>DeepAssessments.refresh());assert.equal(await inspector.isVisible(),false);
  await page.locator('[data-da-action="select"][data-id="t0"]').click();await inspector.waitFor({state:'visible'});assert.equal(await page.locator('#da-guidance').inputValue(),'Keep this draft direction');
- await page.keyboard.press('Escape');await inspector.waitFor({state:'hidden'});
+ await page.keyboard.press('Escape');assert.equal(await inspector.isVisible(),true);
+ await page.locator('[data-da-action="back-list"]').click();await inspector.waitFor({state:'hidden'});
  assert.equal(state.requests.filter(r=>r.method==='POST').length,0);
  assert.deepEqual(state.errors,[]);
 });
@@ -223,4 +224,89 @@ test('shared assets, intent priorities and observed facts stay linked across nav
  assert.equal(await page.evaluate(()=>window.injected),undefined);
  assert.deepEqual(state.errors,[]);
  assert.equal(state.requests.filter(r=>r.method==='POST'&&!r.path.endsWith('/assets')).length,0);
+});
+
+
+test('assessment rows control and archive work without opening detail or touching batch tasks',async t=>{
+ const {page,state}=await fixture(t);const row=page.locator('.da-list-item[data-id="t0"]');
+ assert.equal(await row.locator('[data-da-action="row-start"]').isEnabled(),true);
+ assert.equal(await row.locator('[data-da-action="row-pause"]').isEnabled(),false);
+ await page.locator('section.content-area').evaluate(el=>el.style.maxWidth='780px');
+ const area=await page.locator('section.content-area').boundingBox(),actions=await row.locator('.da-row-actions').boundingBox();assert.ok(actions.x+actions.width<=area.x+area.width+1);
+ await page.locator('section.content-area').evaluate(el=>el.style.maxWidth='');
+ if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'assessment-row-actions.png'),fullPage:true});
+ await row.locator('[data-da-action="row-start"]').click();
+ await page.waitForFunction(()=>document.querySelector('.da-list-item[data-id="t0"] [data-da-action="row-pause"]').disabled===false);
+ assert.equal(await page.locator('#da-workspace').isVisible(),false);
+ assert.equal(await row.locator('[data-da-action="row-archive"]').isEnabled(),false);
+ await row.locator('[data-da-action="row-pause"]').click();
+ await page.waitForFunction(()=>document.querySelector('.da-list-item[data-id="t0"] [data-da-action="row-archive"]').disabled===false);
+ await row.locator('[data-da-action="row-archive"]').click();await row.waitFor({state:'detached'});
+ await page.locator('#da-archive-filter').selectOption('archived');await row.waitFor();
+ assert.equal(await row.locator('[data-da-action="row-start"]').isEnabled(),false);
+ await row.locator('[data-da-action="details"]').click();await page.locator('#da-workspace').waitFor();
+ assert.equal(await page.locator('dialog[open]').count(),0);
+ await page.locator('#da-title .da-archived').waitFor();
+ assert.match(await page.locator('#da-title').innerText(),/已归档/);
+ await page.locator('[data-da-action="back-list"]').click();await row.waitFor();
+ await row.locator('[data-da-action="row-restore"]').click();await row.waitFor({state:'detached'});
+ await page.locator('#da-archive-filter').selectOption('current');await row.waitFor();
+ assert.equal(state.tasks.get('t0').status,'paused');
+ assert.equal(state.requests.filter(r=>r.path.endsWith('/control/start')).length,1);
+ assert.ok(state.requests.every(r=>!r.path.startsWith('/api/batch-tasks')));
+ assert.deepEqual(state.errors,[]);
+});
+
+test('detail is a full page and browser back restores the filtered task list',async t=>{
+ const {page,state}=await fixture(t);
+ await page.locator('#da-search').fill('隔离样例 t0');
+ await page.waitForFunction(()=>document.querySelectorAll('.da-list-item').length===1);
+ await page.locator('[data-da-action="details"]').click();await page.locator('#da-workspace').waitFor();
+ const root=await page.locator('#deep-assessments-root').boundingBox(),detail=await page.locator('#da-workspace').boundingBox();
+ assert.ok(Math.abs(detail.width-root.width)<2);assert.equal(await page.locator('dialog[open]').count(),0);
+ assert.equal(await page.locator('#da-list-view').isVisible(),false);
+ assert.equal(await page.locator('#da-guidance').isVisible(),false);
+ const canvas=await page.locator('#da-graph-canvas').boundingBox();assert.ok(canvas.width>1000&&canvas.height>=400);
+ await page.goBack();await page.locator('#da-list-view').waitFor();
+ assert.equal(await page.locator('#da-search').inputValue(),'隔离样例 t0');
+ await page.goForward();await page.locator('#da-workspace').waitFor();
+ await page.reload();await page.locator('#da-workspace').waitFor();
+ assert.match(page.url(),/assessment_id=t0/);assert.equal(state.requests.filter(r=>r.method==='POST').length,0);
+ assert.deepEqual(state.errors,[]);
+});
+
+
+test('graph preserves the viewport through polling, side panel resize and tab changes',async t=>{
+ const {page,state}=await fixture(t),task=state.tasks.get('t0');
+ task.graph={nodes:[{id:'goal',kind:'goal',title:task.name,state:'running',body:'',source:{}},...Array.from({length:12},(_,i)=>({id:'step:s'+i,step_id:'s'+i,kind:'step',title:'持续探索方向与很长的中文节点说明，完整内容在选中后展示 '+i,state:'pending',body:'Fixture detail',source:{}}))],edges:Array.from({length:12},(_,i)=>({source:i>=3?'step:s'+(i-3):'goal',target:'step:s'+i,relation:'depends_on'})),total:12,folded:0,has_more:false};
+ // A review/proof cycle must not flatten the entire graph into one column.
+ task.graph.edges.push({source:'step:s6',target:'step:s3',relation:'supports'});
+ await page.locator('[data-da-action="details"][data-id="t0"]').click();
+ await page.locator('#da-graph-select option[value="step:s3"]').waitFor({state:'attached'});
+ const before=await page.locator('#da-graph-canvas').boundingBox();
+ await page.evaluate(()=>{fixtureGraph.zoom(.8);fixtureGraph.pan({x:70,y:40});});
+ const positions=await page.evaluate(()=>Object.fromEntries(fixtureGraph.nodes().map(n=>[n.id(),n.position()])));
+ assert.ok(new Set(Object.values(positions).map(p=>p.x)).size>2);
+ await page.locator('#da-graph-select').selectOption('step:s3');
+ await page.locator('#da-graph-node h4').waitFor();
+ await page.waitForFunction(width=>document.getElementById('da-graph-canvas').clientWidth<width-200,before.width);
+ assert.equal(await page.evaluate(()=>fixtureGraph.zoom()),.8);
+ await page.locator('[data-da-action="graph-details"]').click();
+ await page.waitForFunction(()=>document.getElementById('da-graph-node').getClientRects().length===0);
+ const expanded=await page.locator('#da-graph-canvas').boundingBox();assert.ok(expanded.width>=before.width-2);
+ task.graph.nodes.push({id:'fact:new',step_id:'s3',kind:'fact',state:'observed',title:'New evidence',body:'fixture',source:{}});task.graph.edges.push({source:'step:s3',target:'fact:new',relation:'produces'});task.graph.total++;
+ await page.evaluate(()=>DeepAssessments.refresh());
+ assert.equal(await page.evaluate(()=>fixtureGraph.zoom()),.8);
+ assert.deepEqual(await page.evaluate(()=>Object.fromEntries(fixtureGraph.nodes().filter(n=>n.id()!=='fact:new').map(n=>[n.id(),n.position()]))),positions);
+ const newPosition=await page.evaluate(()=>fixtureGraph.getElementById('fact:new').position());assert.ok(!Object.values(positions).some(p=>p.x===newPosition.x&&p.y===newPosition.y));
+ await page.locator('[data-da-action="tab"][data-tab="overview"]').click();await page.locator('.da-stats').waitFor();
+ await page.locator('[data-da-action="tab"][data-tab="graph"]').click();await page.locator('#da-graph-select').waitFor();
+ assert.equal(await page.evaluate(()=>fixtureGraph.zoom()),.8);
+ assert.equal(await page.locator('#da-graph-node').isVisible(),false);
+ await page.locator('[data-da-action="graph-fit"]').click();
+ assert.deepEqual(state.errors,[]);assert.equal(state.requests.filter(r=>r.method==='POST').length,0);
+ if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'assessment-workspace-full.png'),fullPage:true});
+ await page.setViewportSize({width:390,height:844});
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'assessment-workspace-mobile.png'),fullPage:true});
 });

@@ -23,13 +23,14 @@
    const graph=data||{nodes:[],edges:[],assets:[],total:0};
    if(!body.querySelector('#da-asset-canvas')){
     window.DeepAssessmentGraph?.destroy();
-    body.innerHTML='<div class="da-controls">'+button('asset-linked',text('linked'))+button('asset-all',text('all'))+button('graph-fit',text('fit'))+'</div><form id="da-asset-search" class="da-controls"><input id="da-asset-query" class="form-control" aria-label="'+esc(text('search'))+'" placeholder="'+esc(text('search'))+'"><button class="btn-secondary" type="submit">'+esc(text('search'))+'</button></form><p class="da-muted">'+esc(text('hint'))+'</p><select id="da-asset-select" class="form-control" aria-label="'+esc(text('select'))+'"></select><div class="da-graph-workspace"><div id="da-asset-canvas" role="img" aria-label="'+esc(text('assets'))+'"></div><section id="da-asset-detail"></section></div><div id="da-asset-rows"></div><div id="da-asset-pages" class="da-controls"></div>';
+    body.innerHTML='<div class="da-controls">'+button('asset-linked',text('linked'))+button('asset-all',text('all'))+button('graph-fit',text('fit'))+button('graph-details','', 'aria-expanded="false"')+'</div><form id="da-asset-search" class="da-controls"><input id="da-asset-query" class="form-control" aria-label="'+esc(text('search'))+'" placeholder="'+esc(text('search'))+'"><button class="btn-secondary" type="submit">'+esc(text('search'))+'</button></form><p class="da-muted">'+esc(text('hint'))+'</p><select id="da-asset-select" class="form-control" aria-label="'+esc(text('select'))+'"></select><div class="da-graph-workspace"><div id="da-asset-canvas" role="img" aria-label="'+esc(text('assets'))+'"></div><section id="da-asset-detail"></section></div><div id="da-asset-rows"></div><div id="da-asset-pages" class="da-controls"></div>';
     body.querySelector('#da-asset-query').value=query;
    }
    if(document.activeElement!==body.querySelector('#da-asset-query'))body.querySelector('#da-asset-query').value=query;
    body.querySelectorAll('[data-da-action="asset-linked"],[data-da-action="asset-all"]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.daAction==='asset-'+mode)));
-   const pick=id=>{
+   const pick=(id,userInitiated=false)=>{
     selected=id;const n=graph.nodes.find(n=>n.id===id),el=document.getElementById('da-asset-detail');if(!el)return;
+    if(n&&userInitiated)window.DeepAssessments?.showNodeDetails();
     el.innerHTML=n?'<small>'+esc(text(n.kind))+'</small><h4>'+esc(n.title)+'</h4><pre>'+esc(n.body||'')+'</pre><code>'+esc(n.id)+'</code>':'<p>'+esc(text('select'))+'</p>';
     if(n?.kind==='service' && n.asset_ids?.length===1){
      el.innerHTML+=button('asset-intents',text('assetIntents'),'data-asset="'+esc(n.asset_ids[0])+'"');
@@ -43,8 +44,8 @@
     window.DeepAssessmentGraph?.select(id);
    };
    const select=body.querySelector('#da-asset-select');select.innerHTML='<option value="">'+esc(text('select'))+'</option>'+graph.nodes.map(n=>'<option value="'+esc(n.id)+'">'+esc(text(n.kind)+' · '+n.title)+'</option>').join('');
-   select.onchange=()=>pick(select.value);
-   window.DeepAssessmentGraph?.render(body.querySelector('#da-asset-canvas'),graph,task+'/assets/'+mode+'/'+offset,pick,text);
+   select.onchange=()=>pick(select.value,true);
+   window.DeepAssessmentGraph?.render(body.querySelector('#da-asset-canvas'),graph,task+'/assets/'+mode+'/'+offset+'/'+focusAsset,id=>pick(id,true),text);
    pick(selected);
    body.querySelector('#da-asset-rows').innerHTML='<p class="da-muted">'+esc(text('endpoints'))+'</p>'+graph.assets.map(a=>'<article class="da-finding"><strong>'+esc(a.host||a.domain||a.ip)+'</strong><p>'+esc(a.title||a.business_system||'')+'</p><code>'+esc(a.id)+'</code>'+(canWrite&&mode==='all'?button('asset-attach',text('attach'),'data-asset="'+esc(a.id)+'"'):'')+'</article>').join('');
    body.querySelector('#da-asset-pages').innerHTML=(graph.coverage?'<span>'+esc(text('coverage'))+' '+graph.coverage.with_observed_evidence+'/'+graph.coverage.linked+'</span>':'')+'<span>'+esc(text(mode==='all'?'all':'linked'))+' · '+graph.total+'</span>'+(offset?button('asset-previous',text('previous')):'')+(graph.has_more?button('asset-next',text('next')):'');

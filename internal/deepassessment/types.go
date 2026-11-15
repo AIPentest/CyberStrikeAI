@@ -12,8 +12,10 @@ import (
 )
 
 type Task struct {
-	PlannedGraphVersion int64 `json:"planned_graph_version"`
-	ActiveSeconds       int64 `json:"active_seconds"`
+	Archived            bool       `json:"archived"`
+	ArchivedAt          *time.Time `json:"archived_at,omitempty"`
+	PlannedGraphVersion int64      `json:"planned_graph_version"`
+	ActiveSeconds       int64      `json:"active_seconds"`
 	// Legacy budget fields are decoded only to normalize old saved tasks.
 
 	Deadline         *time.Time                `json:"deadline,omitempty"`

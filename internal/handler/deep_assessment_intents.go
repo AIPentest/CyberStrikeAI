@@ -63,6 +63,10 @@ func (h *AgentHandler) DeepAssessmentAssets(c *gin.Context) {
 	}
 	session, _ := security.CurrentSession(c)
 	if c.Request.Method == "POST" {
+		if t.Archived {
+			c.JSON(409, gin.H{"error": "请先恢复归档，再关联资产"})
+			return
+		}
 		var body struct {
 			IDs []string `json:"asset_ids"`
 		}

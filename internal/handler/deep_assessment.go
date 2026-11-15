@@ -212,7 +212,7 @@ func (h *AgentHandler) ListDeepAssessments(c *gin.Context) {
 	if offset < 0 {
 		offset = 0
 	}
-	list, err := h.deepAssessments.Store.List(session.UserID, session.ScopeFor("assessments:read"), c.Query("status"), c.Query("q"), limit+1, offset)
+	list, err := h.deepAssessments.Store.List(session.UserID, session.ScopeFor("assessments:read"), c.Query("status"), c.Query("q"), limit+1, offset, c.Query("archived") == "true")
 	if err != nil {
 		deepAssessmentError(c, err)
 		return
@@ -328,6 +328,10 @@ func (h *AgentHandler) ControlDeepAssessment(c *gin.Context) {
 		deepAssessmentError(c, err)
 		return
 	}
+	if t.Archived && action != "restore" {
+		deepAssessmentError(c, fmt.Errorf("请先恢复归档，再操作测评"))
+		return
+	}
 	if action == "guidance" && deepassessment.Active(t.Status) && t.ExecutorID != session.UserID {
 		c.JSON(403, gin.H{"error": "请先暂停，再以当前账号继续任务后补充方向"})
 		return
@@ -358,6 +362,8 @@ func (h *AgentHandler) ControlDeepAssessment(c *gin.Context) {
 		}
 	}
 	switch action {
+	case "archive", "restore":
+		err = h.deepAssessments.SetArchived(id, *req.Revision, action == "archive")
 	case "start":
 		err = h.deepAssessments.Start(id, session.UserID, *req.Revision)
 	case "pause", "cancel":
@@ -369,7 +375,7 @@ func (h *AgentHandler) ControlDeepAssessment(c *gin.Context) {
 		return
 	case "guidance", "answer":
 		err = h.deepAssessments.Store.Change(id, req.StepID, action, req.Message, func(t *deepassessment.Task) error {
-			if (action != "guidance" && t.Revision != *req.Revision) || *req.Revision > t.Revision || t.Status == "completed" || t.Status == "cancelled" {
+			if t.Archived || (action != "guidance" && t.Revision != *req.Revision) || *req.Revision > t.Revision || t.Status == "completed" || t.Status == "cancelled" {
 				return deepassessment.ErrConflict
 			}
 			if action != "guidance" && deepassessment.Active(t.Status) {

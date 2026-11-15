@@ -496,24 +496,24 @@ module.exports = async function ({ page, width, height, theme, out }) {
     "false",
   );
   await page.locator('[data-da-action="select"]').click();
-  await page.locator("#da-title h3").waitFor();
+  await page.locator("#da-title h2").waitFor();
   await page.locator('[data-da-action="tab"][data-tab="overview"]').click();
   assert.equal(
-    await page.locator("#da-inspector").getAttribute("aria-labelledby"),
+    await page.locator("#da-workspace").getAttribute("aria-labelledby"),
     "da-title",
   );
   assert.equal(
-    await page.locator("#da-inspector .app-drawer-expand").count(),
-    1,
+    await page.locator("#da-workspace .app-drawer-expand").count(),
+    0,
   );
   assert.equal(
     await page
-      .locator("#da-inspector")
+      .locator("#da-workspace")
       .evaluate((e) => getComputedStyle(e).borderRadius),
     "0px",
   );
   await shot("assessment-detail");
-  await page.keyboard.press("Escape");
+  await page.locator('[data-da-action="back-list"]').click();
   await activate("page-vulnerabilities");
   await page.evaluate(() => {
     const rows = Array.from({ length: 50 }, (_, i) => ({

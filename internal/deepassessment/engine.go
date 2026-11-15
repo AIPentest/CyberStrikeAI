@@ -38,6 +38,9 @@ func (e *Engine) Start(id, executor string, revision int64) error {
 		return ErrBusy
 	}
 	err := e.Store.Change(id, "", "started", "开始/继续任务", func(t *Task) error {
+		if t.Archived {
+			return fmt.Errorf("请先恢复归档，再开始任务")
+		}
 		if t.Revision != revision || Active(t.Status) || t.Status == "completed" || t.Status == "cancelled" {
 			return ErrConflict
 		}
@@ -130,6 +133,46 @@ func (e *Engine) Delete(id string) error {
 		return ErrConflict
 	}
 	return e.Store.Delete(id)
+}
+
+// Archiving never stops active work or deletes evidence. Restoring only returns
+// the record to the list; it does not opt it back into automatic scheduling.
+func (e *Engine) SetArchived(id string, revision int64, archived bool) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if _, running := e.active[id]; running {
+		return ErrBusy
+	}
+	kind, message := "archived", "已归档，保留所有进度与证据。"
+	if !archived {
+		kind, message = "restored", "已恢复到列表，等待手动开始。"
+	}
+	return e.Store.Change(id, "", kind, message, func(t *Task) error {
+		if t.Revision != revision || Active(t.Status) || t.Archived == archived {
+			return ErrConflict
+		}
+		if archived {
+			for _, step := range t.Steps {
+				if step.Status == "running" || step.Status == "uncertain" || step.Status == "cleanup_unconfirmed" {
+					return fmt.Errorf("请先核对执行结果并确认资源已停止，再归档")
+				}
+			}
+			now := time.Now().UTC()
+			t.ArchivedAt = &now
+			if t.Status != "draft" && t.Status != "completed" && t.Status != "cancelled" {
+				t.Status = "paused"
+				if t.Question != "" {
+					t.Status = "waiting_input"
+				}
+			}
+		} else {
+			t.ArchivedAt = nil
+		}
+		t.Archived = archived
+		t.RestartPending = false
+		t.NextWake = nil
+		return nil
+	})
 }
 
 type result struct {

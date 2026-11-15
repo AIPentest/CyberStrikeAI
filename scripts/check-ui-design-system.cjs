@@ -91,7 +91,13 @@ const server = http.createServer((req, res) => {
           }
           openAppModal(id);
         }, id);
-        await page.waitForTimeout(220);
+        await page.locator('#' + id).evaluate(async (element) => {
+          element.getBoundingClientRect();
+          const animations = element.getAnimations({ subtree: true }).filter(
+            animation => animation.effect?.getComputedTiming().iterations !== Infinity,
+          );
+          await Promise.all(animations.map(animation => animation.finished.catch(() => {})));
+        });
         const info = await page.evaluate((id) => {
           const e = document.getElementById(id),
             p = e.firstElementChild,

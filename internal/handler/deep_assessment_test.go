@@ -373,3 +373,62 @@ func TestDeepAssessmentNativeCompactionFeedsGraphMemory(t *testing.T) {
 		t.Fatal(result, err)
 	}
 }
+
+func TestDeepAssessmentArchiveRoutesPreserveReadAccessAndRequireRevision(t *testing.T) {
+	h, task := deepAssessmentFixture(t)
+	r := assessmentRouter(h, task.OwnerID)
+	control := func(action string, rev int64) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("POST", "/api/deep-assessments/task/control/"+action, strings.NewReader(fmt.Sprintf(`{"revision":%d}`, rev)))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		return w
+	}
+	if w := control("archive", task.Revision); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	for _, item := range []struct {
+		path  string
+		count int
+	}{{"/api/deep-assessments", 0}, {"/api/deep-assessments?archived=true", 1}} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("GET", item.path, nil))
+		var result struct {
+			Tasks []deepassessment.Task `json:"tasks"`
+		}
+		json.Unmarshal(w.Body.Bytes(), &result)
+		if w.Code != 200 || len(result.Tasks) != item.count {
+			t.Fatal(item.path, w.Code, w.Body.String())
+		}
+	}
+	for _, path := range []string{"/api/deep-assessments/task", "/api/deep-assessments/task/graph", "/api/deep-assessments/task/report"} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		if w.Code != 200 {
+			t.Fatal(path, w.Code)
+		}
+	}
+	archived, _ := h.deepAssessments.Store.Get(task.ID)
+	if w := control("start", archived.Revision); w.Code != 400 {
+		t.Fatal("archived task could start", w.Code)
+	}
+	if w := control("restore", task.Revision); w.Code != 409 {
+		t.Fatal("stale restore", w.Code)
+	}
+	other, _ := h.db.CreateRBACUser("archive-other", "other", "hash", true, nil)
+	foreign := assessmentRouter(h, other.ID)
+	req := httptest.NewRequest("POST", "/api/deep-assessments/task/control/restore", strings.NewReader(fmt.Sprintf(`{"revision":%d}`, archived.Revision)))
+	req.Header.Set("Content-Type", "application/json")
+	denied := httptest.NewRecorder()
+	foreign.ServeHTTP(denied, req)
+	if denied.Code != 403 {
+		t.Fatal(denied.Code)
+	}
+	if w := control("restore", archived.Revision); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	restored, _ := h.deepAssessments.Store.Get(task.ID)
+	if restored.Archived || restored.Status != "draft" || restored.Rounds != 0 {
+		t.Fatal(restored)
+	}
+}
