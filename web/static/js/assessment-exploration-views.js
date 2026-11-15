@@ -73,5 +73,5 @@
   return false;
  }
  function focusAssetNode(id){focusAsset=id;query='';offset=0;mode='linked';selected='asset:'+id;endpointAsset='';}
- window.AssessmentExplorationViews={focusAsset:focusAssetNode,load,render,action,reset,canAssets};
+ window.AssessmentExplorationViews={resetFacts(){factOffset=0;factConfidence='';},focusAsset:focusAssetNode,load,render,action,reset,canAssets};
 })();

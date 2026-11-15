@@ -42,12 +42,14 @@ async function fixture(t) {
    const assets=state.sharedAssets.filter(a=>url.searchParams.get('scope')==='all'||(state.linkedAssets.get(task.id)||[]).includes(a.id));
    return send(200,{assets,nodes:assets.flatMap(a=>[{id:'domain:example.test',kind:'domain',title:'example.test',body:'',asset_ids:[a.id]},{id:'asset:'+a.id,kind:'service',title:a.host,body:JSON.stringify(a),asset_ids:[a.id]},{id:'endpoint:'+a.id,kind:'endpoint',title:'GET /fixture',body:'original endpoint',asset_ids:[a.id]}]),edges:assets.flatMap(a=>[{source:'domain:example.test',target:'asset:'+a.id,relation:'exposes'},{source:'asset:'+a.id,target:'endpoint:'+a.id,relation:'contains'}]),total:assets.length,next_offset:assets.length,has_more:false});
   }
-  if(match[2]==='facts'){const facts=(task.facts||[]).filter(f=>!url.searchParams.get('confidence')||f.confidence===url.searchParams.get('confidence'));return send(200,{facts,next_offset:facts.length,has_more:false});}
+  if(match[2]==='facts'){const facts=(task.facts||[]).filter(f=>!url.searchParams.get('confidence')||f.confidence===url.searchParams.get('confidence')),offset=Number(url.searchParams.get('offset')||0);return send(200,{facts:facts.slice(offset,offset+20),next_offset:offset+20,has_more:offset+20<facts.length});}
+  if(match[2]==='vulnerabilities'){const rows=task.findings||[],offset=Number(url.searchParams.get('offset')||0);return send(200,{vulnerabilities:rows.slice(offset,offset+20),total:rows.length,has_more:offset+20<rows.length});}
+  if(match[2]?.startsWith('vulnerabilities/')){const vulnerability=task.findings.find(f=>f.id===match[2].slice(16));return send(200,{vulnerability,step:task.steps.find(st=>st.id===vulnerability.assessment_step_id)});}
   if(match[2]?.startsWith('steps/'))return send(200,{step:task.steps.find(s=>s.id===match[2].slice(6)),revision:task.revision,task_status:task.status});
   if(match[2]==='graph'){const summary=url.searchParams.get('view')==='summary';const nodes=summary?graph.nodes.filter(n=>!['receipt','observation'].includes(n.kind)):graph.nodes;const ids=new Set(nodes.map(n=>n.id));return send(200,{...graph,nodes,edges:graph.edges.filter(e=>ids.has(e.source)&&ids.has(e.target)),primary_count:nodes.filter(n=>!n.boundary).length-1,details_hidden:graph.nodes.length-nodes.length,boundary_total:graph.boundary_total||0});}
   if(match[2]==='graph/node'){const node=graph.nodes.find(n=>n.id===url.searchParams.get('node_id'));if(!node)return send(404,{error:'missing node'});const refs=graph.edges.flatMap(e=>e.target===node.id?[{direction:'upstream',relation:e.relation,node:graph.nodes.find(n=>n.id===e.source)}]:e.source===node.id?[{direction:'downstream',relation:e.relation,node:graph.nodes.find(n=>n.id===e.target)}]:[]).filter(r=>r.node);return send(200,{node,next_offset:node.body.length,has_more:false,relations:refs,relations_next_offset:refs.length,relations_has_more:false});}
-  if(match[2]==='events')return send(200,{events:[]});
-  if(match[2]==='receipts')return send(200,{receipts:[],next_offset:0,has_more:false});
+  if(match[2]==='events')return send(200,{events:task.events||[]});
+  if(match[2]==='receipts')return send(200,{receipts:(task.receipts||[]).filter(r=>!url.searchParams.get('step_id')||r.step_id===url.searchParams.get('step_id')),next_offset:0,has_more:false});
   if(match[2]==='report'){res.setHeader('Content-Type','text/markdown');return res.end('# fixture report');}
   if(match[2]?.startsWith('control/')){
    if(body.revision!==task.revision)return send(409,{error:'stale revision'});
@@ -652,4 +654,64 @@ test('reviewing the last item on a later page returns to the remaining review it
  await page.locator('[data-da-action="step-next"]').click();await page.locator('.da-step[data-step="review-50"]').waitFor();
  await page.locator('.da-step[data-step="review-50"] [data-da-action="reconcile"]').click();
  await page.locator('.da-step[data-step="review-0"]').waitFor();assert.equal(await page.locator('.da-step').count(),50);assert.equal(task.status,'cancelled');assert.equal(await page.locator('[data-da-action="step-previous"]').count(),0);assert.deepEqual(state.errors,[]);
+});
+
+test('overview statistics open complete matching queues and readable activity without writes',async t=>{
+ const {page,state}=await fixture(t),task=state.tasks.get('t0');task.status='paused';task.rounds=4;task.tokens_used=1234;task.metrics={session:{step_id:'running',tokens:1234}};
+ const statuses=['running','pending','pausing','paused','completed','blocked','failed','uncertain','cleanup_unconfirmed','interrupted','retired','reconciled'];
+ task.steps=statuses.map(status=>({id:status,title:'样例 '+status,status,conversation_id:'session-'+status}));task.events=[{id:1,kind:'planning',message:'规划记录样例',created_at:new Date().toISOString()}];
+ await page.locator('[data-da-action="details"][data-id="t0"]').click();
+ const overview=async()=>{await page.locator('#da-tabs [data-tab="overview"]').click();await page.locator('.da-live-board').waitFor();};
+ for(const [filter,expected] of [['',statuses],...statuses.filter(s=>!['uncertain','cleanup_unconfirmed'].includes(s)).map(s=>[s,[s]]),['needs_review',['uncertain','cleanup_unconfirmed']]]){
+  await overview();const count=page.locator('.da-live-counts [data-status="'+filter+'"]');assert.match(await count.innerText(),new RegExp(' '+expected.length+'$'));await count.click();
+  await page.waitForFunction(f=>document.querySelector('#da-intent-status')?.value===f,filter);
+  assert.deepEqual((await page.locator('.da-step').evaluateAll(rows=>rows.map(r=>r.dataset.step))).sort(),[...expected].sort());
+  await page.evaluate(()=>DeepAssessments.refresh());assert.equal(await page.locator('#da-intent-status').inputValue(),filter);
+ }
+ await page.reload();await page.locator('#da-intent-status').waitFor();assert.equal(await page.locator('#da-intent-status').inputValue(),'needs_review');assert.equal(await page.locator('.da-step').count(),2);
+ await overview();await page.locator('.da-stats [data-tab="quality"]').focus();await page.keyboard.press('Enter');await page.locator('.da-table-wrap').waitFor();assert.match(await page.locator('#da-body').innerText(),/1,234/);
+ for(const index of [0,2]){await overview();await page.locator('.da-stats > button').nth(index).click();await page.locator('.da-event').waitFor();assert.match(await page.locator('.da-event').innerText(),/规划记录样例/);}
+ await overview();await page.locator('.da-live-section-title button').click();await page.locator('.da-event').waitFor();
+ assert.ok(state.requests.every(r=>r.method==='GET'));assert.deepEqual(state.errors,[]);
+});
+
+test('overview totals reset facts and findings filters, paging and previous source context',async t=>{
+ const {page,state}=await fixture(t),task=state.tasks.get('t0');task.status='running';task.steps=[{id:'one',title:'当前意图样例',status:'running',conversation_id:'conv-one'}];
+ task.facts=Array.from({length:41},(_,i)=>({id:'f'+i,confidence:i<21?'observed':'inferred',summary:'事实样例 '+i,body:'原始观察',step_id:'one',evidence:[]}));
+ task.findings=Array.from({length:21},(_,i)=>({id:'finding-'+i,title:'关联样例 '+i,severity:'info',status:'open',assessment_step_id:'one'}));
+ task.receipts=[{id:'receipt-one',step_id:'one',tool:'fixture-read',status:'completed',result:'原始回执样例'}];task.runtime={facts:41,findings:21,findings_visible:true,asset_names:{'asset-one':'fixture.example.test'},recent:[{id:1,step_id:'one',kind:'checkpoint',message:'记录样例',created_at:new Date().toISOString()}]};
+ task.steps[0].asset_ids=['asset-one'];state.sharedAssets=[{id:'asset-one',host:'fixture.example.test'}];state.linkedAssets.set('t0',['asset-one']);
+ await page.evaluate(()=>{const original=window.hasPermission;window.hasPermission=p=>p==='vulnerability:read'||original(p);});
+ await page.locator('[data-da-action="details"][data-id="t0"]').click();
+ const overview=async()=>{await page.locator('#da-tabs [data-tab="overview"]').click();await page.locator('.da-live-board').waitFor();};
+ const facts=()=>page.locator('.da-live-counts [data-tab="facts"]');
+ await facts().click();await page.locator('[data-da-action="fact-next"]').click();await page.waitForFunction(()=>document.querySelector('.da-finding h4')?.textContent==='事实样例 20');
+ await overview();await facts().click();await page.waitForFunction(()=>document.querySelector('.da-finding h4')?.textContent==='事实样例 0');
+ await page.locator('[data-da-action="fact-filter"][data-confidence="inferred"]').click();await page.waitForFunction(()=>document.querySelector('.da-finding h4')?.textContent==='事实样例 21');
+ await overview();await facts().click();await page.waitForFunction(()=>document.querySelector('.da-finding h4')?.textContent==='事实样例 0');assert.equal(await page.locator('[data-da-action="fact-filter"][aria-pressed="true"]').getAttribute('data-confidence'),'');
+ await overview();await page.locator('.da-live-counts [data-tab="findings"]').click();await page.locator('[data-da-action="next-findings"]').click();await page.waitForFunction(()=>document.querySelector('.da-finding h4')?.textContent==='关联样例 20');
+ await overview();await page.locator('.da-live-counts [data-tab="findings"]').click();await page.waitForFunction(()=>document.querySelector('.da-finding h4')?.textContent==='关联样例 0');
+ await page.locator('[data-da-action="finding-evidence"]').first().click();await page.locator('.da-source-banner').waitFor();await overview();
+ await page.locator('.da-live-counts [data-status="running"]').click();await page.locator('.da-step').waitFor();assert.equal(await page.locator('.da-source-banner').count(),0);assert.doesNotMatch(page.url(),/vulnerability_id|step_id=/);
+ await overview();await page.locator('.da-live-intent [data-da-action="fact-proof"]').click();await page.locator('.da-step[data-step="receipt-one"]').waitFor();assert.match(page.url(),/step_id=one/);
+ await overview();await page.evaluate(()=>DeepAssessments.refresh());await page.locator('.da-live-intent [data-da-action="show-step"]').click();await page.locator('.da-step[data-step="one"][open]').waitFor();
+ await overview();await page.locator('.da-live-events [data-da-action="show-step"]').click();await page.locator('.da-step[data-step="one"][open]').waitFor();
+ await overview();await page.locator('.da-live-intent [data-da-action="intent-asset"]').click();await page.locator('#da-asset-select').waitFor();assert.equal(await page.locator('#da-asset-select').inputValue(),'asset:asset-one');assert.match(await page.locator('#da-asset-detail').innerText(),/fixture.example.test/);
+ task.findings=[];task.runtime.findings=0;await overview();await page.locator('.da-live-counts [data-tab="findings"]').click();await page.waitForFunction(()=>document.querySelector('#da-body').textContent.includes('暂未登记漏洞'));assert.equal(await page.locator('.da-finding').count(),0);
+ await overview();await page.locator('.da-live-intent [data-da-action="conversation"]').click();assert.equal(await page.evaluate(()=>window.visitedConversation),'conv-one');
+ assert.ok(state.requests.every(r=>r.method==='GET'));assert.deepEqual(state.errors,[]);
+});
+
+test('overview links remain usable for readers and empty lists explain the selected filter',async t=>{
+ const {page,state}=await fixture(t),task=state.tasks.get('t0');task.status='paused';task.steps=[{id:'one',title:'只读样例',status:'uncertain',conversation_id:'private-session',asset_ids:['private-asset']}];task.runtime={intents:task.steps,findings_visible:true,asset_names:{'private-asset':'private.example.test'}};
+ await page.evaluate(()=>{window.hasPermission=p=>p==='assessments:read';});
+ await page.locator('[data-da-action="details"][data-id="t0"]').click();await page.locator('.da-live-board').waitFor();
+ assert.equal(await page.locator('.da-live-counts [data-tab="findings"]').count(),0);assert.equal(await page.locator('.da-live-intent [data-da-action="conversation"],.da-live-intent [data-da-action="intent-asset"]').count(),0);
+ await page.locator('.da-live-counts [data-status="failed"]').click();await page.waitForFunction(()=>document.querySelector('#da-intent-status')?.value==='failed');assert.match(await page.locator('#da-body').innerText(),/没有符合当前筛选条件/);
+ await page.locator('#da-tabs [data-tab="overview"]').click();await page.locator('.da-live-counts [data-tab="facts"]').click();await page.locator('[data-da-action="fact-filter"]').first().waitFor();assert.match(await page.locator('#da-body').innerText(),/暂无记录/);
+ await page.locator('#da-tabs [data-tab="overview"]').click();await page.locator('.da-live-board').waitFor();await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ await page.locator('#page-deep-assessments').evaluate(async el=>{await Promise.all(el.getAnimations({subtree:true}).filter(a=>a.effect?.getComputedTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})));});
+ for(const card of await page.locator('.da-stats > button').all()){const label=await card.locator('small').first().boundingBox(),value=await card.locator('strong').boundingBox(),link=await card.locator('.da-stat-link').boundingBox();assert.ok(label.y+label.height<=value.y+1&&value.y+value.height<=link.y+1);}
+ if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'overview-stat-links-mobile.png'),fullPage:true});
+ assert.ok(state.requests.every(r=>r.method==='GET'));assert.deepEqual(state.errors,[]);
 });

@@ -5600,7 +5600,9 @@
       "native_compacting": "Pi compacting context",
       "native_retrying": "Pi retrying model request",
       "native_idle": "Waiting for next turn",
-      "lastNative": "Last activity"
+      "lastNative": "Last activity",
+      "activity": "Run history",
+      "receipts": "View receipts"
     },
     "liveUpdates": "Updates available — view latest",
     "continueStopped": "Continue assessment",
@@ -5608,7 +5610,8 @@
     "closedReviewHint": "This assessment has ended. Acknowledgement only updates its history and does not start work. Use Continue assessment to reopen a stopped assessment.",
     "reviewSaved": "Review recorded; pending-review list updated",
     "conflict": "The assessment changed. Refresh and try again.",
-    "stepChanged": "This step executed again during review. Check its latest receipts before confirming."
+    "stepChanged": "This step executed again during review. Check its latest receipts before confirming.",
+    "noMatchingSteps": "No intents match the current filters."
   },
   "assessmentFindingLinks": {
     "source": "Source assessment",
