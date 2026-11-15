@@ -348,6 +348,13 @@ const server = http.createServer((req, res) => {
         theme,
         out,
       });
+      await require("./ui-extra-drawers.cjs")({
+        page,
+        width,
+        height,
+        theme,
+        out,
+      });
       await page.close();
     }
   fs.writeFileSync(
