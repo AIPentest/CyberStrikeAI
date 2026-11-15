@@ -105,7 +105,7 @@ html body [data-ui-surface="drawer"] > :is(.modal-content, .projects-modal-dialo
 html[dir="rtl"] body [data-ui-surface="drawer"] > :is(.modal-content, .projects-modal-dialog, .c2-modal) {
     border-radius: 0 var(--ui-radius-card) var(--ui-radius-card) 0 !important;
 }
-html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .vulnerability-inspector-header) {
+html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .vulnerability-inspector-header, .da-drawer-header) {
     display: flex;
     align-items: center;
     flex: 0 0 auto;
@@ -119,15 +119,15 @@ html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, 
     box-shadow: none;
 }
 html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header)::after { display: none; }
-html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .vulnerability-inspector-header) :is(h2, h3) {
+html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .vulnerability-inspector-header, .da-drawer-header) :is(h2, h3) {
     font-size: 19px;
     line-height: 1.5;
     color: var(--text-primary);
     margin: 0;
     overflow-wrap: anywhere;
 }
-html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .vulnerability-inspector-header) > :first-child { flex: 1; min-width: 0; }
-html body [data-ui-surface="drawer"] :is(.modal-close, .projects-modal-close, .c2-modal-close) {
+html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .vulnerability-inspector-header, .da-drawer-header) > :first-child { flex: 1; min-width: 0; }
+html body [data-ui-surface="drawer"] :is(.modal-close, .projects-modal-close, .c2-modal-close, .da-drawer-close) {
     position: static;
     flex: 0 0 36px;
     width: 36px;
@@ -145,7 +145,7 @@ html body [data-ui-surface="drawer"] :is(.modal-body, .projects-modal-body, .c2-
     color: var(--text-primary);
     scrollbar-gutter: stable;
 }
-html body [data-ui-surface="drawer"] :is(.modal-footer, .projects-modal-footer, .c2-modal-footer) {
+html body [data-ui-surface="drawer"] :is(.modal-footer, .projects-modal-footer, .c2-modal-footer, .da-drawer-footer) {
     flex: 0 0 auto;
     display: flex;
     flex-wrap: wrap;
@@ -196,8 +196,8 @@ html body [data-ui-surface="dialog"] > :is(.modal-content, .projects-modal-dialo
         padding-top: env(safe-area-inset-top, 0px) !important;
         padding-bottom: env(safe-area-inset-bottom, 0px) !important;
     }
-    html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .vulnerability-inspector-header) { padding-block: 12px !important; }
-    html body [data-ui-surface="drawer"] :is(.modal-close, .projects-modal-close, .c2-modal-close) { width: 44px; height: 44px; flex-basis: 44px; }
+    html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .vulnerability-inspector-header, .da-drawer-header) { padding-block: 12px !important; }
+    html body [data-ui-surface="drawer"] :is(.modal-close, .projects-modal-close, .c2-modal-close, .da-drawer-close) { width: 44px; height: 44px; flex-basis: 44px; }
     html body .app-drawer-expand { display: none; }
     html body [data-ui-surface="drawer"] :is(input, textarea, select) { font-size: 16px; }
     html body [data-ui-surface="drawer"] .modal-header-actions { flex-wrap: wrap; }
@@ -229,7 +229,7 @@ html body .page :is(.asset-table, .info-collect-table, .data-table, .chat-files-
     border-color: var(--ui-border);
     font-weight: 600;
 }
-html body [data-ui-surface="dialog"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .modal-footer, .projects-modal-footer, .c2-modal-footer) {
+html body [data-ui-surface="dialog"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .modal-footer, .projects-modal-footer, .c2-modal-footer, .da-drawer-footer) {
     background: var(--ui-surface);
     border-color: var(--ui-border);
     color: var(--text-primary);
@@ -241,4 +241,79 @@ html[dir="rtl"] body [data-ui-surface="drawer"] > :is(.modal-content, .projects-
 @keyframes app-panel-in-rtl { from { opacity: .6; transform: translateX(-24px); } to { opacity: 1; transform: translateX(0); } }
 @media (prefers-reduced-motion: reduce) {
     html[dir="rtl"] body [data-ui-surface="drawer"] > :is(.modal-content, .projects-modal-dialog, .c2-modal) { animation: none !important; }
+}
+
+/* Data-heavy queue actions get their own row; never compete with the title. */
+html body #batch-queue-detail-modal .modal-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 36px 36px;
+    align-items: center;
+}
+html body #batch-queue-detail-modal .modal-header > h2 { grid-column: 1; grid-row: 1; }
+html body #batch-queue-detail-modal .app-drawer-expand { grid-column: 2; grid-row: 1; }
+html body #batch-queue-detail-modal .modal-close { grid-column: 3; grid-row: 1; }
+html body #batch-queue-detail-modal .modal-header-actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+html body #role-modal .role-tools-stats,
+html body #role-modal .role-tools-stats-row { min-width: 0; max-width: 100%; }
+html body #role-modal .role-tools-stats span { white-space: normal; overflow-wrap: anywhere; min-width: 0; }
+
+/* Native assessment dialogs share the same surfaces while retaining showModal(). */
+html body dialog.da-drawer[data-ui-surface="drawer"] {
+    inset: 0 0 0 auto;
+    margin: 0;
+    width: min(var(--app-drawer-width), calc(100% - 48px));
+    height: 100dvh;
+    border: 0;
+    border-inline-start: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-card) 0 0 var(--ui-radius-card);
+    background: var(--ui-surface) !important;
+    box-shadow: var(--ui-panel-shadow);
+}
+html body dialog.da-drawer::backdrop { background: var(--ui-overlay); }
+html body dialog.da-drawer:not(.da-form-drawer) { --app-drawer-width: 960px; }
+html body dialog.da-drawer.app-drawer-expanded { --app-drawer-width: 1440px; }
+html body dialog.da-drawer .da-detail-scroll,
+html body dialog.da-drawer .da-form-body { padding: var(--ui-space); }
+html body dialog.da-drawer .form-control { border-radius: var(--ui-radius-control); background: var(--input-bg); }
+html body dialog.da-drawer #da-title h3 { font-size: 19px; }
+@media (max-width: 767.98px) {
+    html body #batch-queue-detail-modal .modal-header { grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; }
+    html body #batch-queue-detail-modal .modal-close { grid-column: 2; }
+    html body #batch-queue-detail-modal .modal-header-actions { gap: 8px; }
+    html body dialog.da-drawer[data-ui-surface="drawer"] {
+        width: 100%; border-radius: 0; border: 0;
+        padding-top: env(safe-area-inset-top, 0px) !important;
+        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    }
+    html body dialog.da-drawer .da-drawer-footer > button { flex: 1; }
+    html body dialog.da-drawer .form-control { font-size: 16px; }
+    /* One page scroll: actions and pagination no longer reserve most of the screen. */
+    html body #page-vulnerabilities.active { display: block; overflow-y: auto; overscroll-behavior: contain; }
+    html body #page-vulnerabilities > .page-header { position: static; }
+    html body #page-vulnerabilities > .page-content {
+        height: auto; max-height: none; overflow: visible; flex: none;
+    }
+    html body #page-vulnerabilities > .vulnerability-page-footer { position: static; }
+    html body #vulnerability-pagination { position: static; }
+    html body #page-vulnerabilities .dashboard-stats {
+        display: grid; grid-template-columns: repeat(6, minmax(96px, 1fr));
+        overflow-x: auto; padding-bottom: 6px;
+    }
+    html body #page-vulnerabilities .stat-card { min-height: 84px; padding: 10px; }
+}
+html body dialog.da-drawer .da-drawer-close {
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--ui-radius-control); font-size: 0;
+}
+html body dialog.da-drawer .da-drawer-close::before {
+    content: ''; width: 18px; height: 18px; background: currentColor;
+    mask: var(--icon-close-mask) center / contain no-repeat;
+    -webkit-mask: var(--icon-close-mask) center / contain no-repeat;
 }

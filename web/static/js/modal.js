@@ -40,20 +40,20 @@
 
     function prepareSurface(el) {
         if (!el || el.id === 'login-overlay') return;
-        const drawer = DRAWER_IDS.has(el.id) && !el.querySelector('.c2-modal--sleep');
+        const drawer = (DRAWER_IDS.has(el.id) || el.matches('dialog.da-drawer')) && !el.querySelector('.c2-modal--sleep');
         el.dataset.uiSurface = drawer ? 'drawer' : 'dialog';
         el.classList.toggle('app-drawer-wide', drawer && (WIDE_IDS.has(el.id) || !!el.querySelector('.c2-modal--wide')));
         if (!drawer) return;
         el.setAttribute('role', 'dialog');
         el.setAttribute('aria-modal', 'true');
-        const header = el.querySelector('.modal-header, .projects-modal-header, .c2-modal-header, .vulnerability-inspector-header');
+        const header = el.querySelector('.modal-header, .projects-modal-header, .c2-modal-header, .vulnerability-inspector-header, .da-drawer-header');
         if (!header) return; // Asynchronously rendered details are prepared again after rendering.
         const title = header.querySelector('h2, h3');
-        if (title) {
+        if (title && !el.matches('dialog.da-drawer')) {
             if (!title.id) title.id = el.id + '-heading';
             el.setAttribute('aria-labelledby', title.id);
         }
-        const close = header.querySelector('.modal-close, .projects-modal-close, .c2-modal-close');
+        const close = header.querySelector('.modal-close, .projects-modal-close, .c2-modal-close, .da-drawer-close');
         if (close && close.tagName !== 'BUTTON') {
             close.setAttribute('role', 'button');
             close.tabIndex = 0;
@@ -142,7 +142,7 @@
             opts.focusSelector ||
             'input.form-input, textarea.form-input, select.form-input, input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled])';
         const focusTarget = opts.focusEl || Array.from(el.querySelectorAll(sel)).find(item => item.getClientRects().length)
-            || el.querySelector('.modal-close, .projects-modal-close, .c2-modal-close');
+            || el.querySelector('.modal-close, .projects-modal-close, .c2-modal-close, .da-drawer-close');
         if (focusTarget) {
             requestAnimationFrame(function () {
                 focusTarget.focus();
@@ -187,7 +187,7 @@
         const el = openOrder.filter(isElVisible).at(-1);
         if (!el || el.dataset.uiSurface !== 'drawer' || event.defaultPrevented) return;
         if (event.key === 'Escape') {
-            const close = el.querySelector('.modal-close, .projects-modal-close, .c2-modal-close');
+            const close = el.querySelector('.modal-close, .projects-modal-close, .c2-modal-close, .da-drawer-close');
             if (close) { event.preventDefault(); event.stopImmediatePropagation(); close.click(); }
         } else if (event.key === 'Tab') {
             const items = Array.from(el.querySelectorAll('button, [href], input, select, textarea, [tabindex]'))
@@ -203,6 +203,8 @@
     });
     document.querySelectorAll(OVERLAY_SELECTOR).forEach(prepareSurface);
 
+    // Native <dialog> keeps its own top-layer, focus and cancel lifecycle.
+    window.prepareAppDrawer = prepareSurface;
     window.openAppModal = openAppModal;
     window.closeAppModal = closeAppModal;
     window.isAppModalOpen = isAppModalOpen;

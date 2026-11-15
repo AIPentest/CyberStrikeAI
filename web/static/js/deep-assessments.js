@@ -24,6 +24,7 @@
     }
     function openDrawer(id) {
         const drawer = $(id);
+        window.prepareAppDrawer?.(drawer);
         if (!drawer.open) {
             drawer.returnFocus = document.activeElement;
             drawer.showModal();
@@ -56,6 +57,8 @@
             else ++S.drawerEpoch;
         });
         drawer.addEventListener('close', () => {
+            drawer.classList.remove('app-drawer-expanded');
+            drawer.querySelector('.app-drawer-expand')?.setAttribute('aria-pressed', 'false');
             syncDrawerLock();
             requestAnimationFrame(() => {
                 if (!$('page-deep-assessments')?.classList.contains('active')) return;

@@ -17,7 +17,7 @@ const html = fs
   .replace(/\{\{\.Version\}\}/g, "UI preview")
   .replace(
     "</body>",
-    '<script>window.t=(k)=>({"common.expandPanel":"展开面板","common.close":"关闭"}[k]||k);window.switchPage=function(){};</script><script src="/static/js/modal.js"></script><script src="/static/js/mobile-ui.js"></script></body>',
+    '<script>window.switchPage=function(){};</script><script src="/static/vendor/i18next.min.js"></script><script src="/static/js/i18n.js"></script><script src="/static/js/modal.js"></script><script src="/static/js/mobile-ui.js"></script></body>',
   );
 const server = http.createServer((req, res) => {
   const p = req.url.split("?")[0];
@@ -49,18 +49,22 @@ const server = http.createServer((req, res) => {
   const browser = await chromium.launch({ headless: true });
   const findings = [];
   let count = 0;
-  for (const width of [1440, 1024, 390, 360])
+  for (const width of process.env.CSAI_UI_WIDTHS
+    ? process.env.CSAI_UI_WIDTHS.split(",").map(Number)
+    : [1440, 1024, 390, 360])
     for (const theme of ["light", "dark"]) {
       const height =
         width === 360 ? 640 : width === 390 ? 844 : width === 1024 ? 768 : 900;
       const page = await browser.newPage({
         viewport: { width, height },
         colorScheme: theme,
+        locale: "zh-CN",
       });
       page.on("pageerror", (e) =>
         findings.push({ width, theme, issue: e.message }),
       );
       await page.goto("http://127.0.0.1:" + server.address().port);
+      await page.evaluate(() => window.i18nReady);
       await page.evaluate(
         (catalog) => {
           window.t = (key, opts = {}) => {
@@ -343,6 +347,13 @@ const server = http.createServer((req, res) => {
             path: out + "/" + id + "-" + width + "-" + theme + ".png",
           });
       }
+      await require("./ui-realistic-scenarios.cjs")({
+        page,
+        width,
+        height,
+        theme,
+        out,
+      });
       await page.close();
     }
   fs.writeFileSync(

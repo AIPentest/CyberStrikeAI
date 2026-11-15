@@ -498,6 +498,7 @@ function showAddSkillModal() {
     if (pkg) pkg.style.display = 'none';
     if (addEd) addEd.style.display = 'block';
 
+    document.getElementById('skill-modal-title').setAttribute('data-i18n', 'skills.addSkill');
     document.getElementById('skill-modal-title').textContent = _t('skills.addSkill');
     document.getElementById('skill-name').value = '';
     document.getElementById('skill-name').disabled = false;
@@ -612,6 +613,7 @@ async function editSkill(skillId) {
     const addEd = document.getElementById('skill-add-editor');
     if (pkg) pkg.style.display = 'block';
     if (addEd) addEd.style.display = 'none';
+    document.getElementById('skill-modal-title').setAttribute('data-i18n', 'skills.editSkill');
     document.getElementById('skill-modal-title').textContent = _t('skills.editSkill');
     document.getElementById('skill-name').value = '';
     document.getElementById('skill-name').disabled = true;
