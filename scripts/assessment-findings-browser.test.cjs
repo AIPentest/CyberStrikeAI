@@ -37,6 +37,8 @@ async function fixture(t){
    if(url.pathname==='/api/deep-assessments')return send(200,{tasks:[task],has_more:false});
    if(url.pathname==='/api/deep-assessments/same-id')return send(200,{task,step_total:101,step_next_offset:50,step_has_more:true});
    if(url.pathname==='/api/deep-assessments/same-id/graph')return send(200,{nodes:[{id:'goal',kind:'goal',state:'completed',title:task.name,body:'',source:{}}],edges:[],total:0,folded:0,has_more:false});
+   if(url.pathname==='/api/deep-assessments/same-id/steps/review-step')return send(200,{step:{...sourceStep,id:'review-step',title:'Independent review step'}});
+   if(url.pathname==='/api/deep-assessments/same-id/receipts'&&url.searchParams.get('step_id')==='review-step')return send(200,{receipts:[{id:'review-receipt',execution_id:'review-execution',step_id:'review-step',tool:'fixture_recheck',arguments:'{}',result:'independent-review-evidence',status:'completed'}],next_offset:1,has_more:false});
    if(url.pathname==='/api/deep-assessments/same-id/steps/early-step')return send(200,{step:sourceStep});
    if(url.pathname==='/api/deep-assessments/same-id/vulnerabilities')return send(200,{vulnerabilities:[finding],total:1,next_offset:1,has_more:false});
    if(url.pathname==='/api/deep-assessments/same-id/vulnerabilities/finding-1')return send(200,{vulnerability:finding,step:sourceStep});
@@ -97,5 +99,46 @@ test('task grouping separates assessment IDs from batch IDs and disabled source 
  state.canOpen=false;
  await page.locator('#vulnerability-host-table #vulnerability-card-finding-1 .vulnerability-record-main').click();
  await page.locator('.vulnerability-assessment-source').waitFor();assert.equal(await page.locator('.vulnerability-assessment-source a').count(),0);
+ assert.deepEqual(state.errors,[]);
+});
+
+
+test('independent review links remain usable after assessment polling refreshes',async t=>{
+ const {page,state}=await fixture(t);
+ state.finding.assessment_reviews=[{id:'review-1',step_id:'review-step',verdict:'confirmed',reason:'Independent fixture review',evidence:['review-receipt']}];
+ await page.locator('[data-da-action="select"]').click();
+ await page.locator('[data-da-action="tab"][data-tab="findings"]').click();
+ await page.locator('.da-finding [data-da-action="open-finding"]').click();
+ await page.getByRole('link',{name:'查看步骤与复现证据',exact:true}).click();
+ const review=page.locator('#da-inspector .da-review-records details');
+ await review.locator('summary').click();
+ await page.evaluate(()=>window.DeepAssessments.refresh());
+ await page.evaluate(()=>window.DeepAssessments.refresh());
+ assert.equal(await review.getAttribute('open'),'');
+ await review.getByRole('link',{name:'查看复核意图与回执',exact:true}).click();
+ await page.locator('#da-inspector .da-step[data-step="review-receipt"]').waitFor();
+ assert.match(page.url(),/step_id=review-step/);
+ assert.match(await page.locator('.da-source-banner').innerText(),/Independent review step/);
+ await page.locator('#da-inspector .da-step[data-step="review-receipt"] summary').click();
+ assert.match(await page.locator('#da-body').innerText(),/independent-review-evidence/);
+ assert.doesNotMatch(await page.locator('#da-body').innerText(),/original-execution-evidence/);
+ assert.ok(state.requests.every(r=>r.method==='GET'));
+ assert.deepEqual(state.errors,[]);
+});
+
+
+test('authenticated refresh restores the requested assessment and write controls',async t=>{
+ const {page,state}=await fixture(t);
+ await page.evaluate(async()=>{
+  document.querySelector('[data-da-action="create"]').remove();
+  history.replaceState(null,'','#deep-assessments?assessment_id=same-id&step_id=review-step&tab=evidence');
+  window.loadConversations=async()=>{};
+  window.loadActiveTasks=async()=>{};
+  await refreshAppData();
+ });
+ await page.locator('#da-inspector .da-step[data-step="review-receipt"]').waitFor();
+ assert.match(await page.locator('.da-source-banner').innerText(),/Independent review step/);
+ assert.equal(await page.locator('[data-da-action="create"]').count(),1);
+ assert.ok(state.requests.every(r=>r.method==='GET'));
  assert.deepEqual(state.errors,[]);
 });

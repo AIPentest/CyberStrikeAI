@@ -149,6 +149,7 @@
         $('da-tabs').innerHTML = ['overview', ...(window.AssessmentExplorationViews?.canAssets() ? ['assets'] : []), 'graph', 'plan', 'facts', ...(canFindings() ? ['findings'] : []), 'evidence', 'activity', 'quality'].map(tab => `<button type="button" role="tab" aria-selected="${S.tab === tab}" data-da-action="tab" data-tab="${tab}" class="${S.tab === tab ? 'active' : ''}">${esc(L(tab))}</button>`).join('');
         const body = $('da-body'), scroller = $('da-inspector').querySelector('.da-detail-scroll'), scroll = scroller.scrollTop;
         const opened = new Set([...body.querySelectorAll('details[open]')].map(el => el.dataset.step));
+        const expandedDetails = new Set([...body.querySelectorAll('details[data-da-detail][open]')].map(el => el.dataset.daDetail));
         if (!['graph','assets'].includes(S.tab)) window.DeepAssessmentGraph?.destroy();
         if (S.tab === 'overview') {
             const seconds = (task.active_seconds || 0) + (active(task) && task.run_started_at ? Math.max(0, (Date.now() - Date.parse(task.run_started_at)) / 1000) : 0);
@@ -171,6 +172,7 @@
         } else {
             body.innerHTML = `<p class="da-muted">${esc(L('tokenNote'))}</p><div class="da-table-wrap"><table><thead><tr><th>${esc(L('session'))}</th><th>Token</th><th>${esc(L('compactions'))}</th><th>${esc(L('activeTools'))}</th><th>${esc(L('contextUsage'))}</th><th>${esc(L('toolDefinitions'))}</th></tr></thead><tbody>${Object.entries(task.metrics || {}).map(([id, m]) => `<tr><td>${esc(m.step_id)}<br><small>${esc(id.slice(0, 12))}</small></td><td>${Number(m.tokens || 0).toLocaleString()}</td><td>${m.compactions || 0}</td><td>${m.tool_count || 0}</td><td>${m.context_tokens == null ? '—' : Number(m.context_tokens).toLocaleString()} / ${Number(m.context_window || 0).toLocaleString()}</td><td>${(Number(m.tool_definition_bytes || 0) / 1024).toFixed(1)} KB</td></tr>`).join('')}</tbody></table></div>`;
         }
+        body.querySelectorAll('details[data-da-detail]').forEach(el => { el.open = expandedDetails.has(el.dataset.daDetail); });
         scroller.scrollTop = scroll;
         $('da-guidance-form').hidden = !can('write') || terminal(task);
         $('da-guidance-submit').textContent = L(task.question ? 'answer' : 'send');
@@ -227,7 +229,10 @@
     function renderGraphNode() {
         const panel = $('da-graph-node'); if (!panel) return;
         const n = S.graphNode;
-        panel.innerHTML = n ? `<small>${esc(graphKind(n.kind))} · ${esc(graphState(n.state))}</small><h4>${esc(n.title)}</h4><code>${esc(n.id)}</code><pre>${esc(n.body)}</pre><details><summary>${esc(L('evidenceIDs'))}</summary><pre>${esc(JSON.stringify(n.source || {}, null, 2))}</pre></details><div class="da-controls">${window.AssessmentExplorationViews?.canAssets()?(n.source?.asset_ids||[]).map(id=>button('intent-asset',L('linkedAssets')+' '+id,`data-asset="${esc(id)}"`)).join(''):''}${n.kind === 'finding' ? button('open-finding',L('openFinding'),`data-vulnerability="${esc(n.id.slice(8))}"`) : ''}${n.step_id ? button('fact-proof',L('sourceStep'),`data-step="${esc(n.step_id)}"`) : ''}${['step','digest'].includes(n.kind) ? button('graph-expand', L('graphExpand'), `data-node="${esc(n.id)}"`) : ''}${S.nodeMore ? button('graph-more', L('graphMore')) : ''}</div>` : `<p class="da-muted">${esc(L('graphSelect'))}</p>`;
+        const expandedSource = panel.querySelector('details[data-da-detail][open]')?.dataset.daDetail;
+        panel.innerHTML = n ? `<small>${esc(graphKind(n.kind))} · ${esc(graphState(n.state))}</small><h4>${esc(n.title)}</h4><code>${esc(n.id)}</code><pre>${esc(n.body)}</pre><details data-da-detail="graph-source:${esc(n.id)}"><summary>${esc(L('evidenceIDs'))}</summary><pre>${esc(JSON.stringify(n.source || {}, null, 2))}</pre></details><div class="da-controls">${window.AssessmentExplorationViews?.canAssets()?(n.source?.asset_ids||[]).map(id=>button('intent-asset',L('linkedAssets')+' '+id,`data-asset="${esc(id)}"`)).join(''):''}${n.kind === 'finding' ? button('open-finding',L('openFinding'),`data-vulnerability="${esc(n.id.slice(8))}"`) : ''}${n.step_id ? button('fact-proof',L('sourceStep'),`data-step="${esc(n.step_id)}"`) : ''}${['step','digest'].includes(n.kind) ? button('graph-expand', L('graphExpand'), `data-node="${esc(n.id)}"`) : ''}${S.nodeMore ? button('graph-more', L('graphMore')) : ''}</div>` : `<p class="da-muted">${esc(L('graphSelect'))}</p>`;
+        const source = panel.querySelector('details[data-da-detail]');
+        if (source && source.dataset.daDetail === expandedSource) source.open = true;
     }
     async function selectGraphNode(node, append = false) {
         const task = S.id, request = ++S.nodeRequest;
@@ -309,5 +314,15 @@
             if (name === 'more-receipts' || name === 'previous-receipts') { S.receiptOffset = Math.max(0, S.receiptOffset + (name === 'more-receipts' ? 50 : -50)); return await refresh(); }
         } catch (error) { notice(error.message, true); }
     }
-    window.DeepAssessments = { init() { mount(); applyRoute(); void refresh(); if (!S.timer) S.timer = setInterval(() => { if ($('page-deep-assessments')?.classList.contains('active') && !document.hidden) void refresh(); }, 4000); }, fromLocation() { mount(); if (applyRoute()) void refresh(); }, refresh };
+    function afterAuthentication() {
+        mount();
+        if (!S.mounted || !can('read') || !$('page-deep-assessments')?.classList.contains('active')) return;
+        const header = $('deep-assessments-root').querySelector('.da-header > div:last-child');
+        const create = header?.querySelector('[data-da-action="create"]');
+        if (can('write') && !create) header?.insertAdjacentHTML('beforeend', button('create',L('create')));
+        else if (!can('write')) create?.remove();
+        applyRoute();
+        void refresh();
+    }
+    window.DeepAssessments = { afterAuthentication, init() { mount(); applyRoute(); void refresh(); if (!S.timer) S.timer = setInterval(() => { if ($('page-deep-assessments')?.classList.contains('active') && !document.hidden) void refresh(); }, 4000); }, fromLocation() { mount(); if (applyRoute()) void refresh(); }, refresh };
 })();

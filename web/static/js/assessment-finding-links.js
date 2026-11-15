@@ -11,7 +11,7 @@
         if (!v.assessment_reviews?.length) return '';
         return '<section class="da-review-records"><h4>' + escape(t('reviews')) + '</h4>' + v.assessment_reviews.map(r => {
             const target = '#deep-assessments?' + new URLSearchParams({assessment_id:v.assessment_id,step_id:r.step_id,tab:'evidence'});
-            return '<details><summary>' + escape(t(r.verdict)) + ' · ' + escape(r.step_id) + '</summary><pre>' + escape(r.reason) + '</pre><code>' + escape((r.evidence || []).join(', ')) + '</code>' + (v.assessment_can_open && !v.assessment_deleted ? '<p><a data-assessment-jump href="' + escape(target) + '">' + escape(t('reviewEvidence')) + '</a></p>' : '') + '</details>';
+            return '<details data-da-detail="review:' + escape(r.id || [r.step_id,r.verdict,r.created_at].join(':')) + '"><summary>' + escape(t(r.verdict)) + ' · ' + escape(r.step_id) + '</summary><pre>' + escape(r.reason) + '</pre><code>' + escape((r.evidence || []).join(', ')) + '</code>' + (v.assessment_can_open && !v.assessment_deleted ? '<p><a data-assessment-jump href="' + escape(target) + '">' + escape(t('reviewEvidence')) + '</a></p>' : '') + '</details>';
         }).join('') + '</section>';
     }
     function render(v) {

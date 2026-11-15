@@ -387,6 +387,12 @@ async function refreshAppData(showTaskErrors = false) {
             console.warn('刷新项目侧栏失败:', error);
         }
     }
+    // A deep link may have mounted while the login overlay was still active.
+    // Restore only this workspace after authenticated data has been refreshed.
+    if (document.getElementById('page-deep-assessments')?.classList.contains('active') &&
+        hasPermission('assessments:read')) {
+        window.DeepAssessments?.afterAuthentication?.();
+    }
 }
 
 async function bootstrapApp() {

@@ -144,6 +144,9 @@ test('continuous assessment graph shows durable memories and keeps drawer contro
  assert.ok(await page.locator('#da-graph-canvas canvas').count()>0);
  await page.locator('#da-graph-select').selectOption('memory:pi1');
  await page.waitForFunction(()=>document.getElementById('da-graph-node').textContent.includes('Persisted original summary'));
+ await page.locator('#da-graph-node details summary').click();
+ await page.evaluate(()=>DeepAssessments.refresh());
+ assert.equal(await page.locator('#da-graph-node details').getAttribute('open'),'');
  assert.equal(await page.evaluate(()=>window.injected),undefined);
  await page.waitForFunction(()=>document.getElementById('da-inspector').getAnimations().every(a=>a.playState==='finished'));
  if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'deep-assessment-graph.png'),fullPage:true});
