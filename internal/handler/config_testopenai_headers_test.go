@@ -13,6 +13,43 @@ import (
 	"cyberstrike-ai/internal/config"
 )
 
+func TestFirstOMLXConnectionProbeUsesDetectedLocalOutputLimit(t *testing.T) {
+	var completions int
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/models", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"id":"local-model","owned_by":"omlx","max_model_len":65536}]}`))
+	})
+	mux.HandleFunc("/v1/chat/completions", func(w http.ResponseWriter, r *http.Request) {
+		completions++
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Error(err)
+		}
+		if payload["max_tokens"] != float64(5) || payload["max_completion_tokens"] != nil {
+			t.Errorf("first probe missed local output cap: %+v", payload)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"fixture","model":"local-model","choices":[{"message":{"role":"assistant","content":"Hi"}}]}`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	h := &ConfigHandler{config: &config.Config{}, logger: zap.NewNop()}
+	body, _ := json.Marshal(map[string]any{"provider": "openai_compatible", "base_url": srv.URL + "/v1", "api_key": "fixture", "model": "local-model"})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/config/test-openai", strings.NewReader(string(body)))
+	c.Request.Header.Set("Content-Type", "application/json")
+	h.TestOpenAI(c)
+	var result map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result["success"] != true || result["context_backend"] != "omlx" || result["context_profile"] != "local_auto" || completions != 1 {
+		t.Fatalf("unexpected probe result: %s, completions=%d", w.Body.String(), completions)
+	}
+}
+
 // TestTestOpenAIForwardsCustomHeaders 校验「测试连接」与真实对话一样会带上渠道自定义请求头：
 // 静态头原样发送，%session_id% 用探测值填充，Authorization 仍按 api_key 生成。
 func TestTestOpenAIForwardsCustomHeaders(t *testing.T) {

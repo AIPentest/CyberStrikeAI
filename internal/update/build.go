@@ -3,6 +3,7 @@ package update
 import (
 	"context"
 	"crypto/sha256"
+	"cyberstrike-ai/internal/agentruntime"
 	"debug/buildinfo"
 	"encoding/hex"
 	"fmt"
@@ -37,6 +38,11 @@ func toolchain(ctx context.Context, root string) (string, bool) {
 // one lives. Output is returned on failure because the operator needs the compiler's
 // message, not "build failed".
 func build(ctx context.Context, root, outPath string) error {
+	if _, err := os.Stat(filepath.Join(root, "runtime", "pi", "package.json")); err == nil {
+		if _, err = agentruntime.PreparePiRuntime(ctx, filepath.Join(root, "runtime", "pi")); err != nil {
+			return err
+		}
+	}
 	cmd := exec.CommandContext(ctx, "go", "build", "-o", outPath, "./cmd/server")
 	cmd.Dir = root
 	// The module cache goes next to the install rather than into whoever's HOME started

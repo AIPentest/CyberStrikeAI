@@ -75,7 +75,7 @@ type BatchTaskQueue struct {
 	Title                 string       `json:"title,omitempty"`
 	Role                  string       `json:"role,omitempty"` // 角色名称（空字符串表示默认角色）
 	HITLPolicy            string       `json:"hitlPolicy"`
-	AgentMode             string       `json:"agentMode"`    // single | eino_single | deep | plan_execute | supervisor
+	AgentMode             string       `json:"agentMode"`    // single | single | deep | plan_execute | supervisor
 	ScheduleMode          string       `json:"scheduleMode"` // manual | cron
 	CronExpr              string       `json:"cronExpr,omitempty"`
 	NextRunAt             *time.Time   `json:"nextRunAt,omitempty"`
@@ -317,7 +317,7 @@ func (m *BatchTaskManager) loadQueueFromDB(queueID string) *BatchTaskQueue {
 	queue := &BatchTaskQueue{
 		ID:           queueRow.ID,
 		HITLPolicy:   queueRow.HITLPolicy,
-		AgentMode:    "eino_single",
+		AgentMode:    "single",
 		ScheduleMode: "manual",
 		Status:       queueRow.Status,
 		CreatedAt:    queueRow.CreatedAt,
@@ -562,7 +562,7 @@ func (m *BatchTaskManager) LoadFromDB() error {
 		queue := &BatchTaskQueue{
 			ID:           queueRow.ID,
 			HITLPolicy:   queueRow.HITLPolicy,
-			AgentMode:    "eino_single",
+			AgentMode:    "single",
 			ScheduleMode: "manual",
 			Status:       queueRow.Status,
 			CreatedAt:    queueRow.CreatedAt,

@@ -18,7 +18,7 @@ func TestNormalizeBatchQueueConcurrency(t *testing.T) {
 
 func TestClaimNextPendingTaskParallel(t *testing.T) {
 	m := NewBatchTaskManager(zap.NewNop())
-	queue, err := m.CreateBatchQueue("test", "", "eino_single", "manual", "", "", nil, 3, []string{"a", "b", "c"})
+	queue, err := m.CreateBatchQueue("test", "", "single", "manual", "", "", nil, 3, []string{"a", "b", "c"})
 	if err != nil {
 		t.Fatalf("CreateBatchQueue: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestBatchSubTaskConversationMetaKeepsQueueRole(t *testing.T) {
 func TestDeleteQueueBlockedWhileExecutorActive(t *testing.T) {
 	t.Parallel()
 	m := NewBatchTaskManager(zap.NewNop())
-	queue, err := m.CreateBatchQueue("test", "", "eino_single", "manual", "", "", nil, 1, []string{"hello"})
+	queue, err := m.CreateBatchQueue("test", "", "single", "manual", "", "", nil, 1, []string{"hello"})
 	if err != nil {
 		t.Fatalf("CreateBatchQueue: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestDeleteQueueBlockedWhileExecutorActive(t *testing.T) {
 func TestDeleteQueueBlockedWhileRunning(t *testing.T) {
 	t.Parallel()
 	m := NewBatchTaskManager(zap.NewNop())
-	queue, err := m.CreateBatchQueue("test", "", "eino_single", "manual", "", "", nil, 1, []string{"hello"})
+	queue, err := m.CreateBatchQueue("test", "", "single", "manual", "", "", nil, 1, []string{"hello"})
 	if err != nil {
 		t.Fatalf("CreateBatchQueue: %v", err)
 	}

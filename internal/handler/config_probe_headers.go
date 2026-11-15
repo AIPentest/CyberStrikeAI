@@ -3,6 +3,7 @@ package handler
 import (
 	"cyberstrike-ai/internal/config"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -91,4 +92,19 @@ func probeHeaderURL(provider, raw string) string {
 		return "https://api.openai.com/v1"
 	}
 	return raw
+}
+
+// Metadata probes use the same resolved headers as connection tests. Redirects
+// are disabled by the caller so provider credentials cannot change origin.
+type contextProbeTransport struct{ headers map[string]string }
+
+func (t contextProbeTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	copy := req.Clone(req.Context())
+	copy.Header = req.Header.Clone()
+	for key, value := range t.headers {
+		if strings.TrimSpace(value) != "" {
+			copy.Header.Set(key, strings.ReplaceAll(value, "%session_id%", "connect-test"))
+		}
+	}
+	return http.DefaultTransport.RoundTrip(copy)
 }

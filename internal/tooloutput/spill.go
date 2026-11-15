@@ -4,6 +4,8 @@
 package tooloutput
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +15,30 @@ import (
 
 	"github.com/google/uuid"
 )
+
+// ReduceForModel first removes JSON formatting whitespace. If the result still
+// exceeds the limit, retain the exact original evidence and return a preview.
+// A failed spill keeps the content available to the model.
+func ReduceForModel(full string, maxBytes int, opts SpillOpts) string {
+	// The MCP storage guard may already have saved this execution under the
+	// same path. Spilling its notice again would overwrite the original file.
+	if strings.HasPrefix(strings.TrimSpace(full), "<persisted-output>") {
+		return full
+	}
+	compact := full
+	var buf bytes.Buffer
+	if json.Compact(&buf, []byte(full)) == nil {
+		compact = buf.String()
+	}
+	if maxBytes <= 0 || len(compact) <= maxBytes {
+		return compact
+	}
+	path, err := WriteTruncFile(opts, full)
+	if err != nil {
+		return compact
+	}
+	return FormatPersistedOutput(full, path, maxBytes)
+}
 
 const (
 	defaultRootDir = "tmp/reduction"

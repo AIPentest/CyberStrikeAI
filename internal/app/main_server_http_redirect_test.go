@@ -89,17 +89,14 @@ func TestServerHTTPRedirectEnabled(t *testing.T) {
 }
 
 func TestMainServerMuxHTTPRedirectAndHTTPS(t *testing.T) {
-	cert, err := generateMainServerSelfSignedCert()
+	_, tlsConfig, _, _, err := prepareMainServerTLS(&config.ServerConfig{TLSAutoSelfSign: true}, t.TempDir())
 	if err != nil {
 		t.Fatalf("generate cert: %v", err)
 	}
 	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = io.WriteString(w, "ok")
 	})
-	srv := &http.Server{Handler: handler, TLSConfig: &tls.Config{
-		MinVersion:   tls.VersionTLS12,
-		Certificates: []tls.Certificate{cert},
-	}}
+	srv := &http.Server{Handler: handler, TLSConfig: tlsConfig}
 	if err := http2.ConfigureServer(srv, &http2.Server{}); err != nil {
 		t.Fatalf("configure http2: %v", err)
 	}

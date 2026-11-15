@@ -7,10 +7,6 @@ import (
 	"strings"
 
 	"cyberstrike-ai/internal/config"
-
-	"github.com/cloudwego/eino/components/document"
-	"github.com/cloudwego/eino/compose"
-	"github.com/cloudwego/eino/schema"
 )
 
 // normalizeChunkStrategy returns "recursive" or "markdown_then_recursive".
@@ -28,64 +24,59 @@ func normalizeChunkStrategy(s string) string {
 	}
 }
 
-func buildKnowledgeIndexChain(
-	ctx context.Context,
-	indexingCfg *config.IndexingConfig,
-	db *sql.DB,
-	recursive document.Transformer,
-	embeddingModel string,
-) (compose.Runnable[[]*schema.Document, []string], error) {
-	if recursive == nil {
-		return nil, fmt.Errorf("recursive transformer is nil")
-	}
-	if db == nil {
-		return nil, fmt.Errorf("db is nil")
-	}
-	strategy := normalizeChunkStrategy("markdown_then_recursive")
-	batch := 64
-	maxChunks := 0
-	if indexingCfg != nil {
-		strategy = normalizeChunkStrategy(indexingCfg.ChunkStrategy)
-		if indexingCfg.BatchSize > 0 {
-			batch = indexingCfg.BatchSize
-		}
-		maxChunks = indexingCfg.MaxChunksPerItem
-	}
+type knowledgeIndexChain struct {
+	splitters []DocumentTransformer
+	indexer   *SQLiteIndexer
+	maxChunks int
+}
 
-	si := NewSQLiteIndexer(db, batch, embeddingModel)
-	ch := compose.NewChain[[]*schema.Document, []string]()
+func buildKnowledgeIndexChain(ctx context.Context, cfg *config.IndexingConfig, db *sql.DB, recursive DocumentTransformer, model string) (*knowledgeIndexChain, error) {
+	if recursive == nil || db == nil {
+		return nil, fmt.Errorf("knowledge index requires splitter and database")
+	}
+	ch := &knowledgeIndexChain{}
+	batch := 64
+	strategy := "markdown_then_recursive"
+	if cfg != nil {
+		strategy = normalizeChunkStrategy(cfg.ChunkStrategy)
+		if cfg.BatchSize > 0 {
+			batch = cfg.BatchSize
+		}
+		ch.maxChunks = cfg.MaxChunksPerItem
+	}
 	if strategy != "recursive" {
 		md, err := newMarkdownHeaderSplitter(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("markdown splitter: %w", err)
+			return nil, err
 		}
-		ch.AppendDocumentTransformer(md)
+		ch.splitters = append(ch.splitters, md)
 	}
-	ch.AppendDocumentTransformer(recursive)
-	ch.AppendLambda(newChunkEnrichLambda(maxChunks))
-	ch.AppendIndexer(si)
-	return ch.Compile(ctx)
+	ch.splitters = append(ch.splitters, recursive)
+	ch.indexer = NewSQLiteIndexer(db, batch, model)
+	return ch, nil
 }
-
-func newChunkEnrichLambda(maxChunks int) *compose.Lambda {
-	return compose.InvokableLambda(func(ctx context.Context, docs []*schema.Document) ([]*schema.Document, error) {
-		_ = ctx
-		out := make([]*schema.Document, 0, len(docs))
-		for _, d := range docs {
-			if d == nil || strings.TrimSpace(d.Content) == "" {
-				continue
-			}
+func (ch *knowledgeIndexChain) Invoke(ctx context.Context, docs []*Document, opts ...IndexOption) ([]string, error) {
+	var err error
+	for _, splitter := range ch.splitters {
+		docs, err = splitter.Transform(ctx, docs)
+		if err != nil {
+			return nil, err
+		}
+	}
+	out := make([]*Document, 0, len(docs))
+	for _, d := range docs {
+		if d != nil && strings.TrimSpace(d.Content) != "" {
 			out = append(out, d)
 		}
-		if maxChunks > 0 && len(out) > maxChunks {
-			out = out[:maxChunks]
+	}
+	if ch.maxChunks > 0 && len(out) > ch.maxChunks {
+		out = out[:ch.maxChunks]
+	}
+	for i, d := range out {
+		if d.MetaData == nil {
+			d.MetaData = map[string]any{}
 		}
-		for i, d := range out {
-			if d.MetaData == nil {
-				d.MetaData = make(map[string]any)
-			}
-			d.MetaData[metaKBChunkIndex] = i
-		}
-		return out, nil
-	})
+		d.MetaData[metaKBChunkIndex] = i
+	}
+	return ch.indexer.Store(ctx, out, opts...)
 }

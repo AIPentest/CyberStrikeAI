@@ -23,6 +23,7 @@ function functionSource(source, name, nextName) {
 function createScrollRuntime() {
     const listeners = new Map();
     const buttonListeners = new Map();
+    const scrollCalls = [];
     const classList = { add() {}, remove() {}, toggle() {}, contains() { return false; } };
     const chatEl = {
         scrollTop: 500,
@@ -31,7 +32,11 @@ function createScrollRuntime() {
         children: [],
         classList,
         addEventListener(type, handler) { listeners.set(type, handler); },
-        scrollTo(options) { this.scrollTop = Number(options && options.top) || 0; },
+        scrollTo(options) {
+            scrollCalls.push(options);
+            if (options.behavior === 'smooth') return;
+            this.scrollTop = Math.min(Math.max(0, options.top), this.scrollHeight - this.clientHeight);
+        },
         getBoundingClientRect() { return { right: 1000 }; },
     };
     const returnLatest = {
@@ -83,6 +88,8 @@ function createScrollRuntime() {
         chatEl,
         returnLatest,
         listeners,
+        buttonListeners,
+        scrollCalls,
         flushAnimationFrames() {
             while (rafQueue.size) {
                 const pending = Array.from(rafQueue.values());
@@ -118,7 +125,7 @@ test('向上滚动立即解除粘底，只有滚到真实底部才恢复', () =>
     runtime.chatEl.scrollHeight = 1200;
     runtime.api.scrollIfPinned(true);
     runtime.flushAnimationFrames();
-    assert.equal(runtime.chatEl.scrollTop, 1200, '恢复后新增输出继续请求滚到最底部');
+    assert.equal(runtime.chatEl.scrollTop, 700, '恢复后新增输出继续请求滚到最底部');
 });
 
 test('用户离开最新位置后回到底部按钮稳定显示到真实底部', () => {
@@ -140,6 +147,7 @@ test('刷新重建详情引起的布局上移不会误判为用户上滑', () =>
     const runtime = createScrollRuntime();
     runtime.flushAnimationFrames();
 
+    runtime.chatEl.scrollHeight = 960;
     runtime.chatEl.scrollTop = 460;
     runtime.listeners.get('scroll')();
     assert.equal(runtime.api.captureScrollPinState(), true, '没有用户输入的布局滚动仍应保持跟随');
@@ -147,7 +155,47 @@ test('刷新重建详情引起的布局上移不会误判为用户上滑', () =>
     runtime.chatEl.scrollHeight = 1100;
     runtime.api.scrollIfPinned(true);
     runtime.flushAnimationFrames();
-    assert.equal(runtime.chatEl.scrollTop, 1100, '刷新恢复后的后续增量应继续粘底');
+    assert.equal(runtime.chatEl.scrollTop, 600, '刷新恢复后的后续增量应继续粘底');
+});
+
+test('长对话点击回到最新立即到达真实底部，并继续跟随新增输出', () => {
+    const runtime = createScrollRuntime();
+    runtime.chatEl.scrollHeight = 150000;
+    runtime.api.forceScrollToBottom();
+    runtime.chatEl.scrollTop = 1200;
+    runtime.listeners.get('scroll')();
+    assert.equal(runtime.returnLatest.hidden, false);
+
+    runtime.buttonListeners.get('click')({ preventDefault() {}, stopPropagation() {} });
+    assert.equal(runtime.scrollCalls.at(-1).behavior, 'instant');
+    assert.equal(runtime.chatEl.scrollTop, 149500);
+    assert.equal(runtime.returnLatest.hidden, true);
+
+    runtime.chatEl.scrollHeight += 250;
+    runtime.api.scrollIfPinned(true);
+    runtime.flushAnimationFrames();
+    assert.equal(runtime.chatEl.scrollTop, 149750);
+});
+
+test('原生滚动条未派发指针事件时仍可中断粘底，历史渲染结束后保留阅读位置', () => {
+    const runtime = createScrollRuntime();
+    runtime.chatEl.scrollHeight = 150000;
+    runtime.api.forceScrollToBottom();
+    runtime.api.settleToBottomIfFollowing(24);
+
+    runtime.chatEl.scrollTop = 70000;
+    runtime.chatEl.scrollHeight += 200;
+    runtime.listeners.get('scroll')();
+    assert.equal(runtime.api.captureScrollPinState(), false);
+
+    runtime.api.settleConversationRestoreToBottom(30);
+    runtime.api.scrollIfPinned(true);
+    runtime.flushAnimationFrames();
+    assert.equal(runtime.chatEl.scrollTop, 70000);
+
+    runtime.chatEl.scrollTop = 149700;
+    runtime.listeners.get('scroll')();
+    assert.equal(runtime.api.captureScrollPinState(), true);
 });
 
 test('登录成功后重新加载曾因未授权失败的项目侧栏', () => {
@@ -179,10 +227,7 @@ test('用户真正滑到底部后恢复自动跟随且不会提前强制跳底',
     assert.doesNotMatch(scrollSource, /else if \(resumeFollowingIfAtBottom\(\)\)/);
     assert.doesNotMatch(scrollSource, /scheduleChatScrollToBottomIfFollowing\(true\)/);
     assert.doesNotMatch(scrollSource, /else if \(resumeFollowingIfAtBottom\(\)\)/);
-    assert.match(scrollSource, /contentShrank/);
-    assert.match(scrollSource, /sh < lastScrollHeight - 1/);
-    assert.match(scrollSource, /if \(scrolledUp && \(scrollMode === 'detached' \|\| hasUserScrollIntent\)\) \{[\s\S]*?setScrollDetached\(\)/);
-    assert.match(scrollSource, /if \(programmaticScroll\) \{[\s\S]*?st < lastScrollTop - 1 && \(scrollMode === 'detached' \|\| hasUserScrollIntent\)[\s\S]*?setScrollDetached\(\)/);
+    assert.match(scrollSource, /if \(scrolledUp && hasUserScrollIntent\) \{[\s\S]*?setScrollDetached\(\)/);
 });
 
 test('切换对话模式引起的布局滚动不会重新开启粘底', () => {
@@ -191,8 +236,7 @@ test('切换对话模式引起的布局滚动不会重新开启粘底', () => {
     const selectModeSource = functionSource(chat, 'selectAgentMode', 'initChatAgentModeFromConfig');
 
     assert.match(scroll, /let userScrollIntentUntil = 0/);
-    assert.match(scrollSource, /const hasUserScrollIntent = Date\.now\(\) <= userScrollIntentUntil/);
-    assert.match(scrollSource, /scrolledDown &&[\s\S]*?hasUserScrollIntent &&[\s\S]*?resumeFollowingIfAtBottom/);
+    assert.match(scrollSource, /scrolledDown && hasUserScrollIntent[\s\S]*?resumeFollowingIfAtBottom/);
     assert.doesNotMatch(scrollSource, /else if \(resumeFollowingIfAtBottom\(\)\)/);
     assert.match(bindSource, /Math\.abs\(e\.deltaY\) > 1/);
     assert.match(bindSource, /userScrollIntentUntil = Date\.now\(\) \+ 1800/);
@@ -234,22 +278,22 @@ test('刷新后迭代思考区独立跟随最新内容且允许用户上滑解�
     assert.match(monitor, /function getProcessDetailsLatestFollowStateForTimeline\(timeline\)/);
     assert.match(monitor, /const followingLatest = !!\(followState && !followState\.detached\)/);
     assert.match(monitor, /const shouldShow = !followingLatest && expanded && scrollable && awayFromLatest/);
-    assert.match(returnLatestSource, /timeline\.scrollTo\(\{ top: targetTop, behavior: 'smooth' \}\)/);
+    assert.match(returnLatestSource, /timeline\.scrollTo\(\{ top: timeline\.scrollHeight, behavior: 'instant' \}\)/);
     assert.match(returnLatestSource, /timeline\.addEventListener\('scroll', onScroll/);
     assert.match(returnLatestSource, /window\.ensureProcessDetailsReturnLatestControl = ensureProcessDetailsReturnLatestControl/);
     assert.match(startSource, /new MutationObserver\(scheduleFollowLatest\)/);
     assert.match(startSource, /characterData: true/);
-    assert.match(startSource, /new ResizeObserver\(scheduleFollowLatest\)/);
+    assert.match(startSource, /new ResizeObserver\(function \(\) \{\s*scheduleFollowLatest\(\)/);
     assert.match(startSource, /ensureProcessDetailsReturnLatestControl\(timeline\)/);
     assert.match(startSource, /markProcessDetailsReturnLatestPending\(timeline\)/);
-    assert.match(startSource, /scrollProcessDetailsToLatest\(String\(assistantMessageId \|\| ''\), false\)/);
+    assert.match(startSource, /timeline\.scrollTo\(\{ top: timeline\.scrollHeight, behavior: 'instant' \}\)/);
     assert.match(startSource, /event\.deltaY < -1/);
     assert.match(startSource, /state\.userScrollIntentUntil = Date\.now\(\) \+ 1200/);
     assert.match(startSource, /event\.clientX >= rect\.right - PROCESS_DETAILS_FOLLOW_SCROLLBAR_GUTTER_PX/);
     assert.match(startSource, /event\.key === 'ArrowUp'/);
     assert.match(startSource, /cancelAnimationFrame\(state\.rafId\)/);
-    assert.match(startSource, /if \(scrolledUp && \(state\.detached \|\| Date\.now\(\) <= state\.userScrollIntentUntil\)\) \{[\s\S]*?detachForUserNavigation\(\)/);
-    assert.match(startSource, /state\.detached &&[\s\S]*?scrolledDown &&[\s\S]*?Date\.now\(\) <= state\.userScrollIntentUntil/);
+    assert.match(startSource, /topChange < -1 && hasUserScrollIntent && distance > PROCESS_DETAILS_FOLLOW_RESUME_THRESHOLD_PX/);
+    assert.match(startSource, /state\.detached &&[\s\S]*?topChange > 1 &&[\s\S]*?hasUserScrollIntent/);
     assert.match(monitor, /PROCESS_DETAILS_FOLLOW_RESUME_THRESHOLD_PX = 2/);
     assert.match(startSource, /distance <= PROCESS_DETAILS_FOLLOW_RESUME_THRESHOLD_PX/);
     assert.match(startSource, /state\.detached = false/);
@@ -291,7 +335,6 @@ test('首次实时输出与刷新恢复都保留独立迭代滚动并跟随最�
     assert.match(addSource, /startLiveProgressLatestFollow\(id\)/);
     assert.match(liveSource, /stateKey: liveProgressLatestFollowKey\(id\)/);
     assert.match(liveSource, /persistent: true/);
-    assert.match(liveSource, /target\.scrollTop = Math\.max\(0, target\.scrollHeight - target\.clientHeight\)/);
     assert.match(monitor, /function finalizeProgressTask\(progressId, finalLabel\) \{[\s\S]{0,120}stopLiveProgressLatestFollow\(progressId\)/);
 });
 
@@ -340,8 +383,8 @@ test('消息气泡内部流式增高时仅在跟随模式继续粘底', () => {
 });
 
 test('页面在任务补流脚本之前加载智能滚动控制器', () => {
-    const scrollIndex = html.indexOf('/static/js/chat-scroll.js?v=20260815-1');
-    const monitorIndex = html.indexOf('/static/js/monitor.js?v=20261011-token-usage');
+    const scrollIndex = html.indexOf('/static/js/chat-scroll.js?v=');
+    const monitorIndex = html.indexOf('/static/js/monitor.js?v=');
 
     assert.notEqual(scrollIndex, -1);
     assert.notEqual(monitorIndex, -1);
@@ -483,16 +526,16 @@ test('刷新运行中回复会复用已持久化 planning 并继续追加未来�
     assert.match(monitor, /item\.dataset\.responseStreamId = String\(options\.data\.streamId\)/);
 });
 
-test('Eino 原生模型 retry/failover 事件在主聊天和 WebShell 中可见', () => {
+test('Pi 原生模型 retry/failover 事件在主聊天和 WebShell 中可见', () => {
     const handleSource = functionSource(monitor, 'handleStreamEvent', 'hitlApprovalTranslate');
-    assert.match(handleSource, /case 'eino_model_retry'/);
-    assert.match(handleSource, /formatEinoModelRetryTitle/);
-    assert.match(handleSource, /case 'eino_model_failover'/);
-    assert.match(handleSource, /formatEinoModelFailoverTitle/);
-    assert.match(monitor, /function formatEinoModelRetryMessage/);
-    assert.match(monitor, /function formatEinoModelFailoverMessage/);
-    assert.match(webshell, /_et === 'eino_model_retry'/);
-    assert.match(webshell, /_et === 'eino_model_failover'/);
+    assert.match(handleSource, /case 'pi_model_retry'/);
+    assert.match(handleSource, /formatPiModelRetryTitle/);
+    assert.match(handleSource, /case 'pi_model_failover'/);
+    assert.match(handleSource, /formatPiModelFailoverTitle/);
+    assert.match(monitor, /function formatPiModelRetryMessage/);
+    assert.match(monitor, /function formatPiModelFailoverMessage/);
+    assert.match(webshell, /_et === 'pi_model_retry'/);
+    assert.match(webshell, /_et === 'pi_model_failover'/);
 });
 
 test('非仪表盘 hash 首屏在路由确定前隐藏默认仪表盘', () => {

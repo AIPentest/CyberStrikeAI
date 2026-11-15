@@ -106,7 +106,7 @@ OpenAI 协议后端把这段文字当聊天提示词。TypeSafe Jev 把它当作
 - 执行与任务状态查询：`get_tool_execution`、`wait_tool_execution`、`batch_task_list`、`batch_task_get`
 - 本地管理元数据查询：`manage_webshell_list`、`c2_event`、`c2_file`
 
-上述内置 MCP 查询仍受 RBAC 和资源范围约束；白名单只跳过 HITL 审批，不扩大访问权限。`list_dir` 仅在实际工具名为该值时有效；Eino 文件系统的目录列表工具名是 `ls`。
+上述内置 MCP 查询仍受 RBAC 和资源范围约束；白名单只跳过 HITL 审批，不扩大访问权限。`list_dir` 仅在实际工具名为该值时有效；Pi 文件系统的目录列表工具名是 `ls`。
 
 不建议直接全局白名单：
 

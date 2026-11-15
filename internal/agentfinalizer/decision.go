@@ -59,6 +59,12 @@ type Input struct {
 
 func FromRunResult(db *database.DB, result *multiagent.RunResult, in Input) Decision {
 	if result != nil {
+		if in.Status == "" && result.RuntimeStatus != "" {
+			in.Status = result.RuntimeStatus
+		}
+		if in.CompletionReason == "" && result.RuntimeCompletionReason != "" {
+			in.CompletionReason = result.RuntimeCompletionReason
+		}
 		if strings.TrimSpace(in.Response) == "" {
 			in.Response = result.Response
 		}

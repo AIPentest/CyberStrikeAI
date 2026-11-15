@@ -29,7 +29,7 @@ c2:
   enabled: false
 multi_agent:
   enabled: true
-  eino_skills:
+  skills:
     filesystem_tools: true
 ```
 
@@ -91,7 +91,7 @@ knowledge:
     top_k: 5
     similarity_threshold: 0.4
 multi_agent:
-  eino_skills:
+  skills:
     filesystem_tools: false
 ```
 
@@ -120,11 +120,8 @@ hitl:
   tool_whitelist: [read_file, glob, grep, tool_search]
 c2:
   enabled: false
-multi_agent:
-  eino_callbacks:
-    enabled: true
-    mode: log_only
-    sse_trace_to_client: false
+agent_runtime:
+  engine: pi
 ```
 
 配合：
@@ -166,7 +163,7 @@ monitor:
 external_mcp:
   servers: {}
 multi_agent:
-  eino_middleware:
+  runtime:
     tool_search_enable: true
     tool_search_min_tools: 20
 hitl:

@@ -50,12 +50,12 @@ func TestProjectUpdateRejectsBlankNameWithoutPartialSave(t *testing.T) {
 
 func TestBatchConcurrencyEditRejectsOutOfRangeWithoutMutation(t *testing.T) {
 	m := NewBatchTaskManager(zap.NewNop())
-	q, err := m.CreateBatchQueue("original", "", "eino_single", "manual", "", "", nil, 3, []string{"hello"})
+	q, err := m.CreateBatchQueue("original", "", "single", "manual", "", "", nil, 3, []string{"hello"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, n := range []int{-1, 0, 9, 99} {
-		if err := m.UpdateQueueMetadata(q.ID, "changed", "", "eino_single", &n); err == nil {
+		if err := m.UpdateQueueMetadata(q.ID, "changed", "", "single", &n); err == nil {
 			t.Fatalf("accepted %d", n)
 		}
 		saved, _ := m.GetBatchQueue(q.ID)
@@ -64,7 +64,7 @@ func TestBatchConcurrencyEditRejectsOutOfRangeWithoutMutation(t *testing.T) {
 		}
 	}
 	for _, n := range []int{1, 8} {
-		if err := m.UpdateQueueMetadata(q.ID, "original", "", "eino_single", &n); err != nil {
+		if err := m.UpdateQueueMetadata(q.ID, "original", "", "single", &n); err != nil {
 			t.Fatal(err)
 		}
 		saved, _ := m.GetBatchQueue(q.ID)

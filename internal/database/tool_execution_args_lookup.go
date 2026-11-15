@@ -9,7 +9,7 @@ import (
 )
 
 // FindNearestToolExecutionArguments returns the arguments for the execution record
-// closest to a persisted tool_call detail. Eino can persist a tool_call with empty
+// closest to a persisted tool_call detail. Agent can persist a tool_call with empty
 // model arguments while the monitor execution row still has the real command/URL.
 func (db *DB) FindNearestToolExecutionArguments(conversationID, toolName string, at time.Time, window time.Duration) (string, map[string]interface{}, error) {
 	conversationID = strings.TrimSpace(conversationID)

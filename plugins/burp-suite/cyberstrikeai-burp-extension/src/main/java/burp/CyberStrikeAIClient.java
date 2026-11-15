@@ -40,7 +40,7 @@ final class CyberStrikeAIClient {
     }
 
     enum AgentMode {
-        EINO_SINGLE("Eino Single (ADK)", "/api/eino-agent/stream", null),
+        SINGLE("Pi Single", "/api/eino-agent/stream", null),
         DEEP("Deep (DeepAgent)", "/api/multi-agent/stream", "deep"),
         PLAN_EXECUTE("Plan-Execute", "/api/multi-agent/stream", "plan_execute"),
         SUPERVISOR("Supervisor", "/api/multi-agent/stream", "supervisor");
@@ -295,12 +295,12 @@ final class CyberStrikeAIClient {
     }
 
     void streamTest(Config cfg, String token, String message, StreamListener listener) {
-        streamTest(cfg, token, message, "", "", AgentMode.EINO_SINGLE, listener);
+        streamTest(cfg, token, message, "", "", AgentMode.SINGLE, listener);
     }
 
     void streamTest(Config cfg, String token, String message, String role, String projectId,
                     AgentMode agentMode, StreamListener listener) {
-        AgentMode mode = agentMode != null ? agentMode : AgentMode.EINO_SINGLE;
+        AgentMode mode = agentMode != null ? agentMode : AgentMode.SINGLE;
         String urlStr = cfg.baseUrl + mode.streamPath;
 
         Map<String, Object> payload = new HashMap<>();

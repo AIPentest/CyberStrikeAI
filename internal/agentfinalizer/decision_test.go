@@ -63,7 +63,7 @@ func TestDecideBlocksAwaitingHITLAndEmptyCandidate(t *testing.T) {
 		t.Fatalf("HITL decision mismatch: %+v", hitl)
 	}
 
-	empty := Decide(nil, Input{Response: "⚠️ Eino 执行完成，但未捕获到助手文本输出。"})
+	empty := Decide(nil, Input{Response: "⚠️ Agent 执行完成，但未捕获到助手文本输出。"})
 	if empty.Finalizable || empty.Status != StatusBlocked || empty.CompletionReason != ReasonEmptyResponse {
 		t.Fatalf("empty candidate decision mismatch: %+v", empty)
 	}

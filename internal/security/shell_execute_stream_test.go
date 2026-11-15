@@ -7,14 +7,12 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/cloudwego/eino/adk/filesystem"
 )
 
-func TestEinoStreamingShell_StreamsStderrBeforeStdoutEOF(t *testing.T) {
-	shell := NewEinoStreamingShell()
+func TestStreamingShell_StreamsStderrBeforeStdoutEOF(t *testing.T) {
+	shell := NewStreamingShell()
 	cmd := PrepareNonInteractiveShellCommand("echo err-only >&2; exit 1")
-	sr, err := shell.ExecuteStreaming(context.Background(), &filesystem.ExecuteRequest{Command: cmd})
+	sr, err := shell.ExecuteStreaming(context.Background(), &ShellExecuteRequest{Command: cmd})
 	if err != nil {
 		t.Fatalf("ExecuteStreaming: %v", err)
 	}
@@ -42,8 +40,8 @@ func TestEinoStreamingShell_StreamsStderrBeforeStdoutEOF(t *testing.T) {
 	}
 }
 
-func TestEinoStreamingShell_SudoFailsFast(t *testing.T) {
-	shell := NewEinoStreamingShell()
+func TestStreamingShell_SudoFailsFast(t *testing.T) {
+	shell := NewStreamingShell()
 	// Exercise stderr delivery and failure propagation without relying on the
 	// host's sudo policy: CI runners may allow passwordless sudo, even as root.
 	// A shell function also prevents this test from invoking the real sudo.
@@ -57,7 +55,7 @@ sudo whoami && printf '%s\n' 'unexpected-command-success'
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	start := time.Now()
-	sr, err := shell.ExecuteStreaming(ctx, &filesystem.ExecuteRequest{Command: cmd})
+	sr, err := shell.ExecuteStreaming(ctx, &ShellExecuteRequest{Command: cmd})
 	if err != nil {
 		t.Fatalf("ExecuteStreaming: %v", err)
 	}
@@ -99,14 +97,14 @@ sudo whoami && printf '%s\n' 'unexpected-command-success'
 	}
 }
 
-func TestEinoStreamingShell_StderrWhileStdoutBlocks(t *testing.T) {
-	shell := NewEinoStreamingShell()
+func TestStreamingShell_StderrWhileStdoutBlocks(t *testing.T) {
+	shell := NewStreamingShell()
 	// 模拟 sudo：stderr 先有输出，stdout 侧进程仍挂起；旧 eino local 在首包 stderr 前不会向流写任何内容。
 	cmd := PrepareNonInteractiveShellCommand(`echo "password prompt" >&2; sleep 30`)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	sr, err := shell.ExecuteStreaming(ctx, &filesystem.ExecuteRequest{Command: cmd})
+	sr, err := shell.ExecuteStreaming(ctx, &ShellExecuteRequest{Command: cmd})
 	if err != nil {
 		t.Fatalf("ExecuteStreaming: %v", err)
 	}
@@ -137,14 +135,14 @@ func TestEinoStreamingShell_StderrWhileStdoutBlocks(t *testing.T) {
 	}
 }
 
-// TestEinoStreamingShell_BackgroundJobDoesNotHoldPipe 模拟 cmd & 后继续前台逻辑：重定向后应快速结束。
-func TestEinoStreamingShell_BackgroundJobDoesNotHoldPipe(t *testing.T) {
+// TestStreamingShell_BackgroundJobDoesNotHoldPipe 模拟 cmd & 后继续前台逻辑：重定向后应快速结束。
+func TestStreamingShell_BackgroundJobDoesNotHoldPipe(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping shell integration in -short")
 	}
-	shell := NewEinoStreamingShell()
+	shell := NewStreamingShell()
 	cmd := `(sh -c 'printf x; sleep 120') & echo started; sleep 0`
-	sr, err := shell.ExecuteStreaming(context.Background(), &filesystem.ExecuteRequest{Command: cmd})
+	sr, err := shell.ExecuteStreaming(context.Background(), &ShellExecuteRequest{Command: cmd})
 	if err != nil {
 		t.Fatalf("ExecuteStreaming: %v", err)
 	}

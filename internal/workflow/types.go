@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-// WorkflowInput is the typed entry for Eino compose.Workflow[I,O].
+// WorkflowInput is the typed entry for Agent compose.Workflow[I,O].
 type WorkflowInput struct {
 	Message         string `json:"message"`
 	ConversationID  string `json:"conversationId"`
@@ -18,7 +18,7 @@ type WorkflowInput struct {
 // WorkflowOutput aggregates terminal node payloads keyed by canvas node id.
 type WorkflowOutput map[string]any
 
-// WorkflowNodeOutput is the per-node lambda payload (alias for Eino edge type alignment).
+// WorkflowNodeOutput is the per-node lambda payload (alias for Agent edge type alignment).
 type WorkflowNodeOutput = map[string]interface{}
 
 func workflowInputFromMap(m map[string]interface{}) WorkflowInput {

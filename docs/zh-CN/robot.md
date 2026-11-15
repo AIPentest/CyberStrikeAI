@@ -603,4 +603,4 @@ curl -X POST "http://localhost:8080/api/robot/test" \
 - 各平台均**仅处理文本消息**；其他类型（如图片、语音）会提示暂不支持或忽略。  
 - 个人微信仅支持**私聊**，不支持群聊 @ 机器人。  
 - 会话与 Web 端共用同一套数据：`user_binding` 下归属于绑定用户；`service_account` 下归属于服务账号，并由白名单发送者共享。  
-- 机器人执行与 **Eino 单/多代理** 相同逻辑（`ProcessMessageForRobot`，含进度回调与过程详情入库），仅不向客户端推送 SSE，最后一次性回复个人微信/钉钉/飞书/企业微信。默认 `robot_default_agent_mode: eino_single`。
+- 机器人执行与 **Pi 单/多代理** 相同逻辑（`ProcessMessageForRobot`，含进度回调与过程详情入库），仅不向客户端推送 SSE，最后一次性回复个人微信/钉钉/飞书/企业微信。默认 `robot_default_agent_mode: single`。

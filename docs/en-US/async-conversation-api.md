@@ -1,6 +1,6 @@
 # Asynchronous conversations
 
-Submit to `POST /api/eino-agent/runs` or `POST /api/multi-agent/runs` with the corresponding synchronous request body and a required `Idempotency-Key` header (1–200 bytes). Multi-agent execution must be enabled. Omit conversationId to create a conversation, or supply an existing accessible conversation.
+Submit to `POST /api/agent/runs` or `POST /api/multi-agent/runs` with the corresponding synchronous request body and a required `Idempotency-Key` header (1–200 bytes). Multi-agent execution must be enabled. Omit conversationId to create a conversation, or supply an existing accessible conversation.
 
 A 202 receipt contains runId, conversationId, assistantMessageId, status and statusUrl. The Location header points to statusUrl. After acceptance the client may disconnect; execution has its own 600-minute budget. Individual model and tool limits still apply.
 

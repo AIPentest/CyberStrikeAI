@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const modelTokenUsageEventType = "eino_usage_summary"
+const modelTokenUsageEventType = "agent_usage_summary"
 
 // ModelTokenUsage records one model-usage summary emitted by an Agent run.
 type ModelTokenUsage struct {
@@ -188,7 +188,7 @@ func usageInt64(v interface{}) int64 {
 }
 
 func (db *DB) maybeRecordModelTokenUsage(messageID, conversationID, processDetailID, eventType string, data interface{}) {
-	if db == nil || eventType != modelTokenUsageEventType {
+	if db == nil || (eventType != modelTokenUsageEventType && eventType != "eino_usage_summary") {
 		return
 	}
 	usage, ok := modelTokenUsageFromProcessDetail(messageID, conversationID, processDetailID, data)
@@ -268,8 +268,8 @@ func (db *DB) BackfillModelTokenUsageFromProcessDetails() error {
 SELECT pd.id, pd.message_id, pd.conversation_id, pd.data, pd.created_at
 FROM process_details pd
 LEFT JOIN model_token_usage mtu ON mtu.process_detail_id = pd.id
-WHERE pd.event_type = ?
-	AND (mtu.id IS NULL OR mtu.created_at != pd.created_at)`, modelTokenUsageEventType)
+WHERE pd.event_type IN (?, ?)
+	AND (mtu.id IS NULL OR mtu.created_at != pd.created_at)`, modelTokenUsageEventType, "eino_usage_summary")
 	if err != nil {
 		return fmt.Errorf("查询历史模型Token用量失败: %w", err)
 	}

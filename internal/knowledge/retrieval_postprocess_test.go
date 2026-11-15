@@ -4,12 +4,10 @@ import (
 	"testing"
 
 	"cyberstrike-ai/internal/config"
-
-	"github.com/cloudwego/eino/schema"
 )
 
-func doc(id, content string, score float64) *schema.Document {
-	d := &schema.Document{ID: id, Content: content, MetaData: map[string]any{metaKBItemID: "it1"}}
+func doc(id, content string, score float64) *Document {
+	d := &Document{ID: id, Content: content, MetaData: map[string]any{metaKBItemID: "it1"}}
 	d.WithScore(score)
 	return d
 }
@@ -18,7 +16,7 @@ func TestDedupeByNormalizedContent(t *testing.T) {
 	a := doc("1", "hello   world", 0.9)
 	b := doc("2", "hello world", 0.8)
 	c := doc("3", "other", 0.7)
-	out := dedupeByNormalizedContent([]*schema.Document{a, b, c})
+	out := dedupeByNormalizedContent([]*Document{a, b, c})
 	if len(out) != 2 {
 		t.Fatalf("len=%d want 2", len(out))
 	}
@@ -44,7 +42,7 @@ func TestApplyPostRetrieveTruncateAndTopK(t *testing.T) {
 	d2 := doc("2", "cd", 0.8)
 	d3 := doc("3", "ef", 0.7)
 	po := &config.PostRetrieveConfig{MaxContextChars: 3}
-	out, err := ApplyPostRetrieve([]*schema.Document{d1, d2, d3}, po, "gpt-4", 5)
+	out, err := ApplyPostRetrieve([]*Document{d1, d2, d3}, po, "gpt-4", 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +50,7 @@ func TestApplyPostRetrieveTruncateAndTopK(t *testing.T) {
 		t.Fatalf("got %#v", out)
 	}
 
-	out2, err := ApplyPostRetrieve([]*schema.Document{d1, d2, d3}, nil, "gpt-4", 2)
+	out2, err := ApplyPostRetrieve([]*Document{d1, d2, d3}, nil, "gpt-4", 2)
 	if err != nil {
 		t.Fatal(err)
 	}

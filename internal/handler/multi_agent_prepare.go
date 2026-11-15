@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// multiAgentPrepared 多代理请求在调用 Eino 前的会话与消息准备结果。
+// multiAgentPrepared 多代理请求在调用 Agent 前的会话与消息准备结果。
 type multiAgentPrepared struct {
 	ConversationID     string
 	CreatedNew         bool
@@ -30,7 +30,7 @@ func chatRequestAgentMode(req *ChatRequest, source string) string {
 	if strings.HasPrefix(strings.TrimSpace(source), "multi_agent") {
 		return config.NormalizeMultiAgentOrchestration(req.Orchestration)
 	}
-	return "eino_single"
+	return "single"
 }
 
 func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context, source string) (*multiAgentPrepared, error) {

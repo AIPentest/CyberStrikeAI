@@ -238,13 +238,13 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 	h.activateHITLForConversation(conversationID, hitlReq)
 	defer h.hitlManager.DeactivateConversation(conversationID)
 	taskCtx = multiagent.WithHITLToolInterceptor(taskCtx, func(ctx context.Context, toolName, arguments string) (string, error) {
-		return h.interceptHITLForEinoTool(ctx, cancelWithCause, conversationID, assistantMessageID, sendEvent, toolName, arguments)
+		return h.interceptHITLForAgentTool(ctx, cancelWithCause, conversationID, assistantMessageID, sendEvent, toolName, arguments)
 	})
 
 	progressCallback := h.createProgressCallback(taskCtx, cancelWithCause, conversationID, assistantMessageID, sendEvent)
 	taskCtx = mcp.WithMCPConversationID(taskCtx, conversationID)
 	taskCtx = mcp.WithToolRunRegistry(taskCtx, h.tasks)
-	taskCtx = mcp.WithEinoExecuteRunRegistry(taskCtx, h.tasks)
+	taskCtx = mcp.WithAgentExecuteRunRegistry(taskCtx, h.tasks)
 
 	useBatchMulti := false
 	batchOrch := "deep"
@@ -252,7 +252,7 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 	if am == "multi" {
 		am = "deep"
 	}
-	if batchQueueWantsEino(queue.AgentMode) && h.config != nil && h.config.MultiAgent.Enabled {
+	if batchQueueWantsAgent(queue.AgentMode) && h.config != nil && h.config.MultiAgent.Enabled {
 		useBatchMulti = true
 		batchOrch = config.NormalizeMultiAgentOrchestration(am)
 	} else if queue.AgentMode == "" && h.config != nil && h.config.MultiAgent.Enabled && h.config.MultiAgent.BatchUseMultiAgent {
@@ -262,19 +262,19 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 	if useBatchMulti {
 		_ = h.db.SetConversationAgentMode(conversationID, batchOrch)
 	} else {
-		_ = h.db.SetConversationAgentMode(conversationID, "eino_single")
+		_ = h.db.SetConversationAgentMode(conversationID, "single")
 	}
 
 	var resultMA *multiagent.RunResult
 	var runErr error
 	switch {
 	case useBatchMulti:
-		resultMA, runErr = multiagent.RunDeepAgent(taskCtx, h.config, &h.config.MultiAgent, h.agent, h.db, h.logger, conversationID, h.conversationProjectID(conversationID), finalMessage, []agent.ChatMessage{}, roleTools, progressCallback, h.agentsMarkdownDir, batchOrch, nil, h.agentSessionContextBlock(conversationID))
+		resultMA, runErr = multiagent.RunMultiAgent(taskCtx, h.config, &h.config.MultiAgent, h.agent, h.db, h.logger, conversationID, h.conversationProjectID(conversationID), finalMessage, []agent.ChatMessage{}, roleTools, progressCallback, h.agentsMarkdownDir, batchOrch, nil, h.agentSessionContextBlock(conversationID))
 	default:
 		if h.config == nil {
 			runErr = fmt.Errorf("服务器配置未加载")
 		} else {
-			resultMA, runErr = multiagent.RunEinoSingleChatModelAgent(taskCtx, h.config, &h.config.MultiAgent, h.agent, h.db, h.logger, conversationID, h.conversationProjectID(conversationID), finalMessage, []agent.ChatMessage{}, roleTools, progressCallback, nil, h.agentSessionContextBlock(conversationID))
+			resultMA, runErr = multiagent.RunSingleAgent(taskCtx, h.config, &h.config.MultiAgent, h.agent, h.db, h.logger, conversationID, h.conversationProjectID(conversationID), finalMessage, []agent.ChatMessage{}, roleTools, progressCallback, nil, h.agentSessionContextBlock(conversationID))
 		}
 	}
 
@@ -298,9 +298,9 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 	lastIn := resultMA.LastAgentTraceInput
 	lastOut := resultMA.LastAgentTraceOutput
 	reasoningContent := multiagent.AggregatedReasoningFromTraceJSON(lastIn)
-	agentMode := "batch_eino_single"
+	agentMode := "batch_single"
 	if useBatchMulti {
-		agentMode = "batch_eino_" + batchOrch
+		agentMode = "batch_agent_" + batchOrch
 	}
 	decision := h.decideAgentRunForDeliveryWithPolicy(conversationID, assistantMessageID, agentMode, resultMA, mcpIDs, false)
 	autoCancelledPendingExecutionIDs := h.cleanupPendingToolExecutionsAfterIteration(taskCtx, conversationID, decision, progressCallback)
@@ -372,8 +372,8 @@ func (h *AgentHandler) handleBatchSubTaskRunError(
 	runErr error,
 	finishStatus *string,
 ) {
-	if shouldPersistEinoAgentTraceAfterRunError(baseCtx) {
-		h.persistEinoAgentTraceForResume(conversationID, resultMA)
+	if shouldPersistAgentAgentTraceAfterRunError(baseCtx) {
+		h.persistAgentAgentTraceForResume(conversationID, resultMA)
 	}
 	errStr := runErr.Error()
 	partialResp := ""
@@ -416,7 +416,7 @@ func (h *AgentHandler) handleBatchSubTaskRunError(
 	}
 
 	h.logger.Error("批量任务执行失败", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID), zap.Error(runErr))
-	clientErr := multiagent.EinoClientRunErrorMessage(runErr)
+	clientErr := multiagent.ClientRunErrorMessage(runErr)
 	errorMsg := "执行失败: " + clientErr
 	if assistantMessageID != "" {
 		if _, updateErr := h.db.Exec(

@@ -10,7 +10,7 @@
 - Python：部分 MCP 服务或工具脚本需要 Python 运行环境。
 - SQLite：默认使用文件型数据库，无需单独服务。
 - 安全工具：`tools/` 中的 YAML 只是工具定义，实际命令如 `nmap`、`sqlmap`、`nuclei` 仍需安装到系统 PATH。
-- 模型服务：至少配置一个 `ai.channels` 通道；`provider: openai_compatible` 适用于 OpenAI 兼容 API，`provider: claude` 使用 Eino 原生 Claude 组件。
+- 模型服务：至少配置一个 `ai.channels` 通道；`provider: openai_compatible` 适用于 OpenAI 兼容 API，`provider: claude` 使用 Pi 原生 Claude 组件。
 
 建议目录：
 
@@ -42,6 +42,8 @@ https://127.0.0.1:8080/
 ```
 
 自签证书会触发浏览器安全提示，这是本地测试的正常现象。生产环境建议配置真实证书。
+
+自动生成的证书和私钥保存在配置目录下的 `data/tls/self-signed.pem`，后续启动和一键更新都会复用。首次从内存自签版本升级时会生成新的证书。需要轮换时，先停止服务并移走此文件，下次启动会生成新的证书。
 
 `run.sh` 是最常用的启动入口，适合：
 
@@ -171,7 +173,7 @@ sudo journalctl -u cyberstrikeai -f
 - `config.yaml`
 - `data/conversations.db`
 - `data/knowledge.db`
-- `data/eino-checkpoints/`
+- `data/pi-sessions/`
 - 自定义 `tools/roles/skills/agents/knowledge_base`
 - 上传文件目录 `chat_uploads/`
 
@@ -189,9 +191,10 @@ SQLite 热备份时最好先停止服务，或至少复制 `*.db`、`*.db-wal`�
 并被页面标出，装好 go 后再点一次「一键更新」即补编译。
 细节见 [开发者指南](developer-guide.md) 的「一键更新」一节。
 
-检测到 systemd/launchd（环境里有对应启动标记）时，"更新完成后退出进程"默认勾选：更新成功后进程退出、
-由守护拉起新二进制，页面会在服务回来时自动刷新（会话在内存里，需要重新登录一次）。忘勾、或在命令行
-换过二进制时，控制台顶部有常驻横幅和「立即重启服务」补上这一步——不必再登录服务器手动重启。
+在 macOS/Linux 上，从配置文件同目录的 `cyberstrike-ai` 启动时，点击「一键更新」后，控制台在构建成功时自动切换到新二进制。
+构建期间旧服务继续提供服务；切换时连接会短暂中断，页面在新服务应答后自动刷新并沿用仍然有效的登录会话。
+这一步不依赖 systemd 或 launchd；长期部署仍建议用守护进程做开机自启和异常恢复。通过 API 或命令行换过
+二进制后，可以在支持自动切换的安装上用控制台的「立即重启服务」启用磁盘上的版本。
 
 更新源是 `config.yaml` `update` 段里的**一个仓库地址**（`repo`），也可以直接在控制台「一键更新」页填写保存：
 想跟随官方仓库、自己的二开、别人的二开或镜像，改的都是这一处；不写就是官方仓库。**用 Release 包解压安装、
@@ -253,7 +256,7 @@ Python 依赖方面：`venv/` 由 `run.sh` 自动创建和管理，保留它就�
 
 - 可替换：二进制、`web/`、默认 `tools/roles/skills/agents/docs`。
 - 必须保留：`config.yaml`、`data/`、自定义工具/角色/技能/子代理、`knowledge_base/`、`chat_uploads/`。
-- 可清理但要谨慎：`data/eino-checkpoints/`、临时 workspace、旧 payload、旧工具执行记录。
+- `data/pi-sessions/` 是会话数据，应与数据库共同备份，通过对话删除机制清理，不能当作缓存直接删除。临时 workspace、旧 payload 和工具记录按保留策略处理。
 
 升级时如果覆盖整个目录，应先把自定义目录和 `data/` 移出或备份。很多“升级后配置丢了”的问题，本质是把运行态文件当成发布包的一部分覆盖掉。
 

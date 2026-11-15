@@ -10,7 +10,7 @@ CyberStrikeAI can run as a local testing tool, an internal team service, or a pr
 - Python for some MCP servers and tool scripts.
 - SQLite files under `data/`; no external DB is required by default.
 - Actual security tools installed in PATH. YAML files under `tools/` only describe commands.
-- At least one `ai.channels` entry. Use `provider: openai_compatible` for OpenAI-compatible endpoints, or `provider: claude` for Eino's native Claude component.
+- At least one `ai.channels` entry. Use `provider: openai_compatible` for OpenAI-compatible endpoints, or `provider: claude` for Pi's native Claude component.
 
 Important persistent paths:
 
@@ -64,6 +64,8 @@ server:
   tls_auto_self_sign: true
 ```
 
+The generated certificate and private key are saved in `data/tls/self-signed.pem` under the configuration directory and reused across restarts and updates. The first upgrade from an in-memory certificate generates a new certificate. To rotate it, stop the service and move the file aside before starting again.
+
 For production, use real certificates or terminate TLS at a reverse proxy. If the proxy terminates TLS and forwards HTTP to the app, avoid enabling app-side TLS on the same upstream unless `proxy_pass` uses HTTPS.
 
 Nginx must not buffer SSE:
@@ -87,11 +89,12 @@ data/ config.yaml` - is put aside and restored, and the result names every file 
 is modified locally or the local history has diverged from the source it refuses and says why
 instead of forcing. See [the developer guide](developer-guide.md) for the full semantics.
 
-When a supervisor is detected (systemd/launchd startup markers in the environment), the "exit after
-updating" tick is pre-ticked: the process stands down after a successful update, the supervisor brings
-the new binary back, and the page reloads itself once the service answers (sessions live in memory, so
-one fresh login follows). Forgot the tick, or swapped the binary from the CLI? The console carries a
-persistent banner with **Restart now** - no shell login needed.
+On macOS and Linux, when started from the `cyberstrike-ai` binary alongside its config, the console
+defaults to switching to the new binary after a successful build. The old service remains available
+during the build. Connections briefly drop at the switch and the page reloads when the new service
+answers. Sign in again afterward because sessions live in memory. A supervisor is still useful for
+starting at boot and recovering from crashes. If you defer the switch or replace the binary from the
+CLI, the console offers **Restart now** on installations that support the switch.
 
 The update source is a single repository address in the `update` section of `config.yaml` (`repo`),
 or right on the console page: the official repository, your own fork, somebody else's repository or a

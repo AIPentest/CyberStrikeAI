@@ -14,7 +14,7 @@ func TestWorkflowAgentProgressForwardsToolActivityWithNodeIdentity(t *testing.T)
 		}
 	}, state, node)
 	for _, kind := range []string{"iteration", "tool_call", "tool_result"} {
-		callback(kind, "test-only activity", map[string]interface{}{"iteration": 1, "einoScope": "main"})
+		callback(kind, "test-only activity", map[string]interface{}{"iteration": 1, "agentScope": "main"})
 	}
 	for _, kind := range []string{"response_start", "response_delta", "response", "done"} {
 		callback(kind, "", nil)

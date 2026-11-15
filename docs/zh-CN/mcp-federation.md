@@ -93,7 +93,7 @@ HTTP 或 SSE MCP 适合远端或长期运行服务。
 
 ```yaml
 multi_agent:
-  eino_middleware:
+  runtime:
     tool_search_enable: true
     tool_search_min_tools: 20
     tool_search_always_visible: 12
@@ -184,6 +184,6 @@ cloud_list_public_buckets
 
 - 外部 MCP Manager：`internal/mcp/external_manager.go`
 - 连接恢复：`internal/mcp/connection_recovery.go`
-- MCP 工具适配：`internal/einomcp/mcp_tools.go`
+- MCP 工具适配：`internal/agentruntime/mcp_tools.go`
 - 外部 MCP Handler：`internal/handler/external_mcp.go`
-- 工具调用通知：`internal/einomcp/tool_invoke_notify.go`
+- 工具调用通知：`internal/agentruntime/tool_invoke_notify.go`

@@ -652,7 +652,7 @@ async function editSkill(skillId) {
     }
 }
 
-// 查看 skill：先摘要再按需拉全文（与多代理 Eino skill 渐进披露思路一致）
+// 查看 skill：先摘要再按需拉全文（与多代理 Pi skill 渐进披露思路一致）
 async function viewSkill(skillId) {
     try {
         const sumRes = await apiFetch(`/api/skills/${encodeURIComponent(skillId)}?depth=summary`);

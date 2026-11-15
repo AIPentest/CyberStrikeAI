@@ -265,8 +265,8 @@ SSRF 如何验证云元数据访问？
 
 - 知识管理：`internal/knowledge/manager.go`
 - 索引流水线：`internal/knowledge/index_pipeline.go`
-- Eino chunk：`internal/knowledge/chunk_eino.go`
+- 原生分块：`internal/knowledge/splitter.go`
 - 检索器：`internal/knowledge/retriever.go`
-- Eino 检索链：`internal/knowledge/eino_retrieve_chain.go`
+- 原生检索链：`internal/knowledge/retrieve_chain.go`
 - rerank：`internal/knowledge/rerank_http.go`
 - MCP 工具：`internal/knowledge/tool.go`

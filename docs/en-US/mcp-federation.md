@@ -81,6 +81,6 @@ Before connecting an external MCP, ask:
 
 - External manager: `internal/mcp/external_manager.go`
 - Recovery: `internal/mcp/connection_recovery.go`
-- Tool adapter: `internal/einomcp/mcp_tools.go`
+- Tool adapter: `internal/agentruntime/mcp_tools.go`
 - Handler: `internal/handler/external_mcp.go`
-- Invoke notification: `internal/einomcp/tool_invoke_notify.go`
+- Invoke notification: `internal/agentruntime/tool_invoke_notify.go`

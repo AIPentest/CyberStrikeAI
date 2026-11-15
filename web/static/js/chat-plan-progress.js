@@ -1,7 +1,7 @@
 (function (root) {
     'use strict';
 
-    const PLAN_TOOL_NAMES = new Set(['taskcreate', 'taskupdate', 'tasklist', 'taskget']);
+    const PLAN_TOOL_NAMES = new Set(['taskcreate', 'taskupdate', 'tasklist', 'taskget', 'write_todos']);
     const ACTIVE_POLL_INTERVAL_MS = 1500;
     const ERROR_RETRY_INTERVAL_MS = 4000;
     const FINAL_STATE_HOLD_MS = 2400;

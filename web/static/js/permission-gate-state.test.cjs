@@ -91,7 +91,7 @@ test('every control the update page disables by state carries the marker the gat
 		console,
 		escapeHtml: (v) => String(v),
 		updateT: (key) => key,
-		renderUpdateRestartChoice: () => '',
+		renderUpdateSwitchHint: () => '',
 		renderUpdateChangesTable: () => '<div class="update-changes"></div>',
 		isUpdateJobRunning: () => true,
 		updateApplyBlockers: (status) => (status.blockingChanges || []).length ? ['blocked'] : [],

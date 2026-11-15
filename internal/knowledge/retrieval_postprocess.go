@@ -12,7 +12,6 @@ import (
 
 	"cyberstrike-ai/internal/config"
 
-	"github.com/cloudwego/eino/schema"
 	"github.com/pkoukk/tiktoken-go"
 )
 
@@ -21,14 +20,14 @@ const postRetrieveMaxPrefetchCap = 200
 
 // DocumentReranker 精排（HTTP dashscope / Cohere 兼容 API），由 [WireRetrieverPipeline] 注入。
 type DocumentReranker interface {
-	Rerank(ctx context.Context, query string, docs []*schema.Document) ([]*schema.Document, error)
+	Rerank(ctx context.Context, query string, docs []*Document) ([]*Document, error)
 }
 
 // NopDocumentReranker 占位实现，便于测试或未启用重排时显式注入。
 type NopDocumentReranker struct{}
 
 // Rerank implements [DocumentReranker] as no-op.
-func (NopDocumentReranker) Rerank(_ context.Context, _ string, docs []*schema.Document) ([]*schema.Document, error) {
+func (NopDocumentReranker) Rerank(_ context.Context, _ string, docs []*Document) ([]*Document, error) {
 	return docs, nil
 }
 
@@ -85,7 +84,7 @@ func normalizeContentFingerprintKey(s string) string {
 	return b.String()
 }
 
-func contentNormKey(d *schema.Document) string {
+func contentNormKey(d *Document) string {
 	if d == nil {
 		return ""
 	}
@@ -98,12 +97,12 @@ func contentNormKey(d *schema.Document) string {
 }
 
 // dedupeByNormalizedContent 按规范化正文去重，保留向量检索顺序中首次出现的文档（同正文仅保留一条）。
-func dedupeByNormalizedContent(docs []*schema.Document) []*schema.Document {
+func dedupeByNormalizedContent(docs []*Document) []*Document {
 	if len(docs) < 2 {
 		return docs
 	}
 	seen := make(map[string]struct{}, len(docs))
-	out := make([]*schema.Document, 0, len(docs))
+	out := make([]*Document, 0, len(docs))
 	for _, d := range docs {
 		if d == nil {
 			continue
@@ -123,7 +122,7 @@ func dedupeByNormalizedContent(docs []*schema.Document) []*schema.Document {
 }
 
 // truncateDocumentsByBudget 按检索顺序整段保留文档，直至字符数或 token 数（任一启用）超限则停止。
-func truncateDocumentsByBudget(docs []*schema.Document, maxRunes, maxTokens int, tokenModel string) ([]*schema.Document, error) {
+func truncateDocumentsByBudget(docs []*Document, maxRunes, maxTokens int, tokenModel string) ([]*Document, error) {
 	if len(docs) == 0 {
 		return docs, nil
 	}
@@ -135,7 +134,7 @@ func truncateDocumentsByBudget(docs []*schema.Document, maxRunes, maxTokens int,
 
 	remRunes := maxRunes
 	remTok := maxTokens
-	out := make([]*schema.Document, 0, len(docs))
+	out := make([]*Document, 0, len(docs))
 
 	for _, d := range docs {
 		if d == nil || strings.TrimSpace(d.Content) == "" {
@@ -186,7 +185,7 @@ func EffectivePrefetchTopK(topK int, po *config.PostRetrieveConfig) int {
 }
 
 // ApplyPostRetrieve 检索后处理：规范化正文去重 → 预算截断 → 最终 TopK（精排已在流水线中完成）。
-func ApplyPostRetrieve(docs []*schema.Document, po *config.PostRetrieveConfig, tokenModel string, finalTopK int) ([]*schema.Document, error) {
+func ApplyPostRetrieve(docs []*Document, po *config.PostRetrieveConfig, tokenModel string, finalTopK int) ([]*Document, error) {
 	if finalTopK < 1 {
 		finalTopK = 5
 	}

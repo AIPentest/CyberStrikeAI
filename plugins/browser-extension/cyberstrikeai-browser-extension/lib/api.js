@@ -1,5 +1,5 @@
 const AGENT_MODES = [
-  { id: 'eino_single', label: 'Eino Single (ADK)', path: '/api/eino-agent/stream' },
+  { id: 'single', label: 'Pi Single', path: '/api/eino-agent/stream' },
   { id: 'deep', label: 'Deep (DeepAgent)', path: '/api/multi-agent/stream', orchestration: 'deep' },
   { id: 'plan_execute', label: 'Plan-Execute', path: '/api/multi-agent/stream', orchestration: 'plan_execute' },
   { id: 'supervisor', label: 'Supervisor', path: '/api/multi-agent/stream', orchestration: 'supervisor' },

@@ -6,12 +6,12 @@ import (
 	"cyberstrike-ai/internal/database"
 )
 
-// WebshellSkillHintDefault 对话页 / Eino 单代理共用的 Skills 说明，放在 webshell 上下文末尾，
+// WebshellSkillHintDefault 对话页 / Agent 单代理共用的 Skills 说明，放在 webshell 上下文末尾，
 // 供 AI 选择 skill 加载入口时参考。
-const WebshellSkillHintDefault = "Skills 包请使用「多代理 / Eino DeepAgent」会话中的内置 `skill` 工具渐进加载。"
+const WebshellSkillHintDefault = "Skills 包请使用「多代理 / Agent DeepAgent」会话中的内置 `skill` 工具渐进加载。"
 
-// WebshellSkillHintMultiAgent 多代理 / Eino 多代理准备阶段使用的 Skills 说明
-const WebshellSkillHintMultiAgent = "Skills 包请使用 Eino 多代理内置 `skill` 工具。"
+// WebshellSkillHintMultiAgent 多代理 / Agent 多代理准备阶段使用的 Skills 说明
+const WebshellSkillHintMultiAgent = "Skills 包请使用 Agent 多代理内置 `skill` 工具。"
 
 // webshellAssistantToolList AI 助手在 WebShell 上下文下允许使用的工具清单（展示给模型用）。
 // 注意：此处只是展示字符串，真正的权限限制是在调用方设置的 roleTools 切片里。

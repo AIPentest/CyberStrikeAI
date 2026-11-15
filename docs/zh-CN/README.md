@@ -12,7 +12,7 @@
 ## 核心概念与编排
 
 - [架构说明](architecture.md) · [安全模型](security-model.md) · [RBAC](rbac.md)
-- [Agent 与角色](agent-and-role-guide.md) · [Skills](skills-guide.md) · [Eino 多代理](MULTI_AGENT_EINO.md) · [Agent 最终回复治理](agent-finalization-best-practices.md)
+- [Agent 与角色](agent-and-role-guide.md) · [Skills](skills-guide.md) · [Pi 多代理](MULTI_AGENT_PI.md) · [Agent 最终回复治理](agent-finalization-best-practices.md)
 - [黑板与上下文记忆](blackboard-context-memory.md)
 - [调用拦截规则](tool-call-guard.md)
 - [工作流](workflow-graph.md) · [工具执行治理](tool-execution-governance.md) · [人机协同最佳实践](hitl-best-practices.md)
@@ -33,3 +33,5 @@
 
 - [开发者指南](developer-guide.md) · [插件开发](plugin-development.md) · [前端国际化](frontend-i18n.md)
 - [测试指南](testing.md) · [贡献规范](contributing-guide.md) · [发布流程](release-process.md)
+
+- [Pi 原生运行时与迁移](pi-runtime.md)

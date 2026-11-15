@@ -5,21 +5,19 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-
-	"github.com/cloudwego/eino/compose"
 )
 
 type compiledArtifact struct {
-	runnable compose.Runnable[WorkflowInput, WorkflowOutput]
-	idx      *graphIndex
-	hitlIDs  []string
+	order   []string
+	idx     *graphIndex
+	hitlIDs []string
 }
 
-// Engine compiles and caches Eino Workflow artifacts.
+// Engine compiles and caches Agent Workflow artifacts.
 type Engine struct {
 	mu            sync.RWMutex
 	cache         map[string]*compiledArtifact
-	cpStore       compose.CheckPointStore
+	cpStore       *fileCheckPointStore
 	cpStoreMu     sync.Once
 	cpStoreErr    error
 	checkpointDir string
@@ -40,7 +38,7 @@ func SetCheckpointDir(dir string) {
 	defaultEngine.cpStoreMu = sync.Once{}
 }
 
-func (e *Engine) checkpointStore() (compose.CheckPointStore, error) {
+func (e *Engine) checkpointStore() (*fileCheckPointStore, error) {
 	e.cpStoreMu.Do(func() {
 		e.cpStore, e.cpStoreErr = newFileCheckPointStore(e.checkpointDir)
 	})
@@ -112,96 +110,35 @@ func (e *Engine) getOrCompile(ctx context.Context, workflowID string, version in
 }
 
 func (e *Engine) compile(ctx context.Context, g *graphDef) (*compiledArtifact, error) {
-	cpStore, err := e.checkpointStore()
-	if err != nil {
-		return nil, err
-	}
 	idx := indexGraph(g)
 	if err := validateGraphDefinition(g, idx); err != nil {
 		return nil, err
 	}
-	hitlIDs := collectHITLNodeIDs(idx)
-	compileOpts := []compose.GraphCompileOption{
-		compose.WithGraphName("CyberStrikeWorkflow"),
-		compose.WithCheckPointStore(cpStore),
+	indegree := map[string]int{}
+	var ready []string
+	for id := range idx.nodes {
+		indegree[id] = len(idx.incoming[id])
+		if indegree[id] == 0 {
+			ready = append(ready, id)
+		}
 	}
-	if len(hitlIDs) > 0 {
-		compileOpts = append(compileOpts, compose.WithInterruptBeforeNodes(hitlIDs))
-	}
-
-	wf := compose.NewWorkflow[WorkflowInput, WorkflowOutput](
-		compose.WithGenLocalState(func(runCtx context.Context) *WorkflowLocalState {
-			if rt := workflowRuntimeFrom(runCtx); rt != nil && rt.state != nil {
-				return rt.state
-			}
-			return &WorkflowLocalState{
-				Outputs:     make(map[string]any),
-				NodeOutputs: make(map[string]map[string]any),
-				NodeProceed: make(map[string]bool),
-			}
-		}),
-	)
-
-	nodeRefs := make(map[string]*compose.WorkflowNode, len(idx.nodes))
-	for id, node := range idx.nodes {
-		n := node
-		if strings.EqualFold(n.Type, "agent") {
-			sub, err := compileAgentSubgraph(ctx, n)
-			if err != nil {
-				return nil, fmt.Errorf("编译 Agent 子图 %s 失败: %w", id, err)
-			}
-			nodeRefs[id] = wf.AddGraphNode(id, sub)
-			continue
-		}
-		if strings.EqualFold(n.Type, "start") {
-			nodeRefs[id] = wf.AddLambdaNode(id, compose.InvokableLambda(func(runCtx context.Context, _ WorkflowInput) (WorkflowNodeOutput, error) {
-				return runWorkflowNodeLambda(runCtx, n)
-			}))
-			continue
-		}
-		nodeRefs[id] = wf.AddLambdaNode(id, compose.InvokableLambda(func(runCtx context.Context, _ WorkflowNodeOutput) (WorkflowNodeOutput, error) {
-			return runWorkflowNodeLambda(runCtx, n)
-		}))
-	}
-
-	for id, node := range idx.nodes {
-		if strings.EqualFold(node.Type, "condition") {
-			if err := wireConditionBranch(wf, nodeRefs, idx, id, node); err != nil {
-				return nil, err
-			}
-			continue
-		}
-		if hasConditionalOutgoingEdges(idx, id) {
-			if err := wireEdgeConditionBranch(wf, nodeRefs, idx, id, node); err != nil {
-				return nil, err
-			}
-			continue
-		}
+	var order []string
+	for len(ready) > 0 {
+		sortNodeIDsByCanvas(ready, idx.nodes)
+		id := ready[0]
+		ready = ready[1:]
+		order = append(order, id)
 		for _, edge := range idx.outgoing[id] {
-			if target, ok := nodeRefs[edge.Target]; ok {
-				target.AddInput(id)
+			indegree[edge.Target]--
+			if indegree[edge.Target] == 0 {
+				ready = append(ready, edge.Target)
 			}
 		}
 	}
-
-	for _, startID := range findStartNodeIDs(idx) {
-		if ref, ok := nodeRefs[startID]; ok {
-			ref.AddInput(compose.START)
-		}
+	if len(order) != len(idx.nodes) {
+		return nil, fmt.Errorf("workflow contains a cycle")
 	}
-
-	endNode := wf.End()
-	for id, node := range idx.nodes {
-		if len(idx.outgoing[id]) == 0 || strings.EqualFold(node.Type, "end") {
-			endNode.AddInput(id, compose.ToField(id))
-		}
-	}
-
-	runnable, err := wf.Compile(ctx, compileOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return &compiledArtifact{runnable: runnable, idx: idx, hitlIDs: hitlIDs}, nil
+	return &compiledArtifact{order: order, idx: idx, hitlIDs: collectHITLNodeIDs(idx)}, nil
 }
 
 func collectHITLNodeIDs(idx *graphIndex) []string {

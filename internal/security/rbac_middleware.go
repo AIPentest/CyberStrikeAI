@@ -113,7 +113,7 @@ func permissionForRequest(method, fullPath string) string {
 		return "robot:read"
 	case strings.HasPrefix(path, "/robot"):
 		return "robot:write"
-	case strings.HasPrefix(path, "/eino-agent"), strings.HasPrefix(path, "/multi-agent"):
+	case path == "/agent", strings.HasPrefix(path, "/agent/"), strings.HasPrefix(path, "/eino-agent"), strings.HasPrefix(path, "/multi-agent"):
 		if strings.Contains(path, "/markdown-agents") {
 			return crudPermission(method, "agents")
 		}
@@ -295,7 +295,7 @@ func isProcessGlobalMutationPath(path string) bool {
 	if strings.HasPrefix(path, "/knowledge") {
 		return path != "/knowledge/search"
 	}
-	if strings.HasPrefix(path, "/eino-agent/markdown-agents") || strings.HasPrefix(path, "/multi-agent/markdown-agents") {
+	if strings.HasPrefix(path, "/agent/markdown-agents") || strings.HasPrefix(path, "/multi-agent/markdown-agents") {
 		return true
 	}
 	return false

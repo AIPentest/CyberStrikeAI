@@ -145,7 +145,7 @@ func buildSummaryMarkdown(name, description string, tags []string, scripts []Ski
 	}
 	b.WriteString("### Preview (SKILL.md)\n\n")
 	b.WriteString(truncateRunes(strings.TrimSpace(preview), summaryContentRunes))
-	b.WriteString("\n\n---\n\n_(Summary for admin UI. Agents use Eino `skill` tool for full SKILL.md progressive loading.)_")
+	b.WriteString("\n\n---\n\n_(Summary for admin UI. Agents use Agent `skill` tool for full SKILL.md progressive loading.)_")
 	if name != "" {
 		b.WriteString(fmt.Sprintf("\n\n_Skill name: %s_", name))
 	}

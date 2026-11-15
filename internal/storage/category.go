@@ -33,7 +33,7 @@ const (
 )
 
 // Paths 汇总各类别根目录。
-// 由 app 层按既有解析规则注入（与 database.SetEinoConversationDirs 使用同一批值），
+// 由 app 层按既有解析规则注入（与 database.SetAgentConversationDirs 使用同一批值），
 // 避免本包重复推导路径导致清理目录与实际写入目录不一致。
 type Paths struct {
 	Workspace            string
@@ -124,7 +124,7 @@ func categories() []category {
 		{
 			key:   config.StorageCategoryPlantask,
 			label: "计划任务看板",
-			hint:  "Eino 多代理计划看板 JSON（skills/.eino/plantask），属纯派生数据。",
+			hint:  "Agent 多代理计划看板 JSON（skills/.pi/plantask），属纯派生数据。",
 			root:  func(p Paths) string { return p.Plantask },
 			scan:  func(root string) ([]Unit, error) { return scanSessionDirs(root, ScopeConversation) },
 		},

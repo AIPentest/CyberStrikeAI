@@ -3,7 +3,7 @@ package handler
 // addAgentRunSpec reuses each synchronous request schema without changing it.
 func addAgentRunSpec(spec map[string]interface{}) {
 	paths := spec["paths"].(map[string]interface{})
-	for _, base := range []string{"/api/eino-agent", "/api/multi-agent"} {
+	for _, base := range []string{"/api/agent", "/api/multi-agent"} {
 		original := paths[base].(map[string]interface{})["post"].(map[string]interface{})
 		paths[base+"/runs"] = map[string]interface{}{"post": map[string]interface{}{
 			"tags": []string{"对话交互"}, "summary": "异步提交对话任务", "description": "接收后返回202，客户端断线不取消任务。必须提供按用户隔离的 Idempotency-Key；相同键和请求返回原回执，不同请求返回409。通过 statusUrl 查询最终结果；取消使用 /api/agent-loop/cancel。",

@@ -23,8 +23,9 @@ config.yaml.backup
 # Upgrade / settings backups
 .upgrade-backup/
 
-# Eino runtime task board (under skills_dir)
+# Agent runtime task boards (including legacy data, under skills_dir)
 skills/.eino/
+skills/.pi/
 
 # Build outputs
 cyberstrike-ai

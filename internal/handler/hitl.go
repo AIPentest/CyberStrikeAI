@@ -920,11 +920,11 @@ func (h *AgentHandler) DismissHITLInterrupt(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-func (h *AgentHandler) interceptHITLForEinoTool(runCtx context.Context, cancelRun context.CancelCauseFunc, conversationID, assistantMessageID string, sendEventFunc func(eventType, message string, data interface{}), toolName, arguments string) (string, error) {
+func (h *AgentHandler) interceptHITLForAgentTool(runCtx context.Context, cancelRun context.CancelCauseFunc, conversationID, assistantMessageID string, sendEventFunc func(eventType, message string, data interface{}), toolName, arguments string) (string, error) {
 	payload := map[string]interface{}{
 		"toolName":   toolName,
 		"arguments":  arguments,
-		"source":     "eino_middleware",
+		"source":     "pi",
 		"toolCallId": "",
 	}
 	var argsObj map[string]interface{}

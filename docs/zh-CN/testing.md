@@ -65,7 +65,7 @@ go build -o cyberstrike-ai ./cmd/server
 重点验证：
 
 - 登录。
-- `/api/eino-agent/stream`。
+- `/api/agent/stream`。
 - `/api/config`。
 - `/api/config/tools`。
 - `/api/knowledge/search`。

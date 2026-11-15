@@ -4,8 +4,6 @@ import (
 	"strings"
 
 	"cyberstrike-ai/internal/config"
-
-	einoopenai "github.com/cloudwego/eino-ext/components/model/openai"
 )
 
 // effectiveModeForModel accepts effort=none only for known native OpenAI
@@ -25,12 +23,6 @@ func effectiveModeForModel(oa *config.OpenAIConfig, client *ClientIntent) string
 		return "off"
 	}
 	return mode
-}
-
-func applyOpenAIReasoningDisabled(cfg *einoopenai.ChatModelConfig, oa *config.OpenAIConfig) {
-	if oa.SupportsOpenAIReasoningNone() {
-		cfg.ReasoningEffort = einoopenai.ReasoningEffortLevel("none")
-	}
 }
 
 func openAIReasoningDisabledFields(fields map[string]any, oa *config.OpenAIConfig) map[string]any {

@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// SummarizationRequestHeader marks chat/completion requests issued by Eino summarization
+// SummarizationRequestHeader marks chat/completion requests issued by Agent summarization
 // middleware (via model.WithExtraHeader). The diagnostic transport logs empty-choices bodies
 // only for these requests so main-agent traffic stays quiet.
 const SummarizationRequestHeader = "X-CyberStrike-Summarization"
@@ -54,14 +54,14 @@ func (rt *summarizationDiagRoundTripper) RoundTrip(req *http.Request) (*http.Res
 	resp.ContentLength = int64(len(body))
 
 	if rt.logger != nil && resp.StatusCode >= http.StatusBadRequest {
-		rt.logger.Warn("eino summarization: API request rejected",
+		rt.logger.Warn("model summarization: API request rejected",
 			zap.Int("status", resp.StatusCode),
 			zap.String("request_id", responseRequestID(resp)),
 			zap.Int("response_bytes", len(body)),
 			zap.String("raw_body", truncateForLog(string(body), summarizationDiagBodyMaxBytes)),
 		)
 	} else if rt.logger != nil && summarizationResponseEmptyChoices(body) {
-		rt.logger.Warn("eino summarization: API returned empty choices",
+		rt.logger.Warn("model summarization: API returned empty choices",
 			zap.Int("status", resp.StatusCode),
 			zap.String("request_id", responseRequestID(resp)),
 			zap.Int("response_bytes", len(body)),

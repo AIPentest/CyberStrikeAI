@@ -143,11 +143,3 @@ func findStartNodeIDs(idx *graphIndex) []string {
 	sortNodeIDsByCanvas(queue, idx.nodes)
 	return queue
 }
-
-func branchNodeID(nodeID string) string {
-	return nodeID + "__eino_branch"
-}
-
-func edgeBranchNodeID(nodeID string) string {
-	return nodeID + "__eino_edge_branch"
-}

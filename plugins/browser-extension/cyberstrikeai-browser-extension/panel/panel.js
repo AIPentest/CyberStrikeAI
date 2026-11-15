@@ -763,7 +763,7 @@ async function onValidate() {
 }
 
 function fillAgentSelect(sel, selected) {
-  fillSelect(sel, AGENT_MODES.map((m) => ({ id: m.id, label: m.label })), selected || 'eino_single');
+  fillSelect(sel, AGENT_MODES.map((m) => ({ id: m.id, label: m.label })), selected || 'single');
 }
 
 function csSelectWrap(input) {
@@ -909,7 +909,7 @@ async function onSendConfirmed() {
   const instruction = $('dlg-instruction').value.trim() || defaultInstruction();
   const projectId = $('dlg-project').value || '';
   const role = $('dlg-role').value || '';
-  const agentMode = $('dlg-agent').value || 'eino_single';
+  const agentMode = $('dlg-agent').value || 'single';
 
   try {
     await saveConfig({
@@ -986,10 +986,16 @@ function handleStreamEvent(runId, type, message, ev) {
       if (message) appendToRun(runId, 'final', message);
       break;
     case 'eino_agent_reply_stream_start':
+    case 'agent_reply_stream_start':
       appendToRun(runId, 'progress', '\n\n[Sub-agent reply]\n');
       break;
     case 'eino_agent_reply_stream_delta':
+    case 'agent_reply_stream_delta':
       if (message) appendToRun(runId, 'progress', message);
+      break;
+    case 'eino_agent_reply':
+    case 'agent_reply':
+      if (message) appendToRun(runId, 'progress', '\n\n[Sub-agent reply]\n' + message + '\n');
       break;
     case 'progress':
       appendToRun(runId, 'progress', '\n[progress] ' + message + '\n');

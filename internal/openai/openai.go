@@ -340,7 +340,7 @@ func (c *Client) ChatCompletionStreamWithToolCalls(
 		return "", nil, "", fmt.Errorf("openai api key is empty")
 	}
 	if c.isClaude() {
-		return "", nil, "", fmt.Errorf("native Claude tool-call streaming requires Eino AgenticModel")
+		return "", nil, "", fmt.Errorf("native Claude tool-call streaming requires Agent AgenticModel")
 	}
 
 	baseURL := strings.TrimSuffix(c.config.BaseURL, "/")

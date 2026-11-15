@@ -8,8 +8,6 @@ import (
 	"testing"
 
 	"cyberstrike-ai/internal/config"
-
-	"github.com/cloudwego/eino/schema"
 )
 
 func TestHTTPReranker_CohereOrder(t *testing.T) {
@@ -36,7 +34,7 @@ func TestHTTPReranker_CohereOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	docs := []*schema.Document{
+	docs := []*Document{
 		{ID: "a", Content: "alpha"},
 		{ID: "b", Content: "beta"},
 		{ID: "c", Content: "gamma"},
@@ -72,7 +70,7 @@ func TestHTTPReranker_DashScopeOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	docs := []*schema.Document{{ID: "a", Content: "a"}, {ID: "b", Content: "b"}}
+	docs := []*Document{{ID: "a", Content: "a"}, {ID: "b", Content: "b"}}
 	out, err := rr.Rerank(context.Background(), "q", docs)
 	if err != nil {
 		t.Fatal(err)

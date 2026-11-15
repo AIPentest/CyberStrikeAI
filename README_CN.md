@@ -8,7 +8,7 @@
 
 **CyberStrikeAI 是 AI 原生网络安全的智能执行中枢——让意图转化为受治理的行动，让证据沉淀为运营记忆，并让每次行动优化下一次行动。**
 
-CyberStrikeAI 将规划、执行、人工监督、证据与复盘连接在同一个可审计工作空间中。项目基于 Go 构建，融合 Eino 智能体、MCP 原生工具、RAG 知识、可视化工作流以及攻击链建模与分析能力，面向已获得明确授权的安全任务。
+CyberStrikeAI 将规划、执行、人工监督、证据与复盘连接在同一个可审计工作空间中。项目基于 Go 构建，使用 Pi 智能体，融合 MCP 原生工具、RAG 知识、可视化工作流以及攻击链建模与分析能力，面向已获得明确授权的安全任务。
 
 **从这里开始：** [快速上手](#快速上手一条命令部署) · [中文文档](docs/zh-CN/README.md) · [安全加固](docs/zh-CN/security-hardening.md)
 
@@ -109,7 +109,7 @@ CyberStrikeAI 将规划、执行、人工监督、证据与复盘连接在同一
 ### 智能体与编排
 
 - 🤖 **智能体执行层**：将自然语言意图转化为受控、可审计的安全行动。
-- 🧩 **Eino 编排**：支持单智能体及 Deep、Plan-Execute、Supervisor 多智能体模式。
+- 🧩 **Pi 编排**：支持单智能体及 Deep、Plan-Execute、Supervisor 多智能体模式。
 - 🔀 **工作流**：通过 Agent、工具、条件、审批和输出节点构建可复用流程。
 - 🎭 **角色化测试**：为常见安全场景提供聚焦的提示词和工具策略。
 
@@ -338,7 +338,7 @@ CyberStrikeAI/
 ├── web/                 # 前端静态资源与模板
 ├── tools/               # YAML 工具目录（含 100+ 示例）
 ├── roles/               # 角色配置文件目录（含 12+ 预设安全测试角色）
-├── skills/              # Agent Skills 目录（SKILL.md + 可选文件；示例 cyberstrike-eino-demo）
+├── skills/              # Agent Skills 目录（SKILL.md + 可选文件；示例 cyberstrike-pi-demo）
 ├── agents/              # 多代理 Markdown（orchestrator.md + 子代理 *.md）
 ├── docs/                # 专题文档（部署、配置、安全、API、知识库、C2、WebShell 等）
 ├── images/              # 文档配图

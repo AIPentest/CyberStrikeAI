@@ -34,7 +34,7 @@ Do work
 	if err != nil {
 		t.Fatal(err)
 	}
-	if load.Orchestrator == nil || load.Orchestrator.EinoName != "cyberstrike-deep" {
+	if load.Orchestrator == nil || load.Orchestrator.AgentName != "cyberstrike-deep" {
 		t.Fatalf("orchestrator: %+v", load.Orchestrator)
 	}
 	if len(load.SubAgents) != 1 || load.SubAgents[0].ID != "worker" {

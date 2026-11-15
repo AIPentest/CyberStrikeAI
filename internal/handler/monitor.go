@@ -59,7 +59,7 @@ func (h *MonitorHandler) SetExternalMCPManager(mgr *mcp.ExternalMCPManager) {
 	h.externalMCPMgr = mgr
 }
 
-// SetTaskManager 设置 Agent 任务管理器（用于 Eino execute 等按 executionId 终止）。
+// SetTaskManager 设置 Agent 任务管理器（用于 Agent execute 等按 executionId 终止）。
 func (h *MonitorHandler) SetTaskManager(mgr *AgentTaskManager) {
 	h.taskManager = mgr
 }
@@ -656,7 +656,7 @@ func (h *MonitorHandler) conversationIDForRunningExecution(executionID string) s
 		return ""
 	}
 	if strings.TrimSpace(exec.ToolName) == "execute" {
-		if onlyConv, ok := h.taskManager.ConversationIDForActiveEinoExecute(); ok {
+		if onlyConv, ok := h.taskManager.ConversationIDForActiveAgentExecute(); ok {
 			return onlyConv
 		}
 	}

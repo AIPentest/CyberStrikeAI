@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-// fileCheckPointStore persists Eino workflow checkpoints on disk (per run id).
+// fileCheckPointStore persists Agent workflow checkpoints on disk (per run id).
 type fileCheckPointStore struct {
 	dir string
 	mu  sync.RWMutex

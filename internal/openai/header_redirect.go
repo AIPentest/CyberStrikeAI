@@ -16,7 +16,7 @@ func customHeaderHTTPClient(base *http.Client, cfg *config.OpenAIConfig) *http.C
 	if base == nil {
 		base = http.DefaultClient
 	}
-	if cfg == nil || len(cfg.Headers) == 0 {
+	if cfg == nil || (len(cfg.Headers) == 0 && cfg.APIKey == "") {
 		return base
 	}
 	cloned := *base

@@ -1,9 +1,9 @@
 name: Self-update
 on:
   push:
-    paths: ['internal/update/**', 'internal/workflow/**', 'internal/config/**', 'internal/handler/**', 'internal/mcp/**', 'cmd/server/**', 'web/static/js/**', 'web/static/css/style.css', 'web/templates/index.html', 'upgrade.sh', 'run.sh', 'go.mod', 'go.sum', '.gitignore', '.github/workflows/self-update.yml']
+    paths: ['internal/update/**', 'internal/app/update_restart*', 'internal/security/auth*', 'internal/workflow/**', 'internal/config/**', 'internal/handler/**', 'internal/mcp/**', 'cmd/server/**', 'web/static/js/**', 'web/static/i18n/**', 'web/static/css/style.css', 'web/templates/index.html', 'upgrade.sh', 'run.sh', 'go.mod', 'go.sum', '.gitignore', '.github/workflows/self-update.yml']
   pull_request:
-    paths: ['internal/update/**', 'internal/workflow/**', 'internal/config/**', 'internal/handler/**', 'internal/mcp/**', 'cmd/server/**', 'web/static/js/**', 'web/static/css/style.css', 'web/templates/index.html', 'upgrade.sh', 'run.sh', 'go.mod', 'go.sum', '.gitignore', '.github/workflows/self-update.yml']
+    paths: ['internal/update/**', 'internal/app/update_restart*', 'internal/security/auth*', 'internal/workflow/**', 'internal/config/**', 'internal/handler/**', 'internal/mcp/**', 'cmd/server/**', 'web/static/js/**', 'web/static/i18n/**', 'web/static/css/style.css', 'web/templates/index.html', 'upgrade.sh', 'run.sh', 'go.mod', 'go.sum', '.gitignore', '.github/workflows/self-update.yml']
 permissions:
   contents: read
 jobs:
@@ -23,7 +23,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: go test -race ./internal/update ./internal/config ./internal/handler ./cmd/server ./internal/workflow
+      - run: go test -race ./internal/update ./internal/app ./internal/config ./internal/handler ./cmd/server ./internal/workflow
+      - name: Authentication and update session handoff
+        run: go test -race ./internal/security -run '^(TestAuthManager|TestAttachRBACStore|TestRevokeRoleSessions|TestPublishSession|TestRestartHandoff)'
       - run: go build ./...
       - name: Frontend regression tests
         shell: bash

@@ -18,7 +18,7 @@ func TestListConversationPlanTasksSortedAndToleratesMissingDirectory(t *testing.
 	t.Cleanup(func() { _ = db.Close() })
 
 	base := filepath.Join(tmp, "skills", ".eino", "plantask")
-	db.SetEinoConversationDirs(base, "", "", "")
+	db.SetAgentConversationDirs(base, "", "", "")
 	missing, err := db.ListConversationPlanTasks("missing")
 	if err != nil || len(missing) != 0 {
 		t.Fatalf("missing task board = %#v, err=%v", missing, err)
@@ -67,7 +67,7 @@ func TestListConversationPlanTasksSinceHidesPreviousRunUntilTaskCreate(t *testin
 	t.Cleanup(func() { _ = db.Close() })
 
 	base := filepath.Join(tmp, "plantask")
-	db.SetEinoConversationDirs(base, "", "", "")
+	db.SetAgentConversationDirs(base, "", "", "")
 	dir := filepath.Join(base, "conversation-current-run")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)

@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestDeleteConversationRemovesEinoScopedDirs(t *testing.T) {
+func TestDeleteConversationRemovesAgentScopedDirs(t *testing.T) {
 	tmp := t.TempDir()
 	dbPath := filepath.Join(tmp, "conversations.db")
 	db, err := NewDB(dbPath, zap.NewNop())
@@ -21,7 +21,7 @@ func TestDeleteConversationRemovesEinoScopedDirs(t *testing.T) {
 	checkpointBase := filepath.Join(tmp, "eino-checkpoints")
 	reductionBase := filepath.Join(tmp, "reduction")
 	workspaceBase := filepath.Join(tmp, "workspace")
-	db.SetEinoConversationDirs(plantaskBase, checkpointBase, reductionBase, workspaceBase)
+	db.SetAgentConversationDirs(plantaskBase, checkpointBase, reductionBase, workspaceBase)
 
 	conv, err := db.CreateConversation("cleanup test", ConversationCreateMeta{})
 	if err != nil {
@@ -132,7 +132,7 @@ func TestDeleteProjectRemovesReductionDir(t *testing.T) {
 
 	reductionBase := filepath.Join(tmp, "reduction")
 	workspaceBase := filepath.Join(tmp, "workspace")
-	db.SetEinoConversationDirs("", "", reductionBase, workspaceBase)
+	db.SetAgentConversationDirs("", "", reductionBase, workspaceBase)
 
 	project, err := db.CreateProject(&Project{Name: "cleanup test"})
 	if err != nil {

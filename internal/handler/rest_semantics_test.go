@@ -134,7 +134,7 @@ func TestRESTBatchListSemantics(t *testing.T) {
 			r := gin.New()
 			r.GET("/api/batch-tasks", h.ListBatchQueues)
 			assertRESTList(t, r, "/api/batch-tasks", "queues", 0)
-			if _, err := m.CreateBatchQueue("test queue", "", "eino_single", "manual", "", "", nil, 1, []string{"test"}); err != nil {
+			if _, err := m.CreateBatchQueue("test queue", "", "single", "manual", "", "", nil, 1, []string{"test"}); err != nil {
 				t.Fatal(err)
 			}
 			assertRESTList(t, r, "/api/batch-tasks?status=__none__", "queues", 0)

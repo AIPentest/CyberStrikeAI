@@ -44,7 +44,7 @@ function runtime() {
     const ctx = {
         window: {}, document: { createElement: () => new Element() },
         toolCallDetailStateByItemId: new Map(),
-        updateToolDetailToggleLabel() {}, applyEinoTimelineRole() {}, pruneLiveTimelineIfNeeded() {},
+        updateToolDetailToggleLabel() {}, applyPiTimelineRole() {}, pruneLiveTimelineIfNeeded() {},
         getCurrentTimeLocale: () => 'en-US', getTimeFormatOptions: () => ({}),
         escapeHtml: (value) => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;'),
     };
