@@ -16,6 +16,7 @@ type ToolActivity struct {
 	OutputBytes int64     `json:"output_bytes,omitempty"`
 }
 type RuntimeOverview struct {
+	Blocker         *Event                     `json:"blocker,omitempty"`
 	Sessions        map[string]SessionActivity `json:"sessions"`
 	Intents         []IntentActivity           `json:"intents"`
 	Live            LivePhase                  `json:"live"`
@@ -65,6 +66,16 @@ func (s *Store) RecentEvents(task string, limit int) ([]Event, error) {
 // No model call, tool execution or task transition is needed to refresh the view.
 func (s *Store) RuntimeOverview(t *Task) (RuntimeOverview, error) {
 	out := RuntimeOverview{Counts: map[string]int{}, Tools: []ToolActivity{}, Recent: []Event{}, AssetNames: map[string]string{}}
+	if t.Status == "blocked" {
+		var event Event
+		err := s.DB.QueryRow("SELECT id,step_id,kind,message,created_at FROM deep_assessment_events WHERE task_id=? AND kind='blocked' ORDER BY id DESC LIMIT 1", t.ID).Scan(&event.ID, &event.StepID, &event.Kind, &event.Message, &event.CreatedAt)
+		if err != nil && err != sql.ErrNoRows {
+			return out, err
+		}
+		if err == nil {
+			out.Blocker = &event
+		}
+	}
 	for _, st := range t.Steps {
 		out.Counts[st.Status]++
 		if st.Status == "running" || st.Status == "pausing" || st.Status == "uncertain" || st.Status == "cleanup_unconfirmed" {

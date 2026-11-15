@@ -5542,7 +5542,12 @@
       "native_idle": "等待下一轮",
       "lastNative": "最近活动",
       "activity": "运行记录",
-      "receipts": "查看回执"
+      "receipts": "查看回执",
+      "blockerTitle": "测评受阻原因",
+      "blockerExplanation": "这是整条测评的运行问题；“受阻意图”只统计单条意图。",
+      "blockerHint": "进度与证据已保存。排除原因后可手动继续。",
+      "blockerUnknown": "尚未记录明确原因，请查看运行记录。",
+      "blockedIntents": "受阻意图"
     },
     "graphRelations": {
       "via_archive": "经归档",
@@ -5555,7 +5560,9 @@
     "reviewSaved": "已记录核对，待核对列表已更新",
     "conflict": "测评状态已更新，请刷新后重试。",
     "stepChanged": "此步骤在核对期间发生了新的执行，请重新查看最新回执后确认。",
-    "noMatchingSteps": "没有符合当前筛选条件的意图。"
+    "noMatchingSteps": "没有符合当前筛选条件的意图。",
+    "noBlockedIntents": "没有单条意图被标记为受阻；整条测评的原因见上方。",
+    "viewBlocker": "查看受阻原因"
   },
   "assessmentFindingLinks": {
     "source": "来源深度测评",

@@ -715,3 +715,29 @@ test('overview links remain usable for readers and empty lists explain the selec
  if(process.env.CSAI_SCREENSHOT_DIR)await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'overview-stat-links-mobile.png'),fullPage:true});
  assert.ok(state.requests.every(r=>r.method==='GET'));assert.deepEqual(state.errors,[]);
 });
+
+test('assessment-level blocking stays visible when there are no blocked intents',async t=>{
+ const {page,state}=await fixture(t),task=state.tasks.get('t0');
+ task.status='blocked';task.summary='收到补充方向';task.steps=[{id:'done',title:'已完成样例',status:'completed'},{id:'pending',title:'待执行样例',status:'pending'}];
+ const cause='规划失败: Pi worker exited without a result: invalid Pi protocol JSON: unexpected end of JSON input <script>window.injected=1</script>';
+ task.runtime={blocker:{id:1,kind:'blocked',message:cause,created_at:new Date().toISOString()},recent:[{id:2,kind:'step_result',message:'context canceled',created_at:new Date().toISOString()}]};
+ task.events=[task.runtime.blocker,...task.runtime.recent];
+ await page.locator('[data-da-action="details"][data-id="t0"]').click();await page.locator('#da-task-blocker').waitFor();
+ assert.match(await page.locator('#da-task-blocker').innerText(),/规划失败: Pi worker/);assert.equal(await page.locator('#da-task-blocker script').count(),0);assert.equal(await page.evaluate(()=>window.injected),undefined);
+ const blocked=page.locator('.da-live-counts [data-status="blocked"]');assert.equal(await blocked.innerText(),'受阻意图 0');await blocked.click();await page.locator('#da-intent-status').waitFor();
+ assert.equal(await page.locator('.da-step').count(),0);assert.match(await page.locator('#da-body').innerText(),/整条测评的原因见上方/);assert.match(await page.locator('#da-task-blocker').innerText(),/unexpected end of JSON input/);
+ await page.evaluate(()=>{document.querySelector('#da-task-blocker pre').dataset.fixture='retained';});await page.evaluate(()=>DeepAssessments.refresh());assert.equal(await page.locator('#da-task-blocker pre').getAttribute('data-fixture'),'retained');
+ await page.locator('#da-title [data-da-action="blocked-reason"]').click();assert.equal(await page.locator('#da-task-blocker').evaluate(el=>document.activeElement===el),true);
+ await page.locator('#da-task-blocker [data-tab="activity"]').click();await page.locator('.da-event').first().waitFor();assert.match(page.url(),/tab=activity/);assert.match(await page.locator('#da-task-blocker').innerText(),/规划失败/);
+ await page.reload();await page.locator('#da-task-blocker').waitFor();assert.match(await page.locator('#da-task-blocker').innerText(),/规划失败/);
+ await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ if(process.env.CSAI_SCREENSHOT_DIR){await page.locator('#page-deep-assessments').evaluate(async el=>{await Promise.all(el.getAnimations({subtree:true}).filter(a=>a.effect?.getComputedTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})));});await page.screenshot({path:path.join(process.env.CSAI_SCREENSHOT_DIR,'task-blocker-mobile.png'),fullPage:true});}
+ task.status='running';task.revision++;await page.evaluate(()=>DeepAssessments.refresh());assert.equal(await page.locator('#da-task-blocker').isVisible(),false);
+ assert.ok(state.requests.every(r=>r.method==='GET'));assert.deepEqual(state.errors,[]);
+});
+
+test('older blocked assessments explain the saved summary without runtime diagnostics',async t=>{
+ const {page,state}=await fixture(t),task=state.tasks.get('t0');task.status='blocked';task.summary='模型渠道不可用';
+ await page.locator('[data-da-action="details"][data-id="t0"]').click();await page.locator('#da-task-blocker').waitFor();assert.match(await page.locator('#da-task-blocker').innerText(),/模型渠道不可用/);
+ assert.ok(state.requests.every(r=>r.method==='GET'));assert.deepEqual(state.errors,[]);
+});

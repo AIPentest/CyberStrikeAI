@@ -5602,7 +5602,12 @@
       "native_idle": "Waiting for next turn",
       "lastNative": "Last activity",
       "activity": "Run history",
-      "receipts": "View receipts"
+      "receipts": "View receipts",
+      "blockerTitle": "Assessment blocked",
+      "blockerExplanation": "This is an assessment-level problem; blocked intents count individual intents only.",
+      "blockerHint": "Progress and evidence are saved. Continue manually after resolving the cause.",
+      "blockerUnknown": "No specific reason was recorded. Check the run history.",
+      "blockedIntents": "Blocked intents"
     },
     "liveUpdates": "Updates available — view latest",
     "continueStopped": "Continue assessment",
@@ -5611,7 +5616,9 @@
     "reviewSaved": "Review recorded; pending-review list updated",
     "conflict": "The assessment changed. Refresh and try again.",
     "stepChanged": "This step executed again during review. Check its latest receipts before confirming.",
-    "noMatchingSteps": "No intents match the current filters."
+    "noMatchingSteps": "No intents match the current filters.",
+    "noBlockedIntents": "No individual intent is blocked. See the assessment-level reason above.",
+    "viewBlocker": "View blocking reason"
   },
   "assessmentFindingLinks": {
     "source": "Source assessment",
