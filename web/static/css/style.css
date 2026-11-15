@@ -7022,6 +7022,11 @@ html[data-theme="dark"] .login-card .login-submit:disabled {
     line-height: 1.45;
 }
 
+/* Keep the textarea focus ring clear of the interrupt action buttons. */
+#user-interrupt-modal .form-actions {
+    margin-top: 20px;
+}
+
 .detail-abort-section .btn-monitor-abort {
     border-color: rgba(253, 126, 20, 0.55);
     color: #fd7e14;
