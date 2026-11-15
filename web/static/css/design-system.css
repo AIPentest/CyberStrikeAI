@@ -330,3 +330,14 @@ html body #batch-queue-detail-modal .modal-header-actions .btn-primary:is(:hover
     border-color: var(--accent-hover);
 }
 html body #batch-queue-detail-modal #batch-queue-detail-title { display: block; }
+
+/* Database profile fields are edited inside a narrower, scrollable drawer. */
+html body #webshell-db-profile-modal .webshell-db-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    background: var(--ui-surface-muted);
+    border-color: var(--ui-border);
+}
+html body #webshell-db-profile-modal .webshell-db-toolbar label > span { color: var(--text-secondary); }
+@media (max-width: 767.98px) {
+    html body #webshell-db-profile-modal .webshell-db-toolbar { grid-template-columns: minmax(0, 1fr); }
+}

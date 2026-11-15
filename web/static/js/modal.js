@@ -29,6 +29,7 @@
         'rbac-user-modal', 'rbac-role-modal', 'chat-files-edit-modal', 'webshell-modal',
         'workflow-package-import-modal', 'workflow-ai-modal', 'robot-commands-modal',
         'robot-account-binding-modal', 'c2-modal',
+        'info-collect-cell-modal', 'fofa-parse-modal', 'webshell-db-profile-modal',
     ]);
     const WIDE_IDS = new Set([
         'skill-modal', 'skill-view-modal', 'agent-md-modal', 'role-modal', 'fact-modal', 'vulnerability-modal',

@@ -64,3 +64,5 @@ NODE_PATH=/tmp/csai-ui-tools/node_modules node scripts/check-ui-design-system.cj
 浏览器回归使用真实 i18next 翻译函数，不再用固定中文替代函数覆盖它。
 
 Skill 的“查看”入口动态创建 `skill-view-modal`，与编辑入口共用宽抽屉。回归同时验证摘要展示、按需加载全文、展开、Escape 清理以及“查看 → 编辑”切换，防止只验证编辑表单而遗漏只读详情入口。
+
+信息收集的字段全文、AI 查询解析结果，以及 WebShell 数据库连接配置也使用公共抽屉。信息收集动态节点采用标准 header/body/footer 类和公共关闭逻辑；回归使用长文本、警告说明与离线数据库配置夹具，检查滚动、重复打开、复制、仅应用查询语法和关闭清理，不执行外部查询或数据库连接。
