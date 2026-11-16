@@ -1296,6 +1296,7 @@ async function showAddRoleModal() {
     const modal = document.getElementById('role-modal');
     if (!modal) return;
 
+    document.getElementById('role-modal-title').setAttribute('data-i18n', 'roleModal.addRole');
     document.getElementById('role-modal-title').textContent = _t('roleModal.addRole');
     document.getElementById('role-name').value = '';
     document.getElementById('role-name').disabled = false;
@@ -1379,6 +1380,7 @@ async function editRole(roleName) {
     const modal = document.getElementById('role-modal');
     if (!modal) return;
 
+    document.getElementById('role-modal-title').setAttribute('data-i18n', 'roleModal.editRole');
     document.getElementById('role-modal-title').textContent = _t('roleModal.editRole');
     document.getElementById('role-name').value = role.name;
     document.getElementById('role-name').disabled = true; // 编辑时不允许修改名称

@@ -26,6 +26,7 @@
     "chatModuleMissing": "Модуль чата ещё не загружен"
   },
   "common": {
+        "expandPanel": "Развернуть панель",
     "ok": "ОК",
     "cancel": "Отмена",
     "refresh": "Обновить",
@@ -2975,7 +2976,8 @@
     "sortLabel": "Сортировка",
     "sortDefault": "По умолчанию",
     "sortSeverity": "По критичности",
-    "sortLatest": "Сначала новые",
+    "sortLatest": "Создание: сначала новые",
+    "sortOldest": "Создание: сначала старые",
     "expandPage": "Развернуть страницу",
     "collapsePage": "Свернуть страницу",
     "hostPagination": "Показано {{start}}–{{end}} из {{total}} групп по хостам",

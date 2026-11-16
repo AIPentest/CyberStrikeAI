@@ -890,7 +890,7 @@ function setFofaParseLoading(loading, statusText) {
 
 function showFofaParseModal(nlText, parsed) {
     const existing = document.getElementById('fofa-parse-modal');
-    if (existing) existing.remove();
+    if (existing) { closeAppModal(existing); existing.remove(); }
 
     const provider = getInfoCollectProvider();
     const cfg = INFO_COLLECT_PROVIDERS[provider] || INFO_COLLECT_PROVIDERS.fofa;
@@ -908,13 +908,14 @@ function showFofaParseModal(nlText, parsed) {
     document.body.appendChild(modal);
     openAppModal(modal, { focus: false });
     deferModalContent(function () {
+    if (!modal.isConnected) return;
     modal.innerHTML = `
         <div class="modal-content info-collect-parse-modal-content" style="max-width: 900px;">
             <div class="modal-header">
                 <h2>${_t('infoCollect.parseResultTitle')}</h2>
                 <span class="modal-close" id="fofa-parse-modal-close" title="${_t('common.close')}">&times;</span>
             </div>
-            <div class="info-collect-parse-modal-body">
+            <div class="modal-body info-collect-parse-modal-body">
                 <div class="form-group">
                     <label>${_t('infoCollect.naturalLanguageLabel')}</label>
                     <div class="muted info-collect-parse-nl-text">${safeNL || '-'}</div>
@@ -990,14 +991,7 @@ function showFofaParseModal(nlText, parsed) {
     document.getElementById('fofa-parse-apply')?.addEventListener('click', () => applyToQuery(false));
     document.getElementById('fofa-parse-apply-run')?.addEventListener('click', () => applyToQuery(true));
 
-    // Esc 关闭
-    const onKey = (e) => {
-        if (e.key === 'Escape') {
-            close();
-            document.removeEventListener('keydown', onKey);
-        }
-    };
-    document.addEventListener('keydown', onKey);
+    // Escape is handled by the shared modal lifecycle.
     });
 }
 
@@ -1662,31 +1656,31 @@ async function batchScanSelectedFofaRows() {
 
 function showCellDetailModal(field, fullText) {
     const existing = document.getElementById('info-collect-cell-modal');
-    if (existing) existing.remove();
+    if (existing) { closeAppModal(existing); existing.remove(); }
 
     const text = fullText == null ? '' : String(fullText);
     const fieldName = field || _t('infoCollect.field');
     const charCountLabel = _t('infoCollect.cellValueLength', { count: Array.from(text).length });
     const modal = document.createElement('div');
     modal.id = 'info-collect-cell-modal';
-    modal.className = 'info-collect-cell-modal';
+    modal.className = 'modal info-collect-cell-modal';
     modal.innerHTML = `
-        <div class="info-collect-cell-modal-content" role="dialog" aria-modal="true">
-            <div class="info-collect-cell-modal-header">
+        <div class="modal-content info-collect-cell-modal-content">
+            <div class="modal-header info-collect-cell-modal-header">
                 <div class="info-collect-cell-modal-heading">
-                    <div class="info-collect-cell-modal-title">${escapeHtml(fieldName)}</div>
+                    <h2 class="info-collect-cell-modal-title">${escapeHtml(fieldName)}</h2>
                     <div class="info-collect-cell-modal-subtitle">${escapeHtml(charCountLabel)}</div>
                 </div>
-                <button class="btn-icon" type="button" id="info-collect-cell-modal-close" title="${_t('common.close')}">
+                <button class="modal-close" type="button" id="info-collect-cell-modal-close" title="${_t('common.close')}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                     </svg>
                 </button>
             </div>
-            <div class="info-collect-cell-modal-body">
+            <div class="modal-body info-collect-cell-modal-body">
                 <pre class="info-collect-cell-modal-pre">${escapeHtml(text)}</pre>
             </div>
-            <div class="info-collect-cell-modal-footer">
+            <div class="modal-footer info-collect-cell-modal-footer">
                 <button class="btn-secondary" type="button" id="info-collect-cell-modal-copy">${_t('common.copy')}</button>
                 <button class="btn-primary" type="button" id="info-collect-cell-modal-ok">${_t('common.close')}</button>
             </div>
@@ -1696,13 +1690,7 @@ function showCellDetailModal(field, fullText) {
     document.body.appendChild(modal);
     openAppModal(modal);
 
-    const onKey = (e) => {
-        if (e.key === 'Escape') {
-            close();
-        }
-    };
     const close = function () {
-        document.removeEventListener('keydown', onKey);
         closeAppModal(modal);
         modal.remove();
         syncAppModalBodyLock();
@@ -1716,8 +1704,7 @@ function showCellDetailModal(field, fullText) {
         navigator.clipboard.writeText(text).then(() => showInlineToast(_t('common.copied'))).catch(() => alert(_t('common.copyFailed')));
     });
 
-    // Esc 关闭
-    document.addEventListener('keydown', onKey);
+    // Escape is handled by the shared modal lifecycle.
 }
 
 // 暴露到全局（供 index.html onclick 调用）

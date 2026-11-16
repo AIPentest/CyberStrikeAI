@@ -26,6 +26,7 @@
     "chatModuleMissing": "Chat module not loaded yet"
   },
   "common": {
+        "expandPanel": "Expand panel",
     "ok": "OK",
     "cancel": "Cancel",
     "refresh": "Refresh",
@@ -2962,7 +2963,8 @@
     "sortLabel": "Sort",
     "sortDefault": "Default order",
     "sortSeverity": "Severity first",
-    "sortLatest": "Newest findings",
+    "sortLatest": "Created: newest first",
+    "sortOldest": "Created: oldest first",
     "expandPage": "Expand page",
     "collapsePage": "Collapse page",
     "hostPagination": "Showing {{start}}–{{end}} of {{total}} host groups",

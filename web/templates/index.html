@@ -48,7 +48,8 @@
     <!-- 移动端样式层：全部规则限定在 767.98px 以下，桌面端零影响 -->
     <link rel="stylesheet" href="/static/css/mobile.css?v=20261015-project-table-3">
     <link rel="stylesheet" href="/static/css/vulnerability-workspace.css?v=20261113-aligned-overview">
-    <link rel="stylesheet" href="/static/css/vulnerability-list.css?v=20261113-compact-rows">
+    <link rel="stylesheet" href="/static/css/vulnerability-list.css?v=20261115-timestamps">
+    <link rel="stylesheet" href="/static/css/design-system.css?v=20261115-extra-drawers">
     <script src="/static/js/router.js?v=20261011-token-settings"></script>
 </head>
 <body>
@@ -2864,7 +2865,8 @@
                                     <select id="vulnerability-sort" onchange="changeVulnerabilitySort(this.value)">
                                         <option value="" data-i18n="vulnerabilityPage.sortDefault">默认顺序</option>
                                         <option value="severity" data-i18n="vulnerabilityPage.sortSeverity">高危优先</option>
-                                        <option value="latest" data-i18n="vulnerabilityPage.sortLatest">最新发现</option>
+                                        <option value="latest" data-i18n="vulnerabilityPage.sortLatest">创建时间：最新优先</option>
+                                        <option value="oldest" data-i18n="vulnerabilityPage.sortOldest">创建时间：最早优先</option>
                                     </select>
                                 </label>
 
@@ -6401,16 +6403,14 @@
         <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
                 <h2 id="batch-queue-detail-title" data-i18n="batchQueueDetailModal.title">批量任务队列详情</h2>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="modal-header-actions">
-                        <button class="btn-secondary btn-small" data-require-permission="tasks:write" id="batch-queue-add-task-btn" onclick="showAddBatchTaskModal()" style="display: none;" data-i18n="batchQueueDetailModal.addTask">添加任务</button>
-                        <button class="btn-primary btn-small" data-require-permission="tasks:write" id="batch-queue-start-btn" onclick="startBatchQueue()" style="display: none;" data-i18n="batchQueueDetailModal.startExecute">开始执行</button>
-                        <button class="btn-primary btn-small" data-require-permission="tasks:write" id="batch-queue-rerun-btn" onclick="rerunBatchQueue()" style="display: none;" data-i18n="batchQueueDetailModal.rerunQueue">重跑一轮</button>
-                        <button class="btn-secondary btn-small" data-require-permission="tasks:write" id="batch-queue-pause-btn" onclick="pauseBatchQueue()" style="display: none;" data-i18n="batchQueueDetailModal.pauseQueue">暂停队列</button>
-                        <button class="btn-secondary btn-small btn-danger" data-require-permission="tasks:delete" id="batch-queue-delete-btn" onclick="deleteBatchQueue()" style="display: none;" data-i18n="batchQueueDetailModal.deleteQueue">删除队列</button>
-                    </div>
-                    <span class="modal-close" onclick="closeBatchQueueDetailModal()">&times;</span>
+                <div class="modal-header-actions">
+                    <button class="btn-secondary btn-small" data-require-permission="tasks:write" id="batch-queue-add-task-btn" onclick="showAddBatchTaskModal()" style="display: none;" data-i18n="batchQueueDetailModal.addTask">添加任务</button>
+                    <button class="btn-primary btn-small" data-require-permission="tasks:write" id="batch-queue-start-btn" onclick="startBatchQueue()" style="display: none;" data-i18n="batchQueueDetailModal.startExecute">开始执行</button>
+                    <button class="btn-primary btn-small" data-require-permission="tasks:write" id="batch-queue-rerun-btn" onclick="rerunBatchQueue()" style="display: none;" data-i18n="batchQueueDetailModal.rerunQueue">重跑一轮</button>
+                    <button class="btn-secondary btn-small" data-require-permission="tasks:write" id="batch-queue-pause-btn" onclick="pauseBatchQueue()" style="display: none;" data-i18n="batchQueueDetailModal.pauseQueue">暂停队列</button>
+                    <button class="btn-secondary btn-small btn-danger" data-require-permission="tasks:delete" id="batch-queue-delete-btn" onclick="deleteBatchQueue()" style="display: none;" data-i18n="batchQueueDetailModal.deleteQueue">删除队列</button>
                 </div>
+                <button type="button" class="modal-close" onclick="closeBatchQueueDetailModal()" data-i18n="common.close" data-i18n-attr="aria-label" data-i18n-skip-text="true" aria-label="关闭">&times;</button>
             </div>
             <div class="modal-body">
                 <div id="batch-queue-detail-content"></div>
@@ -7067,7 +7067,7 @@
     <script src="/static/js/theme.js"></script>
     <script src="/static/js/builtin-tools.js"></script>
     <script src="/static/js/auth.js?v=20261008-password-eye-1"></script>
-    <script src="/static/js/modal.js"></script>
+    <script src="/static/js/modal.js?v=20261115-extra-drawers"></script>
     <dialog id="vulnerability-download-dialog" aria-labelledby="vulnerability-download-heading" aria-describedby="vulnerability-download-hint">
         <div class="vulnerability-download-content">
             <h3 id="vulnerability-download-heading" data-i18n="vulnerabilityDownload.title">下载漏洞报告</h3>
@@ -7082,7 +7082,7 @@
     </dialog>
 
     <script src="/static/js/notifications.js"></script>
-    <script src="/static/js/info-collect.js?v=20260717-1"></script>
+    <script src="/static/js/info-collect.js?v=20261115-extra-drawers"></script>
     <script src="/static/js/assets.js?v=20260717-7"></script>
     <script src="/static/js/agents.js"></script>
     <script src="/static/js/dashboard.js?v=20261011-token-settings-cache-only"></script>
@@ -7103,19 +7103,19 @@
     <script src="/static/vendor/xterm-addon-fit.js"></script>
     <script src="/static/js/terminal.js"></script>
     <script src="/static/js/knowledge.js"></script>
-    <script src="/static/js/skills.js?v=20261027-pagination-custom-select"></script>
+    <script src="/static/js/skills.js?v=20261115-ui-drawers"></script>
     <script src="/static/js/fact-graph.js"></script>
     <script src="/static/js/projects.js?v=20260819-1-pagination-20261027"></script>
-    <script src="/static/js/vulnerability.js?v=20261115-record-pagination"></script>
-    <script src="/static/js/vulnerability-workspace.js?v=20261113-compact-rows"></script>
+    <script src="/static/js/vulnerability.js?v=20261116-record-pagination"></script>
+    <script src="/static/js/vulnerability-workspace.js?v=20261115-timestamps"></script>
     <script src="/static/js/vulnerability-download.js?v=20261030-2"></script>
     <script src="/static/js/webshell.js?v=20261011-token-usage"></script>
     <script src="/static/js/chat-files.js?v=20261027-pagination-custom-select"></script>
-    <script src="/static/js/tasks.js?v=20261027-pagination-custom-select"></script>
+    <script src="/static/js/tasks.js?v=20261115-ui-drawers"></script>
     <script src="/static/js/workflow-package-client.js"></script>
     <script src="/static/js/workflows.js"></script>
     <script src="/static/js/update.js?v={{.Version}}-activation"></script>
-    <script src="/static/js/roles.js?v=20261027-pagination-custom-select"></script>
+    <script src="/static/js/roles.js?v=20261115-ui-drawers"></script>
     <script src="/static/js/rbac.js"></script>
     <script src="/static/js/c2.js?v=20261027-pagination-custom-select"></script>
     <script src="/static/js/rbac-guards.js?v=20260907-1"></script>
