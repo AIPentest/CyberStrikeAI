@@ -26,6 +26,7 @@
     "chatModuleMissing": "لم يتمّ تحميل وحدة المحادثة بعد"
   },
   "common": {
+        "expandPanel": "توسيع اللوحة",
     "ok": "موافق",
     "cancel": "إلغاء",
     "refresh": "تحديث",

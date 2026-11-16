@@ -26,6 +26,7 @@
     "chatModuleMissing": "Модуль чата ещё не загружен"
   },
   "common": {
+        "expandPanel": "Развернуть панель",
     "ok": "ОК",
     "cancel": "Отмена",
     "refresh": "Обновить",

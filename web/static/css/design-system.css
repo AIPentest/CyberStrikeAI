@@ -1,0 +1,307 @@
+/* Shared application surfaces. Loaded last to bridge legacy module styles.
+ * Use data-ui-surface="drawer" for details/long forms; short actions use dialog.
+ * Keep table density, semantic status colors and specialist workspaces intact.
+ */
+:root {
+    --ui-radius-card: 16px;
+    --ui-radius-control: 10px;
+    --ui-surface: var(--bg-primary);
+    --ui-surface-muted: var(--bg-secondary);
+    --ui-border: var(--border-color);
+    --ui-shadow: 0 2px 8px rgba(15, 23, 42, .04);
+    --ui-overlay: rgba(15, 23, 42, .42);
+    --ui-panel-shadow: -12px 0 40px rgba(15, 23, 42, .16);
+    --ui-space: 24px;
+}
+html[data-theme="dark"] {
+    --ui-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+    --ui-overlay: rgba(0, 0, 0, .58);
+    --ui-panel-shadow: -12px 0 40px rgba(0, 0, 0, .32);
+}
+/* Explicit surface inventory: no wildcard class matching, no changes to charts,
+ * terminals, graph nodes, selected-state fills or severity indicators. */
+html body .page :is(
+    .dashboard-section, .dashboard-card, .dashboard-kpi-card, .asset-total-card, .asset-recent-card, .asset-panel, .asset-list-card,
+    .knowledge-item-card, .retrieval-log-card, .skill-card, .role-card, .batch-queue-item,
+    .tool-guard-card, .mcp-management-panel, .projects-sidebar-card, .projects-panel,
+    .projects-settings-card, .rbac-panel, .rbac-catalog-card, .robot-card,
+    .workflow-panel, .c2-listener-card, .c2-profile-card, .settings-subsection,
+    .storage-overview-card, .skills-overview-card
+) {
+    border-radius: var(--ui-radius-card);
+    border-color: var(--ui-border);
+    box-shadow: var(--ui-shadow);
+}
+html body .page :is(.knowledge-item-card, .skill-card, .role-card, .workflow-panel, .settings-subsection) {
+    background: var(--ui-surface);
+    color: var(--text-primary);
+}
+html body .page-header {
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+html body .page-header > h2 { font-size: 22px; line-height: 1.4; letter-spacing: -.02em; }
+html body .page-header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+html body :is(.page, [data-ui-surface]) :is(.btn-primary, .btn-secondary) {
+    border-radius: var(--ui-radius-control) !important;
+    min-height: 36px;
+    box-shadow: none;
+}
+html body :is(.page, [data-ui-surface]) :is(button, input, textarea, select, [role="button"]):focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 3px;
+}
+html body :is(.form-group, .settings-form, .modal-body, .projects-modal-body, .c2-modal-body)
+    :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="hidden"]), textarea, select) {
+    border-radius: var(--ui-radius-control);
+    border-color: var(--ui-border);
+    color: var(--text-primary);
+    background-color: var(--input-bg);
+    max-width: 100%;
+}
+/* Layering is assigned by the modal lifecycle, including nested short dialogs. */
+html body [data-ui-surface] {
+    z-index: var(--app-overlay-order, 10060) !important;
+    background: var(--ui-overlay) !important;
+    backdrop-filter: none;
+}
+html body [data-ui-surface="drawer"] {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0 !important;
+    overflow: hidden;
+    --app-drawer-width: 720px;
+}
+html body [data-ui-surface="drawer"].app-drawer-wide { --app-drawer-width: 960px; }
+html body [data-ui-surface="drawer"].app-drawer-expanded { --app-drawer-width: 1440px; }
+/* !important only on the layout contract: old modules set inline dimensions. */
+html body [data-ui-surface="drawer"] > :is(.modal-content, .projects-modal-dialog, .c2-modal) {
+    position: absolute !important;
+    inset-block: 0 !important;
+    inset-inline: auto 0 !important;
+    width: min(var(--app-drawer-width), calc(100% - 48px)) !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 100% !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0;
+    border-inline-start: 1px solid var(--ui-border);
+    border-radius: 0 !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+    background: var(--ui-surface) !important;
+    color: var(--text-primary);
+    box-shadow: var(--ui-panel-shadow);
+    animation: app-panel-in .18s ease-out !important;
+}
+html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .vulnerability-inspector-header) {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 20px var(--ui-space) !important;
+    border-radius: 0;
+    border-bottom: 1px solid var(--ui-border);
+    background: var(--ui-surface) !important;
+    color: var(--text-primary);
+    box-shadow: none;
+}
+html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header)::after { display: none; }
+html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .vulnerability-inspector-header) :is(h2, h3) {
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .vulnerability-inspector-header) > :first-child { flex: 1; min-width: 0; }
+html body [data-ui-surface="drawer"] :is(.modal-close, .projects-modal-close, .c2-modal-close) {
+    position: static;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    margin: 0;
+}
+html body [data-ui-surface="drawer"] :is(.modal-body, .projects-modal-body, .c2-modal-body, #vulnerability-inspector-body) {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    padding: var(--ui-space) !important;
+    background: var(--ui-surface) !important;
+    color: var(--text-primary);
+    scrollbar-gutter: stable;
+}
+html body [data-ui-surface="drawer"] :is(.modal-footer, .projects-modal-footer, .c2-modal-footer) {
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 16px var(--ui-space) !important;
+    border-top: 1px solid var(--ui-border);
+    background: var(--ui-surface) !important;
+    box-shadow: none;
+}
+html body [data-ui-surface="drawer"] #c2-modal-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+}
+html body .app-drawer-expand {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-control);
+    background: var(--ui-surface-muted);
+    color: var(--text-secondary);
+    font-size: 22px;
+    cursor: pointer;
+}
+html body .app-drawer-expand[aria-pressed="true"] { color: var(--accent-color); border-color: var(--accent-color); }
+html body [data-ui-surface="dialog"] > :is(.modal-content, .projects-modal-dialog, .c2-modal) {
+    border-radius: var(--ui-radius-card);
+    background: var(--ui-surface);
+    color: var(--text-primary);
+    border-color: var(--ui-border);
+}
+@keyframes app-panel-in { from { opacity: .6; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+@media (max-width: 767.98px) {
+    :root { --ui-space: 16px; }
+    html body .page-header > h2 { font-size: 20px; }
+    html body :is(.page, [data-ui-surface]) :is(.btn-primary, .btn-secondary) { min-height: 44px; }
+    html body [data-ui-surface="drawer"] > :is(.modal-content, .projects-modal-dialog, .c2-modal) {
+        width: 100% !important;
+        border: 0;
+        border-radius: 0 !important;
+        padding-top: env(safe-area-inset-top, 0px) !important;
+        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    }
+    html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .vulnerability-inspector-header) { padding-block: 12px !important; }
+    html body [data-ui-surface="drawer"] :is(.modal-close, .projects-modal-close, .c2-modal-close) { width: 44px; height: 44px; flex-basis: 44px; }
+    html body .app-drawer-expand { display: none; }
+    html body [data-ui-surface="drawer"] :is(input, textarea, select) { font-size: 16px; }
+    html body [data-ui-surface="drawer"] .modal-header-actions { flex-wrap: wrap; }
+    html body [data-ui-surface="drawer"] #skill-package-editor > div { flex-direction: column; }
+    html body [data-ui-surface="drawer"] #skill-package-tree { width: 100%; max-height: 180px; }
+    /* Short actions remain compact, including on phones. */
+    html body [data-ui-surface="dialog"] > :is(.modal-content, .projects-modal-dialog, .c2-modal) {
+        width: calc(100% - 32px) !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: calc(100dvh - 48px) !important;
+        margin: 24px auto !important;
+        border-radius: var(--ui-radius-card) !important;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    html body [data-ui-surface] { animation: none !important; }
+    html body [data-ui-surface] > :is(.modal-content, .projects-modal-dialog, .c2-modal) { animation: none !important; transition: none !important; }
+}
+
+/* The common header is quiet; module status badges retain their own colors. */
+html body [data-ui-surface="drawer"] :is(.modal-header, .projects-modal-header, .c2-modal-header) h2::before { display: none; }
+html body [data-ui-surface="drawer"] .form-group { margin-bottom: 18px; }
+html body [data-ui-surface="drawer"] .form-group:last-child { margin-bottom: 0; }
+
+html body .page :is(.asset-table, .info-collect-table, .data-table, .chat-files-table, .audit-log-table) th {
+    background: var(--ui-surface-muted);
+    color: var(--text-secondary);
+    border-color: var(--ui-border);
+    font-weight: 600;
+}
+html body [data-ui-surface="dialog"] :is(.modal-header, .projects-modal-header, .c2-modal-header, .modal-footer, .projects-modal-footer, .c2-modal-footer) {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+    color: var(--text-primary);
+    box-shadow: none;
+}
+html[dir="rtl"] body [data-ui-surface="drawer"] > :is(.modal-content, .projects-modal-dialog, .c2-modal) {
+    animation-name: app-panel-in-rtl !important;
+}
+@keyframes app-panel-in-rtl { from { opacity: .6; transform: translateX(-24px); } to { opacity: 1; transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) {
+    html[dir="rtl"] body [data-ui-surface="drawer"] > :is(.modal-content, .projects-modal-dialog, .c2-modal) { animation: none !important; }
+}
+
+/* Data-heavy queue actions get their own row; never compete with the title. */
+html body #batch-queue-detail-modal .modal-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 36px 36px;
+    align-items: center;
+}
+html body #batch-queue-detail-modal .modal-header > h2 { grid-column: 1; grid-row: 1; }
+html body #batch-queue-detail-modal .app-drawer-expand { grid-column: 2; grid-row: 1; }
+html body #batch-queue-detail-modal .modal-close { grid-column: 3; grid-row: 1; }
+html body #batch-queue-detail-modal .modal-header-actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+html body #role-modal .role-tools-stats,
+html body #role-modal .role-tools-stats-row { min-width: 0; max-width: 100%; }
+html body #role-modal .role-tools-stats span { white-space: normal; overflow-wrap: anywhere; min-width: 0; }
+
+@media (max-width: 767.98px) {
+    html body #batch-queue-detail-modal .modal-header { grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; }
+    html body #batch-queue-detail-modal .modal-close { grid-column: 2; }
+    html body #batch-queue-detail-modal .modal-header-actions { gap: 8px; }
+    /* One page scroll: actions and pagination no longer reserve most of the screen. */
+    html body #page-vulnerabilities.active { display: block; overflow-y: auto; overscroll-behavior: contain; }
+    html body #page-vulnerabilities > .page-header { position: static; }
+    html body #page-vulnerabilities > .page-content {
+        height: auto; max-height: none; overflow: visible; flex: none;
+    }
+    html body #page-vulnerabilities > .vulnerability-page-footer { position: static; }
+    html body #vulnerability-pagination { position: static; }
+    html body #page-vulnerabilities .dashboard-stats {
+        display: grid; grid-template-columns: repeat(6, minmax(96px, 1fr));
+        overflow-x: auto; padding-bottom: 6px;
+    }
+    html body #page-vulnerabilities .stat-card { min-height: 84px; padding: 10px; }
+}
+/* Queue primary actions keep their semantic fill even with .btn-small.
+ * Mobile's dark foreground assumes an accent fill, never a translucent gray. */
+html body #batch-queue-detail-modal .modal-header-actions .btn-primary {
+    background: var(--accent-color) !important;
+    border-color: var(--accent-color);
+    color: #fff !important;
+}
+html[data-theme="dark"] body #batch-queue-detail-modal .modal-header-actions .btn-primary {
+    color: #0b1120 !important;
+}
+html body #batch-queue-detail-modal .modal-header-actions .btn-primary:is(:hover, :focus-visible, :active):not(:disabled) {
+    background: var(--accent-hover) !important;
+    border-color: var(--accent-hover);
+}
+html body #batch-queue-detail-modal #batch-queue-detail-title { display: block; }
+
+/* Database profile fields are edited inside a narrower, scrollable drawer. */
+html body #webshell-db-profile-modal .webshell-db-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    background: var(--ui-surface-muted);
+    border-color: var(--ui-border);
+}
+html body #webshell-db-profile-modal .webshell-db-toolbar label > span { color: var(--text-secondary); }
+@media (max-width: 767.98px) {
+    html body #webshell-db-profile-modal .webshell-db-toolbar { grid-template-columns: minmax(0, 1fr); }
+}
