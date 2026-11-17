@@ -40,6 +40,15 @@ func piModelConfig(oa config.OpenAIConfig, intent *reasoning.ClientIntent, conve
 		extra = oa.Reasoning.ExtraRequestFields
 	}
 	compat := map[string]any{}
+	if api == "openai-completions" {
+		// Pi's custom provider defaults unknown endpoints to developer messages
+		// when thinking is enabled. Compatible APIs may only accept system.
+		endpoint := oa
+		endpoint.BaseURL = base
+		if !endpoint.UsesOfficialOpenAIReasoning() {
+			compat["supportsDeveloperRole"] = false
+		}
+	}
 	if oa.IsLocalContextProfile() {
 		compat["maxTokensField"] = "max_tokens"
 		compat["supportsStore"] = false

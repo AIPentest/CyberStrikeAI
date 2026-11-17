@@ -29,6 +29,8 @@ agent_runtime:
 
 模型请求使用 HTTP/1.1，遵循服务进程环境里的 `HTTP_PROXY`、`HTTPS_PROXY` 和 `NO_PROXY`。重定向只允许在原站点内跳转，避免模型凭据外传。
 
+非 OpenAI 官方渠道的 Chat Completions 请求使用 `system` 发送系统指令，避免启用思考后被 Pi 自动改成部分兼容接口不支持的 `developer` 角色。思考参数保持原有配置；主模型、备用模型及后台生成使用同一兼容设置。OpenAI 官方渠道和 Responses／Anthropic 原生协议保留 SDK 的角色处理。
+
 新服务会在接受请求前补建缺失的匹配 Worker 并检查启动握手，因此首次从 Eino 升级时，即使旧更新器只编译 Go，也能准备运行组件。补建需要 Node.js >=22.19、npm 和锁定的 npm 依赖下载渠道；失败会阻止启动并提示修复方法。已有匹配构建包时不再安装依赖。
 
 ## 执行边界

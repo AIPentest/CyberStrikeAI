@@ -17,6 +17,8 @@ The launcher and self-update build prepare the worker. The new server also prepa
 
 After pulling a worker fix into a source installation, run `bash scripts/build-pi-runtime.sh` in that installation before restarting the service. If `agent_runtime.worker_path` is set, make sure it points to the rebuilt worker. Keep existing session files: the worker corrects interrupted OpenAI-compatible tool batches when preparing model requests.
 
+Chat Completions channels outside the native OpenAI service send instructions with the `system` role. This prevents Pi from switching to an unsupported `developer` role when thinking is enabled, while preserving the configured reasoning options. Primary models, fallback models and background generation share this setting. Native OpenAI channels and the Responses/Anthropic protocols keep the SDK's role handling.
+
 ## Configuration
 
 `agent_runtime.engine` accepts only `pi` (also the default). The former engine and dependencies have been removed. Optional `node_path`, `worker_path`, and `session_dir` control deployment. The retired `agent_runtime.purge` key is ignored on load and removed when system settings are saved.
