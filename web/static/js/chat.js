@@ -4398,6 +4398,8 @@ function renderProcessDetails(messageId, processDetails, options) {
             itemTitle = agPx + execLine;
         } else if (eventType === 'agent_reply') {
             itemTitle = agPx + '💬 ' + (typeof window.t === 'function' ? window.t('chat.agentNameReplyTitle') : '子代理回复');
+        } else if (eventType === 'agent_usage_summary') {
+            itemTitle = agPx + formatPiUsageSummaryTitle(data);
         } else if (eventType === 'agent_empty_response_continue') {
             itemTitle = typeof window.t === 'function'
                 ? window.t('chat.piEmptyResponseContinueTitle')
@@ -4455,7 +4457,7 @@ function renderProcessDetails(messageId, processDetails, options) {
         const processDetailId = detail.id || data.processDetailId || '';
         const timelineOpts = {
             title: itemTitle,
-            message: detail.message || '',
+            message: eventType === 'agent_usage_summary' ? formatPiUsageSummaryMessage(data) : detail.message || '',
             data: data,
             processDetailId: processDetailId,
             createdAt: detail.createdAt
