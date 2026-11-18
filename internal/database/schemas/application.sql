@@ -964,6 +964,7 @@ CREATE TABLE IF NOT EXISTS deep_assessment_assets (
  asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
  PRIMARY KEY(task_id,asset_id)
 );
+CREATE INDEX IF NOT EXISTS idx_deep_assessment_assets_asset ON deep_assessment_assets(asset_id,task_id);
 CREATE TABLE IF NOT EXISTS deep_assessment_changes (
  task_id TEXT PRIMARY KEY REFERENCES deep_assessments(id) ON DELETE CASCADE,
  version INTEGER NOT NULL DEFAULT 0
@@ -980,12 +981,23 @@ CREATE TABLE IF NOT EXISTS deep_assessment_facts (
  assets_json TEXT NOT NULL, sources_json TEXT NOT NULL, created_at DATETIME NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_assessment_facts_task ON deep_assessment_facts(task_id,created_at,id);
+CREATE TABLE IF NOT EXISTS deep_assessment_acceptance (
+ task_id TEXT NOT NULL REFERENCES deep_assessments(id) ON DELETE CASCADE,
+ criterion INTEGER NOT NULL, revision INTEGER NOT NULL, mapping TEXT NOT NULL,
+ PRIMARY KEY(task_id,criterion)
+);
 CREATE TABLE IF NOT EXISTS asset_endpoints (
  id TEXT PRIMARY KEY, asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
  method TEXT NOT NULL, path TEXT NOT NULL, title TEXT NOT NULL DEFAULT '',
  first_seen_at DATETIME NOT NULL, last_seen_at DATETIME NOT NULL,
  UNIQUE(asset_id,method,path)
 );
+CREATE TABLE IF NOT EXISTS deep_assessment_endpoint_evidence (
+ endpoint_id TEXT NOT NULL REFERENCES asset_endpoints(id) ON DELETE CASCADE,
+ fact_id TEXT NOT NULL REFERENCES deep_assessment_facts(id) ON DELETE CASCADE,
+ PRIMARY KEY(endpoint_id,fact_id)
+);
+CREATE INDEX IF NOT EXISTS idx_assessment_endpoint_evidence_fact ON deep_assessment_endpoint_evidence(fact_id,endpoint_id);
 CREATE TABLE IF NOT EXISTS deep_assessment_finding_reviews (
  id TEXT PRIMARY KEY, vulnerability_id TEXT NOT NULL REFERENCES vulnerabilities(id) ON DELETE CASCADE,
  task_id TEXT NOT NULL, step_id TEXT NOT NULL,

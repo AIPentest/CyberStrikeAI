@@ -69,6 +69,25 @@ Agent 可调用：
 - `assessment_checkpoint`：保存当前观察，同时保留 Pi 原生自定义条目。
 - `assessment_result`：提交 completed、blocked 或 continue；完成需引用本任务真实成功调用的回执。
 
+## 验收证据矩阵
+
+创建测评时建议每行填写一条验收条件。原有验收条件按非空行显示；留空并沿用任务目标时，整个目标成为一个验收项。
+
+在任务工作台的「验收证据」中，审阅人可搜索并关联本次测评的事实或原始回执。关联事实会展示该事实引用的同一意图回执。可点击节点打开原文，也可给验收项加复核标记和说明。协作者并发编辑同一项时，较旧的版本无法覆盖已保存的关联。
+
+- **已有证据**表示当前选中的证据包含成功原始回执，且没有待核对的关联。
+- **缺证据**表示尚未关联事实或回执，也未标记待复核。
+- **待人工复核**涵盖人工标记、推断事实、未成功的回执和已不可用的来源。
+
+阶段报告按相同规则列出每个验收项、事实及其支持回执，并可跳回对应节点。证据状态用于人工审阅，保存矩阵不触发工具调用或任务调度，也不改变系统的任务完成判定。
+
+### 双图联动、端点证据与历史对照
+
+- 从资产图选中服务，打开「查看证据路径」可查看本资产关联的意图、事实、原始回执和验收项。探索图的事实节点也能打开同一视图反查资产和验收项。浏览器返回可恢复资产图的选择、筛选和画布位置。
+- 在「验收证据」中打开「查看局部证据图」，可按条件查看关联事实、可读资产及回执。图按事实分页，相关的归档证据可直接定位。人工验收关联、推断及原始回执使用不同的线条。直接回执缺少可见资产锚点时会单独提示。
+- 服务下的「端点证据」可筛选已有观察证据、待人工复核或缺证据。审阅人可为指定端点关联或解除同测评、同服务的事实。端点只有明确关联且仍有成功原始回执的观察事实，才计入已有观察证据。
+- 「历次测评」按同一共享资产 ID 显示可读的较早测评、观察时间、证据和待复核验收项。项目和保存的范围文字一致时，页面比较新增观察文本、新增证据端点及本次暂无记录的旧端点。文本改动可能计入新增观察。范围或项目不同的记录保留供人工对照。阶段报告对照最近一条可读的较早测评，并提供端点缺口及历史入口。
+
 ## 漏洞管理关联
 
 执行过程中通过 `record_vulnerability` 成功登记的漏洞，按实际执行会话自动关联测评 ID、测评名称、步骤 ID 和步骤标题。只写在检查点或摘要中的观察不会自动生成漏洞。工具和权限沿用当前角色配置。
@@ -90,7 +109,7 @@ Agent 可调用：
 - **意图**沿用步骤记录，新增 `asset_ids` 和 `priority`（1 优先、默认 100）。`source_ids` 保留派生依据，`depends_on` 控制执行前置条件。队列持久化，按优先级、原有顺序调度；不因并发已满而丢弃待办，也不会抢占正在执行的意图。
 - worker 第一次执行时保存所锚定资产的原始快照，续跑继续使用该快照，同时重新检查当前资产访问权限。资产删除后保留任务和证据历史，不能静默改打另一个目标。
 - **事实**不可原地改写。`observed` 表示有本意图原始执行回执支持的观察；`inferred` 表示依据现象或既有节点作出的推断。回执必须真实存在、成功完成且属于相应测评和意图，不能用 Pi 摘要或漏洞登记回执替代。事实通过「产出／支持／推导」边进入探索图。
-- 资产图的「已有观察证据」只统计当前可读、已关联资产中被 observed 事实引用的数量；不是测试穷尽率、安全率或目标完成证明。
+- 在资产图按「全部关联资产」「已有观察证据」「暂无观察证据」筛选，搜索和分页作用于当前筛选。计数基于同一测评中被 observed 事实引用的可读关联资产，同一个资产只计一次。选中服务节点可查看该资产的事实，并从事实定位具体回执。阶段报告包含相同口径的统计和缺证据清单入口。人工验收仍以具体证据和任务验收条件为准。
 
 每次规划与独立验收均创建新的 **Pi 原生会话**。预取内容包括目标、队列数量、优先待办、在跑意图、近期事实、资产观察计数和有界图视图。完整队列、原文及冷历史通过工具分页读取，不把全部历史重新拼进提示词。
 
@@ -160,16 +179,23 @@ Pi `SessionManager` 管理会话上下文、原生压缩、工具搜索、Skills
 | `GET / DELETE /api/deep-assessments/:id` | 详情 / 删除非活动测评 |
 | `GET /api/deep-assessments/:id?step_limit=50&step_offset=0&runtime=true` | 分页详情与运行概览；`step_order=queue&step_status=needs_review` 定位待核对步骤 |
 | `POST /api/deep-assessments/:id/control/:action` | start、continue-stopped、pause、cancel、guidance、answer、retry、reconcile、archive、restore，以及 intent-pause、intent-resume、intent-priority、intent-guidance |
-| `GET / POST /api/deep-assessments/:id/assets` | 查看共享/关联资产图，或关联资产；`asset_id` 查询服务端点 |
+| `GET / POST /api/deep-assessments/:id/assets` | 查看共享/关联资产图，或关联资产；`asset_id` 查询服务端点；关联视图支持 `observation=observed` 或 `observation=missing` |
 | `GET /api/deep-assessments/:id/intents?status=&offset=0` | 优先级队列和状态计数 |
-| `GET /api/deep-assessments/:id/facts?confidence=&offset=0` | 分页读取观察/推断事实 |
+| `GET /api/deep-assessments/:id/facts?confidence=&offset=0` | 分页读取观察/推断事实，可用 `asset_id` 按可读的关联资产筛选 |
+| `GET /api/deep-assessments/:id/acceptance` | 查看验收项、证据关联与当前复核状态 |
+| `GET /api/deep-assessments/:id/acceptance/sources?kind=fact&q=&offset=0` | 分页搜索当前测评的可关联事实或回执（`kind=receipt`） |
+| `PUT /api/deep-assessments/:id/acceptance/:criterion` | 保存指定验收项的 `fact_ids`、`receipt_ids`、`needs_review`、`review_note` 及当前 `revision` |
+| `GET /api/deep-assessments/:id/evidence-path` | 按 `asset_id`、`fact_id` 或 `criterion` 查看分页证据图；结合 `asset_id` 与 `endpoint_id` 查看端点 |
+| `GET /api/deep-assessments/:id/evidence-history?asset_id=…` | 分页读取该资产在可读测评中的历史及可比变化 |
+| `GET /api/deep-assessments/:id/endpoint-evidence?asset_id=…` | 端点证据状态与筛选；加 `endpoint_id` 浏览可关联事实 |
+| `PUT /api/deep-assessments/:id/endpoint-evidence` | 保存 `asset_id`、`endpoint_id`、`fact_id` 与布尔值 `linked` |
 | `GET /api/deep-assessments/:id/graph?scope=&view=summary&limit=80&offset=0` | 主链路或 `view=full` 执行记录；包含分页边界计数及引用 |
 | `GET /api/deep-assessments/:id/graph/node?node_id=…&offset=0&links_offset=0` | 原文及独立分页的上下游关系 |
 | `GET /api/deep-assessments/:id/vulnerabilities?limit=20&offset=0` | 当前账号可读的关联漏洞 |
 | `GET /api/deep-assessments/:id/vulnerabilities/:vulnerabilityId` | 属于该测评的漏洞详情和来源步骤 |
 | `GET /api/deep-assessments/:id/steps/:stepId` | 单个步骤，用于跨分页定位 |
 | `GET /api/deep-assessments/:id/events?after=0` | 增量事件 |
-| `GET /api/deep-assessments/:id/receipts?offset=0` | 工具回执 |
+| `GET /api/deep-assessments/:id/receipts?offset=0` | 工具回执，或用 `receipt_id` 查看单条 |
 | `GET /api/deep-assessments/:id/report` | 包含当前状态及缺口的阶段报告 |
 
 控制请求携带 `revision`。核对使用 `reconcile`，传 `step_id` 和 `reconciled:true`；资源清理未确认另需 `cleanup_confirmed:true`。兼容旧客户端通过 `retry` 提交核对，但不会自动开始执行。`continue-stopped` 仅用于用户明确继续已停止测评，另检查执行权限。

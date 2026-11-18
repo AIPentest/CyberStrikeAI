@@ -44,7 +44,7 @@ func (h *AgentHandler) DeepAssessmentReceipts(c *gin.Context) {
 	if offset < 0 {
 		offset = 0
 	}
-	stepID := c.Query("step_id")
+	stepID, receiptID := c.Query("step_id"), c.Query("receipt_id")
 	if stepID != "" {
 		task, err := h.deepAssessments.Store.Get(c.Param("id"))
 		if err != nil {
@@ -56,7 +56,7 @@ func (h *AgentHandler) DeepAssessmentReceipts(c *gin.Context) {
 			return
 		}
 	}
-	rows, err := h.db.Query(`SELECT id,step_id,tool,arguments,status,execution_id,result FROM deep_assessment_calls WHERE task_id=? AND (?='' OR step_id=?) ORDER BY updated_at DESC,id LIMIT 50 OFFSET ?`, c.Param("id"), stepID, stepID, offset)
+	rows, err := h.db.Query(`SELECT id,step_id,tool,arguments,status,execution_id,result FROM deep_assessment_calls WHERE task_id=? AND (?='' OR step_id=?) AND (?='' OR id=?) ORDER BY updated_at DESC,id LIMIT 50 OFFSET ?`, c.Param("id"), stepID, stepID, receiptID, receiptID, offset)
 	if err != nil {
 		deepAssessmentError(c, err)
 		return
@@ -73,6 +73,10 @@ func (h *AgentHandler) DeepAssessmentReceipts(c *gin.Context) {
 	}
 	if err = rows.Err(); err != nil {
 		deepAssessmentError(c, err)
+		return
+	}
+	if receiptID != "" && len(out) == 0 {
+		deepAssessmentError(c, sql.ErrNoRows)
 		return
 	}
 	c.JSON(200, gin.H{"receipts": out, "next_offset": offset + len(out), "has_more": len(out) == 50})
@@ -566,6 +570,18 @@ func (h *AgentHandler) DeepAssessmentReport(c *gin.Context) {
 	fmt.Fprintf(&b, "生成时间：%s\n\n[打开本次测评](%s)\n\n", time.Now().UTC().Format(time.RFC3339), assessmentReportLink(c, t.ID, "", "overview"))
 	fmt.Fprintf(&b, "# %s\n\n状态：%s\n\n## 目标\n%s\n\n## 范围\n%s\n\n## 验收条件\n%s\n\n## 当前结论\n%s\n\n## 路线\n%s\n", t.Name, t.Status, t.Objective, t.Scope, t.Criteria, t.Summary, t.Strategy)
 	fmt.Fprintf(&b, "\n## 运行记录\n\n类型：长程测评（当前状态见上方）\n\n累计规划：%d\n\n累计 Token：%d\n", t.Rounds, t.TokensUsed)
+	if err = h.appendAssessmentCoverageReport(c, t, &b); err != nil {
+		deepAssessmentError(c, err)
+		return
+	}
+	if err = h.appendAcceptanceReport(c, t, &b); err != nil {
+		deepAssessmentError(c, err)
+		return
+	}
+	if err = h.appendEvidenceComparisonReport(c, t, &b); err != nil {
+		deepAssessmentError(c, err)
+		return
+	}
 	if len(t.Guidance) > 0 {
 		b.WriteString("\n## 人工补充\n")
 		for _, note := range t.Guidance {

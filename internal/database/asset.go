@@ -58,6 +58,7 @@ type Asset struct {
 type AssetListFilter struct {
 	ID                 string
 	AssessmentID       string
+	AssessmentObserved *bool
 	Search             string
 	Status             string
 	Protocol           string
@@ -445,6 +446,14 @@ func assetWhere(filter AssetListFilter, access RBACListAccess) (string, []interf
 	if filter.AssessmentID != "" {
 		query += " AND EXISTS(SELECT 1 FROM deep_assessment_assets da WHERE da.asset_id=assets.id AND da.task_id=?)"
 		args = append(args, filter.AssessmentID)
+		if filter.AssessmentObserved != nil {
+			operator := " IN "
+			if !*filter.AssessmentObserved {
+				operator = " NOT IN "
+			}
+			query += " AND assets.id" + operator + "(" + assessmentObservedAssetIDs + ")"
+			args = append(args, filter.AssessmentID)
+		}
 	}
 	if filter.Source != "" {
 		query += " AND LOWER(assets.source) = LOWER(?)"

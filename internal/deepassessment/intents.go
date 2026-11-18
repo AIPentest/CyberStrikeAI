@@ -179,10 +179,20 @@ func (s *Store) AddFact(task string, f *Fact) error {
 	return tx.Commit()
 }
 func (s *Store) Facts(task, confidence string, offset int) ([]Fact, error) {
+	return s.FactsForAsset(task, confidence, "", offset)
+}
+
+func (s *Store) FactsForAsset(task, confidence, asset string, offset int) ([]Fact, error) {
 	if offset < 0 {
 		offset = 0
 	}
-	rows, err := s.DB.Query("SELECT id,step_id,confidence,summary,body,evidence_json,assets_json,sources_json,created_at FROM deep_assessment_facts WHERE task_id=? AND (?='' OR confidence=?) ORDER BY created_at DESC,id DESC LIMIT 20 OFFSET ?", task, confidence, confidence, offset)
+	query := "SELECT id,step_id,confidence,summary,body,evidence_json,assets_json,sources_json,created_at FROM deep_assessment_facts WHERE task_id=? AND (?='' OR confidence=?)"
+	args := []any{task, confidence, confidence}
+	if asset != "" {
+		query += " AND EXISTS(SELECT 1 FROM json_each(assets_json) j WHERE j.value=?)"
+		args = append(args, asset)
+	}
+	rows, err := s.DB.Query(query+" ORDER BY created_at DESC,id DESC LIMIT 20 OFFSET ?", append(args, offset)...)
 	if err != nil {
 		return nil, err
 	}

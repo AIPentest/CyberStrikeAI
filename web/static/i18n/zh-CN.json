@@ -5422,6 +5422,14 @@
       "output": "执行回执"
     },
     "exploration": {
+      "coverageFilter": "按观察证据筛选",
+      "coverageAll": "全部关联资产",
+      "coverageObserved": "已有观察证据",
+      "coverageMissing": "暂无观察证据",
+      "coverageEmpty": "没有符合当前观察证据筛选的资产",
+      "coverageHint": "只统计当前账号可读的关联资产。覆盖情况按已有观察事实计算，验收需核对具体证据。",
+      "assetFacts": "查看此资产的事实",
+      "assetFactFilter": "当前仅查看此资产的事实",
       "browse": "查看共享资产库",
       "help": "资产图说明",
       "records": "资产记录",

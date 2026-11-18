@@ -30,6 +30,20 @@ func reportLiteral(b *strings.Builder, text string) {
 	}
 	fmt.Fprintf(b, "\n%s\n%s\n%s\n", fence, text, fence)
 }
+
+func (h *AgentHandler) appendAssessmentCoverageReport(c *gin.Context, t *deepassessment.Task, b *strings.Builder) error {
+	if !security.SessionHasPermission(c, "asset:read") {
+		return nil
+	}
+	session, _ := security.CurrentSession(c)
+	coverage, err := h.db.AssessmentAssetCoverage(t.ID, t.ProjectID, database.RBACListAccess{UserID: session.UserID, Scope: session.ScopeFor("asset:read")})
+	if err != nil {
+		return err
+	}
+	linked, observed := coverage["linked"], coverage["with_observed_evidence"]
+	fmt.Fprintf(b, "\n## 资产观察证据\n\n可读的关联资产 %d 项，已有观察事实 %d 项，暂无观察事实 %d 项。\n\n此处统计关联资产的证据记录，实际测评范围和完成情况见目标、验收条件及回执。\n\n[查看当前缺证据清单](%s&observation=missing)\n", linked, observed, linked-observed, assessmentReportLink(c, t.ID, "", "assets"))
+	return nil
+}
 func (h *AgentHandler) reportReviews(task, finding string) ([]database.AssessmentFindingReview, error) {
 	rows, err := h.db.Query("SELECT id,step_id,verdict,reason,evidence_json,created_at FROM deep_assessment_finding_reviews WHERE task_id=? AND vulnerability_id=? ORDER BY created_at,id", task, finding)
 	if err != nil {

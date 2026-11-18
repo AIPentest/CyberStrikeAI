@@ -18,7 +18,7 @@
         if(previous)chart.pan({x:pan.x+(next.width-previous.width)/2,y:pan.y+(next.height-previous.height)/2});
     }
     function fit() { if(!chart)return;resize();chart.fit(undefined,32);if(chart.zoom()>1)chart.zoom({level:1,renderedPosition:{x:host.clientWidth/2,y:host.clientHeight/2}});remember(); }
-    const colors = { fact:'#0d9488',finding:'#e11d48',domain:'#6366f1',subdomain:'#818cf8',ip:'#0891b2',service:'#2563eb',application:'#c026d3',endpoint:'#0d9488', goal: '#6366f1', step: '#3b82f6', observation: '#14b8a6', receipt: '#64748b', memory: '#a855f7', digest: '#d97706', guidance: '#0891b2' };
+    const colors = { criterion:'#8b5cf6',fact:'#0d9488',finding:'#e11d48',domain:'#6366f1',subdomain:'#818cf8',ip:'#0891b2',service:'#2563eb',application:'#c026d3',endpoint:'#0d9488', goal: '#6366f1', step: '#3b82f6', observation: '#14b8a6', receipt: '#64748b', memory: '#a855f7', digest: '#d97706', guidance: '#0891b2' };
     function destroy() {
         remember();
         observer?.disconnect(); observer = null;
@@ -28,7 +28,7 @@
     }
     function relationLabel(key) {
         const path='deepAssessments.graphRelations.'+key,value=window.t?.(path);
-        return value && value!==path ? value : ({via_archive:'经归档',via_details:'经执行记录',plans:'规划',depends_on:'依赖',informs:'派生',derives:'推导',produces:'产出',supports:'支持',reviews:'复核',executes:'执行',records:'记录',summarizes:'摘要',archives:'归档',contains:'包含',guides:'指导',exposes:'提供',associated_with:'关联',serves:'承载'})[key] || key;
+        return value && value!==path ? value : ({via_archive:'经归档',via_details:'经执行记录',plans:'规划',depends_on:'依赖',informs:'派生',derives:'推导',produces:'产出',supports:'支持',reviews:'复核',executes:'执行',records:'记录',summarizes:'摘要',archives:'归档',contains:'包含',guides:'指导',exposes:'提供',associated_with:'关联',serves:'承载',targeted_by:'关联意图',observed_on:'观察锚点',inferred_on:'推断锚点',review_link:'人工验收关联',backed_by:'引用原始回执',endpoint_annotation:'人工端点关联'})[key] || key;
     }
     function styles() {
         const css = getComputedStyle(document.documentElement);
@@ -44,7 +44,7 @@
             { selector: 'edge', style: { width: 1.5, 'line-color': 'data(relationColor)', 'target-arrow-color': 'data(relationColor)', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', label: '', opacity:.65, 'font-size': 10, color: text, 'text-background-color': surface, 'text-background-opacity': .9 } },
             { selector: 'edge.da-connected', style: { label:'data(relationLabel)',width:2.5,opacity:1 } },
             {selector:'edge[projection]',style:{'line-style':'dashed'}},
-            { selector: 'edge[relation = "supports"], edge[relation = "informs"]', style: { 'line-style': 'dashed' } },
+            { selector: 'edge[relation = "supports"], edge[relation = "informs"], edge[relation = "inferred_on"], edge[relation = "review_link"], edge[relation = "endpoint_annotation"]', style: { 'line-style': 'dashed' } },
         ];
     }
     // Only layout ignores DFS back edges. Every original relation remains rendered.
@@ -162,7 +162,7 @@
         const elements = nodes.map(node => ({ data: { id: node.id, kind: node.kind, state: node.state, boundary:!!node.boundary,label: label(node.kind) + (node.state&&stateLabel(node.state)?' · '+stateLabel(node.state):'') + '\n' + (Array.from(node.title).length > 42 ? Array.from(node.title).slice(0, 42).join('') + '…' : node.title), color: colors[node.kind] || colors.step } }));
         const ids = new Set(nodes.map(n => n.id));
         for (const edge of graph.edges || []) if (ids.has(edge.source) && ids.has(edge.target)) {
-            const relationColor=({plans:'#6366f1',depends_on:'#6366f1',informs:'#059669',derives:'#059669',produces:'#d97706',supports:'#e11d48',reviews:'#e11d48',summarizes:'#a855f7',archives:'#a855f7'})[edge.relation]||'#94a3b8';
+            const relationColor=({plans:'#6366f1',depends_on:'#6366f1',informs:'#059669',derives:'#059669',produces:'#d97706',supports:'#e11d48',reviews:'#e11d48',summarizes:'#a855f7',archives:'#a855f7',observed_on:'#0d9488',inferred_on:'#d97706',review_link:'#8b5cf6',backed_by:'#2563eb',endpoint_annotation:'#6d28d9'})[edge.relation]||'#94a3b8';
             elements.push({ data: { id: 'edge:' + JSON.stringify([edge.source, edge.relation, edge.target,edge.projection||'']), ...edge, relationLabel: relationLabel(edge.relation)+(edge.projection?' · '+relationLabel('via_'+edge.projection):'')+(edge.references>1?' ×'+edge.references:''),relationColor } });
         }
         if (!chart) {

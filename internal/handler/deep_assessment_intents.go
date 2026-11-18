@@ -99,16 +99,26 @@ func (h *AgentHandler) DeepAssessmentAssets(c *gin.Context) {
 		c.JSON(200, gin.H{"endpoints": endpoints, "next_offset": offset + len(endpoints), "has_more": len(endpoints) == 50})
 		return
 	}
+	observation := c.Query("observation")
 	if c.Query("scope") != "all" {
 		filter.AssessmentID = t.ID
 	}
+	if observation != "" {
+		if filter.AssessmentID == "" || (observation != "observed" && observation != "missing") {
+			c.JSON(400, gin.H{"error": "observation must be observed or missing and requires linked assets"})
+			return
+		}
+		observed := observation == "observed"
+		filter.AssessmentObserved = &observed
+	}
 	offset, _ := strconv.Atoi(c.Query("offset"))
-	graph, err := h.db.SharedAssetGraph(filter, database.RBACListAccess{UserID: session.UserID, Scope: session.ScopeFor("asset:read")}, 20, offset)
+	access := database.RBACListAccess{UserID: session.UserID, Scope: session.ScopeFor("asset:read")}
+	graph, err := h.db.SharedAssetGraph(filter, access, 20, offset)
 	if err != nil {
 		deepAssessmentError(c, err)
 		return
 	}
-	graph.Coverage, err = h.db.AssessmentAssetCoverage(t.ID, t.ProjectID, database.RBACListAccess{UserID: session.UserID, Scope: session.ScopeFor("asset:read")})
+	graph.Coverage, err = h.db.AssessmentAssetCoverage(t.ID, t.ProjectID, access)
 	if err != nil {
 		deepAssessmentError(c, err)
 		return
@@ -118,7 +128,29 @@ func (h *AgentHandler) DeepAssessmentAssets(c *gin.Context) {
 func (h *AgentHandler) DeepAssessmentFacts(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.Query("offset"))
 	offset = max(0, offset)
-	facts, err := h.deepAssessments.Store.Facts(c.Param("id"), c.Query("confidence"), offset)
+	task, asset := c.Param("id"), c.Query("asset_id")
+	if asset != "" {
+		if !security.SessionHasPermission(c, "asset:read") {
+			c.JSON(403, gin.H{"error": "缺少资产读取权限"})
+			return
+		}
+		t, err := h.deepAssessments.Store.Get(task)
+		if err != nil {
+			deepAssessmentError(c, err)
+			return
+		}
+		session, _ := security.CurrentSession(c)
+		allowed, err := h.db.CanReadAssessmentAsset(t.ID, t.ProjectID, asset, database.RBACListAccess{UserID: session.UserID, Scope: session.ScopeFor("asset:read")})
+		if err != nil {
+			deepAssessmentError(c, err)
+			return
+		}
+		if !allowed {
+			c.JSON(404, gin.H{"error": "资产不存在或无权访问"})
+			return
+		}
+	}
+	facts, err := h.deepAssessments.Store.FactsForAsset(task, c.Query("confidence"), asset, offset)
 	if err != nil {
 		deepAssessmentError(c, err)
 		return
