@@ -58,7 +58,7 @@ function channelValues(channel) {
         api_key: channel.api_key || '',
         model: channel.model || '',
         context_profile: channel.context_profile || '',
-        context_window: channel.context_window || 0,
+        context_window: channel.context_window > 0 ? String(channel.context_window) : '',
         max_total_tokens: channel.max_total_tokens || 0,
         max_completion_tokens: channel.max_completion_tokens || 0,
         headers: channel.headers || undefined
@@ -80,7 +80,7 @@ function summarizeTest(t, payload) {
 
 function summarizeContext(t, payload) {
     const source = payload.context_source;
-    const sourceKey = source?.replace(/^omlx_models_(?=max_model_len|context_length|max_context_length)/, 'openai_models_');
+    const sourceKey = source?.replace(/^omlx_models_(?=max_model_len|context_length|max_context_length|context_window)/, 'openai_models_');
     const backend = payload.context_backend;
     return [
         ...summarizeTest(t, payload),
@@ -288,6 +288,21 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
         setState(EMPTY_PROBE);
         try {
             const payload = await api.post(path, body);
+            const detectedWindow = payload.context_window;
+            const fillWindow = key === 'context' || (key === 'test' && ['', '0'].includes(form.context_window.trim()));
+            if (fillWindow && payload.success && Number.isSafeInteger(detectedWindow) && detectedWindow > 0 && !payload.context_runtime_unknown) {
+                const value = String(detectedWindow);
+                setDrafts(current => {
+                    const next = { ...current[channelId] };
+                    // The response may arrive after the user has changed the model or window.
+                    if (['provider', 'base_url', 'api_key', 'model', 'context_window'].some(field => next[field] !== draft[field])) {
+                        return current;
+                    }
+                    if (value === baseline.context_window) delete next.context_window;
+                    else next.context_window = value;
+                    return { ...current, [channelId]: next };
+                });
+            }
             setState({ key, payload, error: null });
         } catch (error) {
             setState({ key, payload: null, error });
@@ -448,7 +463,9 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
                             onChange={value => update(field, value)}
                             inputMode="numeric"
                             readOnly={locked}
-                            placeholder="0"
+                            placeholder={field === 'context_window'
+                                ? t('settingsProbe.windowExample', { value: t('settingsBasic.contextWindowPlaceholder', null, '131072') }, '例如 131072')
+                                : '0'}
                         />
                     </label>
                 ))}

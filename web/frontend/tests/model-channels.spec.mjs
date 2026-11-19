@@ -16,6 +16,56 @@ function modelConfig() {
 test.describe('model channel editing', () => {
     test.use({ appPermissions: [...UI_PERMISSIONS, 'config:write'] });
 
+    test('shows an example, fills a detected context window, and saves it explicitly', async ({ page, mockApi }) => {
+        const config = modelConfig();
+        const model = config.ai.channels['qwen-max'];
+        config.ai.default_channel = 'qwen-max';
+        mockApi.respond('GET', '/api/config', () => ({ json: config }));
+        const result = {
+            success: true, model: 'deepseek-flash', context_window: 1048576,
+            context_source: 'openai_models_context_window'
+        };
+        mockApi.respond('POST', '/api/config/test-openai', { json: result });
+        mockApi.respond('POST', '/api/config/detect-context', { json: { ...result, context_runtime_unknown: true } });
+        mockApi.respond('PUT', '/api/config', ({ body }) => {
+            model.context_window = body.ai_channel.context_window;
+            return { json: {} };
+        });
+        mockApi.respond('POST', '/api/config/apply', { json: {} });
+        await page.goto('/static/app/#/settings?section=models');
+        const panel = (await ready(page)).locator('.settings-channel-panel');
+        const window = panel.getByLabel('模型上下文窗口（Token）', { exact: true });
+        const detect = panel.getByRole('button', { name: '自动检测', exact: true });
+        const connection = panel.getByRole('button', { name: '测试连接', exact: true });
+        const save = panel.getByRole('button', { name: '保存通道', exact: true });
+        await expect(window).toHaveValue('');
+        await expect(window).toHaveAttribute('placeholder', '例如 131072');
+        await expect(save).toBeDisabled();
+
+        await connection.click();
+        await expect(window).toHaveValue('1048576');
+        await expect(panel.getByText('模型接口返回的上下文窗口', { exact: true })).toBeVisible();
+        await window.fill('65536');
+        await connection.click();
+        await expect(connection).toBeEnabled();
+        await expect(window).toHaveValue('65536');
+        await detect.click();
+        await expect(detect).toBeEnabled();
+        await expect(window).toHaveValue('65536');
+
+        mockApi.respond('POST', '/api/config/detect-context', { json: result });
+        await detect.click();
+        await expect(window).toHaveValue('1048576');
+        expect(mockApi.calls('PUT', '/api/config')).toEqual([]);
+        await save.click();
+        await expect(save).toBeDisabled();
+        expect(mockApi.calls('PUT', '/api/config')[0].body).toMatchObject({
+            ai_channel: { channel_id: 'qwen-max', context_window: 1048576 }
+        });
+        await page.reload();
+        await expect(window).toHaveValue('1048576');
+    });
+
     test('manual edits are saved on the selected channel and the default changes explicitly', async ({ page, mockApi }) => {
         const config = modelConfig();
         mockApi.respond('GET', '/api/config', () => ({ json: config }));

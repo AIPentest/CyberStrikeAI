@@ -3117,6 +3117,7 @@
     "latency": "响应耗时",
     "milliseconds": "{{value}} 毫秒",
     "window": "上下文窗口",
+    "windowExample": "例如 {{value}}",
     "backend": "模型接口类型",
     "source": "窗口信息来源",
     "profile": "上下文配置",
@@ -3148,6 +3149,7 @@
       "openai_models_max_model_len": "模型接口返回的最大序列长度",
       "openai_models_context_length": "模型接口返回的上下文长度",
       "openai_models_max_context_length": "模型接口返回的最大上下文长度",
+      "openai_models_context_window": "模型接口返回的上下文窗口",
       "omlx_models_status": "oMLX 模型状态"
     }
   },

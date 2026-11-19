@@ -3129,6 +3129,7 @@
     "latency": "Response latency",
     "milliseconds": "{{value}} ms",
     "window": "Context window",
+    "windowExample": "e.g. {{value}}",
     "backend": "Model API type",
     "source": "Context window source",
     "profile": "Context profile",
@@ -3160,6 +3161,7 @@
       "openai_models_max_model_len": "Maximum sequence length from the model API",
       "openai_models_context_length": "Context length from the model API",
       "openai_models_max_context_length": "Maximum context length from the model API",
+      "openai_models_context_window": "Context window from the model API",
       "omlx_models_status": "oMLX model status"
     }
   },
