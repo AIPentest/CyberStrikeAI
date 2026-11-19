@@ -1,9 +1,9 @@
 /** 合并重复资产：选择主资产，POST /assets/merge（后端要求两条资产共享域名/IP/Host）。 */
 import { useEffect, useMemo, useState } from 'react';
-import { Banner, Modal, Radio, RadioGroup, Space, Typography } from '@douyinfe/semi-ui';
+import { Banner, Radio, RadioGroup, Space, Typography } from '@douyinfe/semi-ui';
 import { api, errorMessage } from '../../../lib/http';
 import { useT } from '../../../lib/i18n';
-import { toastSuccess } from '../../../components/ui';
+import { Drawer, toastSuccess } from '../../../components/ui';
 import { assetTargetLabel } from './assetTarget';
 
 const { Text } = Typography;
@@ -43,7 +43,7 @@ export default function AssetMergeModal({ visible, assets, onClose, onDone }) {
     };
 
     return (
-        <Modal
+        <Drawer
             visible={visible}
             title={t('assets.mergeDuplicates', null, '合并重复资产')}
             width={560}
@@ -79,6 +79,6 @@ export default function AssetMergeModal({ visible, assets, onClose, onDone }) {
                 </Space>
             )}
             {error && <Banner type="danger" bordered closeIcon={null} description={error} className="asset-library-form-error" />}
-        </Modal>
+        </Drawer>
     );
 }

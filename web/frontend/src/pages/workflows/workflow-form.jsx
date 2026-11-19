@@ -1,10 +1,10 @@
 /** 工作流新建 / 编辑：元数据 + graph JSON 文本域（校验、格式化、模板）。 */
 import { useEffect, useMemo, useState } from 'react';
-import { Banner, Button, Checkbox, Input, InputNumber, Modal, Space, TextArea, Typography } from '@douyinfe/semi-ui';
+import { Banner, Button, Checkbox, Input, InputNumber, Space, TextArea, Typography } from '@douyinfe/semi-ui';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
 import { useAuth } from '../../lib/auth';
-import { toastError, toastSuccess } from '../../components/ui';
+import { Drawer, toastError, toastSuccess } from '../../components/ui';
 import { GRAPH_TEMPLATE, NODE_TYPES, errText, graphSummary } from './helpers';
 
 const { Text } = Typography;
@@ -131,7 +131,7 @@ export default function WorkflowFormModal({ visible, workflow, onCancel, onSaved
     };
 
     return (
-        <Modal
+        <Drawer
             visible={visible}
             title={editing ? t('workflows.metaModalTitle', null, '工作流信息') : t('workflows.newGraph', null, '新建工作流')}
             onCancel={onCancel}
@@ -235,6 +235,6 @@ export default function WorkflowFormModal({ visible, workflow, onCancel, onSaved
                     style={{ marginTop: 12 }}
                 />
             ) : null}
-        </Modal>
+        </Drawer>
     );
 }

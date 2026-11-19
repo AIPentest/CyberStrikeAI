@@ -1,9 +1,9 @@
 /** 批量编辑：PUT /assets/bulk，仅提交填写的字段，空白保持原值。 */
 import { useEffect, useMemo, useState } from 'react';
-import { Banner, Input, Modal, Select, Typography } from '@douyinfe/semi-ui';
+import { Banner, Input, Select, Typography } from '@douyinfe/semi-ui';
 import { api, errorMessage } from '../../../lib/http';
 import { useT } from '../../../lib/i18n';
-import { toastSuccess } from '../../../components/ui';
+import { Drawer, toastSuccess } from '../../../components/ui';
 import { CRITICALITY_OPTIONS, ENVIRONMENT_OPTIONS, STATUS_OPTIONS } from './assetConstants';
 import { splitTags } from './assetTarget';
 
@@ -64,7 +64,7 @@ export default function AssetBulkEditModal({ visible, assetIds, onClose, onDone 
     };
 
     return (
-        <Modal
+        <Drawer
             visible={visible}
             title={t('assets.bulkEdit', null, '批量编辑')}
             width={620}
@@ -123,6 +123,6 @@ export default function AssetBulkEditModal({ visible, assetIds, onClose, onDone 
                 />
             </div>
             {error && <Banner type="danger" bordered closeIcon={null} description={error} className="asset-library-form-error" />}
-        </Modal>
+        </Drawer>
     );
 }

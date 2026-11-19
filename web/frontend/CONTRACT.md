@@ -6,7 +6,7 @@
 ## 唯一允许的公共依赖
 
 ```js
-import { Button, Card, Table, Form, Modal, Drawer, Select, Input, Tabs, Tag, Space, Typography,
+import { Button, Card, Table, Form, Modal, Select, Input, Tabs, Tag, Space, Typography,
          Banner, Descriptions, Popconfirm, Toast, Tooltip, Switch, Checkbox, Radio, RadioGroup,
          DatePicker, Progress, Spin, Empty, List, Timeline, Collapse, Pagination, TextArea,
          Avatar, Badge, Divider, SideSheet, Tree, TreeSelect, Upload, Slider, Steps, SplitButton,
@@ -30,7 +30,7 @@ import { useResource, useInterval, useDebounced, useLocalStorage } from '../../c
 import {
   PageHeader, SectionCard, StatGrid, StatCard, DataTable, ErrorBanner, SeverityTag, StatusTag,
   CopyButton, MarkdownView, JsonViewer, KeyValueList, toastSuccess, toastWarning, toastError,
-  confirmAction
+  Drawer, confirmAction
 } from '../../components/ui';
 ```
 
@@ -45,6 +45,7 @@ import {
 ## 样式
 
 页面私有样式写同目录 `page.css` 并在 `index.jsx` 里 `import './page.css';`。
+新建、编辑、导入和详情统一使用公共 `Drawer`，长内容在抽屉正文内滚动，操作按钮放在抽屉底部。删除、终止等简短确认使用 `confirmAction` 或确认弹窗。
 仅允许少量布局样式（flex/grid/间距），颜色一律使用 Semi 变量：
 `var(--semi-color-bg-1)`、`var(--semi-color-border)`、`var(--semi-color-text-2)`、`var(--semi-color-primary)` 等。
 不要复制旧版 css 文件，不要自定义整套配色。
@@ -58,7 +59,7 @@ import {
 ## 页面完成标准
 
 1. 首屏加载真实数据（GET），有 loading / 空态 / 错误态（`ErrorBanner` + `onRetry`）。
-2. 主操作可用：列表 + 详情（Drawer/Modal）+ 新建/编辑表单 + 删除确认 + 刷新；写操作按钮用 `hasPermission('x:write')` 控制禁用或隐藏。
+2. 主操作可用：列表 + 详情抽屉 + 新建/编辑表单 + 删除确认 + 刷新；写操作按钮用 `hasPermission('x:write')` 控制禁用或隐藏。
 3. 深链接：按 id 定位的页面从 `useSearchParams()` 读取（如 `#/vulnerabilities?id=xxx`），操作后写回 URL。
 4. 不改 `src/pages/registry.js`、`src/lib/*`、`src/components/*`、`src/layout/*`、`src/styles/app.css`。
 5. 页面目录内可以任意拆分文件，单文件建议 < 500 行。

@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Button, Form, Input, Modal, Select, Space, Typography } from '@douyinfe/semi-ui';
+import { useId, useState } from 'react';
+import { Button, Form, Input, Select, Space, Typography } from '@douyinfe/semi-ui';
 import { api } from '../../lib/http';
 import { useDebounced, useResource } from '../../components/hooks';
-import { ErrorBanner, toastSuccess } from '../../components/ui';
+import { Drawer, ErrorBanner, toastSuccess } from '../../components/ui';
 
 const types = [
     ['project', '项目'], ['conversation', '会话'], ['asset', '资产'],
@@ -10,6 +10,7 @@ const types = [
 ];
 
 export default function ResourceGrant({ users, onCancel, onSaved }) {
+    const formId = useId();
     const [type, setType] = useState(types[0][0]);
     const [query, setQuery] = useState('');
     const [offset, setOffset] = useState(0);
@@ -49,8 +50,20 @@ export default function ResourceGrant({ users, onCancel, onSaved }) {
     };
 
     return (
-        <Modal visible title="新增资源授权" footer={null} onCancel={saving ? undefined : onCancel} width={560}>
-            <Form onSubmit={submit} initValues={{ resource_type: type }}>
+        <Drawer
+            visible
+            title="新增资源授权"
+            width={560}
+            closable={!saving}
+            maskClosable={!saving}
+            closeOnEsc={!saving}
+            onCancel={onCancel}
+            formId={formId}
+            okText="保存授权"
+            confirmLoading={saving}
+            cancelButtonProps={{ disabled: saving }}
+        >
+            <Form id={formId} onSubmit={submit} initValues={{ resource_type: type }}>
                 <Form.Select field="user_id" label="用户" filter
                     optionList={users.map(user => ({ value: user.id, label: user.display_name || user.username }))}
                     rules={[{ required: true, message: '请选择用户' }]} />
@@ -74,11 +87,7 @@ export default function ResourceGrant({ users, onCancel, onSaved }) {
                 </Form.Slot>
                 <Form.TextArea field="ids" label="手动输入资源 ID" placeholder="多个 ID 用空格或换行分隔" rows={2} />
                 <ErrorBanner error={error || result.error} />
-                <Space>
-                    <Button onClick={onCancel} disabled={saving}>取消</Button>
-                    <Button htmlType="submit" theme="solid" loading={saving}>保存授权</Button>
-                </Space>
             </Form>
-        </Modal>
+        </Drawer>
     );
 }

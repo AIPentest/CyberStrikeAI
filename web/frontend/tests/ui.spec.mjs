@@ -343,7 +343,7 @@ test('chat: create a project from the composer and select it for the current dra
     await projectSelect.click();
     await expect(page.getByRole('option', { name: PROJECT.name })).toBeVisible();
     await createOption.click();
-    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveClass(/semi-sidesheet-inner/);
     await button(dialog, label('common.cancel', '取消')).click();
     await expect(projectSelect).toBeVisible();
     expect(mockApi.writes()).toEqual([]);
@@ -627,7 +627,8 @@ test('vulnerability: dashboard deep link, detail retry, evidence and close; new 
     await expect(page).toHaveURL(/#\/vulnerabilities$/);
     await button(page.locator('#main-content'), label('vulnerability.addVuln', '添加漏洞')).click();
     const editor = page.getByRole('dialog');
-    await button(editor, label('common.save', '保存')).click();
+    await expect(editor).toHaveClass(/semi-sidesheet-inner/);
+    await button(editor.locator('.semi-sidesheet-footer'), label('common.save', '保存')).click();
     await expect(editor.getByText(label('vulnerabilityModal.titleRequired', '请填写漏洞标题'), { exact: true })).toBeVisible();
     expect(mockApi.writes()).toEqual([]);
     await button(editor, label('common.cancel', '取消')).click();
@@ -645,9 +646,20 @@ test('project: dashboard jump, fact detail opens/closes and create validates the
     await button(drawer, label('common.close', '关闭')).click();
     await expect(drawer).toHaveCount(0);
 
-    await button(main, label('projects.newProjectCta', '+ 新建项目')).click();
+    const openProject = button(main, label('projects.newProjectCta', '+ 新建项目'));
+    await openProject.click();
     const dialog = page.getByRole('dialog');
-    const create = button(dialog, label('projects.createProject', '创建项目'));
+    const create = button(dialog.locator('.semi-sidesheet-footer'), label('projects.createProject', '创建项目'));
+    await expect(dialog).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(create).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(dialog.locator('button.semi-sidesheet-close')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(openProject).toBeFocused();
+    await openProject.click();
+
     await create.click();
     await expect(page.getByText(label('projects.enterProjectName', '请输入项目名称'), { exact: true })).toBeVisible();
     expect(mockApi.writes()).toEqual([]);
@@ -665,6 +677,31 @@ test('project: dashboard jump, fact detail opens/closes and create validates the
         { name: PROJECT.name, description: PROJECT.description },
         { name: PROJECT.name, description: PROJECT.description }
     ]);
+});
+
+test.describe('import drawers on a narrow screen', () => {
+    test.use({ appPermissions: [...UI_PERMISSIONS, 'asset:write', 'workflow:write'], viewport: { width: 390, height: 650 } });
+
+    for (const [id, trigger, title, action] of [
+        ['asset-library', label('assets.bulkImport', '批量导入'), label('assets.bulkImportTitle', '批量导入资产'), /导入.*有效数据/],
+        ['workflows', label('workflows.package.importLocal', '导入本地包'), label('workflows.package.title', '导入本地包'), label('workflows.package.confirmImport', '确认导入')]
+    ]) {
+        test(`${id}: import fits the viewport and keeps its action visible`, async ({ page, mockApi }) => {
+            const main = await visit(page, id);
+            const open = button(main, trigger);
+            await open.click();
+            const drawer = page.getByRole('dialog', { name: title });
+            await expect(drawer).toHaveClass(/semi-sidesheet-inner/);
+            await assertDrawerFits(page, drawer);
+            const submit = drawer.locator('.semi-sidesheet-footer').getByRole('button', { name: action });
+            await expect(submit).toBeDisabled();
+            await expect(submit).toBeInViewport({ ratio: 1 });
+            await page.keyboard.press('Escape');
+            await expect(drawer).toHaveCount(0);
+            await expect(open).toBeFocused();
+            expect(mockApi.writes()).toEqual([]);
+        });
+    }
 });
 
 test('shared JsonViewer: real settings response expands and collapses', async ({ page, mockApi }) => {

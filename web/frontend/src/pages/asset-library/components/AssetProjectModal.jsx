@@ -1,9 +1,9 @@
 /** 批量绑定项目：PUT /assets/project-binding，支持解绑（project_id 置空）。 */
 import { useEffect, useMemo, useState } from 'react';
-import { Banner, Modal, Select, Space, Switch, Typography } from '@douyinfe/semi-ui';
+import { Banner, Select, Space, Switch, Typography } from '@douyinfe/semi-ui';
 import { api, errorMessage } from '../../../lib/http';
 import { useT } from '../../../lib/i18n';
-import { toastSuccess } from '../../../components/ui';
+import { Drawer, toastSuccess } from '../../../components/ui';
 
 const { Text } = Typography;
 
@@ -53,7 +53,7 @@ export default function AssetProjectModal({ visible, projects, assetIds, onClose
     };
 
     return (
-        <Modal
+        <Drawer
             visible={visible}
             title={t('assets.bindProjectTitle', null, '绑定项目')}
             width={520}
@@ -84,6 +84,6 @@ export default function AssetProjectModal({ visible, projects, assetIds, onClose
                 <Text type="tertiary" size="small">{t('assets.bindProjectHint', null, '所选资产将统一更新为该项目归属。')}</Text>
             </Space>
             {error && <Banner type="danger" bordered closeIcon={null} description={error} className="asset-library-form-error" />}
-        </Modal>
+        </Drawer>
     );
 }

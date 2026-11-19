@@ -2,9 +2,9 @@
  * WebShell 连接表单：新建 / 编辑，支持一次探活测试。
  */
 import { useState } from 'react';
-import { Form, Modal, Button, Space, Typography } from '@douyinfe/semi-ui';
+import { Form, Button, Space, Typography } from '@douyinfe/semi-ui';
 import { useT } from '../../lib/i18n';
-import { toastError, toastSuccess, toastWarning } from '../../components/ui';
+import { Drawer, toastError, toastSuccess, toastWarning } from '../../components/ui';
 import { probeConnection, MASKED_SECRET } from './api';
 
 const { Text } = Typography;
@@ -107,13 +107,20 @@ export default function ConnectionForm({ visible, record, projects, submitting, 
     };
 
     return (
-        <Modal
+        <Drawer
             visible={visible}
             title={record ? t('webshell.editConnectionTitle', null, '编辑连接') : t('webshell.addConnection', null, '添加连接')}
-            footer={null}
+            footer={(
+                <Space>
+                    <Button onClick={handleTest} loading={testing}>{t('webshell.testConnectivity', null, '测试连通性')}</Button>
+                    <Button onClick={onCancel}>{t('webshell.cancelEdit', null, '取消')}</Button>
+                    <Button theme="solid" type="primary" loading={submitting} onClick={() => formApi?.submitForm()}>
+                        {record ? t('webshell.saveFile', null, '保存') : t('webshell.addConnection', null, '添加连接')}
+                    </Button>
+                </Space>
+            )}
             width={600}
             onCancel={onCancel}
-            className="webshell-form-modal"
         >
             <Form
                 key={record?.id || 'new'}
@@ -154,14 +161,7 @@ export default function ConnectionForm({ visible, record, projects, submitting, 
                 </div>
                 <Form.Input field="remark" label={t('webshell.remark', null, '备注')} placeholder={t('webshell.remarkPlaceholder', null, '便于识别的备注名')} />
                 <Text type="tertiary" size="small">{t('webshell.encodingHint', null, '中文 Windows 目标若出现乱码，请切换为 GBK 或 GB18030')}</Text>
-                <Space className="webshell-form-actions">
-                    <Button onClick={handleTest} loading={testing}>{t('webshell.testConnectivity', null, '测试连通性')}</Button>
-                    <Button onClick={onCancel}>{t('webshell.cancelEdit', null, '取消')}</Button>
-                    <Button theme="solid" type="primary" loading={submitting} onClick={() => formApi?.submitForm()}>
-                        {record ? t('webshell.saveFile', null, '保存') : t('webshell.addConnection', null, '添加连接')}
-                    </Button>
-                </Space>
             </Form>
-        </Modal>
+        </Drawer>
     );
 }

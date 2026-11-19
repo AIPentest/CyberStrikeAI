@@ -3,10 +3,10 @@
  * 文件操作全部经 /api/webshell/file 代理到目标 Shell 执行。
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Input, Modal, Space, Tag, TextArea, Typography } from '@douyinfe/semi-ui';
+import { Button, Input, Space, Tag, TextArea, Typography } from '@douyinfe/semi-ui';
 import { IconRefresh, IconSearch } from '@douyinfe/semi-icons';
 import { useT } from '../../lib/i18n';
-import { DataTable, ErrorBanner, JsonViewer, confirmAction, toastError, toastSuccess, toastWarning } from '../../components/ui';
+import { Drawer, DataTable, ErrorBanner, JsonViewer, confirmAction, toastError, toastSuccess, toastWarning } from '../../components/ui';
 import { fileOp } from './api';
 import { joinPath, normalizePath, parentPath, parseListing, pathSegments } from './fileList';
 
@@ -303,7 +303,7 @@ export default function FilesTab({ connection, canWrite }) {
                 />
             )}
 
-            <Modal
+            <Drawer
                 visible={editor.visible}
                 title={editor.mode === 'write' ? t('webshell.editFile', null, '编辑文件') : t('webshell.readFile', null, '读取文件')}
                 width={760}
@@ -327,9 +327,9 @@ export default function FilesTab({ connection, canWrite }) {
                     disabled={editor.mode !== 'write'}
                     className="webshell-editor-area"
                 />
-            </Modal>
+            </Drawer>
 
-            <Modal
+            <Drawer
                 visible={prompt.visible}
                 title={prompt.title}
                 width={420}
@@ -341,7 +341,7 @@ export default function FilesTab({ connection, canWrite }) {
                     onChange={value => setPrompt(current => ({ ...current, value }))}
                     placeholder={prompt.mode === 'rename' ? t('webshell.rename', null, '新名称') : t('webshell.filePath', null, '名称或路径')}
                 />
-            </Modal>
+            </Drawer>
         </div>
     );
 }

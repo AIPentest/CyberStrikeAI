@@ -2,13 +2,13 @@
  * C2 监听器管理：列表、创建/编辑、启动/停止与删除。
  */
 import { useMemo, useState } from 'react';
-import { Button, Modal, Space, Tag, Typography } from '@douyinfe/semi-ui';
+import { Button, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import { IconPlus, IconRefresh } from '@douyinfe/semi-icons';
 import { useAuth } from '../../lib/auth';
 import { useT } from '../../lib/i18n';
 import { useResource } from '../../components/hooks';
 import {
-    PageHeader, SectionCard, StatGrid, DataTable, ErrorBanner, CopyButton,
+    Drawer, PageHeader, SectionCard, StatGrid, DataTable, ErrorBanner, CopyButton,
     confirmAction, toastError, toastSuccess
 } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
@@ -226,7 +226,7 @@ export default function C2ListenersPage() {
                 onSubmit={submit}
             />
 
-            <Modal
+            <Drawer
                 visible={Boolean(tokenInfo)}
                 title={t('c2.listeners.implantTokenTitle', null, '植入体 Token')}
                 onCancel={() => setTokenInfo(null)}
@@ -239,7 +239,7 @@ export default function C2ListenersPage() {
                     <span className="c2-mono">{tokenInfo?.token}</span>
                     <CopyButton text={tokenInfo?.token || ''} />
                 </div>
-            </Modal>
+            </Drawer>
         </div>
     );
 }

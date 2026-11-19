@@ -2,9 +2,9 @@
  * C2 流量伪装 Profile 表单：UA、URI、请求/响应头与 Jitter 范围。
  */
 import { useState } from 'react';
-import { Button, Form, Modal, Space, Typography } from '@douyinfe/semi-ui';
+import { Button, Form, Space, Typography } from '@douyinfe/semi-ui';
 import { useT } from '../../lib/i18n';
-import { toastWarning } from '../../components/ui';
+import { Drawer, toastWarning } from '../../components/ui';
 
 const { Text } = Typography;
 
@@ -64,10 +64,17 @@ export default function ProfileForm({ visible, record, submitting, onCancel, onS
     };
 
     return (
-        <Modal
+        <Drawer
             visible={visible}
             title={record ? t('c2.profiles.editTitle', null, '编辑 Profile') : t('c2.profiles.modalCreateTitle', null, '创建 Malleable Profile')}
-            footer={null}
+            footer={(
+                <Space>
+                    <Button onClick={onCancel}>{t('c2.common.cancel', null, '取消')}</Button>
+                    <Button theme="solid" type="primary" loading={submitting} onClick={() => formApi?.submitForm()}>
+                        {record ? t('c2.profiles.save', null, '保存') : t('c2.profiles.submitCreate', null, '创建')}
+                    </Button>
+                </Space>
+            )}
             width={640}
             onCancel={onCancel}
         >
@@ -114,13 +121,7 @@ export default function ProfileForm({ visible, record, submitting, onCancel, onS
                     autosize={{ minRows: 2, maxRows: 6 }}
                 />
                 <Text type="tertiary" size="small">{t('c2.profiles.hintHeaders', null, '用于伪装为合法服务的 HTTP 响应头')}</Text>
-                <Space className="c2-form-actions">
-                    <Button onClick={onCancel}>{t('c2.common.cancel', null, '取消')}</Button>
-                    <Button theme="solid" type="primary" loading={submitting} onClick={() => formApi?.submitForm()}>
-                        {record ? t('c2.profiles.save', null, '保存') : t('c2.profiles.submitCreate', null, '创建')}
-                    </Button>
-                </Space>
             </Form>
-        </Modal>
+        </Drawer>
     );
 }

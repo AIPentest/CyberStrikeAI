@@ -2,11 +2,11 @@
  * C2 会话工作区：头部元信息 + 终端/文件/任务/信息四个 Tab。
  */
 import { useState } from 'react';
-import { Button, Input, Modal, Space, Tabs, Tag, TextArea, Typography } from '@douyinfe/semi-ui';
+import { Button, Input, Space, Tabs, Tag, TextArea, Typography } from '@douyinfe/semi-ui';
 import { IconRefresh } from '@douyinfe/semi-icons';
 import { useT } from '../../lib/i18n';
 import { useResource } from '../../components/hooks';
-import { ErrorBanner, confirmAction, toastError, toastSuccess, toastWarning } from '../../components/ui';
+import { Drawer, ErrorBanner, confirmAction, toastError, toastSuccess, toastWarning } from '../../components/ui';
 import * as c2 from './components/c2-api';
 import { SESSION_STATUS_COLOR } from './components/c2-shared';
 import SessionTerminal from './SessionTerminal';
@@ -126,7 +126,7 @@ export default function SessionDetail({ session, canWrite, canDelete, onChanged,
 
             <Tabs type="button" activeKey={tab} onChange={setTab} items={items} />
 
-            <Modal
+            <Drawer
                 visible={Boolean(sleepModal)}
                 title={t('c2.sessions.sleepModalTitle', null, '心跳配置')}
                 width={440}
@@ -149,9 +149,9 @@ export default function SessionDetail({ session, canWrite, canDelete, onChanged,
                         onChange={value => setSleepModal(current => ({ ...current, jitterPercent: value }))}
                     />
                 </div>
-            </Modal>
+            </Drawer>
 
-            <Modal
+            <Drawer
                 visible={Boolean(noteModal)}
                 title={t('c2.sessions.infoNote', null, '备注')}
                 width={480}
@@ -165,7 +165,7 @@ export default function SessionDetail({ session, canWrite, canDelete, onChanged,
                     placeholder={t('c2.sessions.notePlaceholder', null, '添加备注，便于识别该会话…')}
                     autosize={{ minRows: 4, maxRows: 10 }}
                 />
-            </Modal>
+            </Drawer>
         </div>
     );
 }

@@ -2,7 +2,8 @@
  * C2 任务下发：POST /c2/tasks，按任务类型组织 payload。
  */
 import { useState } from 'react';
-import { Button, Form, Modal, Space, Typography } from '@douyinfe/semi-ui';
+import { Button, Form, Space, Typography } from '@douyinfe/semi-ui';
+import { Drawer } from '../../components/ui';
 import { useT } from '../../lib/i18n';
 import { TASK_TYPES } from '../c2-sessions/components/c2-shared';
 
@@ -45,10 +46,17 @@ export default function CreateTaskModal({ visible, defaultSessionId, onCancel, o
     };
 
     return (
-        <Modal
+        <Drawer
             visible={visible}
             title={t('c2.tasks.createTitle', null, '下发任务')}
-            footer={null}
+            footer={(
+                <Space>
+                    <Button onClick={onCancel}>{t('c2.tasks.cancelFilters', null, '取消')}</Button>
+                    <Button theme="solid" type="primary" loading={submitting} onClick={() => formApi?.submitForm()}>
+                        {t('c2.tasks.createSubmit', null, '下发')}
+                    </Button>
+                </Space>
+            )}
             width={560}
             onCancel={onCancel}
         >
@@ -79,13 +87,7 @@ export default function CreateTaskModal({ visible, defaultSessionId, onCancel, o
                 <Text type="tertiary" size="small">
                     {t('c2.tasks.createHint', null, '任务入队后由植入体在下次心跳拉取；危险类型可能需要人机协同审批。')}
                 </Text>
-                <Space className="c2-form-actions">
-                    <Button onClick={onCancel}>{t('c2.tasks.cancelFilters', null, '取消')}</Button>
-                    <Button theme="solid" type="primary" loading={submitting} onClick={() => formApi?.submitForm()}>
-                        {t('c2.tasks.createSubmit', null, '下发')}
-                    </Button>
-                </Space>
             </Form>
-        </Modal>
+        </Drawer>
     );
 }

@@ -1,12 +1,12 @@
 /** 批量导入：CSV / JSON 文本或文件上传，先校验预览再提交 /assets/import。 */
 import { useMemo, useRef, useState } from 'react';
 import {
-    Banner, Button, Modal, RadioGroup, Space, Table, TextArea, Typography
+    Banner, Button, RadioGroup, Space, Table, TextArea, Typography
 } from '@douyinfe/semi-ui';
 import { IconCloudUploadStroked } from '@douyinfe/semi-icons';
 import { api, errorMessage } from '../../../lib/http';
 import { useT } from '../../../lib/i18n';
-import { toastSuccess } from '../../../components/ui';
+import { Drawer, toastSuccess } from '../../../components/ui';
 import { assetTargetLabel } from './assetTarget';
 import { csvTemplate, downloadTextFile, recordsFromCsv, recordsFromJson } from './assetCsv';
 
@@ -128,7 +128,7 @@ export default function AssetImportModal({ visible, projects, onClose, onDone })
     };
 
     return (
-        <Modal
+        <Drawer
             visible={visible}
             title={t('assets.bulkImportTitle', null, '批量导入资产')}
             width={880}
@@ -211,6 +211,6 @@ export default function AssetImportModal({ visible, projects, onClose, onDone })
                     </div>
                 )}
             </Space>
-        </Modal>
+        </Drawer>
     );
 }

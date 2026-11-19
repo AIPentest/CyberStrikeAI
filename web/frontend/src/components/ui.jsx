@@ -2,7 +2,7 @@
  * 共享展示组件：页面骨架、指标卡、表格、空状态、标签、Markdown 与 JSON 视图。
  * 业务页面统一使用这些组件，避免各页重复写样式。
  */
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Banner, Button, Card, Collapsible, Descriptions, Empty, Modal, SideSheet, Skeleton, Space, Table, Tag, Toast, Typography
 } from '@douyinfe/semi-ui';
@@ -238,24 +238,113 @@ export function useConfirmDelete() {
     return (title, onOk) => confirmAction({ title, content: null, onOk });
 }
 
-/**
- * Drawer：Semi Design v2 以 SideSheet 提供抽屉，这里保留 Drawer 名称，
- * 统一 title/visible/onCancel/width/footer 的调用方式，页面无需关心底层组件。
- */
-export function Drawer({ title, visible, onCancel, width = 560, footer, children, placement = 'right', bodyStyle, className, style, ...rest }) {
+const DRAWER_FOCUSABLE = 'a[href], button, input, select, textarea, iframe, [tabindex], [contenteditable="true"]';
+
+export function Drawer({
+    title, visible, onCancel, width = 560, footer, children, className, closeOnEsc = true, mask = true,
+    onOk, formId, okText, cancelText, okButtonProps, cancelButtonProps, confirmLoading, ...rest
+}) {
+    const t = useT();
+    const dialogRef = useRef(null);
+    const [pending, setPending] = useState(false);
+    const loading = confirmLoading ?? pending;
+
+    // SideSheet owns the dialog DOM and reserves its wrapper props for animation.
+    const focusDialog = useCallback(anchor => {
+        const dialog = anchor?.closest('[role="dialog"]');
+        if (!dialog) return;
+        dialogRef.current = dialog;
+        const trigger = document.activeElement;
+        if (mask) {
+            dialog.setAttribute('aria-modal', 'true');
+            queueMicrotask(() => {
+                if (dialogRef.current === dialog && !dialog.contains(document.activeElement)) {
+                    dialog.focus({ preventScroll: true });
+                }
+            });
+        }
+        return () => {
+            dialogRef.current = null;
+            if (!mask) return;
+            dialog.removeAttribute('aria-modal');
+            const active = document.activeElement;
+            if (trigger?.isConnected && (dialog.contains(active) || active === document.body)) {
+                trigger.focus({ preventScroll: true });
+            }
+        };
+    }, [mask]);
+
+    useEffect(() => {
+        if (!visible) return;
+        const handleKeyDown = event => {
+            const dialog = dialogRef.current;
+            const active = document.activeElement;
+            if (event.defaultPrevented || !dialog?.contains(active)) return;
+            if (event.key === 'Escape' && closeOnEsc && onCancel) {
+                event.preventDefault();
+                onCancel(event);
+            }
+            if (event.key !== 'Tab' || !mask) return;
+
+            const tabbable = [...dialog.querySelectorAll(DRAWER_FOCUSABLE)]
+                .filter(node => node.tabIndex >= 0 && !node.matches(':disabled') && node.getClientRects().length);
+            const first = tabbable[0];
+            const last = tabbable.at(-1);
+            if (!first || (event.shiftKey ? active === first || active === dialog : active === last)) {
+                event.preventDefault();
+                (event.shiftKey ? last : first)?.focus();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [closeOnEsc, mask, onCancel, visible]);
+
+    const handleOk = event => {
+        if (loading) return;
+        const result = onOk?.(event);
+        if (confirmLoading === undefined && typeof result?.then === 'function') {
+            setPending(true);
+            const finish = () => setPending(false);
+            Promise.resolve(result).then(finish, finish);
+        }
+    };
+
+    const actions = footer === undefined && (onOk || formId) ? (
+        <>
+            {onCancel && (
+                <Button type="tertiary" onClick={onCancel} {...cancelButtonProps}>
+                    {cancelText || t('common.cancel', null, '取消')}
+                </Button>
+            )}
+            <Button
+                theme="solid"
+                type="primary"
+                {...okButtonProps}
+                loading={loading}
+                disabled={loading || okButtonProps?.disabled}
+                onClick={formId ? undefined : handleOk}
+                form={formId}
+                htmlType={formId ? 'submit' : 'button'}
+            >
+                {okText || t('common.ok', null, '确定')}
+            </Button>
+        </>
+    ) : footer;
+
     return (
         <SideSheet
             title={title}
             visible={visible}
             onCancel={onCancel}
             width={width}
-            footer={footer}
-            placement={placement}
-            bodyStyle={bodyStyle}
+            footer={actions}
+            mask={mask}
+            closeOnEsc={false}
             className={`cs-drawer ${className || ''}`}
-            style={style}
+            aria-label={typeof title === 'string' ? title : undefined}
             {...rest}
         >
+            <span hidden ref={focusDialog} />
             {children}
         </SideSheet>
     );

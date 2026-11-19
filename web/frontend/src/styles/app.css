@@ -204,8 +204,27 @@ body[theme-mode="dark"] :is(.cs-severity-tag, .cs-stat-value)[data-severity="cri
 .cs-description-list .semi-descriptions-item { padding: 0 20px 16px 0; }
 .cs-description-list .semi-descriptions-key { display: block; text-align: start; font-size: 12px; white-space: normal; }
 .cs-description-list .semi-descriptions-value { display: block; padding: 4px 0 0; font-size: 13px; }
-.cs-drawer .semi-sidesheet-inner { max-width: 100vw; }
 .semi-sidesheet-inner, .semi-modal { max-width: 100vw; }
+.cs-drawer .semi-sidesheet-title {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.cs-drawer .semi-sidesheet-close { flex: none; }
+.cs-drawer .semi-sidesheet-body { min-height: 0; }
+.cs-drawer .semi-sidesheet-footer {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-block: 16px;
+    border-block-start: 1px solid var(--semi-color-border);
+}
+.cs-drawer .semi-sidesheet-footer > .semi-space {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
 
 .cs-markdown { font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
 .cs-markdown pre { background: var(--semi-color-fill-0); padding: 14px; border: 1px solid var(--semi-color-border); border-radius: 8px; overflow: auto; }

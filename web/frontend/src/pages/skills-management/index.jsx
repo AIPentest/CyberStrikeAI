@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Form, Input, List, Modal, Space, Tag, TextArea, Typography } from '@douyinfe/semi-ui';
+import { Button, Form, Input, List, Space, Tag, TextArea, Typography } from '@douyinfe/semi-ui';
 import { IconDelete, IconPlus, IconRefresh, IconSearch } from '@douyinfe/semi-icons';
 import { api } from '../../lib/http';
 import { useAuth } from '../../lib/auth';
@@ -112,13 +112,13 @@ export default function SkillsManagementPage() {
                 />
             </SectionCard>
 
-            <Modal title="新建技能" visible={Boolean(editor)} key="new-skill" onCancel={() => setEditor(null)} onOk={save} confirmLoading={saving} width={720}>
+            <Drawer title="新建技能" visible={Boolean(editor)} key="new-skill" onCancel={() => setEditor(null)} onOk={save} confirmLoading={saving} width={720}>
                 <Form getFormApi={form => setEditor(current => (current ? { ...current, form } : current))}>
                     <Form.Input field="name" label="目录名" placeholder="小写字母、数字、连字符" rules={[{ required: true, message: '请输入目录名' }, { pattern: /^[a-z0-9-]+$/, message: '只允许小写字母、数字与连字符' }]} />
                     <Form.Input field="description" label="描述" rules={[{ required: true, message: '请输入描述' }]} />
                     <Form.TextArea field="content" label="SKILL.md 正文" rules={[{ required: true, message: '请输入正文' }]} autosize={{ minRows: 10, maxRows: 24 }} />
                 </Form>
-            </Modal>
+            </Drawer>
 
             <SkillDetail skill={detail} onClose={() => setDetail(null)} canWrite={canWrite} />
         </div>

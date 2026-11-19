@@ -1,9 +1,9 @@
 /** 自然语言 → 查询语法：调用 /fofa/parse，结果可编辑后再回填执行。 */
 import { useEffect, useState } from 'react';
-import { Banner, Button, Modal, Space, Spin, TextArea, Typography } from '@douyinfe/semi-ui';
+import { Banner, Button, Space, Spin, TextArea, Typography } from '@douyinfe/semi-ui';
 import { api } from '../../../lib/http';
 import { useT } from '../../../lib/i18n';
-import { ErrorBanner } from '../../../components/ui';
+import { Drawer, ErrorBanner } from '../../../components/ui';
 
 const { Text } = Typography;
 
@@ -44,7 +44,7 @@ export default function FofaParseModal({ visible, provider, text, onClose, onApp
     const warnings = Array.isArray(result?.warnings) ? result.warnings.filter(Boolean) : [];
 
     return (
-        <Modal
+        <Drawer
             visible={visible}
             title={t('infoCollect.parseResultTitle', null, '语法解析结果')}
             width={640}
@@ -97,6 +97,6 @@ export default function FofaParseModal({ visible, provider, text, onClose, onApp
                     </>
                 )}
             </Space>
-        </Modal>
+        </Drawer>
     );
 }
