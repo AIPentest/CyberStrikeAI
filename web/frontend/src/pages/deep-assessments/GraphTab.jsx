@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Empty, RadioGroup, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
+import { useTheme } from '../../lib/theme';
 import { useResource } from '../../components/hooks';
 import { SectionCard, ErrorBanner, JsonViewer, KeyValueList, toastError } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
@@ -21,7 +22,7 @@ const CY_STYLE = [
             'text-max-width': 120,
             'text-valign': 'bottom',
             'text-margin-y': 5,
-            color: '#4e5969',
+            'text-outline-width': 1.5,
             width: 26,
             height: 26,
             'border-width': 2,
@@ -58,8 +59,14 @@ const CY_STYLE = [
     }
 ];
 
+function updateLabelColors(cy) {
+    const { color, backgroundColor } = getComputedStyle(cy.container());
+    cy.nodes().style({ color, 'text-outline-color': backgroundColor });
+}
+
 export default function GraphTab({ id, reloadToken }) {
     const t = useT();
+    const { theme } = useTheme();
     const [view, setView] = useState('summary');
     const [scope, setScope] = useState('');
     const [offset, setOffset] = useState(0);
@@ -182,6 +189,7 @@ export default function GraphTab({ id, reloadToken }) {
                 minZoom: 0.15,
                 maxZoom: 3
             });
+            updateLabelColors(cy);
             cy.on('tap', 'node', event => selectRef.current?.(event.target.id()));
             cyRef.current = cy;
         }).catch(error => {
@@ -193,6 +201,10 @@ export default function GraphTab({ id, reloadToken }) {
             if (cyRef.current === cy) cyRef.current = null;
         };
     }, [graph]);
+
+    useEffect(() => {
+        if (cyRef.current) updateLabelColors(cyRef.current);
+    }, [theme]);
 
     const loadPath = async () => {
         if (!node) return;

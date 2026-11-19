@@ -994,6 +994,55 @@ test('deep assessment: detail shows the channel name and counts active time unti
     expect(mockApi.writes()).toEqual([]);
 });
 
+test('deep assessment: auto-generated names do not repeat the objective in the header', async ({ page, mockApi }) => {
+    for (const objective of [ASSESSMENT.objective, '示例目标与预期结果。'.repeat(12)]) {
+        const id = `fixture-title-${objective.length}`;
+        const path = `/api/deep-assessments/${id}`;
+        const name = objective.length > 80 ? `${objective.slice(0, 80)}…` : objective;
+        mockApi.respond('GET', path, { json: { task: { ...ASSESSMENT, id, name, objective } } });
+        mockApi.respond('GET', `${path}/events`, { json: { events: [] } });
+        await page.goto(`/static/app/#/deep-assessments?id=${id}`);
+        const main = await ready(page);
+        await expect(main.locator('.cs-page-title')).toHaveText(name);
+        await expect(main.locator('.cs-page-header .cs-page-desc')).toHaveCount(0);
+        await expect(main.locator('.assessment-pre').filter({ hasText: objective })).toBeVisible();
+    }
+});
+
+test('deep assessment: graph label color follows the theme with the graph open', async ({ page, mockApi }, testInfo) => {
+    const path = `/api/deep-assessments/${ASSESSMENT.id}`;
+    const title = '图谱示例';
+    mockApi.respond('GET', `${path}/events`, { json: { events: [] } });
+    mockApi.respond('GET', `${path}/graph`, { json: {
+        nodes: [{ id: 'goal', kind: 'goal', title }, { id: 'note', kind: 'observation', title: '示例观察记录' }],
+        edges: [{ source: 'goal', target: 'note' }]
+    } });
+    await page.addInitScript(nodeTitle => {
+        for (const context of [CanvasRenderingContext2D, globalThis.OffscreenCanvasRenderingContext2D]) {
+            if (!context) continue;
+            const fillText = context.prototype.fillText;
+            context.prototype.fillText = function (text, ...args) {
+                if (text === nodeTitle) window.graphLabelColor = this.fillStyle;
+                return fillText.call(this, text, ...args);
+            };
+        }
+    }, title);
+    await page.goto(`/static/app/#/deep-assessments?id=${ASSESSMENT.id}&tab=graph`);
+    const main = await ready(page);
+    const canvas = main.locator('.assessment-graph-canvas canvas').first();
+    await expect(canvas).toBeAttached();
+    await expect.poll(() => page.evaluate(() => window.graphLabelColor)).toBe('#192438');
+    const reads = mockApi.calls('GET', `${path}/graph`).length;
+
+    await button(page.locator('.cs-header'), label('theme.system', '跟随系统')).click();
+    await page.getByRole('menuitem', { name: label('theme.dark', '暗色'), exact: true }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect.poll(() => page.evaluate(() => window.graphLabelColor)).toBe('#e8edf6');
+    expect(mockApi.calls('GET', `${path}/graph`)).toHaveLength(reads);
+    await screenshot(page, testInfo, 'assessment-graph-dark');
+    expect(mockApi.writes()).toEqual([]);
+});
+
 test('deep assessment: graph switches views and resets pagination on a narrow screen', async ({ page, mockApi }) => {
     const apiPath = `/api/deep-assessments/${ASSESSMENT.id}`;
     mockApi.respond('GET', `${apiPath}/events`, { json: { events: [] } });
@@ -1057,13 +1106,19 @@ test('deep assessment: new-draft drawer retries options, validates and saves wit
 
     mockApi.respond('POST', '/api/deep-assessments', { json: { task: ASSESSMENT } });
     mockApi.respond('GET', `/api/deep-assessments/${ASSESSMENT.id}/events`, { json: { events: [] } });
+    await drawer.getByRole('textbox', { name: label('deepAssessments.name', '测评名称'), exact: true }).fill(ASSESSMENT.name);
     await drawer.getByRole('textbox', { name: /目标/ }).fill(ASSESSMENT.objective);
     await save.click();
     await expect(page).toHaveURL(/id=fixture-assessment&tab=overview$/);
     await expect(drawer).toHaveCount(0);
+    await expect(main.locator('.cs-page-title')).toHaveText(ASSESSMENT.name);
+    await expect(main.locator('.cs-page-desc')).toHaveText(ASSESSMENT.objective);
     const writes = mockApi.writes();
     expect(writes).toHaveLength(1);
-    expect(writes[0]).toMatchObject({ method: 'POST', path: '/api/deep-assessments', body: { objective: ASSESSMENT.objective } });
+    expect(writes[0]).toMatchObject({
+        method: 'POST', path: '/api/deep-assessments',
+        body: { name: ASSESSMENT.name, objective: ASSESSMENT.objective }
+    });
 });
 
 test('deep assessment: guidance and asset selection open as drawers', async ({ page, mockApi }) => {

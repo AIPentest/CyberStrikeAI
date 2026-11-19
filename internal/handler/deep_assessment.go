@@ -168,6 +168,8 @@ func (h *AgentHandler) CreateDeepAssessment(c *gin.Context) {
 		c.JSON(401, gin.H{"error": "请先登录"})
 		return
 	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.Objective = strings.TrimSpace(req.Objective)
 	if req.Name == "" {
 		req.Name = deepassessment.Clip(req.Objective, 80)
 	}
@@ -193,7 +195,7 @@ func (h *AgentHandler) CreateDeepAssessment(c *gin.Context) {
 		autoResume = *req.AutoResume
 	}
 	now := time.Now().UTC()
-	t := &deepassessment.Task{ID: uuid.NewString(), AutoResume: autoResume, OwnerID: session.UserID, ExecutorID: session.UserID, Name: strings.TrimSpace(req.Name), Objective: strings.TrimSpace(req.Objective), Scope: strings.TrimSpace(req.Scope), Criteria: strings.TrimSpace(req.Criteria), ProjectID: req.ProjectID, Role: req.Role, Model: req.Model, HITLPolicy: req.HITLPolicy, Concurrency: req.Concurrency, Status: "draft", Steps: []deepassessment.Step{}, Guidance: []string{}, CreatedAt: now, UpdatedAt: now}
+	t := &deepassessment.Task{ID: uuid.NewString(), AutoResume: autoResume, OwnerID: session.UserID, ExecutorID: session.UserID, Name: req.Name, Objective: req.Objective, Scope: strings.TrimSpace(req.Scope), Criteria: strings.TrimSpace(req.Criteria), ProjectID: req.ProjectID, Role: req.Role, Model: req.Model, HITLPolicy: req.HITLPolicy, Concurrency: req.Concurrency, Status: "draft", Steps: []deepassessment.Step{}, Guidance: []string{}, CreatedAt: now, UpdatedAt: now}
 	if _, err := h.deepAssessmentRuntime.configuration(t); err != nil {
 		deepAssessmentError(c, err)
 		return

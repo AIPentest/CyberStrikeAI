@@ -216,6 +216,7 @@
     border: 1px solid var(--semi-color-border);
     border-radius: var(--semi-border-radius-medium);
     background: var(--semi-color-bg-2);
+    color: var(--semi-color-text-0);
     overflow: hidden;
 }
 

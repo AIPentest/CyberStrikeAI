@@ -277,7 +277,7 @@ func TestDeepAssessmentFullTraceAndTailSearch(t *testing.T) {
 func TestDeepAssessmentCreateOnlySavesDraftAndRejectsOversizedBody(t *testing.T) {
 	h, task := deepAssessmentFixture(t)
 	router := assessmentRouter(h, task.OwnerID)
-	body := `{"name":"new","objective":"inspect fixture","scope":"local only","criteria":"observed evidence"}`
+	body := `{"name":"  new  ","objective":"inspect fixture","scope":"local only","criteria":"observed evidence"}`
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("POST", "/api/deep-assessments", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -289,6 +289,9 @@ func TestDeepAssessmentCreateOnlySavesDraftAndRejectsOversizedBody(t *testing.T)
 		Task deepassessment.Task `json:"task"`
 	}
 	json.Unmarshal(w.Body.Bytes(), &saved)
+	if saved.Task.Name != "new" || saved.Task.Objective != "inspect fixture" {
+		t.Fatalf("unexpected name or objective: %q, %q", saved.Task.Name, saved.Task.Objective)
+	}
 	if !saved.Task.AutoResume || saved.Task.RemainingSeconds != 0 || saved.Task.TokenBudget != 0 || saved.Task.MaxRounds != 0 || saved.Task.Rounds != 0 || !h.db.UserCanAccessResource(task.OwnerID, database.RBACScopeAssigned, "deep_assessment", saved.Task.ID) {
 		t.Fatal("draft executed or creator lost access")
 	}
@@ -311,7 +314,7 @@ func TestDeepAssessmentOptionalFieldsInheritObjective(t *testing.T) {
 		wantStatus              int
 	}{
 		{"omitted", "  inspect fixture  ", nil, "inspect fixture", "inspect fixture", 201},
-		{"whitespace", "inspect fixture", map[string]string{"scope": " \n\t ", "criteria": " \t "}, "inspect fixture", "inspect fixture", 201},
+		{"whitespace", "inspect fixture", map[string]string{"name": " \t ", "scope": " \n\t ", "criteria": " \t "}, "inspect fixture", "inspect fixture", 201},
 		{"custom scope", "inspect fixture", map[string]string{"scope": " exclude payments "}, "exclude payments", "inspect fixture", 201},
 		{"custom criteria", "inspect fixture", map[string]string{"criteria": " report evidence "}, "inspect fixture", "report evidence", 201},
 		{"both supplied", "inspect fixture", map[string]string{"scope": " local only ", "criteria": " original evidence "}, "local only", "original evidence", 201},
@@ -350,6 +353,13 @@ func TestDeepAssessmentOptionalFieldsInheritObjective(t *testing.T) {
 			}
 			if saved.Scope != tc.wantScope || saved.Criteria != tc.wantCriteria || saved.Objective != strings.TrimSpace(tc.objective) {
 				t.Fatal("optional fields were not inherited or explicit values were changed")
+			}
+			wantName := strings.TrimSpace(values["name"])
+			if wantName == "" {
+				wantName = deepassessment.Clip(strings.TrimSpace(tc.objective), 80)
+			}
+			if saved.Name != wantName {
+				t.Fatalf("saved name %q, want %q", saved.Name, wantName)
 			}
 			if saved.Status != "draft" || saved.Rounds != 0 || len(saved.Steps) != 0 {
 				t.Fatal("creating an optional-fields draft started execution")

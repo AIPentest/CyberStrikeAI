@@ -43,6 +43,10 @@ export default function Workbench({ id, tab, criterion, evidencePath, evidenceSt
     const { hasPermission } = useAuth();
     const resource = useResource(() => api.get(`/deep-assessments/${id}`), [id]);
     const task = resource.data?.task || null;
+    const name = task?.name?.trim();
+    const objective = task?.objective?.trim();
+    const repeatsName = objective === name
+        || (name?.length > 1 && name.endsWith('…') && objective?.startsWith(name.slice(0, -1)));
     const [events, setEvents] = useState([]);
     const [eventsError, setEventsError] = useState(null);
     const [autoRefresh, setAutoRefresh] = useState(true);
@@ -243,8 +247,8 @@ export default function Workbench({ id, tab, criterion, evidencePath, evidenceSt
     return (
         <div className="assessment-page">
             <PageHeader
-                title={task?.name || t('deepAssessments.title', null, '深度测评')}
-                description={task?.objective ? truncateText(task.objective, 160) : null}
+                title={name || t('deepAssessments.title', null, '深度测评')}
+                description={objective && !repeatsName ? truncateText(objective, 160) : null}
                 extra={headerExtra}
             >
                 <Space spacing={8} wrap className="assessment-meta">
