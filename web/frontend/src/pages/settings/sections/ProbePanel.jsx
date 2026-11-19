@@ -470,10 +470,7 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
                     const labelId = `${channelLabelId}-${field}`;
                     return (
                         <label className="settings-field" key={field}>
-                            <Space spacing={6}>
-                                <Text id={labelId} type="tertiary" size="small">{t(key, null, fallback)}</Text>
-                                {showDefault && <Tag color="blue" size="small">{t('settingsProbe.windowDefault', null, '默认值')}</Tag>}
-                            </Space>
+                            <Text id={labelId} type="tertiary" size="small">{t(key, null, fallback)}</Text>
                             <Input
                                 aria-labelledby={labelId}
                                 value={String(showDefault ? defaultWindow : form[field])}

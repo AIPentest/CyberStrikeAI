@@ -34,7 +34,7 @@ test.describe('model channel editing', () => {
         const window = panel.getByLabel('模型上下文窗口（Token）', { exact: true });
         const save = panel.getByRole('button', { name: '保存通道', exact: true });
         await expect(window).toHaveValue('1048576');
-        await expect(panel.getByText('默认值', { exact: true })).toBeVisible();
+        await expect(panel.locator('.settings-probe-form').getByText('默认值', { exact: true })).toHaveCount(0);
         await expect(save).toBeDisabled();
         await panel.getByRole('button', { name: '测试连接', exact: true }).click();
         await expect(panel.getByRole('cell', { name: /上下文窗口.*1048576/ })).toBeVisible();
