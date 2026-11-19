@@ -3116,6 +3116,9 @@
     "cleanupDuration": "清理耗时"
   },
   "settingsProbe": {
+    "auditTitle": "审计模型连接测试",
+    "auditTypeSafeHint": "按已配置的 TypeSafe / Jev 后端测试。地址和模型留空使用 Jev 默认值；密钥沿用已保存的审计密钥，不继承主模型。",
+    "auditChatHint": "按已配置的审计模型协议测试。地址和模型留空继承主模型；密钥留空或显示 ******** 时沿用已保存的审计密钥，未配置则继承主模型。",
     "channelTitle": "模型通道与连接测试",
     "channelHelp": "连接测试使用当前填写的值。点击「保存通道」后应用通道配置，显示 ******** 时沿用已保存的密钥。",
     "saveChannel": "保存通道",

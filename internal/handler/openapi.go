@@ -5066,6 +5066,35 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 					},
 				},
 			},
+			"/api/config/test-audit-model": map[string]interface{}{
+				"post": map[string]interface{}{
+					"tags":        []string{"配置管理"},
+					"summary":     "测试已配置的审计模型",
+					"description": "按 hitl.audit_backend 选择聊天模型或 TypeSafe Jev 协议。省略字段使用已保存的审计配置；空地址和模型按实际审计规则继承主模型或使用 Jev 默认值。空或掩码密钥沿用已保存的审计密钥，仅聊天后端可继承主模型密钥。测试不保存配置。",
+					"operationId": "testAuditModel",
+					"requestBody": map[string]interface{}{
+						"required": true,
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"base_url": map[string]interface{}{"type": "string", "description": "本次测试的 API 基地址，须包含 http:// 或 https://"},
+										"api_key":  map[string]interface{}{"type": "string", "description": "本次测试的 API 密钥；空或 ******** 沿用已保存密钥"},
+										"model":    map[string]interface{}{"type": "string", "description": "本次测试的模型"},
+									},
+								},
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{"description": "测试结果：success、model、latency_ms；失败时返回 error 和可选 status_code"},
+						"400": map[string]interface{}{"description": "参数错误或模型未配置"},
+						"401": map[string]interface{}{"description": "未授权"},
+						"403": map[string]interface{}{"description": "需要 config:write 权限"},
+					},
+				},
+			},
 			"/api/config/test-typesafe": map[string]interface{}{
 				"post": map[string]interface{}{
 					"tags":        []string{"配置管理"},

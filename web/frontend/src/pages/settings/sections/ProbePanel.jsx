@@ -1,7 +1,7 @@
 /**
  * 编辑所选模型通道，并使用表单中的值测试连接或探测模型能力。
  */
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Banner, Button, Input, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import { api } from '../../../lib/http';
 import { useT } from '../../../lib/i18n';
@@ -131,7 +131,7 @@ function ProbeOutput({ state, defaultWindow }) {
         );
     }
 
-    if (key === 'typesafe' || key === 'vision') {
+    if (key === 'audit' || key === 'vision') {
         return (
             <div className="settings-probe-result">
                 {payload.success ? (
@@ -355,31 +355,39 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
         }
     };
 
-    // TypeSafe 审批引擎：默认取 hitl.audit_model，密钥留空则以 hitlAudit 作用域沿用已保存值。
+    // The server selects the configured audit backend and resolves inherited fields.
     const auditModel = config.hitl?.audit_model || {};
-    const [typeSafe, setTypeSafe] = useState({
-        base_url: auditModel.base_url || '',
-        api_key: auditModel.api_key || '',
-        model: auditModel.model || ''
-    });
-    const [typeSafeState, setTypeSafeState] = useState({ key: '', payload: null, error: null });
-    const [typeSafeBusy, setTypeSafeBusy] = useState(false);
-    const testTypeSafe = async () => {
+    const auditBackend = (config.hitl?.audit_backend || '').trim().toLowerCase();
+    const auditTypeSafe = ['typesafe', 'jev', 'type-safe', 'typesafe-ai'].includes(auditBackend);
+    const auditProvider = auditModel.provider?.trim() || config.openai?.provider || 'openai';
+    const auditClaude = ['claude', 'anthropic'].includes(auditProvider.toLowerCase());
+    const auditProtocol = auditTypeSafe ? 'TypeSafe / Jev'
+        : auditClaude ? 'Claude (Anthropic Messages)'
+            : t('settingsProbe.compatible', null, '兼容 OpenAI 的接口');
+    const auditURLPlaceholder = auditTypeSafe ? 'https://api.typesafe.ai'
+        : config.openai?.base_url || (auditClaude ? 'https://api.anthropic.com' : 'https://api.openai.com/v1');
+    const [auditDraft, setAuditDraft] = useState({});
+    const auditForm = {
+        base_url: auditModel.base_url || '', api_key: auditModel.api_key || '', model: auditModel.model || '',
+        ...auditDraft
+    };
+    const [auditState, setAuditState] = useState(EMPTY_PROBE);
+    const [auditBusy, setAuditBusy] = useState(false);
+    useEffect(() => {
+        setAuditDraft({});
+        setAuditState(EMPTY_PROBE);
+    }, [auditBackend, auditProvider, auditModel.base_url, auditModel.api_key, auditModel.model]);
+    const testAuditModel = async () => {
         if (!canWrite) return;
-        setTypeSafeBusy(true);
-        setTypeSafeState({ key: 'typesafe', payload: null, error: null });
+        setAuditBusy(true);
+        setAuditState({ key: 'audit', payload: null, error: null });
         try {
-            const payload = await api.post('/config/test-typesafe', {
-                base_url: typeSafe.base_url,
-                api_key: typeSafe.api_key,
-                model: typeSafe.model,
-                credential_scope: 'hitlAudit'
-            });
-            setTypeSafeState({ key: 'typesafe', payload, error: null });
+            const payload = await api.post('/config/test-audit-model', auditForm);
+            setAuditState({ key: 'audit', payload, error: null });
         } catch (error) {
-            setTypeSafeState({ key: 'typesafe', payload: null, error });
+            setAuditState({ key: 'audit', payload: null, error });
         } finally {
-            setTypeSafeBusy(false);
+            setAuditBusy(false);
         }
     };
 
@@ -542,28 +550,41 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
                     <ProbeOutput state={visionState} />
                 </div>
                 <div className="settings-probe-card">
-                    <Text strong>{t('settings.typeSafeTestTitle', null, 'TypeSafe / Jev 审批引擎测试')}</Text>
+                    <Text strong>{t('settingsProbe.auditTitle', null, '审计模型连接测试')}</Text>
+                    <Tag>{auditProtocol}</Tag>
                     <Hint>
-                        {t('settingsProbe.auditHint', null, '审计模型使用独立的 API 密钥。可以填写新密钥，也可以沿用已保存的密钥。')}
+                        {auditTypeSafe
+                            ? t('settingsProbe.auditTypeSafeHint', null, '按已配置的 TypeSafe / Jev 后端测试。地址和模型留空使用 Jev 默认值；密钥沿用已保存的审计密钥，不继承主模型。')
+                            : t('settingsProbe.auditChatHint', null, '按已配置的审计模型协议测试。地址和模型留空继承主模型；密钥留空或显示 ******** 时沿用已保存的审计密钥，未配置则继承主模型。')}
                     </Hint>
                     <div className="settings-probe-inline">
                         {[
-                            ['base_url', 'baseUrl', 'API 地址', 'https://api.typesafe.ai'],
+                            ['base_url', 'baseUrl', 'API 地址', auditURLPlaceholder],
                             ['api_key', 'apiKey', 'API 密钥', '********'],
-                            ['model', 'model', '模型', 'jev-latest']
+                            ['model', 'model', '模型', auditTypeSafe ? 'jev-latest' : config.openai?.model || '']
                         ].map(([field, key, fallback, placeholder]) => (
                             <label key={field} className="settings-field">
                                 <Text type="tertiary" size="small">{t('settingsBasic.' + key, null, fallback)}</Text>
-                                <Input value={typeSafe[field]} onChange={value => setTypeSafe(current => ({ ...current, [field]: value }))} placeholder={placeholder} />
+                                <Input
+                                    value={auditForm[field]}
+                                    onChange={value => {
+                                        setAuditDraft(current => ({ ...current, [field]: value }));
+                                        setAuditState(EMPTY_PROBE);
+                                    }}
+                                    placeholder={placeholder}
+                                    readOnly={!canWrite || auditBusy}
+                                    mode={field === 'api_key' ? 'password' : undefined}
+                                    autoComplete={field === 'api_key' ? 'new-password' : undefined}
+                                />
                             </label>
                         ))}
                     </div>
                     <Space>
-                        <Button size="small" loading={typeSafeBusy} disabled={!canWrite} onClick={testTypeSafe}>
+                        <Button size="small" loading={auditBusy} disabled={!canWrite} onClick={testAuditModel}>
                             {t('settingsProbe.testAuditModel', null, '测试审计模型')}
                         </Button>
                     </Space>
-                    <ProbeOutput state={typeSafeState} />
+                    <ProbeOutput state={auditState} />
                 </div>
             </div>
         </SectionCard>

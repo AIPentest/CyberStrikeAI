@@ -1469,7 +1469,10 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
 		return
 	}
+	h.testOpenAI(c, req)
+}
 
+func (h *ConfigHandler) testOpenAI(c *gin.Context, req TestOpenAIRequest) {
 	resolvedKey, resolveErr := h.resolveProbeSecret(req.APIKey, req.ChannelID, req.BaseURL, req.CredentialScope)
 	if resolveErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": resolveErr.Error()})
@@ -1599,6 +1602,10 @@ func (h *ConfigHandler) TestTypeSafe(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
 		return
 	}
+	h.testTypeSafe(c, req)
+}
+
+func (h *ConfigHandler) testTypeSafe(c *gin.Context, req TestTypeSafeRequest) {
 	resolvedKey, resolveErr := h.resolveProbeSecret(req.APIKey, req.ChannelID, req.BaseURL, req.CredentialScope)
 	if resolveErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": resolveErr.Error()})

@@ -3128,6 +3128,9 @@
     "cleanupDuration": "Cleanup duration"
   },
   "settingsProbe": {
+    "auditTitle": "Audit model connection test",
+    "auditTypeSafeHint": "Tests the configured TypeSafe / Jev backend. Blank URL and model use Jev defaults. A blank or masked key uses the saved audit key; the main model key is never inherited.",
+    "auditChatHint": "Tests the configured audit model protocol. Blank URL and model inherit the main model. A blank or masked key uses the saved audit key, or inherits the main model key if none is configured.",
     "channelTitle": "Model Channels and Connection Tests",
     "channelHelp": "Connection tests use the values in the form. Save Channel applies your changes. A key shown as ******** uses the saved credential.",
     "saveChannel": "Save Channel",
