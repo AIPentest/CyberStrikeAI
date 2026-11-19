@@ -1,0 +1,41 @@
+name: Frontend build
+
+on:
+  push:
+    paths: ['web/frontend/**', 'web/static/app/**', 'web/static/i18n/**', 'internal/app/app.go', 'internal/app/spa_test.go', '.github/workflows/frontend-build.yml']
+  pull_request:
+    paths: ['web/frontend/**', 'web/static/app/**', 'web/static/i18n/**', 'internal/app/app.go', 'internal/app/spa_test.go', '.github/workflows/frontend-build.yml']
+
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build React + Semi Design bundle
+        run: |
+          npm ci --prefix web/frontend
+          npm run --prefix web/frontend build
+      - name: Committed bundle matches sources
+        run: |
+          if [ -n "$(git status --porcelain web/static/app)" ]; then
+            echo "web/static/app is out of date; run: npm run --prefix web/frontend build" >&2
+            git status --porcelain web/static/app >&2
+            exit 1
+          fi
+      - name: SPA entry and build artifacts
+        run: go test ./internal/app -run TestSPA -count=1
+      - run: node --test web/frontend/tests/*.test.mjs
+      - name: Install Chromium for isolated UI tests
+        working-directory: web/frontend
+        run: npx playwright install --with-deps chromium
+      - name: Browser regression tests
+        run: npm run --prefix web/frontend test:ui -- --reporter=line

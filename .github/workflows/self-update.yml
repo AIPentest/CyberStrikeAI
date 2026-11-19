@@ -1,9 +1,9 @@
 name: Self-update
 on:
   push:
-    paths: ['internal/update/**', 'internal/app/update_restart*', 'internal/security/auth*', 'internal/workflow/**', 'internal/config/**', 'internal/handler/**', 'internal/mcp/**', 'cmd/server/**', 'web/static/js/**', 'web/static/i18n/**', 'web/static/css/style.css', 'web/templates/index.html', 'upgrade.sh', 'run.sh', 'go.mod', 'go.sum', '.gitignore', '.github/workflows/self-update.yml']
+    paths: ['internal/update/**', 'internal/app/update_restart*', 'internal/security/auth*', 'internal/workflow/**', 'internal/config/**', 'internal/handler/**', 'internal/mcp/**', 'cmd/server/**', 'web/frontend/**', 'web/static/app/**', 'web/static/i18n/**', 'upgrade.sh', 'run.sh', 'go.mod', 'go.sum', '.gitignore', '.github/workflows/self-update.yml']
   pull_request:
-    paths: ['internal/update/**', 'internal/app/update_restart*', 'internal/security/auth*', 'internal/workflow/**', 'internal/config/**', 'internal/handler/**', 'internal/mcp/**', 'cmd/server/**', 'web/static/js/**', 'web/static/i18n/**', 'web/static/css/style.css', 'web/templates/index.html', 'upgrade.sh', 'run.sh', 'go.mod', 'go.sum', '.gitignore', '.github/workflows/self-update.yml']
+    paths: ['internal/update/**', 'internal/app/update_restart*', 'internal/security/auth*', 'internal/workflow/**', 'internal/config/**', 'internal/handler/**', 'internal/mcp/**', 'cmd/server/**', 'web/frontend/**', 'web/static/app/**', 'web/static/i18n/**', 'upgrade.sh', 'run.sh', 'go.mod', 'go.sum', '.gitignore', '.github/workflows/self-update.yml']
 permissions:
   contents: read
 jobs:
@@ -27,9 +27,12 @@ jobs:
       - name: Authentication and update session handoff
         run: go test -race ./internal/security -run '^(TestAuthManager|TestAttachRBACStore|TestRevokeRoleSessions|TestPublishSession|TestRestartHandoff)'
       - run: go build ./...
-      - name: Frontend regression tests
+      - name: Frontend build and SPA artifacts
         shell: bash
-        run: node --test web/static/js/*.test.cjs
+        run: |
+          npm ci --prefix web/frontend
+          npm run --prefix web/frontend build
+          go test ./internal/app -run TestSPA -count=1
       - name: Shell syntax
         shell: bash
         run: bash -n run.sh upgrade.sh

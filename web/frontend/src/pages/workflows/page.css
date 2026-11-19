@@ -1,0 +1,114 @@
+/* 工作流页私有样式：仅布局与间距，颜色全部取 Semi 变量。 */
+
+.workflow-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.workflow-tabs { margin-bottom: 12px; }
+
+.workflow-name-button {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: flex-start;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    min-width: 0;
+    max-width: 340px;
+}
+.workflow-name-text {
+    font-weight: 600;
+    font-size: 13px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.workflow-name-button:hover .workflow-name-text { color: var(--semi-color-primary); }
+.workflow-name-sub {
+    font-size: 11px;
+    color: var(--semi-color-text-3);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.workflow-name-sub code { font-size: 11px; }
+
+.workflow-cell-ellipsis {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.workflow-detail-stack { display: flex; flex-direction: column; gap: 16px; }
+.workflow-detail-tags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.workflow-edge-list { display: flex; flex-direction: column; gap: 4px; }
+.workflow-link-list { margin: 4px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.8; }
+.workflow-link-list code { font-size: 11px; }
+.workflow-edge-label { margin-left: 8px; color: var(--semi-color-text-2); font-size: 11px; }
+
+.workflow-timeline { margin-top: 8px; max-height: 420px; overflow: auto; padding-right: 6px; }
+.workflow-timeline-item { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.workflow-timeline-item code { font-size: 11px; }
+
+.workflow-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 12px;
+}
+.workflow-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+.workflow-form-grid--tight { gap: 8px; }
+@media (max-width: 760px) {
+    .workflow-form-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.workflow-graph-input textarea,
+.workflow-graph-input {
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.workflow-package-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--semi-color-border);
+}
+.workflow-package-file-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.workflow-file-input {
+    font-size: 12px;
+    max-width: 320px;
+    color: var(--semi-color-text-1);
+}
+.workflow-package-summary-head { display: flex; align-items: center; gap: 8px; }
+.workflow-package-banner { margin: 8px 0; }
+.workflow-package-action { display: flex; flex-direction: column; gap: 2px; padding: 2px 0; }
+.workflow-package-overwrite { display: flex; flex-direction: column; gap: 8px; }

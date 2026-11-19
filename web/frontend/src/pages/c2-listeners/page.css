@@ -1,0 +1,25 @@
+/* C2 监听器页面私有样式（c2- 前缀）。 */
+
+.c2-listener-name {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.c2-listener-status {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.c2-listener-token {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 10px;
+    border-radius: 6px;
+    background: var(--semi-color-fill-0);
+    border: 1px solid var(--semi-color-border);
+    word-break: break-all;
+}

@@ -1542,22 +1542,18 @@ func setupRoutes(
 	// OpenAPI规范（需要认证，避免暴露API结构信息）
 	protected.GET("/openapi/spec", openAPIHandler.GetOpenAPISpec)
 
-	// API文档页面（公开访问，但需要登录后才能使用API）
-	router.GET("/api-docs", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "api-docs.html", nil)
-	})
-
-	// 静态文件
+	// 静态文件（前端为 React + Semi Design 单页应用，构建产物在 web/static/app）
 	router.Static("/static", "./web/static")
-	router.LoadHTMLGlob("web/templates/*")
+
+	// API 文档已并入单页应用路由（#/api-docs），保留旧地址跳转
+	router.GET("/api-docs", func(c *gin.Context) {
+		c.Redirect(http.StatusFound, "/#/api-docs")
+	})
 
 	// 前端页面
 	router.GET("/", func(c *gin.Context) {
-		version := app.config.Version
-		if version == "" {
-			version = "v1.0.0"
-		}
-		c.HTML(http.StatusOK, "index.html", gin.H{"Version": version})
+		c.Header("Cache-Control", "no-cache")
+		c.File("./web/static/app/index.html")
 	})
 }
 

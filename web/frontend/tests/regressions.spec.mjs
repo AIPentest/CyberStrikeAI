@@ -1,0 +1,188 @@
+import { test, expect, visit, ready, label, UI_PERMISSIONS, CONVERSATION, ASSESSMENT, STAMP } from './fixtures.mjs';
+
+test('legacy update bookmark opens the current settings tab', async ({ page, mockApi }) => {
+    mockApi.respond('GET', '/api/system/update', { json: { status: {} } });
+    mockApi.respond('GET', '/api/storage/meta', { json: {} });
+    mockApi.respond('GET', '/api/storage/status', { json: {} });
+    // Storage and update share the current section shell.
+    await page.goto('/static/app/#system-update');
+    await expect(page).toHaveURL(/#\/settings\?section=update$/);
+    await expect.poll(() => mockApi.calls('GET', '/api/system/update').length).toBeGreaterThan(0);
+});
+
+test('read notification does not add to unread count and its timestamp is shown', async ({ page, mockApi }) => {
+    mockApi.respond('GET', '/api/notifications/summary', { json: {
+        unreadCount: 0, items: [{ id: 'read-fixture', type: 'fixture', title: '示例已读通知', ts: STAMP, read: true, count: 7 }]
+    } });
+    await visit(page, 'platform-rbac');
+    await page.getByRole('button', { name: label('notifications.title', '通知'), exact: true }).click();
+    const item = page.getByRole('button', { name: /示例已读通知/ });
+    await expect(item.locator('.cs-notification-meta')).toContainText('2026');
+    await expect(page.locator('.semi-badge-count')).toHaveCount(0);
+    expect(mockApi.writes()).toEqual([]);
+});
+
+test('refreshing a conversation detects an active backend run and disables duplicate sending', async ({ page, mockApi }) => {
+    mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [{ conversationId: CONVERSATION.id }] } });
+    await page.goto('/static/app/#/chat?conversation=' + CONVERSATION.id);
+    const main = await ready(page);
+    await page.reload();
+    await ready(page);
+    await expect(main.getByRole('button', { name: /停止$/ })).toBeDisabled();
+    await expect(main.getByRole('button', { name: /发送$/ })).toHaveCount(0);
+    expect(mockApi.writes()).toEqual([]);
+});
+
+test.describe('running-status stop permission', () => {
+    test.use({ appPermissions: [...UI_PERMISSIONS, 'tasks:write'] });
+    test('an authorized user can stop the displayed background run', async ({ page, mockApi }) => {
+        let running = true;
+        mockApi.respond('GET', '/api/agent-loop/tasks', () => ({ json: {
+            tasks: running ? [{ conversationId: CONVERSATION.id }] : []
+        } }));
+        mockApi.respond('POST', '/api/agent-loop/cancel', () => {
+            running = false;
+            return { json: { status: 'cancelled' } };
+        });
+        await page.goto('/static/app/#/chat?conversation=' + CONVERSATION.id);
+        const main = await ready(page);
+        await main.getByRole('button', { name: /停止$/ }).click();
+        await expect(main.getByRole('button', { name: /发送$/ })).toBeVisible();
+        expect(mockApi.calls('POST', '/api/agent-loop/cancel')[0]?.body).toEqual({ conversationId: CONVERSATION.id });
+    });
+});
+
+test('switching conversation hides the previous approval and keeps each draft separate', async ({ page, mockApi }) => {
+    const second = { ...CONVERSATION, id: 'fixture-conversation-other', title: '另一个示例会话' };
+    const item = { id: 'fixture-approval', toolName: 'fixture-read-only-request', conversationId: CONVERSATION.id };
+    mockApi.respond('GET', '/api/conversations', { json: { conversations: [CONVERSATION, second] } });
+    mockApi.respond('GET', '/api/conversations/' + second.id, { json: second });
+    mockApi.respond('GET', '/api/conversations/' + second.id + '/plan-tasks', { json: { tasks: [], total: 0 } });
+    let release;
+    const pending = new Promise(resolve => { release = resolve; });
+    mockApi.respond('GET', '/api/hitl/pending', async (_, url) => {
+        if (url.searchParams.get('conversationId') === second.id) {
+            await pending;
+            return { json: { items: [] } };
+        }
+        return { json: { items: [item] } };
+    });
+    try {
+        await page.goto('/static/app/#/chat?conversation=' + CONVERSATION.id);
+        const main = await ready(page);
+        const card = main.locator('.chat-hitl-card').filter({ hasText: item.toolName });
+        const composer = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+        await expect(card).toBeVisible();
+        await expect(card.getByRole('button', { name: /批准/ })).toBeDisabled();
+        await composer.fill('仅属于第一个示例会话的草稿');
+        await main.getByRole('button', { name: new RegExp('^' + second.title) }).click();
+        await expect(main.getByRole('heading', { name: second.title, exact: true })).toBeVisible();
+        await expect(card).toHaveCount(0);
+        await expect(composer).toHaveValue('');
+        await main.getByRole('button', { name: new RegExp('^' + CONVERSATION.title) }).click();
+        await expect(composer).toHaveValue('仅属于第一个示例会话的草稿');
+        expect(mockApi.writes()).toEqual([]);
+    } finally {
+        release();
+    }
+});
+
+test.describe('resource administration', () => {
+    test.use({ appPermissions: [...UI_PERMISSIONS, 'rbac:write'] });
+    test('selecting a role submits the role ID', async ({ page, mockApi }) => {
+        mockApi.respond('GET', '/api/rbac/roles', { json: {
+            roles: [{ id: 'custom-role-fixture-001', name: '演示审阅员', permissions: ['project:read'] }]
+        } });
+        mockApi.respond('POST', '/api/rbac/users', { json: { user: { id: 'fixture-user' } } });
+        const main = await visit(page, 'platform-rbac');
+        await main.getByRole('tab', { name: /^平台用户/ }).click();
+        await main.getByRole('button', { name: /新建用户$/ }).click();
+        const dialog = page.getByRole('dialog').filter({ hasText: '新建用户' });
+        await dialog.locator('input').nth(0).fill('fixture_user');
+        await dialog.locator('input[type=password]').fill('not-a-real-password');
+        await dialog.locator('.semi-select').click();
+        await page.locator('.semi-select-option-text').getByText('演示审阅员', { exact: true }).click();
+        await dialog.getByRole('button', { name: '确定', exact: true }).click();
+        await expect.poll(() => mockApi.calls('POST', '/api/rbac/users')[0]?.body.roles).toEqual(['custom-role-fixture-001']);
+    });
+
+    test('the resource grant form submits the selected user and resource', async ({ page, mockApi }) => {
+        mockApi.respond('GET', '/api/rbac/resources', { json: {
+            resources: [{ id: 'fixture-project', label: '示例项目' }], total: 1, has_more: false
+        } });
+        mockApi.respond('POST', '/api/rbac/resource-assignments', { json: { created: 1 } });
+        const main = await visit(page, 'platform-rbac');
+        await main.getByRole('tab', { name: /^资源授权/ }).click();
+        await main.getByRole('button', { name: /新增资源授权$/ }).click();
+        const grant = page.getByRole('dialog').filter({ hasText: '新增资源授权' });
+        await grant.locator('.semi-select').nth(0).click();
+        await page.locator('.semi-select-option-text').getByText('示例用户', { exact: true }).click();
+        await grant.locator('.semi-select').nth(2).click();
+        await page.locator('.semi-select-option-text').getByText('示例项目', { exact: true }).click();
+        await grant.getByRole('button', { name: '保存授权' }).click();
+        await expect.poll(() => mockApi.calls('POST', '/api/rbac/resource-assignments')[0]?.body).toEqual({
+            user_id: 'FAKE-PLAYWRIGHT-USER', resource_type: 'project', resource_ids: ['fixture-project']
+        });
+    });
+});
+
+test('API docs uses the completed URL of a read-only project endpoint', async ({ page, mockApi }) => {
+    mockApi.respond('GET', '/api/openapi/spec', { json: {
+        openapi: '3.0.0', paths: { '/api/projects/{id}': { get: {
+            tags: ['项目'], parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+            responses: { 200: { description: '示例项目' } }
+        } } }
+    } });
+    const main = await visit(page, 'api-docs');
+    await main.getByRole('button', { name: /projects/ }).click();
+    await main.getByRole('textbox', { name: '路径参数 id' }).fill('fixture-project');
+    await main.getByRole('button', { name: /发送请求/ }).click();
+    await expect.poll(() => mockApi.calls('GET', '/api/projects/fixture-project').length).toBeGreaterThan(0);
+});
+
+test('a legacy acceptance link opens the selected criterion and writes revision-checked evidence', async ({ page, mockApi }) => {
+    const id = ASSESSMENT.id;
+    const path = '/api/deep-assessments/' + id + '/acceptance';
+    mockApi.respond('GET', '/api/deep-assessments/' + id + '/events', { json: { events: [] } });
+    mockApi.respond('GET', path, { json: { rows: [{
+        number: 2, text: '复核示例报告', status: 'missing', fact_ids: [], receipt_ids: [], revision: 3
+    }] } });
+    mockApi.respond('GET', path + '/sources', { json: { sources: [
+        { id: 'fixture-fact', title: '示例观察事实', state: 'observed' }
+    ] } });
+    mockApi.respond('PUT', path + '/2', { json: { saved: true } });
+    await page.goto('/static/app/#deep-assessments?assessment_id=' + id + '&tab=acceptance&criterion=2');
+    const main = await ready(page);
+    await expect(main.getByRole('tab', { name: /验收/ })).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('button', { name: '编辑证据关联' }).click();
+    const editor = page.getByRole('dialog').filter({ hasText: '编辑验收证据关联' });
+    const evidence = editor.getByRole('checkbox', { name: '关联 示例观察事实' });
+    await evidence.press('Space');
+    await expect(evidence).toBeChecked();
+    const review = editor.getByRole('checkbox', { name: '标记待人工复核' });
+    await review.press('Space');
+    await expect(review).toBeChecked();
+    await editor.getByRole('textbox', { name: '复核说明' }).fill('示例说明');
+    await editor.getByRole('button', { name: '保存证据关联' }).click();
+    await expect.poll(() => mockApi.calls('PUT', path + '/2')[0]?.body).toEqual({
+        revision: 3, fact_ids: ['fixture-fact'], receipt_ids: [], needs_review: true, review_note: '示例说明'
+    });
+});
+
+test.describe('sign-in integration', () => {
+    test.use({ authenticated: false });
+    test('successful sign-in opens the app with a synthetic scoped session', async ({ page, mockApi }) => {
+        // The fixture validates its own synthetic token on all subsequent requests.
+        mockApi.respond('POST', '/api/auth/login', { json: {
+            token: 'FAKE-PLAYWRIGHT-NOT-A-REAL-TOKEN', expires_at: new Date(Date.now() + 3600000).toISOString(),
+            permissions: UI_PERMISSIONS, roles: [], user: { id: 'fixture-user', username: 'fixture' }
+        } });
+        await page.goto('/static/app/');
+        const form = page.locator('.cs-login-form');
+        await form.getByLabel(label('login.username', '用户名'), { exact: true }).fill('fixture');
+        await form.getByLabel(label('login.password', '密码'), { exact: true }).fill('fixture-password');
+        await form.getByRole('button', { name: /登录$/ }).click();
+        await ready(page);
+        await expect(form).toHaveCount(0);
+    });
+});

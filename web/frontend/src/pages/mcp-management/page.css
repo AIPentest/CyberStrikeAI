@@ -1,0 +1,102 @@
+/* MCP 管理页私有布局样式。 */
+
+.mcp-management-page { display: flex; flex-direction: column; }
+
+.mcp-management-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 32px 16px;
+    border: 1px dashed var(--semi-color-border);
+    border-radius: 8px;
+    color: var(--semi-color-text-2);
+    font-size: 13px;
+}
+.mcp-management-empty p { margin: 0; }
+
+.mcp-management-mcp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 12px;
+}
+.mcp-management-mcp-card {
+    border: 1px solid var(--semi-color-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: var(--semi-color-bg-1);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+.mcp-management-mcp-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.mcp-management-mcp-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+.mcp-management-mcp-title strong { font-size: 14px; word-break: break-all; }
+.mcp-management-mcp-error { margin: 0; }
+.mcp-management-mcp-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12.5px;
+    color: var(--semi-color-text-1);
+}
+.mcp-management-mcp-meta > div {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 8px;
+    align-items: baseline;
+}
+.mcp-management-meta-label { color: var(--semi-color-text-2); font-size: 12px; }
+
+.mcp-management-mono {
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 12px;
+    word-break: break-all;
+}
+.mcp-management-tool-name { font-size: 12.5px; }
+
+.mcp-management-form { display: flex; flex-direction: column; gap: 8px; }
+.mcp-management-form-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 12px;
+}
+.mcp-management-json {
+    font-family: "SFMono-Regular", Consolas, monospace !important;
+    font-size: 12px !important;
+    line-height: 1.5 !important;
+}
+.mcp-management-form-error {
+    font-size: 12px;
+    color: var(--semi-color-danger);
+    background: var(--semi-color-danger-light-default);
+    border-radius: 6px;
+    padding: 8px 10px;
+    word-break: break-word;
+}
+.mcp-management-hint {
+    margin: 10px 0 0;
+    font-size: 12px;
+    color: var(--semi-color-text-2);
+}
+
+@media (max-width: 900px) {
+    .mcp-management-mcp-grid { grid-template-columns: minmax(0, 1fr); }
+}

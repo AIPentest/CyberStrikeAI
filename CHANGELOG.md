@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-11-19 · 前端整体迁移到 React + Semi Design
+
+- Web 界面重写为 Vite 构建的 React 19 单页应用，组件统一使用 Semi Design；页面按 `#/<页面 id>` 路由，
+  深链接（会话、漏洞、项目、测评、设置分区、MCP 执行、HITL 审批）保持可分享。
+- 服务端不再渲染业务模板：`GET /` 直接返回 `web/static/app/index.html`，`/api-docs` 302 到 `/#/api-docs`，
+  API 文档改为应用内 OpenAPI 浏览器（含在线调试）。
+- 复用既有 REST 接口、`cyberstrike-auth` 会话令牌、`cyberstrike-theme` 主题偏好与 `web/static/i18n` 词条；
+  新增 `src/lib/http.js` 统一注入令牌、错误与 SSE 解析，`components/ui.jsx` 统一页面骨架、表格、指标卡、
+  Markdown/JSON 视图与抽屉。
+- 30 个业务页面 + API 文档全部由 React 组件实现，覆盖对话流式回复与内联审批、深度测评图谱与验收、
+  资产/漏洞/项目/任务/工作流、WebShell 与 C2、MCP 与 HITL、知识与技能、角色与平台权限、系统设置。
+- 新增 `internal/app/spa_test.go` 校验构建产物与入口路由；CI 增加 `frontend-build.yml`，
+  `self-update.yml` 的前端回归改为构建校验，移除依赖旧模板的 `task-ui.yml` 与浏览器夹具测试。
+
 ## 2026-11-15 · 深度测评工作台与完整链路
 
 - 探索图增加主链路/执行记录两种视图，跨页引用和原始上下游分页导航；归档按真实分支分组，重新引用后重新计冷却轮次，漏洞与人工线索保持可见，旧归档链接继续可读。

@@ -108,6 +108,15 @@ go build -o cyberstrike-ai ./cmd/server
 
 ## 前端冒烟
 
+前端是 React 19 + Semi Design 单页应用（`web/frontend`）。构建与产物校验：
+
+```sh
+npm ci --prefix web/frontend
+npm run --prefix web/frontend build
+git status --porcelain web/static/app   # 应为空，产物需随源码提交
+go test ./internal/app -run TestSPA -count=1
+```
+
 修改前端后至少验证：
 
 - 登录和退出。
@@ -115,8 +124,9 @@ go build -o cyberstrike-ai ./cmd/server
 - 新建对话和流式回复。
 - 设置页面保存。
 - 相关业务页面增删改查。
-- 中英文切换。
-- 浏览器控制台无明显错误。
+- 中英文切换与暗色主题。
+- 逐个访问 `#/<页面 id>`（清单见 `web/frontend/src/lib/nav.js`），浏览器控制台无 error、无页面异常。
+- 深链接可直接打开：`#/chat?conversation=…`、`#/vulnerabilities?id=…`、`#/projects?id=…`、`#/settings?section=…`。
 
 ## 高风险模块测试
 
@@ -149,7 +159,7 @@ C2、WebShell、终端、批量任务只能在授权测试环境验证。测试�
 - `internal/multiagent/`：测流式、工具调用、摘要、重试、HITL。
 - `internal/security/`：测认证、Shell、超时、无输出。
 - `internal/database/`：测旧数据兼容。
-- `web/static/js/chat.js`：测对话、过程详情、攻击链、分组。
+- `web/frontend/src/pages/chat/`：测对话、过程详情、攻击链、分组。
 
 ## 测试数据管理
 

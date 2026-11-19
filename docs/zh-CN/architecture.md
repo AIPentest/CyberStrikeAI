@@ -24,10 +24,10 @@ flowchart LR
 
 入口在 `cmd/server/`，应用组装在 `internal/app/`。Web 使用 Gin：
 
-- `web/templates/index.html`：主页面。
-- `web/templates/api-docs.html`：API 文档页面。
-- `web/static/js/`：各业务模块前端逻辑。
-- `web/static/css/`：样式。
+- `web/frontend/`：前端源码（React 19 + Semi Design，Vite 构建），页面位于 `src/pages/<页面 id>/`。
+- `web/static/app/`：前端构建产物，`GET /` 直接返回其中的 `index.html`，`/api-docs` 跳转到 `/#/api-docs`。
+- `web/static/i18n/`：多语言词条，前端与后端共用。
+- `web/static/`：Logo、favicon 与多语言等公共静态资源。
 
 路由注册集中在 `internal/app/app.go`。
 

@@ -66,7 +66,7 @@ npm test
 cd ../..
 go test -race ./internal/agentruntime ./internal/multiagent ./internal/workflow ./internal/knowledge
 go test ./...
-node --test web/static/js/*.test.cjs
+npm run --prefix web/frontend build
 ```
 
 SDK 集成测试使用本地模拟模型和无副作用的工具夹具，覆盖 OpenAI／Claude 动作建议、审批编辑、子代理工具边界、流式输出、取消、进程中断及备用模型切换。
