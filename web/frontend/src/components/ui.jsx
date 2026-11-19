@@ -10,7 +10,7 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { IconChevronDown, IconChevronUp, IconCopy, IconInbox, IconRefresh } from '@douyinfe/semi-icons';
 import { useT } from '../lib/i18n';
-import { SEVERITY_LABEL, severityColor, statusColor } from '../lib/format';
+import { SEVERITY_LABEL, SEVERITY_ORDER, severityColor, statusColor } from '../lib/format';
 import { errorMessage } from '../lib/http';
 
 const { Title, Text, Paragraph } = Typography;
@@ -64,7 +64,7 @@ export function StatGrid({ metrics, columns = 4 }) {
     );
 }
 
-export function StatCard({ label, value, valueTitle, detail, tone, icon, onClick, loading }) {
+export function StatCard({ label, value, valueTitle, detail, tone, severity, icon, onClick, loading }) {
     const content = (
         <>
             <span className="cs-stat-head">
@@ -72,7 +72,9 @@ export function StatCard({ label, value, valueTitle, detail, tone, icon, onClick
                 {icon && <span className={`cs-stat-icon ${tone ? `tone-${tone}` : ''}`} aria-hidden="true">{icon}</span>}
             </span>
             <Skeleton loading={loading} placeholder={<Skeleton.Title style={{ width: '60%', height: 36, margin: '8px 0' }} />}>
-                <span className={`cs-stat-value ${tone ? `tone-${tone}` : ''}`} title={valueTitle}>{value ?? '—'}</span>
+                <span className={`cs-stat-value ${tone ? `tone-${tone}` : ''}`} data-severity={severity} title={valueTitle}>
+                    {value ?? '—'}
+                </span>
             </Skeleton>
             {detail && <span className="cs-stat-detail">{detail}</span>}
         </>
@@ -144,7 +146,8 @@ export function ErrorBanner({ error, onRetry }) {
 export function SeverityTag({ severity, size = 'small' }) {
     const key = String(severity || '').toLowerCase();
     return (
-        <Tag size={size} color={severityColor(key)} shape="circle" className="cs-severity-tag" data-severity={key}>
+        <Tag size={size} color={severityColor(key)} shape="circle" className="cs-severity-tag"
+            data-severity={SEVERITY_ORDER.includes(key) ? key : undefined}>
             {SEVERITY_LABEL[key] || severity || '—'}
         </Tag>
     );
