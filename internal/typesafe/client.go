@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 )
@@ -189,8 +190,68 @@ func (c *Client) SystemOne(ctx context.Context, state any, questions map[string]
 	if err := json.Unmarshal(respBody, &out); err != nil {
 		return nil, fmt.Errorf("decode typesafe response: %w", err)
 	}
-	if out.Answers == nil {
-		out.Answers = map[string]map[string]any{}
+	if err := out.Validate(questions); err != nil {
+		return nil, fmt.Errorf("typesafe response rejected: %w", err)
 	}
 	return &out, nil
+}
+
+// Validate verifies that every requested question has a usable answer.
+// A 200 response with an empty or partial answers object means the evaluation
+// did not run; it must not be interpreted as "no destructive signal".
+func (r *Result) Validate(questions map[string]Question) error {
+	if r == nil {
+		return fmt.Errorf("empty result")
+	}
+	if len(r.Answers) == 0 {
+		return fmt.Errorf("no answers in response")
+	}
+	missing := make([]string, 0, len(questions))
+	for id, q := range questions {
+		ans, ok := r.Answers[id]
+		if !ok || ans == nil {
+			missing = append(missing, id)
+			continue
+		}
+		switch strings.ToLower(strings.TrimSpace(fmt.Sprint(q["type"]))) {
+		case "noul":
+			if _, ok := answerProbability(ans["noul"]); !ok {
+				return fmt.Errorf("answer %q has a missing or invalid noul", id)
+			}
+		case "choice":
+			choice, _ := ans["choice"].(string)
+			if strings.TrimSpace(choice) == "" {
+				return fmt.Errorf("answer %q has no choice", id)
+			}
+			if _, ok := answerProbability(ans["confidence"]); !ok {
+				return fmt.Errorf("answer %q has a missing or invalid confidence", id)
+			}
+		}
+	}
+	if len(missing) > 0 {
+		sort.Strings(missing)
+		return fmt.Errorf("incomplete answers: missing %s", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
+// answerProbability reads a probability-valued answer, accepting only numbers in [0, 1].
+func answerProbability(v any) (float64, bool) {
+	var f float64
+	switch n := v.(type) {
+	case float64:
+		f = n
+	case json.Number:
+		parsed, err := n.Float64()
+		if err != nil {
+			return 0, false
+		}
+		f = parsed
+	default:
+		return 0, false
+	}
+	if f < 0 || f > 1 {
+		return 0, false
+	}
+	return f, true
 }

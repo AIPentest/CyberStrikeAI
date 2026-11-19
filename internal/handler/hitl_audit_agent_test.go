@@ -2,10 +2,14 @@ package handler
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"cyberstrike-ai/internal/config"
+
+	"go.uber.org/zap"
 )
 
 func TestParseAuditAgentLLMContentApprove(t *testing.T) {
@@ -98,5 +102,54 @@ func TestBuildAuditAgentReviewInput(t *testing.T) {
 	}
 	if !strings.Contains(s, "nmap") || !strings.Contains(s, "10.0.0.1") || !strings.Contains(s, "扫描内网") {
 		t.Fatalf("unexpected input: %s", s)
+	}
+}
+
+func TestAuditAgentReviewTypeSafeIncompleteAnswersReject(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "empty answers",
+			body: `{"model":"jev-latest","answers":{}}`,
+			want: "reject",
+		},
+		{
+			name: "partial answers",
+			body: `{"answers":{"destroys_availability":{"noul":0.02}}}`,
+			want: "reject",
+		},
+		{
+			name: "valid low risk answers",
+			body: `{"answers":{"destroys_availability":{"noul":0.02},"irreversible_data_loss":{"noul":0.02},"credential_or_acl_change":{"noul":0.02},"config_tamper":{"noul":0.02},"authorized_pentest_payload":{"noul":0.9},"decision":{"choice":"approve","confidence":0.95}}}`,
+			want: "approve",
+		},
+		{
+			name: "destructive answers",
+			body: `{"answers":{"destroys_availability":{"noul":0.97},"irreversible_data_loss":{"noul":0.97},"credential_or_acl_change":{"noul":0.97},"config_tamper":{"noul":0.97},"authorized_pentest_payload":{"noul":0.2},"decision":{"choice":"reject","confidence":0.97}}}`,
+			want: "reject",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+			h := &AgentHandler{
+				config: &config.Config{Hitl: config.HitlConfig{
+					AuditBackend: "typesafe",
+					AuditModel:   config.OpenAIConfig{BaseURL: srv.URL, APIKey: "ts-key", Model: "jev-latest"},
+				}},
+				logger: zap.NewNop(),
+			}
+			d := h.auditAgentReview(context.Background(), "approval", "exec", map[string]interface{}{"command": "id"})
+			if d.Decision != tc.want {
+				t.Fatalf("decision=%s comment=%s, want %s", d.Decision, d.Comment, tc.want)
+			}
+		})
 	}
 }
