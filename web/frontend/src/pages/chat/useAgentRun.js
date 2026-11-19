@@ -69,7 +69,7 @@ export function useAgentRun({
         });
     }, [conversationRef, flushLive, onSettled, requestDetailReload]);
 
-    const send = useCallback(({ message, attachments, mode, projectId }) => {
+    const send = useCallback(({ message, attachments, mode, projectId, aiChannelId, reasoning, hitl }) => {
         const run = { live: createLiveState({ conversationId: conversationRef.current }), markedFinished: false, abort: null };
         runRef.current = run;
         liveRef.current = run.live;
@@ -80,7 +80,10 @@ export function useAgentRun({
         const streaming = mode !== 'single';
         const body = {
             message,
-            conversationId: conversationRef.current || ''
+            conversationId: conversationRef.current || '',
+            aiChannelId,
+            reasoning,
+            hitl
         };
         if (!conversationRef.current && projectId) body.projectId = projectId;
         if (streaming) body.orchestration = mode;

@@ -9,6 +9,7 @@ import { useT } from '../../lib/i18n';
 import { useDebounced, useInterval, useLocalStorage, useResource } from '../../components/hooks';
 import { toastError, toastSuccess, toastWarning } from '../../components/ui';
 import ChatHeader from './ChatHeader';
+import ChatSettings from './ChatSettings';
 import ConversationList from './ConversationList';
 import MessageList from './MessageList';
 import Composer, { AGENT_MODES } from './Composer';
@@ -16,6 +17,7 @@ import HitlDock from './HitlDock';
 import { PlanTasksSheet, TokenUsageSheet } from './Sheets';
 import { useAgentRun } from './useAgentRun';
 import { useConversationActions } from './useConversationActions';
+import { useModelPreferences } from './useModelPreferences';
 import './page.css';
 
 const { Text } = Typography;
@@ -52,6 +54,7 @@ export default function Page() {
     const canStop = hasPermission('tasks:write');
     const canReadHitl = hasPermission('hitl:read');
     const canDecideHitl = hasPermission('hitl:write');
+    const canReadConfig = hasPermission('config:read');
 
     const [searchParams, setSearchParams] = useSearchParams();
     const conversationId = searchParams.get('conversation') || '';
@@ -66,6 +69,9 @@ export default function Page() {
     const [newProjectId, setNewProjectId] = useState('');
     const [storedMode, setStoredMode] = useLocalStorage(MODE_STORAGE_KEY, 'single');
     const mode = AGENT_MODES.includes(storedMode) ? storedMode : 'single';
+    const model = useModelPreferences(canReadConfig);
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [draftApproval, setDraftApproval] = useState(null);
 
     const [detail, setDetail] = useState(EMPTY_DETAIL);
     const [composers, setComposers] = useState(() => new Map());
@@ -179,6 +185,7 @@ export default function Page() {
     }, []);
 
     const bindConversation = useCallback(id => {
+        setDraftApproval(null);
         boundByRun.current = id;
         conversationRef.current = id;
         setSearchParams({ conversation: id }, { replace: true });
@@ -361,7 +368,7 @@ export default function Page() {
     }, [conversationId, updateComposer]);
 
     const submit = useCallback(() => {
-        if (!canWrite || !canExecute || sending || backgroundRunning || checkingRun) return;
+        if (!canWrite || !canExecute || sending || backgroundRunning || checkingRun || model.waitingForChannel) return;
         const text = draft.trim();
         if (!text && !attachments.length) {
             toastWarning(t('chat.emptyMessage', null, '请输入内容或添加附件'));
@@ -390,8 +397,15 @@ export default function Page() {
         }));
         resetRun();
         updateComposer(conversationId, () => ({ draft: '', attachments: [] }));
-        run.send({ message, attachments: ready, mode, projectId: newProjectId });
-    }, [attachments, backgroundRunning, canWrite, canExecute, checkingRun, conversationId, draft, mode, newProjectId, resetRun, run, sending, t, updateComposer]);
+        run.send({
+            message,
+            attachments: ready,
+            mode,
+            projectId: newProjectId,
+            ...model.request,
+            hitl: !conversationId && canDecideHitl ? draftApproval || undefined : undefined
+        });
+    }, [attachments, backgroundRunning, canWrite, canExecute, canDecideHitl, checkingRun, conversationId, draft, draftApproval, mode, model, newProjectId, resetRun, run, sending, t, updateComposer]);
 
     const conversation = detail.conversation;
 
@@ -506,11 +520,13 @@ export default function Page() {
                         onStop={stop}
                         canStop={canStop}
                         sending={sending || backgroundRunning}
-                        checkingRun={checkingRun}
+                        checkingRun={checkingRun || model.waitingForChannel}
                         canWrite={canWrite}
                         canExecute={canExecute}
                         mode={mode}
                         onModeChange={value => setStoredMode(AGENT_MODES.includes(value) ? value : 'single')}
+                        onOpenSettings={canReadConfig || canReadHitl || (canWrite && canExecute)
+                            ? () => setSettingsOpen(true) : undefined}
                         projectId={newProjectId}
                         onProjectChange={value => setNewProjectId(value || '')}
                         projects={projects}
@@ -522,6 +538,21 @@ export default function Page() {
                     />
                 </div>
             </section>
+            {settingsOpen && (
+                <ChatSettings
+                    key={conversationId}
+                    onClose={() => setSettingsOpen(false)}
+                    narrow={narrow}
+                    busy={sending || backgroundRunning || checkingRun || !(canWrite && canExecute)}
+                    canReadConfig={canReadConfig}
+                    canReadHitl={canReadHitl}
+                    canEnableHitl={canDecideHitl}
+                    model={model}
+                    conversationId={conversationId}
+                    draftApproval={!conversationId ? draftApproval : null}
+                    onEnableDraftApproval={setDraftApproval}
+                />
+            )}
             <SideSheet
                 visible={narrow && sidebarOpen}
                 placement="left"

@@ -300,6 +300,9 @@
 .chat-composer-submit { min-width: 0; max-width: 100%; margin-inline-start: auto; justify-content: flex-end; }
 .chat-composer-submit > * { min-width: 0; max-width: 100%; }
 .chat-composer-hint { font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.chat-settings-fields { display: grid; gap: 16px; }
+.chat-setting-field { display: grid; gap: 8px; min-width: 0; }
+.chat-setting-approval { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 
 /* ---------- 侧滑面板 ---------- */
 
