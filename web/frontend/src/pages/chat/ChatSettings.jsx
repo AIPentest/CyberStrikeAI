@@ -29,13 +29,26 @@ export default function ChatSettings({
         [conversationId, canReadHitl],
         { skip: !canReadHitl }
     );
-    const approvalMode = conversationId
+    const approvalMode = draftApproval?.mode || (conversationId
         ? (approvals.data?.hitl?.enabled ? approvals.data.hitl.mode : 'off')
-        : approvals.data?.defaultMode;
+        : approvals.data?.defaultMode);
     const approvalActive = approvalMode === 'approval' || approvalMode === 'review_edit';
+    const reviewer = draftApproval?.reviewer || (conversationId
+        ? approvals.data?.hitl?.reviewer
+        : approvals.data?.defaultReviewer);
+    const usesAuditAgent = reviewer === 'audit_agent';
+    const canSelectHuman = canEnableHitl && !draftApproval && (!approvalActive || (!conversationId && usesAuditAgent));
     const approvalLabel = approvalMode === 'review_edit'
         ? t('chat.hitlModeReviewEdit', null, '审查编辑')
         : t('chat.hitlModeApproval', null, '审批模式');
+    const reviewerLabel = usesAuditAgent
+        ? t('chat.hitlReviewerAgent', null, '审计 Agent')
+        : t('chat.hitlReviewerHuman', null, '人工审批');
+    const enableLabel = conversationId
+        ? t('chat.hitlEnableHuman', null, '开启人工审批')
+        : approvalActive
+            ? t('chat.hitlUseHumanFirstMessage', null, '首条消息改用人工审批')
+            : t('chat.hitlEnableFirstMessage', null, '为首条消息开启人工审批');
     const defaultChannel = model.config.data?.default_channel;
     const defaultModel = model.channels.find(([id]) => id === defaultChannel)?.[1]?.model;
     const defaultLabel = t('chat.aiChannelDefault', null, '跟随默认通道');
@@ -122,20 +135,28 @@ export default function ChatSettings({
                         <ErrorBanner error={approvals.error} onRetry={() => approvals.reload()} />
                         {approvals.loading && <Spin />}
                         {approvals.data && !approvals.error && (
-                            <div className="chat-setting-approval">
-                                <Tag color={approvalActive || draftApproval ? 'green' : 'grey'}>
-                                    {draftApproval && !conversationId
-                                        ? t('chat.hitlFirstMessageEnabled', null, '首条消息将使用人工审批')
-                                        : approvalActive ? approvalLabel : t('chat.hitlModeOff', null, '关闭')}
-                                </Tag>
-                                {canEnableHitl && !approvalActive && !draftApproval && (
+                            <>
+                                <div className="chat-setting-approval">
+                                    <Tag color={approvalActive ? 'green' : 'grey'}>
+                                        {approvalActive ? approvalLabel : t('chat.hitlModeOff', null, '关闭')}
+                                    </Tag>
+                                    {approvalActive && reviewer && (
+                                        <Text type="secondary">
+                                            {t('chat.hitlCurrentReviewer', { reviewer: reviewerLabel }, '审批方 · {{reviewer}}')}
+                                        </Text>
+                                    )}
+                                </div>
+                                {draftApproval && (
+                                    <Text type="tertiary" size="small">
+                                        {t('chat.hitlFirstMessageEnabled', null, '首条消息将使用人工审批')}
+                                    </Text>
+                                )}
+                                {canSelectHuman && (
                                     <Button disabled={busy || saving} loading={saving} onClick={enableApproval}>
-                                        {conversationId
-                                            ? t('chat.hitlEnableHuman', null, '开启人工审批')
-                                            : t('chat.hitlEnableFirstMessage', null, '为首条消息开启人工审批')}
+                                        {enableLabel}
                                     </Button>
                                 )}
-                            </div>
+                            </>
                         )}
                     </section>
                 )}

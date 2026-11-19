@@ -122,7 +122,34 @@ test.describe('chat composer settings', () => {
         await settings.locator('button.semi-sidesheet-close').click();
         await openSettings.click();
         await expect(settings.getByText(label('chat.hitlModeApproval'), { exact: true })).toBeVisible();
+        const reviewer = label('chat.hitlCurrentReviewer').replace('{{reviewer}}', label('chat.hitlReviewerHuman'));
+        await expect(settings.getByText(reviewer, { exact: true })).toBeVisible();
         expect(mockApi.writes()).toHaveLength(1);
+    });
+
+    test('shows the inherited reviewer and lets the first message require a human', async ({ page, mockApi }) => {
+        mockApi.respond('GET', '/api/hitl/default-config', { json: {
+            defaultMode: 'approval', defaultReviewer: 'audit_agent', defaultTimeoutSeconds: 180
+        } });
+        const message = 'FAKE：请润色这句示例文本。';
+        const id = mockApi.enableChatStream(message);
+        const main = await visit(page, 'chat');
+        await main.getByRole('button', { name: label('chat.sessionSettingsTitle'), exact: true }).click();
+        const settings = page.getByRole('dialog');
+        const reviewer = label('chat.hitlCurrentReviewer');
+        await expect(settings.getByText(reviewer.replace('{{reviewer}}', label('chat.hitlReviewerAgent')), { exact: true })).toBeVisible();
+        await settings.getByRole('button', { name: label('chat.hitlUseHumanFirstMessage') }).click();
+        await expect(settings.getByText(reviewer.replace('{{reviewer}}', label('chat.hitlReviewerHuman')), { exact: true })).toBeVisible();
+        expect(mockApi.writes()).toEqual([]);
+
+        await settings.locator('button.semi-sidesheet-close').click();
+        const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+        await input.fill(message);
+        await input.press('Enter');
+        await expect(page).toHaveURL(new RegExp(`#/chat\\?conversation=${id}$`));
+        expect(mockApi.calls('POST', '/api/agent/stream')[0]?.body.hitl).toEqual({
+            enabled: true, mode: 'approval', reviewer: 'human', timeoutSeconds: 180
+        });
     });
 });
 
