@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"os/exec"
+	"sort"
 	"sync"
 	"time"
 
@@ -15,6 +18,16 @@ import (
 var ErrProcessScopeClosed = errors.New("task is ending; new processes are not allowed")
 var ErrBackgroundNeedsTask = errors.New("background commands require a managed task")
 
+// ErrCleanupUnconfirmed means SIGKILL is pending on processes blocked in the kernel.
+var ErrCleanupUnconfirmed = errors.New("local cleanup unconfirmed: processes in uninterruptible sleep (D) with SIGKILL pending")
+
+func cleanupDuration(name string) time.Duration {
+	if value, err := time.ParseDuration(os.Getenv(name)); err == nil && value > 0 {
+		return value
+	}
+	return 3 * time.Second
+}
+
 type processScopeKey struct{}
 
 // ProcessScope owns local commands for one task run, including background work.
@@ -22,17 +35,27 @@ type processScopeKey struct{}
 // Start and Seal serialize under the same lock: no process can escape cleanup
 // by starting between the final snapshot and task completion.
 type ProcessScope struct {
-	ID       string
-	mu       sync.Mutex
-	closed   bool
-	sessions map[*ShellSession]struct{}
-	guard    processguard.Group
-	guardErr error
-	closeMu  sync.Mutex
+	ID            string
+	mu            sync.Mutex
+	closed        bool
+	sessions      map[*ShellSession]struct{}
+	guard         processguard.Group
+	guardErr      error
+	closeMu       sync.Mutex
+	blockedGroups []int // protected by closeMu
+	graceTimeout  time.Duration
+	killTimeout   time.Duration
+	guardTimeout  time.Duration
 }
 
 func NewProcessScope() *ProcessScope {
-	return &ProcessScope{ID: uuid.NewString(), sessions: make(map[*ShellSession]struct{})}
+	return &ProcessScope{
+		ID:           uuid.NewString(),
+		sessions:     make(map[*ShellSession]struct{}),
+		graceTimeout: cleanupDuration("CS_CLEANUP_GRACE"),
+		killTimeout:  cleanupDuration("CS_CLEANUP_KILL"),
+		guardTimeout: cleanupDuration("CS_CLEANUP_GUARD"),
+	}
 }
 
 func WithProcessScope(ctx context.Context, scope *ProcessScope) context.Context {
@@ -128,28 +151,57 @@ func (s *ProcessScope) Close() error {
 	}
 	s.mu.Unlock()
 	if len(sessions) == 0 {
-		return s.closeGuard()
+		return s.cleanupResult(s.closeGuard())
 	}
 	for _, session := range sessions {
 		session.signal(false)
 	}
-	if waitShellSessions(sessions, 3*time.Second) {
-		return s.closeGuard()
+	if waitShellSessions(sessions, s.graceTimeout) {
+		return s.cleanupResult(s.closeGuard())
 	}
 	for _, session := range sessions {
 		session.Terminate()
 	}
 	guardErr := s.closeGuard()
-	if waitShellSessions(sessions, 3*time.Second) {
+	waitShellSessions(sessions, s.killTimeout)
+
+	// Only the watchdog backend is covered by the process group scan. A
+	// cgroup or Job Object can contain members outside the original group.
+	watchdogTimedOut := errors.Is(guardErr, context.DeadlineExceeded) &&
+		s.IsolationBackend() == "process_group_watchdog"
+	var remaining []int
+	var releaseErr error
+	for _, session := range sessions {
+		if session.tryComplete() {
+			continue
+		}
+		if watchdogTimedOut {
+			deferred, err := session.deferKernelCleanup()
+			if deferred {
+				s.blockedGroups = append(s.blockedGroups, session.rootPID)
+				slog.Warn("Task process cleanup unconfirmed", "runId", s.ID, "pgid", session.rootPID)
+				continue
+			}
+			releaseErr = errors.Join(releaseErr, err)
+		}
+		remaining = append(remaining, session.rootPID)
+	}
+	if len(remaining) == 0 {
+		if watchdogTimedOut {
+			guardErr = s.closeGuard()
+		}
+		return s.cleanupResult(guardErr)
+	}
+	sort.Ints(remaining)
+	return errors.Join(fmt.Errorf("task %s: process cleanup timed out (process groups %v)", s.ID, remaining), guardErr, releaseErr)
+}
+
+func (s *ProcessScope) cleanupResult(guardErr error) error {
+	if guardErr != nil || len(s.blockedGroups) == 0 {
 		return guardErr
 	}
-	remaining := make([]int, 0, len(sessions))
-	for _, session := range sessions {
-		if !session.tryComplete() {
-			remaining = append(remaining, session.rootPID)
-		}
-	}
-	return fmt.Errorf("task %s: process cleanup timed out (process groups %v)", s.ID, remaining)
+	sort.Ints(s.blockedGroups)
+	return fmt.Errorf("task %s: %w (process groups %v)", s.ID, ErrCleanupUnconfirmed, s.blockedGroups)
 }
 
 func waitShellSessions(sessions []*ShellSession, timeout time.Duration) bool {
@@ -199,7 +251,7 @@ func (s *ProcessScope) closeGuard() error {
 	if s.guard == nil {
 		return nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), s.guardTimeout)
 	defer cancel()
 	return s.guard.Close(ctx)
 }

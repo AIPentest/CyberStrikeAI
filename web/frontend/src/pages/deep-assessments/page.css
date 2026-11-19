@@ -52,7 +52,7 @@
     gap: 10px;
 }
 
-.assessment-archive-filter {
+.assessment-view-options {
     white-space: nowrap;
 }
 
@@ -182,9 +182,6 @@
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    margin-top: 16px;
-    padding-top: 12px;
-    border-top: 1px solid var(--semi-color-border);
 }
 
 /* 图谱 */

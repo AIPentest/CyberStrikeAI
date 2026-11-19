@@ -1,8 +1,8 @@
 /** 新建/编辑漏洞：字段与 CreateVulnerabilityRequest / UpdateVulnerabilityRequest 对齐。 */
 import { useEffect, useState } from 'react';
-import { Form, Modal, Spin, Typography } from '@douyinfe/semi-ui';
+import { Form, Spin, Typography } from '@douyinfe/semi-ui';
 import { api, errorMessage } from '../../lib/http';
-import { toastError } from '../../components/ui';
+import { Drawer, toastError } from '../../components/ui';
 import { severityOptions, statusOptions } from './shared';
 
 const { Text } = Typography;
@@ -123,8 +123,7 @@ export default function EditModal({ visible, vulnId, t, projectOptions, onClose,
     };
 
     return (
-        <Modal
-            className="vulnerability-edit-modal"
+        <Drawer
             title={editing
                 ? t('vulnerability.editVuln', null, '编辑漏洞')
                 : t('vulnerability.addVuln', null, '添加漏洞')}
@@ -136,7 +135,6 @@ export default function EditModal({ visible, vulnId, t, projectOptions, onClose,
             cancelText={t('common.cancel', null, '取消')}
             width={780}
             maskClosable={false}
-            bodyStyle={{ maxHeight: '70vh', overflowY: 'auto' }}
         >
             {!visible ? null : loadError ? (
                 <Text type="danger">{errorMessage(loadError, t('vulnerabilityPage.fetchFailed', null, '获取漏洞失败'))}</Text>
@@ -283,6 +281,6 @@ export default function EditModal({ visible, vulnId, t, projectOptions, onClose,
                     </div>
                 </Form>
             )}
-        </Modal>
+        </Drawer>
     );
 }

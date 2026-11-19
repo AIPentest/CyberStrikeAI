@@ -5519,6 +5519,11 @@
     "updatedAt": "Updated",
     "loading": "Loading assessment…",
     "graph": "Exploration graph",
+    "graphView": {
+      "label": "Graph view",
+      "summary": "Main path",
+      "full": "Execution records"
+    },
     "continuous": "Continuous",
     "mode": "Execution mode",
     "elapsed": "Active time",

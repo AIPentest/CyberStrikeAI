@@ -27,7 +27,6 @@ import './page.css';
 
 const { Text } = Typography;
 
-const SEVERITY_TONE = { critical: 'danger', high: 'warning' };
 const VIEWS = { none: 'viewList', host: 'viewHost', task: 'viewTask' };
 const EMPTY_GROUPS = [];
 
@@ -370,7 +369,6 @@ export default function VulnerabilitiesPage() {
             id: 'total',
             label: t('vulnerabilityPage.statTotal', null, '总漏洞数'),
             value: statTotal,
-            tone: 'danger',
             detail: distinctCount && distinctCount !== statTotal
                 ? t('vulnerabilityPage.distinctCount', { count: distinctCount }, `${distinctCount} 个独立漏洞`)
                 : undefined,
@@ -385,7 +383,7 @@ export default function VulnerabilitiesPage() {
                 id: code,
                 label: severityText(t, code),
                 value: count,
-                tone: SEVERITY_TONE[code],
+                severity: code,
                 detail: active
                     ? `${t('vulnerabilityPage.filterActive', null, '已筛选')} · ${pct}%`
                     : `${pct}%`,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Form, Input, Modal, Select, Space, Tag, TextArea, Typography } from '@douyinfe/semi-ui';
+import { Button, Form, Input, Select, Space, Tag, TextArea, Typography } from '@douyinfe/semi-ui';
 import { IconDelete, IconEdit, IconPlus, IconRefresh, IconSearch } from '@douyinfe/semi-icons';
 import { api } from '../../lib/http';
 import { useAuth } from '../../lib/auth';
@@ -157,7 +157,7 @@ export default function KnowledgeManagementPage() {
                 />
             </SectionCard>
 
-            <Modal
+            <Drawer
                 title={editor?.item ? '编辑知识项' : '新增知识项'}
                 visible={Boolean(editor)}
                 key={editor?.item?.id || 'new'}
@@ -174,7 +174,7 @@ export default function KnowledgeManagementPage() {
                     <Form.Input field="title" label="标题" rules={[{ required: true, message: '请输入标题' }]} />
                     <Form.TextArea field="content" label="内容（Markdown）" rules={[{ required: true, message: '请输入内容' }]} autosize={{ minRows: 10, maxRows: 24 }} />
                 </Form>
-            </Modal>
+            </Drawer>
 
             <Drawer title={detail?.title || '知识项'} visible={Boolean(detail)} onCancel={() => setDetail(null)} width={640}>
                 {detail && (
@@ -190,7 +190,7 @@ export default function KnowledgeManagementPage() {
                 )}
             </Drawer>
 
-            <Modal title="知识检索测试" visible={searchOpen} onCancel={() => { setSearchOpen(false); setSearchResult(null); }} footer={null} width={720}>
+            <Drawer title="知识检索测试" visible={searchOpen} onCancel={() => { setSearchOpen(false); setSearchResult(null); }} footer={null} width={720}>
                 <Form onSubmit={({ query }) => runSearch(query)}>
                     <Form.Input field="query" label="检索语句" rules={[{ required: true, message: '请输入检索语句' }]} />
                     <Button htmlType="submit" theme="solid" type="primary">检索</Button>
@@ -212,7 +212,7 @@ export default function KnowledgeManagementPage() {
                         {(searchResult.results || []).length === 0 && <Text type="tertiary">没有命中结果</Text>}
                     </div>
                 )}
-            </Modal>
+            </Drawer>
         </div>
     );
 }

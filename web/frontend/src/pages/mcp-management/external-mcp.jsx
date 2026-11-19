@@ -1,9 +1,9 @@
 /** 外部 MCP 配置：列表、启停、JSON 表单新增/编辑、删除。 */
 import { useCallback, useMemo, useState } from 'react';
-import { Banner, Button, Modal, Space, Tag, TextArea, Typography } from '@douyinfe/semi-ui';
+import { Banner, Button, Space, Tag, TextArea, Typography } from '@douyinfe/semi-ui';
 import { IconPlus, IconRefresh } from '@douyinfe/semi-icons';
 import {
-    SectionCard, ErrorBanner, CopyButton, toastSuccess, toastError, confirmAction
+    Drawer, SectionCard, ErrorBanner, CopyButton, toastSuccess, toastError, confirmAction
 } from '../../components/ui';
 import { useInterval, useResource } from '../../components/hooks';
 import { api, errorMessage } from '../../lib/http';
@@ -279,7 +279,7 @@ export default function ExternalMcpPanel({ canWrite, onChanged, refreshKey = 0 }
                 })}
             </div>
 
-            <Modal
+            <Drawer
                 title={editingName
                     ? `${t('mcp.editExternalMCP', null, '编辑外部MCP')} · ${editingName}`
                     : t('mcp.addExternalMCP', null, '添加外部 MCP')}
@@ -315,7 +315,7 @@ export default function ExternalMcpPanel({ canWrite, onChanged, refreshKey = 0 }
                     />
                     {jsonError && <div className="mcp-management-form-error">{jsonError}</div>}
                 </div>
-            </Modal>
+            </Drawer>
         </SectionCard>
     );
 }

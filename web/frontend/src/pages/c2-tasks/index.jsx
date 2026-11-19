@@ -3,13 +3,13 @@
  */
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Button, Input, Modal, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
+import { Button, Input, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import { IconPlus, IconRefresh } from '@douyinfe/semi-icons';
 import { useAuth } from '../../lib/auth';
 import { useT } from '../../lib/i18n';
 import { useInterval, useResource } from '../../components/hooks';
 import {
-    PageHeader, SectionCard, StatGrid, DataTable, ErrorBanner,
+    Drawer, PageHeader, SectionCard, StatGrid, DataTable, ErrorBanner,
     confirmAction, toastError, toastSuccess
 } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
@@ -285,7 +285,7 @@ export default function C2TasksPage() {
                 onSubmit={createTask}
             />
 
-            <Modal
+            <Drawer
                 visible={Boolean(detail)}
                 title={t('c2.tasks.modalTitle', null, '任务详情')}
                 width={760}
@@ -324,7 +324,7 @@ export default function C2TasksPage() {
                         )}
                     </div>
                 )}
-            </Modal>
+            </Drawer>
         </div>
     );
 }

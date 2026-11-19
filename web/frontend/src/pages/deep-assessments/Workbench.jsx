@@ -1,13 +1,13 @@
 /** 深度测评工作台：状态控制、事件轮询与分区标签页。 */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Banner, Button, Modal, Space, Tabs, TextArea, Typography } from '@douyinfe/semi-ui';
+import { Banner, Button, Space, Tabs, TextArea, Typography } from '@douyinfe/semi-ui';
 import { IconDelete, IconRefresh } from '@douyinfe/semi-icons';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
 import { useAuth } from '../../lib/auth';
 import { useInterval, useResource } from '../../components/hooks';
 import {
-    PageHeader, ErrorBanner, StatusTag, confirmAction, toastError, toastSuccess, toastWarning
+    PageHeader, Drawer, ErrorBanner, StatusTag, confirmAction, toastError, toastSuccess, toastWarning
 } from '../../components/ui';
 import { formatDateTime, formatNumber } from '../../lib/format';
 import {
@@ -51,6 +51,7 @@ export default function Workbench({ id, tab, criterion, evidencePath, evidenceSt
     const [intentFilter, setIntentFilter] = useState('');
     const [messageMode, setMessageMode] = useState('');
     const [messageText, setMessageText] = useState('');
+    const messageTitle = messageMode === 'answer' ? '答复并继续' : '补充线索或调整方向';
     const lastEventRef = useRef(0);
     const eventsBusyRef = useRef(false);
 
@@ -357,15 +358,23 @@ export default function Workbench({ id, tab, criterion, evidencePath, evidenceSt
 
             {!task && resource.loading ? <div className="assessment-loading">正在读取测评…</div> : null}
 
-            <Modal
+            <Drawer
                 visible={Boolean(messageMode)}
-                title={messageMode === 'answer' ? '答复并继续' : '补充线索或调整方向'}
+                title={messageTitle}
+                aria-label={messageTitle}
                 onCancel={() => setMessageMode('')}
-                onOk={submitMessage}
-                confirmLoading={busy === 'message'}
-                okText="提交"
-                cancelText="取消"
                 width={560}
+                closable={busy !== 'message'}
+                closeOnEsc={busy !== 'message'}
+                maskClosable={busy !== 'message'}
+                footer={(
+                    <div className="assessment-form-actions">
+                        <Button onClick={() => setMessageMode('')} disabled={busy === 'message'}>取消</Button>
+                        <Button theme="solid" onClick={submitMessage} loading={busy === 'message'} disabled={busy === 'message'}>
+                            提交
+                        </Button>
+                    </div>
+                )}
             >
                 <p className="assessment-hint">
                     {messageMode === 'answer'
@@ -379,7 +388,7 @@ export default function Workbench({ id, tab, criterion, evidencePath, evidenceSt
                     maxLength={8000}
                     placeholder="例如：优先验证登录接口的越权风险，并附上原始请求回执。"
                 />
-            </Modal>
+            </Drawer>
         </div>
     );
 }

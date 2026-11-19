@@ -1,9 +1,9 @@
 /** 事实新增 / 编辑弹窗：fact_key 与 summary 必填，body 存攻击链与 POC，links 维护入边。 */
 import { useEffect, useMemo, useState } from 'react';
-import { Checkbox, Input, Modal, Select, TextArea, Typography } from '@douyinfe/semi-ui';
+import { Checkbox, Input, Select, TextArea, Typography } from '@douyinfe/semi-ui';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
-import { toastError, toastSuccess } from '../../components/ui';
+import { Drawer, toastError, toastSuccess } from '../../components/ui';
 import {
     CONFIDENCE_OPTIONS, EDGE_TYPE_HINTS, FACT_CATEGORIES, errText, formatIncomingLinks
 } from './helpers';
@@ -109,7 +109,7 @@ export default function FactFormModal({ visible, projectId, factKey, onCancel, o
     };
 
     return (
-        <Modal
+        <Drawer
             visible={visible}
             title={editing ? t('projects.editFact', null, '编辑事实') : t('projects.addFact', null, '添加事实')}
             onCancel={onCancel}
@@ -204,6 +204,6 @@ export default function FactFormModal({ visible, projectId, factKey, onCancel, o
             <Checkbox checked={form.pinned} onChange={event => update({ pinned: event.target.checked })}>
                 {t('projects.pinFact', null, '置顶事实（列表与黑板索引优先）')}
             </Checkbox>
-        </Modal>
+        </Drawer>
     );
 }

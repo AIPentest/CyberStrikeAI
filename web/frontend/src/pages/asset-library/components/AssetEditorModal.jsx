@@ -1,9 +1,9 @@
 /** 新建/编辑资产：Form + 目标自动解析（host/ip/domain/port/protocol 联动）。 */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Banner, Button, Form, Modal, Space } from '@douyinfe/semi-ui';
+import { Banner, Button, Form, Space } from '@douyinfe/semi-ui';
 import { api, errorMessage } from '../../../lib/http';
 import { useT } from '../../../lib/i18n';
-import { toastSuccess } from '../../../components/ui';
+import { Drawer, toastSuccess } from '../../../components/ui';
 import {
     CRITICALITY_OPTIONS, ENVIRONMENT_OPTIONS, STATUS_OPTIONS
 } from './assetConstants';
@@ -167,7 +167,7 @@ export default function AssetEditorModal({ visible, asset, projects, onClose, on
     };
 
     return (
-        <Modal
+        <Drawer
             visible={visible}
             title={editing ? t('assets.editAssetTitle', null, '编辑资产') : t('assets.addAssetTitle', null, '新增资产')}
             width={760}
@@ -296,6 +296,6 @@ export default function AssetEditorModal({ visible, asset, projects, onClose, on
                     </Button>
                 </Space>
             </Form>
-        </Modal>
+        </Drawer>
     );
 }

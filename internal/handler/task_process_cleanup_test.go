@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os/exec"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -117,6 +118,9 @@ func TestTaskCleanupFailureRetainsOwnershipAndRetries(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Unix shell")
 	}
+	t.Setenv("CS_CLEANUP_GRACE", "25ms")
+	t.Setenv("CS_CLEANUP_KILL", "50ms")
+	t.Setenv("CS_CLEANUP_GUARD", "50ms")
 	manager := NewAgentTaskManager()
 	task, _ := manager.StartTask("conv", "job", nil)
 	ctx := manager.BindProcessScope(context.Background(), "conv", task.RunID)
@@ -201,6 +205,9 @@ func TestTaskWaitsForDetachedMCPWorker(t *testing.T) {
 func TestTaskReportsUnconfirmedRemoteCleanup(t *testing.T) {
 	manager := NewAgentTaskManager()
 	defer manager.Shutdown()
+	bus := NewTaskEventBus()
+	manager.SetTaskEventBus(bus)
+	_, events := bus.Subscribe("conv")
 	task, _ := manager.StartTask("conv", "job", nil)
 	ctx := manager.BindProcessScope(context.Background(), "conv", task.RunID)
 	service := mcp.NewExecutionService(nil, nil)
@@ -221,5 +228,40 @@ func TestTaskReportsUnconfirmedRemoteCleanup(t *testing.T) {
 	history := manager.GetCompletedTasks()
 	if len(history) != 1 || history[0].Status != "cleanup_unconfirmed" || history[0].CleanupError == "" {
 		t.Fatalf("missing retained warning: %+v", history)
+	}
+	if warning, ok := <-events; !ok || !strings.Contains(string(warning), `"type":"warning"`) {
+		t.Fatalf("missing cleanup warning for SSE subscribers: %s", warning)
+	}
+	if done, ok := <-events; !ok || !strings.Contains(string(done), `"status":"cleanup_unconfirmed"`) {
+		t.Fatalf("missing cleanup status for SSE subscribers: %s", done)
+	}
+}
+
+func TestTaskCleanupDistinguishesLocalAndRemoteUncertainty(t *testing.T) {
+	retryErr := context.DeadlineExceeded
+	for _, tc := range []struct {
+		name       string
+		localErr   error
+		workerErr  error
+		wantStatus string
+		wantKind   string
+		wantText   string
+	}{
+		{"local D state", security.ErrCleanupUnconfirmed, nil, "cleanup_unconfirmed", "warning", "本地残留进程"},
+		{"remote MCP", nil, runlease.ErrUnconfirmed, "cleanup_unconfirmed", "warning", "远端 MCP"},
+		{"local and remote", security.ErrCleanupUnconfirmed, runlease.ErrUnconfirmed, "cleanup_unconfirmed", "warning", "本地残留进程处于不可中断状态，远端 MCP"},
+		{"worker still running", security.ErrCleanupUnconfirmed, retryErr, "cleanup_failed", "error", "将自动重试"},
+		{"local cleanup failed", retryErr, runlease.ErrUnconfirmed, "cleanup_failed", "error", "将自动重试"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := taskCleanupResult(tc.localErr, tc.workerErr)
+			event := taskCleanupEvent(got)
+			if taskCleanupStatus(got) != tc.wantStatus || event.Type != tc.wantKind || !strings.Contains(event.Message, tc.wantText) {
+				t.Fatalf("unexpected cleanup event: %+v", event)
+			}
+			if tc.wantStatus == "cleanup_failed" && !errors.Is(got, retryErr) {
+				t.Fatalf("retryable failure lost its cause: %v", got)
+			}
+		})
 	}
 }

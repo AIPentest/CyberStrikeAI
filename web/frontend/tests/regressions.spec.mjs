@@ -1,5 +1,54 @@
 import { test, expect, visit, ready, label, UI_PERMISSIONS, CONVERSATION, ASSESSMENT, STAMP } from './fixtures.mjs';
 
+test('token usage: summary values render with daily rows and update to zero after filtering', async ({ page, mockApi }, testInfo) => {
+    const summary = {
+        events: 2, modelCalls: 4, promptTokens: 800, completionTokens: 400,
+        totalTokens: 1200, cachedTokens: 600, cacheWriteTokens: 100, reasoningTokens: 50
+    };
+    const empty = { events: 0, modelCalls: 0, promptTokens: 0, completionTokens: 0, totalTokens: 0, cachedTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0 };
+    mockApi.respond('GET', '/api/usage/tokens', (_, url) => ({ json: {
+        summary: url.searchParams.get('days') === '7' ? summary : empty,
+        today: empty,
+        byDay: url.searchParams.get('days') === '7' ? [{ key: '2026-11-01', ...summary }] : [],
+        byModel: [], byOrchestration: [], recent: []
+    } }));
+    const main = await visit(page, 'settings?section=token-usage');
+    const grid = main.locator('.cs-stat-grid');
+    const daily = main.locator('.cs-section-card').filter({ hasText: label('tokenUsageUI.trendTitle', '每日用量') });
+    await expect(daily.getByRole('gridcell', { name: '2026-11-01', exact: true })).toBeVisible();
+    await expect(grid.locator('.cs-stat-value')).toHaveText(['1,200', '800', '400', '600', '100', '50', '4', '75.0%']);
+    await expect(grid.locator('.semi-skeleton-title')).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath('token-usage-populated.png'), fullPage: true });
+
+    await main.getByRole('combobox').filter({ hasText: '7 天' }).click();
+    await page.getByRole('option', { name: /30 天$/ }).click();
+    await expect(grid.locator('.cs-stat-value')).toHaveText(['0', '0', '0', '0', '0', '0', '0', '—']);
+    await expect(grid.locator('.semi-skeleton-title')).toHaveCount(0);
+    await expect(daily.getByText(label('tokenUsageUI.noDailyData', '暂无每日用量记录'), { exact: true })).toBeVisible();
+    expect(mockApi.writes()).toEqual([]);
+});
+
+test('token usage: explicit dashboard loading still resolves and links to visible summary values', async ({ page, mockApi }) => {
+    let releaseUsage;
+    const pendingUsage = new Promise(resolve => { releaseUsage = resolve; });
+    mockApi.respond('GET', '/api/usage/tokens', async () => {
+        await pendingUsage;
+        return { json: { summary: { totalTokens: 1200 }, today: {}, byDay: [], byModel: [], byOrchestration: [], recent: [] } };
+    });
+    await page.goto('/static/app/#/dashboard');
+    const metric = page.getByRole('button', { name: label('dashboard.tokenUsage', 'Token 用量（7 天）'), exact: true });
+    await expect(metric.locator('.semi-skeleton-title')).toBeVisible();
+    await expect(metric.locator('.cs-stat-value')).toHaveCount(0);
+    releaseUsage();
+    await expect(metric.locator('.cs-stat-value')).toHaveText('1,200');
+    await expect(metric.locator('.semi-skeleton-title')).toHaveCount(0);
+    await metric.click();
+    await expect(page).toHaveURL(/#\/settings\?section=token-usage$/);
+    const main = await ready(page);
+    await expect(main.locator('.cs-stat-grid .cs-stat-value')).toHaveText(['1,200', '0', '0', '0', '0', '0', '0', '—']);
+    expect(mockApi.writes()).toEqual([]);
+});
+
 test('legacy update bookmark opens the current settings tab', async ({ page, mockApi }) => {
     mockApi.respond('GET', '/api/system/update', { json: { status: {} } });
     mockApi.respond('GET', '/api/storage/meta', { json: {} });
@@ -363,8 +412,15 @@ test('a legacy acceptance link opens the selected criterion and writes revision-
     await page.goto('/static/app/#deep-assessments?assessment_id=' + id + '&tab=acceptance&criterion=2');
     const main = await ready(page);
     await expect(main.getByRole('tab', { name: /验收/ })).toHaveAttribute('aria-selected', 'true');
-    await page.getByRole('button', { name: '编辑证据关联' }).click();
-    const editor = page.getByRole('dialog').filter({ hasText: '编辑验收证据关联' });
+    const criterion = page.getByRole('dialog').filter({ hasText: '验收项 2' });
+    const edit = criterion.getByRole('button', { name: '编辑证据关联' });
+    await edit.click();
+    const editor = page.getByRole('dialog', { name: '编辑验收证据关联' });
+    await expect(editor).toHaveClass(/semi-sidesheet-inner/);
+    await page.keyboard.press('Escape');
+    await expect(editor).toHaveCount(0);
+    await expect(criterion).toBeVisible();
+    await edit.click();
     const evidence = editor.getByRole('checkbox', { name: '关联 示例观察事实' });
     await evidence.press('Space');
     await expect(evidence).toBeChecked();

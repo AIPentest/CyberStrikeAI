@@ -1,6 +1,6 @@
 /** 验收证据：覆盖度、证据关联与来源检索。 */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Checkbox, Input, Modal, Progress, Select, Space, Tag, TextArea, Typography } from '@douyinfe/semi-ui';
+import { Button, Checkbox, Input, Progress, Select, Space, Tag, TextArea, Typography } from '@douyinfe/semi-ui';
 import { IconSearch } from '@douyinfe/semi-icons';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
@@ -17,6 +17,7 @@ const STATUS_FILTERS = ['', 'has_evidence', 'missing', 'needs_review'];
 
 function SourceBrowser({ visible, id, onCancel, edit, onEdit, onSave, saving, saveError }) {
     const t = useT();
+    const title = edit ? '编辑验收证据关联' : '证据来源';
     const [kind, setKind] = useState('fact');
     const [query, setQuery] = useState('');
     const [offset, setOffset] = useState(0);
@@ -80,8 +81,22 @@ function SourceBrowser({ visible, id, onCancel, edit, onEdit, onSave, saving, sa
     ];
 
     return (
-        <Modal visible={visible} title={edit ? '编辑验收证据关联' : '证据来源'}
-            onCancel={() => { if (!saving) onCancel(); }} footer={null} width={900}>
+        <Drawer
+            visible={visible}
+            title={title}
+            aria-label={title}
+            onCancel={onCancel}
+            width={900}
+            closable={!saving}
+            closeOnEsc={!saving}
+            maskClosable={!saving}
+            footer={edit && (
+                <div className="assessment-form-actions">
+                    <Button onClick={onCancel} disabled={saving}>取消</Button>
+                    <Button theme="solid" onClick={onSave} loading={saving} disabled={saving}>保存证据关联</Button>
+                </div>
+            )}
+        >
             <div className="assessment-toolbar">
                 <Select
                     value={kind}
@@ -135,12 +150,8 @@ function SourceBrowser({ visible, id, onCancel, edit, onEdit, onSave, saving, sa
                 <TextArea aria-label="复核说明" placeholder="复核说明" value={edit.review_note} disabled={saving}
                     onChange={value => onEdit('review_note', value)} />
                 <ErrorBanner error={saveError} />
-                <Space>
-                    <Button onClick={onCancel} disabled={saving}>取消</Button>
-                    <Button theme="solid" onClick={onSave} loading={saving}>保存证据关联</Button>
-                </Space>
             </div>}
-        </Modal>
+        </Drawer>
     );
 }
 
@@ -338,6 +349,7 @@ export default function AcceptanceTab({ id, criterion, canWrite, reloadToken }) 
                 onCancel={() => openRow(null)}
                 title={row ? `验收项 ${row.number}` : '验收项'}
                 width={720}
+                closeOnEsc={!sourcesOpen}
                 footer={null}
             >
                 {row ? (

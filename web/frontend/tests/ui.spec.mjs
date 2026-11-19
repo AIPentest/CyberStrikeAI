@@ -328,6 +328,40 @@ test('chat: empty state, blank Enter and Shift+Enter never send', async ({ page,
     expect(mockApi.writes()).toEqual([]);
 });
 
+test('chat: create a project from the composer and select it for the current draft', async ({ page, mockApi }) => {
+    const created = { ...PROJECT, id: 'fixture-new-chat-project', name: '对话中新建的项目' };
+    mockApi.respond('POST', '/api/projects', { json: created });
+    const main = await visit(page, 'chat');
+    const composer = main.locator('.chat-composer');
+    const input = composer.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+    const projectSelect = composer.getByRole('combobox').filter({ hasText: label('chat.noProject', '不绑定项目') });
+    const createOption = page.getByRole('option').filter({ hasText: `+ ${label('projects.newProject', '新建项目')}` });
+    const dialog = page.getByRole('dialog', { name: label('projects.modalNewTitle', '新建项目') });
+
+    await input.fill('项目工作记录草稿');
+    await readsCompleted(mockApi, ['/api/projects']);
+    await projectSelect.click();
+    await expect(page.getByRole('option', { name: PROJECT.name })).toBeVisible();
+    await createOption.click();
+    await expect(dialog).toHaveClass(/semi-sidesheet-inner/);
+    await button(dialog, label('common.cancel', '取消')).click();
+    await expect(projectSelect).toBeVisible();
+    expect(mockApi.writes()).toEqual([]);
+
+    await projectSelect.click();
+    await createOption.click();
+    await dialog.getByLabel(label('projects.projectName', '项目名称'), { exact: true }).fill(created.name);
+    await button(dialog, label('projects.createProject', '创建项目')).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(composer.getByRole('combobox').filter({ hasText: created.name })).toBeVisible();
+    await expect(input).toHaveValue('项目工作记录草稿');
+    await expect(page).toHaveURL(/#\/chat$/);
+    expect(mockApi.calls('POST', '/api/projects').map(call => call.body)).toEqual([
+        { name: created.name, description: '' }
+    ]);
+    expect(mockApi.writes().map(call => call.path)).toEqual(['/api/projects']);
+});
+
 test.describe('chat: read-only permissions', () => {
     test.use({ appPermissions: READ_PERMISSIONS });
     test('no chat:write disables input, attachment and send', async ({ page, mockApi }) => {
@@ -337,6 +371,10 @@ test.describe('chat: read-only permissions', () => {
         await expect(button(main, label('chat.send', '发送'))).toBeDisabled();
         await expect(button(main, label('chat.attachmentsLabel', '附件'))).toBeDisabled();
         await expect(main.getByText(label('chat.noWritePermission', '当前账号没有对话写入权限（chat:write），发送已禁用。'), { exact: true })).toBeVisible();
+        await readsCompleted(mockApi, ['/api/projects']);
+        await main.locator('.chat-composer').getByRole('combobox').filter({ hasText: label('chat.noProject', '不绑定项目') }).click();
+        await expect(page.getByRole('option', { name: PROJECT.name })).toBeVisible();
+        await expect(page.getByRole('option').filter({ hasText: `+ ${label('projects.newProject', '新建项目')}` })).toHaveCount(0);
         // Send real keyboard events, without force-enabling a disabled application control.
         await main.locator('.chat-header-title').click();
         await page.keyboard.press('Enter');
@@ -478,22 +516,99 @@ test('deep assessment: archive filter stays horizontal and switches the list wit
     expect(mockApi.writes()).toEqual([]);
 });
 
-test('deep assessment: options retry, required objective, close new-draft modal without execution', async ({ page, mockApi }, testInfo) => {
+test('deep assessment: graph switches views and resets pagination on a narrow screen', async ({ page, mockApi }) => {
+    const apiPath = `/api/deep-assessments/${ASSESSMENT.id}`;
+    mockApi.respond('GET', `${apiPath}/events`, { json: { events: [] } });
+    mockApi.respond('GET', `${apiPath}/graph`, { json: {
+        nodes: [{ id: 'goal', kind: 'goal', title: '示例目标' }], edges: [], has_more: true
+    } });
+    await page.goto(`/static/app/#/deep-assessments?id=${ASSESSMENT.id}&tab=graph`);
+    const main = await ready(page);
+    const filter = main.getByRole('radiogroup', { name: '图谱视图' });
+    const summary = filter.getByRole('radio', { name: '主链路' });
+    const full = filter.getByRole('radio', { name: '执行记录' });
+    const lastGraphQuery = () => new URLSearchParams(mockApi.calls('GET', `${apiPath}/graph`).at(-1)?.query);
+
+    await expect(summary).toBeChecked();
+    await expect(filter).toBeInViewport({ ratio: 1 });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(main.getByText('探索图', { exact: true }).and(main.locator('.cs-section-title'))).toBeInViewport({ ratio: 1 });
+    await expect(filter).toBeInViewport({ ratio: 1 });
+    await button(main, '下一页').click();
+    await expect.poll(() => lastGraphQuery().get('offset')).toBe('80');
+
+    await filter.getByText('执行记录', { exact: true }).click();
+    await expect(full).toBeChecked();
+    await expect.poll(() => [lastGraphQuery().get('view'), lastGraphQuery().get('offset')]).toEqual(['full', '0']);
+    await filter.getByText('主链路', { exact: true }).click();
+    await expect(summary).toBeChecked();
+    await expect.poll(() => lastGraphQuery().get('view')).toBe('summary');
+    expect(mockApi.writes()).toEqual([]);
+});
+
+test('deep assessment: new-draft drawer retries options, validates and saves without execution', async ({ page, mockApi }, testInfo) => {
     mockApi.fail('GET', '/api/deep-assessments/options', '示例选项加载失败');
     const main = await visit(page, 'deep-assessments');
-    await button(main, label('deepAssessments.create', '新建测评')).click();
-    const dialog = page.getByRole('dialog');
-    await expect(dialog).toContainText('示例选项加载失败');
+    const create = button(main, label('deepAssessments.create', '新建测评'));
+    await create.click();
+    const drawer = page.getByRole('dialog', { name: label('deepAssessments.create', '新建测评') });
+    const save = button(drawer, label('deepAssessments.save', '保存草稿'));
+    await expect(drawer).toHaveClass(/semi-sidesheet-inner/);
+    await expect.poll(async () => {
+        const { x, width } = await drawer.boundingBox();
+        return Math.round(x + width);
+    }).toBe(page.viewportSize().width);
+    expect((await drawer.boundingBox()).x).toBeGreaterThan(0);
+    await expect(drawer).toContainText('示例选项加载失败');
     mockApi.restore('GET', '/api/deep-assessments/options');
-    await button(dialog, '重试').click();
-    await expect(dialog.locator('.cs-error-banner')).toHaveCount(0);
-    await button(dialog, label('deepAssessments.save', '保存草稿')).click();
-    await expect(dialog.getByText('请填写测评目标', { exact: true })).toBeVisible();
+    await button(drawer, '重试').click();
+    await expect(drawer.locator('.cs-error-banner')).toHaveCount(0);
+    await save.click();
+    await expect(drawer.getByText('请填写测评目标', { exact: true })).toBeVisible();
     expect(mockApi.writes()).toEqual([]);
     await screenshot(page, testInfo, 'assessment-validation');
-    await button(dialog.locator('.assessment-form-actions'), label('deepAssessments.close', '关闭')).click();
-    await expect(dialog).toHaveCount(0);
+    await button(drawer.locator('.semi-sidesheet-footer'), label('deepAssessments.close', '关闭')).click();
+    await expect(drawer).toHaveCount(0);
     await expect(button(main, ASSESSMENT.name)).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 650 });
+    await create.click();
+    await expect(save).toBeInViewport({ ratio: 1 });
+    await drawer.locator('.assessment-form-note').scrollIntoViewIfNeeded();
+    await expect(save).toBeInViewport({ ratio: 1 });
+
+    mockApi.respond('POST', '/api/deep-assessments', { json: { task: ASSESSMENT } });
+    mockApi.respond('GET', `/api/deep-assessments/${ASSESSMENT.id}/events`, { json: { events: [] } });
+    await drawer.getByRole('textbox', { name: /目标/ }).fill(ASSESSMENT.objective);
+    await save.click();
+    await expect(page).toHaveURL(/id=fixture-assessment&tab=overview$/);
+    await expect(drawer).toHaveCount(0);
+    const writes = mockApi.writes();
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatchObject({ method: 'POST', path: '/api/deep-assessments', body: { objective: ASSESSMENT.objective } });
+});
+
+test('deep assessment: guidance and asset selection open as drawers', async ({ page, mockApi }) => {
+    const path = `/api/deep-assessments/${ASSESSMENT.id}`;
+    mockApi.respond('GET', `${path}/events`, { json: { events: [] } });
+    mockApi.respond('GET', `${path}/assets`, { json: { assets: [] } });
+    await page.goto(`/static/app/#/deep-assessments?id=${ASSESSMENT.id}`);
+    const main = await ready(page);
+
+    await button(main, '补充方向').click();
+    const guidance = page.getByRole('dialog', { name: '补充线索或调整方向' });
+    await expect(guidance).toHaveClass(/semi-sidesheet-inner/);
+    await button(guidance, '取消').click();
+    await expect(guidance).toHaveCount(0);
+
+    await main.getByRole('tab', { name: label('deepAssessments.assets', '资产'), exact: true }).click();
+    await button(main, '添加资产').click();
+    const assets = page.getByRole('dialog', { name: '关联共享资产' });
+    await expect(assets).toHaveClass(/semi-sidesheet-inner/);
+    await expect(button(assets, '关联')).toBeDisabled();
+    await button(assets, '取消').click();
+    await expect(assets).toHaveCount(0);
+    expect(mockApi.writes()).toEqual([]);
 });
 
 test('vulnerability: dashboard deep link, detail retry, evidence and close; new form validation', async ({ page, mockApi }, testInfo) => {
@@ -514,7 +629,8 @@ test('vulnerability: dashboard deep link, detail retry, evidence and close; new 
     await expect(page).toHaveURL(/#\/vulnerabilities$/);
     await button(page.locator('#main-content'), label('vulnerability.addVuln', '添加漏洞')).click();
     const editor = page.getByRole('dialog');
-    await button(editor, label('common.save', '保存')).click();
+    await expect(editor).toHaveClass(/semi-sidesheet-inner/);
+    await button(editor.locator('.semi-sidesheet-footer'), label('common.save', '保存')).click();
     await expect(editor.getByText(label('vulnerabilityModal.titleRequired', '请填写漏洞标题'), { exact: true })).toBeVisible();
     expect(mockApi.writes()).toEqual([]);
     await button(editor, label('common.cancel', '取消')).click();
@@ -532,9 +648,20 @@ test('project: dashboard jump, fact detail opens/closes and create validates the
     await button(drawer, label('common.close', '关闭')).click();
     await expect(drawer).toHaveCount(0);
 
-    await button(main, label('projects.newProjectCta', '+ 新建项目')).click();
+    const openProject = button(main, label('projects.newProjectCta', '+ 新建项目'));
+    await openProject.click();
     const dialog = page.getByRole('dialog');
-    const create = button(dialog, label('projects.createProject', '创建项目'));
+    const create = button(dialog.locator('.semi-sidesheet-footer'), label('projects.createProject', '创建项目'));
+    await expect(dialog).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(create).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(dialog.locator('button.semi-sidesheet-close')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(openProject).toBeFocused();
+    await openProject.click();
+
     await create.click();
     await expect(page.getByText(label('projects.enterProjectName', '请输入项目名称'), { exact: true })).toBeVisible();
     expect(mockApi.writes()).toEqual([]);
@@ -552,6 +679,31 @@ test('project: dashboard jump, fact detail opens/closes and create validates the
         { name: PROJECT.name, description: PROJECT.description },
         { name: PROJECT.name, description: PROJECT.description }
     ]);
+});
+
+test.describe('import drawers on a narrow screen', () => {
+    test.use({ appPermissions: [...UI_PERMISSIONS, 'asset:write', 'workflow:write'], viewport: { width: 390, height: 650 } });
+
+    for (const [id, trigger, title, action] of [
+        ['asset-library', label('assets.bulkImport', '批量导入'), label('assets.bulkImportTitle', '批量导入资产'), /导入.*有效数据/],
+        ['workflows', label('workflows.package.importLocal', '导入本地包'), label('workflows.package.title', '导入本地包'), label('workflows.package.confirmImport', '确认导入')]
+    ]) {
+        test(`${id}: import fits the viewport and keeps its action visible`, async ({ page, mockApi }) => {
+            const main = await visit(page, id);
+            const open = button(main, trigger);
+            await open.click();
+            const drawer = page.getByRole('dialog', { name: title });
+            await expect(drawer).toHaveClass(/semi-sidesheet-inner/);
+            await assertDrawerFits(page, drawer);
+            const submit = drawer.locator('.semi-sidesheet-footer').getByRole('button', { name: action });
+            await expect(submit).toBeDisabled();
+            await expect(submit).toBeInViewport({ ratio: 1 });
+            await page.keyboard.press('Escape');
+            await expect(drawer).toHaveCount(0);
+            await expect(open).toBeFocused();
+            expect(mockApi.writes()).toEqual([]);
+        });
+    }
 });
 
 test('shared JsonViewer: real settings response expands and collapses', async ({ page, mockApi }) => {
@@ -603,6 +755,21 @@ test.describe('mobile @mobile', () => {
             await assertNoOverflow(page);
         });
     }
+
+    test('info collection: the results title and actions fit in the card header', async ({ page }) => {
+        const main = await visit(page, 'info-collect');
+        const titleText = label('infoCollectPage.queryResults', '查询结果');
+        const header = main.locator('.semi-card-header-wrapper').filter({ hasText: titleText });
+        const title = header.getByText(titleText, { exact: true });
+        const importButton = button(header, label('assets.importSelected', '入库所选'));
+
+        await header.scrollIntoViewIfNeeded();
+        await expect(title).toBeInViewport({ ratio: 1 });
+        await expect(importButton).toBeInViewport({ ratio: 1 });
+        const titleBox = await title.boundingBox();
+        const actionBox = await importButton.boundingBox();
+        expect(actionBox.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height);
+    });
 
     test('chat: composer and send remain in viewport, multiline input does not send', async ({ page, mockApi }, testInfo) => {
         const main = await visit(page, 'chat');

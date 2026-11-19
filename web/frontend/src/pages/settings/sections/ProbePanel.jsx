@@ -410,12 +410,7 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
         >
             <div className="settings-probe-form">
                 <div className="settings-field">
-                    <Space spacing={6}>
-                        <Text id={channelLabelId} type="tertiary" size="small">{t('settings.checkChannel', null, '通道')}</Text>
-                        {!legacy && channelId === defaultId && (
-                            <Tag color="blue" size="small">{t('settingsBasic.aiChannelDefaultBadge', null, '默认')}</Tag>
-                        )}
-                    </Space>
+                    <Text id={channelLabelId} type="tertiary" size="small">{t('settings.checkChannel', null, '通道')}</Text>
                     <Select
                         value={channelId}
                         onChange={selectChannel}

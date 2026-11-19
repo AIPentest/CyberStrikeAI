@@ -1,10 +1,10 @@
 /** 新建批量任务队列：任务列表、角色、项目、代理模式、审批策略、调度与并发。 */
 import { useEffect, useState } from 'react';
-import { Checkbox, Input, Modal, Select, TextArea, Typography } from '@douyinfe/semi-ui';
+import { Checkbox, Input, Select, TextArea, Typography } from '@douyinfe/semi-ui';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
 import { useAuth } from '../../lib/auth';
-import { toastError, toastSuccess } from '../../components/ui';
+import { Drawer, toastError, toastSuccess } from '../../components/ui';
 import { AGENT_MODES, HITL_POLICIES, SCHEDULE_MODES, errText } from './helpers';
 
 const { Text } = Typography;
@@ -95,7 +95,7 @@ export default function QueueFormModal({ visible, onCancel, onCreated }) {
     };
 
     return (
-        <Modal
+        <Drawer
             visible={visible}
             title={t('batchImportModal.title', null, '新建任务')}
             onCancel={onCancel}
@@ -214,6 +214,6 @@ export default function QueueFormModal({ visible, onCancel, onCreated }) {
                 </Checkbox>
                 <Text type="tertiary" size="small">{t('batchImportModal.executeNowHint', null, '默认不立即执行；关闭后队列保持待执行，可在需要时手动开始。')}</Text>
             </div>
-        </Modal>
+        </Drawer>
     );
 }

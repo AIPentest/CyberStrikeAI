@@ -5465,6 +5465,11 @@
     "updatedAt": "更新时间",
     "loading": "正在读取测评…",
     "graph": "探索图",
+    "graphView": {
+      "label": "图谱视图",
+      "summary": "主链路",
+      "full": "执行记录"
+    },
     "continuous": "持续执行",
     "mode": "运行模式",
     "elapsed": "已运行",

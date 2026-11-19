@@ -7,6 +7,7 @@ import { useT } from '../../lib/i18n';
 const { Text } = Typography;
 
 export const AGENT_MODES = ['single', 'deep', 'plan_execute', 'supervisor'];
+const CREATE_PROJECT = '__create_project__';
 
 export default function Composer({
     value,
@@ -23,6 +24,7 @@ export default function Composer({
     onOpenSettings,
     projectId,
     onProjectChange,
+    onCreateProject,
     projects,
     showProjectSelect,
     attachments,
@@ -43,6 +45,9 @@ export default function Composer({
         { value: '', label: t('chat.noProject', null, '不绑定项目') },
         ...(Array.isArray(projects) ? projects : []).map(project => ({ value: project.id, label: project.name || project.id }))
     ];
+    if (onCreateProject) {
+        projectOptions.push({ value: CREATE_PROJECT, label: `+ ${t('projects.newProject', null, '新建项目')}` });
+    }
     const uploadingCount = Number(uploading) || list.filter(item => item.uploading).length;
     const blocked = !canWrite || !canExecute;
 
@@ -133,7 +138,13 @@ export default function Composer({
                             <Select
                                 value={projectId}
                                 optionList={projectOptions}
-                                onChange={onProjectChange}
+                                onChange={value => {
+                                    if (value === CREATE_PROJECT) {
+                                        onCreateProject?.();
+                                    } else {
+                                        onProjectChange(value);
+                                    }
+                                }}
                                 className="chat-composer-select"
                                 aria-label={t('chat.filterByProject', null, '选择项目')}
                                 placeholder={t('chat.filterByProject', null, '选择项目')}

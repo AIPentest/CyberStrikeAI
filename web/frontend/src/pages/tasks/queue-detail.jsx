@@ -2,14 +2,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Button, Modal, Progress, SideSheet, Space, Tag, TextArea, Typography
+    Button, Progress, SideSheet, Space, Tag, TextArea, Typography
 } from '@douyinfe/semi-ui';
 import { IconPlus, IconRefresh } from '@douyinfe/semi-icons';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
 import { useInterval, useResource } from '../../components/hooks';
 import {
-    DataTable, ErrorBanner, KeyValueList, MarkdownView, confirmAction, toastError, toastSuccess
+    Drawer, DataTable, ErrorBanner, KeyValueList, MarkdownView, confirmAction, toastError, toastSuccess
 } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
 import {
@@ -343,7 +343,7 @@ export default function QueueDetailDrawer({ queueId, visible, canWrite, canDelet
                 </div>
             ) : null}
 
-            <Modal
+            <Drawer
                 visible={taskModal.visible}
                 title={taskModal.taskId ? t('common.edit', null, '编辑') : '添加任务'}
                 onCancel={() => setTaskModal({ visible: false, taskId: '', message: '' })}
@@ -358,9 +358,9 @@ export default function QueueDetailDrawer({ queueId, visible, canWrite, canDelet
                     placeholder={t('batchImportModal.tasksListPlaceholder', null, '请输入任务列表，每行一个任务')}
                     onChange={value => setTaskModal(prev => ({ ...prev, message: value }))}
                 />
-            </Modal>
+            </Drawer>
 
-            <Modal
+            <Drawer
                 visible={resultModal.visible}
                 title={resultModal.task ? resultModal.task.message : '结果'}
                 onCancel={() => setResultModal({ visible: false, task: null })}
@@ -408,7 +408,7 @@ export default function QueueDetailDrawer({ queueId, visible, canWrite, canDelet
                         ? <MarkdownView content={resultModal.task.result} />
                         : <Text type="tertiary">暂无结果</Text>}
                 </div>
-            </Modal>
+            </Drawer>
         </SideSheet>
     );
 }

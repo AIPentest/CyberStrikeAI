@@ -1,11 +1,11 @@
 /** 工作流包导入：选择/粘贴包 → 预检 → 冲突处理 → 导入结果。 */
 import { useEffect, useMemo, useState } from 'react';
 import {
-    Banner, Button, Checkbox, Input, Modal, Radio, RadioGroup, Space, Tag, TextArea, Typography
+    Banner, Button, Checkbox, Input, Radio, RadioGroup, Space, Tag, TextArea, Typography
 } from '@douyinfe/semi-ui';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
-import { KeyValueList, toastSuccess } from '../../components/ui';
+import { Drawer, KeyValueList, toastSuccess } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
 import {
     PACKAGE_ACTIONS, allowedActions, createIdempotencyKey, errText, packageErrorText, shortHash
@@ -177,7 +177,7 @@ export default function PackageImportModal({ visible, onCancel, onImported }) {
     const workflow = inspection?.workflow;
 
     return (
-        <Modal
+        <Drawer
             visible={visible}
             title={t('workflows.package.title', null, '导入本地包')}
             onCancel={onCancel}
@@ -330,6 +330,6 @@ export default function PackageImportModal({ visible, onCancel, onImported }) {
                     description={t(RESULT_MESSAGE[result.result] || 'workflows.package.result.complete', null, '导入已完成。')}
                 />
             ) : null}
-        </Modal>
+        </Drawer>
     );
 }

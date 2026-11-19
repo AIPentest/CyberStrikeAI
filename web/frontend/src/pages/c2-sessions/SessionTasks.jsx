@@ -2,10 +2,10 @@
  * C2 会话任务列表：查看结果、取消与删除单条任务。
  */
 import { useState } from 'react';
-import { Button, Modal, Space, Tag } from '@douyinfe/semi-ui';
+import { Button, Space, Tag } from '@douyinfe/semi-ui';
 import { useT } from '../../lib/i18n';
 import { useInterval, useResource } from '../../components/hooks';
-import { DataTable, ErrorBanner, JsonViewer, confirmAction, toastError, toastSuccess } from '../../components/ui';
+import { Drawer, DataTable, ErrorBanner, JsonViewer, confirmAction, toastError, toastSuccess } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
 import * as c2 from './components/c2-api';
 import { TASK_STATUS_COLOR, TimeText, formatDurationMs } from './components/c2-shared';
@@ -103,7 +103,7 @@ export default function SessionTasks({ session, canDelete, onChanged }) {
                 emptyText={t('c2.tasks.emptySession', null, '该会话暂无任务')}
             />
 
-            <Modal
+            <Drawer
                 visible={Boolean(detail)}
                 title={t('c2.tasks.modalTitle', null, '任务详情')}
                 width={720}
@@ -132,7 +132,7 @@ export default function SessionTasks({ session, canDelete, onChanged }) {
                         )}
                     </div>
                 )}
-            </Modal>
+            </Drawer>
         </div>
     );
 }

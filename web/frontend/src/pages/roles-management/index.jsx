@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Button, Form, Input, Modal, Space, Switch, Tag, Typography } from '@douyinfe/semi-ui';
+import { Button, Form, Input, Space, Switch, Tag, Typography } from '@douyinfe/semi-ui';
 import { IconDelete, IconEdit, IconPlus, IconRefresh, IconSearch } from '@douyinfe/semi-icons';
 import { api } from '../../lib/http';
 import { useAuth } from '../../lib/auth';
 import { useT } from '../../lib/i18n';
 import { useResource } from '../../components/hooks';
 import {
-    DataTable, ErrorBanner, PageHeader, SectionCard, confirmAction, toastError, toastSuccess
+    Drawer, DataTable, ErrorBanner, PageHeader, SectionCard, confirmAction, toastError, toastSuccess
 } from '../../components/ui';
 
 const { Text } = Typography;
@@ -120,7 +120,7 @@ export default function RolesManagementPage() {
                 />
             </SectionCard>
 
-            <Modal
+            <Drawer
                 title={editor?.role ? '编辑角色' : '新建角色'}
                 visible={Boolean(editor)}
                 key={editor?.role?.name || 'new-role'}
@@ -147,7 +147,7 @@ export default function RolesManagementPage() {
                         <Form.Switch field="enabled" />
                     </Form.Slot>
                 </Form>
-            </Modal>
+            </Drawer>
         </div>
     );
 }

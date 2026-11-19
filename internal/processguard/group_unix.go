@@ -107,19 +107,31 @@ func (g *unixGroup) Release(pid int) error {
 }
 func (g *unixGroup) Close(ctx context.Context) error {
 	g.mu.Lock()
-	defer g.mu.Unlock()
 	g.closed = true
+	pending := make([]int, 0, len(g.pids))
 	for pid := range g.pids {
 		_ = syscall.Kill(-pid, syscall.SIGKILL)
+		pending = append(pending, pid)
 	}
-	for {
-		for pid := range g.pids {
-			if syscall.Kill(-pid, 0) == syscall.ESRCH {
-				delete(g.pids, pid)
+	g.mu.Unlock()
+	for len(pending) != 0 {
+		remaining := pending[:0]
+		for _, pid := range pending {
+			g.mu.Lock()
+			_, owned := g.pids[pid]
+			g.mu.Unlock()
+			if !owned {
+				continue
+			}
+			if ProcessGroupExists(pid) {
+				remaining = append(remaining, pid)
+			} else if err := g.Release(pid); err != nil {
+				return err
 			}
 		}
-		if len(g.pids) == 0 {
-			return g.watcher.close()
+		pending = remaining
+		if len(pending) == 0 {
+			break
 		}
 		select {
 		case <-ctx.Done():
@@ -127,6 +139,7 @@ func (g *unixGroup) Close(ctx context.Context) error {
 		case <-time.After(10 * time.Millisecond):
 		}
 	}
+	return g.watcher.close()
 }
 func gatedChildMain(args []string) error {
 	if len(args) != 2 {

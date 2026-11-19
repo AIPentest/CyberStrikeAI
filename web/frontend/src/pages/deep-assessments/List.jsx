@@ -11,7 +11,7 @@ import {
 } from '../../components/ui';
 import { formatDateTime, formatNumber } from '../../lib/format';
 import { PERM_DELETE, PERM_WRITE, STATUS_LABEL, canDeleteTask, countsProgress, needsReview, statusText } from './labels';
-import CreateAssessmentModal from './CreateModal';
+import CreateAssessmentDrawer from './CreateDrawer';
 
 const { Text } = Typography;
 
@@ -203,7 +203,7 @@ export default function AssessmentList({ onOpen }) {
                 title={t('deepAssessments.listTitle', null, '测评列表')}
                 extra={(
                     <RadioGroup
-                        className="assessment-archive-filter"
+                        className="assessment-view-options"
                         aria-label={t('deepAssessments.archiveFilter', null, '归档状态')}
                         type="button"
                         value={archived ? 'archived' : 'unarchived'}
@@ -251,7 +251,7 @@ export default function AssessmentList({ onOpen }) {
                     </Space>
                 </div>
             </SectionCard>
-            <CreateAssessmentModal
+            <CreateAssessmentDrawer
                 visible={createOpen}
                 onCancel={() => setCreateOpen(false)}
                 onCreated={task => {

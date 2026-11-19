@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Form, Input, Modal, Select, Space, Switch, Tag, Typography } from '@douyinfe/semi-ui';
+import { Button, Form, Input, Select, Space, Switch, Tag, Typography } from '@douyinfe/semi-ui';
 import { IconDelete, IconEdit, IconPlus, IconRefresh, IconSearch } from '@douyinfe/semi-icons';
 import { api } from '../../lib/http';
 import { useAuth } from '../../lib/auth';
@@ -115,7 +115,7 @@ export default function AgentsManagementPage() {
                 />
             </SectionCard>
 
-            <Modal
+            <Drawer
                 title={editor?.record ? '编辑智能体' : '新建智能体'}
                 visible={Boolean(editor)}
                 key={editor?.record?.filename || 'new-agent'}
@@ -144,7 +144,7 @@ export default function AgentsManagementPage() {
                     <Form.Input field="tools" label="工具（逗号分隔）" placeholder="toolName, mcp::tool" />
                     <Form.TextArea field="instruction" label="指令（Markdown）" autosize={{ minRows: 8, maxRows: 20 }} />
                 </Form>
-            </Modal>
+            </Drawer>
 
             <Drawer title={detail?.name || '智能体详情'} visible={Boolean(detail)} onCancel={() => setDetail(null)} width={720}>
                 {detail && (

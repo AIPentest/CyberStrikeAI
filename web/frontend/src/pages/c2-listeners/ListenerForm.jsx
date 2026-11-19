@@ -2,7 +2,8 @@
  * C2 监听器表单：创建 / 编辑，覆盖绑定端口、回连地址与关键 OPSEC 参数。
  */
 import { useState } from 'react';
-import { Button, Form, Modal, Space, Typography } from '@douyinfe/semi-ui';
+import { Button, Form, Space, Typography } from '@douyinfe/semi-ui';
+import { Drawer } from '../../components/ui';
 import { useT } from '../../lib/i18n';
 import { LISTENER_TYPES } from '../c2-sessions/components/c2-shared';
 
@@ -62,10 +63,17 @@ export default function ListenerForm({ visible, record, projects, profiles, subm
     };
 
     return (
-        <Modal
+        <Drawer
             visible={visible}
             title={record ? t('c2.listeners.editTitle', null, '编辑监听器') : t('c2.listeners.modalCreateTitle', null, '创建监听器')}
-            footer={null}
+            footer={(
+                <Space>
+                    <Button onClick={onCancel}>{t('c2.common.cancel', null, '取消')}</Button>
+                    <Button theme="solid" type="primary" loading={submitting} onClick={() => formApi?.submitForm()}>
+                        {record ? t('c2.listeners.save', null, '保存') : t('c2.listeners.submitCreate', null, '创建')}
+                    </Button>
+                </Space>
+            )}
             width={620}
             onCancel={onCancel}
         >
@@ -142,13 +150,7 @@ export default function ListenerForm({ visible, record, projects, profiles, subm
                         />
                     )}
                 </div>
-                <Space className="c2-form-actions">
-                    <Button onClick={onCancel}>{t('c2.common.cancel', null, '取消')}</Button>
-                    <Button theme="solid" type="primary" loading={submitting} onClick={() => formApi?.submitForm()}>
-                        {record ? t('c2.listeners.save', null, '保存') : t('c2.listeners.submitCreate', null, '创建')}
-                    </Button>
-                </Space>
             </Form>
-        </Modal>
+        </Drawer>
     );
 }
