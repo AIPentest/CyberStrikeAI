@@ -1,7 +1,7 @@
 /** 项目管理：项目列表（含仪表盘统计）、项目详情、深链接 ?id=。 */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Button, Empty, Input, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
+import { Button, Empty, Input, Pagination, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import { IconPlus, IconRefresh, IconSearch } from '@douyinfe/semi-icons';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
@@ -17,6 +17,7 @@ import { errorProp, errText } from './helpers';
 import './page.css';
 
 const { Text } = Typography;
+const PROJECT_PAGE_SIZE = 10;
 
 async function loadProjects() {
     const [list, summary] = await Promise.all([
@@ -43,6 +44,7 @@ export default function ProjectsPage() {
     const [search, setSearch] = useState('');
     const debounced = useDebounced(search, 250);
     const [statusFilter, setStatusFilter] = useState('all');
+    const [listPage, setListPage] = useState(1);
     const [modal, setModal] = useState({ visible: false, project: null });
     const [detailRev, setDetailRev] = useState(0);
 
@@ -68,6 +70,8 @@ export default function ProjectsPage() {
             return [item.name, item.description, item.id].join(' ').toLowerCase().includes(keyword);
         });
     }, [projects, debounced, statusFilter]);
+    const currentPage = Math.min(listPage, Math.max(1, Math.ceil(filtered.length / PROJECT_PAGE_SIZE)));
+    const pageProjects = filtered.slice((currentPage - 1) * PROJECT_PAGE_SIZE, currentPage * PROJECT_PAGE_SIZE);
 
     // 首次进入且没有指定项目时，默认选中第一个可见项目，避免右侧面板空白。
     useEffect(() => {
@@ -220,6 +224,7 @@ export default function ProjectsPage() {
                 <SectionCard
                     title={t('projects.projectList', null, '项目列表')}
                     className="project-list-card"
+                    bodyClassName="project-list-body"
                     extra={<Text type="tertiary" size="small">{filtered.length} / {projects.length}</Text>}
                 >
                     <div className="project-toolbar project-toolbar--stack">
@@ -228,12 +233,12 @@ export default function ProjectsPage() {
                             value={search}
                             showClear
                             placeholder={t('projects.searchProjectsPlaceholder', null, '搜索项目…')}
-                            onChange={value => setSearch(value)}
+                            onChange={value => { setSearch(value); setListPage(1); }}
                             style={{ width: '100%' }}
                         />
                         <Select
                             value={statusFilter}
-                            onChange={setStatusFilter}
+                            onChange={value => { setStatusFilter(value); setListPage(1); }}
                             style={{ width: '100%' }}
                             optionList={[
                                 { value: 'all', label: t('projects.all', null, '全部') },
@@ -244,10 +249,10 @@ export default function ProjectsPage() {
                     </div>
                     <DataTable
                         columns={columns}
-                        dataSource={filtered}
+                        dataSource={pageProjects}
                         rowKey="id"
                         loading={overview.loading}
-                        pagination={{ pageSize: 10 }}
+                        pagination={false}
                         emptyText={search || statusFilter !== 'all'
                             ? t('projects.noMatchingProjects', null, '无匹配项目')
                             : t('projects.noProjects', null, '暂无项目')}
@@ -256,6 +261,17 @@ export default function ProjectsPage() {
                             style: { cursor: 'pointer' }
                         })}
                     />
+                    {filtered.length > 0 && (
+                        <div className="project-list-pagination">
+                            <Pagination
+                                size="small"
+                                currentPage={currentPage}
+                                pageSize={PROJECT_PAGE_SIZE}
+                                total={filtered.length}
+                                onPageChange={setListPage}
+                            />
+                        </div>
+                    )}
                 </SectionCard>
 
                 <div className="project-detail-col">

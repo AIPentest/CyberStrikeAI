@@ -637,6 +637,132 @@ test('vulnerability: dashboard deep link, detail retry, evidence and close; new 
     await expect(editor).toHaveCount(0);
 });
 
+for (const width of [1440, 1024, 390]) {
+    test(`project: compact pagination and list alignment at ${width}px`, async ({ page, mockApi }, testInfo) => {
+        await page.setViewportSize({ width, height: 1200 });
+        const main = await visit(page, 'projects');
+        await readsCompleted(mockApi, PAGE_READS.projects);
+        const list = main.locator('.project-list-card');
+        const pager = list.locator('.project-list-pagination');
+        await expect(list.locator('.semi-table-tbody > tr')).toHaveCount(1);
+        await expect(pager).toContainText('1/1');
+        await expect(pager.getByRole('button', { name: 'Previous', exact: true })).toBeDisabled();
+        await expect(pager.getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
+        await expect(list.locator('.semi-table-pagination-info, .semi-page-total, .semi-page-switch')).toHaveCount(0);
+        await assertNoOverflow(page);
+
+        const listBox = await list.boundingBox();
+        const detailBox = await main.locator('.project-detail').boundingBox();
+        const detailBottom = await main.locator('.project-detail .cs-section-card').last().boundingBox();
+        const pagerBox = await pager.boundingBox();
+        const controlsBox = await pager.locator('.semi-page').boundingBox();
+        expect(controlsBox.height).toBeLessThanOrEqual(36);
+        expect(controlsBox.x).toBeGreaterThanOrEqual(listBox.x);
+        expect(controlsBox.x + controlsBox.width).toBeLessThanOrEqual(listBox.x + listBox.width);
+        expect(listBox.y + listBox.height - pagerBox.y - pagerBox.height).toBeLessThanOrEqual(24);
+        if (width > 900) {
+            expect(Math.abs(listBox.y - detailBox.y)).toBeLessThanOrEqual(1);
+            expect(Math.abs(listBox.y + listBox.height - detailBottom.y - detailBottom.height)).toBeLessThanOrEqual(1);
+        } else {
+            expect(detailBox.y).toBeGreaterThanOrEqual(listBox.y + listBox.height);
+        }
+
+        const tableBody = list.locator('.semi-table-body');
+        const scrollLeft = await tableBody.evaluate(element => {
+            element.scrollLeft = element.scrollWidth;
+            return element.scrollLeft;
+        });
+        expect(scrollLeft).toBeGreaterThan(0);
+        const scrolledPagerBox = await pager.boundingBox();
+        expect(scrolledPagerBox.x).toBe(pagerBox.x);
+        expect(scrolledPagerBox.width).toBe(pagerBox.width);
+        await tableBody.evaluate(element => { element.scrollLeft = 0; });
+        await screenshot(page, testInfo, `project-list-${width}`);
+        expect(mockApi.writes()).toEqual([]);
+    });
+}
+
+test('project: list height follows the active detail tab', async ({ page, mockApi }) => {
+    mockApi.respond('GET', `/api/projects/${PROJECT.id}/conversations`, { json: { conversations: [] } });
+    const main = await visit(page, 'projects');
+    for (const name of [label('projects.tabSettings', '设置'), label('projects.tabConversations', '关联对话'), label('projects.tabFacts', '事实黑板')]) {
+        await main.getByRole('tab', { name, exact: true }).click();
+        await ready(page);
+        const listBox = await main.locator('.project-list-card').boundingBox();
+        const detailBottom = await main.locator('.project-detail .cs-section-card').last().boundingBox();
+        expect(Math.abs(listBox.y + listBox.height - detailBottom.y - detailBottom.height)).toBeLessThanOrEqual(1);
+    }
+    expect(mockApi.writes()).toEqual([]);
+});
+
+test('project: compact pagination supports selection, filtering and a shrinking list', async ({ page, mockApi }) => {
+    const projects = [PROJECT, ...Array.from({ length: 10 }, (_, index) => ({
+        ...PROJECT,
+        id: `fixture-project-${index + 2}`,
+        name: `示例项目 ${index + 2} with a long project name`,
+        status: index === 9 ? 'archived' : 'active'
+    }))];
+    const lastProject = projects.at(-1);
+    mockApi.respond('GET', '/api/projects', { json: { projects, total: projects.length } });
+    mockApi.respond('GET', `/api/projects/${lastProject.id}`, { json: lastProject });
+    mockApi.respond('GET', `/api/projects/${lastProject.id}/stats`, { json: { fact_count: 0, vuln_count: 0, conversation_count: 0, sparse_fact_count: 0 } });
+    mockApi.respond('GET', `/api/projects/${lastProject.id}/facts`, { json: [] });
+    const main = await visit(page, 'projects');
+    const list = main.locator('.project-list-card');
+    const pager = list.locator('.project-list-pagination');
+    const rows = list.locator('.semi-table-tbody > tr');
+    const next = pager.getByRole('button', { name: 'Next', exact: true });
+    const previous = pager.getByRole('button', { name: 'Previous', exact: true });
+    await expect(rows).toHaveCount(10);
+    await expect(pager).toContainText('1/2');
+    const listBox = await list.boundingBox();
+    const detailBottom = await main.locator('.project-detail .cs-section-card').last().boundingBox();
+    expect(Math.abs(listBox.y + listBox.height - detailBottom.y - detailBottom.height)).toBeLessThanOrEqual(1);
+    await next.click();
+    await expect(rows).toHaveCount(1);
+    await expect(pager).toContainText('2/2');
+    await rows.first().click();
+    await expect(page).toHaveURL(new RegExp(`id=${lastProject.id}(?:&|$)`));
+    await expect(main.locator('.project-detail-title')).toHaveText(lastProject.name);
+    await previous.click();
+    await expect(rows).toHaveCount(10);
+    await next.click();
+
+    const search = list.getByPlaceholder(label('projects.searchProjectsPlaceholder', '搜索项目…'));
+    await search.fill('no-matching-project');
+    await expect(list.getByText(label('projects.noMatchingProjects', '无匹配项目'), { exact: true })).toBeVisible();
+    await expect(pager).toHaveCount(0);
+    await search.fill('');
+    await expect(rows).toHaveCount(10);
+    await expect(pager).toContainText('1/2');
+    await next.click();
+    const status = list.locator('.project-toolbar .semi-select');
+    await status.click();
+    await page.getByRole('option').filter({ hasText: label('projects.statusActive', '进行中') }).click();
+    await expect(rows).toHaveCount(10);
+    await expect(pager).toContainText('1/1');
+    await expect(next).toBeDisabled();
+    await status.click();
+    await page.getByRole('option').filter({ hasText: label('projects.all', '全部') }).click();
+    await next.click();
+    mockApi.respond('GET', '/api/projects', { json: { projects: [PROJECT], total: 1 } });
+    await button(main.locator('.cs-page-header'), label('common.refresh', '刷新')).click();
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText(PROJECT.name);
+    await expect(pager).toContainText('1/1');
+    await expect(next).toBeDisabled();
+    await expect(previous).toBeDisabled();
+
+    mockApi.respond('GET', '/api/projects', { json: { projects: [], total: 0 } });
+    await visit(page, 'projects');
+    await page.reload();
+    await ready(page);
+    await expect(list.getByText(label('projects.noProjects', '暂无项目'), { exact: true })).toBeVisible();
+    await expect(pager).toHaveCount(0);
+    await assertNoOverflow(page);
+    expect(mockApi.writes()).toEqual([]);
+});
+
 test('project: dashboard jump, fact detail opens/closes and create validates then retries', async ({ page, mockApi }) => {
     await visit(page, 'dashboard');
     await button(page.locator('#main-content'), PROJECT.name).click();

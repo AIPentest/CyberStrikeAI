@@ -4,14 +4,18 @@
     display: grid;
     grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
     gap: var(--cs-gap, 16px);
-    align-items: start;
+    align-items: stretch;
 }
 
 @media (max-width: 900px) {
     .project-layout { grid-template-columns: minmax(0, 1fr); }
 }
 
-.project-list-card .semi-card-body { padding-top: 8px; }
+.project-list-card { display: flex; flex-direction: column; }
+.project-list-card > .semi-card-body { display: flex; flex: 1; padding-top: 8px; }
+.project-list-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.project-list-pagination { display: flex; justify-content: center; margin-top: auto; padding-top: 16px; }
+.project-list-pagination .semi-page { white-space: nowrap; }
 
 .project-toolbar {
     display: flex;
@@ -43,6 +47,9 @@
 }
 
 .project-detail-col { min-width: 0; display: flex; flex-direction: column; gap: 0; }
+.project-detail { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.project-detail > .cs-section-card:last-child,
+.project-detail-col > .cs-section-card:last-child { flex: 1; }
 
 .project-detail-head .semi-card-body {
     display: flex;
