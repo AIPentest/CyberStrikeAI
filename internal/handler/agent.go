@@ -1729,7 +1729,9 @@ func (h *AgentHandler) CancelAgentLoop(c *gin.Context) {
 	h.cancelRunningMCPToolsForConversation(req.ConversationID)
 	h.tasks.AbortActiveAgentExecute(req.ConversationID, "")
 	ok, err := h.tasks.CancelTask(req.ConversationID, cause)
-	if err != nil {
+	if errors.Is(err, security.ErrCleanupUnconfirmed) {
+		msg = taskCleanupMessage(err)
+	} else if err != nil {
 		h.logger.Error("取消任务失败", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

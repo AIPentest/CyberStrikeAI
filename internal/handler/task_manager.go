@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -29,6 +28,11 @@ func shouldPersistAgentAgentTraceAfterRunError(baseCtx context.Context) bool {
 	return true
 }
 
+type taskCleanupAttempt struct {
+	done chan struct{}
+	err  error
+}
+
 // AgentTask 描述正在运行的Agent任务
 type AgentTask struct {
 	RunID            string `json:"runId"`
@@ -36,7 +40,7 @@ type AgentTask struct {
 	processes        *security.ProcessScope
 	workers          *runlease.Scope
 	IsolationBackend string `json:"isolationBackend,omitempty"`
-	finishing        chan struct{}
+	finishing        *taskCleanupAttempt
 	stopping         chan struct{}
 	cancelRequested  bool
 	finalStatus      string
@@ -630,22 +634,16 @@ func (m *AgentTaskManager) FinishTaskRun(conversationID, runID, finalStatus stri
 		}
 	}
 	if task.finishing != nil {
-		done := task.finishing
+		attempt := task.finishing
 		m.mu.Unlock()
-		<-done
-		m.mu.RLock()
-		cleanupError := task.CleanupError
-		m.mu.RUnlock()
-		if cleanupError != "" {
-			return errors.New(cleanupError)
-		}
-		return nil
+		<-attempt.done
+		return attempt.err
 	}
 	if task.cancelRequested {
 		finalStatus = "cancelled"
 	}
-	done := make(chan struct{})
-	task.finishing = done
+	attempt := &taskCleanupAttempt{done: make(chan struct{})}
+	task.finishing = attempt
 	task.finalStatus = finalStatus
 	task.Status = "cleaning"
 	task.processes.Seal()
@@ -671,14 +669,8 @@ func (m *AgentTaskManager) FinishTaskRun(conversationID, runID, finalStatus stri
 	waitCtx, waitCancel := context.WithTimeout(context.Background(), 3*time.Second)
 	workerErr := task.workers.Wait(waitCtx)
 	waitCancel()
-	cleanupErr := errors.Join(processErr, workerErr)
-	if processErr != nil && errors.Is(workerErr, runlease.ErrUnconfirmed) {
-		// A simultaneous local failure must not be labelled as local completion.
-		cleanupErr = fmt.Errorf("local cleanup: %w; remote state: %v", processErr, workerErr)
-	}
-	// The local worker has returned, but remote notification cancellation is
-	// not an acknowledgement. Preserve an actionable history/tool status.
-	unconfirmed := processErr == nil && errors.Is(workerErr, runlease.ErrUnconfirmed)
+	cleanupErr := taskCleanupResult(processErr, workerErr)
+	unconfirmed := taskCleanupStatus(cleanupErr) == "cleanup_unconfirmed"
 	if unconfirmed {
 		finalStatus = "cleanup_unconfirmed"
 	}
@@ -687,15 +679,22 @@ func (m *AgentTaskManager) FinishTaskRun(conversationID, runID, finalStatus stri
 		cleanupMessage = cleanupErr.Error()
 	}
 	if (cleanupErr == nil || unconfirmed) && bus != nil {
-		// Subscribers must receive completion only after local processes are reaped.
-		payload, _ := json.Marshal(StreamEvent{Type: "done", Data: map[string]interface{}{"conversationId": conversationID, "runId": runID, "status": finalStatus, "cleanupError": cleanupMessage}})
-		bus.Publish(conversationID, append(append([]byte("data: "), payload...), '\n', '\n'))
+		// Publish the verified result or the explicit cleanup uncertainty.
+		publish := func(event StreamEvent) {
+			payload, _ := json.Marshal(event)
+			bus.Publish(conversationID, append(append([]byte("data: "), payload...), '\n', '\n'))
+		}
+		if unconfirmed {
+			publish(taskCleanupEvent(cleanupErr))
+		}
+		publish(StreamEvent{Type: "done", Data: map[string]interface{}{"conversationId": conversationID, "runId": runID, "status": finalStatus, "cleanupError": cleanupMessage}})
 		bus.CloseConversation(conversationID)
 	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	defer close(done)
+	defer close(attempt.done)
+	attempt.err = cleanupErr
 	if cleanupErr != nil && !unconfirmed {
 		task.Status = "cleanup_failed"
 		task.CleanupError = cleanupErr.Error()

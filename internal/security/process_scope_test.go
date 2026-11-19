@@ -194,3 +194,19 @@ func TestProcessScope_ForegroundExitKillsLeftoverChild(t *testing.T) {
 	}
 	requireProcessGone(t, pid)
 }
+
+func TestProcessScopeCleanupTimeoutConfiguration(t *testing.T) {
+	t.Setenv("CS_CLEANUP_GRACE", "125ms")
+	t.Setenv("CS_CLEANUP_KILL", "8s")
+	t.Setenv("CS_CLEANUP_GUARD", "10s")
+	scope := NewProcessScope()
+	if scope.graceTimeout != 125*time.Millisecond || scope.killTimeout != 8*time.Second || scope.guardTimeout != 10*time.Second {
+		t.Fatalf("unexpected cleanup waits: %v, %v, %v", scope.graceTimeout, scope.killTimeout, scope.guardTimeout)
+	}
+	for _, value := range []string{"", "invalid", "0s", "-1s"} {
+		t.Setenv("CS_CLEANUP_GRACE", value)
+		if got := NewProcessScope().graceTimeout; got != 3*time.Second {
+			t.Errorf("grace = %v with %q, want 3s", got, value)
+		}
+	}
+}

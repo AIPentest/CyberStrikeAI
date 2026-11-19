@@ -5,20 +5,23 @@ import (
 	"os/exec"
 	"sync"
 	"time"
+
+	"cyberstrike-ai/internal/processguard"
 )
 
 // ShellSession caches the process group while its command is alive. Signals
 // and Wait completion synchronize to avoid signalling already-released sessions.
 type ShellSession struct {
-	Cmd      *exec.Cmd
-	rootPID  int
-	scope    *ProcessScope
-	done     chan struct{}
-	waitOnce sync.Once
-	waitErr  error
-	signalMu sync.Mutex
-	finished bool
-	waited   bool
+	Cmd         *exec.Cmd
+	rootPID     int
+	scope       *ProcessScope
+	done        chan struct{}
+	waitOnce    sync.Once
+	waitErr     error
+	signalMu    sync.Mutex
+	finished    bool
+	waited      bool
+	killPending bool
 }
 
 func StartShellSession(cmd *exec.Cmd) (*ShellSession, error) {
@@ -37,7 +40,9 @@ func (s *ShellSession) Wait() error {
 		s.waitErr = s.Cmd.Wait()
 		s.signalMu.Lock()
 		s.waited = true
-		terminateProcessGroup(s.rootPID, s.Cmd)
+		if !s.killPending {
+			terminateProcessGroup(s.rootPID, s.Cmd)
+		}
 		s.signalMu.Unlock()
 		// Usually the group disappears immediately. Retain ownership if the
 		// kernel cannot confirm exit; task cleanup will retry and report it.
@@ -55,7 +60,7 @@ func (s *ShellSession) signal(force bool) {
 	}
 	s.signalMu.Lock()
 	defer s.signalMu.Unlock()
-	if s.finished {
+	if s.finished || s.killPending {
 		return
 	}
 	if force {
@@ -81,11 +86,11 @@ func (s *ShellSession) tryComplete() bool {
 	if s.finished {
 		return true
 	}
-	if !s.waited || processGroupExists(s.rootPID) {
+	if !s.waited || (!s.killPending && processGroupExists(s.rootPID)) {
 		return false
 	}
 	s.finished = true
-	if s.scope != nil {
+	if s.scope != nil && !s.killPending {
 		s.scope.mu.Lock()
 		if s.scope.guard != nil {
 			if err := s.scope.guard.Release(s.rootPID); err != nil {
@@ -99,4 +104,22 @@ func (s *ShellSession) tryComplete() bool {
 	}
 	close(s.done)
 	return true
+}
+
+// deferKernelCleanup relinquishes the PGID once the kernel has queued SIGKILL
+// for every surviving member. Wait still reaps the direct child as it exits.
+func (s *ShellSession) deferKernelCleanup() (bool, error) {
+	s.signalMu.Lock()
+	defer s.signalMu.Unlock()
+	if s.finished || !processguard.ProcessGroupKillPending(s.rootPID, s.waited) {
+		return false, nil
+	}
+	s.scope.mu.Lock()
+	defer s.scope.mu.Unlock()
+	if err := s.scope.guard.Release(s.rootPID); err != nil {
+		return false, err
+	}
+	s.killPending = true
+	delete(s.scope.sessions, s)
+	return true, nil
 }
