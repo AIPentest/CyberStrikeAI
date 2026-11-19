@@ -145,8 +145,10 @@ test.describe('model channel editing', () => {
         expect(config.ai.default_channel).toBe('primary');
         expect(config.ai.channels.primary.model).toBe('primary-model');
 
-        await panel.getByRole('button', { name: '设为默认', exact: true }).click();
-        await expect(panel.getByText('默认', { exact: true })).toBeVisible();
+        const setDefault = panel.getByRole('button', { name: '设为默认', exact: true });
+        await setDefault.click();
+        await expect(setDefault).toHaveCount(0);
+        await expect(panel.locator('.settings-probe-form').getByText('默认', { exact: true })).toHaveCount(0);
         await expect(channel).toHaveText('deepseek');
         expect(mockApi.calls('POST', '/api/config/apply')).toHaveLength(2);
         await page.reload();
