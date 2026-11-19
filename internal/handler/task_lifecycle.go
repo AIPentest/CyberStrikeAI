@@ -1,11 +1,15 @@
 package handler
 
 import (
-	"cyberstrike-ai/internal/runlease"
 	"errors"
+	"fmt"
+	"net/http"
+
+	"cyberstrike-ai/internal/runlease"
+	"cyberstrike-ai/internal/security"
+
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 // ShutdownTasks stops local work before shared MCP clients and databases close.
@@ -31,7 +35,8 @@ func (h *AgentHandler) taskFinishingEventSender(send func(string, string, interf
 				if h.logger != nil {
 					h.logger.Warn(taskCleanupMessage(err), zap.String("runId", runID), zap.Error(err))
 				}
-				send("error", taskCleanupMessage(err)+": "+err.Error(), map[string]interface{}{"errorType": taskCleanupStatus(err)})
+				event := taskCleanupEvent(err)
+				send(event.Type, event.Message, event.Data)
 				data = map[string]interface{}{"conversationId": conversationID, "runId": runID, "status": taskCleanupStatus(err), "cleanupError": err.Error()}
 			} else {
 				payload := map[string]interface{}{}
@@ -67,15 +72,46 @@ func (h *AgentHandler) taskFinishingJSONResponder(c *gin.Context, conversationID
 	}
 }
 
+// A cleanup failure that can still resolve on retry takes precedence over
+// an unconfirmed outcome. Preserve the details of both for diagnostics.
+func taskCleanupResult(processErr, workerErr error) error {
+	localUnconfirmed := errors.Is(processErr, security.ErrCleanupUnconfirmed)
+	remoteUnconfirmed := errors.Is(workerErr, runlease.ErrUnconfirmed)
+	switch {
+	case processErr != nil && !localUnconfirmed && remoteUnconfirmed:
+		return fmt.Errorf("local cleanup: %w, remote state: %v", processErr, workerErr)
+	case localUnconfirmed && workerErr != nil && !remoteUnconfirmed:
+		return fmt.Errorf("local cleanup: %v, worker cleanup: %w", processErr, workerErr)
+	default:
+		return errors.Join(processErr, workerErr)
+	}
+}
+
 func taskCleanupStatus(err error) string {
-	if errors.Is(err, runlease.ErrUnconfirmed) {
+	if errors.Is(err, security.ErrCleanupUnconfirmed) || errors.Is(err, runlease.ErrUnconfirmed) {
 		return "cleanup_unconfirmed"
 	}
 	return "cleanup_failed"
 }
+
 func taskCleanupMessage(err error) string {
-	if errors.Is(err, runlease.ErrUnconfirmed) {
+	switch {
+	case errors.Is(err, security.ErrCleanupUnconfirmed) && errors.Is(err, runlease.ErrUnconfirmed):
+		return "本地残留进程处于不可中断状态，远端 MCP 停止状态待确认"
+	case errors.Is(err, security.ErrCleanupUnconfirmed):
+		return "本地残留进程处于不可中断状态，待主机解除阻塞后回收"
+	case errors.Is(err, runlease.ErrUnconfirmed):
 		return "本地执行已结束，远端 MCP 停止状态待确认"
+	default:
+		return "任务资源清理失败，将自动重试"
 	}
-	return "任务资源清理失败，将自动重试"
+}
+
+func taskCleanupEvent(err error) StreamEvent {
+	status := taskCleanupStatus(err)
+	kind := "error"
+	if status == "cleanup_unconfirmed" {
+		kind = "warning"
+	}
+	return StreamEvent{Type: kind, Message: taskCleanupMessage(err) + ": " + err.Error(), Data: map[string]interface{}{"errorType": status}}
 }

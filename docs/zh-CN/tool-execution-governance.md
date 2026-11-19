@@ -228,8 +228,10 @@ PY
 
 - `exec ... &` 与 Pi 后台执行立即返回，但仍属于本轮任务；无任务归属的后台启动被拒绝。前台工具退出时清理遗留子进程，跨工具调用运行的任务应使用显式后台入口。
 - 完成、失败、超时收尾、用户停止、服务正常关闭都会封闭启动入口、取消 worker、终止进程并等待回收。“中断并继续”保留本轮归属。
-- Unix 首先给进程组 3 秒退出宽限期，再强制终止并验证；内核隔离、守护进程退出与 worker 收尾各有有界等待。清理期间仍占用本轮任务；失败保留 `cleanup_failed`、进程组/worker ID，每 15 秒巡检重试。
+- Unix 先等待进程组主动退出，再强制终止并验证。环境变量 `CS_CLEANUP_GRACE`、`CS_CLEANUP_KILL`、`CS_CLEANUP_GUARD` 分别控制主动退出、SIGKILL 后回收和隔离后端的等待时间，接受正的 Go duration（例如 `10s`），未配置或无效时各用 3 秒。普通清理失败保留 `cleanup_failed` 和进程组/worker ID，每 15 秒巡检重试。
 - 工具 worker 的登记与任务关闭互斥；即使 MCP 使用 `WithoutCancel`，任务也会等待其退出。旧轮次的延迟回调无法接管新轮次的进程或提交新 worker。
+
+Linux 上，直接子进程回收后，只剩僵尸进程的组视为已退出。使用进程组 watchdog 时，若清理超时且组内仍存活的成员均处于 D 态并已有待投递的 SIGKILL，等本地 worker 退出后，任务记为 `cleanup_unconfirmed`。服务日志记录 run ID 和 PGID，进程解除阻塞后由内核处理挂起的信号。cgroup 和 Windows Job Object 仍按后端自身的机制验证清理。
 
 ### 操作系统隔离和崩溃回收
 
