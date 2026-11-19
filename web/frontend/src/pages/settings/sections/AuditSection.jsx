@@ -372,24 +372,24 @@ function AuditDetail({ id, categoryLabel, actionLabel, resultLabel }) {
                     { label: t('settingsAudit.detailResult', null, '结果'), value: <ResultTag result={log.result} label={resultLabel(log.result)} /> },
                     { label: t('settingsAudit.detailCategory', null, '类别'), value: categoryLabel(log.category) },
                     { label: t('settingsAudit.colAction', null, '操作'), value: actionLabel(log.action) },
-                    { label: 'actor', value: log.actor || '—' },
+                    { label: t('settingsDisplay.actor', null, '操作者'), value: log.actor || '—' },
                     { label: t('settingsAudit.colIp', null, 'IP'), value: <Mono>{log.clientIp || '—'}</Mono> },
-                    { label: 'level', value: log.level || '—' },
-                    { label: 'resource_type', value: log.resourceType || '—' },
+                    { label: t('settingsDisplay.level', null, '日志级别'), value: log.level || '—' },
+                    { label: t('settingsDisplay.resourceType', null, '资源类型'), value: log.resourceType || '—' },
                     { label: t('settingsAudit.resourceIdLabel', null, '资源 ID'), value: <Mono>{log.resourceId || '—'}</Mono> },
                     {
-                        label: 'resource_available',
-                        value: log.resourceAvailable === undefined ? '—' : String(log.resourceAvailable)
+                        label: t('settingsDisplay.resourceAvailable', null, '资源是否可访问'),
+                        value: log.resourceAvailable == null ? '—' : log.resourceAvailable ? t('common.yes', null, '是') : t('common.no', null, '否')
                     },
-                    { label: 'session', value: <Mono>{log.sessionHint || '—'}</Mono> },
-                    { label: 'userAgent', value: truncate(log.userAgent || '—', 80) }
+                    { label: t('settingsDisplay.session', null, '会话标识'), value: <Mono>{log.sessionHint || '—'}</Mono> },
+                    { label: t('settingsDisplay.userAgent', null, '客户端标识'), value: truncate(log.userAgent || '—', 80) }
                 ]}
             />
             <div className="settings-audit-message-block">
                 <Text type="tertiary" size="small">{t('settingsAudit.detailMessage', null, '说明')}</Text>
                 <Text>{log.message || '—'}</Text>
             </div>
-            {log.detail && <JsonViewer value={log.detail} collapsed title="detail" />}
+            {log.detail && <JsonViewer value={log.detail} collapsed title={t('settingsDisplay.details', null, '详情')} />}
         </div>
     );
 }

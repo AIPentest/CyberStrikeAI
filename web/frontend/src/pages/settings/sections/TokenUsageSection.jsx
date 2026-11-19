@@ -26,20 +26,20 @@ function cacheRate(summary) {
 }
 
 const BREAKDOWN_COLUMNS = [
-    { key: 'events', title: 'events' },
-    { key: 'modelCalls', title: 'modelCalls' },
-    { key: 'promptTokens', title: 'prompt' },
-    { key: 'completionTokens', title: 'completion' },
-    { key: 'totalTokens', title: 'total' },
-    { key: 'cachedTokens', title: 'cached' }
+    ['events', 'settingsDisplay.events', '记录数'],
+    ['modelCalls', 'dashboard.usageCalls', '模型调用'],
+    ['promptTokens', 'dashboard.usageInput', '输入令牌'],
+    ['completionTokens', 'dashboard.usageOutput', '输出令牌'],
+    ['totalTokens', 'dashboard.usageTotal', '总令牌数'],
+    ['cachedTokens', 'dashboard.usageCacheRead', '缓存读取']
 ];
 
-function breakdownColumns(firstTitle) {
+function breakdownColumns(t, firstTitle) {
     return [
         { title: firstTitle, dataIndex: 'key', render: (value, row) => <Text strong>{row.label || value || '—'}</Text> },
-        ...BREAKDOWN_COLUMNS.map(column => ({
-            title: column.title,
-            dataIndex: column.key,
+        ...BREAKDOWN_COLUMNS.map(([dataIndex, key, fallback]) => ({
+            title: t(key, null, fallback),
+            dataIndex,
             align: 'right',
             render: value => formatNumber(count(value))
         }))
@@ -120,7 +120,7 @@ export default function TokenUsageSection() {
                         <Input
                             value={projectInput}
                             onChange={value => setProjectInput(value)}
-                            placeholder="project_id（可选）"
+                            placeholder={t('settingsDisplay.projectIdOptional', null, '项目 ID（可选）')}
                             style={{ width: 180 }}
                             showClear
                         />
@@ -143,7 +143,7 @@ export default function TokenUsageSection() {
 
             <SectionCard title={t('tokenUsageUI.trendTitle', null, '每日用量')}>
                 <DataTable
-                    columns={breakdownColumns(t('tokenUsageUI.colDay', null, '日期'))}
+                    columns={breakdownColumns(t, t('tokenUsageUI.colDay', null, '日期'))}
                     dataSource={byDay}
                     rowKey="key"
                     loading={usage.loading}
@@ -154,7 +154,7 @@ export default function TokenUsageSection() {
 
             <SectionCard title={t('tokenUsageUI.modelTitle', null, '按模型')}>
                 <DataTable
-                    columns={breakdownColumns(t('tokenUsageUI.colModel', null, '模型'))}
+                    columns={breakdownColumns(t, t('tokenUsageUI.colModel', null, '模型'))}
                     dataSource={byModel}
                     rowKey="key"
                     loading={usage.loading}
@@ -173,15 +173,15 @@ export default function TokenUsageSection() {
                             render: value => formatDateTime(value)
                         },
                         { title: t('tokenUsageUI.colModel', null, '模型'), dataIndex: 'model', render: value => value || '—' },
-                        { title: 'source', dataIndex: 'source', render: value => value || '—' },
-                        { title: 'orchestration', dataIndex: 'orchestration', render: value => value || '—' },
+                        { title: t('settingsDisplay.usageSource', null, '用量来源'), dataIndex: 'source', render: value => value || '—' },
+                        { title: t('settingsDisplay.orchestration', null, '协作方式'), dataIndex: 'orchestration', render: value => value || '—' },
                         {
-                            title: 'tokens',
+                            title: t('settingsDisplay.tokensBreakdown', null, '输入 / 输出 / 总令牌数'),
                             align: 'right',
                             render: (_, row) => `${formatNumber(count(row.promptTokens))} / ${formatNumber(count(row.completionTokens))} / ${formatNumber(count(row.totalTokens))}`
                         },
                         {
-                            title: 'conversation',
+                            title: t('settingsDisplay.conversation', null, '对话'),
                             dataIndex: 'conversationId',
                             width: 200,
                             render: value => <Text type="tertiary">{truncate(value || '—', 18)}</Text>

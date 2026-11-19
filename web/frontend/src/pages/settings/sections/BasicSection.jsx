@@ -211,7 +211,7 @@ export default function BasicSection() {
 
                     <SectionCard
                         title={t('settings.rawTitle', null, '原始 YAML 配置')}
-                        description={t('settings.rawDesc', null, '编辑后可先点「格式化并校验」检查语法；保存会写入 config.yaml 并立即应用。')}
+                        description={t('settingsDisplay.rawYamlHelp', null, '查看或批量修改服务端高级配置。保存会写入支持的改动并尝试应用。')}
                         extra={(
                             <Space>
                                 <Tag color={dirty ? 'amber' : 'green'} size="small">

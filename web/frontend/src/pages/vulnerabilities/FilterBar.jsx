@@ -9,7 +9,7 @@ function withEmpty(label, options) {
     return [{ value: '', label }, ...options];
 }
 
-export default function FilterBar({ t, filters, options, projectOptions, onChange, onReset }) {
+export default function FilterBar({ t, filters, options, projectOptions, hasGroupFilters, onChange, onReset }) {
     const [keyword, setKeyword] = useState(filters.q);
     const debounced = useDebounced(keyword, 380);
     const lastEmitted = useRef(filters.q);
@@ -102,7 +102,7 @@ export default function FilterBar({ t, filters, options, projectOptions, onChang
                 <Button
                     icon={<IconRefresh />}
                     theme="borderless"
-                    disabled={!hasActiveFilters(filters) && !filters.sort}
+                    disabled={!hasActiveFilters(filters) && !filters.sort && !hasGroupFilters}
                     onClick={onReset}
                 >
                     {t('vulnerabilityPage.clearAll', null, '重置全部')}

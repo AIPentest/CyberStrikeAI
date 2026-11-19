@@ -4,7 +4,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Button, Typography } from '@douyinfe/semi-ui';
+import { Button, RadioGroup, Typography } from '@douyinfe/semi-ui';
 import { IconPlus, IconRefresh } from '@douyinfe/semi-icons';
 import { api, downloadFile } from '../../lib/http';
 import { useAuth } from '../../lib/auth';
@@ -15,6 +15,7 @@ import {
     confirmAction, toastError, toastSuccess, toastWarning
 } from '../../components/ui';
 import FilterBar from './FilterBar';
+import { GroupNavigator, GroupOverview } from './GroupNavigator';
 import VulnTable from './List';
 import DetailDrawer from './DetailDrawer';
 import EditModal from './EditModal';
@@ -27,6 +28,8 @@ import './page.css';
 const { Text } = Typography;
 
 const SEVERITY_TONE = { critical: 'danger', high: 'warning' };
+const VIEWS = { none: 'viewList', host: 'viewHost', task: 'viewTask' };
+const EMPTY_GROUPS = [];
 
 export default function VulnerabilitiesPage() {
     const t = useT();
@@ -50,6 +53,12 @@ export default function VulnerabilitiesPage() {
         ? Number(params.get('page_size'))
         : DEFAULT_PAGE_SIZE;
     const detailId = (params.get('id') || '').trim();
+    const viewParam = params.get('group_by');
+    const groupView = viewParam === 'host' || viewParam === 'task' ? viewParam : '';
+    const groupSelection = groupView ? params.get('selection') || '' : '';
+    const groupSearchKey = groupView === 'task' ? 'task_q' : 'host_q';
+    const groupSearch = groupView ? params.get(groupSearchKey) || '' : '';
+    const groupSearchQuery = groupSearch ? { [groupSearchKey]: groupSearch } : {};
 
     const canWrite = hasPermission('vulnerability:write');
     const canDelete = hasPermission('vulnerability:delete') || canWrite;
@@ -71,28 +80,50 @@ export default function VulnerabilitiesPage() {
     }, [patchParams]);
 
     const resetFilters = useCallback(() => {
-        const patch = { sort: undefined };
+        const patch = { sort: undefined, selection: undefined, host_q: undefined, task_q: undefined };
         FILTER_KEYS.forEach(key => { patch[key] = undefined; });
         patchParams(patch, { resetPage: true });
     }, [patchParams]);
+
+    const changeGroupView = useCallback(view => {
+        patchParams({
+            group_by: view === 'none' ? undefined : view,
+            selection: undefined,
+            host_q: undefined,
+            task_q: undefined
+        }, { resetPage: true });
+    }, [patchParams]);
+    const selectGroup = useCallback(value => {
+        patchParams({ selection: value }, { resetPage: true });
+    }, [patchParams]);
+    const searchGroups = useCallback(value => {
+        patchParams({ [groupSearchKey]: value, selection: undefined }, { resetPage: true });
+    }, [groupSearchKey, patchParams]);
 
     const openDetail = useCallback(id => patchParams({ id }), [patchParams]);
     const closeDetail = useCallback(() => patchParams({ id: undefined }), [patchParams]);
 
     // 列表只要摘要字段（handler 的 summary=true），详情/编辑另行按 id 取全量。
-    const listQuery = useMemo(() => ({
+    const listQuery = {
         ...filterQuery(filters),
+        ...groupSearchQuery,
+        ...(groupView ? { group_by: groupView, pagination: 'records', selection: groupSelection } : {}),
         ...(filters.sort ? { sort: filters.sort } : {}),
         summary: 'true',
         page,
         limit: pageSize
-    }), [filters, page, pageSize]);
+    };
     const listKey = JSON.stringify(listQuery);
     // 把请求键随响应带回，避免用上一条筛选的响应纠正地址栏页码。
     const list = useResource(async () => {
         const payload = await api.get('/vulnerabilities', listQuery);
-        return { ...(payload || {}), __requestKey: listKey };
+        return { ...(payload || {}), __requestKey: listKey, __groupView: groupView };
     }, [listKey]);
+    const listData = list.data?.__requestKey === listKey ? list.data : null;
+    const groups = list.data?.__groupView === groupView ? list.data?.navigation || EMPTY_GROUPS : EMPTY_GROUPS;
+    const selectedGroup = listData?.selection
+        ? groups.flatMap(group => [group, ...(group.children || [])]).find(group => group.key === listData.selection)
+        : null;
 
     const statQuery = useMemo(() => statsQuery(filters), [filters]);
     const statKey = JSON.stringify(statQuery);
@@ -146,11 +177,13 @@ export default function VulnerabilitiesPage() {
 
     // 服务端会把越界页码收敛到最后一页，这里同步回地址栏，刷新后仍能恢复。
     useEffect(() => {
-        const data = list.data;
-        if (!data || data.__requestKey !== listKey) return;
-        const serverPage = Number(data.page);
-        if (serverPage && serverPage !== page) patchParams({ page: serverPage });
-    }, [list.data, listKey, page, patchParams]);
+        if (!listData) return;
+        const patch = {};
+        const serverPage = Number(listData.page);
+        if (serverPage && serverPage !== page) patch.page = serverPage;
+        if (groupSelection && !listData.selection) patch.selection = undefined;
+        if (Object.keys(patch).length) patchParams(patch);
+    }, [listData, groupSelection, page, patchParams]);
 
     const reloadList = list.reload;
     const reloadStats = stats.reload;
@@ -280,6 +313,7 @@ export default function VulnerabilitiesPage() {
         try {
             const payload = await api.get('/vulnerabilities/export', {
                 ...filterQuery(filters),
+                ...groupSearchQuery,
                 mode: 'summary',
                 group_by: 'conversation'
             });
@@ -302,7 +336,7 @@ export default function VulnerabilitiesPage() {
         } finally {
             setExporting(false);
         }
-    }, [exporting, filters, t]);
+    }, [exporting, filters, groupSearchQuery, t]);
 
     const handleDownload = useCallback(async record => {
         try {
@@ -362,7 +396,7 @@ export default function VulnerabilitiesPage() {
         return [totalMetric, ...severityMetrics];
     }, [t, statTotal, distinctCount, bySeverity, stats.loading, filters.severity, applyFilter]);
 
-    const totalRecords = Number(list.data?.total) || 0;
+    const totalRecords = Number(listData?.total) || 0;
     const rangeStart = totalRecords ? (page - 1) * pageSize + 1 : 0;
     const rangeEnd = totalRecords ? Math.min(page * pageSize, totalRecords) : 0;
     const summaryText = totalRecords
@@ -374,7 +408,7 @@ export default function VulnerabilitiesPage() {
     const toolbar = (
         <div className="vulnerability-toolbar-left">
             <Text type="tertiary">
-                {selection.length
+                {listData && selection.length
                     ? t('vulnerabilityPage.selectedCount', { count: selection.length }, `已选 ${selection.length} 项`)
                     : summaryText}
             </Text>
@@ -383,13 +417,13 @@ export default function VulnerabilitiesPage() {
                     size="small"
                     type="danger"
                     theme="light"
-                    disabled={!selection.length}
+                    disabled={!listData || !selection.length}
                     onClick={handleBatchDelete}
                 >
                     {t('vulnerabilityPage.batchDelete', null, '批量删除')}
                 </Button>
             )}
-            {canDelete && hasActiveFilters(filters) && (
+            {canDelete && !groupSelection && !groupSearch && hasActiveFilters(filters) && (
                 <Button size="small" type="danger" theme="borderless" onClick={handleDeleteFiltered}>
                     {t('vulnerabilityPage.deleteFiltered', null, '删除筛选结果')}
                 </Button>
@@ -408,7 +442,7 @@ export default function VulnerabilitiesPage() {
                             {t('common.refresh', null, '刷新')}
                         </Button>
                         <Button onClick={handleExport} loading={exporting}>
-                            {t('vulnerabilityPage.batchExport', null, '批量导出')}
+                            {t(groupSelection ? 'vulnerabilityPage.exportAllGroups' : 'vulnerabilityPage.batchExport')}
                         </Button>
                         {canWrite && (
                             <Button theme="solid" type="primary" icon={<IconPlus />} onClick={() => openEditor(null)}>
@@ -424,39 +458,67 @@ export default function VulnerabilitiesPage() {
             <ErrorBanner error={pageError} onRetry={refreshAll} />
 
             <SectionCard
+                className="vulnerability-list-card"
                 title={t('vulnerabilityPage.listTitle', null, '漏洞记录')}
-                description={t('vulnerabilityPage.listHint', null, '按筛选条件服务端分页加载，点击行查看详情、复现证据与报告下载。')}
+                extra={(
+                    <RadioGroup
+                        aria-label={t('vulnerabilityPage.viewLabel')}
+                        type="button"
+                        value={groupView || 'none'}
+                        options={Object.entries(VIEWS).map(([value, key]) => ({ value, label: t(`vulnerabilityPage.${key}`) }))}
+                        onChange={event => changeGroupView(event.target.value)}
+                    />
+                )}
             >
                 <FilterBar
                     t={t}
                     filters={filters}
                     options={options.data}
                     projectOptions={projectOptions}
+                    hasGroupFilters={Boolean(groupSelection || groupSearch)}
                     onChange={applyFilter}
                     onReset={resetFilters}
                 />
-                <VulnTable
-                    t={t}
-                    data={list.data?.vulnerabilities}
-                    loading={list.loading}
-                    page={page}
-                    pageSize={pageSize}
-                    total={totalRecords}
-                    selection={selection}
-                    onSelectionChange={setSelection}
-                    onOpen={openDetail}
-                    onEdit={openEditor}
-                    onDelete={handleDelete}
-                    onDownload={handleDownload}
-                    sort={filters.sort}
-                    onSort={value => applyFilter('sort', value)}
-                    canWrite={canWrite}
-                    canDelete={canDelete}
-                    onPageChange={handlePageChange}
-                    onPageSizeChange={handlePageSizeChange}
-                    toolbar={toolbar}
-                    onRefresh={refreshAll}
-                />
+                <div className={groupView ? 'vulnerability-group-layout' : undefined}>
+                    {groupView && (
+                        <GroupNavigator
+                            key={groupView}
+                            t={t}
+                            mode={groupView}
+                            groups={groups}
+                            selection={groupSelection}
+                            search={groupSearch}
+                            loading={list.loading}
+                            onSearch={searchGroups}
+                            onSelect={selectGroup}
+                        />
+                    )}
+                    <div className="vulnerability-group-results">
+                        {selectedGroup && <GroupOverview t={t} group={selectedGroup} />}
+                        <VulnTable
+                            t={t}
+                            data={listData?.vulnerabilities}
+                            loading={list.loading}
+                            page={page}
+                            pageSize={pageSize}
+                            total={totalRecords}
+                            selection={listData ? selection : []}
+                            onSelectionChange={setSelection}
+                            onOpen={openDetail}
+                            onEdit={openEditor}
+                            onDelete={handleDelete}
+                            onDownload={handleDownload}
+                            sort={filters.sort}
+                            onSort={value => applyFilter('sort', value)}
+                            canWrite={canWrite}
+                            canDelete={canDelete}
+                            onPageChange={handlePageChange}
+                            onPageSizeChange={handlePageSizeChange}
+                            toolbar={toolbar}
+                            onRefresh={refreshAll}
+                        />
+                    </div>
+                </div>
             </SectionCard>
 
             <DetailDrawer

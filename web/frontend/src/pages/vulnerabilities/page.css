@@ -2,6 +2,69 @@
 
 .vulnerability-page { min-width: 0; }
 
+.vulnerability-list-card .semi-card-header {
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.vulnerability-group-layout {
+    display: grid;
+    grid-template-columns: minmax(215px, 245px) minmax(0, 1fr);
+    align-items: start;
+    gap: 16px;
+}
+
+.vulnerability-group-sidebar {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 12px;
+    background: var(--semi-color-fill-0);
+    border: 1px solid var(--semi-color-border);
+    border-radius: var(--semi-border-radius-medium);
+}
+
+.vulnerability-group-scroll {
+    min-height: 46px;
+    max-height: min(52vh, 520px);
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.vulnerability-group-node,
+.vulnerability-group-overview,
+.vulnerability-group-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.vulnerability-group-node,
+.vulnerability-group-overview { justify-content: space-between; }
+.vulnerability-group-scroll .semi-tree-label-text,
+.vulnerability-group-results { min-width: 0; }
+.vulnerability-group-scroll .semi-tree-label-text { flex: 1; }
+
+.vulnerability-group-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vulnerability-group-node .semi-tag { flex-shrink: 0; }
+.vulnerability-group-empty { display: block; padding: 8px; }
+
+.vulnerability-group-overview {
+    flex-wrap: wrap;
+    padding: 9px 12px;
+    margin-bottom: 10px;
+    background: var(--semi-color-primary-light-default);
+    border-radius: var(--semi-border-radius-medium);
+}
+
+.vulnerability-group-badges { flex-wrap: wrap; }
+
 /* ── 筛选栏 ───────────────────────────────────────────── */
 .vulnerability-filter-bar {
     display: flex;
@@ -257,6 +320,8 @@
 }
 
 @media (max-width: 960px) {
+    .vulnerability-group-layout { grid-template-columns: minmax(0, 1fr); }
+    .vulnerability-group-scroll { max-height: 210px; }
     .vulnerability-filter-select,
     .vulnerability-filter-select--wide { width: calc(50% - 4px); }
     .vulnerability-filter-search { max-width: none; }

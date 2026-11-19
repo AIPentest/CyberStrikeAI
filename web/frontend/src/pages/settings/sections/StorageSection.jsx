@@ -384,10 +384,11 @@ export default function StorageSection() {
                         columns={3}
                         items={[
                             { label: t('settingsStorage.colUnits', null, '项目数'), value: formatNumber(report.dry_run ? report.totals?.reclaimable_units : report.totals?.removed_units) },
-                            { label: report.dry_run ? t('settingsStorage.reclaimable', null, '可回收') : 'freed', value: formatBytes(report.dry_run ? report.totals?.reclaimable_bytes : report.totals?.freed_bytes) },
-                            { label: 'errors', value: formatNumber(report.totals?.errors) },
-                            { label: 'skipped_active', value: formatNumber(report.totals?.skipped_active) },
-                            { label: 'duration_ms', value: formatNumber(report.duration_ms) }
+                            { label: report.dry_run ? t('settingsStorage.reclaimable', null, '可回收') : t('settingsDisplay.freed', null, '已释放空间'), value: formatBytes(report.dry_run ? report.totals?.reclaimable_bytes : report.totals?.freed_bytes) },
+                            { label: t('settingsDisplay.errors', null, '错误数'), value: formatNumber(report.totals?.errors) },
+                            { label: t('settingsStorage.skippedActive', null, '跳过活跃'), value: formatNumber(report.totals?.skipped_active) },
+                            { label: t('settingsDisplay.cleanupDuration', null, '清理耗时'),
+                                value: t('settingsProbe.milliseconds', { value: formatNumber(report.duration_ms ?? 0) }, `${formatNumber(report.duration_ms ?? 0)} 毫秒`) }
                         ]}
                     />
                     {(report.categories || []).filter(item => item.errors?.length).length > 0 && (

@@ -121,3 +121,10 @@
     .settings-field-wide { grid-column: span 1; }
     .settings-yaml-input .semi-input-textarea { min-height: 300px; }
 }
+
+.settings-update-source-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 760px;
+}
