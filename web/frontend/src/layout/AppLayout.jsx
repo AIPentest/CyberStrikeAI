@@ -16,6 +16,10 @@ import { formatDateTime } from '../lib/format';
 import { useInterval } from '../components/hooks';
 
 const { Text } = Typography;
+const sidebarSubmenuProps = {
+    position: 'right',
+    contentClassName: 'cs-nav-flyout'
+};
 
 function useIsMobile() {
     const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 900px)').matches);
@@ -303,6 +307,7 @@ export default function AppLayout() {
                                 selectedKeys={selectedKeys}
                                 onSelect={onSelect}
                                 isCollapsed={compact}
+                                subDropdownProps={sidebarSubmenuProps}
                                 openKeys={openKeys}
                                 onOpenChange={({ openKeys: keys }) => setOpenKeys(keys)}
                             />

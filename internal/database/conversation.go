@@ -66,7 +66,7 @@ func (db *DB) CreateConversationWithWebshell(webshellConnectionID, title string,
 	var err error
 	exec := db.Exec
 	var tx *sql.Tx
-	if meta.HumanApprovalTimeoutSeconds != nil {
+	if meta.HITL != nil {
 		tx, err = db.Begin()
 		if err != nil {
 			return nil, err
@@ -101,8 +101,8 @@ func (db *DB) CreateConversationWithWebshell(webshellConnectionID, title string,
 		return nil, fmt.Errorf("创建对话失败: %w", err)
 	}
 	if tx != nil {
-		if err := requireConversationHumanApproval(tx.Exec, id, *meta.HumanApprovalTimeoutSeconds, now); err != nil {
-			return nil, fmt.Errorf("保存人工审批失败: %w", err)
+		if err := saveConversationHITLConfig(tx.Exec, id, *meta.HITL, now); err != nil {
+			return nil, fmt.Errorf("保存人机协同配置失败: %w", err)
 		}
 		if err := tx.Commit(); err != nil {
 			return nil, err
@@ -123,6 +123,38 @@ func (db *DB) CreateConversationWithWebshell(webshellConnectionID, title string,
 	}
 	notifyConversationCreated(conv, meta)
 	return conv, nil
+}
+
+func saveConversationHITLConfig(exec func(string, ...any) (sql.Result, error), conversationID string, config ConversationHITLConfig, now time.Time) error {
+	if !config.Enabled {
+		config.Mode = "off"
+	}
+	if config.Reviewer == "" {
+		config.Reviewer = "human"
+	}
+	if config.TimeoutSeconds < 0 {
+		config.TimeoutSeconds = 0
+	}
+	tools := config.SensitiveTools
+	if tools == nil {
+		tools = []string{}
+	}
+	toolsJSON, err := json.Marshal(tools)
+	if err != nil {
+		return err
+	}
+	result, err := exec(`INSERT INTO hitl_conversation_configs
+		(conversation_id, enabled, mode, reviewer, sensitive_tools, timeout_seconds, updated_at)
+		SELECT id, ?, ?, ?, ?, ?, ? FROM conversations WHERE id=?`,
+		boolToInt(config.Enabled), config.Mode, config.Reviewer, string(toolsJSON), config.TimeoutSeconds, now, conversationID)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return sql.ErrNoRows
+	}
+	return err
 }
 
 // RequireConversationHumanApproval updates the mode and reviewer while preserving

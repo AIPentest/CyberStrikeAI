@@ -69,7 +69,7 @@ export function useAgentRun({
         });
     }, [conversationRef, flushLive, onSettled, requestDetailReload]);
 
-    const send = useCallback(({ message, attachments, mode, projectId, aiChannelId, reasoning, requireHumanApproval }) => {
+    const send = useCallback(({ message, attachments, mode, projectId, aiChannelId, reasoning, hitl, requireHumanApproval }) => {
         const run = { live: createLiveState({ conversationId: conversationRef.current }), markedFinished: false, abort: null };
         runRef.current = run;
         liveRef.current = run.live;
@@ -83,6 +83,7 @@ export function useAgentRun({
             conversationId: conversationRef.current || '',
             aiChannelId,
             reasoning,
+            hitl,
             requireHumanApproval: requireHumanApproval || undefined
         };
         if (!conversationRef.current && projectId) body.projectId = projectId;

@@ -140,7 +140,7 @@ export default function ConversationList({
         <div className="chat-sidebar-inner">
             <div className="chat-sidebar-head">
                 <Text strong className="chat-sidebar-title">{t('chat.conversations', null, '会话')}</Text>
-                <Button icon={<IconPlus />} theme="solid" onClick={onCreate} disabled={!canWrite}>
+                <Button icon={<IconPlus />} theme="borderless" className="chat-new-chat" onClick={onCreate} disabled={!canWrite}>
                     {t('chat.newChat', null, '新建对话')}
                 </Button>
             </div>

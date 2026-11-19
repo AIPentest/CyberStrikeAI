@@ -241,6 +241,55 @@ test('navigation: four Semi groups, parent expansion, child selection and collap
     await expect.poll(() => page.evaluate(() => localStorage.getItem('csai-nav-collapsed'))).toBe('0');
 });
 
+test('navigation: collapsed submenus fit their labels and center beside the parent', async ({ page }, testInfo) => {
+    await visit(page, 'chat');
+    const sidebar = page.locator('.cs-sider');
+    await button(sidebar, label('nav.collapse', '收起菜单')).click();
+    await expect(page.locator('.cs-shell')).toHaveClass(/is-collapsed/);
+
+    const mcp = sidebar.getByRole('menuitem', { name: 'MCP', exact: true });
+    const monitor = page.getByRole('menuitem', { name: label('nav.mcpMonitor', 'MCP状态监控'), exact: true });
+    const mcpMenu = page.locator('.semi-navigation-popover').filter({ has: monitor });
+    await mcp.hover();
+    await expect(monitor).toBeVisible();
+    const mcpBox = await mcp.boundingBox();
+    await expect.poll(async () => {
+        const menu = await mcpMenu.boundingBox();
+        return Math.abs(menu.y + menu.height / 2 - (mcpBox.y + mcpBox.height / 2));
+    }).toBeLessThanOrEqual(1);
+    const menuBox = await mcpMenu.boundingBox();
+    const monitorText = await monitor.locator('.semi-navigation-item-text').boundingBox();
+    const leftPadding = monitorText.x - menuBox.x;
+    const rightPadding = menuBox.x + menuBox.width - monitorText.x - monitorText.width;
+    expect(Math.abs(leftPadding - rightPadding)).toBeLessThanOrEqual(1);
+    await screenshot(page, testInfo, 'collapsed-mcp-menu');
+
+    const c2 = sidebar.getByRole('menuitem', { name: 'C2', exact: true });
+    const profiles = page.getByRole('menuitem', { name: label('nav.c2Profiles', '流量伪装'), exact: true });
+    const c2Menu = page.locator('.semi-navigation-popover').filter({ has: profiles });
+    await c2.hover();
+    await expect(c2Menu.getByRole('menuitem')).toHaveCount(6);
+    const c2Box = await c2.boundingBox();
+    const c2Center = c2Box.y + c2Box.height / 2;
+    await expect.poll(async () => {
+        const menu = await c2Menu.boundingBox();
+        return Math.abs(menu.y + menu.height / 2 - c2Center);
+    }).toBeLessThanOrEqual(1);
+    const tallMenu = await c2Menu.boundingBox();
+    expect(tallMenu.width).toBeLessThan(menuBox.width);
+
+    // Put the trigger near the lower edge so the menu no longer fits at its centered position.
+    const height = Math.ceil(c2Box.y + c2Box.height + 60);
+    expect(c2Center + tallMenu.height / 2).toBeGreaterThan(height);
+    await page.setViewportSize({ width: 1440, height });
+    await expect.poll(async () => {
+        const menu = await c2Menu.boundingBox();
+        return menu.y >= 0 && menu.y + menu.height <= height && menu.y <= c2Center;
+    }).toBe(true);
+    await profiles.click();
+    await expect(page).toHaveURL(/#\/c2-profiles$/);
+});
+
 test('theme: menu switches dark/light, actual primary colors, reload preserves preference', async ({ page }, testInfo) => {
     await visit(page, 'dashboard');
     let current = label('theme.system', '跟随系统');
@@ -322,7 +371,7 @@ test('chat: select stored conversation and restore it after reload', async ({ pa
     expect(mockApi.writes()).toEqual([]);
 });
 
-test('chat: message list and focused composer share one panel', async ({ page, mockApi }, testInfo) => {
+test('chat: floating composer stays aligned and shows focus', async ({ page, mockApi }, testInfo) => {
     mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
     await page.goto(`/static/app/#/chat?conversation=${CONVERSATION.id}`);
     const main = await ready(page);
@@ -330,25 +379,27 @@ test('chat: message list and focused composer share one panel', async ({ page, m
     const messages = panel.locator('.chat-messages');
     const assistant = messages.locator('.chat-msg-assistant').first();
     const composer = panel.locator('.chat-composer');
+    const composerBox = composer.locator('.chat-composer-box');
     const input = composer.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
     await expect(assistant).toBeVisible();
 
-    const [timeline, footer, row, textarea] = await Promise.all(
-        [messages, composer, assistant, input].map(element => element.boundingBox())
+    const [timeline, footer, box] = await Promise.all(
+        [messages, composer, composerBox].map(element => element.boundingBox())
     );
     expect(footer.x).toBeCloseTo(timeline.x, 0);
     expect(footer.width).toBeCloseTo(timeline.width, 0);
     expect(footer.y).toBeCloseTo(timeline.y + timeline.height, 0);
-    expect(textarea.x).toBeCloseTo(row.x, 0);
-    expect(textarea.width).toBeCloseTo(row.width, 0);
+    expect(box.x).toBeGreaterThanOrEqual(timeline.x);
+    expect(box.width).toBeLessThanOrEqual(footer.width);
     await expect(composer).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-    await expect(composer.locator('.chat-composer-box')).toHaveCSS('border-top-width', '0px');
+    await expect(composerBox).toHaveCSS('border-top-width', '1px');
+    await expect(composerBox).toHaveCSS('border-radius', '16px');
 
-    const dividerColor = await composer.evaluate(node => getComputedStyle(node).borderTopColor);
+    const borderColor = await composerBox.evaluate(node => getComputedStyle(node).borderTopColor);
     await input.click();
     await expect(input).toBeFocused();
     await expect(input).toHaveCSS('outline-style', 'none');
-    await expect(composer).not.toHaveCSS('border-top-color', dividerColor);
+    await expect(composerBox).not.toHaveCSS('border-top-color', borderColor);
     expect(mockApi.writes()).toEqual([]);
     await panel.screenshot({ path: testInfo.outputPath('focused-chat-panel.png') });
 });
@@ -398,6 +449,34 @@ for (const [id, path, record] of [
         expect(mockApi.writes()).toEqual([]);
     });
 }
+
+test('deep assessment: archive filter stays horizontal and switches the list without writes', async ({ page, mockApi }) => {
+    mockApi.respond('GET', '/api/deep-assessments', (_, url) => ({
+        json: { tasks: url.searchParams.get('archived') === 'true' ? [] : [ASSESSMENT], has_more: false }
+    }));
+    const main = await visit(page, 'deep-assessments');
+    const filter = main.getByRole('radiogroup', { name: '归档状态' });
+    const unarchived = filter.getByRole('radio', { name: '未归档' });
+    const archived = filter.getByRole('radio', { name: '已归档' });
+    const unarchivedLabel = filter.getByText('未归档', { exact: true });
+    const archivedLabel = filter.getByText('已归档', { exact: true });
+    const draft = button(main, ASSESSMENT.name);
+
+    await expect(unarchived).toBeChecked();
+    await expect(draft).toBeVisible();
+    await expect(filter).toBeInViewport({ ratio: 1 });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(filter).toBeInViewport({ ratio: 1 });
+    expect((await unarchivedLabel.boundingBox()).y).toBe((await archivedLabel.boundingBox()).y);
+
+    await archivedLabel.click();
+    await expect(archived).toBeChecked();
+    await expect(draft).toHaveCount(0);
+    await unarchivedLabel.click();
+    await expect(unarchived).toBeChecked();
+    await expect(draft).toBeVisible();
+    expect(mockApi.writes()).toEqual([]);
+});
 
 test('deep assessment: options retry, required objective, close new-draft modal without execution', async ({ page, mockApi }, testInfo) => {
     mockApi.fail('GET', '/api/deep-assessments/options', '示例选项加载失败');

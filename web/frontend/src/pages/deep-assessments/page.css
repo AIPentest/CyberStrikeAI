@@ -47,6 +47,15 @@
     margin: 8px 0 0;
 }
 
+.assessment-list-card .semi-card-header {
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.assessment-archive-filter {
+    white-space: nowrap;
+}
+
 .assessment-toolbar {
     display: flex;
     flex-wrap: wrap;

@@ -80,6 +80,10 @@ body[theme-mode="dark"] .semi-button-primary.semi-button-solid:not(.semi-button-
 .cs-nav .semi-navigation-item-icon-info { min-width: 18px; margin-inline-end: 10px; }
 .cs-nav .semi-navigation-item-sub { padding: 0; }
 .cs-nav.semi-navigation-collapsed { padding-inline: 8px; }
+.cs-nav-flyout .semi-dropdown-menu { max-block-size: calc(100dvh - 16px); overflow-y: auto; }
+.cs-nav-flyout .semi-navigation-item { min-inline-size: 0; max-inline-size: 280px; padding-inline: 12px; }
+.cs-nav-flyout .semi-navigation-item-icon-info:empty { display: none; }
+.cs-nav-flyout .semi-navigation-item-text { white-space: normal; overflow-wrap: anywhere; }
 .is-compact .cs-nav-section + .cs-nav-section { padding-top: 12px; border-top: 1px solid var(--semi-color-border); margin-top: 12px; }
 .cs-nav-footer { padding: 10px 12px; border-top: 1px solid var(--semi-color-border); }
 .cs-nav-footer .semi-button { justify-content: flex-start; font-size: 12px; }
@@ -166,8 +170,23 @@ body[theme-mode="dark"] .cs-severity-tag[data-severity="critical"] { color: #fff
 .cs-json-viewer-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--semi-color-fill-0); }
 .cs-json-viewer-body { margin: 0; padding: 16px; max-height: 420px; overflow: auto; font-size: 12px; line-height: 1.65; font-family: "SFMono-Regular", Consolas, monospace; }
 .cs-notification-panel { width: min(340px, calc(100vw - 48px)); max-height: 420px; display: flex; flex-direction: column; }
-.cs-notification-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--semi-color-border); }
-.cs-notification-list { overflow: auto; display: flex; flex-direction: column; gap: 4px; padding-top: 12px; }
+.cs-notification-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--semi-color-border);
+}
+.cs-notification-list {
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 8px;
+    text-align: center;
+}
 .cs-notification-item { display: flex; gap: 10px; align-items: flex-start; text-align: start; border: none; background: transparent; padding: 10px 8px; border-radius: 8px; cursor: pointer; color: inherit; }
 .cs-notification-item:hover { background: var(--semi-color-fill-0); }
 .cs-notification-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; background: var(--semi-color-primary); flex: 0 0 6px; }

@@ -55,6 +55,28 @@ func TestConversationHumanApproval(t *testing.T) {
 		}
 	})
 
+	t.Run("new conversation saves the complete session policy", func(t *testing.T) {
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		ctx.Request = httptest.NewRequest(http.MethodPost, "/api/agent/stream", nil)
+		ctx.Set(security.ContextSessionKey, session)
+		req := &ChatRequest{Message: "Review edit policy fixture", Hitl: &HITLRequest{
+			Enabled: true, Mode: "review_edit", Reviewer: "audit_agent",
+			SensitiveTools: []string{"fixture_read_only"}, TimeoutSeconds: 120,
+		}}
+		prep, err := h.prepareMultiAgentSession(req, ctx, "agent_stream")
+		if err != nil {
+			t.Fatal(err)
+		}
+		saved, err := h.hitlManager.LoadConversationConfig(prep.ConversationID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !saved.Enabled || saved.Mode != "review_edit" || saved.Reviewer != "audit_agent" ||
+			saved.TimeoutSeconds != 120 || !slices.Equal(saved.SensitiveTools, req.Hitl.SensitiveTools) {
+			t.Fatalf("unexpected saved session policy: %+v", saved)
+		}
+	})
+
 	t.Run("existing conversation saves human approval and retains its settings", func(t *testing.T) {
 		conv, err := db.CreateConversation("Existing conversation", database.ConversationCreateMeta{})
 		if err != nil {

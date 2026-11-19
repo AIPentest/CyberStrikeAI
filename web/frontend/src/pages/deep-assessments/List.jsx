@@ -1,6 +1,6 @@
 /** 深度测评列表：筛选、进度、新建、删除与进入工作台。 */
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Input, Progress, Select, Space, Switch, Typography } from '@douyinfe/semi-ui';
+import { Button, Input, Progress, RadioGroup, Select, Space, Typography } from '@douyinfe/semi-ui';
 import { IconDelete, IconPlus, IconRefresh, IconSearch } from '@douyinfe/semi-icons';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
@@ -199,13 +199,19 @@ export default function AssessmentList({ onOpen }) {
             />
             <ErrorBanner error={resource.error} onRetry={() => resource.reload()} />
             <SectionCard
+                className="assessment-list-card"
                 title={t('deepAssessments.listTitle', null, '测评列表')}
                 extra={(
-                    <Switch
-                        checked={archived}
-                        onChange={value => setArchived(Boolean(value))}
-                        checkedText="已归档"
-                        uncheckedText="进行中"
+                    <RadioGroup
+                        className="assessment-archive-filter"
+                        aria-label={t('deepAssessments.archiveFilter', null, '归档状态')}
+                        type="button"
+                        value={archived ? 'archived' : 'unarchived'}
+                        options={[
+                            { value: 'unarchived', label: t('deepAssessments.unarchivedTasks', null, '未归档') },
+                            { value: 'archived', label: t('deepAssessments.archivedTasks', null, '已归档') }
+                        ]}
+                        onChange={event => setArchived(event.target.value === 'archived')}
                     />
                 )}
             >

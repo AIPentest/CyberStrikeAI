@@ -45,15 +45,15 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 	if !hasSession || !session.Permissions["chat:write"] {
 		return nil, fmt.Errorf("无权写入对话")
 	}
-	if req.RequireHumanApproval {
+	if req.RequireHumanApproval || (conversationID == "" && req.Hitl != nil) {
 		if !session.Permissions["hitl:write"] {
 			return nil, fmt.Errorf("无权访问人机协同设置")
 		}
-		if conversationID != "" {
+		if req.RequireHumanApproval && conversationID != "" {
 			return nil, fmt.Errorf("已有对话请先保存人机协同设置")
 		}
 		if h.hitlManager == nil {
-			return nil, fmt.Errorf("保存人工审批失败: 人机协同不可用")
+			return nil, fmt.Errorf("保存人机协同配置失败: 人机协同不可用")
 		}
 	}
 	canAccess := func(resourceType, resourceID string) bool {
@@ -79,8 +79,22 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 		meta.AgentMode = chatRequestAgentMode(req, source)
 		if req.RequireHumanApproval {
 			timeout := h.hitlEffectiveDefaultTimeoutSeconds()
-			meta.HumanApprovalTimeoutSeconds = &timeout
 			req.Hitl = &HITLRequest{Enabled: true, Mode: "approval", Reviewer: "human", TimeoutSeconds: timeout}
+		}
+		if req.Hitl != nil {
+			req.Hitl.Mode = normalizeHitlMode(req.Hitl.Mode)
+			req.Hitl.Reviewer = normalizeHitlReviewer(req.Hitl.Reviewer)
+			if !req.Hitl.Enabled || req.Hitl.Mode == "off" {
+				req.Hitl.Enabled = false
+				req.Hitl.Mode = "off"
+			}
+			if req.Hitl.TimeoutSeconds < 0 {
+				req.Hitl.TimeoutSeconds = 0
+			}
+			meta.HITL = &database.ConversationHITLConfig{
+				Enabled: req.Hitl.Enabled, Mode: req.Hitl.Mode, Reviewer: req.Hitl.Reviewer,
+				SensitiveTools: req.Hitl.SensitiveTools, TimeoutSeconds: req.Hitl.TimeoutSeconds,
+			}
 		}
 		if webshellID != "" {
 			meta.Source = source + "_webshell"

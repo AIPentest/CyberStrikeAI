@@ -5653,6 +5653,7 @@
     "archive": "Archive",
     "restore": "Restore to list",
     "currentTasks": "Current tasks",
+    "unarchivedTasks": "Unarchived",
     "archivedTasks": "Archived",
     "archiveFilter": "Archive status",
     "archiveHint": "Archiving keeps progress and evidence. Pause running work first.",

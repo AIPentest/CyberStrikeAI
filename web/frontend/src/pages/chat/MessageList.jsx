@@ -1,7 +1,7 @@
 /** 消息区：历史消息 + 当前流式输出，自动贴底滚动。 */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Avatar, Button, Empty, Space, Spin, Tag, Tooltip, Typography } from '@douyinfe/semi-ui';
-import { IconArrowDown, IconComment, IconDelete, IconPaperclip, IconRefresh, IconShield, IconUser } from '@douyinfe/semi-icons';
+import { Avatar, Button, Empty, Spin, Tag, Tooltip, Typography } from '@douyinfe/semi-ui';
+import { IconArrowDown, IconComment, IconDelete, IconRefresh, IconUser } from '@douyinfe/semi-icons';
 import { CopyButton, ErrorBanner } from '../../components/ui';
 import { useT } from '../../lib/i18n';
 import { formatDateTime } from '../../lib/format';
@@ -14,7 +14,6 @@ function ChatWelcome() {
     const t = useT();
     return (
         <div className="chat-welcome">
-            <Text type="tertiary" className="chat-welcome-brand">CyberStrikeAI</Text>
             <Empty
                 image={<span className="chat-welcome-mark" aria-hidden="true"><IconComment size="extra-large" /></span>}
                 title={t('chat.welcomeHeading', null, '让安全探索，从对话开始')}
@@ -23,16 +22,7 @@ function ChatWelcome() {
                         {t('chat.welcomeScopeDescription', null, '描述测试目标与授权范围，或上传相关材料，即可开始对话。')}
                     </Paragraph>
                 )}
-            >
-                <Space spacing={8} wrap className="chat-welcome-tags">
-                    <Tag size="large" type="light" color="blue" prefixIcon={<IconShield />}>
-                        {t('chat.welcomeScopeTag', null, '明确授权范围')}
-                    </Tag>
-                    <Tag size="large" type="light" color="grey" prefixIcon={<IconPaperclip />}>
-                        {t('chat.welcomeMaterialsTag', null, '附上相关材料')}
-                    </Tag>
-                </Space>
-            </Empty>
+            />
         </div>
     );
 }
