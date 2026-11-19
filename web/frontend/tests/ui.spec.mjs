@@ -328,11 +328,64 @@ test('chat: empty state, blank Enter and Shift+Enter never send', async ({ page,
     expect(mockApi.writes()).toEqual([]);
 });
 
+for (const uploadFails of [false, true]) {
+    test(`chat: attachment plus ${uploadFails ? 'preserves failed uploads until removed' : 'uploads and sends the selected file'}`, async ({ page, mockApi }) => {
+        const message = 'FAKE：整理附件内容。';
+        const id = mockApi.enableChatStream(message);
+        let releaseUpload;
+        const uploadReady = new Promise(resolve => { releaseUpload = resolve; });
+        mockApi.respond('POST', '/api/chat-uploads', async () => {
+            await uploadReady;
+            return uploadFails
+                ? { status: 503, json: { error: 'fixture 附件上传失败' } }
+                : { json: { absolutePath: '/tmp/fixture-attachment.txt' } };
+        });
+        const main = await visit(page, 'chat');
+        const composer = main.locator('.chat-composer');
+        const input = composer.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+        await input.fill(message);
+        const chooserPending = page.waitForEvent('filechooser');
+        await button(composer, label('chat.attachmentsLabel', '附件')).click();
+        const chooser = await chooserPending;
+        await chooser.setFiles({ name: 'fixture-attachment.txt', mimeType: 'text/plain', buffer: Buffer.from('FAKE fixture attachment') });
+        try {
+            await expect(composer.locator('.chat-file-chip')).toContainText('上传中');
+            await expect(button(composer, label('chat.send', '发送'))).toBeDisabled();
+            await input.press('Enter');
+            expect(mockApi.calls('POST', '/api/agent/stream')).toEqual([]);
+        } finally {
+            releaseUpload();
+        }
+        if (uploadFails) {
+            await expect(composer.locator('.chat-file-chip')).toContainText('上传失败');
+            await input.press('Enter');
+            await expect(input).toHaveValue(message);
+            await expect(page.getByText(label('chat.attachmentsUploadIncomplete', '存在上传失败的附件，请移除后再发送'), { exact: true })).toBeVisible();
+            expect(mockApi.calls('POST', '/api/agent/stream')).toEqual([]);
+            await composer.locator('.chat-file-chip .semi-tag-close').click();
+            await expect(composer.locator('.chat-file-chip')).toHaveCount(0);
+        } else {
+            await expect(composer.locator('.chat-file-chip')).toContainText('已上传');
+        }
+        await input.press('Enter');
+        await expect(page).toHaveURL(new RegExp(`#/chat\\?conversation=${id}$`));
+        expect(mockApi.calls('POST', '/api/agent/stream')[0].body).toEqual({
+            message,
+            conversationId: '',
+            ...(uploadFails ? {} : { attachments: [{ fileName: 'fixture-attachment.txt', mimeType: 'text/plain', serverPath: '/tmp/fixture-attachment.txt' }] })
+        });
+    });
+}
+
 for (const width of [1440, 1024, 390]) {
     test(`chat: header spacing and session settings stay usable at ${width}px`, async ({ page, mockApi }, testInfo) => {
         await page.setViewportSize({ width, height: 900 });
         const longTitle = '用于验证对话页标题换行与操作区布局的长会话名称'.repeat(4);
-        mockApi.respond('GET', `/api/conversations/${CONVERSATION.id}`, { json: { ...CONVERSATION, title: longTitle } });
+        mockApi.respond('GET', `/api/conversations/${CONVERSATION.id}`, { json: { ...CONVERSATION, title: longTitle, projectId: PROJECT.id } });
+        mockApi.respond('GET', '/api/config', { json: { ai: {
+            default_channel: 'fixture-long-model',
+            channels: { 'fixture-long-model': { name: '用于验证输入区长名称的模型通道'.repeat(3), model: 'fixture-model' } }
+        } } });
         mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
         mockApi.respond('GET', '/api/hitl/default-config', { json: { defaultMode: 'off' } });
         mockApi.respond('GET', `/api/hitl/config/${CONVERSATION.id}`, { json: { enabled: false, mode: 'off' } });
@@ -358,7 +411,38 @@ for (const width of [1440, 1024, 390]) {
             }
             await expect(button(composer, label('chat.send', '发送'))).toBeInViewport({ ratio: 1 });
             await assertNoOverflow(page);
+            const context = composer.locator('.chat-composer-context');
+            await expect(context.getByRole('combobox')).toHaveCount(2);
+            const project = context.locator('.chat-composer-project');
+            await expect(project).toHaveText(stored ? PROJECT.name : label('chat.noProject', '不绑定项目'));
+            const box = await composer.locator('.chat-composer-box').boundingBox();
+            for (const control of await context.getByRole('combobox').all()) {
+                await expect(control).toBeInViewport({ ratio: 1 });
+                const bounds = await control.boundingBox();
+                expect(bounds.y + bounds.height).toBeLessThanOrEqual(box.y);
+            }
+            const attachment = button(composer, label('chat.attachmentsLabel', '附件'));
+            const hitl = button(composer, label('chat.hitlTitle'));
+            const model = button(composer, label('chat.modelSettingsAria'));
+            const send = button(composer, label('chat.send', '发送'));
+            const toolbarBoxes = [];
+            for (const control of [attachment, hitl, model, send]) {
+                await expect(control).toBeInViewport({ ratio: 1 });
+                toolbarBoxes.push(await control.boundingBox());
+            }
+            for (let index = 1; index < toolbarBoxes.length; index++) {
+                expect(toolbarBoxes[index].x).toBeGreaterThanOrEqual(toolbarBoxes[index - 1].x + toolbarBoxes[index - 1].width);
+            }
             await screenshot(page, testInfo, `chat-header-${stored ? 'long-title' : 'new'}-${width}`);
+            await model.click();
+            const modelPopover = page.locator('.chat-model-popover');
+            await expect(modelPopover.getByRole('combobox', { name: label('chat.reasoningEffortLabel') })).toBeVisible();
+            await expect(modelPopover).toBeInViewport({ ratio: 1 });
+            const popoverBox = await modelPopover.boundingBox();
+            expect(popoverBox.x).toBeGreaterThanOrEqual(0);
+            expect(popoverBox.x + popoverBox.width).toBeLessThanOrEqual(width);
+            await title.click();
+            await expect(modelPopover).not.toBeVisible();
 
             await input.fill('保留会话草稿');
             await settingsButton.click();
@@ -424,10 +508,10 @@ test.describe('chat: read-only permissions', () => {
         await expect(button(main, label('chat.send', '发送'))).toBeDisabled();
         await expect(button(main, label('chat.attachmentsLabel', '附件'))).toBeDisabled();
         await expect(main.getByText(label('chat.noWritePermission', '当前账号没有对话写入权限（chat:write），发送已禁用。'), { exact: true })).toBeVisible();
-        await readsCompleted(mockApi, ['/api/projects']);
-        await main.locator('.chat-composer').getByRole('combobox').filter({ hasText: label('chat.noProject', '不绑定项目') }).click();
-        await expect(page.getByRole('option', { name: PROJECT.name })).toBeVisible();
-        await expect(page.getByRole('option').filter({ hasText: `+ ${label('projects.newProject', '新建项目')}` })).toHaveCount(0);
+        await readsCompleted(mockApi, ['/api/projects', '/api/conversations']);
+        await expect(button(main, label('chat.batchManage', '批量管理'))).toHaveCount(0);
+        await expect(main.locator('.chat-composer-context').getByRole('combobox').filter({ hasText: label('chat.noProject', '不绑定项目') })).toBeDisabled();
+        await expect(main.locator('.chat-composer-mode')).toBeDisabled();
         // Send real keyboard events, without force-enabling a disabled application control.
         await main.locator('.chat-header-title').click();
         await page.keyboard.press('Enter');
@@ -462,6 +546,129 @@ test('chat: select stored conversation and restore it after reload', async ({ pa
     expect(mockApi.writes()).toEqual([]);
 });
 
+test.describe('chat: batch selection', () => {
+    test.use({ appPermissions: [...UI_PERMISSIONS, 'chat:delete'] });
+    const conversations = Array.from({ length: 23 }, (_, index) => ({
+        ...CONVERSATION,
+        id: `fixture-batch-${index + 1}`,
+        title: `批量示例 ${String(index + 1).padStart(2, '0')}`,
+        projectId: index % 2 ? PROJECT.id : ''
+    }));
+
+    test.beforeEach(async ({ mockApi }) => {
+        let remaining = [...conversations];
+        mockApi.respond('GET', '/api/conversations', (_, url) => {
+            const search = url.searchParams.get('search') || '';
+            const project = url.searchParams.get('project_id') || '';
+            const filtered = remaining.filter(item => item.title.includes(search) && (!project || item.projectId === project));
+            const offset = Number(url.searchParams.get('offset') || 0);
+            const limit = Number(url.searchParams.get('limit') || 20);
+            return { json: { conversations: filtered.slice(offset, offset + limit), total: filtered.length } };
+        });
+        for (const item of conversations) {
+            mockApi.respond('DELETE', `/api/conversations/${item.id}`, () => {
+                remaining = remaining.filter(row => row.id !== item.id);
+                return { json: { success: true } };
+            });
+        }
+    });
+
+    for (const width of [1440, 390]) {
+        test(`select, clear and delete only the current page at ${width}px`, async ({ page, mockApi }, testInfo) => {
+            await page.setViewportSize({ width, height: 1000 });
+            const main = await visit(page, 'chat');
+            if (width < 900) await button(main, label('chat.conversations', '会话')).click();
+            const sidebar = page.locator('.chat-sidebar-inner:visible');
+            await expect(sidebar.locator('.chat-conv-item')).toHaveCount(20);
+            await button(sidebar, label('chat.batchManage', '批量管理')).click();
+            const bar = sidebar.locator('.chat-batch-bar');
+            const selectPage = bar.getByRole('checkbox', { name: label('chat.selectPage') });
+            const rows = sidebar.locator('.chat-conv-check');
+            const deleteButton = button(bar, label('chat.batchDelete', '批量删除'));
+            await expect(selectPage).not.toBeChecked();
+            await expect(deleteButton).toBeDisabled();
+
+            await bar.getByText(label('chat.selectPage'), { exact: true }).click();
+            await expect(sidebar.locator('.chat-conv-check input:checked')).toHaveCount(20);
+            await expect(bar).toContainText('已选 20');
+            await bar.getByText(label('chat.selectPage'), { exact: true }).click();
+            await expect(sidebar.locator('.chat-conv-check input:checked')).toHaveCount(0);
+            await expect(deleteButton).toBeDisabled();
+
+            await rows.first().click();
+            await expect(bar.locator('.chat-batch-select-all')).toHaveClass(/semi-checkbox-indeterminate/);
+            await bar.getByText(label('chat.selectPage'), { exact: true }).click();
+            await rows.last().click();
+            await expect(bar).toContainText('已选 19');
+            await expect(bar.locator('.chat-batch-select-all')).toHaveClass(/semi-checkbox-indeterminate/);
+            await rows.last().click();
+            await expect(selectPage).toBeChecked();
+            await expect(bar.locator('.chat-batch-select-all')).not.toHaveClass(/semi-checkbox-indeterminate/);
+            await selectPage.focus();
+            await page.keyboard.press('Space');
+            await expect(sidebar.locator('.chat-conv-check input:checked')).toHaveCount(0);
+            await bar.getByText(label('chat.selectPage'), { exact: true }).click();
+            await expect(deleteButton).toBeInViewport({ ratio: 1 });
+            await expect(selectPage).toBeInViewport({ ratio: 1 });
+            const sizes = await bar.evaluate(element => ({ width: element.clientWidth, scroll: element.scrollWidth }));
+            expect(sizes.scroll).toBeLessThanOrEqual(sizes.width);
+            await screenshot(page, testInfo, `chat-batch-selection-${width}`);
+            expect(mockApi.writes()).toEqual([]);
+
+            await deleteButton.click();
+            await expect(bar).toHaveCount(0);
+            await expect(sidebar.locator('.chat-conv-item')).toHaveCount(3);
+            expect(mockApi.writes().map(call => `${call.method} ${call.path}`).sort()).toEqual(
+                conversations.slice(0, 20).map(item => `DELETE /api/conversations/${item.id}`).sort()
+            );
+        });
+    }
+
+    test('resets selections on pagination, search, project filtering and cancel', async ({ page, mockApi }) => {
+        await visit(page, 'chat');
+        const sidebar = page.locator('.chat-sidebar-inner:visible');
+        const manage = button(sidebar, label('chat.batchManage', '批量管理'));
+        const bar = sidebar.locator('.chat-batch-bar');
+        const selectPage = bar.getByRole('checkbox', { name: label('chat.selectPage') });
+        await manage.click();
+        await bar.getByText(label('chat.selectPage'), { exact: true }).click();
+        await sidebar.getByRole('button', { name: 'Next', exact: true }).click();
+        await expect(bar).toHaveCount(0);
+        await expect(sidebar.locator('.chat-conv-item')).toHaveCount(3);
+        await manage.click();
+        await expect(bar).toContainText('已选 0');
+        await bar.getByText(label('chat.selectPage'), { exact: true }).click();
+        await expect(bar).toContainText('已选 3');
+
+        await sidebar.getByRole('textbox', { name: label('chat.searchHistory', '搜索历史对话') }).fill('批量示例 2');
+        await expect(bar).toHaveCount(0);
+        await expect(sidebar.locator('.chat-conv-item')).toHaveCount(4);
+        await manage.click();
+        await expect(bar).toContainText('已选 0');
+        await bar.getByText(label('chat.selectPage'), { exact: true }).click();
+        await expect(bar).toContainText('已选 4');
+
+        await sidebar.getByRole('combobox').filter({ hasText: label('chat.filterAllProjects', '全部项目') }).click();
+        await page.getByRole('option').filter({ hasText: PROJECT.name }).click();
+        await expect(bar).toHaveCount(0);
+        await expect(sidebar.locator('.chat-conv-item')).toHaveCount(2);
+        await manage.click();
+        await expect(bar).toContainText('已选 0');
+        await bar.getByText(label('chat.selectPage'), { exact: true }).click();
+        await expect(bar).toContainText('已选 2');
+        await button(sidebar, label('common.cancel', '取消')).click();
+        await manage.click();
+        await expect(selectPage).not.toBeChecked();
+        await expect(button(bar, label('chat.batchDelete', '批量删除'))).toBeDisabled();
+
+        await sidebar.getByRole('textbox', { name: label('chat.searchHistory', '搜索历史对话') }).fill('没有匹配的会话');
+        await expect(sidebar.locator('.chat-conv-item')).toHaveCount(0);
+        await expect(manage).toHaveCount(0);
+        await expect(bar).toHaveCount(0);
+        expect(mockApi.writes()).toEqual([]);
+    });
+});
+
 test('chat: floating composer stays aligned and shows focus', async ({ page, mockApi }, testInfo) => {
     mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
     await page.goto(`/static/app/#/chat?conversation=${CONVERSATION.id}`);
@@ -484,7 +691,7 @@ test('chat: floating composer stays aligned and shows focus', async ({ page, moc
     expect(box.width).toBeLessThanOrEqual(footer.width);
     await expect(composer).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     await expect(composerBox).toHaveCSS('border-top-width', '1px');
-    await expect(composerBox).toHaveCSS('border-radius', '16px');
+    await expect(composerBox).toHaveCSS('border-radius', '20px');
 
     const borderColor = await composerBox.evaluate(node => getComputedStyle(node).borderTopColor);
     await input.click();

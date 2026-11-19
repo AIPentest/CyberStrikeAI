@@ -82,9 +82,61 @@ function SettingSelect({ label, ...props }) {
     );
 }
 
+export function ModelSettings({ model, busy, canReadConfig }) {
+    const t = useT();
+    const defaultId = model.config.data?.default_channel;
+    const defaultName = defaultId ? modelChannelName(defaultId, model.config.data?.channels?.[defaultId]) : '';
+    const defaultLabel = t('chat.aiChannelDefault', null, '跟随默认通道');
+    const channelOptions = [
+        { value: '', label: defaultName ? `${defaultLabel} · ${defaultName}` : defaultLabel },
+        ...modelChannelOptions(model.channels)
+    ];
+    const reasoningLabels = {
+        default: t('chat.reasoningModeDefault', null, '跟随系统'),
+        off: t('chat.reasoningModeOff', null, '关闭'),
+        on: t('chat.reasoningModeOn', null, '开启'),
+        auto: t('chat.reasoningModeAuto', null, '自动')
+    };
+    return (
+        <>
+            {canReadConfig && (
+                <>
+                    <SettingSelect
+                        label={t('chat.aiChannelLabel', null, 'AI 通道')}
+                        value={model.channel}
+                        optionList={channelOptions}
+                        renderSelectedItem={selectedModelChannelName}
+                        onSelect={model.setChannel}
+                        loading={model.config.loading}
+                        disabled={busy || model.config.loading || Boolean(model.config.error)}
+                    />
+                    <ErrorBanner error={model.config.error} onRetry={() => model.config.reload()} />
+                </>
+            )}
+            <SettingSelect
+                label={t('chat.reasoningModeLabel', null, '模型推理')}
+                value={model.mode}
+                optionList={REASONING_MODES.map(value => ({ value, label: reasoningLabels[value] }))}
+                onSelect={model.setMode}
+                disabled={busy}
+            />
+            <SettingSelect
+                label={t('chat.reasoningEffortLabel', null, '推理强度')}
+                value={model.mode === 'off' ? '' : model.effort}
+                optionList={[
+                    { value: '', label: t('chat.reasoningEffortUnset', null, '不指定') },
+                    ...REASONING_EFFORTS.map(value => ({ value, label: value }))
+                ]}
+                onSelect={model.setEffort}
+                disabled={busy || model.mode === 'off'}
+            />
+        </>
+    );
+}
+
 export default function ChatSettings({
     onClose, narrow, busy, canReadConfig, canReadHitl, canEnableHitl,
-    model, conversationId, draftHitl, onDraftHitlChange
+    model, conversationId, draftHitl, onDraftHitlChange, section = 'all'
 }) {
     const t = useT();
     const [saving, setSaving] = useState(false);
@@ -109,19 +161,6 @@ export default function ChatSettings({
         setToolsDirty(false);
     }, [approvals.data, conversationId]);
 
-    const defaultId = model.config.data?.default_channel;
-    const defaultName = defaultId ? modelChannelName(defaultId, model.config.data?.channels?.[defaultId]) : '';
-    const defaultLabel = t('chat.aiChannelDefault', null, '跟随默认通道');
-    const channelOptions = [
-        { value: '', label: defaultName ? `${defaultLabel} · ${defaultName}` : defaultLabel },
-        ...modelChannelOptions(model.channels)
-    ];
-    const reasoningLabels = {
-        default: t('chat.reasoningModeDefault', null, '跟随系统'),
-        off: t('chat.reasoningModeOff', null, '关闭'),
-        on: t('chat.reasoningModeOn', null, '开启'),
-        auto: t('chat.reasoningModeAuto', null, '自动')
-    };
     const modeLabels = {
         off: t('chat.hitlModeOff', null, '关闭'),
         approval: t('chat.hitlModeApproval', null, '审批模式'),
@@ -188,7 +227,7 @@ export default function ChatSettings({
     return (
         <SideSheet
             visible
-            title={t('chat.sessionSettingsTitle', null, '会话设置')}
+            title={section === 'hitl' ? t('chat.hitlTitle', null, '人机协同') : t('chat.sessionSettingsTitle', null, '会话设置')}
             width={narrow ? '100%' : 420}
             closable={!saving}
             maskClosable={!saving}
@@ -196,40 +235,10 @@ export default function ChatSettings({
             onCancel={onClose}
         >
             <div className="chat-settings-fields">
-                {canReadConfig && (
-                    <>
-                        <SettingSelect
-                            label={t('chat.aiChannelLabel', null, 'AI 通道')}
-                            value={model.channel}
-                            optionList={channelOptions}
-                            renderSelectedItem={selectedModelChannelName}
-                            onSelect={model.setChannel}
-                            loading={model.config.loading}
-                            disabled={busy || model.config.loading || Boolean(model.config.error)}
-                        />
-                        <ErrorBanner error={model.config.error} onRetry={() => model.config.reload()} />
-                    </>
-                )}
-                <SettingSelect
-                    label={t('chat.reasoningModeLabel', null, '模型推理')}
-                    value={model.mode}
-                    optionList={REASONING_MODES.map(value => ({ value, label: reasoningLabels[value] }))}
-                    onSelect={model.setMode}
-                    disabled={busy}
-                />
-                <SettingSelect
-                    label={t('chat.reasoningEffortLabel', null, '推理强度')}
-                    value={model.mode === 'off' ? '' : model.effort}
-                    optionList={[
-                        { value: '', label: t('chat.reasoningEffortUnset', null, '不指定') },
-                        ...REASONING_EFFORTS.map(value => ({ value, label: value }))
-                    ]}
-                    onSelect={model.setEffort}
-                    disabled={busy || model.mode === 'off'}
-                />
+                {section !== 'hitl' && <ModelSettings model={model} busy={busy} canReadConfig={canReadConfig} />}
                 {canReadHitl && (
                     <section className="chat-setting-field chat-setting-hitl">
-                        <Text strong>{t('chat.hitlTitle', null, '人机协同')}</Text>
+                        {section !== 'hitl' && <Text strong>{t('chat.hitlTitle', null, '人机协同')}</Text>}
                         <Text type="tertiary" size="small">
                             {t('chat.sessionSettingsHint', null, '人机协同设置只影响后续消息。')}
                         </Text>

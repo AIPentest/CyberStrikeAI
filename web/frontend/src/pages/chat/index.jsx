@@ -69,11 +69,12 @@ export default function Page() {
     const [projectFilter, setProjectFilter] = useState('');
     const [page, setPage] = useState(1);
     const [newProjectId, setNewProjectId] = useState('');
+    const [projectSaving, setProjectSaving] = useState(false);
     const [projectFormOpen, setProjectFormOpen] = useState(false);
     const [storedMode, setStoredMode] = useLocalStorage(MODE_STORAGE_KEY, 'single');
     const mode = AGENT_MODES.includes(storedMode) ? storedMode : 'single';
     const model = useModelPreferences(canReadConfig);
-    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState('');
     const [draftHitl, setDraftHitl] = useState(null);
 
     const [detail, setDetail] = useState(EMPTY_DETAIL);
@@ -132,7 +133,7 @@ export default function Page() {
             ...previous,
             projects: [project, ...(previous?.projects || [])]
         }));
-        setNewProjectId(project.id);
+        void changeProject(project.id);
     };
 
     const listItems = Array.isArray(conversations.data?.conversations) ? conversations.data.conversations : [];
@@ -276,6 +277,29 @@ export default function Page() {
         reloadConversations.current?.({ silent: true });
     }, []);
 
+    const changeProject = async value => {
+        if (!canWrite || sending || backgroundRunning || checkingRun || projectSaving) return;
+        const projectId = value || '';
+        const id = conversationRef.current;
+        if (!id) {
+            setNewProjectId(projectId);
+            return;
+        }
+        if (detail.conversation?.id !== id || detail.loading || detail.error) return;
+        setProjectSaving(true);
+        try {
+            await api.put(`/conversations/${encodeURIComponent(id)}/project`, { projectId });
+            setDetail(previous => previous.conversation?.id === id
+                ? { ...previous, conversation: { ...previous.conversation, projectId } }
+                : previous);
+            reloadList();
+        } catch (error) {
+            toastError(error, t('chat.projectChangeFailed', null, '更新对话所属项目失败'));
+        } finally {
+            setProjectSaving(false);
+        }
+    };
+
     const clearSelection = useCallback(() => setDetail(EMPTY_DETAIL), []);
 
     const {
@@ -380,7 +404,7 @@ export default function Page() {
     }, [conversationId, updateComposer]);
 
     const submit = useCallback(() => {
-        if (!canWrite || !canExecute || sending || backgroundRunning || checkingRun || model.waitingForChannel) return;
+        if (!canWrite || !canExecute || sending || backgroundRunning || checkingRun || projectSaving || model.waitingForChannel) return;
         const text = draft.trim();
         if (!text && !attachments.length) {
             toastWarning(t('chat.emptyMessage', null, '请输入内容或添加附件'));
@@ -417,7 +441,7 @@ export default function Page() {
             ...model.request,
             hitl: !conversationId && canDecideHitl ? draftHitl || undefined : undefined
         });
-    }, [attachments, backgroundRunning, canWrite, canExecute, canDecideHitl, checkingRun, conversationId, draft, draftHitl, mode, model, newProjectId, resetRun, run, sending, t, updateComposer]);
+    }, [attachments, backgroundRunning, canWrite, canExecute, canDecideHitl, checkingRun, conversationId, draft, draftHitl, mode, model, newProjectId, projectSaving, resetRun, run, sending, t, updateComposer]);
 
     const conversation = detail.conversation;
 
@@ -462,7 +486,7 @@ export default function Page() {
                     onToggleSidebar={() => setSidebarOpen(true)}
                     onOpenUsage={() => setUsageOpen(true)}
                     onOpenSettings={canReadConfig || canReadHitl || (canWrite && canExecute)
-                        ? () => setSettingsOpen(true) : undefined}
+                        ? () => setSettingsOpen('all') : undefined}
                     onOpenPlan={() => {
                         refreshPlan();
                         setPlanOpen(true);
@@ -534,17 +558,20 @@ export default function Page() {
                         onStop={stop}
                         canStop={canStop}
                         sending={sending || backgroundRunning}
-                        checkingRun={checkingRun || model.waitingForChannel}
+                        checkingRun={checkingRun || projectSaving || model.waitingForChannel}
                         canWrite={canWrite}
                         canExecute={canExecute}
                         mode={mode}
                         onModeChange={value => setStoredMode(AGENT_MODES.includes(value) ? value : 'single')}
-                        projectId={newProjectId}
-                        onProjectChange={value => setNewProjectId(value || '')}
-                        onCreateProject={canCreateProject && !projectsResource.loading
+                        projectId={conversationId ? conversation?.projectId || '' : newProjectId}
+                        onProjectChange={changeProject}
+                        onCreateProject={canCreateProject && canWrite && !projectsResource.loading
                             ? () => setProjectFormOpen(true) : undefined}
                         projects={projects}
-                        showProjectSelect={!conversationId}
+                        projectDisabled={projectsResource.loading || Boolean(conversationId && (detail.loading || !conversation || detail.error))}
+                        model={model}
+                        canReadConfig={canReadConfig}
+                        onOpenHitl={canReadHitl ? () => setSettingsOpen('hitl') : undefined}
                         attachments={attachments}
                         onPickFiles={uploadFiles}
                         onRemoveAttachment={removeAttachment}
@@ -562,7 +589,8 @@ export default function Page() {
             {settingsOpen && (
                 <ChatSettings
                     key={conversationId}
-                    onClose={() => setSettingsOpen(false)}
+                    section={settingsOpen}
+                    onClose={() => setSettingsOpen('')}
                     narrow={narrow}
                     busy={sending || backgroundRunning || checkingRun || !(canWrite && canExecute)}
                     canReadConfig={canReadConfig}

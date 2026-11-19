@@ -798,6 +798,8 @@
     "sortByCreatedAt": "وقت الإنشاء",
     "sortByUpdatedAt": "وقت التحديث",
     "batchManage": "إدارة مجمّعة",
+    "selectPage": "تحديد الكل في هذه الصفحة",
+    "projectChangeFailed": "تعذّر تحديث مشروع المحادثة",
     "paginationShow": "عرض {{start}}-{{end}} من {{total}}",
     "paginationRange": "{{start}}-{{end}}/{{total}}",
     "paginationTotal": "{{total}} إجمالاً",

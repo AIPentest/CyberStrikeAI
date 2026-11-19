@@ -1,4 +1,4 @@
-import { test, expect, visit, ready, label, UI_PERMISSIONS, CONVERSATION, ASSESSMENT, STAMP } from './fixtures.mjs';
+import { test, expect, visit, ready, label, UI_PERMISSIONS, PROJECT, CONVERSATION, ASSESSMENT, STAMP } from './fixtures.mjs';
 
 test('token usage: summary values render with daily rows and update to zero after filtering', async ({ page, mockApi }, testInfo) => {
     const summary = {
@@ -80,6 +80,136 @@ test('refreshing a conversation detects an active backend run and disables dupli
     await expect(main.getByRole('button', { name: /停止$/ })).toBeDisabled();
     await expect(main.getByRole('button', { name: /发送$/ })).toHaveCount(0);
     expect(mockApi.writes()).toEqual([]);
+});
+
+function mockEmptyConversation(mockApi, projectId = '') {
+    const conversation = { ...CONVERSATION, projectId, messages: [] };
+    mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
+    mockApi.respond('GET', `/api/conversations/${conversation.id}`, () => ({ json: conversation }));
+    mockApi.respond('GET', '/api/conversations', () => ({ json: { conversations: [conversation], total: 1 } }));
+    return conversation;
+}
+
+test.describe('chat composer projects', () => {
+    test('binds and unbinds an existing empty conversation without losing its draft or sending during save', async ({ page, mockApi }) => {
+        const conversation = mockEmptyConversation(mockApi);
+        const path = `/api/conversations/${conversation.id}/project`;
+        const noProject = label('chat.noProject', '不绑定项目');
+        const draft = 'FAKE：切换项目时保留这份会话草稿。';
+        let releaseSave;
+        const pendingSave = new Promise(resolve => { releaseSave = resolve; });
+        mockApi.respond('PUT', path, async request => {
+            await pendingSave;
+            conversation.projectId = request.body.projectId;
+            return { json: { success: true, projectId: conversation.projectId } };
+        });
+        try {
+            const main = await visit(page, `chat?conversation=${conversation.id}`);
+            const context = main.locator('.chat-composer-context');
+            const project = context.getByRole('combobox').filter({ hasText: new RegExp(`${noProject}|${PROJECT.name}`) });
+            const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+            const send = main.getByRole('button', { name: /发送$/ });
+            // The header may display the project name or its existing abbreviated ID.
+            const headerProject = main.locator('.chat-header-tags .semi-tag').filter({ hasText: new RegExp(`${PROJECT.name}|${PROJECT.id.slice(0, 8)}`) });
+            await expect(context.getByRole('combobox')).toHaveCount(2);
+            await expect(project).toHaveText(noProject);
+            await expect(headerProject).toHaveCount(0);
+            await input.fill(draft);
+            await expect(send).toBeEnabled();
+            await expect.poll(() => mockApi.calls('GET', '/api/conversations').some(call => call.fulfilled)).toBe(true);
+            const initialListReads = mockApi.calls('GET', '/api/conversations').length;
+
+            await project.click();
+            await page.getByRole('listbox').getByText(PROJECT.name, { exact: true }).click();
+            await expect.poll(() => mockApi.calls('PUT', path).length).toBe(1);
+            expect(mockApi.calls('PUT', path)[0].body).toEqual({ projectId: PROJECT.id });
+            await expect(project).toBeDisabled();
+            await expect(send).toBeDisabled();
+            await input.press('Enter');
+            await expect(input).toHaveValue(draft);
+            expect(mockApi.writes().map(call => call.path)).toEqual([path]);
+
+            releaseSave();
+            await expect(project).toBeEnabled();
+            await expect(project).toHaveText(PROJECT.name);
+            await expect(headerProject).toBeVisible();
+            await expect(main.getByRole('heading', { name: conversation.title, exact: true })).toBeVisible();
+            await expect.poll(() => mockApi.calls('GET', '/api/conversations').length).toBeGreaterThan(initialListReads);
+            await expect(input).toHaveValue(draft);
+            const boundListReads = mockApi.calls('GET', '/api/conversations').length;
+
+            await project.click();
+            await page.getByRole('listbox').getByText(noProject, { exact: true }).click();
+            await expect(project).toBeEnabled();
+            await expect(project).toHaveText(noProject);
+            await expect(headerProject).toHaveCount(0);
+            await expect(send).toBeEnabled();
+            await expect(input).toHaveValue(draft);
+            await expect.poll(() => mockApi.calls('GET', '/api/conversations').length).toBeGreaterThan(boundListReads);
+            expect(mockApi.writes().map(({ method, path, body }) => ({ method, path, body }))).toEqual([
+                { method: 'PUT', path, body: { projectId: PROJECT.id } },
+                { method: 'PUT', path, body: { projectId: '' } }
+            ]);
+        } finally {
+            releaseSave();
+        }
+    });
+
+    test('keeps the server project and draft when an existing empty conversation cannot be unbound', async ({ page, mockApi }) => {
+        const conversation = mockEmptyConversation(mockApi, PROJECT.id);
+        const path = `/api/conversations/${conversation.id}/project`;
+        const draft = 'FAKE：保存失败也不能丢失这份草稿。';
+        mockApi.fail('PUT', path, 'fixture 项目保存失败');
+        const main = await visit(page, `chat?conversation=${conversation.id}`);
+        const context = main.locator('.chat-composer-context');
+        const project = context.getByRole('combobox').filter({ hasText: PROJECT.name });
+        const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+        const headerProject = main.locator('.chat-header-tags .semi-tag').filter({ hasText: new RegExp(`${PROJECT.name}|${PROJECT.id.slice(0, 8)}`) });
+        await expect(project).toHaveText(PROJECT.name);
+        await expect(headerProject).toBeVisible();
+        await input.fill(draft);
+        await project.click();
+        await page.getByRole('listbox').getByText(label('chat.noProject', '不绑定项目'), { exact: true }).click();
+        await expect(page.getByText('fixture 项目保存失败', { exact: false })).toBeVisible();
+        await expect(project).toBeEnabled();
+        await expect(project).toHaveText(PROJECT.name);
+        await expect(headerProject).toBeVisible();
+        await expect(input).toHaveValue(draft);
+        await expect(main.getByRole('button', { name: /发送$/ })).toBeEnabled();
+        expect(mockApi.writes().map(({ method, path, body }) => ({ method, path, body }))).toEqual([
+            { method: 'PUT', path, body: { projectId: '' } }
+        ]);
+        expect(conversation.projectId).toBe(PROJECT.id);
+    });
+
+    test('selects a new conversation project locally and includes it only in the first send', async ({ page, mockApi }) => {
+        mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
+        const message = 'FAKE：整理这个示例项目的工作记录。';
+        const id = mockApi.enableChatStream(message);
+        const main = await visit(page, 'chat');
+        const context = main.locator('.chat-composer-context');
+        const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+        await expect(context.getByRole('combobox')).toHaveCount(2);
+        await input.fill(message);
+        await context.getByRole('combobox').filter({ hasText: label('chat.agentModePiSingle') }).click();
+        for (const key of ['chat.agentModePiSingle', 'chat.agentModeDeep', 'chat.agentModePlanExecuteLabel', 'chat.agentModeSupervisorLabel']) {
+            await expect(page.getByRole('listbox').getByText(label(key), { exact: true })).toBeVisible();
+        }
+        await page.getByRole('listbox').getByText(label('chat.agentModePiSingle'), { exact: true }).click();
+        await context.getByRole('combobox').filter({ hasText: label('chat.noProject', '不绑定项目') }).click();
+        await page.getByRole('listbox').getByText(PROJECT.name, { exact: true }).click();
+        await expect(context.getByRole('combobox').filter({ hasText: PROJECT.name })).toBeVisible();
+        await expect(input).toHaveValue(message);
+        await expect(page).toHaveURL(/#\/chat$/);
+        expect(mockApi.writes()).toEqual([]);
+
+        await input.press('Enter');
+        await expect(page).toHaveURL(new RegExp(`#/chat\\?conversation=${id}$`));
+        expect(mockApi.writes().map(({ method, path, body }) => ({ method, path, body }))).toEqual([{
+            method: 'POST', path: '/api/agent/stream',
+            body: { message, conversationId: '', projectId: PROJECT.id }
+        }]);
+    });
 });
 
 test.describe('chat session settings', () => {
@@ -288,6 +418,213 @@ test.describe('chat session settings', () => {
         await expect(mode).toHaveText(label('chat.hitlModeOff'));
         await expect.poll(() => mockApi.calls('GET', path).length).toBeGreaterThanOrEqual(2);
         expect(mockApi.calls('PUT', '/api/hitl/config')).toHaveLength(1);
+    });
+
+    for (const reasoningMode of ['off', 'on']) {
+        test(`composer model popover persists preferences and sends reasoning ${reasoningMode}`, async ({ page, mockApi }) => {
+            mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
+            mockApi.respond('GET', '/api/config', { json: { ai: {
+                default_channel: 'demo-primary',
+                channels: {
+                    'demo-primary': { name: '示例通道 A', model: 'fixture-a' },
+                    'demo-backup': { name: '示例通道 B', model: 'fixture-b' }
+                }
+            } } });
+            const message = `FAKE：使用推理 ${reasoningMode} 整理示例文本。`;
+            const id = mockApi.enableChatStream(message);
+            const main = await visit(page, 'chat');
+            const openModel = main.getByRole('button', { name: label('chat.modelSettingsAria'), exact: true });
+            await expect(openModel).toHaveClass(/chat-composer-model/);
+            await openModel.click();
+            const popover = page.locator('.chat-model-popover');
+            const channel = popover.getByRole('combobox', { name: label('chat.aiChannelLabel'), exact: true });
+            const mode = popover.getByRole('combobox', { name: label('chat.reasoningModeLabel'), exact: true });
+            const effort = popover.getByRole('combobox', { name: label('chat.reasoningEffortLabel'), exact: true });
+            await expect(popover).toBeVisible();
+            await expect(popover.getByRole('combobox')).toHaveCount(3);
+            await expect(popover.getByRole('combobox', { name: label('chat.hitlModeLabel'), exact: true })).toHaveCount(0);
+            await channel.click();
+            await page.getByRole('listbox').getByText('示例通道 B', { exact: true }).click();
+            await mode.click();
+            await page.getByRole('listbox').getByText(label('chat.reasoningModeOn'), { exact: true }).click();
+            await effort.click();
+            await page.getByRole('listbox').getByText('high', { exact: true }).click();
+            await mode.click();
+            await page.getByRole('listbox').getByText(label('chat.reasoningModeOff'), { exact: true }).click();
+            await expect(effort).toBeDisabled();
+            if (reasoningMode === 'on') {
+                await mode.click();
+                await page.getByRole('listbox').getByText(label('chat.reasoningModeOn'), { exact: true }).click();
+                await expect(effort).toBeEnabled();
+                await expect(effort).toHaveText('high');
+            }
+            await expect.poll(() => page.evaluate(() => ({
+                channel: localStorage.getItem('cyberstrike-chat-ai-channel'),
+                mode: localStorage.getItem('cyberstrike-chat-reasoning-mode'),
+                effort: localStorage.getItem('cyberstrike-chat-reasoning-effort')
+            }))).toEqual({ channel: 'demo-backup', mode: reasoningMode, effort: 'high' });
+            await main.locator('.chat-header-title').click();
+            await expect(popover).not.toBeVisible();
+            expect(mockApi.writes()).toEqual([]);
+
+            await page.reload();
+            await ready(page);
+            await openModel.click();
+            await expect(channel).toHaveText('示例通道 B');
+            await expect(mode).toHaveText(label(reasoningMode === 'off' ? 'chat.reasoningModeOff' : 'chat.reasoningModeOn'));
+            if (reasoningMode === 'off') await expect(effort).toBeDisabled();
+            else await expect(effort).toHaveText('high');
+            await main.locator('.chat-header-title').click();
+            const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+            await input.fill(message);
+            await input.press('Enter');
+            await expect(page).toHaveURL(new RegExp(`#/chat\\?conversation=${id}$`));
+            expect(mockApi.writes().map(({ method, path, body }) => ({ method, path, body }))).toEqual([{
+                method: 'POST', path: '/api/agent/stream',
+                body: {
+                    message, conversationId: '', aiChannelId: 'demo-backup',
+                    reasoning: reasoningMode === 'off' ? { mode: 'off' } : { mode: 'on', effort: 'high' }
+                }
+            }]);
+        });
+    }
+
+    test('composer HITL entry edits a local draft in a HITL-only sheet and includes it in the first send', async ({ page, mockApi }) => {
+        mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
+        mockApi.respond('GET', '/api/hitl/default-config', { json: {
+            defaultMode: 'off', defaultReviewer: 'human', defaultTimeoutSeconds: 120, conversationHumanApproval: true
+        } });
+        const message = 'FAKE：保留草稿并使用人机协同整理示例文本。';
+        const id = mockApi.enableChatStream(message);
+        const hitl = {
+            enabled: true, mode: 'approval', reviewer: 'audit_agent',
+            sensitiveTools: ['fixture-read', 'fixture-write'], timeoutSeconds: 60
+        };
+        mockApi.respond('GET', `/api/hitl/config/${id}`, { json: { hitl } });
+        const main = await visit(page, 'chat');
+        const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+        const controls = main.locator('.chat-composer-controls');
+        const openHitl = controls.getByRole('button', { name: label('chat.hitlTitle'), exact: true });
+        await expect(controls.getByRole('button', { name: label('chat.attachmentsLabel', '附件'), exact: true })).toBeEnabled();
+        await input.fill(message);
+        await openHitl.click();
+        const settings = page.getByRole('dialog').filter({ hasText: label('chat.hitlTitle') });
+        await expect(settings).toHaveClass(/semi-sidesheet-inner/);
+        for (const key of ['chat.aiChannelLabel', 'chat.reasoningModeLabel', 'chat.reasoningEffortLabel']) {
+            await expect(settings.getByRole('combobox', { name: label(key), exact: true })).toHaveCount(0);
+        }
+        const mode = settings.getByRole('combobox', { name: label('chat.hitlModeLabel'), exact: true });
+        const timeout = settings.getByRole('combobox', { name: label('chat.hitlTimeoutLabel'), exact: true });
+        const tools = settings.getByRole('textbox', { name: label('chat.hitlWhitelistTools'), exact: true });
+        await expect(mode).toHaveText(label('chat.hitlModeOff'));
+        await mode.click();
+        await page.getByRole('listbox').getByText(label('chat.hitlModeApproval'), { exact: true }).click();
+        await settings.getByText(label('chat.hitlReviewerAgent'), { exact: true }).click();
+        await timeout.click();
+        await page.getByRole('listbox').getByText(label('chat.hitlTimeoutOneMinute'), { exact: true }).click();
+        await tools.fill('fixture-read, fixture-write');
+        await tools.press('Tab');
+        expect(mockApi.writes()).toEqual([]);
+        await settings.locator('button.semi-sidesheet-close').click();
+        await expect(input).toHaveValue(message);
+
+        await openHitl.click();
+        await expect(mode).toHaveText(label('chat.hitlModeApproval'));
+        await expect(settings.getByRole('radio', { name: label('chat.hitlReviewerAgent'), exact: true })).toBeChecked();
+        await expect(timeout).toHaveText(label('chat.hitlTimeoutOneMinute'));
+        await expect(tools).toHaveValue('fixture-read, fixture-write');
+        expect(mockApi.writes()).toEqual([]);
+        await settings.locator('button.semi-sidesheet-close').click();
+        await input.press('Enter');
+        await expect(page).toHaveURL(new RegExp(`#/chat\\?conversation=${id}$`));
+        expect(mockApi.writes().map(({ method, path, body }) => ({ method, path, body }))).toEqual([{
+            method: 'POST', path: '/api/agent/stream', body: { message, conversationId: '', hitl }
+        }]);
+    });
+
+    test('composer HITL entry saves an existing conversation and shares the full header settings', async ({ page, mockApi }) => {
+        const conversation = mockEmptyConversation(mockApi, PROJECT.id);
+        let hitl = {
+            enabled: true, mode: 'approval', reviewer: 'human',
+            sensitiveTools: ['fixture-existing-tool'], timeoutSeconds: 90
+        };
+        mockApi.respond('GET', `/api/hitl/config/${conversation.id}`, () => ({ json: {
+            hitl, defaultTimeoutSeconds: 90, hitlGlobalToolWhitelist: []
+        } }));
+        mockApi.respond('PUT', '/api/hitl/config', request => {
+            const { conversationId, ...config } = request.body;
+            hitl = config;
+            return { json: { ok: true } };
+        });
+        const main = await visit(page, `chat?conversation=${conversation.id}`);
+        const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+        const draft = 'FAKE：保存人机协同设置时保留会话草稿。';
+        await input.fill(draft);
+        const openHitl = main.locator('.chat-composer-controls').getByRole('button', { name: label('chat.hitlTitle'), exact: true });
+        await openHitl.click();
+        const settings = page.getByRole('dialog').filter({ hasText: label('chat.hitlTitle') });
+        const mode = settings.getByRole('combobox', { name: label('chat.hitlModeLabel'), exact: true });
+        await expect(mode).toHaveText(label('chat.hitlModeApproval'));
+        expect(mockApi.writes()).toEqual([]);
+        await mode.click();
+        await page.getByRole('listbox').getByText(label('chat.hitlModeReviewEdit'), { exact: true }).click();
+        await expect.poll(() => mockApi.calls('PUT', '/api/hitl/config').map(call => call.body)).toEqual([{
+            conversationId: conversation.id, enabled: true, mode: 'review_edit', reviewer: 'human',
+            sensitiveTools: ['fixture-existing-tool'], timeoutSeconds: 90
+        }]);
+        await expect(settings.getByRole('status')).toHaveText(label('chat.hitlApplyOkSync'));
+        await settings.locator('button.semi-sidesheet-close').click();
+
+        await main.locator('.chat-header').getByRole('button', { name: label('chat.sessionSettingsTitle'), exact: true }).click();
+        const fullSettings = page.getByRole('dialog').filter({ hasText: label('chat.sessionSettingsTitle') });
+        for (const key of ['chat.aiChannelLabel', 'chat.reasoningModeLabel', 'chat.reasoningEffortLabel']) {
+            await expect(fullSettings.getByRole('combobox', { name: label(key), exact: true })).toBeVisible();
+        }
+        await expect(fullSettings.getByRole('combobox', { name: label('chat.hitlModeLabel'), exact: true })).toHaveText(label('chat.hitlModeReviewEdit'));
+        await fullSettings.locator('button.semi-sidesheet-close').click();
+        await openHitl.click();
+        await expect(mode).toHaveText(label('chat.hitlModeReviewEdit'));
+        await settings.locator('button.semi-sidesheet-close').click();
+        await expect(input).toHaveValue(draft);
+        expect(mockApi.writes()).toHaveLength(1);
+    });
+});
+
+test.describe('chat composer read-only permissions', () => {
+    test.use({ appPermissions: UI_PERMISSIONS.filter(permission => permission !== 'chat:write') });
+
+    test('disables stored project changes and HITL editing without their respective write permissions', async ({ page, mockApi }) => {
+        const conversation = mockEmptyConversation(mockApi, PROJECT.id);
+        mockApi.respond('GET', `/api/hitl/config/${conversation.id}`, { json: {
+            hitl: {
+                enabled: true, mode: 'approval', reviewer: 'human',
+                sensitiveTools: ['fixture-existing-tool'], timeoutSeconds: 90
+            }
+        } });
+        const main = await visit(page, `chat?conversation=${conversation.id}`);
+        const context = main.locator('.chat-composer-context');
+        await expect(context.getByRole('combobox').filter({ hasText: PROJECT.name })).toBeDisabled();
+        await expect(main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') })).toBeDisabled();
+        await expect(main.getByRole('button', { name: /发送$/ })).toBeDisabled();
+        const controls = main.locator('.chat-composer-controls');
+        await expect(controls.getByRole('button', { name: label('chat.attachmentsLabel', '附件'), exact: true })).toBeDisabled();
+        await controls.getByRole('button', { name: label('chat.hitlTitle'), exact: true }).click();
+        const settings = page.getByRole('dialog').filter({ hasText: label('chat.hitlTitle') });
+        const mode = settings.getByRole('combobox', { name: label('chat.hitlModeLabel'), exact: true });
+        const timeout = settings.getByRole('combobox', { name: label('chat.hitlTimeoutLabel'), exact: true });
+        const tools = settings.getByRole('textbox', { name: label('chat.hitlWhitelistTools'), exact: true });
+        await expect(mode).toHaveText(label('chat.hitlModeApproval'));
+        await expect(mode).toBeDisabled();
+        await expect(timeout).toHaveText('90s');
+        await expect(timeout).toBeDisabled();
+        await expect(tools).toHaveValue('fixture-existing-tool');
+        await expect(tools).toBeDisabled();
+        await expect(settings.getByRole('radio', { name: label('chat.hitlReviewerHuman'), exact: true })).toBeChecked();
+        for (const key of ['chat.hitlReviewerHuman', 'chat.hitlReviewerAgent']) {
+            await expect(settings.getByRole('radio', { name: label(key), exact: true })).toBeDisabled();
+        }
+        await settings.locator('button.semi-sidesheet-close').click();
+        expect(mockApi.writes()).toEqual([]);
     });
 });
 

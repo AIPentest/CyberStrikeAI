@@ -105,6 +105,8 @@ export default function ConversationList({
     const [editingTitle, setEditingTitle] = useState('');
     const [batchMode, setBatchMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState([]);
+    const allSelected = list.length > 0 && list.every(item => selectedIds.includes(item.id));
+    const partiallySelected = !allSelected && list.some(item => selectedIds.includes(item.id));
 
     useEffect(() => {
         setSelectedIds([]);
@@ -182,6 +184,15 @@ export default function ConversationList({
             </div>
             {batchMode && (
                 <div className="chat-batch-bar">
+                    <Checkbox
+                        className="chat-batch-select-all"
+                        checked={allSelected}
+                        indeterminate={partiallySelected}
+                        disabled={loading || !list.length}
+                        onChange={event => setSelectedIds(event.target.checked ? list.map(item => item.id) : [])}
+                    >
+                        {t('chat.selectPage', null, '全选本页')}
+                    </Checkbox>
                     <Text size="small">{t('chat.selectedCount', null, '已选')} {selectedIds.length}</Text>
                     <Button
                         size="small"

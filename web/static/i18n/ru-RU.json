@@ -811,6 +811,8 @@
     "sortByCreatedAt": "Время создания",
     "sortByUpdatedAt": "Время изменения",
     "batchManage": "Массовые действия",
+    "selectPage": "Выбрать все на странице",
+    "projectChangeFailed": "Не удалось изменить проект диалога",
     "paginationShow": "Показано {{start}}-{{end}} из {{total}}",
     "paginationRange": "{{start}}-{{end}}/{{total}}",
     "paginationTotal": "Всего {{total}}",

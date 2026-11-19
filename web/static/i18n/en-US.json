@@ -799,6 +799,8 @@
     "sortByCreatedAt": "Created time",
     "sortByUpdatedAt": "Updated time",
     "batchManage": "Batch manage",
+    "selectPage": "Select all on this page",
+    "projectChangeFailed": "Failed to update the conversation project",
     "paginationShow": "Show {{start}}-{{end}} of {{total}}",
     "paginationRange": "{{start}}-{{end}}/{{total}}",
     "paginationTotal": "{{total}} total",

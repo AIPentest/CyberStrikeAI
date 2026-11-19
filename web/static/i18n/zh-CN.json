@@ -787,6 +787,8 @@
     "sortByCreatedAt": "创建时间",
     "sortByUpdatedAt": "更新时间",
     "batchManage": "批量管理",
+    "selectPage": "全选本页",
+    "projectChangeFailed": "更新对话所属项目失败",
     "paginationShow": "显示 {{start}}-{{end}} / 共 {{total}}",
     "paginationRange": "{{start}}-{{end}}/{{total}}",
     "paginationTotal": "共 {{total}} 条",
