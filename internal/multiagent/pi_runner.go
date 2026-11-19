@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"cyberstrike-ai/internal/agent"
 	"cyberstrike-ai/internal/agentruntime"
@@ -340,6 +341,7 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 	}
 	var idsMu sync.Mutex
 	var ids []string
+	plan := make(piRunPlan)
 	var progressMu sync.Mutex
 	var iteration atomic.Int32
 	progress := func(kind, text string, data map[string]any) {
@@ -434,6 +436,11 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 		if err != nil {
 			result.Content = err.Error()
 			result.IsError = true
+		}
+		if options.Native == nil && !r.child && !result.IsError && (localNames[call.Name] || (extraNames[call.Name] && call.Name == "write_todos")) {
+			idsMu.Lock()
+			plan.observe(call, result.Content)
+			idsMu.Unlock()
 		}
 		if r.cfg.MultiAgent.Runtime.ReductionEnable {
 			limit := r.cfg.MultiAgent.Runtime.ReductionMaxLengthForTruncEffective()
@@ -537,7 +544,24 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 				thought += data.Delta.Delta
 				progress("reasoning_chain_stream_delta", data.Delta.Delta, map[string]any{"streamId": reasonID(), "accumulated": thought})
 			}
-		} else if e.Type == "compaction_start" || e.Type == "auto_retry_start" || e.Type == "model_failover" {
+		} else if e.Type == "auto_retry_start" {
+			var retry struct {
+				Attempt      int    `json:"attempt"`
+				MaxAttempts  int    `json:"maxAttempts"`
+				DelayMS      int    `json:"delayMs"`
+				ErrorMessage string `json:"errorMessage"`
+			}
+			if json.Unmarshal(e.Data, &retry) == nil {
+				code, detail := piModelTransportFailure(retry.ErrorMessage)
+				message := fmt.Sprintf("模型请求将在 %s 后重试（%d/%d）。", time.Duration(retry.DelayMS)*time.Millisecond, retry.Attempt, retry.MaxAttempts)
+				if detail != "" {
+					message += detail + "。"
+				}
+				progress("pi_model_retry", message, map[string]any{
+					"attempt": retry.Attempt, "maxAttempts": retry.MaxAttempts, "delayMs": retry.DelayMS, "reasonCode": code,
+				})
+			}
+		} else if e.Type == "compaction_start" || e.Type == "model_failover" {
 			progress("progress", e.Type, map[string]any{})
 		}
 	}
@@ -581,6 +605,13 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 	switch res.Status {
 	case "completed":
 		out.RuntimeStatus = "completed"
+		if plan.unfinished() {
+			out.RuntimeStatus = "blocked"
+			out.RuntimeCompletionReason = ReasonUnfinishedPlan
+		}
+	case "output_truncated":
+		out.RuntimeStatus = "blocked"
+		out.RuntimeCompletionReason = ReasonModelOutputTruncated
 	case "iteration_limit":
 		out.RuntimeStatus = "blocked"
 		out.RuntimeCompletionReason = "iteration_limit"

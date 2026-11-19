@@ -209,3 +209,40 @@ func (r *piRun) executePiPlan(ctx context.Context, call agentruntime.ToolCall) (
 	body, err := json.Marshal(output)
 	return agentruntime.ToolResult{Content: string(body)}, err
 }
+
+// piRunPlan records only plan changes made in this run. Older tasks in
+// the conversation's progress board must not block an unrelated reply.
+type piRunPlan map[string]string
+
+func (plan piRunPlan) observe(call agentruntime.ToolCall, response string) {
+	switch call.Name {
+	case "TaskCreate", "TaskUpdate":
+		var task struct {
+			ID     string `json:"id"`
+			Status string `json:"status"`
+		}
+		if json.Unmarshal([]byte(response), &task) == nil && task.ID != "" {
+			plan[task.ID] = task.Status
+		}
+	case "write_todos":
+		todos, ok := call.Arguments["todos"].([]any)
+		if !ok {
+			return
+		}
+		clear(plan)
+		for i, entry := range todos {
+			item, _ := entry.(map[string]any)
+			status, _ := item["status"].(string)
+			plan[strconv.Itoa(i+1)] = status
+		}
+	}
+}
+
+func (plan piRunPlan) unfinished() bool {
+	for _, status := range plan {
+		if status == "pending" || status == "in_progress" {
+			return true
+		}
+	}
+	return false
+}

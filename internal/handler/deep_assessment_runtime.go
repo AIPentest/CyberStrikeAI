@@ -636,8 +636,7 @@ func (r *deepAssessmentRuntime) Run(ctx context.Context, t *deepassessment.Task,
 		return out, fmt.Errorf("没有成功工具结果或已完成步骤的复用证据，不能确认本步骤完成")
 	}
 	res.Response = out.Summary
-	decision := h.decideAgentRunForDeliveryWithPolicy(conv.ID, assistant.ID, "deep_assessment", res, res.MCPExecutionIDs, false)
-	h.persistFinalizationDecision(conv.ID, assistant.ID, "deep_assessment", res.MCPExecutionIDs, multiagent.AggregatedReasoningFromTraceJSON(res.LastAgentTraceInput), decision)
+	decision := h.finalizeAgentRunForDelivery(conv.ID, assistant.ID, "deep_assessment", res, res.MCPExecutionIDs, multiagent.AggregatedReasoningFromTraceJSON(res.LastAgentTraceInput))
 	if !decision.Finalizable {
 		return out, fmt.Errorf("步骤未满足执行收尾条件: %s", finalizationCheckMessage(decision))
 	}

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -42,21 +43,31 @@ func (h *AgentHandler) finalizeAgentRunForDeliveryWithPolicy(
 	return decision
 }
 
-func (h *AgentHandler) decideAgentRunForDeliveryWithPolicy(
+func (h *AgentHandler) decideAgentRunForDeliveryAndCleanup(
+	ctx context.Context,
 	conversationID string,
 	assistantMessageID string,
 	agentMode string,
 	result *multiagent.RunResult,
 	mcpExecutionIDs []string,
 	requireExecutionEvidence bool,
-) agentfinalizer.Decision {
-	return agentfinalizer.FromRunResult(h.db, result, agentfinalizer.Input{
+	progress func(string, string, interface{}),
+) (agentfinalizer.Decision, []string) {
+	input := agentfinalizer.Input{
 		ConversationID:           conversationID,
 		AssistantMessageID:       assistantMessageID,
 		AgentMode:                agentMode,
 		MCPExecutionIDs:          mcpExecutionIDs,
 		RequireExecutionEvidence: requireExecutionEvidence,
-	})
+	}
+	decision := agentfinalizer.FromRunResult(h.db, result, input)
+	cancelled := h.cleanupPendingToolExecutionsAfterIteration(ctx, conversationID, decision, progress)
+	if len(cancelled) == 0 {
+		return decision, nil
+	}
+	input.Status = agentfinalizer.StatusBlocked
+	input.CompletionReason = agentfinalizer.ReasonPendingToolsCancelled
+	return agentfinalizer.FromRunResult(h.db, result, input), cancelled
 }
 
 func (h *AgentHandler) decideAgentRunForDelivery(
@@ -143,7 +154,7 @@ func (h *AgentHandler) finalizeCandidateForDeliveryWithPolicy(
 
 func finalizationCheckMessage(d agentfinalizer.Decision) string {
 	if d.Finalizable {
-		return "最终回复检查通过。"
+		return "已交付本轮回复。"
 	}
 	return finalizationBlockedMessage(d)
 }
@@ -152,7 +163,18 @@ func finalizationBlockedMessage(d agentfinalizer.Decision) string {
 	if d.CompletionReason == "workflow_rejected" && strings.TrimSpace(d.FinalText) != "" {
 		return d.FinalText
 	}
-	parts := []string{"任务尚未达到最终回复条件，暂不生成成功结论。"}
+	var notice string
+	switch d.CompletionReason {
+	case agentfinalizer.ReasonPendingToolsCancelled:
+		notice = "收尾时取消了仍在运行的工具，任务未完成。"
+	case multiagent.ReasonUnfinishedPlan:
+		notice = "本轮执行计划仍有未完成的步骤。"
+	case multiagent.ReasonModelOutputTruncated:
+		notice = "模型输出达到长度上限，本轮回复未完成。"
+	default:
+		notice = "任务尚未达到最终回复条件，暂不生成成功结论。"
+	}
+	parts := []string{notice}
 	if d.CompletionReason != "" {
 		parts = append(parts, "原因: "+d.CompletionReason)
 	}

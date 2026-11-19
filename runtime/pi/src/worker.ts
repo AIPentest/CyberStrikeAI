@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { InMemoryCredentialStore, type Model, type Api, type Message } from "@earendil-works/pi-ai";
+import { InMemoryCredentialStore, type Model, type Api, type AssistantMessage, type Message } from "@earendil-works/pi-ai";
 import {
   createAgentSession, createExtensionRuntime, ModelRuntime, SessionManager, SettingsManager,
   type AgentSession, type ResourceLoader, type ToolDefinition,
@@ -190,6 +190,7 @@ async function run(req: RunRequest): Promise<void> {
   let status = "completed";
   let failure = "";
   let manager: SessionManager | undefined;
+  let lastAssistant: AssistantMessage | undefined;
   let directResult: Record<string, unknown> | undefined;
   try {
     if (!req.runId || !req.model?.id || !Array.isArray(req.tools)) throw new Error("Invalid run request");
@@ -322,6 +323,7 @@ async function run(req: RunRequest): Promise<void> {
     let turns = 0;
     const previousFinish = session.agent.finishTurn;
     session.agent.finishTurn = async (turn, signal) => {
+      lastAssistant = turn.message;
       turns++;
       // The public Agent finishTurn boundary can end natural tool work. An
       // extension's continue:false only declines EXTRA work; it cannot stop it.
@@ -365,14 +367,18 @@ async function run(req: RunRequest): Promise<void> {
     steeringBeforeSession = undefined;
     if (canceled) throw new Error("Run canceled before start");
     await session.prompt(req.message, { expandPromptTemplates: false });
-    const last = [...session.messages].reverse().find(m => m.role === "assistant") as any;
-    if (canceled || last?.stopReason === "aborted") status = "canceled";
-    else if (last?.stopReason === "error") { status = "failed"; failure = last.errorMessage || "Model request failed"; }
+    if (canceled || lastAssistant?.stopReason === "aborted") status = "canceled";
+    else if (lastAssistant?.stopReason === "error") { status = "failed"; failure = lastAssistant.errorMessage || "Model request failed"; }
+    else if (status === "completed" && lastAssistant?.stopReason === "length") status = "output_truncated";
   } catch (error) {
     status = canceled ? "canceled" : "failed";
     failure = error instanceof Error ? error.message : String(error);
   } finally {
-    const result = { response: session?.getLastAssistantText() ?? "",
+    // Pi may omit a truncated turn from its projected messages.
+    const response = status === "output_truncated"
+      ? lastAssistant?.content.filter(block => block.type === "text").map(block => block.text).join("") ?? ""
+      : session?.getLastAssistantText() ?? "";
+    const result = { response,
       history: exportHistory(session?.messages ?? []), ...directResult, status, error: failure, sessionFile: manager?.getSessionFile() };
     session?.dispose();
     rmSync(scratch, { recursive: true, force: true });

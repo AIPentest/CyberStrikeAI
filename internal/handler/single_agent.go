@@ -277,11 +277,9 @@ func (h *AgentHandler) SingleAgentLoopStream(c *gin.Context) {
 				baseCtx, cancelWithCause, taskCtx, timeoutCancel = h.rebindAgentRunningTask(taskCtx, conversationID, timeoutCancel)
 				continue
 			}
-			decision = h.decideAgentRunForDeliveryWithPolicy(conversationID, assistantMessageID, "single", result, cumulativeMCPExecutionIDs, requestRequiresExecutionEvidence(&req))
-			if cancelled := h.cleanupPendingToolExecutionsAfterIteration(taskCtx, conversationID, decision, progressCallback); len(cancelled) > 0 {
-				autoCancelledPendingExecutionIDs = mergeMCPExecutionIDLists(autoCancelledPendingExecutionIDs, cancelled)
-				decision = h.decideAgentRunForDeliveryWithPolicy(conversationID, assistantMessageID, "single", result, cumulativeMCPExecutionIDs, requestRequiresExecutionEvidence(&req))
-			}
+			var cancelled []string
+			decision, cancelled = h.decideAgentRunForDeliveryAndCleanup(taskCtx, conversationID, assistantMessageID, "single", result, cumulativeMCPExecutionIDs, requestRequiresExecutionEvidence(&req), progressCallback)
+			autoCancelledPendingExecutionIDs = mergeMCPExecutionIDLists(autoCancelledPendingExecutionIDs, cancelled)
 			if h.tryAutoContinueAfterFinalization(taskCtx, conversationID, result, decision, &finalizationAutoContinueAttempt, &curHistory, &curFinalMessage, progressCallback) {
 				mainIterationOffset += segmentMainIterationMax
 				timeoutCancel()
@@ -399,11 +397,9 @@ func (h *AgentHandler) SingleAgentLoopStream(c *gin.Context) {
 	timeoutCancel()
 
 	if decision.CompletionReason == "" {
-		decision = h.decideAgentRunForDeliveryWithPolicy(conversationID, assistantMessageID, "single", result, cumulativeMCPExecutionIDs, requestRequiresExecutionEvidence(&req))
-		if cancelled := h.cleanupPendingToolExecutionsAfterIteration(taskCtx, conversationID, decision, nil); len(cancelled) > 0 {
-			autoCancelledPendingExecutionIDs = mergeMCPExecutionIDLists(autoCancelledPendingExecutionIDs, cancelled)
-			decision = h.decideAgentRunForDeliveryWithPolicy(conversationID, assistantMessageID, "single", result, cumulativeMCPExecutionIDs, requestRequiresExecutionEvidence(&req))
-		}
+		var cancelled []string
+		decision, cancelled = h.decideAgentRunForDeliveryAndCleanup(taskCtx, conversationID, assistantMessageID, "single", result, cumulativeMCPExecutionIDs, requestRequiresExecutionEvidence(&req), nil)
+		autoCancelledPendingExecutionIDs = mergeMCPExecutionIDLists(autoCancelledPendingExecutionIDs, cancelled)
 	}
 	h.persistFinalizationDecision(conversationID, assistantMessageID, "single", cumulativeMCPExecutionIDs, multiagent.AggregatedReasoningFromTraceJSON(result.LastAgentTraceInput), decision)
 
