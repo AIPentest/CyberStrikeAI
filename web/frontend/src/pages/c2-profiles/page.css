@@ -1,0 +1,20 @@
+/* C2 流量伪装页面私有样式（c2- 前缀）。 */
+
+.c2-profile-name {
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--semi-color-link);
+    font-weight: 600;
+    text-align: left;
+}
+
+.c2-profile-ua {
+    display: inline-block;
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+}

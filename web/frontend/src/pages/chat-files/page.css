@@ -1,0 +1,116 @@
+/* 对话附件页面私有样式（chat-files- 前缀）。 */
+
+.chat-files-page {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.chat-files-fields {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.chat-files-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 160px;
+}
+
+.chat-files-field-label {
+    font-size: 12px;
+    color: var(--semi-color-text-2);
+}
+
+.chat-files-name {
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--semi-color-link);
+    text-align: left;
+    word-break: break-all;
+}
+
+.chat-files-name.is-dir {
+    font-weight: 600;
+}
+
+.chat-files-path {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--semi-color-text-2);
+    word-break: break-all;
+}
+
+.chat-files-breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    font-size: 12px;
+}
+
+.chat-files-breadcrumb-item button {
+    border: none;
+    background: none;
+    padding: 2px 4px;
+    cursor: pointer;
+    color: var(--semi-color-link);
+}
+
+.chat-files-breadcrumb-sep {
+    color: var(--semi-color-text-3);
+}
+
+.chat-files-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.chat-files-preview-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.chat-files-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    word-break: break-all;
+}
+
+.chat-files-preview-loading {
+    display: flex;
+    justify-content: center;
+    padding: 32px 0;
+}
+
+.chat-files-preview-text {
+    margin: 0;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--semi-color-border);
+    background: var(--semi-color-fill-0);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 60vh;
+    overflow: auto;
+}
+
+.chat-files-preview-image {
+    max-width: 100%;
+    max-height: 60vh;
+    object-fit: contain;
+    border: 1px solid var(--semi-color-border);
+    border-radius: 6px;
+    background: var(--semi-color-fill-0);
+}

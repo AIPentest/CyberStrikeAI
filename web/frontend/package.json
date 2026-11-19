@@ -1,0 +1,30 @@
+{
+  "name": "cyberstrikeai-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:ui": "playwright test"
+  },
+  "dependencies": {
+    "@douyinfe/semi-icons": "2.105.0",
+    "@douyinfe/semi-ui": "2.105.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "cytoscape": "^3.33.1",
+    "dompurify": "^3.4.18",
+    "marked": "^16.4.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-router-dom": "7.18.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@vitejs/plugin-react": "6.3.0",
+    "esbuild": "^0.27.1",
+    "vite": "8.3.8"
+  }
+}

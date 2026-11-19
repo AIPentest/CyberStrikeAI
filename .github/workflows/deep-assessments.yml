@@ -1,9 +1,9 @@
 name: Deep assessments
 on:
   push:
-    paths: ['internal/deepassessment/**', 'internal/database/vulnerability*', 'internal/database/assessment*', 'internal/database/asset*', 'internal/database/schemas/application.sql', 'internal/app/vulnerability_tools.go', 'internal/app/assessment_finding_test.go', 'internal/handler/vulnerability*', 'internal/handler/deep_assessment*', 'internal/multiagent/**', 'internal/agentruntime/**', 'runtime/pi/**', 'web/static/js/deep-assessments.js', 'web/static/js/deep-assessment-graph.js', 'web/static/js/assessment-finding-links.js', 'web/static/js/assessment-exploration-views.js', 'web/static/js/assessment-node-panel.js', 'web/static/js/assessment-workbench.js', 'web/static/js/vulnerability*.js', 'web/static/css/deep-assessments.css', 'web/templates/index.html', 'scripts/deep-assessments-browser.test.cjs', 'scripts/assessment-findings-browser.test.cjs', '.github/workflows/deep-assessments.yml']
+    paths: ['internal/deepassessment/**', 'internal/database/vulnerability*', 'internal/database/assessment*', 'internal/database/asset*', 'internal/database/schemas/application.sql', 'internal/app/vulnerability_tools.go', 'internal/app/assessment_finding_test.go', 'internal/handler/vulnerability*', 'internal/handler/deep_assessment*', 'internal/multiagent/**', 'internal/agentruntime/**', 'runtime/pi/**', 'web/frontend/**', '.github/workflows/deep-assessments.yml']
   pull_request:
-    paths: ['internal/deepassessment/**', 'internal/database/vulnerability*', 'internal/database/assessment*', 'internal/database/asset*', 'internal/database/schemas/application.sql', 'internal/app/vulnerability_tools.go', 'internal/app/assessment_finding_test.go', 'internal/handler/vulnerability*', 'internal/handler/deep_assessment*', 'internal/multiagent/**', 'internal/agentruntime/**', 'runtime/pi/**', 'web/static/js/deep-assessments.js', 'web/static/js/deep-assessment-graph.js', 'web/static/js/assessment-finding-links.js', 'web/static/js/assessment-exploration-views.js', 'web/static/js/assessment-node-panel.js', 'web/static/js/assessment-workbench.js', 'web/static/js/vulnerability*.js', 'web/static/css/deep-assessments.css', 'web/templates/index.html', 'scripts/deep-assessments-browser.test.cjs', 'scripts/assessment-findings-browser.test.cjs', '.github/workflows/deep-assessments.yml']
+    paths: ['internal/deepassessment/**', 'internal/database/vulnerability*', 'internal/database/assessment*', 'internal/database/asset*', 'internal/database/schemas/application.sql', 'internal/app/vulnerability_tools.go', 'internal/app/assessment_finding_test.go', 'internal/handler/vulnerability*', 'internal/handler/deep_assessment*', 'internal/multiagent/**', 'internal/agentruntime/**', 'runtime/pi/**', 'web/frontend/**', '.github/workflows/deep-assessments.yml']
 permissions:
   contents: read
 jobs:
@@ -24,9 +24,3 @@ jobs:
       - run: go test ./internal/app -run TestRecordVulnerabilityAssessmentEvidence
       - run: go test -race ./internal/deepassessment
       - run: go test -race ./internal/handler -run TestDeepAssessment
-      - name: Browser fixture dependencies
-        run: |
-          npm install --prefix "$RUNNER_TEMP/assessment-ui-deps" --no-save --ignore-scripts --package-lock=false playwright@1.65.0
-          "$RUNNER_TEMP/assessment-ui-deps/node_modules/.bin/playwright" install --with-deps chromium
-      - name: Independent assessment and unchanged batch UI
-        run: NODE_PATH="$RUNNER_TEMP/assessment-ui-deps/node_modules" node --test scripts/deep-assessments-browser.test.cjs scripts/assessment-findings-browser.test.cjs scripts/batch-tasks-browser.test.cjs

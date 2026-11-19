@@ -2,53 +2,38 @@
 
 [中文](../zh-CN/frontend-i18n.md)
 
-CyberStrikeAI frontend i18n is static and lightweight. Text is organized in JSON files and applied through `data-i18n` attributes plus JavaScript helper functions.
+The web UI is a React + Semi Design single-page app. Translations come from
+`web/frontend/src/lib/i18n.jsx`, backed by the same JSON files the backend ships.
 
 ## Files
 
 ```text
 web/static/i18n/zh-CN.json
 web/static/i18n/en-US.json
-web/static/js/i18n.js
+web/static/i18n/ru-RU.json
+web/static/i18n/ar-SA.json
+web/frontend/src/lib/i18n.jsx
 ```
 
-## Key Principles
+## Runtime behavior
 
-- Keep keys stable and semantic.
-- Update Chinese and English together.
-- Do not hardcode new visible text in JS when it should be localized.
-- Preserve default HTML text as fallback before JS initialization.
+- Preference is stored in `localStorage['csai_lang']`; otherwise it follows `navigator.language`, defaulting to `zh-CN`.
+- The provider loads the active language plus `zh-CN` and `en-US` fallbacks; lookups fall back `active → zh-CN → en-US → caller default`.
+- Switching language updates `<html lang>`, sets `dir="rtl"` for Arabic, and swaps Semi's `ConfigProvider` locale.
+- No page reload is required; `useT()` re-renders consumers.
 
-## HTML Usage
+## Usage
 
-```html
-<button data-i18n="common.save">保存</button>
+```jsx
+const t = useT();
+t('vulnerability.title');
+t('common.minutesAgo', { n: 5 });          // {{n}} interpolation
+t('chat.unknownKey', null, '中文兜底');     // explicit Chinese fallback
 ```
 
-For attributes, follow the existing `i18n.js` conventions.
+Rules:
 
-## JavaScript Usage
-
-Use the global translation helper where available:
-
-```javascript
-const label = t('common.save');
-```
-
-When adding dynamic UI, make sure language switching refreshes the text or re-renders the component.
-
-## Migration Workflow
-
-1. Add or update UI text.
-2. Add keys to `zh-CN.json`.
-3. Add matching keys to `en-US.json`.
-4. Replace hardcoded text with `data-i18n` or `t()`.
-5. Test both languages and browser console.
-
-## Common Pitfalls
-
-- Missing keys only in one language.
-- Dynamic text built from hardcoded fragments.
-- Button labels too long in English.
-- HTML fallback text diverges from JSON text.
-- Adding new page text without updating language switch behavior.
+1. Every visible string goes through `t(...)` with a Chinese fallback as the third argument.
+2. Add new keys to `zh-CN.json` and `en-US.json` together; `ru-RU`/`ar-SA` may lag and rely on the fallback chain.
+3. Format dates with `formatDateTime`/`relativeTime` from `src/lib/format.js`.
+4. Keep keys two levels deep (`<domain>.<key>`) and stable across releases.

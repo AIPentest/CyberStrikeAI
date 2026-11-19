@@ -72,6 +72,8 @@ __pycache__/
 
 # Node / browser extension
 node_modules/
+/web/frontend/test-results/
+/web/frontend/playwright-report/
 
 # macOS / Windows / editors
 .DS_Store

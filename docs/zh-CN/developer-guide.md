@@ -41,7 +41,7 @@ go run ./cmd/server --config config.yaml
 2. 在 `internal/database/` 增加必要的数据访问。
 3. 在 `internal/app/app.go` 构造并注册路由。
 4. 如需对外文档，更新 `internal/handler/openapi.go`。
-5. 如需前端调用，更新 `web/static/js/`。
+5. 如需前端调用，更新 `web/frontend/src/pages/`。
 
 ## 一键更新：让安装目录更新它自己的源码
 
@@ -203,7 +203,7 @@ Skill 放在 `skills/<name>/SKILL.md`。用于提供专题能力、流程说明�
 
 ## 前端开发
 
-前端代码按功能拆分在 `web/static/js/`。新增页面或模块时：
+前端代码按功能拆分在 `web/frontend/src/pages/`。新增页面或模块时：
 
 - 复用现有 `apiFetch`、modal、通知、i18n 工具。
 - 同步更新 `web/static/i18n/zh-CN.json` 和 `en-US.json`。

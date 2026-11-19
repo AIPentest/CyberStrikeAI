@@ -580,6 +580,6 @@ token 与成本是否存在取决于底层模型/Agent 事件是否上报 usage�
 | 图校验 | `internal/workflow/validation.go` |
 | 表达式 / JSONPath / 汇聚 | `internal/workflow/expression.go`、`jsonpath.go`、`join.go` |
 | dry-run / replay 数据 | `internal/workflow/dry_run.go`、`internal/handler/workflow_run.go` |
-| 画布前端 | `web/static/js/workflows.js` |
+| 画布前端 | `web/frontend/src/pages/workflows/` |
 | 流程 API | `internal/handler/workflow.go` |
 | 角色绑定 | `internal/config/config.go`（`workflow_id` 字段） |

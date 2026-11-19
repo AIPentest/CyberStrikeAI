@@ -1,0 +1,240 @@
+/* C2 会话页面私有样式（c2- 前缀）。 */
+
+.c2-session-layout {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+}
+
+.c2-session-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--semi-color-border);
+    border-radius: 8px;
+    background: var(--semi-color-bg-1);
+    min-height: 560px;
+}
+
+.c2-session-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.c2-session-filter-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.c2-session-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+    max-height: 620px;
+}
+
+.c2-session-loading {
+    display: flex;
+    justify-content: center;
+    padding: 24px 0;
+}
+
+.c2-session-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+}
+
+.c2-session-item:hover {
+    background: var(--semi-color-fill-0);
+}
+
+.c2-session-item.is-active {
+    border-color: var(--semi-color-primary);
+    background: var(--semi-color-primary-light-default);
+}
+
+.c2-session-item-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.c2-session-host {
+    font-weight: 600;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.c2-session-item-meta,
+.c2-session-item-foot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: var(--semi-color-text-2);
+}
+
+.c2-session-main {
+    min-height: 560px;
+    padding: 12px;
+    border: 1px solid var(--semi-color-border);
+    border-radius: 8px;
+    background: var(--semi-color-bg-1);
+}
+
+.c2-session-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.c2-session-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--semi-color-border);
+}
+
+.c2-session-title {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.c2-session-hostname {
+    font-size: 15px;
+}
+
+.c2-session-modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 10px;
+}
+
+/* 终端 */
+
+.c2-terminal {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.c2-terminal-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.c2-terminal-log {
+    height: 340px;
+    overflow: auto;
+    padding: 10px;
+    border: 1px solid var(--semi-color-border);
+    border-radius: 6px;
+    background: var(--semi-color-fill-0);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+}
+
+.c2-terminal-welcome {
+    color: var(--semi-color-text-2);
+    margin-bottom: 8px;
+}
+
+.c2-terminal-line {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.5;
+}
+
+.c2-terminal-line.kind-cmd {
+    color: var(--semi-color-primary);
+}
+
+.c2-terminal-line.kind-err {
+    color: var(--semi-color-danger);
+}
+
+.c2-terminal-line.kind-warn {
+    color: var(--semi-color-warning);
+}
+
+.c2-terminal-input {
+    display: flex;
+    gap: 8px;
+}
+
+/* 文件 */
+
+.c2-files {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.c2-files-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.c2-files-path {
+    min-width: 240px;
+}
+
+.c2-files-filter {
+    max-width: 180px;
+}
+
+.c2-file-name {
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--semi-color-link);
+    text-align: left;
+}
+
+.c2-file-name.is-dir {
+    font-weight: 600;
+}
+
+/* 任务与信息 */
+
+.c2-session-tasks,
+.c2-session-info {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+@media (max-width: 1100px) {
+    .c2-session-layout {
+        grid-template-columns: 1fr;
+    }
+}

@@ -580,6 +580,6 @@ On save, the system checks:
 | Graph validation | `internal/workflow/validation.go` |
 | Expressions / JSONPath / joins | `internal/workflow/expression.go`, `jsonpath.go`, `join.go` |
 | Dry-run / replay data | `internal/workflow/dry_run.go`, `internal/handler/workflow_run.go` |
-| Canvas UI | `web/static/js/workflows.js` |
+| Canvas UI | `web/frontend/src/pages/workflows/` |
 | Workflow API | `internal/handler/workflow.go` |
 | Role binding | `internal/config/config.go` (`workflow_id` field) |
