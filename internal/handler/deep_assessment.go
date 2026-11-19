@@ -302,6 +302,7 @@ func (h *AgentHandler) GetDeepAssessment(c *gin.Context) {
 		return
 	}
 	view := deepAssessmentView(c, t)
+	view["model_channel_name"] = h.deepAssessmentModelChannelName(t.Model)
 	if c.Query("runtime") == "true" {
 		live, readErr := h.deepAssessments.Store.RuntimeOverview(t)
 		if readErr != nil {
@@ -342,6 +343,26 @@ func (h *AgentHandler) GetDeepAssessment(c *gin.Context) {
 	}
 	c.JSON(200, view)
 }
+
+func (h *AgentHandler) deepAssessmentModelChannelName(channelID string) string {
+	cfg, err := h.deepAssessmentRuntime.snapshot()
+	if err != nil || cfg == nil {
+		return ""
+	}
+	if strings.TrimSpace(channelID) == "" {
+		channelID = cfg.AI.DefaultChannel
+	}
+	id := config.NormalizeAIChannelID(channelID)
+	channel, ok := cfg.AI.Channels[id]
+	if !ok {
+		return ""
+	}
+	if name := strings.TrimSpace(channel.Name); name != "" {
+		return name
+	}
+	return id
+}
+
 func (h *AgentHandler) DeepAssessmentEvents(c *gin.Context) {
 	if c.Query("latest") == "true" {
 		events, err := h.deepAssessments.Store.RecentEvents(c.Param("id"), 100)

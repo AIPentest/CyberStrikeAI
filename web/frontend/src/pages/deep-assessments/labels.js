@@ -204,13 +204,13 @@ export function stepsProgress(task) {
 }
 
 export function formatElapsed(seconds) {
-    const value = Number(seconds);
+    const value = Math.floor(Number(seconds));
     if (!Number.isFinite(value) || value < 0) return '—';
-    if (value < 60) return `${Math.round(value)} 秒`;
-    if (value < 3600) return `${Math.floor(value / 60)} 分 ${Math.round(value % 60)} 秒`;
+    if (value < 60) return `${value} 秒`;
+    const remainder = `${Math.floor(value / 60) % 60} 分 ${value % 60} 秒`;
+    if (value < 3600) return remainder;
     const hours = Math.floor(value / 3600);
-    const minutes = Math.round((value % 3600) / 60);
-    return `${hours} 小时 ${minutes} 分`;
+    return `${hours} 小时 ${remainder}`;
 }
 
 export function truncateText(value, max = 80) {

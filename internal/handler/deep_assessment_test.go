@@ -90,6 +90,46 @@ func assessmentRouter(h *AgentHandler, user string) *gin.Engine {
 	r.POST("/api/deep-assessments", h.CreateDeepAssessment)
 	return r
 }
+
+func TestDeepAssessmentDetailUsesConfiguredChannelName(t *testing.T) {
+	h, task := deepAssessmentFixture(t)
+	h.config.AI = config.AIConfig{
+		DefaultChannel: "primary",
+		Channels: map[string]config.AIChannelConfig{
+			"primary":  {Name: "默认渠道", Model: "fixture-default"},
+			"qwen-max": {Name: " 自定义渠道 ", Model: "fixture-model"},
+		},
+	}
+	r := assessmentRouter(h, task.OwnerID)
+	for _, tc := range []struct {
+		model string
+		name  string
+	}{
+		{model: "qwen-max", name: "自定义渠道"},
+		{model: "", name: "默认渠道"},
+		{model: "retired-channel", name: ""},
+	} {
+		if err := h.deepAssessments.Store.Change(task.ID, "", "", "", func(saved *deepassessment.Task) error {
+			saved.Model = tc.model
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("GET", "/api/deep-assessments/"+task.ID, nil))
+		var detail struct {
+			Task             deepassessment.Task `json:"task"`
+			ModelChannelName string              `json:"model_channel_name"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &detail); err != nil {
+			t.Fatal(err)
+		}
+		if w.Code != http.StatusOK || detail.Task.Model != tc.model || detail.ModelChannelName != tc.name {
+			t.Fatalf("model %q: unexpected detail %d %s", tc.model, w.Code, w.Body.String())
+		}
+	}
+}
+
 func TestDeepAssessmentAccessRevisionAndOrigin(t *testing.T) {
 	h, task := deepAssessmentFixture(t)
 	other, err := h.db.CreateRBACUser("other", "Other", "hash", true, nil)

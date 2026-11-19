@@ -125,7 +125,7 @@ export default function Workbench({ id, tab, criterion, evidencePath, evidenceSt
                 revision: task.revision,
                 ...extra
             });
-            if (data?.task) resource.setData({ task: data.task });
+            if (data?.task) resource.setData(previous => ({ ...previous, task: data.task }));
             if (data?.start_error) toastWarning(data.start_error);
             else toastSuccess(t('deepAssessments.updated', null, '已更新'));
             setReloadToken(value => value + 1);
@@ -152,7 +152,7 @@ export default function Workbench({ id, tab, criterion, evidencePath, evidenceSt
                 revision: task.revision,
                 message
             });
-            if (data?.task) resource.setData({ task: data.task });
+            if (data?.task) resource.setData(previous => ({ ...previous, task: data.task }));
             if (data?.start_error) toastWarning(data.start_error);
             else toastSuccess(messageMode === 'answer' ? '已答复并继续' : '已提交方向');
             setMessageMode('');
@@ -251,7 +251,7 @@ export default function Workbench({ id, tab, criterion, evidencePath, evidenceSt
                     {task ? <StatusTag status={task.status} label={statusText(t, task.status)} /> : null}
                     {task?.archived ? <StatusTag status="archived" label={statusText(t, 'archived')} /> : null}
                     {task && needsReview(task) ? <StatusTag status="needs_review" label={statusText(t, 'needs_review')} /> : null}
-                    {task ? <Text type="tertiary">模型 {task.model || '系统默认'}</Text> : null}
+                    {task ? <Text type="tertiary">模型 {resource.data?.model_channel_name || task.model || '系统默认'}</Text> : null}
                     {task?.role ? <Text type="tertiary">角色 {task.role}</Text> : null}
                     {task ? <Text type="tertiary">规划轮次 {formatNumber(task.rounds || 0)}</Text> : null}
                     {task ? <Text type="tertiary">累计 Token {formatNumber(task.tokens_used || 0)}</Text> : null}

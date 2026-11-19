@@ -959,6 +959,41 @@ test('deep assessment: archive filter stays horizontal and switches the list wit
     expect(mockApi.writes()).toEqual([]);
 });
 
+test('deep assessment: detail shows the channel name and counts active time until paused', async ({ page, mockApi }) => {
+    const now = Date.now();
+    await page.clock.setFixedTime(now);
+    const path = `/api/deep-assessments/${ASSESSMENT.id}`;
+    const task = {
+        ...ASSESSMENT, status: 'running', model: 'qwen-max', active_seconds: 12,
+        run_started_at: new Date(now - 5000).toISOString()
+    };
+    const model_channel_name = '自定义模型渠道';
+    mockApi.respond('GET', path, { json: { task, model_channel_name } });
+    mockApi.respond('GET', `${path}/events`, { json: { events: [] } });
+
+    await page.goto(`/static/app/#/deep-assessments?id=${ASSESSMENT.id}`);
+    const main = await ready(page);
+    const elapsed = main.locator('.cs-stat-card').filter({ hasText: '执行中' }).locator('.cs-stat-detail');
+    await expect(main.getByText(`模型 ${model_channel_name}`, { exact: true })).toBeVisible();
+    await expect(elapsed).toHaveText('17 秒');
+    const reads = mockApi.calls('GET', path).length;
+    await page.clock.setFixedTime(now + 3000);
+    await expect(elapsed).toHaveText('20 秒');
+    expect(mockApi.calls('GET', path)).toHaveLength(reads);
+
+    mockApi.respond('GET', path, { json: {
+        task: { ...task, status: 'paused', active_seconds: 27, run_started_at: null },
+        model_channel_name
+    } });
+    await button(main, '刷新').click();
+    const pausedElapsed = main.locator('.cs-stat-card').filter({ hasText: '已暂停' }).locator('.cs-stat-detail');
+    await expect(pausedElapsed).toHaveText('27 秒');
+    await page.clock.setFixedTime(now + 6000);
+    await button(main, '刷新').click();
+    await expect(pausedElapsed).toHaveText('27 秒');
+    expect(mockApi.writes()).toEqual([]);
+});
+
 test('deep assessment: graph switches views and resets pagination on a narrow screen', async ({ page, mockApi }) => {
     const apiPath = `/api/deep-assessments/${ASSESSMENT.id}`;
     mockApi.respond('GET', `${apiPath}/events`, { json: { events: [] } });

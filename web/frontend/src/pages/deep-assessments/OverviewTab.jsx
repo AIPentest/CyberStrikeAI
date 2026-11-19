@@ -1,9 +1,11 @@
 /** 概览：统计、目标与验收要求、事件时间线。 */
+import { useState } from 'react';
 import { Button, Empty, Space, Switch, Tag, Timeline, Typography } from '@douyinfe/semi-ui';
 import { useT } from '../../lib/i18n';
+import { useInterval } from '../../components/hooks';
 import { SectionCard, StatGrid, ErrorBanner, StatusTag, KeyValueList } from '../../components/ui';
 import { formatDateTime, formatNumber } from '../../lib/format';
-import { countsProgress, eventText, formatElapsed, statusText } from './labels';
+import { countsProgress, eventText, formatElapsed, isActive, statusText } from './labels';
 
 const { Text, Paragraph } = Typography;
 
@@ -14,6 +16,13 @@ const TIMELINE_TYPE = {
     stop_requested: 'warning',
     retry: 'warning'
 };
+
+function ActiveElapsed({ startedAt, seconds }) {
+    const [now, setNow] = useState(Date.now);
+    useInterval(() => setNow(Date.now()), 1000);
+    const currentRunSeconds = Math.max(0, Math.floor((now - startedAt) / 1000));
+    return formatElapsed(seconds + currentRunSeconds);
+}
 
 export default function OverviewTab({
     task, canWrite, events, eventsError, autoRefresh, onAutoRefreshChange,
@@ -27,12 +36,20 @@ export default function OverviewTab({
     const progress = countsProgress(counts, (task.steps || []).length);
     const reviewCount = task.review_count
         || (task.steps || []).filter(step => ['uncertain', 'cleanup_unconfirmed'].includes(step.status)).length;
+    const activeSeconds = task.active_seconds ?? 0;
+    const startedAt = isActive(task) ? Date.parse(task.run_started_at) : NaN;
+    let statusDetail = formatElapsed(activeSeconds);
+    if (task.archived) {
+        statusDetail = '已归档';
+    } else if (Number.isFinite(startedAt)) {
+        statusDetail = <ActiveElapsed key={startedAt} startedAt={startedAt} seconds={activeSeconds} />;
+    }
     const metrics = [
         {
             id: 'status',
             label: t('deepAssessments.status', null, '状态'),
             value: <StatusTag status={task.status} label={statusText(t, task.status)} />,
-            detail: task.archived ? '已归档' : formatElapsed(task.active_seconds)
+            detail: statusDetail
         },
         {
             id: 'progress',
