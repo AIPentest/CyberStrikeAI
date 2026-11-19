@@ -551,3 +551,109 @@ func TestPiRepeatedProviderIDDoesNotSuppressNewToolInvocation(t *testing.T) {
 		t.Fatalf("invocations incorrectly deduplicated: %+v count=%d", res, executions.Load())
 	}
 }
+
+func TestPiChatCannotCompleteWithCurrentPlanOpen(t *testing.T) {
+	for _, finishPlan := range []bool{false, true} {
+		t.Run(fmt.Sprintf("finish_plan=%v", finishPlan), func(t *testing.T) {
+			cfg := piTestConfig(t)
+			cfg.SkillsDir = t.TempDir()
+			cfg.MultiAgent.Runtime.PlantaskEnable = true
+			cfg.MultiAgent.Skills = config.AgentSkillsConfig{FilesystemTools: new(bool)}
+			var calls atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				switch calls.Add(1) {
+				case 1:
+					piReply(w, "TaskCreate", "create", map[string]any{"subject": "Draft notes"}, "")
+				case 2:
+					if finishPlan {
+						piReply(w, "TaskUpdate", "update", map[string]any{"taskId": "1", "status": "completed"}, "")
+					} else {
+						piReply(w, "", "", nil, "I will draft the notes.")
+					}
+				default:
+					piReply(w, "", "", nil, "The notes are ready.")
+				}
+			}))
+			defer server.Close()
+			cfg.OpenAI.BaseURL = server.URL + "/v1"
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			ag := agent.NewAgent(&cfg.OpenAI, &cfg.Agent, mcp.NewServer(zap.NewNop()), nil, zap.NewNop(), 8)
+			run := func(message string) *RunResult {
+				t.Helper()
+				result, err := RunSingleAgent(ctx, cfg, &cfg.MultiAgent, ag, nil, zap.NewNop(), "plan-fixture", "", message, nil, nil, nil, nil, "")
+				if err != nil {
+					t.Fatal(err)
+				}
+				return result
+			}
+			first := run("Draft the notes.")
+			if finishPlan {
+				if first.RuntimeStatus != "completed" || calls.Load() != 3 {
+					t.Fatalf("expected completed plan, got %+v after %d calls", first, calls.Load())
+				}
+				return
+			}
+			if first.RuntimeStatus != "blocked" || first.RuntimeCompletionReason != ReasonUnfinishedPlan || calls.Load() != 2 {
+				t.Fatalf("expected unfinished plan, got %+v after %d calls", first, calls.Load())
+			}
+			if next := run("Please summarize what you have."); next.RuntimeStatus != "completed" {
+				t.Fatalf("old plan state should not block a new reply: %+v", next)
+			}
+		})
+	}
+}
+
+func TestPiReportsTruncatedModelOutput(t *testing.T) {
+	cfg := piTestConfig(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, `data: {"id":"fixture","model":"fixture","choices":[{"index":0,"delta":{"role":"assistant","content":"First,"},"finish_reason":"length"}]}`+"\n\ndata: [DONE]\n\n")
+	}))
+	defer server.Close()
+	cfg.OpenAI.BaseURL = server.URL + "/v1"
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	ag := piTestAgent(cfg, nil)
+	history := []agent.ChatMessage{{Role: "user", Content: "Earlier question"}, {Role: "assistant", Content: "Earlier answer"}}
+	result, err := RunSingleAgent(ctx, cfg, &cfg.MultiAgent, ag, nil, zap.NewNop(), "truncation-fixture", "", "Write the notes.", history, nil, nil, nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.RuntimeStatus != "blocked" || result.RuntimeCompletionReason != ReasonModelOutputTruncated || result.Response != "First," {
+		t.Fatalf("expected the truncated turn, got %+v", result)
+	}
+}
+
+func TestPiReportsIncompleteModelStreamRetries(t *testing.T) {
+	cfg := piTestConfig(t)
+	cfg.MultiAgent.Runtime.ModelRetryMaxRetries = 1
+	cfg.MultiAgent.Runtime.ModelRetryMaxBackoffSec = 1
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, `data: {"id":"fixture","model":"fixture","choices":[{"index":0,"delta":{"role":"assistant","content":"Partial"}}]}`+"\n\n")
+	}))
+	defer server.Close()
+	cfg.OpenAI.BaseURL = server.URL + "/v1"
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	var retries []map[string]any
+	result, err := RunSingleAgent(ctx, cfg, &cfg.MultiAgent, piTestAgent(cfg, nil), nil, zap.NewNop(), "retry-fixture", "", "Draft the notes.", nil, nil,
+		func(kind, _ string, data interface{}) {
+			if kind == "pi_model_retry" {
+				retries = append(retries, data.(map[string]any))
+			}
+		}, nil, "")
+	if err == nil || result == nil || result.RuntimeStatus != "failed" || requests.Load() != 2 {
+		t.Fatalf("expected failed run after one retry, got %+v, err=%v, requests=%d", result, err, requests.Load())
+	}
+	const reason = "model_stream_incomplete"
+	if len(retries) != 1 || retries[0]["attempt"] != 1 || retries[0]["maxAttempts"] != 1 || retries[0]["reasonCode"] != reason {
+		t.Fatalf("unexpected retry events: %+v", retries)
+	}
+	if details := ClientRunErrorFields(err); details["reasonCode"] != reason || details["errorKind"] != "model_transient" {
+		t.Fatalf("unexpected final error details: %+v", details)
+	}
+}
