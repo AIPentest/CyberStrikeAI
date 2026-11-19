@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -92,6 +94,9 @@ func mcpToolAuthorizer(db *database.DB) func(context.Context, string, map[string
 			}
 			id := mcpAuthorizationString(args, "id")
 			if db == nil || id == "" || !db.UserCanAccessResource(principal.UserID, principal.ScopeFor(permission), "vulnerability", id) {
+				if toolName == builtin.ToolUpdateVulnerabilityStatus {
+					return fmt.Errorf("找不到可更新的漏洞。%s", vulnerabilityIDRecovery)
+				}
 				return fmt.Errorf("no access to vulnerability %s", id)
 			}
 			convID := mcpAuthorizationConversationID(ctx)
@@ -115,7 +120,11 @@ func mcpToolAuthorizer(db *database.DB) func(context.Context, string, map[string
 				}
 				return nil
 			}
-			return authorizeMCPProjectResourceBoundary(ctx, db, "vulnerability", id)
+			err := authorizeMCPProjectResourceBoundary(ctx, db, "vulnerability", id)
+			if toolName == builtin.ToolUpdateVulnerabilityStatus && errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("找不到可更新的漏洞。%s", vulnerabilityIDRecovery)
+			}
+			return err
 		case builtin.ToolQueryAssets:
 			return require("asset:read")
 		case builtin.ToolGetAsset:

@@ -44,7 +44,7 @@ func ResolveImagePath(path string, cwd string) (string, error) {
 
 	ext := strings.ToLower(filepath.Ext(resolved))
 	if _, ok := allowedImageExt[ext]; !ok {
-		return "", fmt.Errorf("unsupported image extension %q", ext)
+		return "", fmt.Errorf("unsupported image extension %q, use a file with a matching image extension such as .png or .jpg", ext)
 	}
 
 	st, err := os.Stat(resolved)

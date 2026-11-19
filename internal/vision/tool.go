@@ -53,7 +53,7 @@ func RegisterAnalyzeImageTool(mcpServer *mcp.Server, cfg *config.Config, logger 
 			"properties": map[string]interface{}{
 				"path": map[string]interface{}{
 					"type":        "string",
-					"description": "图片绝对路径或相对于进程工作目录的路径",
+					"description": "服务器本地图片的绝对路径或相对进程工作目录的路径，文件名须使用实际图片格式对应的扩展名，例如 .png 或 .jpg",
 				},
 				"question": map[string]interface{}{
 					"type":        "string",
