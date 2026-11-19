@@ -3130,6 +3130,7 @@
     "milliseconds": "{{value}} ms",
     "window": "Context window",
     "windowExample": "e.g. {{value}}",
+    "windowDefault": "Default",
     "backend": "Model API type",
     "source": "Context window source",
     "profile": "Context profile",

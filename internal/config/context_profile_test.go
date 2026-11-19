@@ -43,6 +43,24 @@ func TestEffectiveMaxTotalTokens(t *testing.T) {
 			want: 120000,
 		},
 		{
+			name: "official DeepSeek Flash uses its default window",
+			oa: OpenAIConfig{BaseURL: "https://api.deepseek.com/v1", Model: "deepseek-flash",
+				MaxTotalTokens: 2000000, MaxCompletionTokens: 32768},
+			want: 1048576 - 32768,
+		},
+		{
+			name: "official DeepSeek Flash preserves a manual window",
+			oa: OpenAIConfig{BaseURL: "https://api.deepseek.com", Model: "deepseek-flash", ContextWindow: 65536,
+				MaxTotalTokens: 2000000, MaxCompletionTokens: 32768},
+			want: 65536 - 32768,
+		},
+		{
+			name: "same model name on a different host has no known window",
+			oa: OpenAIConfig{BaseURL: "https://api.deepseek.com.example.test", Model: "deepseek-flash",
+				MaxTotalTokens: 2000000, MaxCompletionTokens: 32768},
+			want: 2000000,
+		},
+		{
 			name: "remote window reserves output",
 			oa:   OpenAIConfig{ContextWindow: 131072, MaxTotalTokens: 120000},
 			want: 114688,

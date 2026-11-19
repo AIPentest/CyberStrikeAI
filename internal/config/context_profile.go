@@ -7,6 +7,8 @@ const (
 	DefaultMaxTotalTokens = 120000
 	// DefaultLocalContextWindow 是 local 档位下未提供 context_window 时的保守窗口。
 	DefaultLocalContextWindow = 32768
+	// DeepSeek's official /models response reports this total input and output window.
+	deepSeekFlashContextWindow = 1048576
 	// LocalContextBudgetPercent 是 local 档位把原生窗口折算成提示词预算的比例。
 	LocalContextBudgetPercent = 60
 	// LocalContextBudgetCap 防止 256K/1M 窗口把预算放大到超出本地模型有效上下文。
@@ -58,13 +60,21 @@ func (c OpenAIConfig) OutputLimitField() string {
 	return "max_completion_tokens"
 }
 
-// EffectiveContextWindow 返回用于预算计算的原生窗口；local 档位缺省时按保守值处理。
+// EffectiveContextWindow returns the window used to calculate the token budget.
 func (c OpenAIConfig) EffectiveContextWindow() int {
 	if c.ContextWindow > 0 {
 		return c.ContextWindow
 	}
+	return c.DefaultContextWindow()
+}
+
+// DefaultContextWindow is the fallback when the channel has no explicit window.
+func (c OpenAIConfig) DefaultContextWindow() int {
 	if c.IsLocalContextProfile() {
 		return DefaultLocalContextWindow
+	}
+	if c.IsDeepSeekOfficialEndpoint() && strings.EqualFold(strings.TrimSpace(c.Model), "deepseek-flash") {
+		return deepSeekFlashContextWindow
 	}
 	return 0
 }

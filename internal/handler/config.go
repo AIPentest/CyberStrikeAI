@@ -281,6 +281,8 @@ type GetConfigResponse struct {
 	Robots       config.RobotsConfig       `json:"robots,omitempty"`
 	MultiAgent   config.MultiAgentPublic   `json:"multi_agent,omitempty"`
 	C2           config.C2Public           `json:"c2"`
+
+	ContextWindowDefaults map[string]int `json:"context_window_defaults,omitempty"`
 }
 
 // ToolConfigInfo 工具配置信息
@@ -375,6 +377,18 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 		),
 	}
 
+	windowDefaults := make(map[string]int)
+	for id, channel := range h.config.AI.Channels {
+		if window := channel.ToOpenAIConfig().DefaultContextWindow(); window > 0 {
+			windowDefaults[id] = window
+		}
+	}
+	if len(h.config.AI.Channels) == 0 {
+		if window := h.config.OpenAI.DefaultContextWindow(); window > 0 {
+			windowDefaults[""] = window
+		}
+	}
+
 	response, err := maskedConfigResponse(GetConfigResponse{
 		Proxy:        h.config.Proxy,
 		AgentRuntime: h.config.AgentRuntime,
@@ -393,6 +407,8 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 		C2:           h.config.C2.Public(),
 		Robots:       h.config.Robots,
 		MultiAgent:   multiPub,
+
+		ContextWindowDefaults: windowDefaults,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "配置序列化失败"})

@@ -3118,6 +3118,7 @@
     "milliseconds": "{{value}} 毫秒",
     "window": "上下文窗口",
     "windowExample": "例如 {{value}}",
+    "windowDefault": "默认值",
     "backend": "模型接口类型",
     "source": "窗口信息来源",
     "profile": "上下文配置",

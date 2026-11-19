@@ -67,7 +67,8 @@ export default function BasicSection() {
 
     useEffect(() => {
         if (!config.data) return;
-        const next = dumpYaml(config.data, { header: EDITOR_HEADER });
+        const { context_window_defaults: _defaults, ...configuration } = config.data;
+        const next = dumpYaml(configuration, { header: EDITOR_HEADER });
         setText(next);
         setBaseline(next);
         setParseError('');

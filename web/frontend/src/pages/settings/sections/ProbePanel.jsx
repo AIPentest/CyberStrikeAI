@@ -78,26 +78,29 @@ function summarizeTest(t, payload) {
     ];
 }
 
-function summarizeContext(t, payload) {
+function summarizeContext(t, payload, fallbackWindow) {
     const source = payload.context_source;
     const sourceKey = source?.replace(/^omlx_models_(?=max_model_len|context_length|max_context_length|context_window)/, 'openai_models_');
     const backend = payload.context_backend;
     return [
         ...summarizeTest(t, payload),
-        { label: t('settingsProbe.window', null, '上下文窗口'), value: payload.context_window ?? '—' },
+        { label: t('settingsProbe.window', null, '上下文窗口'), value: payload.context_window || fallbackWindow || '—' },
         {
             label: t('settingsProbe.backend', null, '模型接口类型'),
             value: backend === 'openai_compatible'
                 ? t('settingsProbe.compatible', null, '兼容 OpenAI 的接口')
                 : BACKEND_NAMES[backend] || backend || '—'
         },
-        { label: t('settingsProbe.source', null, '窗口信息来源'), value: source ? t('settingsProbe.sources.' + sourceKey, null, source) : '—' },
+        {
+            label: t('settingsProbe.source', null, '窗口信息来源'),
+            value: fallbackWindow ? t('settingsProbe.windowDefault', null, '默认值') : (source ? t('settingsProbe.sources.' + sourceKey, null, source) : '—')
+        },
         { label: t('settingsProbe.profile', null, '上下文配置'), value: profileLabel(t, payload.context_profile) },
         { label: t('settingsProbe.effectiveBudget', null, '实际可用上下文令牌数'), value: payload.effective_max_total_tokens ?? '—' }
     ];
 }
 
-function ProbeOutput({ state }) {
+function ProbeOutput({ state, defaultWindow }) {
     const t = useT();
     const { key, payload, error } = state;
     if (error) return <ErrorBanner error={error} />;
@@ -146,10 +149,12 @@ function ProbeOutput({ state }) {
     if (!payload.success) {
         return <Banner type="danger" bordered closeIcon={null} description={payload.error || t('settingsBasic.testFailed', null, '连接失败')} />;
     }
-    const warnings = Array.isArray(payload.context_warnings) ? payload.context_warnings : [];
+    const fallbackWindow = !payload.context_window && !payload.context_runtime_unknown ? defaultWindow : 0;
+    const warnings = (Array.isArray(payload.context_warnings) ? payload.context_warnings : [])
+        .filter(code => !fallbackWindow || code !== 'context_window_unknown');
     return (
         <div className="settings-probe-result">
-            <KeyValueList columns={3} items={summarizeContext(t, payload)} />
+            <KeyValueList columns={3} items={summarizeContext(t, payload, fallbackWindow)} />
             {warnings.length > 0 && (
                 <Banner
                     type="warning"
@@ -188,6 +193,9 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
     const [drafts, setDrafts] = useState({});
     const draft = drafts[channelId] || {};
     const form = { ...baseline, ...draft };
+    const defaultWindow = config.context_window_defaults?.[legacy ? '' : channelId];
+    const useDefaultWindow = defaultWindow > 0 && !form.context_window && !Object.hasOwn(draft, 'context_window')
+        && ['base_url', 'model', 'context_profile'].every(field => form[field] === baseline[field]);
     const dirty = Object.keys(draft).length > 0;
     const [busy, setBusy] = useState('');
     const [state, setState] = useState(EMPTY_PROBE);
@@ -290,7 +298,8 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
             const payload = await api.post(path, body);
             const detectedWindow = payload.context_window;
             const fillWindow = key === 'context' || (key === 'test' && ['', '0'].includes(form.context_window.trim()));
-            if (fillWindow && payload.success && Number.isSafeInteger(detectedWindow) && detectedWindow > 0 && !payload.context_runtime_unknown) {
+            if (fillWindow && payload.success && Number.isSafeInteger(detectedWindow) && detectedWindow > 0
+                && !payload.context_runtime_unknown && !(useDefaultWindow && detectedWindow === defaultWindow)) {
                 const value = String(detectedWindow);
                 setDrafts(current => {
                     const next = { ...current[channelId] };
@@ -455,20 +464,29 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
                         style={{ width: '100%' }}
                     />
                 </label>
-                {TOKEN_LIMITS.map(([field, key, fallback]) => (
-                    <label className="settings-field" key={field}>
-                        <Text type="tertiary" size="small">{t(key, null, fallback)}</Text>
-                        <Input
-                            value={String(form[field])}
-                            onChange={value => update(field, value)}
-                            inputMode="numeric"
-                            readOnly={locked}
-                            placeholder={field === 'context_window'
-                                ? t('settingsProbe.windowExample', { value: t('settingsBasic.contextWindowPlaceholder', null, '131072') }, '例如 131072')
-                                : '0'}
-                        />
-                    </label>
-                ))}
+                {TOKEN_LIMITS.map(([field, key, fallback]) => {
+                    const isWindow = field === 'context_window';
+                    const showDefault = isWindow && useDefaultWindow;
+                    const labelId = `${channelLabelId}-${field}`;
+                    return (
+                        <label className="settings-field" key={field}>
+                            <Space spacing={6}>
+                                <Text id={labelId} type="tertiary" size="small">{t(key, null, fallback)}</Text>
+                                {showDefault && <Tag color="blue" size="small">{t('settingsProbe.windowDefault', null, '默认值')}</Tag>}
+                            </Space>
+                            <Input
+                                aria-labelledby={labelId}
+                                value={String(showDefault ? defaultWindow : form[field])}
+                                onChange={value => update(field, value)}
+                                inputMode="numeric"
+                                readOnly={locked}
+                                placeholder={isWindow
+                                    ? t('settingsProbe.windowExample', { value: t('settingsBasic.contextWindowPlaceholder', null, '131072') }, '例如 131072')
+                                    : '0'}
+                            />
+                        </label>
+                    );
+                })}
             </div>
 
             {(applyPending || saveError) && (
@@ -516,7 +534,7 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
                     {t('settingsBasic.modelsList', null, '获取模型列表')}
                 </Button>
             </Space>
-            <ProbeOutput state={state} />
+            <ProbeOutput state={state} defaultWindow={useDefaultWindow ? defaultWindow : 0} />
 
             <div className="settings-probe-secondary">
                 <div className="settings-probe-card">

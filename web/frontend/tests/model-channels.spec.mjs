@@ -16,6 +16,41 @@ function modelConfig() {
 test.describe('model channel editing', () => {
     test.use({ appPermissions: [...UI_PERMISSIONS, 'config:write'] });
 
+    test('uses the server default until a manual context window is saved', async ({ page, mockApi }) => {
+        const config = modelConfig();
+        config.ai.default_channel = 'qwen-max';
+        config.context_window_defaults = { 'qwen-max': 1048576 };
+        mockApi.respond('GET', '/api/config', () => ({ json: config }));
+        mockApi.respond('POST', '/api/config/test-openai', { json: {
+            success: true, model: 'deepseek-flash', context_warnings: ['context_window_unknown']
+        } });
+        mockApi.respond('PUT', '/api/config', ({ body }) => {
+            config.ai.channels['qwen-max'].context_window = body.ai_channel.context_window;
+            return { json: {} };
+        });
+        mockApi.respond('POST', '/api/config/apply', { json: {} });
+        await page.goto('/static/app/#/settings?section=models');
+        const panel = (await ready(page)).locator('.settings-channel-panel');
+        const window = panel.getByLabel('模型上下文窗口（Token）', { exact: true });
+        const save = panel.getByRole('button', { name: '保存通道', exact: true });
+        await expect(window).toHaveValue('1048576');
+        await expect(panel.getByText('默认值', { exact: true })).toBeVisible();
+        await expect(save).toBeDisabled();
+        await panel.getByRole('button', { name: '测试连接', exact: true }).click();
+        await expect(panel.getByRole('cell', { name: /上下文窗口.*1048576/ })).toBeVisible();
+        await expect(panel.getByText('未检测到上下文窗口，请手动填写', { exact: true })).toHaveCount(0);
+        await expect(save).toBeDisabled();
+
+        await window.fill('65536');
+        await save.click();
+        await expect(save).toBeDisabled();
+        await expect(window).toHaveValue('65536');
+        await window.clear();
+        await save.click();
+        await expect(window).toHaveValue('1048576');
+        expect(mockApi.calls('PUT', '/api/config').map(({ body }) => body.ai_channel.context_window)).toEqual([65536, 0]);
+    });
+
     test('shows an example, fills a detected context window, and saves it explicitly', async ({ page, mockApi }) => {
         const config = modelConfig();
         const model = config.ai.channels['qwen-max'];
