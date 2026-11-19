@@ -676,6 +676,41 @@ test('chat: select stored conversation and restore it after reload', async ({ pa
     expect(mockApi.writes()).toEqual([]);
 });
 
+test('chat: restore token counts and the error from a turn without a reply', async ({ page, mockApi }) => {
+    const error = 'Pi worker exited without a result';
+    const [user, assistant] = CONVERSATION.messages;
+    mockApi.respond('GET', `/api/conversations/${CONVERSATION.id}`, {
+        json: {
+            ...CONVERSATION,
+            messages: [user, {
+                ...assistant,
+                content: '',
+                processDetails: [
+                    {
+                        eventType: 'agent_usage_summary',
+                        message: 'Pi token usage summary',
+                        data: { modelCalls: 1, promptTokens: 1000, completionTokens: 24, totalTokens: 1024 }
+                    },
+                    { eventType: 'error', message: error }
+                ]
+            }]
+        }
+    });
+    const main = await visit(page, `chat?conversation=${CONVERSATION.id}`);
+    const title = `${label('chat.piUsageSummaryTitle')} · 1,024`;
+    const usage = main.locator('.chat-note').filter({ hasText: title });
+    await expect(usage.getByText(title, { exact: true })).toBeVisible();
+    for (const [key, count] of [
+        ['piUsageModelCalls', '1'],
+        ['piUsagePromptTokens', '1,000'],
+        ['piUsageCompletionTokens', '24'],
+        ['piUsageTotalTokens', '1,024']
+    ]) {
+        await expect(usage).toContainText(`${label(`chat.${key}`)}: ${count}`);
+    }
+    await expect(main.getByText(error, { exact: true })).toBeVisible();
+});
+
 test.describe('chat: batch selection', () => {
     test.use({ appPermissions: [...UI_PERMISSIONS, 'chat:delete'] });
     const conversations = Array.from({ length: 23 }, (_, index) => ({

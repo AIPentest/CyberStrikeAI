@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { Collapse, Tag, Typography } from '@douyinfe/semi-ui';
 import { MarkdownView, JsonViewer } from '../../components/ui';
+import { formatNumber } from '../../lib/format';
+import { useI18n } from '../../lib/i18n';
 import { prettyJson, truncateText } from './stream';
 
 const { Text } = Typography;
@@ -82,6 +84,32 @@ function NoteBlock({ block }) {
     );
 }
 
+function UsageSummaryBlock({ data }) {
+    const { t, lang } = useI18n();
+    const number = value => formatNumber(Math.max(0, Math.trunc(Number(value) || 0)), lang);
+    const rows = [
+        ['chat.piUsageModelCalls', data.modelCalls],
+        ['chat.piUsagePromptTokens', data.promptTokens],
+        ['chat.piUsageCompletionTokens', data.completionTokens],
+        ['chat.piUsageTotalTokens', data.totalTokens]
+    ];
+    const optionalRows = [
+        ['chat.piUsageCachedTokens', data.cachedTokens],
+        ['chat.piUsageCacheWriteTokens', data.cacheWriteTokens],
+        ['chat.piUsageReasoningTokens', data.reasoningTokens]
+    ];
+    const message = [...rows, ...optionalRows.filter(([, count]) => Number(count) > 0)]
+        .map(([label, count]) => `${t(label)}: ${number(count)}`)
+        .join('\n');
+    const total = Number(data.totalTokens);
+    const title = [
+        data.agentName,
+        t('chat.piUsageSummaryTitle'),
+        Number.isFinite(total) && total > 0 ? number(total) : ''
+    ].filter(Boolean).join(' · ');
+    return <NoteBlock block={{ title, message, data }} />;
+}
+
 function EventLog({ events }) {
     if (!events || !events.length) return null;
     return (
@@ -126,6 +154,9 @@ export default function TurnBody({
                 }
                 if (block.kind === 'note') {
                     return <NoteBlock key={block.id} block={block} />;
+                }
+                if (block.kind === 'usage') {
+                    return <UsageSummaryBlock key={block.id} data={block.data} />;
                 }
                 return null;
             })}

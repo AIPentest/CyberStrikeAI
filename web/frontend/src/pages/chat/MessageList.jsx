@@ -83,8 +83,9 @@ function MessageRow({ message, canDelete, onDeleteTurn }) {
                         )}
                     </span>
                 </div>
-                {content && <TurnBody text={content} blocks={blocks} events={null} />}
-                {!content && !blocks.length && <Text type="tertiary">—</Text>}
+                {content || blocks.length > 0
+                    ? <TurnBody text={content} blocks={blocks} events={null} />
+                    : <Text type="tertiary">—</Text>}
             </div>
         </div>
     );

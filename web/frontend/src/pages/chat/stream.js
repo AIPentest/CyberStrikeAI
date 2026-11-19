@@ -278,17 +278,9 @@ export function applyStreamEvent(state, event) {
         case 'pi_stream_error':
             pushNote(state, { title: str(event.message) || '运行提示', message: str(event.message), tone: 'warning', data });
             break;
-        case 'agent_usage_summary': {
-            const calls = Number(data.modelCalls) || 0;
-            const total = Number(data.totalTokens) || 0;
-            pushNote(state, {
-                title: '📊 本轮用量',
-                message: `${calls} 次模型调用 · ${total} tokens`,
-                tone: 'info',
-                data
-            });
+        case 'agent_usage_summary':
+            state.blocks.push({ kind: 'usage', id: nextKey(state, 'usage'), data });
             break;
-        }
         case 'user_interrupt_continue':
             pushNote(state, { title: '⏸️ 用户中断并继续', message: str(event.message), tone: 'info', data });
             break;
@@ -466,6 +458,9 @@ export function buildHistoryBlocks(message) {
                 break;
             case 'agent_reply':
                 blocks.push({ kind: 'note', id: key('note'), title: '💬 子代理回复', message: truncateText(text, 6000), tone: 'info', data: null });
+                break;
+            case 'agent_usage_summary':
+                blocks.push({ kind: 'usage', id: key('usage'), data });
                 break;
             case 'progress':
                 // 心跳/进度文案不入时间线，避免历史回放噪音。
