@@ -135,6 +135,14 @@ body[theme-mode="dark"] .semi-button-primary.semi-button-solid:not(.semi-button-
 .cs-table-empty { padding: 40px 16px; color: var(--semi-color-text-3); }
 .cs-table-empty .semi-empty-image { padding: 14px; border-radius: 16px; background: var(--semi-color-fill-0); }
 .cs-error-banner { margin-bottom: 16px; border-radius: 8px; }
+
+.cs-severity-tag[data-severity="low"] { color: #154d91; background-color: #dceafe; }
+.cs-severity-tag[data-severity="medium"] { color: #744900; background-color: #ffebbb; }
+.cs-severity-tag[data-severity="high"] { color: #8f2e19; background-color: #ffccb6; }
+body[theme-mode="dark"] .cs-severity-tag[data-severity="low"] { color: #bcdcff; background-color: #224875; }
+body[theme-mode="dark"] .cs-severity-tag[data-severity="medium"] { color: #ffe09a; background-color: #63491b; }
+body[theme-mode="dark"] .cs-severity-tag[data-severity="high"] { color: #ffbe9e; background-color: #662f20; }
+
 .cs-description-list { width: 100%; }
 .cs-description-list table { width: 100%; table-layout: fixed; }
 .cs-description-list td { word-break: break-word; vertical-align: top; }

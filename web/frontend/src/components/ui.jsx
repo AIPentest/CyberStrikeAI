@@ -143,7 +143,11 @@ export function ErrorBanner({ error, onRetry }) {
 
 export function SeverityTag({ severity, size = 'small' }) {
     const key = String(severity || '').toLowerCase();
-    return <Tag size={size} color={severityColor(key)} shape="circle">{SEVERITY_LABEL[key] || severity || '—'}</Tag>;
+    return (
+        <Tag size={size} color={severityColor(key)} shape="circle" className="cs-severity-tag" data-severity={key}>
+            {SEVERITY_LABEL[key] || severity || '—'}
+        </Tag>
+    );
 }
 
 export function StatusTag({ status, label, size = 'small' }) {
