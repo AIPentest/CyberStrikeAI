@@ -6,7 +6,7 @@ function modelConfig() {
             default_channel: 'primary',
             channels: {
                 primary: { provider: 'openai', model: 'primary-model', base_url: 'https://primary.example.test', api_key: '********' },
-                secondary: { provider: 'openai_compatible', model: 'secondary-model', base_url: 'https://secondary.example.test', api_key: '********' }
+                'qwen-max': { name: 'deepseek', provider: 'openai_compatible', model: 'deepseek-flash', base_url: 'https://secondary.example.test', api_key: '********' }
             }
         },
         tools: []
@@ -35,8 +35,9 @@ test.describe('model channel editing', () => {
         await expect(model).toHaveValue('primary-model');
         await expect(save).toBeDisabled();
         await channel.click();
-        await page.getByRole('option', { name: /\bsecondary$/ }).click();
-        await expect(model).toHaveValue('secondary-model');
+        await page.getByRole('option', { name: /\bdeepseek$/ }).click();
+        await expect(channel).toHaveText('deepseek');
+        await expect(model).toHaveValue('deepseek-flash');
         await model.fill('manual-model');
         await panel.getByLabel('模型上下文窗口（Token）', { exact: true }).fill('65536');
 
@@ -44,20 +45,20 @@ test.describe('model channel editing', () => {
         await expect(panel.getByText('连接成功', { exact: true })).toBeVisible();
         expect(mockApi.calls('PUT', '/api/config')).toEqual([]);
         expect(mockApi.calls('POST', '/api/config/test-openai')[0].body).toMatchObject({
-            channel_id: 'secondary', model: 'manual-model', api_key: '********'
+            channel_id: 'qwen-max', model: 'manual-model', api_key: '********'
         });
 
         await save.click();
         await expect(model).toHaveValue('manual-model');
         await expect(save).toBeDisabled();
         expect(mockApi.calls('PUT', '/api/config')[0].body).toEqual({
-            ai_channel: { channel_id: 'secondary', make_default: false, model: 'manual-model', context_window: 65536 }
+            ai_channel: { channel_id: 'qwen-max', make_default: false, model: 'manual-model', context_window: 65536 }
         });
         expect(config.ai.default_channel).toBe('primary');
         expect(config.ai.channels.primary.model).toBe('primary-model');
 
         await panel.getByRole('button', { name: '设为默认', exact: true }).click();
-        await expect(channel).toHaveText('secondary（默认）');
+        await expect(channel).toHaveText('deepseek（默认）');
         expect(mockApi.calls('POST', '/api/config/apply')).toHaveLength(2);
         await page.reload();
         await expect(model).toHaveValue('manual-model');

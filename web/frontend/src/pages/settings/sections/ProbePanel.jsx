@@ -194,13 +194,15 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
     const [saveError, setSaveError] = useState(null);
     const [applyPending, setApplyPending] = useState(false);
     const locked = !canWrite || saving;
+    const channelNames = channelIds.map(id => channels[id].name?.trim() || id);
     const channelOptions = legacy
         ? [{ value: MAIN_CHANNEL, label: t('settingsProbe.mainChannel', null, '主模型通道') }]
-        : channelIds.map(id => ({
-            value: id,
-            label: (channels[id].name && channels[id].name !== id ? `${channels[id].name} · ${id}` : id)
-                + (id === defaultId ? t('settingsProbe.defaultChannelSuffix', null, '（默认）') : '')
-        }));
+        : channelIds.map((id, index) => {
+            const name = channelNames[index];
+            const displayName = channelNames.indexOf(name) !== channelNames.lastIndexOf(name) ? `${name} · ${id}` : name;
+            const suffix = id === defaultId ? t('settingsProbe.defaultChannelSuffix', null, '（默认）') : '';
+            return { value: id, label: displayName + suffix };
+        });
     const providerOptions = PROVIDERS.map(({ value, key, fallback }) => ({ value, label: t(key, null, fallback) }));
     if (!providerOptions.some(option => option.value === form.provider)) {
         providerOptions.push({ value: form.provider, label: form.provider });
