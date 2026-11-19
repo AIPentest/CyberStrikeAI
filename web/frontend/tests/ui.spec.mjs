@@ -279,6 +279,40 @@ test('chat: empty state, blank Enter and Shift+Enter never send', async ({ page,
     expect(mockApi.writes()).toEqual([]);
 });
 
+test('chat: create a project from the composer and select it for the current draft', async ({ page, mockApi }) => {
+    const created = { ...PROJECT, id: 'fixture-new-chat-project', name: '对话中新建的项目' };
+    mockApi.respond('POST', '/api/projects', { json: created });
+    const main = await visit(page, 'chat');
+    const composer = main.locator('.chat-composer');
+    const input = composer.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+    const projectSelect = composer.getByRole('combobox').filter({ hasText: label('chat.noProject', '不绑定项目') });
+    const createOption = page.getByRole('option').filter({ hasText: `+ ${label('projects.newProject', '新建项目')}` });
+    const dialog = page.getByRole('dialog', { name: label('projects.modalNewTitle', '新建项目') });
+
+    await input.fill('项目工作记录草稿');
+    await readsCompleted(mockApi, ['/api/projects']);
+    await projectSelect.click();
+    await expect(page.getByRole('option', { name: PROJECT.name })).toBeVisible();
+    await createOption.click();
+    await expect(dialog).toBeVisible();
+    await button(dialog, label('common.cancel', '取消')).click();
+    await expect(projectSelect).toBeVisible();
+    expect(mockApi.writes()).toEqual([]);
+
+    await projectSelect.click();
+    await createOption.click();
+    await dialog.getByLabel(label('projects.projectName', '项目名称'), { exact: true }).fill(created.name);
+    await button(dialog, label('projects.createProject', '创建项目')).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(composer.getByRole('combobox').filter({ hasText: created.name })).toBeVisible();
+    await expect(input).toHaveValue('项目工作记录草稿');
+    await expect(page).toHaveURL(/#\/chat$/);
+    expect(mockApi.calls('POST', '/api/projects').map(call => call.body)).toEqual([
+        { name: created.name, description: '' }
+    ]);
+    expect(mockApi.writes().map(call => call.path)).toEqual(['/api/projects']);
+});
+
 test.describe('chat: read-only permissions', () => {
     test.use({ appPermissions: READ_PERMISSIONS });
     test('no chat:write disables input, attachment and send', async ({ page, mockApi }) => {
@@ -288,6 +322,10 @@ test.describe('chat: read-only permissions', () => {
         await expect(button(main, label('chat.send', '发送'))).toBeDisabled();
         await expect(button(main, label('chat.attachmentsLabel', '附件'))).toBeDisabled();
         await expect(main.getByText(label('chat.noWritePermission', '当前账号没有对话写入权限（chat:write），发送已禁用。'), { exact: true })).toBeVisible();
+        await readsCompleted(mockApi, ['/api/projects']);
+        await main.locator('.chat-composer').getByRole('combobox').filter({ hasText: label('chat.noProject', '不绑定项目') }).click();
+        await expect(page.getByRole('option', { name: PROJECT.name })).toBeVisible();
+        await expect(page.getByRole('option').filter({ hasText: `+ ${label('projects.newProject', '新建项目')}` })).toHaveCount(0);
         // Send real keyboard events, without force-enabling a disabled application control.
         await main.locator('.chat-header-title').click();
         await page.keyboard.press('Enter');

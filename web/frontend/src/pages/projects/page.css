@@ -106,8 +106,6 @@
     color: var(--semi-color-text-2);
 }
 
-.project-form-actions { display: flex; justify-content: flex-end; width: 100%; margin-top: 12px; }
-
 .project-form-field {
     display: flex;
     flex-direction: column;

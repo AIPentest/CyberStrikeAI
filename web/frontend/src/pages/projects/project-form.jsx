@@ -52,7 +52,7 @@ export default function ProjectFormModal({ visible, project, onCancel, onSaved }
                     placeholder={t('projects.projectDescriptionPlaceholder', null, '客户/任务备注、协作说明…')}
                     extraText={t('projects.descriptionLengthHint', null, '仅供团队成员查阅，Agent 不会读取；需让 Agent 知晓的内容请写入事实黑板')} />
                 <ErrorBanner error={error} />
-                <Space className="project-form-actions">
+                <Space style={{ display: 'flex', justifyContent: 'flex-end', width: '100%', marginTop: 12 }}>
                     <Button onClick={onCancel}>{t('common.cancel', null, '取消')}</Button>
                     <Button htmlType="submit" theme="solid" loading={saving}>
                         {editing ? t('projects.saveChanges', null, '保存修改') : t('projects.createProject', null, '创建项目')}

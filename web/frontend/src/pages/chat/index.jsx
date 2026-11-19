@@ -8,6 +8,7 @@ import { useAuth } from '../../lib/auth';
 import { useT } from '../../lib/i18n';
 import { useDebounced, useInterval, useLocalStorage, useResource } from '../../components/hooks';
 import { toastError, toastSuccess, toastWarning } from '../../components/ui';
+import ProjectFormModal from '../projects/project-form';
 import ChatHeader from './ChatHeader';
 import ChatSettings from './ChatSettings';
 import ConversationList from './ConversationList';
@@ -48,6 +49,7 @@ export default function Page() {
     const t = useT();
     const { hasPermission } = useAuth();
     const canWrite = hasPermission('chat:write');
+    const canCreateProject = hasPermission('project:write');
     const canExecute = hasPermission('agent:execute');
     const canDelete = hasPermission('chat:delete');
     const canReadTasks = hasPermission('tasks:read');
@@ -67,6 +69,7 @@ export default function Page() {
     const [projectFilter, setProjectFilter] = useState('');
     const [page, setPage] = useState(1);
     const [newProjectId, setNewProjectId] = useState('');
+    const [projectFormOpen, setProjectFormOpen] = useState(false);
     const [storedMode, setStoredMode] = useLocalStorage(MODE_STORAGE_KEY, 'single');
     const mode = AGENT_MODES.includes(storedMode) ? storedMode : 'single';
     const model = useModelPreferences(canReadConfig);
@@ -122,6 +125,15 @@ export default function Page() {
     const projects = useMemo(() => (
         Array.isArray(projectsResource.data?.projects) ? projectsResource.data.projects : []
     ), [projectsResource.data]);
+    const handleProjectCreated = project => {
+        setProjectFormOpen(false);
+        if (!project?.id) return;
+        projectsResource.setData(previous => ({
+            ...previous,
+            projects: [project, ...(previous?.projects || [])]
+        }));
+        setNewProjectId(project.id);
+    };
 
     const listItems = Array.isArray(conversations.data?.conversations) ? conversations.data.conversations : [];
 
@@ -529,6 +541,8 @@ export default function Page() {
                             ? () => setSettingsOpen(true) : undefined}
                         projectId={newProjectId}
                         onProjectChange={value => setNewProjectId(value || '')}
+                        onCreateProject={canCreateProject && !projectsResource.loading
+                            ? () => setProjectFormOpen(true) : undefined}
                         projects={projects}
                         showProjectSelect={!conversationId}
                         attachments={attachments}
@@ -538,6 +552,13 @@ export default function Page() {
                     />
                 </div>
             </section>
+            {projectFormOpen && (
+                <ProjectFormModal
+                    visible
+                    onCancel={() => setProjectFormOpen(false)}
+                    onSaved={handleProjectCreated}
+                />
+            )}
             {settingsOpen && (
                 <ChatSettings
                     key={conversationId}
