@@ -71,7 +71,7 @@ export default function Page() {
     const mode = AGENT_MODES.includes(storedMode) ? storedMode : 'single';
     const model = useModelPreferences(canReadConfig);
     const [settingsOpen, setSettingsOpen] = useState(false);
-    const [draftApproval, setDraftApproval] = useState(null);
+    const [draftApproval, setDraftApproval] = useState(false);
 
     const [detail, setDetail] = useState(EMPTY_DETAIL);
     const [composers, setComposers] = useState(() => new Map());
@@ -185,7 +185,7 @@ export default function Page() {
     }, []);
 
     const bindConversation = useCallback(id => {
-        setDraftApproval(null);
+        setDraftApproval(false);
         boundByRun.current = id;
         conversationRef.current = id;
         setSearchParams({ conversation: id }, { replace: true });
@@ -403,9 +403,9 @@ export default function Page() {
             mode,
             projectId: newProjectId,
             ...model.request,
-            hitl: !conversationId && canDecideHitl ? draftApproval || undefined : undefined
+            requireHumanApproval: !conversationId && draftApproval
         });
-    }, [attachments, backgroundRunning, canWrite, canExecute, canDecideHitl, checkingRun, conversationId, draft, draftApproval, mode, model, newProjectId, resetRun, run, sending, t, updateComposer]);
+    }, [attachments, backgroundRunning, canWrite, canExecute, checkingRun, conversationId, draft, draftApproval, mode, model, newProjectId, resetRun, run, sending, t, updateComposer]);
 
     const conversation = detail.conversation;
 
@@ -549,8 +549,8 @@ export default function Page() {
                     canEnableHitl={canDecideHitl}
                     model={model}
                     conversationId={conversationId}
-                    draftApproval={!conversationId ? draftApproval : null}
-                    onEnableDraftApproval={setDraftApproval}
+                    draftApproval={!conversationId && draftApproval}
+                    onEnableDraftApproval={() => setDraftApproval(true)}
                 />
             )}
             <SideSheet

@@ -30,26 +30,22 @@ export default function ChatSettings({
         [conversationId, canReadHitl],
         { skip: !canReadHitl }
     );
-    const approvalMode = draftApproval?.mode || (conversationId
+    const approvalMode = draftApproval ? 'approval' : (conversationId
         ? (approvals.data?.hitl?.enabled ? approvals.data.hitl.mode : 'off')
         : approvals.data?.defaultMode);
     const approvalActive = approvalMode === 'approval' || approvalMode === 'review_edit';
-    const reviewer = draftApproval?.reviewer || (conversationId
+    const reviewer = draftApproval ? 'human' : (conversationId
         ? approvals.data?.hitl?.reviewer
         : approvals.data?.defaultReviewer);
     const usesAuditAgent = reviewer === 'audit_agent';
-    const canSelectHuman = canEnableHitl && !draftApproval && (!approvalActive || (!conversationId && usesAuditAgent));
+    const canSelectHuman = canEnableHitl && approvals.data?.conversationHumanApproval && !draftApproval
+        && (!conversationId || approvalMode !== 'approval' || reviewer !== 'human');
     const approvalLabel = approvalMode === 'review_edit'
         ? t('chat.hitlModeReviewEdit', null, '审查编辑')
         : t('chat.hitlModeApproval', null, '审批模式');
     const reviewerLabel = usesAuditAgent
         ? t('chat.hitlReviewerAgent', null, '审计 Agent')
         : t('chat.hitlReviewerHuman', null, '人工审批');
-    const enableLabel = conversationId
-        ? t('chat.hitlEnableHuman', null, '开启人工审批')
-        : approvalActive
-            ? t('chat.hitlUseHumanFirstMessage', null, '首条消息改用人工审批')
-            : t('chat.hitlEnableFirstMessage', null, '为首条消息开启人工审批');
     const defaultId = model.config.data?.default_channel;
     const defaultName = defaultId ? modelChannelName(defaultId, model.config.data?.channels?.[defaultId]) : '';
     const defaultLabel = t('chat.aiChannelDefault', null, '跟随默认通道');
@@ -65,20 +61,14 @@ export default function ChatSettings({
     };
 
     const enableApproval = async () => {
-        const hitl = {
-            enabled: true,
-            mode: 'approval',
-            reviewer: 'human',
-            timeoutSeconds: approvals.data.defaultTimeoutSeconds ?? 300
-        };
         if (!conversationId) {
-            onEnableDraftApproval(hitl);
+            onEnableDraftApproval();
             return;
         }
         setSaving(true);
         try {
-            await api.put('/hitl/config', { conversationId, ...hitl });
-            approvals.setData(current => ({ ...current, hitl }));
+            const saved = await api.put(`/hitl/config/${encodeURIComponent(conversationId)}/human-approval`);
+            approvals.setData(current => ({ ...current, hitl: saved.hitl }));
         } catch (error) {
             toastError(error, t('chat.hitlApplyFail', null, '同步到服务器失败'));
         } finally {
@@ -147,12 +137,12 @@ export default function ChatSettings({
                                 </div>
                                 {draftApproval && (
                                     <Text type="tertiary" size="small">
-                                        {t('chat.hitlFirstMessageEnabled', null, '首条消息将使用人工审批')}
+                                        {t('chat.hitlConversationApprovalPending', null, '发送后将为此会话保存人工审批。')}
                                     </Text>
                                 )}
                                 {canSelectHuman && (
                                     <Button disabled={busy || saving} loading={saving} onClick={enableApproval}>
-                                        {enableLabel}
+                                        {t('chat.hitlRequireHumanForConversation', null, '此会话使用人工审批')}
                                     </Button>
                                 )}
                             </>

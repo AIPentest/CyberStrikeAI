@@ -45,7 +45,9 @@ test.describe('chat composer settings', () => {
                 'demo-backup': { name: '示例通道 B', model: 'fixture-b' }
             }
         } } });
-        mockApi.respond('GET', '/api/hitl/default-config', { json: { defaultMode: 'off', defaultTimeoutSeconds: 120 } });
+        mockApi.respond('GET', '/api/hitl/default-config', { json: {
+            defaultMode: 'off', defaultTimeoutSeconds: 120, conversationHumanApproval: true
+        } });
         const message = 'FAKE：请翻译这句示例文本。';
         const id = mockApi.enableChatStream(message);
         const main = await visit(page, 'chat');
@@ -81,8 +83,8 @@ test.describe('chat composer settings', () => {
         await openSettings.click();
         await expect(channel).toHaveText('示例通道 A');
         await expect(effort).toContainText('medium');
-        await settings.getByRole('button', { name: label('chat.hitlEnableFirstMessage') }).click();
-        await expect(settings.getByText(label('chat.hitlFirstMessageEnabled'))).toBeVisible();
+        await settings.getByRole('button', { name: label('chat.hitlRequireHumanForConversation') }).click();
+        await expect(settings.getByText(label('chat.hitlConversationApprovalPending'))).toBeVisible();
         await settings.locator('button.semi-sidesheet-close').click();
         const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
         await input.fill(message);
@@ -93,7 +95,7 @@ test.describe('chat composer settings', () => {
             body: {
                 message, conversationId: '', aiChannelId: 'demo-primary',
                 reasoning: { mode: 'on', effort: 'medium' },
-                hitl: { enabled: true, mode: 'approval', reviewer: 'human', timeoutSeconds: 120 }
+                requireHumanApproval: true
             }
         }]);
     });
@@ -101,24 +103,24 @@ test.describe('chat composer settings', () => {
     test('loads an existing conversation approval status and persists human approval on demand', async ({ page, mockApi }) => {
         const path = `/api/hitl/config/${CONVERSATION.id}`;
         const expected = { enabled: true, mode: 'approval', reviewer: 'human', timeoutSeconds: 90 };
-        let hitl = { enabled: false, mode: 'off', sensitiveTools: ['fixture-existing-tool'] };
+        let hitl = { enabled: true, mode: 'approval', reviewer: 'audit_agent', timeoutSeconds: 90 };
         mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
-        mockApi.respond('GET', path, () => ({ json: { hitl, defaultTimeoutSeconds: 90 } }));
-        mockApi.respond('PUT', '/api/hitl/config', request => {
-            hitl = request.body;
-            return { json: { ok: true } };
+        mockApi.respond('GET', path, () => ({ json: { hitl, defaultTimeoutSeconds: 90, conversationHumanApproval: true } }));
+        mockApi.respond('PUT', path + '/human-approval', () => {
+            hitl = expected;
+            return { json: { hitl } };
         });
         await page.goto('/static/app/#/chat?conversation=' + CONVERSATION.id);
         const main = await ready(page);
         const openSettings = main.getByRole('button', { name: label('chat.sessionSettingsTitle'), exact: true });
         const settings = page.getByRole('dialog');
         await openSettings.click();
-        const enable = settings.getByRole('button', { name: label('chat.hitlEnableHuman') });
+        const enable = settings.getByRole('button', { name: label('chat.hitlRequireHumanForConversation') });
         await expect(enable).toBeEnabled();
         expect(mockApi.writes()).toEqual([]);
         await enable.click();
         await expect(settings.getByText(label('chat.hitlModeApproval'), { exact: true })).toBeVisible();
-        expect(mockApi.calls('PUT', '/api/hitl/config')[0]?.body).toEqual({ conversationId: CONVERSATION.id, ...expected });
+        expect(mockApi.calls('PUT', path + '/human-approval')).toHaveLength(1);
         await settings.locator('button.semi-sidesheet-close').click();
         await openSettings.click();
         await expect(settings.getByText(label('chat.hitlModeApproval'), { exact: true })).toBeVisible();
@@ -127,18 +129,24 @@ test.describe('chat composer settings', () => {
         expect(mockApi.writes()).toHaveLength(1);
     });
 
-    test('shows the inherited reviewer and lets the first message require a human', async ({ page, mockApi }) => {
+    test('sets conversation-level human approval when the default reviewer is inherited', async ({ page, mockApi }) => {
         mockApi.respond('GET', '/api/hitl/default-config', { json: {
-            defaultMode: 'approval', defaultReviewer: 'audit_agent', defaultTimeoutSeconds: 180
+            defaultMode: 'approval', defaultReviewer: 'audit_agent', defaultTimeoutSeconds: 180, conversationHumanApproval: true
         } });
         const message = 'FAKE：请润色这句示例文本。';
         const id = mockApi.enableChatStream(message);
+        mockApi.respond('GET', `/api/hitl/config/${id}`, { json: {
+            hitl: { enabled: true, mode: 'approval', reviewer: 'human', timeoutSeconds: 180 },
+            defaultMode: 'approval', defaultReviewer: 'audit_agent', defaultTimeoutSeconds: 180, conversationHumanApproval: true
+        } });
         const main = await visit(page, 'chat');
-        await main.getByRole('button', { name: label('chat.sessionSettingsTitle'), exact: true }).click();
+        const settingsButton = main.getByRole('button', { name: label('chat.sessionSettingsTitle'), exact: true });
+        await settingsButton.click();
         const settings = page.getByRole('dialog');
         const reviewer = label('chat.hitlCurrentReviewer');
         await expect(settings.getByText(reviewer.replace('{{reviewer}}', label('chat.hitlReviewerAgent')), { exact: true })).toBeVisible();
-        await settings.getByRole('button', { name: label('chat.hitlUseHumanFirstMessage') }).click();
+        const enable = settings.getByRole('button', { name: label('chat.hitlRequireHumanForConversation') });
+        await enable.click();
         await expect(settings.getByText(reviewer.replace('{{reviewer}}', label('chat.hitlReviewerHuman')), { exact: true })).toBeVisible();
         expect(mockApi.writes()).toEqual([]);
 
@@ -147,9 +155,12 @@ test.describe('chat composer settings', () => {
         await input.fill(message);
         await input.press('Enter');
         await expect(page).toHaveURL(new RegExp(`#/chat\\?conversation=${id}$`));
-        expect(mockApi.calls('POST', '/api/agent/stream')[0]?.body.hitl).toEqual({
-            enabled: true, mode: 'approval', reviewer: 'human', timeoutSeconds: 180
-        });
+        expect(mockApi.calls('POST', '/api/agent/stream')[0]?.body.requireHumanApproval).toBe(true);
+        await page.reload();
+        await ready(page);
+        await settingsButton.click();
+        await expect(settings.getByText(reviewer.replace('{{reviewer}}', label('chat.hitlReviewerHuman')), { exact: true })).toBeVisible();
+        await expect(enable).toHaveCount(0);
     });
 });
 

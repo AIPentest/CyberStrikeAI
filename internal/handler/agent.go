@@ -413,6 +413,7 @@ type ChatRequest struct {
 	WebShellConnectionID string                  `json:"webshellConnectionId,omitempty"` // WebShell 管理 - AI 助手：当前选中的连接 ID，仅使用 webshell_* 工具
 	AIChannelID          string                  `json:"aiChannelId,omitempty"`          // 会话级 AI 通道；空则使用 ai.default_channel
 	Hitl                 *HITLRequest            `json:"hitl,omitempty"`
+	RequireHumanApproval bool                    `json:"requireHumanApproval,omitempty"` // 新对话保存人工审批配置。
 	Reasoning            *ChatReasoningRequest   `json:"reasoning,omitempty"`
 	Finalization         ChatFinalizationRequest `json:"finalization,omitempty"`
 	// Orchestration 仅对 /api/multi-agent、/api/multi-agent/stream：deep | plan_execute | supervisor；空则等同 deep。机器人/批量等无请求体时由服务端默认 deep。/api/agent* 不使用此字段。

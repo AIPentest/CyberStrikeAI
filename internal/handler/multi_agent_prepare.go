@@ -45,6 +45,17 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 	if !hasSession || !session.Permissions["chat:write"] {
 		return nil, fmt.Errorf("无权写入对话")
 	}
+	if req.RequireHumanApproval {
+		if !session.Permissions["hitl:write"] {
+			return nil, fmt.Errorf("无权访问人机协同设置")
+		}
+		if conversationID != "" {
+			return nil, fmt.Errorf("已有对话请先保存人机协同设置")
+		}
+		if h.hitlManager == nil {
+			return nil, fmt.Errorf("保存人工审批失败: 人机协同不可用")
+		}
+	}
 	canAccess := func(resourceType, resourceID string) bool {
 		if !hasSession || h.db == nil || strings.TrimSpace(resourceID) == "" {
 			return false
@@ -66,6 +77,11 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 		meta.ProjectID = projectID
 		meta.RoleName = req.Role
 		meta.AgentMode = chatRequestAgentMode(req, source)
+		if req.RequireHumanApproval {
+			timeout := h.hitlEffectiveDefaultTimeoutSeconds()
+			meta.HumanApprovalTimeoutSeconds = &timeout
+			req.Hitl = &HITLRequest{Enabled: true, Mode: "approval", Reviewer: "human", TimeoutSeconds: timeout}
+		}
 		if webshellID != "" {
 			meta.Source = source + "_webshell"
 			meta.WebShellConnectionID = webshellID
