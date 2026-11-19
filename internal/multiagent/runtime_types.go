@@ -1,5 +1,10 @@
 package multiagent
 
+const (
+	ReasonModelOutputTruncated = "model_output_truncated"
+	ReasonUnfinishedPlan       = "unfinished_plan"
+)
+
 type RunResult struct {
 	RuntimeStatus           string // immutable runtime outcome; delivery finalization may update Status separately
 	RuntimeCompletionReason string

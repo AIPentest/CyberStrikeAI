@@ -765,10 +765,7 @@ func (h *AgentHandler) finalizeRobotAgentError(ctx context.Context, assistantMes
 
 func (h *AgentHandler) finalizeRobotAgentSuccess(taskCtx context.Context, assistantMessageID, conversationID string, resultMA *multiagent.RunResult) (string, string, error) {
 	reasoningContent := multiagent.AggregatedReasoningFromTraceJSON(resultMA.LastAgentTraceInput)
-	decision := h.decideAgentRunForDeliveryWithPolicy(conversationID, assistantMessageID, "robot", resultMA, resultMA.MCPExecutionIDs, false)
-	if cancelled := h.cleanupPendingToolExecutionsAfterIteration(taskCtx, conversationID, decision, nil); len(cancelled) > 0 {
-		decision = h.decideAgentRunForDeliveryWithPolicy(conversationID, assistantMessageID, "robot", resultMA, resultMA.MCPExecutionIDs, false)
-	}
+	decision, _ := h.decideAgentRunForDeliveryAndCleanup(taskCtx, conversationID, assistantMessageID, "robot", resultMA, resultMA.MCPExecutionIDs, false, nil)
 	h.persistFinalizationDecision(conversationID, assistantMessageID, "robot", resultMA.MCPExecutionIDs, reasoningContent, decision)
 	responseText := decision.FinalText
 	if !decision.Finalizable {
@@ -802,7 +799,9 @@ func (h *AgentHandler) runRobotAgentSingleWithRetry(
 		*taskStatus = "failed"
 		return h.finalizeRobotAgentError(taskCtx, assistantMessageID, conversationID, resultMA, errMA)
 	}
-	return h.finalizeRobotAgentSuccess(taskCtx, assistantMessageID, conversationID, resultMA)
+	response, id, err := h.finalizeRobotAgentSuccess(taskCtx, assistantMessageID, conversationID, resultMA)
+	*taskStatus = resultMA.Status
+	return response, id, err
 }
 
 func (h *AgentHandler) runRobotMultiAgentWithRetry(
@@ -823,7 +822,9 @@ func (h *AgentHandler) runRobotMultiAgentWithRetry(
 		*taskStatus = "failed"
 		return h.finalizeRobotAgentError(taskCtx, assistantMessageID, conversationID, resultMA, errMA)
 	}
-	return h.finalizeRobotAgentSuccess(taskCtx, assistantMessageID, conversationID, resultMA)
+	response, id, err := h.finalizeRobotAgentSuccess(taskCtx, assistantMessageID, conversationID, resultMA)
+	*taskStatus = resultMA.Status
+	return response, id, err
 }
 
 // ProcessMessageForRobot 供机器人（企业微信/钉钉/飞书）调用：Agent 单/多代理执行路径（含 progressCallback、过程详情），仅不发送 SSE，最后返回完整回复

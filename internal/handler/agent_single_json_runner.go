@@ -53,18 +53,18 @@ func (h *AgentHandler) runSingleJSON(taskCtx, baseCtx context.Context, cancelWit
 			if shouldPersistAgentAgentTraceAfterRunError(baseCtx) {
 				h.persistAgentAgentTraceForResume(prep.ConversationID, result)
 			}
-			respond(http.StatusInternalServerError, gin.H{"error": runErr.Error()})
+			errData := multiagent.ClientRunErrorFields(runErr)
+			errData["error"] = multiagent.ClientRunErrorMessage(runErr)
+			respond(http.StatusInternalServerError, errData)
 			return
 		}
 		mw := &h.config.MultiAgent.Runtime
 		if h.tryContinueOnAgentEmptyResponse(taskCtx, mw, prep.ConversationID, result, &emptyResponseContinueAttempt, &curHist, &curMsg, progressCallback) {
 			continue
 		}
-		decision = h.decideAgentRunForDeliveryWithPolicy(prep.ConversationID, prep.AssistantMessageID, "single", result, result.MCPExecutionIDs, requestRequiresExecutionEvidence(req))
-		if cancelled := h.cleanupPendingToolExecutionsAfterIteration(taskCtx, prep.ConversationID, decision, progressCallback); len(cancelled) > 0 {
-			autoCancelledPendingExecutionIDs = mergeMCPExecutionIDLists(autoCancelledPendingExecutionIDs, cancelled)
-			decision = h.decideAgentRunForDeliveryWithPolicy(prep.ConversationID, prep.AssistantMessageID, "single", result, result.MCPExecutionIDs, requestRequiresExecutionEvidence(req))
-		}
+		var cancelled []string
+		decision, cancelled = h.decideAgentRunForDeliveryAndCleanup(taskCtx, prep.ConversationID, prep.AssistantMessageID, "single", result, result.MCPExecutionIDs, requestRequiresExecutionEvidence(req), progressCallback)
+		autoCancelledPendingExecutionIDs = mergeMCPExecutionIDLists(autoCancelledPendingExecutionIDs, cancelled)
 		if h.tryAutoContinueAfterFinalization(taskCtx, prep.ConversationID, result, decision, &finalizationAutoContinueAttempt, &curHist, &curMsg, progressCallback) {
 			continue
 		}

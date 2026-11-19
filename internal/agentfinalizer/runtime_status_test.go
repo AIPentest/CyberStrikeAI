@@ -1,8 +1,9 @@
 package agentfinalizer
 
 import (
-	"cyberstrike-ai/internal/multiagent"
 	"testing"
+
+	"cyberstrike-ai/internal/multiagent"
 )
 
 func TestRuntimeIterationLimitCannotBecomeCompleted(t *testing.T) {
@@ -12,5 +13,13 @@ func TestRuntimeIterationLimitCannotBecomeCompleted(t *testing.T) {
 		if decision.Finalizable || decision.Status != "blocked" || decision.CompletionReason != "iteration_limit" {
 			t.Fatalf("unexpected delivery: %+v", decision)
 		}
+	}
+}
+
+func TestTruncatedOutputRetainsReasonWithoutFinalText(t *testing.T) {
+	result := &multiagent.RunResult{RuntimeStatus: StatusBlocked, RuntimeCompletionReason: multiagent.ReasonModelOutputTruncated}
+	decision := FromRunResult(nil, result, Input{})
+	if decision.Finalized || decision.Finalizable || decision.Status != StatusBlocked || decision.CompletionReason != multiagent.ReasonModelOutputTruncated {
+		t.Fatalf("unexpected delivery: %+v", decision)
 	}
 }
