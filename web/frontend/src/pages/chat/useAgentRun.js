@@ -70,7 +70,12 @@ export function useAgentRun({
     }, [conversationRef, flushLive, onSettled, requestDetailReload]);
 
     const send = useCallback(({ message, attachments, mode, projectId, aiChannelId, reasoning, hitl, requireHumanApproval }) => {
-        const run = { live: createLiveState({ conversationId: conversationRef.current }), markedFinished: false, abort: null };
+        const run = {
+            live: createLiveState({ conversationId: conversationRef.current }),
+            markedFinished: false,
+            stopRequested: false,
+            abort: null
+        };
         runRef.current = run;
         liveRef.current = run.live;
         setLive({ ...run.live });
@@ -125,6 +130,14 @@ export function useAgentRun({
                 finishRun(run);
             },
             onClose() {
+                if (run.markedFinished || runRef.current !== run) return;
+                run.live.status = 'disconnected';
+                run.live.endedAt = Date.now();
+                if (!run.stopRequested) {
+                    run.live.notice = t('chat.streamEndedWithoutDone', null,
+                        '连接提前结束，未收到任务完成信号。任务可能仍在后端执行。');
+                    toastWarning(run.live.notice);
+                }
                 finishRun(run);
             }
         });
@@ -139,6 +152,7 @@ export function useAgentRun({
         if (target) {
             try {
                 await api.post('/agent-loop/cancel', { conversationId: target });
+                if (run) run.stopRequested = true;
                 toastSuccess(t('chat.stopRequested', null, '已请求停止任务'));
             } catch (error) {
                 toastWarning(errorMessage(error, t('chat.stopFailed', null, '停止请求失败')));

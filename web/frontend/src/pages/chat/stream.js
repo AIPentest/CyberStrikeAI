@@ -321,7 +321,9 @@ export function applyStreamEvent(state, event) {
             state.endedAt = Date.now();
             break;
         case 'done':
-            if (state.status === 'streaming') state.status = 'done';
+            if (state.status === 'streaming') {
+                state.status = data.status === 'blocked' || state.finalizable === false ? 'blocked' : 'done';
+            }
             if (data.workflowStatus === 'awaiting_hitl') state.statusText = '工作流等待审批';
             state.endedAt = Date.now();
             break;
@@ -339,6 +341,8 @@ export function isLiveStreaming(live) {
 export const LIVE_STATUS_META = {
     streaming: { label: '生成中', color: 'blue' },
     done: { label: '已完成', color: 'green' },
+    blocked: { label: '未完成', color: 'orange' },
+    disconnected: { label: '连接已结束', color: 'grey' },
     error: { label: '失败', color: 'red' },
     cancelled: { label: '已取消', color: 'grey' }
 };

@@ -90,6 +90,20 @@ function mockEmptyConversation(mockApi, projectId = '') {
     return conversation;
 }
 
+test('chat warns when the stream closes before completion', async ({ page, mockApi }) => {
+    const conversation = mockEmptyConversation(mockApi);
+    mockApi.respond('POST', '/api/agent/stream', {
+        contentType: 'text/event-stream; charset=utf-8',
+        body: `data: ${JSON.stringify({ type: 'response_delta', message: '正在整理笔记。' })}\n\n`
+    });
+    const main = await visit(page, `chat?conversation=${conversation.id}`);
+    await main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') }).fill('整理一份三段式笔记。');
+    await main.getByRole('button', { name: /发送$/ }).click();
+    await expect(page.getByText(label('chat.streamEndedWithoutDone', '连接提前结束'), { exact: true }).first()).toBeVisible();
+    await expect(main.locator('.chat-msg-live').getByText('已完成', { exact: true })).toHaveCount(0);
+    expect(mockApi.writes().map(({ method, path }) => ({ method, path }))).toEqual([{ method: 'POST', path: '/api/agent/stream' }]);
+});
+
 test.describe('chat composer projects', () => {
     test('binds and unbinds an existing empty conversation without losing its draft or sending during save', async ({ page, mockApi }) => {
         const conversation = mockEmptyConversation(mockApi);
