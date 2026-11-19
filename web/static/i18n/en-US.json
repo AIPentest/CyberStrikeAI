@@ -5519,6 +5519,11 @@
     "updatedAt": "Updated",
     "loading": "Loading assessment…",
     "graph": "Exploration graph",
+    "graphView": {
+      "label": "Graph view",
+      "summary": "Main path",
+      "full": "Execution records"
+    },
     "continuous": "Continuous",
     "mode": "Execution mode",
     "elapsed": "Active time",
@@ -5653,6 +5658,7 @@
     "archive": "Archive",
     "restore": "Restore to list",
     "currentTasks": "Current tasks",
+    "unarchivedTasks": "Unarchived",
     "archivedTasks": "Archived",
     "archiveFilter": "Archive status",
     "archiveHint": "Archiving keeps progress and evidence. Pause running work first.",

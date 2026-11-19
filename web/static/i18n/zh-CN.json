@@ -5465,6 +5465,11 @@
     "updatedAt": "更新时间",
     "loading": "正在读取测评…",
     "graph": "探索图",
+    "graphView": {
+      "label": "图谱视图",
+      "summary": "主链路",
+      "full": "执行记录"
+    },
     "continuous": "持续执行",
     "mode": "运行模式",
     "elapsed": "已运行",
@@ -5520,6 +5525,7 @@
     "archive": "归档",
     "restore": "恢复到列表",
     "currentTasks": "当前任务",
+    "unarchivedTasks": "未归档",
     "archivedTasks": "已归档",
     "archiveFilter": "归档状态",
     "archiveHint": "归档保留进度与证据；执行中的任务请先暂停。",

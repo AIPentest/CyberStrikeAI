@@ -4646,6 +4646,16 @@
       }
     }
   },
+  "deepAssessments": {
+    "unarchivedTasks": "غير مؤرشف",
+    "archivedTasks": "مؤرشف",
+    "archiveFilter": "حالة الأرشفة",
+    "graphView": {
+      "label": "عرض الرسم",
+      "summary": "المسار الرئيسي",
+      "full": "سجلّ التنفيذ"
+    }
+  },
   "vulnerabilityRetest": {
     "startFailed": "لم يُرسَل إعادة الاختبار. مُوجّهه محفوظ في الفرع؛ عُد إليه للمتابعة.",
     "title": "إعادة اختبار الثغرة",

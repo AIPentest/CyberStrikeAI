@@ -47,6 +47,10 @@
     margin: 8px 0 0;
 }
 
+.assessment-view-options {
+    white-space: nowrap;
+}
+
 .assessment-toolbar {
     display: flex;
     flex-wrap: wrap;

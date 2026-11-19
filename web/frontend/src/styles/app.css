@@ -106,6 +106,11 @@ body[theme-mode="dark"] .semi-button-primary.semi-button-solid:not(.semi-button-
 .cs-page-header-extra { flex-wrap: wrap; }
 .cs-section-card { background: var(--semi-color-bg-1); margin-bottom: var(--cs-gap); border: 1px solid var(--semi-color-border); border-radius: var(--cs-radius); box-shadow: 0 2px 6px rgba(18, 32, 58, .025); min-width: 0; }
 .cs-section-card .semi-card-header { padding: 18px 20px 4px; }
+/* Semi 先渲染操作区，换行时将标题留在操作区上方。 */
+.cs-section-card .semi-card-header-wrapper { align-items: center; flex-wrap: wrap-reverse; gap: 8px 12px; }
+.cs-section-card .semi-card-header-wrapper-spacing { width: auto; margin-inline: 0; overflow-wrap: anywhere; }
+.cs-section-card .semi-card-header-wrapper-extra { max-width: 100%; }
+.cs-section-card .semi-card-header-wrapper-extra > .semi-space-horizontal { flex-wrap: wrap; }
 .cs-section-card .semi-card-body { padding: 16px 20px 20px; }
 .cs-section-title { font-size: 14px; font-weight: 600; }
 .cs-section-desc { margin: 0 0 12px !important; font-size: 12px; }

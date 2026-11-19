@@ -1,6 +1,6 @@
 /** 探索图：cytoscape 渲染、节点下钻与证据路径。 */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Empty, Select, Space, Switch, Tag, Typography } from '@douyinfe/semi-ui';
+import { Button, Empty, RadioGroup, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
 import { useResource } from '../../components/hooks';
@@ -222,11 +222,16 @@ export default function GraphTab({ id, reloadToken }) {
 
     const headExtra = (
         <Space wrap>
-            <Switch
-                checkedText="执行记录"
-                uncheckedText="主链路"
-                checked={view === 'full'}
-                onChange={value => { setView(value ? 'full' : 'summary'); setOffset(0); }}
+            <RadioGroup
+                className="assessment-view-options"
+                aria-label={t('deepAssessments.graphView.label', null, '图谱视图')}
+                type="button"
+                value={view}
+                options={[
+                    { value: 'summary', label: t('deepAssessments.graphView.summary', null, '主链路') },
+                    { value: 'full', label: t('deepAssessments.graphView.full', null, '执行记录') }
+                ]}
+                onChange={event => { setView(event.target.value); setOffset(0); }}
             />
             <Button size="small" onClick={() => { setScope(''); setOffset(0); }} disabled={!scope && offset === 0}>全图概览</Button>
             <Button size="small" onClick={fit}>适应画布</Button>

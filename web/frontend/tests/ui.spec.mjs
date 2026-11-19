@@ -437,6 +437,64 @@ for (const [id, path, record] of [
     });
 }
 
+test('deep assessment: archive filter stays horizontal and switches the list without writes', async ({ page, mockApi }) => {
+    mockApi.respond('GET', '/api/deep-assessments', (_, url) => ({
+        json: { tasks: url.searchParams.get('archived') === 'true' ? [] : [ASSESSMENT], has_more: false }
+    }));
+    const main = await visit(page, 'deep-assessments');
+    const filter = main.getByRole('radiogroup', { name: '归档状态' });
+    const unarchived = filter.getByRole('radio', { name: '未归档' });
+    const archived = filter.getByRole('radio', { name: '已归档' });
+    const unarchivedLabel = filter.getByText('未归档', { exact: true });
+    const archivedLabel = filter.getByText('已归档', { exact: true });
+    const draft = button(main, ASSESSMENT.name);
+
+    await expect(unarchived).toBeChecked();
+    await expect(draft).toBeVisible();
+    await expect(filter).toBeInViewport({ ratio: 1 });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(filter).toBeInViewport({ ratio: 1 });
+    expect((await unarchivedLabel.boundingBox()).y).toBe((await archivedLabel.boundingBox()).y);
+
+    await archivedLabel.click();
+    await expect(archived).toBeChecked();
+    await expect(draft).toHaveCount(0);
+    await unarchivedLabel.click();
+    await expect(unarchived).toBeChecked();
+    await expect(draft).toBeVisible();
+    expect(mockApi.writes()).toEqual([]);
+});
+
+test('deep assessment: graph switches views and resets pagination on a narrow screen', async ({ page, mockApi }) => {
+    const apiPath = `/api/deep-assessments/${ASSESSMENT.id}`;
+    mockApi.respond('GET', `${apiPath}/events`, { json: { events: [] } });
+    mockApi.respond('GET', `${apiPath}/graph`, { json: {
+        nodes: [{ id: 'goal', kind: 'goal', title: '示例目标' }], edges: [], has_more: true
+    } });
+    await page.goto(`/static/app/#/deep-assessments?id=${ASSESSMENT.id}&tab=graph`);
+    const main = await ready(page);
+    const filter = main.getByRole('radiogroup', { name: '图谱视图' });
+    const summary = filter.getByRole('radio', { name: '主链路' });
+    const full = filter.getByRole('radio', { name: '执行记录' });
+    const lastGraphQuery = () => new URLSearchParams(mockApi.calls('GET', `${apiPath}/graph`).at(-1)?.query);
+
+    await expect(summary).toBeChecked();
+    await expect(filter).toBeInViewport({ ratio: 1 });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(main.getByText('探索图', { exact: true }).and(main.locator('.cs-section-title'))).toBeInViewport({ ratio: 1 });
+    await expect(filter).toBeInViewport({ ratio: 1 });
+    await button(main, '下一页').click();
+    await expect.poll(() => lastGraphQuery().get('offset')).toBe('80');
+
+    await filter.getByText('执行记录', { exact: true }).click();
+    await expect(full).toBeChecked();
+    await expect.poll(() => [lastGraphQuery().get('view'), lastGraphQuery().get('offset')]).toEqual(['full', '0']);
+    await filter.getByText('主链路', { exact: true }).click();
+    await expect(summary).toBeChecked();
+    await expect.poll(() => lastGraphQuery().get('view')).toBe('summary');
+    expect(mockApi.writes()).toEqual([]);
+});
+
 test('deep assessment: options retry, required objective, close new-draft modal without execution', async ({ page, mockApi }, testInfo) => {
     mockApi.fail('GET', '/api/deep-assessments/options', '示例选项加载失败');
     const main = await visit(page, 'deep-assessments');
@@ -562,6 +620,21 @@ test.describe('mobile @mobile', () => {
             await assertNoOverflow(page);
         });
     }
+
+    test('info collection: the results title and actions fit in the card header', async ({ page }) => {
+        const main = await visit(page, 'info-collect');
+        const titleText = label('infoCollectPage.queryResults', '查询结果');
+        const header = main.locator('.semi-card-header-wrapper').filter({ hasText: titleText });
+        const title = header.getByText(titleText, { exact: true });
+        const importButton = button(header, label('assets.importSelected', '入库所选'));
+
+        await header.scrollIntoViewIfNeeded();
+        await expect(title).toBeInViewport({ ratio: 1 });
+        await expect(importButton).toBeInViewport({ ratio: 1 });
+        const titleBox = await title.boundingBox();
+        const actionBox = await importButton.boundingBox();
+        expect(actionBox.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height);
+    });
 
     test('chat: composer and send remain in viewport, multiline input does not send', async ({ page, mockApi }, testInfo) => {
         const main = await visit(page, 'chat');
