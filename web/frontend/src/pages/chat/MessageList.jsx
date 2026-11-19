@@ -1,4 +1,4 @@
-/** 消息区：历史消息 + 当前流式输出，自动贴底滚动。 */
+/** 消息区：运行中跟随输出，结束后定位到最终总结的开头。 */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, Button, Empty, Spin, Tag, Tooltip, Typography } from '@douyinfe/semi-ui';
 import { IconArrowDown, IconComment, IconDelete, IconRefresh, IconUser } from '@douyinfe/semi-icons';
@@ -84,7 +84,7 @@ function MessageRow({ message, canDelete, onDeleteTurn }) {
                     </span>
                 </div>
                 {content || blocks.length > 0
-                    ? <TurnBody text={content} blocks={blocks} events={null} />
+                    ? <TurnBody text={content} blocks={blocks} events={null} isAssistant={!isUser} />
                     : <Text type="tertiary">—</Text>}
             </div>
         </div>
@@ -106,6 +106,7 @@ function LiveRow({ live }) {
                     {live.statusText && <span className="chat-live-status">{live.statusText}</span>}
                 </div>
                 <TurnBody
+                    isAssistant
                     text={live.text}
                     blocks={live.blocks}
                     events={live.events}
@@ -135,20 +136,41 @@ export default function MessageList({
     const t = useT();
     const scrollRef = useRef(null);
     const stickRef = useRef(true);
+    const positionedSummaryRef = useRef('');
     const [atBottom, setAtBottom] = useState(true);
 
     const list = Array.isArray(messages) ? messages : [];
+    const lastMessage = list[list.length - 1];
+    const historySignature = `${list.length}:${lastMessage?.id || ''}:${lastMessage?.content || ''}:${lastMessage?.processDetails?.length || 0}`;
+    const summaryKey = live
+        ? (live.status !== 'streaming' && live.text.trim() ? `live:${conversationId}:${live.messageId || live.id}:${live.text}` : '')
+        : (!loading && lastMessage?.role === 'assistant' && String(lastMessage.content || '').trim() ? `history:${conversationId}:${lastMessage.id}:${lastMessage.content}` : '');
     const signature = useMemo(() => {
-        if (!live) return `${list.length}`;
+        if (!live) return historySignature;
         const blockSig = live.blocks.map(block => `${block.kind}:${block.id}:${block.text ? block.text.length : 0}:${block.status || ''}`).join('|');
-        return `${list.length}#${live.status}#${live.text.length}#${blockSig}`;
-    }, [list.length, live]);
+        return `${historySignature}#${live.id}#${live.status}#${live.text.length}#${blockSig}`;
+    }, [historySignature, live]);
 
     const scrollToBottom = useCallback((smooth = false) => {
         const el = scrollRef.current;
         if (!el) return;
         el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
     }, []);
+
+    const scrollToLatest = useCallback((smooth = false) => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const rows = el.querySelectorAll('.chat-msg');
+        const summary = rows[rows.length - 1]?.querySelector('[data-chat-summary]');
+        if (!summary) {
+            scrollToBottom(smooth);
+            return;
+        }
+        // Use the summary's start, so long reports open at their heading rather
+        // than at their last paragraph. Only scroll the message pane.
+        const top = summary.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - 12;
+        el.scrollTo({ top: Math.max(0, top), behavior: smooth ? 'smooth' : 'auto' });
+    }, [scrollToBottom]);
 
     const handleScroll = useCallback(() => {
         const el = scrollRef.current;
@@ -161,15 +183,22 @@ export default function MessageList({
 
     useEffect(() => {
         stickRef.current = true;
+        positionedSummaryRef.current = '';
         setAtBottom(true);
-        const timer = setTimeout(() => scrollToBottom(false), 30);
+        const timer = setTimeout(() => scrollToLatest(false), 30);
         return () => clearTimeout(timer);
-    }, [conversationId, scrollToBottom]);
+    }, [conversationId, scrollToLatest]);
 
     useEffect(() => {
-        if (!stickRef.current) return;
-        scrollToBottom(false);
-    }, [signature, scrollToBottom]);
+        if (live?.id) stickRef.current = true;
+    }, [live?.id]);
+
+    useEffect(() => {
+        if (loading) return;
+        const newlyCompleted = summaryKey && positionedSummaryRef.current !== summaryKey;
+        if (newlyCompleted) positionedSummaryRef.current = summaryKey;
+        if (newlyCompleted || stickRef.current) scrollToLatest(false);
+    }, [signature, summaryKey, loading, scrollToLatest]);
 
     const hasContent = Boolean(conversationId || live || list.length);
 

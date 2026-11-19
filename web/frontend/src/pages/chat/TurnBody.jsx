@@ -1,4 +1,4 @@
-/** 单条助手输出：正文 Markdown + 过程块（推理/工具/迭代/提示）+ 原始事件折叠。 */
+/** 单轮输出：执行过程与事件在前，助手最终正文在末尾独立展示。 */
 import { useState } from 'react';
 import { Collapse, Tag, Typography } from '@douyinfe/semi-ui';
 import { MarkdownView, JsonViewer } from '../../components/ui';
@@ -128,16 +128,14 @@ export default function TurnBody({
     blocks,
     events,
     streaming = false,
-    openReasoning = false
+    openReasoning = false,
+    isAssistant = false
 }) {
+    const { t } = useI18n();
     const list = Array.isArray(blocks) ? blocks : [];
     const body = text || '';
     return (
         <div className="chat-turn-body">
-            {body && (streaming
-                ? <pre className="chat-pre chat-stream-text">{body}</pre>
-                : <MarkdownView content={body} />)}
-            {!body && streaming && <div className="chat-stream-placeholder">正在生成…</div>}
             {list.map(block => {
                 if (block.kind === 'reasoning') {
                     return <ReasoningBlock key={block.id} block={block} defaultOpen={openReasoning} />;
@@ -161,6 +159,17 @@ export default function TurnBody({
                 return null;
             })}
             <EventLog events={events} />
+            {body.trim() && (isAssistant && !streaming ? (
+                <section className="chat-task-summary" aria-label={t('chat.taskSummary')} data-chat-summary>
+                    <details key={body} open>
+                        <summary className="chat-task-summary-title">{t('chat.taskSummary')}</summary>
+                        <div className="chat-task-summary-content"><MarkdownView content={body} /></div>
+                    </details>
+                </section>
+            ) : streaming ? (
+                <pre className="chat-pre chat-stream-text">{body}</pre>
+            ) : <MarkdownView content={body} />)}
+            {!body.trim() && streaming && <div className="chat-stream-placeholder">正在生成…</div>}
         </div>
     );
 }

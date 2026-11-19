@@ -743,6 +743,7 @@
     "generatedFromFact": "Generated from project fact {{factKey}}"
   },
   "chat": {
+    "taskSummary": "Task summary",
     "toolExecBlocked": "Tool {{name}} blocked",
     "newChat": "New chat",
     "newTask": "New task",

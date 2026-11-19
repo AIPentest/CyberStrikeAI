@@ -742,6 +742,7 @@
     "generatedFromFact": "مُولّدة من حقيقة المشروع {{factKey}}"
   },
   "chat": {
+    "taskSummary": "ملخص المهمة",
     "toolExecBlocked": "تم حظر الأداة {{name}}",
     "newChat": "محادثة جديدة",
     "newTask": "مهمّة جديدة",

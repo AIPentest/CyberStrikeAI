@@ -198,6 +198,10 @@
 .chat-turn-body .cs-markdown table { display: block; max-width: 100%; overflow-x: auto; }
 .chat-turn-body .cs-markdown img { height: auto; }
 .chat-stream-placeholder { font-size: 13px; color: var(--semi-color-text-2); }
+.chat-task-summary { margin-top: 14px; min-width: 0; border: 1px solid var(--semi-color-primary-light-active); border-radius: 12px; background: var(--semi-color-bg-2); }
+.chat-task-summary-title { padding: 14px 16px; color: var(--semi-color-text-0); font-size: 15px; font-weight: 600; cursor: pointer; overflow-wrap: anywhere; }
+.chat-task-summary-title:focus-visible { outline: 2px solid var(--semi-color-primary); outline-offset: -2px; border-radius: 12px; }
+.chat-task-summary-content { min-width: 0; padding: 0 16px 16px; }
 
 .chat-pre {
     margin: 0;

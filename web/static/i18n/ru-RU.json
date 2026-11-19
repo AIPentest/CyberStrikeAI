@@ -755,6 +755,7 @@
     "generatedFromFact": "Создано из факта проекта {{factKey}}"
   },
   "chat": {
+    "taskSummary": "Итоги задачи",
     "toolExecBlocked": "Инструмент {{name}} заблокирован",
     "newChat": "Новый диалог",
     "newTask": "Новая задача",
