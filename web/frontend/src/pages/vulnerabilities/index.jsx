@@ -479,7 +479,7 @@ export default function VulnerabilitiesPage() {
                     onChange={applyFilter}
                     onReset={resetFilters}
                 />
-                <div className={groupView ? 'vulnerability-group-layout' : undefined}>
+                <div className={groupView ? `vulnerability-group-layout vulnerability-group-layout--${groupView}` : undefined}>
                     {groupView && (
                         <GroupNavigator
                             key={groupView}

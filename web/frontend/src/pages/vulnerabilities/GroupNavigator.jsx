@@ -44,7 +44,9 @@ export function GroupNavigator({ t, mode, groups, selection, loading, search, on
         return [{ key: 'all', value: 'all', label: all }, ...groups.map(node => treeNode(t, node))];
     }, [t, groups, isTask]);
     const selectedParent = groups.find(node => node.children?.some(child => child.key === selection));
-    const expanded = expandedKeys ?? (selectedParent ? [selectedParent.key] : NO_EXPANDED_GROUPS);
+    const expanded = isTask
+        ? expandedKeys ?? (selectedParent ? [selectedParent.key] : NO_EXPANDED_GROUPS)
+        : treeData.filter(node => node.children?.length).map(node => node.key);
 
     useEffect(() => setKeyword(search), [search]);
     useEffect(() => {
@@ -71,7 +73,8 @@ export function GroupNavigator({ t, mode, groups, selection, loading, search, on
                     value={selection || 'all'}
                     onSelect={key => onSelect(key === 'all' ? '' : key)}
                     expandedKeys={expanded}
-                    onExpand={setExpandedKeys}
+                    onExpand={isTask ? setExpandedKeys : undefined}
+                    expandIcon={isTask ? undefined : () => <span className="semi-tree-empty-icon" aria-hidden="true" />}
                     expandAction={false}
                     blockNode
                 />
