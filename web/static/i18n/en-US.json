@@ -3137,7 +3137,6 @@
     "effectiveBudget": "Effective context token budget",
     "warnings": "Context notices",
     "unknownWarning": "Unrecognized context notice ({{code}})",
-    "defaultChannelSuffix": " (default)",
     "compatible": "OpenAI-compatible API",
     "mainChannel": "Primary model channel",
     "visionHint": "Current vision model: {{model}}. An empty API key uses the primary model configuration.",

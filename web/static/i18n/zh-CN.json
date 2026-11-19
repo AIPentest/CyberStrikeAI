@@ -3125,7 +3125,6 @@
     "effectiveBudget": "实际可用上下文令牌数",
     "warnings": "上下文提示",
     "unknownWarning": "收到未识别的上下文提示（{{code}}）",
-    "defaultChannelSuffix": "（默认）",
     "compatible": "兼容 OpenAI 的接口",
     "mainChannel": "主模型通道",
     "visionHint": "当前视觉模型 {{model}}，未填写密钥时使用主模型配置。",

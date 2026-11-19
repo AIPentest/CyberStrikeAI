@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Banner, Button, Form, Modal, Spin } from '@douyinfe/semi-ui';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
+import { modelChannelOptions, selectedModelChannelName } from '../../lib/model-channel';
 import { ErrorBanner, toastError, toastSuccess } from '../../components/ui';
 
 const HITL_OPTIONS = [
@@ -57,10 +58,7 @@ export default function CreateAssessmentModal({ visible, onCancel, onCreated }) 
         }
     };
 
-    const models = (options?.models || []).map(item => ({
-        value: item.id,
-        label: [item.name || item.id, item.model].filter(Boolean).join(' · ')
-    }));
+    const models = modelChannelOptions((options?.models || []).map(item => [item.id, item]));
     const roles = (options?.roles || []).map(role => ({ value: role, label: role }));
     const projects = (options?.projects || []).map(project => ({ value: project.id, label: project.name || project.id }));
 
@@ -121,6 +119,7 @@ export default function CreateAssessmentModal({ visible, onCancel, onCreated }) 
                             field="model"
                             label={t('deepAssessments.model', null, '模型渠道')}
                             optionList={[{ value: '', label: '系统默认' }, ...models]}
+                            renderSelectedItem={selectedModelChannelName}
                             style={{ width: '100%' }}
                         />
                         <Form.Select

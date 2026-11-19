@@ -62,11 +62,11 @@ test.describe('chat composer settings', () => {
         const channel = settings.getByRole('combobox', { name: label('chat.aiChannelLabel') });
         const mode = settings.getByRole('combobox', { name: label('chat.reasoningModeLabel') });
         const effort = settings.getByRole('combobox', { name: label('chat.reasoningEffortLabel') });
-        await expect(channel).toContainText('示例通道 B · fixture-b');
+        await expect(channel).toHaveText('示例通道 B');
         await expect(effort).toContainText('low');
         await channel.click();
-        await expect(page.getByRole('option', { name: `${label('chat.aiChannelDefault')} · fixture-a` })).toBeVisible();
-        await page.getByRole('option', { name: '示例通道 A · fixture-a' }).click();
+        await expect(page.getByRole('option', { name: `${label('chat.aiChannelDefault')} · 示例通道 A` })).toBeVisible();
+        await page.getByRole('listbox').getByText('示例通道 A', { exact: true }).click();
         await mode.click();
         await page.getByRole('listbox').getByText(label('chat.reasoningModeOff'), { exact: true }).click();
         await expect(effort).toBeDisabled();
@@ -79,7 +79,7 @@ test.describe('chat composer settings', () => {
         await page.reload();
         await ready(page);
         await openSettings.click();
-        await expect(channel).toContainText('示例通道 A · fixture-a');
+        await expect(channel).toHaveText('示例通道 A');
         await expect(effort).toContainText('medium');
         await settings.getByRole('button', { name: label('chat.hitlEnableFirstMessage') }).click();
         await expect(settings.getByText(label('chat.hitlFirstMessageEnabled'))).toBeVisible();

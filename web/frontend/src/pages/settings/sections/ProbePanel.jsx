@@ -5,6 +5,7 @@ import { useId, useState } from 'react';
 import { Banner, Button, Input, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import { api } from '../../../lib/http';
 import { useT } from '../../../lib/i18n';
+import { modelChannelOptions, selectedModelChannelName } from '../../../lib/model-channel';
 import { ErrorBanner, KeyValueList, SectionCard, toastSuccess } from '../../../components/ui';
 import { Hint } from './common';
 
@@ -194,15 +195,9 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
     const [saveError, setSaveError] = useState(null);
     const [applyPending, setApplyPending] = useState(false);
     const locked = !canWrite || saving;
-    const channelNames = channelIds.map(id => channels[id].name?.trim() || id);
     const channelOptions = legacy
         ? [{ value: MAIN_CHANNEL, label: t('settingsProbe.mainChannel', null, '主模型通道') }]
-        : channelIds.map((id, index) => {
-            const name = channelNames[index];
-            const displayName = channelNames.indexOf(name) !== channelNames.lastIndexOf(name) ? `${name} · ${id}` : name;
-            const suffix = id === defaultId ? t('settingsProbe.defaultChannelSuffix', null, '（默认）') : '';
-            return { value: id, label: displayName + suffix };
-        });
+        : modelChannelOptions(Object.entries(channels));
     const providerOptions = PROVIDERS.map(({ value, key, fallback }) => ({ value, label: t(key, null, fallback) }));
     if (!providerOptions.some(option => option.value === form.provider)) {
         providerOptions.push({ value: form.provider, label: form.provider });
@@ -390,17 +385,23 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
             )}
         >
             <div className="settings-probe-form">
-                <label className="settings-field">
-                    <Text id={channelLabelId} type="tertiary" size="small">{t('settings.checkChannel', null, '通道')}</Text>
+                <div className="settings-field">
+                    <Space spacing={6}>
+                        <Text id={channelLabelId} type="tertiary" size="small">{t('settings.checkChannel', null, '通道')}</Text>
+                        {!legacy && channelId === defaultId && (
+                            <Tag color="blue" size="small">{t('settingsBasic.aiChannelDefaultBadge', null, '默认')}</Tag>
+                        )}
+                    </Space>
                     <Select
                         value={channelId}
                         onChange={selectChannel}
                         optionList={channelOptions}
+                        renderSelectedItem={selectedModelChannelName}
                         aria-labelledby={channelLabelId}
                         disabled={saving || !!busy}
                         style={{ width: '100%' }}
                     />
-                </label>
+                </div>
                 <label className="settings-field">
                     <Text type="tertiary" size="small">{t('settingsBasic.apiProvider', null, 'API 提供商')}</Text>
                     <Select

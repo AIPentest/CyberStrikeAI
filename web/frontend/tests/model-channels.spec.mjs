@@ -6,7 +6,7 @@ function modelConfig() {
             default_channel: 'primary',
             channels: {
                 primary: { provider: 'openai', model: 'primary-model', base_url: 'https://primary.example.test', api_key: '********' },
-                'qwen-max': { name: 'deepseek', provider: 'openai_compatible', model: 'deepseek-flash', base_url: 'https://secondary.example.test', api_key: '********' }
+                'qwen-max': { provider: 'openai_compatible', model: 'deepseek-flash', base_url: 'https://secondary.example.test', api_key: '********' }
             }
         },
         tools: []
@@ -33,11 +33,13 @@ test.describe('model channel editing', () => {
         const channel = panel.getByRole('combobox', { name: '通道', exact: true });
         const save = panel.getByRole('button', { name: '保存通道', exact: true });
         await expect(model).toHaveValue('primary-model');
+        await expect(channel).toHaveText('primary');
         await expect(save).toBeDisabled();
         await channel.click();
-        await page.getByRole('option', { name: /\bdeepseek$/ }).click();
-        await expect(channel).toHaveText('deepseek');
+        await page.getByRole('option', { name: /\bqwen-max$/ }).click();
+        await expect(channel).toHaveText('qwen-max');
         await expect(model).toHaveValue('deepseek-flash');
+        await panel.getByLabel('通道名称', { exact: true }).fill('deepseek');
         await model.fill('manual-model');
         await panel.getByLabel('模型上下文窗口（Token）', { exact: true }).fill('65536');
 
@@ -50,19 +52,24 @@ test.describe('model channel editing', () => {
 
         await save.click();
         await expect(model).toHaveValue('manual-model');
+        await expect(channel).toHaveText('deepseek');
         await expect(save).toBeDisabled();
         expect(mockApi.calls('PUT', '/api/config')[0].body).toEqual({
-            ai_channel: { channel_id: 'qwen-max', make_default: false, model: 'manual-model', context_window: 65536 }
+            ai_channel: { channel_id: 'qwen-max', make_default: false, name: 'deepseek', model: 'manual-model', context_window: 65536 }
         });
         expect(config.ai.default_channel).toBe('primary');
         expect(config.ai.channels.primary.model).toBe('primary-model');
 
         await panel.getByRole('button', { name: '设为默认', exact: true }).click();
-        await expect(channel).toHaveText('deepseek（默认）');
+        await expect(panel.getByText('默认', { exact: true })).toBeVisible();
+        await expect(channel).toHaveText('deepseek');
         expect(mockApi.calls('POST', '/api/config/apply')).toHaveLength(2);
         await page.reload();
         await expect(model).toHaveValue('manual-model');
+        await expect(channel).toHaveText('deepseek');
         await expect(panel.getByLabel('模型上下文窗口（Token）', { exact: true })).toHaveValue('65536');
+        await page.getByRole('tab', { name: '基本设置' }).click();
+        await expect(page.getByRole('cell', { name: /默认 AI 通道.*deepseek/ })).toBeVisible();
     });
 
     test('save errors retain the draft and apply errors allow retrying the saved change', async ({ page, mockApi }) => {
@@ -106,4 +113,19 @@ test('model configuration remains readable with view permission', async ({ page,
     await expect(model).not.toBeEditable();
     await expect(panel.getByRole('button', { name: '保存通道' })).toHaveCount(0);
     expect(mockApi.writes()).toEqual([]);
+});
+
+test('model channels with the same name can be selected by their IDs in the menu', async ({ page, mockApi }) => {
+    const config = modelConfig();
+    config.ai.channels.primary.name = 'deepseek';
+    config.ai.channels['qwen-max'].name = 'deepseek';
+    mockApi.respond('GET', '/api/config', { json: config });
+    await page.goto('/static/app/#/settings?section=models');
+    const panel = (await ready(page)).locator('.settings-channel-panel');
+    const channel = panel.getByRole('combobox', { name: '通道', exact: true });
+    await channel.click();
+    await expect(page.getByRole('option', { selected: true })).toHaveText('deepseek · ID primary');
+    await page.getByRole('option', { name: /deepseek · ID qwen-max$/ }).click();
+    await expect(channel).toHaveText('deepseek');
+    await expect(panel.locator('.settings-probe-form').getByLabel('模型', { exact: true })).toHaveValue('deepseek-flash');
 });

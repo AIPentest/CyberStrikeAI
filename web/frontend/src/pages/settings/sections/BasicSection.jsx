@@ -12,6 +12,7 @@ import { IconRefresh, IconTick } from '@douyinfe/semi-icons';
 import { api, errorMessage } from '../../../lib/http';
 import { useAuth } from '../../../lib/auth';
 import { useT } from '../../../lib/i18n';
+import { modelChannelName } from '../../../lib/model-channel';
 import { useResource } from '../../../components/hooks';
 import {
     CopyButton, ErrorBanner, JsonViewer, KeyValueList, SectionCard, confirmAction, toastError, toastSuccess, toastWarning
@@ -78,14 +79,16 @@ export default function BasicSection() {
     const summary = useMemo(() => {
         const data = config.data;
         if (!data) return [];
-        const channels = data.ai?.channels ? Object.keys(data.ai.channels) : [];
+        const channels = data.ai?.channels || {};
+        const channelNames = Object.entries(channels).map(([id, channel]) => modelChannelName(id, channel));
+        const defaultId = data.ai?.default_channel;
         const tools = Array.isArray(data.tools) ? data.tools : [];
         const enabledTools = tools.filter(tool => tool.enabled).length;
         return [
-            { label: t('settings.defaultChannel', null, '默认 AI 通道'), value: data.ai?.default_channel || '—' },
+            { label: t('settings.defaultChannel', null, '默认 AI 通道'), value: defaultId ? modelChannelName(defaultId, channels[defaultId]) : '—' },
             {
                 label: t('settingsBasic.aiChannelSavedList', null, '已保存通道'),
-                value: `${formatNumber(channels.length)}${channels.length ? `（${channels.slice(0, 4).join('、')}）` : ''}`
+                value: `${formatNumber(channelNames.length)}${channelNames.length ? `（${channelNames.slice(0, 4).join('、')}）` : ''}`
             },
             {
                 label: t('settings.toolsEnabled', null, '已启用工具'),

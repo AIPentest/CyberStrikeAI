@@ -4,6 +4,7 @@ import { useResource } from '../../components/hooks';
 import { ErrorBanner, toastError } from '../../components/ui';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
+import { modelChannelName, modelChannelOptions, selectedModelChannelName } from '../../lib/model-channel';
 import { REASONING_EFFORTS, REASONING_MODES } from './useModelPreferences';
 
 const { Text } = Typography;
@@ -49,15 +50,12 @@ export default function ChatSettings({
         : approvalActive
             ? t('chat.hitlUseHumanFirstMessage', null, '首条消息改用人工审批')
             : t('chat.hitlEnableFirstMessage', null, '为首条消息开启人工审批');
-    const defaultChannel = model.config.data?.default_channel;
-    const defaultModel = model.channels.find(([id]) => id === defaultChannel)?.[1]?.model;
+    const defaultId = model.config.data?.default_channel;
+    const defaultName = defaultId ? modelChannelName(defaultId, model.config.data?.channels?.[defaultId]) : '';
     const defaultLabel = t('chat.aiChannelDefault', null, '跟随默认通道');
     const channelOptions = [
-        { value: '', label: defaultModel ? `${defaultLabel} · ${defaultModel}` : defaultLabel },
-        ...model.channels.map(([id, config]) => ({
-            value: id,
-            label: [config?.name || id, config?.model].filter(Boolean).join(' · ')
-        }))
+        { value: '', label: defaultName ? `${defaultLabel} · ${defaultName}` : defaultLabel },
+        ...modelChannelOptions(model.channels)
     ];
     const reasoningLabels = {
         default: t('chat.reasoningModeDefault', null, '跟随系统'),
@@ -105,6 +103,7 @@ export default function ChatSettings({
                             label={t('chat.aiChannelLabel', null, 'AI 通道')}
                             value={model.channel}
                             optionList={channelOptions}
+                            renderSelectedItem={selectedModelChannelName}
                             onSelect={model.setChannel}
                             loading={model.config.loading}
                             disabled={busy || model.config.loading || Boolean(model.config.error)}
