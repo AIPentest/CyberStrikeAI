@@ -80,6 +80,10 @@ body[theme-mode="dark"] .semi-button-primary.semi-button-solid:not(.semi-button-
 .cs-nav .semi-navigation-item-icon-info { min-width: 18px; margin-inline-end: 10px; }
 .cs-nav .semi-navigation-item-sub { padding: 0; }
 .cs-nav.semi-navigation-collapsed { padding-inline: 8px; }
+.cs-nav-flyout .semi-dropdown-menu { max-block-size: calc(100dvh - 16px); overflow-y: auto; }
+.cs-nav-flyout .semi-navigation-item { min-inline-size: 0; max-inline-size: 280px; padding-inline: 12px; }
+.cs-nav-flyout .semi-navigation-item-icon-info:empty { display: none; }
+.cs-nav-flyout .semi-navigation-item-text { white-space: normal; overflow-wrap: anywhere; }
 .is-compact .cs-nav-section + .cs-nav-section { padding-top: 12px; border-top: 1px solid var(--semi-color-border); margin-top: 12px; }
 .cs-nav-footer { padding: 10px 12px; border-top: 1px solid var(--semi-color-border); }
 .cs-nav-footer .semi-button { justify-content: flex-start; font-size: 12px; }

@@ -241,6 +241,55 @@ test('navigation: four Semi groups, parent expansion, child selection and collap
     await expect.poll(() => page.evaluate(() => localStorage.getItem('csai-nav-collapsed'))).toBe('0');
 });
 
+test('navigation: collapsed submenus fit their labels and center beside the parent', async ({ page }, testInfo) => {
+    await visit(page, 'chat');
+    const sidebar = page.locator('.cs-sider');
+    await button(sidebar, label('nav.collapse', '收起菜单')).click();
+    await expect(page.locator('.cs-shell')).toHaveClass(/is-collapsed/);
+
+    const mcp = sidebar.getByRole('menuitem', { name: 'MCP', exact: true });
+    const monitor = page.getByRole('menuitem', { name: label('nav.mcpMonitor', 'MCP状态监控'), exact: true });
+    const mcpMenu = page.locator('.semi-navigation-popover').filter({ has: monitor });
+    await mcp.hover();
+    await expect(monitor).toBeVisible();
+    const mcpBox = await mcp.boundingBox();
+    await expect.poll(async () => {
+        const menu = await mcpMenu.boundingBox();
+        return Math.abs(menu.y + menu.height / 2 - (mcpBox.y + mcpBox.height / 2));
+    }).toBeLessThanOrEqual(1);
+    const menuBox = await mcpMenu.boundingBox();
+    const monitorText = await monitor.locator('.semi-navigation-item-text').boundingBox();
+    const leftPadding = monitorText.x - menuBox.x;
+    const rightPadding = menuBox.x + menuBox.width - monitorText.x - monitorText.width;
+    expect(Math.abs(leftPadding - rightPadding)).toBeLessThanOrEqual(1);
+    await screenshot(page, testInfo, 'collapsed-mcp-menu');
+
+    const c2 = sidebar.getByRole('menuitem', { name: 'C2', exact: true });
+    const profiles = page.getByRole('menuitem', { name: label('nav.c2Profiles', '流量伪装'), exact: true });
+    const c2Menu = page.locator('.semi-navigation-popover').filter({ has: profiles });
+    await c2.hover();
+    await expect(c2Menu.getByRole('menuitem')).toHaveCount(6);
+    const c2Box = await c2.boundingBox();
+    const c2Center = c2Box.y + c2Box.height / 2;
+    await expect.poll(async () => {
+        const menu = await c2Menu.boundingBox();
+        return Math.abs(menu.y + menu.height / 2 - c2Center);
+    }).toBeLessThanOrEqual(1);
+    const tallMenu = await c2Menu.boundingBox();
+    expect(tallMenu.width).toBeLessThan(menuBox.width);
+
+    // Put the trigger near the lower edge so the menu no longer fits at its centered position.
+    const height = Math.ceil(c2Box.y + c2Box.height + 60);
+    expect(c2Center + tallMenu.height / 2).toBeGreaterThan(height);
+    await page.setViewportSize({ width: 1440, height });
+    await expect.poll(async () => {
+        const menu = await c2Menu.boundingBox();
+        return menu.y >= 0 && menu.y + menu.height <= height && menu.y <= c2Center;
+    }).toBe(true);
+    await profiles.click();
+    await expect(page).toHaveURL(/#\/c2-profiles$/);
+});
+
 test('theme: menu switches dark/light, actual primary colors, reload preserves preference', async ({ page }, testInfo) => {
     await visit(page, 'dashboard');
     let current = label('theme.system', '跟随系统');
