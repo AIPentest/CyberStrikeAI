@@ -285,8 +285,15 @@ test('a legacy acceptance link opens the selected criterion and writes revision-
     await page.goto('/static/app/#deep-assessments?assessment_id=' + id + '&tab=acceptance&criterion=2');
     const main = await ready(page);
     await expect(main.getByRole('tab', { name: /验收/ })).toHaveAttribute('aria-selected', 'true');
-    await page.getByRole('button', { name: '编辑证据关联' }).click();
-    const editor = page.getByRole('dialog').filter({ hasText: '编辑验收证据关联' });
+    const criterion = page.getByRole('dialog').filter({ hasText: '验收项 2' });
+    const edit = criterion.getByRole('button', { name: '编辑证据关联' });
+    await edit.click();
+    const editor = page.getByRole('dialog', { name: '编辑验收证据关联' });
+    await expect(editor).toHaveClass(/semi-sidesheet-inner/);
+    await page.keyboard.press('Escape');
+    await expect(editor).toHaveCount(0);
+    await expect(criterion).toBeVisible();
+    await edit.click();
     const evidence = editor.getByRole('checkbox', { name: '关联 示例观察事实' });
     await evidence.press('Space');
     await expect(evidence).toBeChecked();

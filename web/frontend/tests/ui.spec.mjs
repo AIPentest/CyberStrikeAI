@@ -544,22 +544,69 @@ test('deep assessment: graph switches views and resets pagination on a narrow sc
     expect(mockApi.writes()).toEqual([]);
 });
 
-test('deep assessment: options retry, required objective, close new-draft modal without execution', async ({ page, mockApi }, testInfo) => {
+test('deep assessment: new-draft drawer retries options, validates and saves without execution', async ({ page, mockApi }, testInfo) => {
     mockApi.fail('GET', '/api/deep-assessments/options', '示例选项加载失败');
     const main = await visit(page, 'deep-assessments');
-    await button(main, label('deepAssessments.create', '新建测评')).click();
-    const dialog = page.getByRole('dialog');
-    await expect(dialog).toContainText('示例选项加载失败');
+    const create = button(main, label('deepAssessments.create', '新建测评'));
+    await create.click();
+    const drawer = page.getByRole('dialog', { name: label('deepAssessments.create', '新建测评') });
+    const save = button(drawer, label('deepAssessments.save', '保存草稿'));
+    await expect(drawer).toHaveClass(/semi-sidesheet-inner/);
+    await expect.poll(async () => {
+        const { x, width } = await drawer.boundingBox();
+        return Math.round(x + width);
+    }).toBe(page.viewportSize().width);
+    expect((await drawer.boundingBox()).x).toBeGreaterThan(0);
+    await expect(drawer).toContainText('示例选项加载失败');
     mockApi.restore('GET', '/api/deep-assessments/options');
-    await button(dialog, '重试').click();
-    await expect(dialog.locator('.cs-error-banner')).toHaveCount(0);
-    await button(dialog, label('deepAssessments.save', '保存草稿')).click();
-    await expect(dialog.getByText('请填写测评目标', { exact: true })).toBeVisible();
+    await button(drawer, '重试').click();
+    await expect(drawer.locator('.cs-error-banner')).toHaveCount(0);
+    await save.click();
+    await expect(drawer.getByText('请填写测评目标', { exact: true })).toBeVisible();
     expect(mockApi.writes()).toEqual([]);
     await screenshot(page, testInfo, 'assessment-validation');
-    await button(dialog.locator('.assessment-form-actions'), label('deepAssessments.close', '关闭')).click();
-    await expect(dialog).toHaveCount(0);
+    await button(drawer.locator('.semi-sidesheet-footer'), label('deepAssessments.close', '关闭')).click();
+    await expect(drawer).toHaveCount(0);
     await expect(button(main, ASSESSMENT.name)).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 650 });
+    await create.click();
+    await expect(save).toBeInViewport({ ratio: 1 });
+    await drawer.locator('.assessment-form-note').scrollIntoViewIfNeeded();
+    await expect(save).toBeInViewport({ ratio: 1 });
+
+    mockApi.respond('POST', '/api/deep-assessments', { json: { task: ASSESSMENT } });
+    mockApi.respond('GET', `/api/deep-assessments/${ASSESSMENT.id}/events`, { json: { events: [] } });
+    await drawer.getByRole('textbox', { name: /目标/ }).fill(ASSESSMENT.objective);
+    await save.click();
+    await expect(page).toHaveURL(/id=fixture-assessment&tab=overview$/);
+    await expect(drawer).toHaveCount(0);
+    const writes = mockApi.writes();
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatchObject({ method: 'POST', path: '/api/deep-assessments', body: { objective: ASSESSMENT.objective } });
+});
+
+test('deep assessment: guidance and asset selection open as drawers', async ({ page, mockApi }) => {
+    const path = `/api/deep-assessments/${ASSESSMENT.id}`;
+    mockApi.respond('GET', `${path}/events`, { json: { events: [] } });
+    mockApi.respond('GET', `${path}/assets`, { json: { assets: [] } });
+    await page.goto(`/static/app/#/deep-assessments?id=${ASSESSMENT.id}`);
+    const main = await ready(page);
+
+    await button(main, '补充方向').click();
+    const guidance = page.getByRole('dialog', { name: '补充线索或调整方向' });
+    await expect(guidance).toHaveClass(/semi-sidesheet-inner/);
+    await button(guidance, '取消').click();
+    await expect(guidance).toHaveCount(0);
+
+    await main.getByRole('tab', { name: label('deepAssessments.assets', '资产'), exact: true }).click();
+    await button(main, '添加资产').click();
+    const assets = page.getByRole('dialog', { name: '关联共享资产' });
+    await expect(assets).toHaveClass(/semi-sidesheet-inner/);
+    await expect(button(assets, '关联')).toBeDisabled();
+    await button(assets, '取消').click();
+    await expect(assets).toHaveCount(0);
+    expect(mockApi.writes()).toEqual([]);
 });
 
 test('vulnerability: dashboard deep link, detail retry, evidence and close; new form validation', async ({ page, mockApi }, testInfo) => {

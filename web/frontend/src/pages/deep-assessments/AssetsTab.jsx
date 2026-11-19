@@ -1,6 +1,6 @@
 /** 资产：本次测评关联的共享资产、观察覆盖度与手动关联。 */
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Input, Modal, Space, Tag, Typography } from '@douyinfe/semi-ui';
+import { Button, Input, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import { IconPlus, IconSearch } from '@douyinfe/semi-icons';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
@@ -78,16 +78,23 @@ function AssetPicker({ visible, task, onCancel, onSaved }) {
     };
 
     return (
-        <Modal
+        <Drawer
             visible={visible}
             title="关联共享资产"
+            aria-label="关联共享资产"
             onCancel={onCancel}
-            onOk={submit}
-            confirmLoading={saving}
-            okText={`关联${selected.length ? ` ${selected.length} 项` : ''}`}
-            cancelText="取消"
-            okButtonProps={{ disabled: !selected.length }}
             width={760}
+            closable={!saving}
+            closeOnEsc={!saving}
+            maskClosable={!saving}
+            footer={(
+                <div className="assessment-form-actions">
+                    <Button onClick={onCancel} disabled={saving}>取消</Button>
+                    <Button theme="solid" onClick={submit} loading={saving} disabled={!selected.length || saving}>
+                        {`关联${selected.length ? ` ${selected.length} 项` : ''}`}
+                    </Button>
+                </div>
+            )}
         >
             <div className="assessment-toolbar">
                 <Input
@@ -124,7 +131,7 @@ function AssetPicker({ visible, task, onCancel, onSaved }) {
                     </Button>
                 </Space>
             </div>
-        </Modal>
+        </Drawer>
     );
 }
 
