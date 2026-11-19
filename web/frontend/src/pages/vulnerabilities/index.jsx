@@ -384,6 +384,7 @@ export default function VulnerabilitiesPage() {
                 label: severityText(t, code),
                 value: count,
                 severity: code,
+                pressed: active,
                 detail: active
                     ? `${t('vulnerabilityPage.filterActive', null, '已筛选')} · ${pct}%`
                     : `${pct}%`,

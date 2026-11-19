@@ -133,7 +133,7 @@ body[theme-mode="dark"] .semi-button-primary.semi-button-solid:not(.semi-button-
 .cs-stat-value.tone-danger, .cs-stat-icon.tone-danger { color: var(--semi-color-danger); }
 .cs-stat-value.tone-success, .cs-stat-icon.tone-success { color: var(--semi-color-success); }
 .cs-stat-value.tone-warning, .cs-stat-icon.tone-warning { color: var(--semi-color-warning); }
-.cs-stat-value[data-severity] { color: var(--cs-severity-accent, var(--semi-color-text-0)); }
+.cs-stat-card[data-severity] .cs-stat-value { color: var(--cs-severity-accent, var(--semi-color-text-0)); }
 .cs-stat-detail { display: block; font-size: 11px; font-weight: 400; color: var(--semi-color-text-2); line-height: 1.6; }
 
 .cs-table-wrap { width: 100%; min-width: 0; }
@@ -146,49 +146,49 @@ body[theme-mode="dark"] .semi-button-primary.semi-button-solid:not(.semi-button-
 .cs-table-empty .semi-empty-image { padding: 14px; border-radius: 16px; background: var(--semi-color-fill-0); }
 .cs-error-banner { margin-bottom: 16px; border-radius: 8px; }
 
-:is(.cs-severity-tag, .cs-stat-value)[data-severity="info"] {
+:is(.cs-severity-tag, .cs-stat-card)[data-severity="info"] {
     --cs-severity-accent: #525c69;
     --cs-severity-fill: #eff1f4;
 }
-:is(.cs-severity-tag, .cs-stat-value)[data-severity="low"] {
+:is(.cs-severity-tag, .cs-stat-card)[data-severity="low"] {
     --cs-severity-accent: #154d91;
     --cs-severity-fill: #dceafe;
 }
-:is(.cs-severity-tag, .cs-stat-value)[data-severity="medium"] {
+:is(.cs-severity-tag, .cs-stat-card)[data-severity="medium"] {
     --cs-severity-accent: #925900;
     --cs-severity-tag-text: #704500;
     --cs-severity-fill: #ffe2a4;
 }
-:is(.cs-severity-tag, .cs-stat-value)[data-severity="high"] {
+:is(.cs-severity-tag, .cs-stat-card)[data-severity="high"] {
     --cs-severity-accent: #ac3d23;
     --cs-severity-tag-text: #8f2e19;
     --cs-severity-fill: #ffccb6;
 }
-:is(.cs-severity-tag, .cs-stat-value)[data-severity="critical"] {
+:is(.cs-severity-tag, .cs-stat-card)[data-severity="critical"] {
     --cs-severity-accent: #9f1b37;
     --cs-severity-tag-text: #fff4f5;
     --cs-severity-fill: var(--cs-severity-accent);
 }
-body[theme-mode="dark"] :is(.cs-severity-tag, .cs-stat-value)[data-severity="info"] {
+body[theme-mode="dark"] :is(.cs-severity-tag, .cs-stat-card)[data-severity="info"] {
     --cs-severity-accent: #c6cbd4;
     --cs-severity-fill: #303641;
 }
-body[theme-mode="dark"] :is(.cs-severity-tag, .cs-stat-value)[data-severity="low"] {
+body[theme-mode="dark"] :is(.cs-severity-tag, .cs-stat-card)[data-severity="low"] {
     --cs-severity-accent: #9ecbff;
     --cs-severity-tag-text: #bcdcff;
     --cs-severity-fill: #224875;
 }
-body[theme-mode="dark"] :is(.cs-severity-tag, .cs-stat-value)[data-severity="medium"] {
+body[theme-mode="dark"] :is(.cs-severity-tag, .cs-stat-card)[data-severity="medium"] {
     --cs-severity-accent: #ffd070;
     --cs-severity-tag-text: #ffe09a;
     --cs-severity-fill: #63491b;
 }
-body[theme-mode="dark"] :is(.cs-severity-tag, .cs-stat-value)[data-severity="high"] {
+body[theme-mode="dark"] :is(.cs-severity-tag, .cs-stat-card)[data-severity="high"] {
     --cs-severity-accent: #ffa982;
     --cs-severity-tag-text: #ffd3b9;
     --cs-severity-fill: #823c26;
 }
-body[theme-mode="dark"] :is(.cs-severity-tag, .cs-stat-value)[data-severity="critical"] {
+body[theme-mode="dark"] :is(.cs-severity-tag, .cs-stat-card)[data-severity="critical"] {
     --cs-severity-accent: #ff8ca7;
     --cs-severity-tag-text: #fff0f3;
     --cs-severity-fill: #a52246;

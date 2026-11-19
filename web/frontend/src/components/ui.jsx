@@ -64,7 +64,7 @@ export function StatGrid({ metrics, columns = 4 }) {
     );
 }
 
-export function StatCard({ label, value, valueTitle, detail, tone, severity, icon, onClick, loading }) {
+export function StatCard({ label, value, valueTitle, detail, tone, severity, icon, onClick, pressed, loading }) {
     const content = (
         <>
             <span className="cs-stat-head">
@@ -72,7 +72,7 @@ export function StatCard({ label, value, valueTitle, detail, tone, severity, ico
                 {icon && <span className={`cs-stat-icon ${tone ? `tone-${tone}` : ''}`} aria-hidden="true">{icon}</span>}
             </span>
             <Skeleton loading={loading} placeholder={<Skeleton.Title style={{ width: '60%', height: 36, margin: '8px 0' }} />}>
-                <span className={`cs-stat-value ${tone ? `tone-${tone}` : ''}`} data-severity={severity} title={valueTitle}>
+                <span className={`cs-stat-value ${tone ? `tone-${tone}` : ''}`} title={valueTitle}>
                     {value ?? '—'}
                 </span>
             </Skeleton>
@@ -80,9 +80,18 @@ export function StatCard({ label, value, valueTitle, detail, tone, severity, ico
         </>
     );
     return onClick ? (
-        <Button className="cs-stat-card is-clickable" theme="borderless" onClick={onClick} aria-label={String(label)}>{content}</Button>
+        <Button
+            className="cs-stat-card is-clickable"
+            theme="borderless"
+            onClick={onClick}
+            aria-label={String(label)}
+            aria-pressed={pressed}
+            data-severity={severity}
+        >
+            {content}
+        </Button>
     ) : (
-        <Card className="cs-stat-card" bordered={false}>{content}</Card>
+        <Card className="cs-stat-card" data-severity={severity} bordered={false}>{content}</Card>
     );
 }
 

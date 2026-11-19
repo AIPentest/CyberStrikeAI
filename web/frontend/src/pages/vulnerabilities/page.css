@@ -2,6 +2,27 @@
 
 .vulnerability-page { min-width: 0; }
 
+.vulnerability-page > .cs-stat-grid > .cs-stat-card.semi-button {
+    --vulnerability-stat-accent: var(--cs-severity-accent, var(--semi-color-text-0));
+    --vulnerability-stat-fade-direction: to right;
+    border-inline-start: 4px solid var(--vulnerability-stat-accent);
+    background-image: linear-gradient(
+        var(--vulnerability-stat-fade-direction),
+        color-mix(in srgb, var(--vulnerability-stat-accent) 9%, transparent),
+        transparent 64px
+    );
+}
+
+.vulnerability-page > .cs-stat-grid > .cs-stat-card:dir(rtl) {
+    --vulnerability-stat-fade-direction: to left;
+}
+
+.vulnerability-page > .cs-stat-grid > .cs-stat-card.semi-button[aria-pressed="true"] {
+    border-color: color-mix(in srgb, var(--vulnerability-stat-accent) 48%, var(--semi-color-border));
+    border-inline-start-color: var(--vulnerability-stat-accent);
+    background-color: color-mix(in srgb, var(--vulnerability-stat-accent) 9%, var(--semi-color-bg-1));
+}
+
 .vulnerability-list-card .semi-card-header {
     flex-wrap: wrap;
     gap: 10px;
