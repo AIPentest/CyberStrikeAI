@@ -105,7 +105,7 @@ export function ModelSettings({ model, busy, canReadConfig, compact = false }) {
             model.setEffort('');
         };
         return (
-            <div className="chat-reasoning-picker" ref={pickerRef}>
+            <div className={`chat-reasoning-picker${model.mode !== 'off' && model.effort === 'max' ? ' is-max' : ''}${busy ? ' is-disabled' : ''}`} ref={pickerRef}>
                 <div className="chat-reasoning-heading">
                     <Dropdown
                         trigger="click"

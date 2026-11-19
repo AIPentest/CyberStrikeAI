@@ -483,8 +483,8 @@ for (const width of [1440, 390]) {
             await expect(composer.locator('.chat-composer-effort')).toHaveText(label('chat.reasoningEffortLabels.high'));
             await expect(popover).toBeInViewport({ ratio: 1 });
             const bounds = await popover.boundingBox();
-            expect(bounds.height).toBeLessThanOrEqual(180);
-            expect(bounds.width).toBeLessThanOrEqual(300);
+            expect(bounds.height).toBeLessThanOrEqual(110);
+            expect(bounds.width).toBeLessThanOrEqual(234);
             expect(bounds.x).toBeGreaterThanOrEqual(0);
             expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
             const overflow = await popover.evaluate(element => element.scrollWidth - element.clientWidth);
@@ -492,8 +492,57 @@ for (const width of [1440, 390]) {
             await expect(button(popover, label('chat.reasoningReset'))).toBeInViewport({ ratio: 1 });
             await expect(popover.getByRole('combobox')).toBeInViewport({ ratio: 1 });
             await expect(popover.locator('.chat-reasoning-channel .semi-select-arrow')).toHaveCSS('opacity', '1');
+            const picker = popover.locator('.chat-reasoning-picker');
+            const track = picker.locator('.semi-slider-track');
+            const strength = popover.getByRole('status');
+            const normalColor = await strength.evaluate(element => getComputedStyle(element).color);
+            await expect(picker).not.toHaveClass(/is-max/);
+            await expect(track).toHaveCSS('background-image', 'none');
+            await expect(track).toHaveCSS('animation-name', 'none');
+            await strength.click();
             await screenshot(page, testInfo, `chat-reasoning-${width}-${colorScheme}`);
             await popover.screenshot({ path: testInfo.outputPath(`reasoning-panel-${width}-${colorScheme}.png`) });
+
+            await slider.press('End');
+            await expect(picker).toHaveClass(/is-max/);
+            await expect(strength).toHaveText(label('chat.reasoningEffortLabels.max'));
+            await expect(strength).not.toHaveCSS('color', normalColor);
+            await expect(track).toHaveCSS('background-image', /linear-gradient/);
+            await expect(track).toHaveCSS('animation-name', 'chat-reasoning-flow');
+            await expect.poll(() => track.evaluate(element => element.getAnimations().some(animation =>
+                animation.animationName === 'chat-reasoning-flow' && animation.playState === 'running' && animation.currentTime > 0
+            ))).toBe(true);
+            await expect.poll(() => track.evaluate(element => getComputedStyle(element, '::after').animationName)).toBe('chat-reasoning-sparkle');
+            expect(await track.evaluate(element => getComputedStyle(element, '::after').pointerEvents)).toBe('none');
+            await strength.click();
+            await screenshot(page, testInfo, `chat-reasoning-max-${width}-${colorScheme}`);
+            await popover.screenshot({ path: testInfo.outputPath(`reasoning-max-panel-${width}-${colorScheme}.png`) });
+
+            await page.emulateMedia({ reducedMotion: 'reduce' });
+            await expect(track).toHaveCSS('animation-name', 'none');
+            await expect.poll(() => track.evaluate(element => getComputedStyle(element, '::after').animationName)).toBe('none');
+            await expect(track).toHaveCSS('background-image', /linear-gradient/);
+            await page.emulateMedia({ reducedMotion: 'no-preference' });
+            await expect(track).toHaveCSS('animation-name', 'chat-reasoning-flow');
+
+            const mode = button(popover, label('chat.reasoningModeLabel'));
+            await mode.click();
+            await page.locator('.chat-reasoning-mode-menu').getByRole('menuitem', { name: label('chat.reasoningModeOff') }).click();
+            await expect(picker).not.toHaveClass(/is-max/);
+            await expect(slider).toHaveAttribute('aria-disabled', 'true');
+            await expect(track).toHaveCSS('background-image', 'none');
+            await expect(track).toHaveCSS('animation-name', 'none');
+            await mode.click();
+            await page.locator('.chat-reasoning-mode-menu').getByRole('menuitem', { name: label('chat.reasoningModeOn') }).click();
+            await expect(picker).toHaveClass(/is-max/);
+            await button(popover, label('chat.reasoningReset')).click();
+            await expect(picker).not.toHaveClass(/is-max/);
+            await expect(track).toHaveCSS('background-image', 'none');
+            await slider.press('End');
+            await slider.press('ArrowLeft');
+            await expect(picker).not.toHaveClass(/is-max/);
+            await expect(strength).toHaveText(label('chat.reasoningEffortLabels.xhigh'));
+            await expect(track).toHaveCSS('animation-name', 'none');
             await slider.press('Escape');
             await expect(popover).not.toBeVisible();
             await expect(openModel).toBeFocused();

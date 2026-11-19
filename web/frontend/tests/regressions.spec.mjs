@@ -850,7 +850,7 @@ test.describe('chat composer read-only permissions', () => {
         await page.evaluate(() => {
             localStorage.setItem('cyberstrike-chat-ai-channel', 'demo-backup');
             localStorage.setItem('cyberstrike-chat-reasoning-mode', 'auto');
-            localStorage.setItem('cyberstrike-chat-reasoning-effort', 'high');
+            localStorage.setItem('cyberstrike-chat-reasoning-effort', 'max');
         });
         await page.reload();
         await ready(page);
@@ -868,18 +868,23 @@ test.describe('chat composer read-only permissions', () => {
         await expect(mode).toBeDisabled();
         await expect(reset).toBeDisabled();
         await expect(slider).toHaveAttribute('aria-disabled', 'true');
-        await expect(slider).toHaveAttribute('aria-valuenow', '3');
-        await expect(value).toHaveText('高');
+        await expect(slider).toHaveAttribute('aria-valuenow', '5');
+        await expect(value).toHaveText('最高');
+        const track = popover.locator('.semi-slider-track');
+        await expect(popover.locator('.chat-reasoning-picker')).toHaveClass(/is-max/);
+        await expect(track).toHaveCSS('background-image', /linear-gradient/);
+        await expect(track).toHaveCSS('animation-name', 'none');
+        expect(await track.evaluate(element => getComputedStyle(element, '::after').animationName)).toBe('none');
         for (const key of ['Home', 'ArrowRight', 'End']) {
             await slider.press(key);
-            await expect(slider).toHaveAttribute('aria-valuenow', '3');
+            await expect(slider).toHaveAttribute('aria-valuenow', '5');
         }
-        await expect(value).toHaveText('高');
+        await expect(value).toHaveText('最高');
         await expect.poll(() => page.evaluate(() => ({
             channel: localStorage.getItem('cyberstrike-chat-ai-channel'),
             mode: localStorage.getItem('cyberstrike-chat-reasoning-mode'),
             effort: localStorage.getItem('cyberstrike-chat-reasoning-effort')
-        }))).toEqual({ channel: 'demo-backup', mode: 'auto', effort: 'high' });
+        }))).toEqual({ channel: 'demo-backup', mode: 'auto', effort: 'max' });
         await main.locator('.chat-header-title').click();
         await expect(main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') })).toBeDisabled();
         await expect(main.getByRole('button', { name: /发送$/ })).toBeDisabled();
