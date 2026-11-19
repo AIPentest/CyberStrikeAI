@@ -322,6 +322,37 @@ test('chat: select stored conversation and restore it after reload', async ({ pa
     expect(mockApi.writes()).toEqual([]);
 });
 
+test('chat: message list and focused composer share one panel', async ({ page, mockApi }, testInfo) => {
+    mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
+    await page.goto(`/static/app/#/chat?conversation=${CONVERSATION.id}`);
+    const main = await ready(page);
+    const panel = main.locator('.chat-panel');
+    const messages = panel.locator('.chat-messages');
+    const assistant = messages.locator('.chat-msg-assistant').first();
+    const composer = panel.locator('.chat-composer');
+    const input = composer.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+    await expect(assistant).toBeVisible();
+
+    const [timeline, footer, row, textarea] = await Promise.all(
+        [messages, composer, assistant, input].map(element => element.boundingBox())
+    );
+    expect(footer.x).toBeCloseTo(timeline.x, 0);
+    expect(footer.width).toBeCloseTo(timeline.width, 0);
+    expect(footer.y).toBeCloseTo(timeline.y + timeline.height, 0);
+    expect(textarea.x).toBeCloseTo(row.x, 0);
+    expect(textarea.width).toBeCloseTo(row.width, 0);
+    await expect(composer).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(composer.locator('.chat-composer-box')).toHaveCSS('border-top-width', '0px');
+
+    const dividerColor = await composer.evaluate(node => getComputedStyle(node).borderTopColor);
+    await input.click();
+    await expect(input).toBeFocused();
+    await expect(input).toHaveCSS('outline-style', 'none');
+    await expect(composer).not.toHaveCSS('border-top-color', dividerColor);
+    expect(mockApi.writes()).toEqual([]);
+    await panel.screenshot({ path: testInfo.outputPath('focused-chat-panel.png') });
+});
+
 test('chat: fake Enter send consumes finite SSE and reconciles stored history', async ({ page, mockApi }) => {
     const message = 'FAKE：只总结 localhost 匿名范围，不调用工具。';
     const id = mockApi.enableChatStream(message);
@@ -505,6 +536,7 @@ test.describe('mobile @mobile', () => {
         await input.press('End');
         await input.press('Shift+Enter');
         await expect(input).toHaveValue(/\n$/);
+        await expect(input).toHaveCSS('outline-style', 'none');
         await expect(send).toBeInViewport({ ratio: 1 });
         await assertNoOverflow(page);
         expect(mockApi.writes()).toEqual([]);
