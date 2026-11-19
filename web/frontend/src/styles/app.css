@@ -279,6 +279,8 @@ body[theme-mode="dark"] :is(.cs-severity-tag, .cs-stat-card)[data-severity="crit
 .cs-login-form { margin-top: 32px; }
 .cs-login-form .semi-form-field { padding-top: 0; padding-bottom: 24px; }
 .cs-login-form .semi-input-wrapper { background: var(--semi-color-bg-1); border: 1px solid var(--semi-color-border); }
+.cs-login-form .semi-input-wrapper:focus-within { outline: 2px solid var(--semi-color-focus-border); outline-offset: -2px; }
+.cs-login-form .semi-input:focus-visible { outline: none; }
 .cs-login-note { display: block; margin-top: 24px; font-size: 12px; text-align: center; }
 
 @media (max-width: 1200px) {

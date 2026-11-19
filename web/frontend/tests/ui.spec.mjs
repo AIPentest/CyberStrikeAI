@@ -98,6 +98,24 @@ test.describe('registry: every lazy page', () => {
 
 test.describe('login', () => {
     test.use({ authenticated: false });
+    test('keyboard focus outlines the entire login input, including its icon', async ({ page }) => {
+        await page.goto('/static/app/');
+        const form = page.locator('.cs-login-form');
+        const username = form.getByLabel(label('login.username', '用户名'), { exact: true });
+        const password = form.getByLabel(label('login.password', '密码'), { exact: true });
+
+        await expect(username).toBeVisible();
+        for (const input of [username, password]) {
+            await page.keyboard.press('Tab');
+            await expect(input).toBeFocused();
+            const wrapper = form.locator('.semi-input-wrapper:focus-within');
+            await expect(input).toHaveCSS('outline-style', 'none');
+            await expect(wrapper).toHaveCSS('outline-style', 'solid');
+            await expect(wrapper).toHaveCSS('outline-width', '2px');
+            await expect(wrapper).toHaveCSS('outline-offset', '-2px');
+        }
+    });
+
     test('empty fields validate locally; only explicitly fake credentials may be submitted', async ({ page, mockApi }) => {
         await page.goto('/static/app/');
         const form = page.locator('.cs-login-form');
