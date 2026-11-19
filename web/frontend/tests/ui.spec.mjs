@@ -560,6 +560,41 @@ test.describe('chat: session settings permission boundary', () => {
     });
 });
 
+for (const width of [1440, 390]) {
+    test(`chat: mode descriptions are readable at ${width}px and modes stay selectable`, async ({ page, mockApi }, testInfo) => {
+        await page.setViewportSize({ width, height: 700 });
+        const main = await visit(page, 'chat');
+        const select = main.locator('.chat-composer-mode');
+        const list = page.getByRole('listbox');
+        const modes = [
+            ['agentModePiSingle', 'agentModePiSingleHint'],
+            ['agentModeDeep', 'agentModeDeepHint'],
+            ['agentModePlanExecuteLabel', 'agentModePlanExecuteHint'],
+            ['agentModeSupervisorLabel', 'agentModeSupervisorHint']
+        ];
+        await expect(select).toHaveText(label('chat.agentModePiSingle'));
+        await select.press('Enter');
+        await expect(list.getByRole('option')).toHaveCount(modes.length);
+        for (const [titleKey, hintKey] of modes) {
+            const option = list.getByRole('option').filter({ hasText: label(`chat.${titleKey}`) });
+            await expect(option.getByText(label(`chat.${hintKey}`), { exact: true })).toBeInViewport({ ratio: 1 });
+        }
+        await expect(list).toBeInViewport({ ratio: 1 });
+        await screenshot(page, testInfo, `chat-mode-descriptions-${width}`);
+        await select.press('ArrowDown');
+        await select.press('Enter');
+        await expect(select).toHaveText(label('chat.agentModeDeep'));
+        await expect(list).toBeHidden();
+
+        await select.click();
+        const supervisor = list.getByText(label('chat.agentModeSupervisorHint'), { exact: true });
+        await supervisor.click();
+        await expect(select).toHaveText(label('chat.agentModeSupervisorLabel'));
+        await expect(list).toBeHidden();
+        expect(mockApi.writes()).toEqual([]);
+    });
+}
+
 test('chat: create a project from the composer and select it for the current draft', async ({ page, mockApi }) => {
     const created = { ...PROJECT, id: 'fixture-new-chat-project', name: '对话中新建的项目' };
     mockApi.respond('POST', '/api/projects', { json: created });

@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react';
+import { useId, useMemo, useRef } from 'react';
 import { Banner, Button, Popover, Select, Tag, TextArea, Tooltip, Typography } from '@douyinfe/semi-ui';
 import { IconArrowUp, IconChevronDown, IconDesktop, IconFolder, IconPaperclip, IconPlus, IconShield, IconStop } from '@douyinfe/semi-icons';
 import { useT } from '../../lib/i18n';
@@ -41,12 +41,37 @@ export default function Composer({
     const modeLabelId = useId();
     const projectLabelId = useId();
     const list = Array.isArray(attachments) ? attachments : [];
-    const modeOptions = [
-        { value: 'single', label: t('chat.agentModePiSingle', null, '单代理') },
-        { value: 'deep', label: t('chat.agentModeDeep', null, '深度协作（deep）') },
-        { value: 'plan_execute', label: t('chat.agentModePlanExecuteLabel', null, '先规划再执行') },
-        { value: 'supervisor', label: t('chat.agentModeSupervisorLabel', null, '监督者（supervisor）') }
-    ];
+    const modeOptions = useMemo(() => [
+        {
+            value: 'single',
+            title: t('chat.agentModePiSingle', null, '单代理'),
+            description: t('chat.agentModePiSingleHint', null, '使用设置中选择的 Pi 或兼容运行时执行单代理任务')
+        },
+        {
+            value: 'deep',
+            title: t('chat.agentModeDeep', null, 'Deep（DeepAgent）'),
+            description: t('chat.agentModeDeepHint', null, 'Pi 多代理，适合复杂安全测试、多阶段 task 子代理委派与汇总')
+        },
+        {
+            value: 'plan_execute',
+            title: t('chat.agentModePlanExecuteLabel', null, 'Plan-Execute'),
+            description: t('chat.agentModePlanExecuteHint', null, '规划 → 执行 → 重规划（单执行器带工具）')
+        },
+        {
+            value: 'supervisor',
+            title: t('chat.agentModeSupervisorLabel', null, 'Supervisor（专家路由）'),
+            description: t('chat.agentModeSupervisorHint', null, '专家路由场景：监督者通过 transfer 动态分派多个专业子代理')
+        }
+    ].map(({ value, title, description }) => ({
+        value,
+        title,
+        label: (
+            <span className="chat-mode-option">
+                <span>{title}</span>
+                <span className="chat-mode-option-description">{description}</span>
+            </span>
+        )
+    })), [t]);
     const projectOptions = [
         { value: '', label: t('chat.noProject', null, '不绑定项目') },
         ...(Array.isArray(projects) ? projects : []).map(project => ({ value: project.id, label: project.name || project.id }))
@@ -93,9 +118,12 @@ export default function Composer({
                     <Select
                         value={mode}
                         optionList={modeOptions}
+                        renderSelectedItem={option => option.title}
                         onChange={onModeChange}
                         prefix={<IconDesktop />}
                         className="chat-context-select chat-composer-mode"
+                        dropdownClassName="chat-mode-dropdown"
+                        position="topLeft"
                         aria-labelledby={modeLabelId}
                         disabled={busy || blocked}
                     />

@@ -308,6 +308,16 @@
 }
 .chat-context-select.semi-select:hover { background: var(--semi-color-fill-1); }
 .chat-composer-mode { flex: 0 1 164px; width: 164px; }
+.chat-mode-dropdown { width: min(390px, calc(100vw - 48px)); }
+.chat-mode-option { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.chat-mode-option-description {
+    display: block;
+    margin-top: 2px;
+    color: var(--semi-color-text-2);
+    font-size: 12px;
+    font-weight: normal;
+    line-height: 1.5;
+}
 .chat-composer-project { flex: 0 1 260px; width: 260px; }
 .chat-composer-box {
     position: relative;
