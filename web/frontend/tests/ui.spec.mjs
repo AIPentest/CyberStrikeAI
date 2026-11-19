@@ -328,6 +328,59 @@ test('chat: empty state, blank Enter and Shift+Enter never send', async ({ page,
     expect(mockApi.writes()).toEqual([]);
 });
 
+for (const width of [1440, 1024, 390]) {
+    test(`chat: header spacing and session settings stay usable at ${width}px`, async ({ page, mockApi }, testInfo) => {
+        await page.setViewportSize({ width, height: 900 });
+        const longTitle = '用于验证对话页标题换行与操作区布局的长会话名称'.repeat(4);
+        mockApi.respond('GET', `/api/conversations/${CONVERSATION.id}`, { json: { ...CONVERSATION, title: longTitle } });
+        mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
+        mockApi.respond('GET', '/api/hitl/default-config', { json: { defaultMode: 'off' } });
+        mockApi.respond('GET', `/api/hitl/config/${CONVERSATION.id}`, { json: { enabled: false, mode: 'off' } });
+
+        for (const stored of [false, true]) {
+            const main = await visit(page, stored ? `chat?conversation=${CONVERSATION.id}` : 'chat');
+            const header = main.locator('.chat-header');
+            const title = header.locator('.chat-header-title');
+            const settingsButton = button(header, label('chat.sessionSettingsTitle', '会话设置'));
+            const composer = main.locator('.chat-composer');
+            const input = composer.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+            await expect(title).toHaveText(stored ? longTitle : label('chat.newChat', '新对话'));
+            await expect(settingsButton).toBeInViewport({ ratio: 1 });
+            await expect(button(composer, label('chat.sessionSettingsTitle', '会话设置'))).toHaveCount(0);
+            const [workspaceBox, titleBox, textBox, actionsBox] = await Promise.all(
+                [main.locator('.chat-main'), title, header.locator('.chat-header-main'), header.locator('.chat-header-actions')]
+                    .map(element => element.boundingBox())
+            );
+            expect(titleBox.x - workspaceBox.x).toBeGreaterThanOrEqual(workspaceBox.width <= 560 ? 12 : 24);
+            expect(actionsBox.x >= textBox.x + textBox.width || actionsBox.y >= textBox.y + textBox.height).toBe(true);
+            for (const action of await header.getByRole('button').all()) {
+                await expect(action).toBeInViewport({ ratio: 1 });
+            }
+            await expect(button(composer, label('chat.send', '发送'))).toBeInViewport({ ratio: 1 });
+            await assertNoOverflow(page);
+            await screenshot(page, testInfo, `chat-header-${stored ? 'long-title' : 'new'}-${width}`);
+
+            await input.fill('保留会话草稿');
+            await settingsButton.click();
+            const settings = page.getByRole('dialog').filter({ hasText: label('chat.sessionSettingsTitle', '会话设置') });
+            await expect(settings.getByRole('combobox', { name: label('chat.reasoningModeLabel') })).toBeVisible();
+            await settings.locator('button.semi-sidesheet-close').click();
+            await expect(settings).not.toBeVisible();
+            await expect(input).toHaveValue('保留会话草稿');
+        }
+        expect(mockApi.writes()).toEqual([]);
+    });
+}
+
+test.describe('chat: session settings permission boundary', () => {
+    test.use({ appPermissions: READ_PERMISSIONS.filter(permission => !['config:read', 'hitl:read'].includes(permission)) });
+    test('hides session settings without configuration, approval or execution access', async ({ page, mockApi }) => {
+        const main = await visit(page, 'chat');
+        await expect(button(main, label('chat.sessionSettingsTitle', '会话设置'))).toHaveCount(0);
+        expect(mockApi.writes()).toEqual([]);
+    });
+});
+
 test('chat: create a project from the composer and select it for the current draft', async ({ page, mockApi }) => {
     const created = { ...PROJECT, id: 'fixture-new-chat-project', name: '对话中新建的项目' };
     mockApi.respond('POST', '/api/projects', { json: created });

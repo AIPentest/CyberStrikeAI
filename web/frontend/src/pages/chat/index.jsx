@@ -461,6 +461,8 @@ export default function Page() {
                     narrow={narrow}
                     onToggleSidebar={() => setSidebarOpen(true)}
                     onOpenUsage={() => setUsageOpen(true)}
+                    onOpenSettings={canReadConfig || canReadHitl || (canWrite && canExecute)
+                        ? () => setSettingsOpen(true) : undefined}
                     onOpenPlan={() => {
                         refreshPlan();
                         setPlanOpen(true);
@@ -537,8 +539,6 @@ export default function Page() {
                         canExecute={canExecute}
                         mode={mode}
                         onModeChange={value => setStoredMode(AGENT_MODES.includes(value) ? value : 'single')}
-                        onOpenSettings={canReadConfig || canReadHitl || (canWrite && canExecute)
-                            ? () => setSettingsOpen(true) : undefined}
                         projectId={newProjectId}
                         onProjectChange={value => setNewProjectId(value || '')}
                         onCreateProject={canCreateProject && !projectsResource.loading

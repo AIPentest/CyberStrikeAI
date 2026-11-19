@@ -1,6 +1,6 @@
 /** 对话页头：标题、会话标签、用量/计划/刷新入口。 */
 import { Button, Space, Tag, Typography } from '@douyinfe/semi-ui';
-import { IconBolt, IconHistory, IconMenu, IconRefresh } from '@douyinfe/semi-icons';
+import { IconBolt, IconHistory, IconMenu, IconRefresh, IconSetting } from '@douyinfe/semi-icons';
 import { useT } from '../../lib/i18n';
 
 const { Text, Title } = Typography;
@@ -14,7 +14,7 @@ const MODE_TAG = {
 
 export default function ChatHeader({
     conversation, mode, hitlCount, conversationId, plan, narrow,
-    onToggleSidebar, onOpenUsage, onOpenPlan, onRefresh
+    onToggleSidebar, onOpenUsage, onOpenPlan, onOpenSettings, onRefresh
 }) {
     const t = useT();
     const modeTag = MODE_TAG[mode] || MODE_TAG.single;
@@ -56,6 +56,11 @@ export default function ChatHeader({
                 <Button theme="borderless" type="tertiary" icon={<IconBolt />} disabled={!conversationId} onClick={onOpenPlan}>
                     {t('chat.planTasks', null, '计划任务')}{plan?.total ? ` (${plan.completed}/${plan.total})` : ''}
                 </Button>
+                {onOpenSettings && (
+                    <Button theme="borderless" type="tertiary" icon={<IconSetting aria-hidden="true" />} onClick={onOpenSettings}>
+                        {t('chat.sessionSettingsTitle', null, '会话设置')}
+                    </Button>
+                )}
                 <Button theme="borderless" type="tertiary" icon={<IconRefresh />} onClick={onRefresh}>
                     {t('common.refresh', null, '刷新')}
                 </Button>

@@ -1,7 +1,7 @@
 /** 发送区：文本、附件、代理模式、项目选择、发送/停止。 */
 import { useRef } from 'react';
 import { Banner, Button, Select, Space, Tag, TextArea, Tooltip, Typography } from '@douyinfe/semi-ui';
-import { IconPaperclip, IconSend, IconSetting, IconStop } from '@douyinfe/semi-icons';
+import { IconPaperclip, IconSend, IconStop } from '@douyinfe/semi-icons';
 import { useT } from '../../lib/i18n';
 
 const { Text } = Typography;
@@ -21,7 +21,6 @@ export default function Composer({
     canExecute,
     mode,
     onModeChange,
-    onOpenSettings,
     projectId,
     onProjectChange,
     onCreateProject,
@@ -150,11 +149,6 @@ export default function Composer({
                                 placeholder={t('chat.filterByProject', null, '选择项目')}
                                 disabled={sending}
                             />
-                        )}
-                        {onOpenSettings && (
-                            <Button icon={<IconSetting aria-hidden="true" />} theme="borderless" onClick={onOpenSettings}>
-                                {t('chat.sessionSettingsTitle', null, '会话设置')}
-                            </Button>
                         )}
                     </Space>
                     <Space spacing={8} wrap className="chat-composer-submit">

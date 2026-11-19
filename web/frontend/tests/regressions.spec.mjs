@@ -82,7 +82,7 @@ test('refreshing a conversation detects an active backend run and disables dupli
     expect(mockApi.writes()).toEqual([]);
 });
 
-test.describe('chat composer settings', () => {
+test.describe('chat session settings', () => {
     test.use({ appPermissions: [...UI_PERMISSIONS, 'hitl:write'] });
 
     test('restores legacy model preferences, saves changes, and sends them with a new message', async ({ page, mockApi }) => {
