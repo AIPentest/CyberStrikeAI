@@ -4,6 +4,7 @@ import { IconArrowUp, IconChevronDown, IconDesktop, IconFolder, IconPaperclip, I
 import { useT } from '../../lib/i18n';
 import { modelChannelName } from '../../lib/model-channel';
 import { ModelSettings } from './ChatSettings';
+import { reasoningSummary } from './useModelPreferences';
 
 const { Text } = Typography;
 
@@ -63,9 +64,7 @@ export default function Composer({
     const channelName = channelId
         ? modelChannelName(channelId, model.config.data?.channels?.[channelId])
         : t('chat.aiChannelDefaultShort', null, '默认通道');
-    const reasoningSummary = model.mode === 'off'
-        ? t('chat.reasoningModeOff', null, '关闭')
-        : model.effort || t('chat.reasoningSummaryFollow', null, '系统');
+    const reasoningLabel = reasoningSummary(t, model.mode, model.effort);
 
     const handleKeyDown = event => {
         if (event.key !== 'Enter' || event.shiftKey) return;
@@ -186,22 +185,18 @@ export default function Composer({
                                 position="topRight"
                                 className="chat-model-popover"
                                 condition={!busy}
-                                content={(
-                                    <div className="chat-settings-fields chat-model-settings">
-                                        <ModelSettings model={model} busy={busy || blocked} canReadConfig={canReadConfig} />
-                                    </div>
-                                )}
+                                content={<ModelSettings compact model={model} busy={busy || blocked} canReadConfig={canReadConfig} />}
                             >
                                 <Button
                                     theme="borderless"
                                     type="tertiary"
                                     className="chat-composer-model"
                                     aria-label={t('chat.modelSettingsAria', null, '选择 AI 通道、模型与推理设置')}
-                                    title={`${channelName} · ${reasoningSummary}`}
+                                    title={`${channelName} · ${reasoningLabel}`}
                                     disabled={busy}
                                 >
                                     <span className="chat-composer-model-name">{channelName}</span>
-                                    <span className="chat-composer-effort">{reasoningSummary}</span>
+                                    <span className="chat-composer-effort">{reasoningLabel}</span>
                                     <IconChevronDown size="small" />
                                 </Button>
                             </Popover>

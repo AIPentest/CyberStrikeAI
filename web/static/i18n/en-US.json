@@ -964,6 +964,14 @@
     "reasoningModeOn": "On",
     "reasoningModeAuto": "Auto",
     "reasoningEffortUnset": "Unspecified",
+    "reasoningReset": "Reset reasoning settings",
+    "reasoningEffortLabels": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "xhigh": "Extra high",
+      "max": "Maximum"
+    },
     "reasoningCompactLabel": "Reasoning",
     "reasoningCompactAria": "Open model reasoning options",
     "reasoningPanelTitle": "Model reasoning",

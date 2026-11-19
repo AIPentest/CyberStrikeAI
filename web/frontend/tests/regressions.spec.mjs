@@ -438,25 +438,32 @@ test.describe('chat session settings', () => {
             await openModel.click();
             const popover = page.locator('.chat-model-popover');
             const channel = popover.getByRole('combobox', { name: label('chat.aiChannelLabel'), exact: true });
-            const mode = popover.getByRole('combobox', { name: label('chat.reasoningModeLabel'), exact: true });
-            const effort = popover.getByRole('combobox', { name: label('chat.reasoningEffortLabel'), exact: true });
+            const mode = popover.getByRole('button', { name: label('chat.reasoningModeLabel'), exact: true });
+            const slider = popover.getByRole('slider', { name: label('chat.reasoningEffortLabel'), exact: true });
+            const value = popover.locator('.chat-reasoning-value[role="status"]');
+            const menu = page.locator('.chat-reasoning-mode-menu');
             await expect(popover).toBeVisible();
-            await expect(popover.getByRole('combobox')).toHaveCount(3);
+            await expect(popover.getByRole('combobox')).toHaveCount(1);
+            await expect(channel).toHaveAttribute('aria-labelledby', /\S+/);
             await expect(popover.getByRole('combobox', { name: label('chat.hitlModeLabel'), exact: true })).toHaveCount(0);
             await channel.click();
             await page.getByRole('listbox').getByText('示例通道 B', { exact: true }).click();
             await mode.click();
-            await page.getByRole('listbox').getByText(label('chat.reasoningModeOn'), { exact: true }).click();
-            await effort.click();
-            await page.getByRole('listbox').getByText('high', { exact: true }).click();
+            await menu.getByRole('menuitem', { name: label('chat.reasoningModeOn') }).click();
+            await slider.press('Home');
+            for (let step = 0; step < 3; step++) await slider.press('ArrowRight');
+            await expect(slider).toHaveAttribute('aria-valuenow', '3');
+            await expect(value).toHaveText(label('chat.reasoningEffortLabels.high', '高'));
             await mode.click();
-            await page.getByRole('listbox').getByText(label('chat.reasoningModeOff'), { exact: true }).click();
-            await expect(effort).toBeDisabled();
+            await menu.getByRole('menuitem', { name: label('chat.reasoningModeOff') }).click();
+            await expect(slider).toHaveAttribute('aria-disabled', 'true');
+            await expect(value).toHaveText(label('chat.reasoningModeOff'));
             if (reasoningMode === 'on') {
                 await mode.click();
-                await page.getByRole('listbox').getByText(label('chat.reasoningModeOn'), { exact: true }).click();
-                await expect(effort).toBeEnabled();
-                await expect(effort).toHaveText('high');
+                await menu.getByRole('menuitem', { name: label('chat.reasoningModeOn') }).click();
+                await expect(slider).toHaveAttribute('aria-disabled', 'false');
+                await expect(slider).toHaveAttribute('aria-valuenow', '3');
+                await expect(value).toHaveText(label('chat.reasoningEffortLabels.high', '高'));
             }
             await expect.poll(() => page.evaluate(() => ({
                 channel: localStorage.getItem('cyberstrike-chat-ai-channel'),
@@ -471,9 +478,11 @@ test.describe('chat session settings', () => {
             await ready(page);
             await openModel.click();
             await expect(channel).toHaveText('示例通道 B');
-            await expect(mode).toHaveText(label(reasoningMode === 'off' ? 'chat.reasoningModeOff' : 'chat.reasoningModeOn'));
-            if (reasoningMode === 'off') await expect(effort).toBeDisabled();
-            else await expect(effort).toHaveText('high');
+            await expect(mode).toHaveAttribute('title', new RegExp(label(reasoningMode === 'off' ? 'chat.reasoningModeOff' : 'chat.reasoningModeOn')));
+            await expect(slider).toHaveAttribute('aria-valuenow', '3');
+            await expect(slider).toHaveAttribute('aria-disabled', String(reasoningMode === 'off'));
+            await expect(value).toHaveText(reasoningMode === 'off'
+                ? label('chat.reasoningModeOff') : label('chat.reasoningEffortLabels.high', '高'));
             await main.locator('.chat-header-title').click();
             const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
             await input.fill(message);
@@ -488,6 +497,241 @@ test.describe('chat session settings', () => {
             }]);
         });
     }
+
+    test('composer reasoning slider covers all six levels and clamps keyboard boundaries', async ({ page, mockApi }) => {
+        mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
+        mockApi.respond('GET', '/api/config', { json: { ai: {
+            default_channel: 'demo-primary',
+            channels: { 'demo-primary': { name: '示例通道 A', model: 'fixture-a' } }
+        } } });
+        const main = await visit(page, 'chat');
+        await main.getByRole('button', { name: label('chat.modelSettingsAria'), exact: true }).click();
+        const popover = page.locator('.chat-model-popover');
+        const mode = popover.getByRole('button', { name: label('chat.reasoningModeLabel'), exact: true });
+        const slider = popover.getByRole('slider', { name: label('chat.reasoningEffortLabel'), exact: true });
+        const value = popover.locator('.chat-reasoning-value[role="status"]');
+        await expect(popover.getByRole('combobox')).toHaveCount(1);
+        await expect(popover.getByRole('slider')).toHaveCount(1);
+        await expect(slider).toHaveAttribute('aria-valuemin', '0');
+        await expect(slider).toHaveAttribute('aria-valuemax', '5');
+        await expect(slider).toHaveAttribute('aria-valuenow', '0');
+        await expect(value).toHaveText(label('chat.reasoningModeDefault'));
+
+        await slider.press('End');
+        await expect(slider).toHaveAttribute('aria-valuenow', '5');
+        await slider.press('Home');
+        const levels = [
+            ['', label('chat.reasoningModeDefault')],
+            ['low', '低'], ['medium', '中'], ['high', '高'], ['xhigh', '超高'], ['max', '最高']
+        ];
+        for (const [index, [effort, text]] of levels.entries()) {
+            if (index > 0) await slider.press('ArrowRight');
+            await expect(slider).toHaveAttribute('aria-valuenow', String(index));
+            await expect(slider).toHaveAttribute('aria-disabled', 'false');
+            await expect(value).toHaveText(text);
+            await expect(mode).toHaveAttribute('title', new RegExp(label(index === 0 ? 'chat.reasoningModeDefault' : 'chat.reasoningModeOn')));
+            await expect.poll(() => page.evaluate(() => ({
+                mode: localStorage.getItem('cyberstrike-chat-reasoning-mode'),
+                effort: localStorage.getItem('cyberstrike-chat-reasoning-effort')
+            }))).toEqual({ mode: index === 0 ? 'default' : 'on', effort });
+        }
+        await slider.press('ArrowRight');
+        await expect(slider).toHaveAttribute('aria-valuenow', '5');
+        await expect(value).toHaveText('最高');
+        await expect.poll(() => page.evaluate(() => ({
+            mode: localStorage.getItem('cyberstrike-chat-reasoning-mode'),
+            effort: localStorage.getItem('cyberstrike-chat-reasoning-effort')
+        }))).toEqual({ mode: 'on', effort: 'max' });
+        await slider.press('Home');
+        await slider.press('ArrowLeft');
+        await expect(slider).toHaveAttribute('aria-valuenow', '0');
+        await expect(value).toHaveText(label('chat.reasoningModeDefault'));
+        await slider.press('ArrowRight');
+        await expect(slider).toHaveAttribute('aria-valuenow', '1');
+        await slider.press('ArrowLeft');
+        await expect(slider).toHaveAttribute('aria-valuenow', '0');
+        await expect(value).toHaveText(label('chat.reasoningModeDefault'));
+        await expect(mode).toHaveAttribute('title', new RegExp(label('chat.reasoningModeDefault')));
+        await expect.poll(() => page.evaluate(() => ({
+            mode: localStorage.getItem('cyberstrike-chat-reasoning-mode'),
+            effort: localStorage.getItem('cyberstrike-chat-reasoning-effort')
+        }))).toEqual({ mode: 'default', effort: '' });
+        expect(mockApi.writes()).toEqual([]);
+    });
+
+    test('composer reasoning slider selects high with a mouse click and enables reasoning', async ({ page, mockApi }) => {
+        mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
+        mockApi.respond('GET', '/api/config', { json: { ai: {
+            default_channel: 'demo-primary',
+            channels: { 'demo-primary': { name: '示例通道 A', model: 'fixture-a' } }
+        } } });
+        const main = await visit(page, 'chat');
+        await main.getByRole('button', { name: label('chat.modelSettingsAria'), exact: true }).click();
+        const popover = page.locator('.chat-model-popover');
+        const slider = popover.getByRole('slider', { name: label('chat.reasoningEffortLabel'), exact: true });
+        const mode = popover.getByRole('button', { name: label('chat.reasoningModeLabel'), exact: true });
+        await expect(slider).toHaveAttribute('aria-valuenow', '0');
+        const rail = popover.locator('.semi-slider-rail');
+        await rail.hover();
+        const box = await rail.boundingBox();
+        expect(box).not.toBeNull();
+        // Click between marks on the unfilled rail; do not bypass the pointer handlers.
+        await rail.click({ position: { x: box.width * 0.64, y: box.height / 2 } });
+        await expect(slider).toHaveAttribute('aria-valuenow', '3');
+        await expect(popover.locator('.chat-reasoning-value[role="status"]')).toHaveText('高');
+        await expect(mode).toHaveAttribute('title', new RegExp(label('chat.reasoningModeOn')));
+        await expect.poll(() => page.evaluate(() => ({
+            mode: localStorage.getItem('cyberstrike-chat-reasoning-mode'),
+            effort: localStorage.getItem('cyberstrike-chat-reasoning-effort')
+        }))).toEqual({ mode: 'on', effort: 'high' });
+        expect(mockApi.writes()).toEqual([]);
+    });
+
+    test('composer reasoning reset preserves the selected channel and sends without reasoning', async ({ page, mockApi }) => {
+        mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
+        mockApi.respond('GET', '/api/config', { json: { ai: {
+            default_channel: 'demo-primary',
+            channels: {
+                'demo-primary': { name: '示例通道 A', model: 'fixture-a' },
+                'demo-backup': { name: '示例通道 B', model: 'fixture-b' }
+            }
+        } } });
+        const message = 'FAKE：重置推理后仍使用所选示例通道。';
+        const id = mockApi.enableChatStream(message);
+        const main = await visit(page, 'chat');
+        const openModel = main.getByRole('button', { name: label('chat.modelSettingsAria'), exact: true });
+        await openModel.click();
+        const popover = page.locator('.chat-model-popover');
+        const channel = popover.getByRole('combobox', { name: label('chat.aiChannelLabel'), exact: true });
+        const mode = popover.getByRole('button', { name: label('chat.reasoningModeLabel'), exact: true });
+        const slider = popover.getByRole('slider', { name: label('chat.reasoningEffortLabel'), exact: true });
+        const value = popover.locator('.chat-reasoning-value[role="status"]');
+        const reset = popover.getByRole('button', { name: label('chat.reasoningReset', '重置推理设置'), exact: true });
+        await channel.click();
+        await page.getByRole('listbox').getByText('示例通道 B', { exact: true }).click();
+        await slider.press('End');
+        await expect(slider).toHaveAttribute('aria-valuenow', '5');
+        await mode.click();
+        await page.locator('.chat-reasoning-mode-menu').getByRole('menuitem', { name: label('chat.reasoningModeOff') }).click();
+        await expect(slider).toHaveAttribute('aria-disabled', 'true');
+        await expect.poll(() => page.evaluate(() => ({
+            channel: localStorage.getItem('cyberstrike-chat-ai-channel'),
+            mode: localStorage.getItem('cyberstrike-chat-reasoning-mode'),
+            effort: localStorage.getItem('cyberstrike-chat-reasoning-effort')
+        }))).toEqual({ channel: 'demo-backup', mode: 'off', effort: 'max' });
+
+        await expect(reset).toBeEnabled();
+        await reset.click();
+        await expect(channel).toHaveText('示例通道 B');
+        await expect(slider).toHaveAttribute('aria-valuenow', '0');
+        await expect(slider).toHaveAttribute('aria-disabled', 'false');
+        await expect(value).toHaveText(label('chat.reasoningModeDefault'));
+        await expect(mode).toHaveAttribute('title', new RegExp(label('chat.reasoningModeDefault')));
+        await expect.poll(() => page.evaluate(() => ({
+            channel: localStorage.getItem('cyberstrike-chat-ai-channel'),
+            mode: localStorage.getItem('cyberstrike-chat-reasoning-mode'),
+            effort: localStorage.getItem('cyberstrike-chat-reasoning-effort')
+        }))).toEqual({ channel: 'demo-backup', mode: 'default', effort: '' });
+        expect(mockApi.writes()).toEqual([]);
+        await page.reload();
+        await ready(page);
+        await openModel.click();
+        await expect(channel).toHaveText('示例通道 B');
+        await expect(slider).toHaveAttribute('aria-valuenow', '0');
+        await expect(slider).toHaveAttribute('aria-disabled', 'false');
+        await expect(value).toHaveText(label('chat.reasoningModeDefault'));
+        await expect(mode).toHaveAttribute('title', new RegExp(label('chat.reasoningModeDefault')));
+        await main.locator('.chat-header-title').click();
+        const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+        await input.fill(message);
+        await input.press('Enter');
+        await expect(page).toHaveURL(new RegExp(`#/chat\\?conversation=${id}$`));
+        expect(mockApi.writes().map(({ method, path, body }) => ({ method, path, body }))).toEqual([{
+            method: 'POST', path: '/api/agent/stream',
+            body: { message, conversationId: '', aiChannelId: 'demo-backup' }
+        }]);
+        expect(mockApi.calls('POST', '/api/agent/stream')[0].body).not.toHaveProperty('reasoning');
+    });
+
+    test('composer reasoning modes round-trip auto, default and off without losing retained effort', async ({ page, mockApi }) => {
+        mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
+        mockApi.respond('GET', '/api/config', { json: { ai: {
+            default_channel: 'demo-primary',
+            channels: { 'demo-primary': { name: '示例通道 A', model: 'fixture-a' } }
+        } } });
+        const message = 'FAKE：保留自动推理模式与示例强度。';
+        const id = mockApi.enableChatStream(message);
+        const main = await visit(page, 'chat');
+        const openModel = main.getByRole('button', { name: label('chat.modelSettingsAria'), exact: true });
+        await openModel.click();
+        const popover = page.locator('.chat-model-popover');
+        const mode = popover.getByRole('button', { name: label('chat.reasoningModeLabel'), exact: true });
+        const slider = popover.getByRole('slider', { name: label('chat.reasoningEffortLabel'), exact: true });
+        const value = popover.locator('.chat-reasoning-value[role="status"]');
+        const menu = page.locator('.chat-reasoning-mode-menu');
+        const modes = {
+            default: label('chat.reasoningModeDefault'), off: label('chat.reasoningModeOff'),
+            on: label('chat.reasoningModeOn'), auto: label('chat.reasoningModeAuto')
+        };
+        await expect(value).toHaveText(modes.default);
+        await mode.click();
+        await expect(menu.getByRole('menuitem')).toHaveCount(4);
+        for (const name of Object.values(modes)) await expect(menu.getByRole('menuitem', { name })).toBeVisible();
+        await menu.getByRole('menuitem', { name: modes.default }).click();
+        // Mode menu actions and genuine keyboard input share the same persisted preferences.
+        const transitions = [
+            ['auto', 'auto', '', 0, modes.auto],
+            ['End', 'auto', 'max', 5, '最高'],
+            ['off', 'off', 'max', 5, modes.off],
+            ['Home', 'off', 'max', 5, modes.off],
+            ['auto', 'auto', 'max', 5, '最高'],
+            ['Home', 'default', '', 0, modes.default],
+            ['auto', 'auto', '', 0, modes.auto],
+            ['End', 'auto', 'max', 5, '最高'],
+            ['default', 'default', '', 0, modes.default],
+            ['on', 'on', '', 0, modes.on],
+            ['ArrowRight', 'on', 'low', 1, '低'],
+            ['auto', 'auto', 'low', 1, '低'],
+            ['ArrowRight', 'auto', 'medium', 2, '中'],
+            ['off', 'off', 'medium', 2, modes.off],
+            ['on', 'on', 'medium', 2, '中'],
+            ['auto', 'auto', 'medium', 2, '中']
+        ];
+        for (const [action, expectedMode, effort, level, text] of transitions) {
+            await test.step(`${action}: ${expectedMode}/${effort || 'unset'}`, async () => {
+                if (modes[action]) {
+                    await mode.click();
+                    await menu.getByRole('menuitem', { name: modes[action] }).click();
+                } else {
+                    await slider.press(action);
+                }
+                await expect(mode).toHaveAttribute('title', new RegExp(modes[expectedMode]));
+                await expect(slider).toHaveAttribute('aria-valuenow', String(level));
+                await expect(slider).toHaveAttribute('aria-disabled', String(expectedMode === 'off'));
+                await expect(value).toHaveText(text);
+                await expect.poll(() => page.evaluate(() => ({
+                    mode: localStorage.getItem('cyberstrike-chat-reasoning-mode'),
+                    effort: localStorage.getItem('cyberstrike-chat-reasoning-effort')
+                }))).toEqual({ mode: expectedMode, effort });
+            });
+        }
+        expect(mockApi.writes()).toEqual([]);
+        await page.reload();
+        await ready(page);
+        await openModel.click();
+        await expect(mode).toHaveAttribute('title', new RegExp(modes.auto));
+        await expect(slider).toHaveAttribute('aria-valuenow', '2');
+        await expect(value).toHaveText('中');
+        await main.locator('.chat-header-title').click();
+        const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+        await input.fill(message);
+        await input.press('Enter');
+        await expect(page).toHaveURL(new RegExp(`#/chat\\?conversation=${id}$`));
+        expect(mockApi.writes().map(({ method, path, body }) => ({ method, path, body }))).toEqual([{
+            method: 'POST', path: '/api/agent/stream',
+            body: { message, conversationId: '', reasoning: { mode: 'auto', effort: 'medium' } }
+        }]);
+    });
 
     test('composer HITL entry edits a local draft in a HITL-only sheet and includes it in the first send', async ({ page, mockApi }) => {
         mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
@@ -592,6 +836,55 @@ test.describe('chat session settings', () => {
 
 test.describe('chat composer read-only permissions', () => {
     test.use({ appPermissions: UI_PERMISSIONS.filter(permission => permission !== 'chat:write') });
+
+    test('disables the composer reasoning slider, mode and reset without chat:write', async ({ page, mockApi }) => {
+        const conversation = mockEmptyConversation(mockApi);
+        mockApi.respond('GET', '/api/config', { json: { ai: {
+            default_channel: 'demo-primary',
+            channels: {
+                'demo-primary': { name: '示例通道 A', model: 'fixture-a' },
+                'demo-backup': { name: '示例通道 B', model: 'fixture-b' }
+            }
+        } } });
+        const main = await visit(page, `chat?conversation=${conversation.id}`);
+        await page.evaluate(() => {
+            localStorage.setItem('cyberstrike-chat-ai-channel', 'demo-backup');
+            localStorage.setItem('cyberstrike-chat-reasoning-mode', 'auto');
+            localStorage.setItem('cyberstrike-chat-reasoning-effort', 'high');
+        });
+        await page.reload();
+        await ready(page);
+        await main.getByRole('button', { name: label('chat.modelSettingsAria'), exact: true }).click();
+        const popover = page.locator('.chat-model-popover');
+        const channel = popover.getByRole('combobox', { name: label('chat.aiChannelLabel'), exact: true });
+        const mode = popover.getByRole('button', { name: label('chat.reasoningModeLabel'), exact: true });
+        const slider = popover.getByRole('slider', { name: label('chat.reasoningEffortLabel'), exact: true });
+        const reset = popover.getByRole('button', { name: label('chat.reasoningReset', '重置推理设置'), exact: true });
+        const value = popover.locator('.chat-reasoning-value[role="status"]');
+        await expect(popover.getByRole('combobox')).toHaveCount(1);
+        await expect(channel).toHaveText('示例通道 B');
+        await expect(channel).toBeDisabled();
+        await expect(mode).toHaveAttribute('title', new RegExp(label('chat.reasoningModeAuto')));
+        await expect(mode).toBeDisabled();
+        await expect(reset).toBeDisabled();
+        await expect(slider).toHaveAttribute('aria-disabled', 'true');
+        await expect(slider).toHaveAttribute('aria-valuenow', '3');
+        await expect(value).toHaveText('高');
+        for (const key of ['Home', 'ArrowRight', 'End']) {
+            await slider.press(key);
+            await expect(slider).toHaveAttribute('aria-valuenow', '3');
+        }
+        await expect(value).toHaveText('高');
+        await expect.poll(() => page.evaluate(() => ({
+            channel: localStorage.getItem('cyberstrike-chat-ai-channel'),
+            mode: localStorage.getItem('cyberstrike-chat-reasoning-mode'),
+            effort: localStorage.getItem('cyberstrike-chat-reasoning-effort')
+        }))).toEqual({ channel: 'demo-backup', mode: 'auto', effort: 'high' });
+        await main.locator('.chat-header-title').click();
+        await expect(main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') })).toBeDisabled();
+        await expect(main.getByRole('button', { name: /发送$/ })).toBeDisabled();
+        expect(mockApi.writes()).toEqual([]);
+    });
 
     test('disables stored project changes and HITL editing without their respective write permissions', async ({ page, mockApi }) => {
         const conversation = mockEmptyConversation(mockApi, PROJECT.id);

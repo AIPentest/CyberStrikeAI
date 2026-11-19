@@ -952,6 +952,14 @@
     "reasoningModeOn": "开启",
     "reasoningModeAuto": "自动",
     "reasoningEffortUnset": "不指定",
+    "reasoningReset": "重置推理设置",
+    "reasoningEffortLabels": {
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "xhigh": "超高",
+      "max": "最高"
+    },
     "reasoningCompactLabel": "推理",
     "reasoningCompactAria": "打开模型推理选项",
     "reasoningPanelTitle": "模型推理",

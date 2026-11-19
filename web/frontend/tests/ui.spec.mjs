@@ -436,7 +436,7 @@ for (const width of [1440, 1024, 390]) {
             await screenshot(page, testInfo, `chat-header-${stored ? 'long-title' : 'new'}-${width}`);
             await model.click();
             const modelPopover = page.locator('.chat-model-popover');
-            await expect(modelPopover.getByRole('combobox', { name: label('chat.reasoningEffortLabel') })).toBeVisible();
+            await expect(modelPopover.getByRole('slider', { name: label('chat.reasoningEffortLabel') })).toBeVisible();
             await expect(modelPopover).toBeInViewport({ ratio: 1 });
             const popoverBox = await modelPopover.boundingBox();
             expect(popoverBox.x).toBeGreaterThanOrEqual(0);
@@ -454,6 +454,52 @@ for (const width of [1440, 1024, 390]) {
         }
         expect(mockApi.writes()).toEqual([]);
     });
+}
+
+for (const width of [1440, 390]) {
+    for (const colorScheme of ['light', 'dark']) {
+        test(`chat: compact reasoning picker at ${width}px in ${colorScheme} mode`, async ({ page, mockApi }, testInfo) => {
+            await page.setViewportSize({ width, height: 900 });
+            await page.emulateMedia({ colorScheme });
+            mockApi.respond('GET', '/api/config', { json: { ai: {
+                default_channel: 'fixture-model',
+                channels: { 'fixture-model': { name: '示例模型', model: 'fixture-model' } }
+            } } });
+            const main = await visit(page, 'chat');
+            const composer = main.locator('.chat-composer');
+            const openModel = button(composer, label('chat.modelSettingsAria'));
+            await expect(openModel).toContainText('示例模型');
+            await openModel.click();
+            const popover = page.locator('.chat-model-popover');
+            const slider = popover.getByRole('slider', { name: label('chat.reasoningEffortLabel') });
+            await expect(slider).toBeVisible();
+            await expect(popover.getByRole('combobox')).toHaveCount(1);
+            await slider.focus();
+            await slider.press('Home');
+            for (let index = 0; index < 3; index++) await slider.press('ArrowRight');
+            await expect(slider).toHaveAttribute('aria-valuenow', '3');
+            await expect(slider).toHaveAttribute('aria-valuetext', label('chat.reasoningEffortLabels.high'));
+            await expect(popover.getByRole('status')).toHaveText(label('chat.reasoningEffortLabels.high'));
+            await expect(composer.locator('.chat-composer-effort')).toHaveText(label('chat.reasoningEffortLabels.high'));
+            await expect(popover).toBeInViewport({ ratio: 1 });
+            const bounds = await popover.boundingBox();
+            expect(bounds.height).toBeLessThanOrEqual(180);
+            expect(bounds.width).toBeLessThanOrEqual(300);
+            expect(bounds.x).toBeGreaterThanOrEqual(0);
+            expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+            const overflow = await popover.evaluate(element => element.scrollWidth - element.clientWidth);
+            expect(overflow).toBeLessThanOrEqual(1);
+            await expect(button(popover, label('chat.reasoningReset'))).toBeInViewport({ ratio: 1 });
+            await expect(popover.getByRole('combobox')).toBeInViewport({ ratio: 1 });
+            await expect(popover.locator('.chat-reasoning-channel .semi-select-arrow')).toHaveCSS('opacity', '1');
+            await screenshot(page, testInfo, `chat-reasoning-${width}-${colorScheme}`);
+            await popover.screenshot({ path: testInfo.outputPath(`reasoning-panel-${width}-${colorScheme}.png`) });
+            await slider.press('Escape');
+            await expect(popover).not.toBeVisible();
+            await expect(openModel).toBeFocused();
+            expect(mockApi.writes()).toEqual([]);
+        });
+    }
 }
 
 test.describe('chat: session settings permission boundary', () => {

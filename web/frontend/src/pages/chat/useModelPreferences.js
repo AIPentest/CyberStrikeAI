@@ -5,6 +5,15 @@ import { api } from '../../lib/http';
 export const REASONING_MODES = ['default', 'off', 'on', 'auto'];
 export const REASONING_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 
+export function reasoningSummary(t, mode, effort) {
+    if (mode !== 'off' && effort) {
+        const labels = { low: '低', medium: '中', high: '高', xhigh: '超高', max: '最高' };
+        return t(`chat.reasoningEffortLabels.${effort}`, null, labels[effort]);
+    }
+    const labels = { default: '跟随系统', off: '关闭', on: '开启', auto: '自动' };
+    return t(`chat.reasoningMode${mode[0].toUpperCase()}${mode.slice(1)}`, null, labels[mode]);
+}
+
 // The legacy composer stored plain strings under these keys.
 function useChatPreference(key, fallback) {
     const [value, setValue] = useState(() => {

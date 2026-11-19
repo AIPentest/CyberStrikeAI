@@ -976,6 +976,14 @@
     "reasoningModeOn": "Вкл.",
     "reasoningModeAuto": "Авто",
     "reasoningEffortUnset": "Не задано",
+    "reasoningReset": "Сбросить настройки рассуждения",
+    "reasoningEffortLabels": {
+      "low": "Низкая",
+      "medium": "Средняя",
+      "high": "Высокая",
+      "xhigh": "Очень высокая",
+      "max": "Максимальная"
+    },
     "reasoningCompactLabel": "Рассуждение",
     "reasoningCompactAria": "Открыть параметры рассуждения модели",
     "reasoningPanelTitle": "Рассуждение модели",

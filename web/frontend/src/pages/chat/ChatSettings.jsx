@@ -1,11 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { RadioGroup, Select, SideSheet, Spin, TextArea, Typography } from '@douyinfe/semi-ui';
+import { Button, Dropdown, RadioGroup, Select, SideSheet, Slider, Spin, TextArea, Typography } from '@douyinfe/semi-ui';
+import { IconBolt, IconChevronRight, IconUndo } from '@douyinfe/semi-icons';
 import { useResource } from '../../components/hooks';
 import { ErrorBanner, toastError } from '../../components/ui';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
 import { modelChannelName, modelChannelOptions, selectedModelChannelName } from '../../lib/model-channel';
-import { REASONING_EFFORTS, REASONING_MODES } from './useModelPreferences';
+import { REASONING_EFFORTS, REASONING_MODES, reasoningSummary } from './useModelPreferences';
 
 const { Text } = Typography;
 const HITL_MODES = ['off', 'approval', 'review_edit'];
@@ -82,8 +83,10 @@ function SettingSelect({ label, ...props }) {
     );
 }
 
-export function ModelSettings({ model, busy, canReadConfig }) {
+export function ModelSettings({ model, busy, canReadConfig, compact = false }) {
     const t = useT();
+    const channelLabelId = useId();
+    const pickerRef = useRef(null);
     const defaultId = model.config.data?.default_channel;
     const defaultName = defaultId ? modelChannelName(defaultId, model.config.data?.channels?.[defaultId]) : '';
     const defaultLabel = t('chat.aiChannelDefault', null, '跟随默认通道');
@@ -91,12 +94,98 @@ export function ModelSettings({ model, busy, canReadConfig }) {
         { value: '', label: defaultName ? `${defaultLabel} · ${defaultName}` : defaultLabel },
         ...modelChannelOptions(model.channels)
     ];
-    const reasoningLabels = {
-        default: t('chat.reasoningModeDefault', null, '跟随系统'),
-        off: t('chat.reasoningModeOff', null, '关闭'),
-        on: t('chat.reasoningModeOn', null, '开启'),
-        auto: t('chat.reasoningModeAuto', null, '自动')
-    };
+    const reasoningLabels = Object.fromEntries(REASONING_MODES.map(mode => [mode, reasoningSummary(t, mode, '')]));
+    if (compact) {
+        const levels = ['', ...REASONING_EFFORTS];
+        const marks = Object.fromEntries(levels.map((effort, index) => [
+            index, reasoningSummary(t, effort ? 'on' : 'default', effort)
+        ]));
+        const resetReasoning = () => {
+            model.setMode('default');
+            model.setEffort('');
+        };
+        return (
+            <div className="chat-reasoning-picker" ref={pickerRef}>
+                <div className="chat-reasoning-heading">
+                    <Dropdown
+                        trigger="click"
+                        position="bottomLeft"
+                        className="chat-reasoning-mode-menu"
+                        getPopupContainer={() => pickerRef.current}
+                        showTick
+                        menu={REASONING_MODES.map(mode => ({
+                            node: 'item',
+                            name: reasoningLabels[mode],
+                            active: model.mode === mode,
+                            disabled: busy,
+                            onClick: () => mode === 'default' ? resetReasoning() : model.setMode(mode)
+                        }))}
+                    >
+                        <Button
+                            theme="borderless"
+                            type="tertiary"
+                            icon={<IconBolt />}
+                            className="chat-reasoning-mode"
+                            aria-label={t('chat.reasoningModeLabel', null, '模型推理')}
+                            title={`${t('chat.reasoningModeLabel', null, '模型推理')} · ${reasoningLabels[model.mode]}`}
+                            disabled={busy}
+                        />
+                    </Dropdown>
+                    <Text strong className="chat-reasoning-value" role="status">
+                        {reasoningSummary(t, model.mode, model.effort)}
+                    </Text>
+                    <Button
+                        theme="borderless"
+                        type="tertiary"
+                        icon={<IconUndo />}
+                        aria-label={t('chat.reasoningReset', null, '重置推理设置')}
+                        title={t('chat.reasoningReset', null, '重置推理设置')}
+                        disabled={busy}
+                        onClick={resetReasoning}
+                    />
+                </div>
+                {canReadConfig ? (
+                    <>
+                        <span id={channelLabelId} hidden>{t('chat.aiChannelLabel', null, 'AI 通道')}</span>
+                        <Select
+                            className="chat-reasoning-channel"
+                            aria-labelledby={channelLabelId}
+                            value={model.channel}
+                            optionList={channelOptions}
+                            renderSelectedItem={option => option.value === ''
+                                ? defaultName || t('chat.aiChannelDefaultShort', null, '默认通道')
+                                : selectedModelChannelName(option)}
+                            arrowIcon={<IconChevronRight size="small" />}
+                            borderless
+                            onSelect={model.setChannel}
+                            dropdownMatchSelectWidth={false}
+                            dropdownStyle={{ maxWidth: 'calc(100vw - 32px)' }}
+                            loading={model.config.loading}
+                            disabled={busy || model.config.loading || Boolean(model.config.error)}
+                        />
+                        <ErrorBanner error={model.config.error} onRetry={() => model.config.reload()} />
+                    </>
+                ) : <Text type="tertiary" className="chat-reasoning-channel-label">{defaultLabel}</Text>}
+                <Slider
+                    className="chat-reasoning-slider"
+                    aria-label={t('chat.reasoningEffortLabel', null, '推理强度')}
+                    min={0}
+                    max={levels.length - 1}
+                    step={1}
+                    marks={marks}
+                    showMarkLabel={false}
+                    tipFormatter={value => marks[value]}
+                    getAriaValueText={value => model.mode === 'off' ? reasoningLabels.off : marks[value]}
+                    value={levels.indexOf(model.effort)}
+                    disabled={busy || model.mode === 'off'}
+                    onChange={value => {
+                        model.setEffort(levels[value]);
+                        model.setMode(value === 0 ? 'default' : model.mode === 'auto' ? 'auto' : 'on');
+                    }}
+                />
+            </div>
+        );
+    }
     return (
         <>
             {canReadConfig && (

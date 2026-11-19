@@ -963,6 +963,14 @@
     "reasoningModeOn": "تشغيل",
     "reasoningModeAuto": "تلقائي",
     "reasoningEffortUnset": "غير محدَّد",
+    "reasoningReset": "إعادة ضبط إعدادات الاستدلال",
+    "reasoningEffortLabels": {
+      "low": "منخفض",
+      "medium": "متوسط",
+      "high": "عالٍ",
+      "xhigh": "عالٍ جدًا",
+      "max": "أقصى"
+    },
     "reasoningCompactLabel": "الاستدلال",
     "reasoningCompactAria": "فتح خيارات استدلال النموذج",
     "reasoningPanelTitle": "استدلال النموذج",
