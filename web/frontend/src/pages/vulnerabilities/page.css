@@ -25,23 +25,20 @@
 }
 
 .vulnerability-group-scroll {
-    min-height: 46px;
-    max-height: min(52vh, 520px);
     overflow: auto;
     overscroll-behavior: contain;
 }
 
 @media (width > 960px) {
-    .vulnerability-group-layout--host .vulnerability-group-sidebar {
+    .vulnerability-group-sidebar {
         align-self: stretch;
         grid-template-rows: auto auto minmax(0, 1fr);
     }
 
-    .vulnerability-group-layout--host .vulnerability-group-scroll {
+    .vulnerability-group-scroll {
         /* The results column sizes the grid row; the tree scrolls within it. */
         contain: size;
         min-height: 0;
-        max-height: none;
         scrollbar-gutter: stable;
     }
 }
@@ -336,7 +333,7 @@
 
 @media (max-width: 960px) {
     .vulnerability-group-layout { grid-template-columns: minmax(0, 1fr); }
-    .vulnerability-group-scroll { max-height: 210px; }
+    .vulnerability-group-scroll { min-height: 46px; max-height: 210px; }
     .vulnerability-filter-select,
     .vulnerability-filter-select--wide { width: calc(50% - 4px); }
     .vulnerability-filter-search { max-width: none; }

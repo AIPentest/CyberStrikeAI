@@ -5,7 +5,6 @@ import { SEVERITY_CODES, severityText } from './shared';
 
 const { Text } = Typography;
 const severityColors = { critical: 'red', high: 'orange', medium: 'amber', low: 'blue', info: 'grey' };
-const NO_EXPANDED_GROUPS = [];
 
 function groupLabel(t, node) {
     if (node.key.startsWith('task:')) {
@@ -35,18 +34,16 @@ function treeNode(t, node) {
 
 export function GroupNavigator({ t, mode, groups, selection, loading, search, onSearch, onSelect }) {
     const [keyword, setKeyword] = useState(search);
-    const [expandedKeys, setExpandedKeys] = useState(null);
     const isTask = mode === 'task';
     const heading = t(isTask ? 'vulnerabilityPage.viewTask' : 'vulnerabilityPage.viewHost');
     const searchLabel = t(isTask ? 'vulnerabilityPage.taskSearch' : 'vulnerabilityPage.hostSearch');
-    const treeData = useMemo(() => {
+    const { treeData, expandedKeys } = useMemo(() => {
         const all = t(isTask ? 'vulnerabilityPage.allTasks' : 'vulnerabilityPage.allHosts');
-        return [{ key: 'all', value: 'all', label: all }, ...groups.map(node => treeNode(t, node))];
+        return {
+            treeData: [{ key: 'all', value: 'all', label: all }, ...groups.map(node => treeNode(t, node))],
+            expandedKeys: groups.filter(node => node.children?.length).map(node => node.key)
+        };
     }, [t, groups, isTask]);
-    const selectedParent = groups.find(node => node.children?.some(child => child.key === selection));
-    const expanded = isTask
-        ? expandedKeys ?? (selectedParent ? [selectedParent.key] : NO_EXPANDED_GROUPS)
-        : treeData.filter(node => node.children?.length).map(node => node.key);
 
     useEffect(() => setKeyword(search), [search]);
     useEffect(() => {
@@ -72,9 +69,8 @@ export function GroupNavigator({ t, mode, groups, selection, loading, search, on
                     treeData={treeData}
                     value={selection || 'all'}
                     onSelect={key => onSelect(key === 'all' ? '' : key)}
-                    expandedKeys={expanded}
-                    onExpand={isTask ? setExpandedKeys : undefined}
-                    expandIcon={isTask ? undefined : () => <span className="semi-tree-empty-icon" aria-hidden="true" />}
+                    expandedKeys={expandedKeys}
+                    expandIcon={() => <span className="semi-tree-empty-icon" aria-hidden="true" />}
                     expandAction={false}
                     blockNode
                 />
