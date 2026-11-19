@@ -224,6 +224,10 @@ Expected behavior:
 
 Each task has a distinct `runId`. Local commands and detached MCP workers retain ownership through context values. Managed `exec ... &` and Pi background execution return promptly but cannot outlive task cleanup. Unowned background launches are rejected. Cleanup seals process and worker admission, cancels workers, terminates processes and waits for reaping. Interrupt-and-continue retains ownership; SSE disconnection does not end the task. Failed cleanup retains the conversation slot and reports `cleanup_failed`; a 15-second sweep retries it.
 
+Set `CS_CLEANUP_GRACE`, `CS_CLEANUP_KILL`, and `CS_CLEANUP_GUARD` to positive Go durations (for example, `10s`) to tune the graceful exit wait, post-SIGKILL wait, and isolation backend wait. Each defaults to 3 seconds when unset or invalid.
+
+On Linux, only-zombie process groups count as exited once the direct child has been reaped. With the process group watchdog, if cleanup times out and every surviving member is in uninterruptible sleep (D) with SIGKILL pending, the task reports `cleanup_unconfirmed` after local workers finish. The service log records the run ID and PGID. The kernel delivers the pending signal when the process can exit. The cgroup and Windows Job Object backends still require their own exit verification.
+
 ### Kernel containment and crash recovery
 
 - **Linux with a delegated cgroup v2 root:** each task gets a cgroup with process, memory and optional CPU limits. Go uses `clone3(CLONE_INTO_CGROUP)` to assign membership at creation. A separate guardian uses `cgroup.kill` on owner pipe EOF and checks `populated=0`. Startup exclusively locks the delegated root and recovers stale task groups. `setsid` does not escape this scope.

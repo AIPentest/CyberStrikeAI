@@ -5,6 +5,8 @@ package security
 import (
 	"os/exec"
 	"syscall"
+
+	"cyberstrike-ai/internal/processguard"
 )
 
 // prepareShellCmdSession 让 shell 子进程在独立会话中运行，便于超时/取消时整组 SIGKILL（含子进程）。
@@ -48,5 +50,5 @@ func stopProcessGroup(pid int, cmd *exec.Cmd) {
 }
 
 func processGroupExists(pid int) bool {
-	return pid > 0 && syscall.Kill(-pid, 0) != syscall.ESRCH
+	return processguard.ProcessGroupExists(pid)
 }
