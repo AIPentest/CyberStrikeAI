@@ -432,14 +432,14 @@ func (h *NotificationHandler) summarizeLongRunningTasks(threshold time.Duration,
 		}
 		if now.Sub(t.StartedAt) >= threshold {
 			items = append(items, NotificationSummaryItem{
-				ID:             "task_long:" + t.ConversationID,
+				ID:             "task_long:" + t.RunID,
 				Level:          "p1",
 				Type:           "long_running_tasks",
 				Title:          i18nText(english, "长时间运行任务", "Long Running Task"),
 				Desc:           i18nText(english, "会话 "+t.ConversationID+" 运行超过 15 分钟", "Conversation "+t.ConversationID+" has been running over 15 minutes"),
 				Ts:             t.StartedAt.UTC().Format(time.RFC3339),
 				Count:          1,
-				Actionable:     true,
+				Actionable:     false,
 				Read:           false,
 				ConversationID: t.ConversationID,
 			})
@@ -616,6 +616,7 @@ func normalizeMarkableEventID(id string) (string, bool) {
 	allowedPrefixes := []string{
 		"vuln:",
 		"exec_failed:",
+		"task_long:",
 		"task_completed:",
 		"c2evt:",
 	}
