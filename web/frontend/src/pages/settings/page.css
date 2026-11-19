@@ -63,6 +63,8 @@
 .settings-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .settings-field-wide { grid-column: span 2; }
 .settings-probe-actions { margin-top: 14px; }
+.settings-channel-panel .semi-card-header-wrapper { align-items: center; gap: 8px; }
+.settings-channel-notices { display: grid; gap: 8px; margin-top: 14px; }
 .settings-probe-result { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
 .settings-model-tags {
     display: flex;
@@ -120,6 +122,12 @@
 @media (max-width: 900px) {
     .settings-field-wide { grid-column: span 1; }
     .settings-yaml-input .semi-input-textarea { min-height: 300px; }
+}
+
+@media (max-width: 480px) {
+    .settings-channel-panel .semi-card-header-wrapper { flex-direction: column-reverse; align-items: stretch; }
+    .settings-channel-panel .semi-card-header-wrapper-title { margin-inline: 0; }
+    .settings-probe-secondary { grid-template-columns: minmax(0, 1fr); }
 }
 
 .settings-update-source-form {

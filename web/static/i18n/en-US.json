@@ -3118,6 +3118,13 @@
     "cleanupDuration": "Cleanup duration"
   },
   "settingsProbe": {
+    "channelTitle": "Model Channels and Connection Tests",
+    "channelHelp": "Connection tests use the values in the form. Save Channel applies your changes. A key shown as ******** uses the saved credential.",
+    "saveChannel": "Save Channel",
+    "channelReadOnly": "Read-only",
+    "invalidLimit": "Enter a non-negative integer for {{field}}.",
+    "savedApplyFailed": "The channel was saved, but applying the configuration failed.",
+    "retryApply": "Retry Apply",
     "result": "Test result",
     "latency": "Response latency",
     "milliseconds": "{{value}} ms",

@@ -20,7 +20,9 @@ func TestDetectedContextSettingsRoundTripThroughSavedYAML(t *testing.T) {
 	}
 	for _, profile := range []string{"local_auto", "custom", ""} {
 		ch := config.AIChannelConfig{Model: "fixture", ContextWindow: 32768, ContextProfile: profile}
-		updateAIConfig(&doc, config.AIConfig{DefaultChannel: "local", Channels: map[string]config.AIChannelConfig{"local": ch}})
+		if err := updateAIConfig(&doc, config.AIConfig{DefaultChannel: "local", Channels: map[string]config.AIChannelConfig{"local": ch}}); err != nil {
+			t.Fatal(err)
+		}
 		raw, err := yaml.Marshal(&doc)
 		if err != nil {
 			t.Fatal(err)

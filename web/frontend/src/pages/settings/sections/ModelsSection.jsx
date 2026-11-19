@@ -1,4 +1,4 @@
-/** 模型与工具：模型连接探测（ProbePanel）+ 工具开关（ToolsPanel）。 */
+/** 模型与工具：通道配置、模型连接探测和工具开关。 */
 import { useCallback } from 'react';
 import { api } from '../../../lib/http';
 import { useAuth } from '../../../lib/auth';
@@ -25,7 +25,13 @@ export default function ModelsSection() {
             {config.loading && !config.data ? <LoadingBlock rows={6} /> : (
                 <>
                     <ErrorBanner error={config.error} onRetry={config.reload} />
-                    {config.data && <ProbePanel config={config.data} canWrite={hasPermission('config:write')} />}
+                    {config.data && (
+                        <ProbePanel
+                            config={config.data}
+                            canWrite={hasPermission('config:write')}
+                            reloadConfig={config.reload}
+                        />
+                    )}
                 </>
             )}
             <ToolsPanel />

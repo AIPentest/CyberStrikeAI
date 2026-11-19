@@ -3106,6 +3106,13 @@
     "cleanupDuration": "清理耗时"
   },
   "settingsProbe": {
+    "channelTitle": "模型通道与连接测试",
+    "channelHelp": "连接测试使用当前填写的值。点击「保存通道」后应用通道配置，显示 ******** 时沿用已保存的密钥。",
+    "saveChannel": "保存通道",
+    "channelReadOnly": "只读",
+    "invalidLimit": "{{field}}请输入非负整数",
+    "savedApplyFailed": "通道已写入配置，应用失败。",
+    "retryApply": "重试应用",
     "result": "测试结果",
     "latency": "响应耗时",
     "milliseconds": "{{value}} 毫秒",

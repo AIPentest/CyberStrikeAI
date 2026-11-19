@@ -1,13 +1,11 @@
 /**
- * 模型连接与能力探测：/config/test-openai、/config/detect-context、/config/list-models、
- * /config/test-vision、/config/test-typesafe。密钥字段来自 GET /config，服务端用 ********
- * 作为「沿用已保存凭据」的标记。
+ * 编辑所选模型通道，并使用表单中的值测试连接或探测模型能力。
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useId, useState } from 'react';
 import { Banner, Button, Input, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import { api } from '../../../lib/http';
 import { useT } from '../../../lib/i18n';
-import { ErrorBanner, KeyValueList, SectionCard } from '../../../components/ui';
+import { ErrorBanner, KeyValueList, SectionCard, toastSuccess } from '../../../components/ui';
 import { Hint } from './common';
 
 const { Text } = Typography;
@@ -18,7 +16,13 @@ const PROVIDERS = [
     { value: 'openai_compatible', key: 'settingsProbe.compatible', fallback: '兼容 OpenAI 的接口' },
     { value: 'claude', key: 'settingsBasic.providerClaude', fallback: 'Claude（Anthropic Messages）' }
 ];
-const CONTEXT_PROFILES = ['', 'auto', 'local_auto', 'custom'];
+const CONTEXT_PROFILES = ['', 'auto', 'local_auto', 'local', 'economy', 'custom'];
+const TOKEN_LIMITS = [
+    ['context_window', 'settingsBasic.contextWindow', '模型上下文窗口（Token）'],
+    ['max_total_tokens', 'settingsBasic.maxTotalTokens', '最大上下文令牌数'],
+    ['max_completion_tokens', 'settingsBasic.maxCompletionTokens', '最大输出令牌数']
+];
+const EMPTY_PROBE = { key: '', payload: null, error: null };
 const CONTEXT_WARNING_KEYS = {
     context_window_unknown: 'contextWarnUnknown',
     context_runtime_unknown: 'contextWarnRuntimeUnknown',
@@ -38,31 +42,22 @@ function profileLabel(t, value) {
 }
 
 function numberValue(raw) {
-    const value = parseInt(raw, 10);
-    return Number.isFinite(value) && value > 0 ? value : 0;
+    const value = Number(raw);
+    return Number.isSafeInteger(value) && value >= 0 ? value : 0;
 }
 
-function channelValues(config, id) {
-    if (id === MAIN_CHANNEL) {
-        const main = config.openai || {};
-        return {
-            provider: main.provider || 'openai_compatible',
-            base_url: main.base_url || '',
-            api_key: main.api_key || '',
-            model: main.model || '',
-            context_profile: main.context_profile || '',
-            max_total_tokens: main.max_total_tokens || 0,
-            max_completion_tokens: main.max_completion_tokens || 0,
-            headers: main.headers || undefined
-        };
-    }
-    const channel = config.ai?.channels?.[id] || {};
+function channelValues(channel) {
+    let provider = channel.provider || 'openai_compatible';
+    if (provider === 'openai') provider = 'openai_compatible';
+    if (provider === 'anthropic') provider = 'claude';
     return {
-        provider: channel.provider || 'openai_compatible',
+        name: channel.name || '',
+        provider,
         base_url: channel.base_url || '',
         api_key: channel.api_key || '',
         model: channel.model || '',
         context_profile: channel.context_profile || '',
+        context_window: channel.context_window || 0,
         max_total_tokens: channel.max_total_tokens || 0,
         max_completion_tokens: channel.max_completion_tokens || 0,
         headers: channel.headers || undefined
@@ -179,32 +174,121 @@ function ProbeOutput({ state }) {
     );
 }
 
-export default function ProbePanel({ config, canWrite }) {
+export default function ProbePanel({ config, canWrite, reloadConfig }) {
     const t = useT();
+    const channelLabelId = useId();
     const channels = config.ai?.channels || NO_CHANNELS;
-    const [channelId, setChannelId] = useState(() => config.ai?.default_channel || MAIN_CHANNEL);
-    const [form, setForm] = useState(() => channelValues(config, config.ai?.default_channel || MAIN_CHANNEL));
+    const channelIds = Object.keys(channels);
+    const defaultId = config.ai?.default_channel;
+    const [selectedId, setSelectedId] = useState('');
+    const channelId = [selectedId, defaultId].find(id => Object.hasOwn(channels, id)) || channelIds[0] || MAIN_CHANNEL;
+    const legacy = channelId === MAIN_CHANNEL;
+    const baseline = channelValues((legacy ? config.openai : channels[channelId]) || {});
+    const [drafts, setDrafts] = useState({});
+    const draft = drafts[channelId] || {};
+    const form = { ...baseline, ...draft };
+    const dirty = Object.keys(draft).length > 0;
     const [busy, setBusy] = useState('');
-    const [state, setState] = useState({ key: '', payload: null, error: null });
-
-    useEffect(() => {
-        setForm(channelValues(config, channelId));
-    }, [channelId, config]);
-
-    const channelOptions = useMemo(() => [
-        { value: MAIN_CHANNEL, label: t('settingsProbe.mainChannel', null, '主模型通道') },
-        ...Object.keys(channels).map(id => ({
+    const [state, setState] = useState(EMPTY_PROBE);
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState(null);
+    const [applyPending, setApplyPending] = useState(false);
+    const locked = !canWrite || saving;
+    const channelOptions = legacy
+        ? [{ value: MAIN_CHANNEL, label: t('settingsProbe.mainChannel', null, '主模型通道') }]
+        : channelIds.map(id => ({
             value: id,
-            label: `${id}${id === config.ai?.default_channel ? t('settingsProbe.defaultChannelSuffix', null, '（默认）') : ''}`
-        }))
-    ], [channels, config.ai?.default_channel, t]);
+            label: (channels[id].name && channels[id].name !== id ? `${channels[id].name} · ${id}` : id)
+                + (id === defaultId ? t('settingsProbe.defaultChannelSuffix', null, '（默认）') : '')
+        }));
+    const providerOptions = PROVIDERS.map(({ value, key, fallback }) => ({ value, label: t(key, null, fallback) }));
+    if (!providerOptions.some(option => option.value === form.provider)) {
+        providerOptions.push({ value: form.provider, label: form.provider });
+    }
 
-    const update = (key, value) => setForm(current => ({ ...current, [key]: value }));
+    const clearDraft = () => {
+        setDrafts(current => {
+            const next = { ...current };
+            delete next[channelId];
+            return next;
+        });
+    };
+    const update = (key, value) => {
+        setDrafts(current => {
+            const next = { ...current[channelId] };
+            if (value === String(baseline[key])) delete next[key];
+            else next[key] = value;
+            return { ...current, [channelId]: next };
+        });
+    };
+    const selectChannel = id => {
+        setSelectedId(id);
+        setState(EMPTY_PROBE);
+        if (!applyPending) setSaveError(null);
+    };
+
+    const discardDraft = () => {
+        clearDraft();
+        setState(EMPTY_PROBE);
+        if (!applyPending) setSaveError(null);
+    };
+
+    const apply = async message => {
+        try {
+            await api.post('/config/apply');
+            setApplyPending(false);
+            toastSuccess(message);
+        } catch (error) {
+            setApplyPending(true);
+            setSaveError(error);
+        }
+    };
+
+    const save = async (makeDefault = false) => {
+        if (locked || busy || (!dirty && !makeDefault)) return;
+        setSaveError(null);
+        const invalidLimit = TOKEN_LIMITS.find(([key]) => !/^\d*$/.test(String(form[key]).trim())
+            || !Number.isSafeInteger(Number(form[key])));
+        if (invalidLimit) {
+            const [, key, fallback] = invalidLimit;
+            setSaveError(new Error(t('settingsProbe.invalidLimit', { field: t(key, null, fallback) }, '请输入非负整数')));
+            return;
+        }
+        const changes = { ...draft };
+        for (const [key] of TOKEN_LIMITS) {
+            if (Object.hasOwn(changes, key)) changes[key] = numberValue(form[key]);
+        }
+
+        setSaving(true);
+        try {
+            await api.put('/config', { ai_channel: { channel_id: legacy ? '' : channelId, make_default: makeDefault, ...changes } });
+            clearDraft();
+            await apply(makeDefault
+                ? t('settingsBasic.aiChannelDefaultSaved', null, '已设为默认通道')
+                : t('settingsBasic.aiChannelSaved', null, '通道已保存'));
+            await reloadConfig({ silent: true });
+        } catch (error) {
+            setSaveError(error);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const retryApply = async () => {
+        if (locked || !applyPending) return;
+        setSaving(true);
+        setSaveError(null);
+        try {
+            await apply(t('settings.apply.applySuccess', null, '配置已成功应用'));
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const run = async (key, path, body) => {
-        if (!canWrite) return;
+        if (locked || busy) return;
         setBusy(key);
-        setState({ key: '', payload: null, error: null });
+        setState(EMPTY_PROBE);
         try {
             const payload = await api.post(path, body);
             setState({ key, payload, error: null });
@@ -217,8 +301,8 @@ export default function ProbePanel({ config, canWrite }) {
 
     const probeBody = () => ({
         provider: form.provider,
-        channel_id: channelId === MAIN_CHANNEL ? undefined : channelId,
-        credential_scope: channelId === MAIN_CHANNEL ? 'openai' : undefined,
+        channel_id: legacy ? undefined : channelId,
+        credential_scope: legacy ? 'openai' : undefined,
         base_url: form.base_url,
         api_key: form.api_key,
         model: form.model,
@@ -280,19 +364,38 @@ export default function ProbePanel({ config, canWrite }) {
 
     return (
         <SectionCard
-            title={t('settings.probeTitle', null, '模型连接与能力探测')}
-            description={t('settings.probeDesc', null, '直接调用后端的探测接口，不会保存任何改动；密钥显示 ******** 时表示沿用已保存凭据。')}
-            extra={canWrite ? null : (
-                <Tag color="grey" size="small">{t('settings.probeReadOnly', null, '缺少 config:write，探测接口不可用')}</Tag>
+            title={t('settingsProbe.channelTitle', null, '模型通道与连接测试')}
+            description={t('settingsProbe.channelHelp', null, '保存后应用所选通道的设置。显示 ******** 时沿用已保存的密钥。')}
+            className="settings-channel-panel"
+            extra={canWrite ? (
+                <Space wrap>
+                    {dirty && (
+                        <Button disabled={saving || !!busy} onClick={discardDraft}>
+                            {t('toolGuard.reset', null, '撤销修改')}
+                        </Button>
+                    )}
+                    {!legacy && channelId !== defaultId && (
+                        <Button disabled={saving || !!busy} onClick={() => save(true)}>
+                            {t('settingsBasic.aiChannelSetDefault', null, '设为默认')}
+                        </Button>
+                    )}
+                    <Button theme="solid" type="primary" loading={saving} disabled={!dirty || !!busy} onClick={() => save()}>
+                        {t('settingsProbe.saveChannel', null, '保存通道')}
+                    </Button>
+                </Space>
+            ) : (
+                <Tag color="grey" size="small">{t('settingsProbe.channelReadOnly', null, '只读')}</Tag>
             )}
         >
             <div className="settings-probe-form">
                 <label className="settings-field">
-                    <Text type="tertiary" size="small">{t('settings.checkChannel', null, '通道')}</Text>
+                    <Text id={channelLabelId} type="tertiary" size="small">{t('settings.checkChannel', null, '通道')}</Text>
                     <Select
                         value={channelId}
-                        onChange={value => setChannelId(value)}
+                        onChange={selectChannel}
                         optionList={channelOptions}
+                        aria-labelledby={channelLabelId}
+                        disabled={saving || !!busy}
                         style={{ width: '100%' }}
                     />
                 </label>
@@ -301,75 +404,91 @@ export default function ProbePanel({ config, canWrite }) {
                     <Select
                         value={form.provider}
                         onChange={value => update('provider', value)}
-                        optionList={PROVIDERS.map(({ value, key, fallback }) => ({ value, label: t(key, null, fallback) }))}
+                        optionList={providerOptions}
+                        disabled={locked}
                         style={{ width: '100%' }}
                     />
                 </label>
                 <label className="settings-field settings-field-wide">
                     <Text type="tertiary" size="small">{t('settingsBasic.baseUrl', null, 'API 地址')}</Text>
-                    <Input value={form.base_url} onChange={value => update('base_url', value)} placeholder="https://api.openai.com/v1" />
+                    <Input value={form.base_url} onChange={value => update('base_url', value)} readOnly={locked} placeholder="https://api.openai.com/v1" />
                 </label>
                 <label className="settings-field">
                     <Text type="tertiary" size="small">{t('settingsBasic.model', null, '模型')}</Text>
-                    <Input value={form.model} onChange={value => update('model', value)} placeholder="gpt-4o-mini" />
+                    <Input value={form.model} onChange={value => update('model', value)} readOnly={locked} placeholder="gpt-4o-mini" />
+                </label>
+                <label className="settings-field">
+                    <Text type="tertiary" size="small">{t('settingsBasic.aiChannelName', null, '通道名称')}</Text>
+                    <Input value={form.name} onChange={value => update('name', value)} readOnly={locked} placeholder={legacy ? '' : channelId} />
                 </label>
                 <label className="settings-field">
                     <Text type="tertiary" size="small">{t('settingsBasic.apiKey', null, 'API 密钥')}</Text>
-                    <Input value={form.api_key} onChange={value => update('api_key', value)} placeholder="********" />
+                    <Input mode="password" autoComplete="new-password" value={form.api_key} onChange={value => update('api_key', value)} readOnly={locked} />
                 </label>
                 <label className="settings-field">
                     <Text type="tertiary" size="small">{t('settingsProbe.profile', null, '上下文配置')}</Text>
                     <Select
                         value={form.context_profile || ''}
                         onChange={value => update('context_profile', value)}
+                        disabled={locked}
                         optionList={[...new Set([...CONTEXT_PROFILES, form.context_profile || ''])].map(value => ({
                             value, label: profileLabel(t, value)
                         }))}
                         style={{ width: '100%' }}
                     />
                 </label>
-                <label className="settings-field">
-                    <Text type="tertiary" size="small">{t('settingsBasic.maxTotalTokens', null, '最大上下文令牌数')}</Text>
-                    <Input
-                        value={String(form.max_total_tokens ?? '')}
-                        onChange={value => update('max_total_tokens', value)}
-                        placeholder="0"
-                    />
-                </label>
-                <label className="settings-field">
-                    <Text type="tertiary" size="small">{t('settingsBasic.maxCompletionTokens', null, '最大输出令牌数')}</Text>
-                    <Input
-                        value={String(form.max_completion_tokens ?? '')}
-                        onChange={value => update('max_completion_tokens', value)}
-                        placeholder="0"
-                    />
-                </label>
+                {TOKEN_LIMITS.map(([field, key, fallback]) => (
+                    <label className="settings-field" key={field}>
+                        <Text type="tertiary" size="small">{t(key, null, fallback)}</Text>
+                        <Input
+                            value={String(form[field])}
+                            onChange={value => update(field, value)}
+                            inputMode="numeric"
+                            readOnly={locked}
+                            placeholder="0"
+                        />
+                    </label>
+                ))}
             </div>
+
+            {(applyPending || saveError) && (
+                <div className="settings-channel-notices">
+                    {applyPending && (
+                        <Banner type="warning" bordered closeIcon={null} description={(
+                            <Space wrap>
+                                {t('settingsProbe.savedApplyFailed', null, '通道已写入配置，应用失败。')}
+                                <Button size="small" disabled={locked || !!busy} onClick={retryApply}>
+                                    {t('settingsProbe.retryApply', null, '重试应用')}
+                                </Button>
+                            </Space>
+                        )} />
+                    )}
+                    <ErrorBanner error={saveError} />
+                </div>
+            )}
 
             <Space wrap className="settings-probe-actions">
                 <Button
-                    theme="solid"
-                    type="primary"
                     loading={busy === 'test'}
-                    disabled={!canWrite}
+                    disabled={locked || !!busy}
                     onClick={() => run('test', '/config/test-openai', probeBody())}
                 >
                     {t('settingsBasic.test', null, '测试连接')}
                 </Button>
                 <Button
                     loading={busy === 'context'}
-                    disabled={!canWrite}
+                    disabled={locked || !!busy}
                     onClick={() => run('context', '/config/detect-context', probeBody())}
                 >
                     {t('settingsBasic.detectContext', null, '探测上下文窗口')}
                 </Button>
                 <Button
                     loading={busy === 'list'}
-                    disabled={!canWrite}
+                    disabled={locked || !!busy}
                     onClick={() => run('list', '/config/list-models', {
                         provider: form.provider,
-                        channel_id: channelId === MAIN_CHANNEL ? undefined : channelId,
-                        credential_scope: channelId === MAIN_CHANNEL ? 'openai' : undefined,
+                        channel_id: legacy ? undefined : channelId,
+                        credential_scope: legacy ? 'openai' : undefined,
                         base_url: form.base_url,
                         api_key: form.api_key
                     })}

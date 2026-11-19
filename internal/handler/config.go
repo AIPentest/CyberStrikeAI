@@ -730,6 +730,7 @@ type UpdateConfigRequest struct {
 	Proxy        *config.ProxyConfig         `json:"proxy,omitempty"`
 	AgentRuntime *AgentRuntimeUpdate         `json:"agent_runtime,omitempty"`
 	AI           *config.AIConfig            `json:"ai,omitempty"`
+	AIChannel    *AIChannelUpdate            `json:"ai_channel,omitempty"`
 	OpenAI       *config.OpenAIConfig        `json:"openai,omitempty"`
 	Vision       *config.VisionConfig        `json:"vision,omitempty"`
 	FOFA         *config.FofaConfig          `json:"fofa,omitempty"`
@@ -808,6 +809,19 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	channelUpdate := req.AIChannel != nil
+	if channelUpdate {
+		if req.AI != nil || req.OpenAI != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ai_channel 不能与 ai 或 openai 同时更新"})
+			return
+		}
+		ai, err := req.AIChannel.merge(h.config)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		req.AI, req.AIChannel = ai, nil
+	}
 	if err := restoreConfigRequestSecrets(&req, h.config); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -829,11 +843,15 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 
 	previousProxy := h.config.Proxy
 	previousRuntime := h.config.AgentRuntime
-	proxySaved := false
+	previousAI, previousOpenAI := h.config.AI, h.config.OpenAI
+	saved := false
 	defer func() {
-		if !proxySaved {
+		if !saved {
 			h.config.Proxy = previousProxy
 			h.config.AgentRuntime = previousRuntime
+			if channelUpdate {
+				h.config.AI, h.config.OpenAI = previousAI, previousOpenAI
+			}
 		}
 	}()
 	if req.Proxy != nil {
@@ -1281,7 +1299,7 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 		return
 	}
 
-	proxySaved = true
+	saved = true
 	if req.Proxy != nil && h.executor != nil {
 		h.executor.SetProxyConfig(h.config.Proxy)
 	}
@@ -2110,7 +2128,9 @@ func (h *ConfigHandler) saveConfig() error {
 	updateAgentConfig(root, h.config.Agent)
 	updateAgentRuntimeConfig(root, h.config.AgentRuntime)
 	updateMCPConfig(root, h.config.MCP)
-	updateAIConfig(root, h.config.AI)
+	if err := updateAIConfig(root, h.config.AI); err != nil {
+		return err
+	}
 	removeKeyFromMap(root.Content[0], "openai")
 	updateVisionConfig(root, h.config.Vision)
 	updateUpdateSourceConfig(root, h.config.Update)
@@ -2332,7 +2352,7 @@ func updateOpenAIConfig(doc *yaml.Node, cfg config.OpenAIConfig) {
 	}
 }
 
-func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) {
+func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) error {
 	root := doc.Content[0]
 	aiNode := ensureMap(root, "ai")
 	if strings.TrimSpace(cfg.DefaultChannel) != "" {
@@ -2400,10 +2420,17 @@ func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) {
 		if strings.TrimSpace(ch.Reasoning.Profile) != "" {
 			setStringInMap(rn, "profile", ch.Reasoning.Profile)
 		}
+		if len(ch.Reasoning.ExtraRequestFields) > 0 {
+			_, value := ensureKeyValue(rn, "extra_request_fields")
+			if err := value.Encode(ch.Reasoning.ExtraRequestFields); err != nil {
+				return fmt.Errorf("保存 AI 通道 %s 的扩展请求字段失败: %w", id, err)
+			}
+		}
 		if len(rn.Content) == 0 {
 			removeKeyFromMap(channelNode, "reasoning")
 		}
 	}
+	return nil
 }
 
 func updateFOFAConfig(doc *yaml.Node, cfg config.FofaConfig) {
