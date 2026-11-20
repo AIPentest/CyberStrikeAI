@@ -248,7 +248,7 @@ func (h *AgentHandler) SingleAgentLoopStream(c *gin.Context) {
 		})
 
 		result, runErr = multiagent.RunSingleAgent(
-			taskCtxLoop,
+			prep.withChatImages(taskCtxLoop, curFinalMessage),
 			runCfg,
 			&runCfg.MultiAgent,
 			h.agent,

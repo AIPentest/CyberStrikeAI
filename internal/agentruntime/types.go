@@ -17,6 +17,7 @@ type Model struct {
 	Headers         map[string]string `json:"headers,omitempty"`
 	ContextWindow   int               `json:"contextWindow"`
 	MaxTokens       int               `json:"maxTokens"`
+	ImageInput      *bool             `json:"imageInput,omitempty"`
 	Thinking        string            `json:"thinking,omitempty"`
 	ExtraFields     map[string]any    `json:"extraFields,omitempty"`
 	Compat          map[string]any    `json:"compat,omitempty"`
@@ -30,6 +31,11 @@ type Tool struct {
 	Parameters  map[string]any `json:"parameters"`
 }
 
+type Image struct {
+	MIMEType string `json:"mimeType"`
+	Data     []byte `json:"data"`
+}
+
 type Request struct {
 	GenerateOnly       bool            `json:"generateOnly,omitempty"`
 	RunID              string          `json:"runId"`
@@ -37,6 +43,7 @@ type Request struct {
 	WorkingDir         string          `json:"workingDir,omitempty"`
 	SystemPrompt       string          `json:"systemPrompt"`
 	Message            string          `json:"message"`
+	Images             []Image         `json:"images,omitempty"`
 	History            json.RawMessage `json:"history,omitempty"`
 	Model              Model           `json:"model"`
 	FallbackModels     []Model         `json:"fallbackModels,omitempty"`

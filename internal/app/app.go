@@ -1160,6 +1160,7 @@ func setupRoutes(
 		protected.POST("/config/test-openai", configHandler.TestOpenAI)
 		protected.POST("/config/detect-context", configHandler.DetectContext)
 		protected.POST("/config/test-typesafe", configHandler.TestTypeSafe)
+		protected.POST("/config/test-audit-model", configHandler.TestAuditModel)
 		protected.POST("/config/test-vision", configHandler.TestVision)
 		protected.POST("/config/list-models", configHandler.ListModels)
 

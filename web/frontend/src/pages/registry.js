@@ -13,4 +13,5 @@ export const PAGES = {
     'knowledge-management': lazy(() => import('./knowledge-management')),
     'skills-monitor': lazy(() => import('./skills-monitor')),
     'platform-rbac': lazy(() => import('./platform-rbac')),
+    settings: lazy(() => import('./settings')),
 };

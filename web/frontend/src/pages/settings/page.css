@@ -1,0 +1,59 @@
+.settings-page { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+.settings-loading-block { padding: 18px 4px; }
+
+.settings-hint {
+    display: inline-block;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--semi-color-text-2);
+}
+
+.settings-mono {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 12px;
+    word-break: break-all;
+}
+
+.settings-schema { display: flex; flex-direction: column; gap: 14px; }
+.settings-schema-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.settings-schema-table th,
+.settings-schema-table td {
+    border-bottom: 1px solid var(--semi-color-border);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+}
+.settings-schema-table th { color: var(--semi-color-text-2); font-weight: 600; }
+
+.settings-probe-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px 16px;
+}
+.settings-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.settings-field-wide { grid-column: span 2; }
+.settings-probe-actions { margin-top: 14px; }
+.settings-channel-panel .semi-card-header-wrapper { align-items: center; gap: 8px; }
+.settings-channel-notices { display: grid; gap: 8px; margin-top: 14px; }
+.settings-probe-result { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.settings-model-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 190px;
+    overflow: auto;
+    padding: 2px;
+}
+.settings-audit-model {
+    margin-top: 18px;
+    border-top: 1px solid var(--semi-color-border);
+}
+.settings-probe-card { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.settings-probe-inline { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+
+@media (max-width: 640px) {
+    .settings-field-wide { grid-column: auto; }
+    .settings-channel-panel .semi-card-header-wrapper { flex-direction: column-reverse; align-items: stretch; }
+    .settings-channel-panel .semi-card-header-wrapper-title { margin-inline: 0; }
+}

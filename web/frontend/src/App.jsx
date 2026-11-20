@@ -9,7 +9,7 @@ import { findPage } from './lib/nav';
 import { PAGES } from './pages/registry';
 
 const { Title, Text } = Typography;
-const LEGACY_PAGES = new Set(['chat', 'tasks', 'settings', 'system-update', 'info-collect', 'hitl', 'c2-sessions']);
+const LEGACY_PAGES = new Set(['chat', 'tasks', 'system-update', 'info-collect', 'hitl', 'c2-sessions']);
 
 function Loading() {
     return (
@@ -38,6 +38,7 @@ function LegacyPage({ pageId }) {
 
 function PageHost() {
     const { pageId } = useParams();
+    const { search } = useLocation();
     const { hasPermission, hasAnyPermission } = useAuth();
     const t = useT();
     const page = findPage(pageId);
@@ -52,7 +53,8 @@ function PageHost() {
         return true;
     }, [page, hasPermission, hasAnyPermission]);
 
-    if (LEGACY_PAGES.has(pageId)) {
+    const section = new URLSearchParams(search).get('section');
+    if (LEGACY_PAGES.has(pageId) || (pageId === 'settings' && section && section !== 'models')) {
         return <LegacyPage pageId={pageId} />;
     }
     if (!page) {

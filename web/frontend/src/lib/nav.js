@@ -3,7 +3,7 @@
  */
 import {
     IconBook, IconBriefcase, IconFlag, IconFolder, IconHome, IconLock, IconPuzzle,
-    IconServer, IconShield
+    IconServer, IconSetting, IconShield
 } from '@douyinfe/semi-icons';
 
 export const NAV_TREE = [
@@ -39,13 +39,14 @@ export const NAV_TREE = [
         ]
     },
     { id: 'platform-rbac', i18n: 'nav.platformRbac', fallback: '平台权限', icon: IconLock },
+    { id: 'settings', i18n: 'nav.settings', fallback: '系统设置', icon: IconSetting, permission: 'config:read' },
 ];
 
 export const NAV_SECTIONS = [
     { id: 'workspace', i18n: 'nav.groupWorkspace', fallback: '工作台', pages: ['dashboard'] },
     { id: 'operations', i18n: 'nav.groupOperations', fallback: '安全作业', pages: ['projects', 'assets', 'vulnerabilities', 'chat-files'] },
     { id: 'capabilities', i18n: 'nav.groupCapabilities', fallback: '能力中心', pages: ['mcp', 'knowledge', 'skills'] },
-    { id: 'platform', i18n: 'nav.groupPlatform', fallback: '平台管理', pages: ['platform-rbac'] }
+    { id: 'platform', i18n: 'nav.groupPlatform', fallback: '平台管理', pages: ['platform-rbac', 'settings'] }
 ];
 
 /** 扁平页签列表，用于标题解析和导航高亮。 */

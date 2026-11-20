@@ -723,6 +723,7 @@ type OpenAIConfig struct {
 	APIKey              string `yaml:"api_key" json:"api_key"`
 	BaseURL             string `yaml:"base_url" json:"base_url"`
 	Model               string `yaml:"model" json:"model"`
+	ImageInput          string `yaml:"image_input,omitempty" json:"image_input,omitempty"`
 	MaxTotalTokens      int    `yaml:"max_total_tokens,omitempty" json:"max_total_tokens,omitempty"`
 	MaxCompletionTokens int    `yaml:"max_completion_tokens,omitempty" json:"max_completion_tokens,omitempty"`
 	// Headers 追加或覆盖发给模型网关的 HTTP 请求头，值支持 ${ENV_VAR} 展开。
@@ -750,6 +751,7 @@ type AIChannelConfig struct {
 	APIKey              string                `yaml:"api_key" json:"api_key"`
 	BaseURL             string                `yaml:"base_url" json:"base_url"`
 	Model               string                `yaml:"model" json:"model"`
+	ImageInput          string                `yaml:"image_input,omitempty" json:"image_input,omitempty"`
 	MaxTotalTokens      int                   `yaml:"max_total_tokens,omitempty" json:"max_total_tokens,omitempty"`
 	MaxCompletionTokens int                   `yaml:"max_completion_tokens,omitempty" json:"max_completion_tokens,omitempty"`
 	Headers             map[string]string     `yaml:"headers,omitempty" json:"headers,omitempty"`
@@ -768,6 +770,7 @@ func (c AIChannelConfig) ToOpenAIConfig() OpenAIConfig {
 		APIKey:              c.APIKey,
 		BaseURL:             c.BaseURL,
 		Model:               c.Model,
+		ImageInput:          c.ImageInput,
 		MaxTotalTokens:      c.MaxTotalTokens,
 		MaxCompletionTokens: c.MaxCompletionTokens,
 		Headers:             ExpandHeaderMap(c.Headers),
@@ -787,6 +790,7 @@ func AIChannelFromOpenAI(id, name string, oa OpenAIConfig) AIChannelConfig {
 		APIKey:              oa.APIKey,
 		BaseURL:             oa.BaseURL,
 		Model:               oa.Model,
+		ImageInput:          oa.ImageInput,
 		MaxTotalTokens:      oa.MaxTotalTokens,
 		MaxCompletionTokens: oa.MaxCompletionTokens,
 		Headers:             ExpandHeaderMap(oa.Headers),
