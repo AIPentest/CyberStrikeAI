@@ -125,13 +125,18 @@ func (h *AgentHandler) DeepAssessmentOptions(c *gin.Context) {
 		models = append(models, gin.H{"id": id, "name": ch.Name, "model": ch.Model})
 	}
 	sort.Slice(models, func(i, j int) bool { return models[i]["id"].(string) < models[j]["id"].(string) })
-	roles := []string{}
+	roles := make([]gin.H, 0, len(cfg.Roles))
 	for name, role := range cfg.Roles {
-		if role.Enabled {
-			roles = append(roles, name)
+		if !role.Enabled {
+			continue
 		}
+		item := gin.H{"name": name}
+		if icon := strings.TrimSpace(role.Icon); icon != "" {
+			item["icon"] = icon
+		}
+		roles = append(roles, item)
 	}
-	sort.Strings(roles)
+	sort.Slice(roles, func(i, j int) bool { return roles[i]["name"].(string) < roles[j]["name"].(string) })
 	projects := []gin.H{}
 	session, _ := security.CurrentSession(c)
 	if security.SessionHasPermission(c, "project:read") {

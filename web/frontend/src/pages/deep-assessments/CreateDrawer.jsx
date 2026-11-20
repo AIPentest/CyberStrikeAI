@@ -19,6 +19,39 @@ const HITL_OPTIONS = [
 ];
 const DEFAULT_ROLE = '默认';
 
+function assessmentRoleRecord(item) {
+    if (typeof item === 'string') return { name: item.trim(), icon: '' };
+    if (!item || typeof item !== 'object') return null;
+    const name = String(item.name || '').trim();
+    if (!name) return null;
+    return { name, icon: String(item.icon || '').trim() };
+}
+
+function assessmentRoleOption(item) {
+    const isDefault = item.name === DEFAULT_ROLE;
+    return {
+        value: isDefault ? '' : item.name,
+        name: item.name,
+        icon: item.icon,
+        label: (
+            <span className="assessment-role-option">
+                {item.icon ? <span className="assessment-role-icon" aria-hidden="true">{item.icon}</span> : null}
+                <span>{item.name}</span>
+            </span>
+        )
+    };
+}
+
+function assessmentRoleOptions(raw) {
+    const records = (Array.isArray(raw) ? raw : []).map(assessmentRoleRecord).filter(Boolean);
+    const named = records.filter(item => item.name !== DEFAULT_ROLE);
+    const fallback = records.find(item => item.name === DEFAULT_ROLE);
+    return [
+        ...(fallback ? [assessmentRoleOption(fallback)] : []),
+        ...named.map(assessmentRoleOption)
+    ];
+}
+
 function ProjectCollectionField({ projectId }) {
     const t = useT();
     const { data, loading, error } = useResource(
@@ -119,11 +152,7 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
     };
 
     const models = modelChannelOptions((options?.models || []).map(item => [item.id, item]));
-    const roleNames = options?.roles || [];
-    const roles = roleNames.filter(role => role !== DEFAULT_ROLE).map(role => ({ value: role, label: role }));
-    if (roleNames.includes(DEFAULT_ROLE)) {
-        roles.unshift({ value: '', label: DEFAULT_ROLE });
-    }
+    const roles = assessmentRoleOptions(options?.roles);
     const projects = (options?.projects || []).map(project => ({ value: project.id, label: project.name || project.id }));
 
     return (
@@ -211,6 +240,12 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
                             field="role"
                             label={t('deepAssessments.role', null, '角色')}
                             optionList={roles}
+                            renderSelectedItem={option => (
+                                <span className="assessment-role-option">
+                                    {option.icon ? <span className="assessment-role-icon" aria-hidden="true">{option.icon}</span> : null}
+                                    <span>{option.name}</span>
+                                </span>
+                            )}
                             style={{ width: '100%' }}
                         />
                         <div className="assessment-project-field">

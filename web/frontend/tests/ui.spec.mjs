@@ -1383,7 +1383,10 @@ test('deep assessment: new-draft drawer retries options, validates and saves wit
     }).toBe(page.viewportSize().width);
     expect((await drawer.boundingBox()).x).toBeGreaterThan(0);
     await expect(drawer).toContainText('示例选项加载失败');
-    mockApi.respond('GET', '/api/deep-assessments/options', { json: { models: [], roles: ['示例角色', '默认'], projects: [PROJECT] } });
+    mockApi.respond('GET', '/api/deep-assessments/options', { json: { models: [], roles: [
+        { name: '示例角色', icon: '🎯' },
+        { name: '默认', icon: '🔵' }
+    ], projects: [PROJECT] } });
     await button(drawer, '重试').click();
     await expect(drawer.locator('.cs-error-banner')).toHaveCount(0);
     await save.click();
@@ -1405,12 +1408,18 @@ test('deep assessment: new-draft drawer retries options, validates and saves wit
     await drawer.getByRole('textbox', { name: label('deepAssessments.name', '测评名称'), exact: true }).fill(ASSESSMENT.name);
     await drawer.getByRole('textbox', { name: /目标/ }).fill(ASSESSMENT.objective);
     const role = drawer.getByRole('combobox', { name: label('deepAssessments.role', '角色') });
-    await expect(role).toHaveText('默认');
+    await expect(role).toContainText('默认');
+    await expect(role.locator('.assessment-role-icon')).toHaveText('🔵');
     await role.click();
     const roleOptions = page.getByRole('listbox').getByRole('option');
-    await expect(roleOptions).toHaveText(['默认', '示例角色']);
+    await expect(roleOptions).toHaveCount(2);
+    await expect(roleOptions.nth(0)).toContainText('默认');
+    await expect(roleOptions.nth(0).locator('.assessment-role-icon')).toHaveText('🔵');
+    await expect(roleOptions.nth(1)).toContainText('示例角色');
+    await expect(roleOptions.nth(1).locator('.assessment-role-icon')).toHaveText('🎯');
     await roleOptions.getByText('示例角色', { exact: true }).click();
-    await expect(role).toHaveText('示例角色');
+    await expect(role).toContainText('示例角色');
+    await expect(role.locator('.assessment-role-icon')).toHaveText('🎯');
     await save.click();
     await expect(page).toHaveURL(/id=fixture-assessment&tab=overview$/);
     await expect(drawer).toHaveCount(0);

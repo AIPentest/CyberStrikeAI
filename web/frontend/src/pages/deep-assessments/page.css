@@ -180,6 +180,19 @@
     gap: 0 16px;
 }
 
+.assessment-role-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.assessment-role-icon {
+    flex: 0 0 auto;
+    font-size: 14px;
+    line-height: 1;
+}
+
 .assessment-project-field {
     display: flex;
     align-items: flex-end;
