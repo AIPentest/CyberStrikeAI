@@ -51,7 +51,7 @@ test('project graph: dense overview keeps labels legible and search follows the 
     expect(boxes.length).toBeLessThanOrEqual(graph.nodes.length);
     await expect(canvas.locator('.project-graph-node--compact').first()).toBeVisible();
     for (const [index, box] of boxes.entries()) {
-        expect(box.fontSize).toBe('12px');
+        expect(box.fontSize).toBe('14px');
         for (const other of boxes.slice(index + 1)) {
             expect(box.left < other.right && box.right > other.left && box.top < other.bottom && box.bottom > other.top).toBe(false);
         }
@@ -73,7 +73,9 @@ test('project graph: dense overview keeps labels legible and search follows the 
     await expect(side.getByText('→ 出边', { exact: true })).toBeVisible();
     const selectedCard = canvas.getByRole('button', { name: selected.label });
     await expect(selectedCard).toHaveAttribute('aria-pressed', 'true');
-    await expect(selectedCard.getByText('发现', { exact: true })).toBeVisible();
+    await expect(selectedCard.getByText('发现', { exact: true })).toHaveCSS('font-size', '12px');
+    const summary = selectedCard.getByText(selected.label, { exact: true });
+    await expect(summary).toHaveCSS('font-size', '15px');
     await expect(selectedCard.getByText(selected.fact_key, { exact: true })).toBeVisible();
     await main.locator('.project-graph-card').screenshot({ path: testInfo.outputPath('project-graph-focus.png') });
 
@@ -81,6 +83,7 @@ test('project graph: dense overview keeps labels legible and search follows the 
     await selectedCard.hover();
     await page.mouse.wheel(0, -150);
     await expect.poll(async () => (await selectedCard.boundingBox()).width).toBeGreaterThan(beforeZoom.width);
+    await expect.poll(() => summary.evaluate(element => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThan(15);
 
     await side.getByRole('button', { name: '详情', exact: true }).click();
     await expect(page.getByText(detail.body)).toBeVisible();

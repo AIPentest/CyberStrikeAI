@@ -7,7 +7,7 @@ import { NODE_COLORS } from './helpers';
 
 const STAGE = { target: 0, infra: 1, auth: 1, finding: 2, chain: 3, exploit: 3, poc: 3, vulnerability: 4 };
 const CARD_WIDTH = 216;
-const CARD_HEIGHT = 84;
+const CARD_HEIGHT = 98;
 const COLUMN_GAP = 64;
 const ROW_GAP = 16;
 
@@ -163,7 +163,7 @@ function visibleCards(cy, byId, ports) {
     const cardHeight = CARD_HEIGHT * cy.zoom();
     // Below this scale Cytoscape's tiles preserve the overall shape of the graph.
     if (cardWidth < 49) return [];
-    const density = cardHeight >= 62 ? 'detail' : cardHeight >= 33 ? 'standard' : 'compact';
+    const density = cardHeight >= 68 ? 'detail' : cardHeight >= 36 ? 'standard' : 'compact';
     return cy.nodes().map(element => {
         const { x, y } = element.renderedPosition();
         const id = element.id();
@@ -181,6 +181,7 @@ function GraphNodeCard({ card, selected, typeLabel, onSelect }) {
     const key = node.fact_key || node.id;
     const title = (node.summary || (node.label !== '—' && node.label) || key).replace(/\s+/g, ' ').trim() || key;
     const category = typeLabel(node.type || 'note');
+    const textScale = Math.min(Math.max(box.width / CARD_WIDTH, 1), 1.6);
     return (
         <button
             type="button"
@@ -188,7 +189,11 @@ function GraphNodeCard({ card, selected, typeLabel, onSelect }) {
             title={title}
             aria-label={title}
             aria-pressed={selected}
-            style={{ ...box, '--graph-node-color': NODE_COLORS[node.type] || NODE_COLORS.missing }}
+            style={{
+                ...box,
+                '--graph-node-color': NODE_COLORS[node.type] || NODE_COLORS.missing,
+                '--graph-node-text-scale': textScale
+            }}
             onClick={() => onSelect(node.id)}
         >
             <span className="project-graph-node-content">
@@ -199,7 +204,7 @@ function GraphNodeCard({ card, selected, typeLabel, onSelect }) {
                     </span>
                 )}
                 <span className="project-graph-node-title" dir="auto">{title}</span>
-                {detail && box.height >= 76 && title !== key && <span className="project-graph-node-keyline" dir="auto">{key}</span>}
+                {detail && box.height >= 84 && title !== key && <span className="project-graph-node-keyline" dir="auto">{key}</span>}
             </span>
             {detail && [...ports].map(side => (
                 <span key={side} className={`project-graph-node-port is-${side}`} aria-hidden="true" />

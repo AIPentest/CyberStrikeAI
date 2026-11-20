@@ -234,7 +234,7 @@
     box-shadow: 0 2px 5px rgba(20, 31, 53, .12);
     color: var(--semi-color-text-0);
     font-family: inherit;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 500;
     line-height: 1.2;
     text-align: start;
@@ -271,7 +271,7 @@
     gap: 5px;
     flex-shrink: 0;
     color: var(--semi-color-text-1);
-    font-size: 10px;
+    font-size: calc(12px * var(--graph-node-text-scale, 1));
     font-weight: 650;
 }
 .project-graph-node-icon {
@@ -293,6 +293,7 @@
     white-space: nowrap;
 }
 .project-graph-node--detail {
+    font-size: calc(15px * var(--graph-node-text-scale));
     background: linear-gradient(150deg, color-mix(in srgb, var(--graph-node-color) 5%, var(--semi-color-bg-1)), var(--semi-color-bg-1) 68%);
 }
 .project-graph-node--detail .project-graph-node-content {
@@ -308,11 +309,11 @@
     -webkit-line-clamp: 2;
     white-space: normal;
     overflow-wrap: anywhere;
-    line-height: 14px;
+    line-height: 1.2;
 }
 .project-graph-node-keyline {
     color: var(--semi-color-text-2);
-    font: 10px/12px "SFMono-Regular", Consolas, monospace;
+    font: calc(12px * var(--graph-node-text-scale))/1.2 "SFMono-Regular", Consolas, monospace;
 }
 .project-graph-node-port {
     position: absolute;
@@ -340,7 +341,7 @@
     flex-wrap: wrap;
     gap: 6px 12px;
     color: var(--semi-color-text-2);
-    font-size: 12px;
+    font-size: 13px;
 }
 .project-graph-legend > span { display: inline-flex; align-items: center; gap: 5px; }
 .project-graph-legend .project-graph-legend-dash {
