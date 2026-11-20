@@ -151,9 +151,12 @@ test('dashboard: exact populated metrics and anonymous records', async ({ page }
         [label('dashboard.successRate', '执行成功率'), '80.0%'],
         [label('dashboard.tokenUsage', 'Token 用量（7 天）'), '1,200']
     ];
+    const metricCards = main.locator('.cs-stat-grid .cs-stat-card');
+    await expect(metricCards).toHaveCount(metrics.length);
     for (const [name, value] of metrics) {
         await expect(button(main, name).locator('.cs-stat-value')).toHaveText(value);
     }
+    expect((await metricCards.last().boundingBox()).y).toBeCloseTo((await metricCards.first().boundingBox()).y, 0);
     await expect(button(main, PROJECT.name)).toBeVisible();
     await expect(button(main, VULNERABILITY.title)).toBeVisible();
     await expect(main.getByText(FACT.summary, { exact: true })).toBeVisible();

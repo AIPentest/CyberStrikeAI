@@ -28,7 +28,7 @@ async function loadDashboard() {
     const [
         agentTasks, vulnStats, pendingVulnStats, vulnList, batchQueues, monitorStats, tokenUsage,
         knowledgeStats, skillsStats, roles, agents, hitlPending, externalMcp,
-        webshell, c2Listeners, c2Sessions, projectSummary, toolsConfig, assetStats
+        webshell, c2Listeners, c2Sessions, projectSummary, toolsConfig
     ] = await Promise.all([
         safe('/agent-loop/tasks'),
         safe('/vulnerabilities/stats'),
@@ -47,13 +47,12 @@ async function loadDashboard() {
         safe('/c2/listeners'),
         safe('/c2/sessions', { limit: 200 }),
         safe('/projects/dashboard-summary', { fact_limit: 8 }),
-        safe('/config/tools', { page: 1, page_size: 1, include_external: false }),
-        safe('/assets/stats', { days: 30 })
+        safe('/config/tools', { page: 1, page_size: 1, include_external: false })
     ]);
     const sources = {
         agentTasks, vulnStats, pendingVulnStats, vulnList, batchQueues, monitorStats, tokenUsage,
         knowledgeStats, skillsStats, roles, agents, hitlPending, externalMcp,
-        webshell, c2Listeners, c2Sessions, projectSummary, toolsConfig, assetStats
+        webshell, c2Listeners, c2Sessions, projectSummary, toolsConfig
     };
     return {
         ...sources,
@@ -199,14 +198,6 @@ export default function DashboardPage() {
                 tone: rate !== null && rate < 0.8 ? 'warning' : undefined,
                 icon: <IconCheckCircleStroked />,
                 onClick: () => navigate('/mcp-monitor')
-            },
-            {
-                id: 'observation',
-                label: '已有观察证据',
-                value: displayCount(data?.assetStats?.observation?.observed),
-                detail: `资产 ${displayCount(data?.assetStats?.observation?.total)}，扫描覆盖另计`,
-                icon: <IconShield />,
-                onClick: () => navigate('/asset-overview')
             },
             {
                 id: 'tokens',
