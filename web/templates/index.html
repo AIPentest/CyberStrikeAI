@@ -39,7 +39,7 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="/static/css/style.css?v=20261113-vulnerability-domain-browser">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261120-composer-toolbar">
     <link rel="stylesheet" href="/static/css/vulnerability-download.css?v=20261030-2">
     <link rel="stylesheet" href="/static/css/tool-guard.css?v=20260907-7">
     <link rel="stylesheet" href="/static/css/chat-plan-progress.css?v=20260813-4">
@@ -185,6 +185,7 @@
                                     </div>
                                 </div>
                                 <div class="user-menu-divider" role="separator"></div>
+                                <a class="user-menu-item" role="menuitem" href="/" data-i18n="header.semiWorkspace">打开 Semi 工作台</a>
                                 <div class="user-menu-item" role="menuitem" tabindex="0" onclick="openRobotAccountBinding()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRobotAccountBinding();}">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -1149,64 +1150,10 @@
                             </button>
                             <div id="agent-plan-progress" class="agent-plan-progress" hidden aria-live="polite"></div>
                             <div id="chat-input-container" class="chat-input-container">
+                                <section id="chat-hitl-approval-dock" class="chat-hitl-approval-dock" aria-label="待审批操作" aria-live="polite" hidden></section>
+                                <div class="chat-input-primary-row chat-composer-surface">
                                 <div class="chat-composer-context" aria-label="当前会话上下文">
                                 <div class="chat-input-leading">
-                                <div class="role-selector-wrapper project-selector-wrapper">
-                                    <button type="button" id="chat-project-btn" class="role-selector-btn" onclick="toggleChatProjectPanel()" aria-label="选择项目" aria-haspopup="listbox" aria-expanded="false" title="绑定项目后共享事实黑板（跨对话）" data-i18n="projects.chatSelectorButton" data-i18n-attr="aria-label,title">
-                                        <span class="role-selector-icon" aria-hidden="true">
-                                            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M3.5 6.5A2.5 2.5 0 0 1 6 4h4l2 2h6A2.5 2.5 0 0 1 20.5 8.5v8A2.5 2.5 0 0 1 18 19H6a2.5 2.5 0 0 1-2.5-2.5v-10z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-                                            </svg>
-                                        </span>
-                                        <span id="chat-project-text" class="role-selector-text" data-i18n="projects.noProject">无项目</span>
-                                        <svg class="role-selector-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
-                                    </button>
-                                    <div id="chat-project-panel" class="role-selection-panel chat-project-panel" style="display: none;" role="listbox" aria-labelledby="chat-project-panel-title">
-                                        <div class="role-selection-panel-header">
-                                            <h3 id="chat-project-panel-title" class="role-selection-panel-title" data-i18n="projects.selectProject">选择项目</h3>
-                                            <button type="button" class="role-selection-panel-close" onclick="closeChatProjectPanel()" title="关闭" aria-label="关闭">
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                        <div class="chat-project-panel-body">
-                                            <div class="chat-project-panel-search">
-                                                <input type="search" id="chat-project-search" class="chat-project-panel-search-input" autocomplete="off" data-i18n="projects.searchProjectsPlaceholder" data-i18n-attr="placeholder" placeholder="搜索项目…">
-                                            </div>
-                                            <div id="chat-project-list" class="role-selection-list-main"></div>
-                                            <div class="chat-project-panel-footer">
-                                                <button type="button" class="role-selection-item-main chat-project-panel-create-btn" data-require-permission="project:write" onclick="showNewProjectModalFromChat()">
-                                                    <span class="chat-project-panel-create-icon" aria-hidden="true">+</span>
-                                                    <span class="chat-project-panel-create-label" data-i18n="projects.newProject">新建项目</span>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div id="role-selector-wrapper" class="role-selector-wrapper">
-                                    <button type="button" id="role-selector-btn" class="role-selector-btn" onclick="toggleRoleSelectionPanel()" data-i18n="chat.selectRole" data-i18n-attr="title" title="选择角色">
-                                        <span id="role-selector-icon" class="role-selector-icon">🔵</span>
-                                        <span id="role-selector-text" class="role-selector-text" data-i18n="chat.defaultRole">默认</span>
-                                        <svg class="role-selector-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
-                                    </button>
-                                    <!-- 角色选择下拉面板 -->
-                                    <div id="role-selection-panel" class="role-selection-panel" style="display: none;">
-                                        <div class="role-selection-panel-header">
-                                            <h3 class="role-selection-panel-title" data-i18n="chat.rolePanelTitle">选择角色</h3>
-                                            <button class="role-selection-panel-close" onclick="closeRoleSelectionPanel()" data-i18n="common.close" data-i18n-attr="title" title="关闭">
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                        <div id="role-selection-list" class="role-selection-list-main"></div>
-                                    </div>
-                                </div>
                                 <div id="agent-mode-wrapper" class="agent-mode-wrapper" style="display: none;">
                                     <div class="agent-mode-inner">
                                         <button type="button" id="agent-mode-btn" class="role-selector-btn agent-mode-btn" onclick="toggleAgentModePanel()" data-i18n="chat.agentModeSelectAria" data-i18n-attr="aria-label,title" data-i18n-skip-text="true" aria-label="选择对话执行模式" aria-haspopup="listbox" aria-expanded="false" title="选择对话执行模式">
@@ -1263,10 +1210,64 @@
                                     </div>
                                     <input type="hidden" id="agent-mode-select" value="single" autocomplete="off">
                                 </div>
+                                <div class="role-selector-wrapper project-selector-wrapper">
+                                    <button type="button" id="chat-project-btn" class="role-selector-btn" onclick="toggleChatProjectPanel()" aria-label="选择项目" aria-haspopup="listbox" aria-expanded="false" title="绑定项目后共享事实黑板（跨对话）" data-i18n="projects.chatSelectorButton" data-i18n-attr="aria-label,title">
+                                        <span class="role-selector-icon" aria-hidden="true">
+                                            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M3.5 6.5A2.5 2.5 0 0 1 6 4h4l2 2h6A2.5 2.5 0 0 1 20.5 8.5v8A2.5 2.5 0 0 1 18 19H6a2.5 2.5 0 0 1-2.5-2.5v-10z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                                            </svg>
+                                        </span>
+                                        <span id="chat-project-text" class="role-selector-text" data-i18n="chat.defaultWorkspace">默认工作区</span>
+                                        <svg class="role-selector-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </button>
+                                    <div id="chat-project-panel" class="role-selection-panel chat-project-panel" style="display: none;" role="listbox" aria-labelledby="chat-project-panel-title">
+                                        <div class="role-selection-panel-header">
+                                            <h3 id="chat-project-panel-title" class="role-selection-panel-title" data-i18n="projects.selectProject">选择项目</h3>
+                                            <button type="button" class="role-selection-panel-close" onclick="closeChatProjectPanel()" title="关闭" aria-label="关闭">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <div class="chat-project-panel-body">
+                                            <div class="chat-project-panel-search">
+                                                <input type="search" id="chat-project-search" class="chat-project-panel-search-input" autocomplete="off" data-i18n="projects.searchProjectsPlaceholder" data-i18n-attr="placeholder" placeholder="搜索项目…">
+                                            </div>
+                                            <div id="chat-project-list" class="role-selection-list-main"></div>
+                                            <div class="chat-project-panel-footer">
+                                                <button type="button" class="role-selection-item-main chat-project-panel-create-btn" data-require-permission="project:write" onclick="showNewProjectModalFromChat()">
+                                                    <span class="chat-project-panel-create-icon" aria-hidden="true">+</span>
+                                                    <span class="chat-project-panel-create-label" data-i18n="projects.newProject">新建项目</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="role-selector-wrapper" class="role-selector-wrapper">
+                                    <button type="button" id="role-selector-btn" class="role-selector-btn" onclick="toggleRoleSelectionPanel()" data-i18n="chat.selectRole" data-i18n-attr="title,aria-label" title="选择角色" aria-label="选择角色">
+                                        <span id="role-selector-icon" class="role-selector-icon">🔵</span>
+                                        <span id="role-selector-text" class="role-selector-text" data-i18n="chat.defaultRole">默认</span>
+                                        <svg class="role-selector-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </button>
+                                    <!-- 角色选择下拉面板 -->
+                                    <div id="role-selection-panel" class="role-selection-panel" style="display: none;">
+                                        <div class="role-selection-panel-header">
+                                            <h3 class="role-selection-panel-title" data-i18n="chat.rolePanelTitle">选择角色</h3>
+                                            <button class="role-selection-panel-close" onclick="closeRoleSelectionPanel()" data-i18n="common.close" data-i18n-attr="title" title="关闭">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <div id="role-selection-list" class="role-selection-list-main"></div>
+                                    </div>
                                 </div>
                                 </div>
-                                <section id="chat-hitl-approval-dock" class="chat-hitl-approval-dock" aria-label="待审批操作" aria-live="polite" hidden></section>
-                                <div class="chat-input-primary-row chat-composer-surface">
+                                </div>
                                 <div class="chat-input-with-files">
                                     <div id="chat-file-list" class="chat-file-list" aria-label="已选文件列表"></div>
                                     <div id="chat-attachment-progress" class="chat-upload-progress-row" hidden role="status" aria-live="polite">
@@ -7089,7 +7090,7 @@
     <script src="/static/js/chat-scroll.js?v=20260815-1-20261113-chat-scroll"></script>
     <script src="/static/js/monitor.js?v=20261011-token-usage-pagination-20261027-20261113-chat-scroll"></script>
     <script src="/static/js/attack-chain-context.js?v=20261012-summary-2"></script>
-    <script src="/static/js/chat.js?v=20261118-pi-usage-summary"></script>
+    <script src="/static/js/chat.js?v=20261120-composer-toolbar"></script>
     <script src="/static/js/chat-plan-progress.js?v=20260815-1"></script>
     <script src="/static/js/hitl.js?v=20260819-1-pagination-20261027"></script>
     <script src="/static/js/tool-guard.js?v=20261010-conflict"></script>
@@ -7105,7 +7106,7 @@
     <script src="/static/js/knowledge.js"></script>
     <script src="/static/js/skills.js?v=20261115-ui-drawers"></script>
     <script src="/static/js/fact-graph.js"></script>
-    <script src="/static/js/projects.js?v=20260819-1-pagination-20261027"></script>
+    <script src="/static/js/projects.js?v=20260819-1-pagination-20261027-composer-workspace"></script>
     <script src="/static/js/vulnerability.js?v=20261116-record-pagination"></script>
     <script src="/static/js/vulnerability-workspace.js?v=20261115-timestamps"></script>
     <script src="/static/js/vulnerability-download.js?v=20261030-2"></script>

@@ -1,0 +1,35 @@
+/** 页面注册表：路由 id → 页面组件（按需加载）。 */
+import { lazy } from 'react';
+
+export const PAGES = {
+    dashboard: lazy(() => import('./dashboard')),
+    chat: lazy(() => import('./chat')),
+    hitl: lazy(() => import('./hitl')),
+    'tool-guard': lazy(() => import('./tool-guard')),
+    projects: lazy(() => import('./projects')),
+    'asset-overview': lazy(() => import('./asset-overview')),
+    'asset-library': lazy(() => import('./asset-library')),
+    'info-collect': lazy(() => import('./info-collect')),
+    vulnerabilities: lazy(() => import('./vulnerabilities')),
+    tasks: lazy(() => import('./tasks')),
+    workflows: lazy(() => import('./workflows')),
+    webshell: lazy(() => import('./webshell')),
+    'c2-listeners': lazy(() => import('./c2-listeners')),
+    'c2-sessions': lazy(() => import('./c2-sessions')),
+    'c2-tasks': lazy(() => import('./c2-tasks')),
+    'c2-payloads': lazy(() => import('./c2-payloads')),
+    'c2-events': lazy(() => import('./c2-events')),
+    'c2-profiles': lazy(() => import('./c2-profiles')),
+    'chat-files': lazy(() => import('./chat-files')),
+    'mcp-monitor': lazy(() => import('./mcp-monitor')),
+    'mcp-management': lazy(() => import('./mcp-management')),
+    'knowledge-retrieval-logs': lazy(() => import('./knowledge-retrieval-logs')),
+    'knowledge-management': lazy(() => import('./knowledge-management')),
+    'skills-monitor': lazy(() => import('./skills-monitor')),
+    'skills-management': lazy(() => import('./skills-management')),
+    'agents-management': lazy(() => import('./agents-management')),
+    'roles-management': lazy(() => import('./roles-management')),
+    'platform-rbac': lazy(() => import('./platform-rbac')),
+    settings: lazy(() => import('./settings')),
+    'api-docs': lazy(() => import('./api-docs'))
+};

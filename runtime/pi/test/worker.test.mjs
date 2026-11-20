@@ -56,8 +56,12 @@ async function invoke(t, request, onRecord = () => {}, env = fixtureEnv) {
   worker.stdout.on("data", chunk => {
     for (const r of reader.push(chunk)) {
       records.push(r);
+      // Deliver the run and any synchronous startup commands in the same write.
+      // Separate pipe writes can let the first model request start between them.
+      worker.stdin.cork();
       if (r.type === "ready") send({ type: "run", version: 1, request });
       onRecord(r, send);
+      worker.stdin.uncork();
     }
   });
   const [code] = await exit;
@@ -78,6 +82,30 @@ function userTexts(body) {
   return body.messages.filter(m => m.role === "user").map(m =>
     typeof m.content === "string" ? m.content : m.content.map(block => block.text).join(""));
 }
+
+test("native chat images reach image-capable models without appearing in host events", { timeout: 30000 }, async t => {
+  const fixture = await startFixture(t, (_body, res) => {
+    sse(res, { role: "assistant", content: "done" }, "stop");
+  });
+  const image = {
+    mimeType: "image/png",
+    data: "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR4nO3NsQ0AAAzCMP5/un0CNkuZ41wybXsHAAAAAAAAAAAAxR4yw/wuPL6QkAAAAABJRU5ErkJggg==",
+  };
+  for (const capability of [true, false, undefined]) {
+    const req = request(fixture.url);
+    req.tools = [];
+    req.images = [image];
+    req.model.imageInput = capability;
+    const { result, records } = await invoke(t, req);
+    assert.equal(result.status, "completed", result.error);
+    const user = fixture.requests.at(-1).messages.find(m => m.role === "user");
+    const content = Array.isArray(user.content) ? user.content : [{ type: "text", text: user.content }];
+    assert.ok(content.some(block => block.type === "text" && block.text.includes(req.message)),
+      JSON.stringify(content.filter(block => block.type === "text")));
+    assert.equal(content.filter(block => block.type === "image_url").length, capability ? 1 : 0);
+    assert.ok(!JSON.stringify(records).includes(image.data));
+  }
+});
 
 test("real Pi SDK streams, invokes only host tools and restores persisted sessions", { timeout: 30000 }, async t => {
   const fixture = await startFixture(t, (body, res, count) => {

@@ -280,6 +280,9 @@ type GetConfigResponse struct {
 	Robots       config.RobotsConfig       `json:"robots,omitempty"`
 	MultiAgent   config.MultiAgentPublic   `json:"multi_agent,omitempty"`
 	C2           config.C2Public           `json:"c2"`
+
+	ImageInputDefaults    map[string]bool `json:"image_input_defaults,omitempty"`
+	ContextWindowDefaults map[string]int  `json:"context_window_defaults,omitempty"`
 }
 
 // ToolConfigInfo 工具配置信息
@@ -374,23 +377,48 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 		),
 	}
 
+	imageDefaults := make(map[string]bool)
+	windowDefaults := make(map[string]int)
+	for id, channel := range h.config.AI.Channels {
+		model := channel.ToOpenAIConfig()
+		model.ImageInput = ""
+		if capability := model.ImageInputCapability(); capability != nil {
+			imageDefaults[id] = *capability
+		}
+		if window := model.DefaultContextWindow(); window > 0 {
+			windowDefaults[id] = window
+		}
+	}
+	if len(h.config.AI.Channels) == 0 {
+		model := h.config.OpenAI
+		model.ImageInput = ""
+		if capability := model.ImageInputCapability(); capability != nil {
+			imageDefaults[""] = *capability
+		}
+		if window := model.DefaultContextWindow(); window > 0 {
+			windowDefaults[""] = window
+		}
+	}
+
 	response, err := maskedConfigResponse(GetConfigResponse{
-		AgentRuntime: h.config.AgentRuntime,
-		AI:           h.config.AI,
-		OpenAI:       h.config.OpenAI,
-		Vision:       h.config.Vision,
-		FOFA:         h.config.FOFA,
-		ZoomEye:      h.config.ZoomEye,
-		Quake:        h.config.Quake,
-		Shodan:       h.config.Shodan,
-		MCP:          h.config.MCP,
-		Tools:        tools,
-		Agent:        h.config.Agent,
-		Hitl:         h.config.Hitl,
-		Knowledge:    h.config.Knowledge,
-		C2:           h.config.C2.Public(),
-		Robots:       h.config.Robots,
-		MultiAgent:   multiPub,
+		AgentRuntime:          h.config.AgentRuntime,
+		AI:                    h.config.AI,
+		OpenAI:                h.config.OpenAI,
+		Vision:                h.config.Vision,
+		FOFA:                  h.config.FOFA,
+		ZoomEye:               h.config.ZoomEye,
+		Quake:                 h.config.Quake,
+		Shodan:                h.config.Shodan,
+		MCP:                   h.config.MCP,
+		Tools:                 tools,
+		Agent:                 h.config.Agent,
+		Hitl:                  h.config.Hitl,
+		Knowledge:             h.config.Knowledge,
+		C2:                    h.config.C2.Public(),
+		Robots:                h.config.Robots,
+		MultiAgent:            multiPub,
+		ImageInputDefaults:    imageDefaults,
+		ContextWindowDefaults: windowDefaults,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "配置序列化失败"})
@@ -727,6 +755,7 @@ func (h *ConfigHandler) GetTools(c *gin.Context) {
 type UpdateConfigRequest struct {
 	AgentRuntime *AgentRuntimeUpdate         `json:"agent_runtime,omitempty"`
 	AI           *config.AIConfig            `json:"ai,omitempty"`
+	AIChannel    *AIChannelUpdate            `json:"ai_channel,omitempty"`
 	OpenAI       *config.OpenAIConfig        `json:"openai,omitempty"`
 	Vision       *config.VisionConfig        `json:"vision,omitempty"`
 	FOFA         *config.FofaConfig          `json:"fofa,omitempty"`
@@ -805,6 +834,19 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	channelUpdate := req.AIChannel != nil
+	if channelUpdate {
+		if req.AI != nil || req.OpenAI != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ai_channel 不能与 ai 或 openai 同时更新"})
+			return
+		}
+		ai, err := req.AIChannel.merge(h.config)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		req.AI, req.AIChannel = ai, nil
+	}
 	if err := restoreConfigRequestSecrets(&req, h.config); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -822,6 +864,16 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 				return
 			}
 		}
+	}
+
+	configSaved := false
+	if channelUpdate {
+		previousAI, previousOpenAI := h.config.AI, h.config.OpenAI
+		defer func() {
+			if !configSaved {
+				h.config.AI, h.config.OpenAI = previousAI, previousOpenAI
+			}
+		}()
 	}
 
 	if req.AgentRuntime != nil {
@@ -1260,6 +1312,7 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败: " + err.Error()})
 		return
 	}
+	configSaved = true
 
 	if h.audit != nil {
 		h.audit.RecordOK(c, "config", "update", "更新内存配置", "config", "", nil)
@@ -1279,6 +1332,7 @@ type TestOpenAIRequest struct {
 	MaxTotalTokens      int               `json:"max_total_tokens,omitempty"`
 	MaxCompletionTokens int               `json:"max_completion_tokens,omitempty"`
 	ContextProfile      string            `json:"context_profile,omitempty"`
+	TestImage           bool              `json:"test_image,omitempty"`
 }
 
 // DetectContextRequest probes model metadata without issuing a completion.
@@ -1412,6 +1466,10 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 		return
 	}
 
+	h.testOpenAI(c, req)
+}
+
+func (h *ConfigHandler) testOpenAI(c *gin.Context, req TestOpenAIRequest) {
 	resolvedKey, resolveErr := h.resolveProbeSecret(req.APIKey, req.ChannelID, req.BaseURL, req.CredentialScope)
 	if resolveErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": resolveErr.Error()})
@@ -1429,6 +1487,10 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 	}
 	if strings.TrimSpace(req.Model) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "模型不能为空"})
+		return
+	}
+	if req.TestImage {
+		h.testChannelImage(c, req, resolvedHeaders)
 		return
 	}
 
@@ -1541,6 +1603,10 @@ func (h *ConfigHandler) TestTypeSafe(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
 		return
 	}
+	h.testTypeSafe(c, req)
+}
+
+func (h *ConfigHandler) testTypeSafe(c *gin.Context, req TestTypeSafeRequest) {
 	resolvedKey, resolveErr := h.resolveProbeSecret(req.APIKey, req.ChannelID, req.BaseURL, req.CredentialScope)
 	if resolveErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": resolveErr.Error()})
@@ -2084,7 +2150,9 @@ func (h *ConfigHandler) saveConfig() error {
 	updateAgentConfig(root, h.config.Agent)
 	updateAgentRuntimeConfig(root, h.config.AgentRuntime)
 	updateMCPConfig(root, h.config.MCP)
-	updateAIConfig(root, h.config.AI)
+	if err := updateAIConfig(root, h.config.AI); err != nil {
+		return err
+	}
 	removeKeyFromMap(root.Content[0], "openai")
 	updateVisionConfig(root, h.config.Vision)
 	updateUpdateSourceConfig(root, h.config.Update)
@@ -2277,6 +2345,11 @@ func updateOpenAIConfig(doc *yaml.Node, cfg config.OpenAIConfig) {
 	setStringInMap(openaiNode, "api_key", cfg.APIKey)
 	setStringInMap(openaiNode, "base_url", cfg.BaseURL)
 	setStringInMap(openaiNode, "model", cfg.Model)
+	if cfg.ImageInput != "" {
+		setStringInMap(openaiNode, "image_input", cfg.ImageInput)
+	} else {
+		removeKeyFromMap(openaiNode, "image_input")
+	}
 	setStringMapInMap(openaiNode, "headers", cfg.Headers)
 	if cfg.MaxTotalTokens > 0 {
 		setIntInMap(openaiNode, "max_total_tokens", cfg.MaxTotalTokens)
@@ -2306,7 +2379,7 @@ func updateOpenAIConfig(doc *yaml.Node, cfg config.OpenAIConfig) {
 	}
 }
 
-func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) {
+func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) error {
 	root := doc.Content[0]
 	aiNode := ensureMap(root, "ai")
 	if strings.TrimSpace(cfg.DefaultChannel) != "" {
@@ -2344,6 +2417,9 @@ func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) {
 		setStringInMap(channelNode, "api_key", ch.APIKey)
 		setStringInMap(channelNode, "base_url", ch.BaseURL)
 		setStringInMap(channelNode, "model", ch.Model)
+		if ch.ImageInput != "" {
+			setStringInMap(channelNode, "image_input", ch.ImageInput)
+		}
 		setStringMapInMap(channelNode, "headers", ch.Headers)
 		if ch.MaxTotalTokens > 0 {
 			setIntInMap(channelNode, "max_total_tokens", ch.MaxTotalTokens)
@@ -2374,10 +2450,17 @@ func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) {
 		if strings.TrimSpace(ch.Reasoning.Profile) != "" {
 			setStringInMap(rn, "profile", ch.Reasoning.Profile)
 		}
+		if len(ch.Reasoning.ExtraRequestFields) > 0 {
+			_, value := ensureKeyValue(rn, "extra_request_fields")
+			if err := value.Encode(ch.Reasoning.ExtraRequestFields); err != nil {
+				return fmt.Errorf("保存 AI 通道 %s 的扩展请求字段失败: %w", id, err)
+			}
+		}
 		if len(rn.Content) == 0 {
 			removeKeyFromMap(channelNode, "reasoning")
 		}
 	}
+	return nil
 }
 
 func updateFOFAConfig(doc *yaml.Node, cfg config.FofaConfig) {

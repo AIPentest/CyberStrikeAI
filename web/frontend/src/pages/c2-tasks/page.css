@@ -1,0 +1,23 @@
+/* C2 任务页面私有样式（c2- 前缀）。 */
+
+.c2-task-command {
+    display: inline-block;
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+}
+
+.c2-task-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.c2-task-detail-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}

@@ -1160,6 +1160,7 @@ func setupRoutes(
 		protected.POST("/config/test-openai", configHandler.TestOpenAI)
 		protected.POST("/config/detect-context", configHandler.DetectContext)
 		protected.POST("/config/test-typesafe", configHandler.TestTypeSafe)
+		protected.POST("/config/test-audit-model", configHandler.TestAuditModel)
 		protected.POST("/config/test-vision", configHandler.TestVision)
 		protected.POST("/config/list-models", configHandler.ListModels)
 
@@ -1520,8 +1521,13 @@ func setupRoutes(
 	router.Static("/static", "./web/static")
 	router.LoadHTMLGlob("web/templates/*")
 
-	// 前端页面
+	// 默认工作台使用 Semi Design。既有操作页通过原模板提供。
 	router.GET("/", func(c *gin.Context) {
+		c.Header("Cache-Control", "no-cache")
+		c.File("./web/static/app/index.html")
+	})
+
+	router.GET("/classic", func(c *gin.Context) {
 		version := app.config.Version
 		if version == "" {
 			version = "v1.0.0"

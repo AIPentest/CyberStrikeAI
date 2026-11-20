@@ -44,6 +44,15 @@ type piRun struct {
 	extraExecute                                      agentruntime.ToolExecutor
 }
 
+type chatImagesKey struct{}
+
+func WithChatImages(ctx context.Context, images []agentruntime.Image) context.Context {
+	if len(images) == 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, chatImagesKey{}, images)
+}
+
 func runPiSingle(ctx context.Context, cfg *config.Config, ag *agent.Agent, db *database.DB, logger *zap.Logger,
 	conversationID, projectID, message string, history []agent.ChatMessage, roleTools []string,
 	progress func(string, string, interface{}), intent *reasoning.ClientIntent, extra string) (*RunResult, error) {
@@ -295,6 +304,9 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 	req := agentruntime.Request{RunID: runID, ConversationID: r.conversationID, SystemPrompt: r.systemPrompt, Message: message, History: history,
 		Model: piModelConfig(oa, r.reasoning, r.conversationID),
 		Tools: tools, SessionDir: filepath.Join(root, agentruntime.ConversationStorageKey(r.conversationID), key), MaxTurns: max}
+	if !r.child {
+		req.Images, _ = ctx.Value(chatImagesKey{}).([]agentruntime.Image)
+	}
 	if strings.TrimSpace(r.conversationID) == "" {
 		req.SessionDir = ""
 	}

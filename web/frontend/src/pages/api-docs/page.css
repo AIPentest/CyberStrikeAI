@@ -1,0 +1,28 @@
+.api-docs-page { display: flex; flex-direction: column; }
+.api-docs-layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 16px; align-items: start; }
+.api-docs-sidebar { border-radius: 12px; border: 1px solid var(--semi-color-border); position: sticky; top: 0; }
+.api-docs-list { margin-top: 10px; max-height: calc(100vh - 220px); overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.api-docs-group { display: flex; flex-direction: column; gap: 2px; }
+.api-docs-group-title { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 4px 6px; }
+.api-docs-item {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px;
+    border: none; background: transparent; border-radius: 8px; cursor: pointer; color: inherit; text-align: left;
+}
+.api-docs-item:hover { background: var(--semi-color-fill-0); }
+.api-docs-item.is-active { background: var(--semi-color-primary-light-default); }
+.api-docs-item-path { font-size: 12px; font-family: "SFMono-Regular", Consolas, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.api-docs-detail { display: flex; flex-direction: column; gap: 12px; }
+.api-docs-detail > .semi-card { border-radius: 12px; border: 1px solid var(--semi-color-border); }
+.api-docs-detail-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.api-docs-detail-path { font-size: 13px; background: var(--semi-color-fill-0); padding: 3px 8px; border-radius: 6px; }
+.api-docs-try { display: flex; flex-direction: column; gap: 10px; }
+.api-docs-try-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.api-docs-try-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--semi-color-text-2); }
+.api-docs-try-body { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--semi-color-text-2); }
+.api-docs-try-result { display: flex; flex-direction: column; gap: 8px; }
+
+@media (max-width: 900px) {
+    .api-docs-layout { grid-template-columns: minmax(0, 1fr); }
+    .api-docs-sidebar { position: static; }
+    .api-docs-list { max-height: 320px; }
+}

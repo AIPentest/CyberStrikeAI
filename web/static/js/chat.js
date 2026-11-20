@@ -336,8 +336,7 @@ function syncChatReasoningBarHeight() {
     const reasoning = document.getElementById('chat-reasoning-wrapper');
     const inputBar = document.getElementById('chat-input-container');
     if (!reasoning || !inputBar) return;
-    // The composer is now a two-layer surface and is intentionally taller than
-    // the sidebar trigger. Do not mirror its height into the settings card.
+    // The composer height positions the timeline controls independently of the settings card.
     reasoning.style.removeProperty('--chat-input-bar-height');
     const chatContainer = inputBar.closest('.chat-container');
     const height = Math.ceil(inputBar.getBoundingClientRect().height || 0);
@@ -3412,15 +3411,12 @@ window.formatProjectNameForDisplay = formatProjectNameForDisplay;
 window.applyProjectNameDisplay = applyProjectNameDisplay;
 
 function getChatWelcomeProjectName() {
-    const projectElement = document.getElementById('chat-project-text');
-    const projectText = (projectElement?.dataset?.fullName || projectElement?.textContent || '').trim();
-    return projectText || (typeof window.t === 'function' ? window.t('projects.noProject') : '无项目');
+    return document.getElementById('chat-project-text')?.dataset.projectName?.trim() || '';
 }
 
 function getChatWelcomeText() {
     const project = getChatWelcomeProjectName();
-    const noProject = typeof window.t === 'function' ? window.t('projects.noProject') : '无项目';
-    if (!project || project === noProject) {
+    if (!project) {
         return typeof window.t === 'function'
             ? window.t('chat.noProjectWelcomeMessage')
             : '当前无项目，请输入您的测试需求，系统将自动执行相应的安全测试。';
@@ -3433,10 +3429,9 @@ function getChatWelcomeText() {
 function updateChatWelcomeTitle(title) {
     if (!title) return;
     const project = getChatWelcomeProjectName();
-    const noProject = typeof window.t === 'function' ? window.t('projects.noProject') : '无项目';
     const subtitle = title.parentElement?.querySelector('.chat-welcome-empty-state-subtitle');
 
-    if (project === noProject) {
+    if (!project) {
         title.textContent = typeof window.t === 'function'
             ? window.t('chat.noProjectWelcomeTitle')
             : '要测试什么？';

@@ -6,6 +6,7 @@ const chat = fs.readFileSync('web/static/js/chat.js', 'utf8');
 const monitor = fs.readFileSync('web/static/js/monitor.js', 'utf8');
 const projects = fs.readFileSync('web/static/js/projects.js', 'utf8');
 const styles = fs.readFileSync('web/static/css/style.css', 'utf8');
+const template = fs.readFileSync('web/templates/index.html', 'utf8');
 const zh = JSON.parse(fs.readFileSync('web/static/i18n/zh-CN.json', 'utf8'));
 const en = JSON.parse(fs.readFileSync('web/static/i18n/en-US.json', 'utf8'));
 
@@ -41,6 +42,15 @@ test('欢迎语随项目和无项目状态更新', () => {
     assert.equal(zh.chat.projectWelcomeTitleSuffix, ' 项目中测试什么？');
     assert.equal(zh.chat.welcomeSubtitle, '请输入您的测试需求，系统将自动执行相应的安全测试。');
     assert.equal(typeof en.chat.projectWelcomeMessage, 'string');
+});
+
+test('输入框顶部在同一张卡片内依次显示模式和项目', () => {
+    const composer = template.slice(template.indexOf('id="chat-input-container"'), template.indexOf('id="chat-input"'));
+    assert.match(composer, /class="chat-input-primary-row chat-composer-surface">\s*<div class="chat-composer-context"/);
+    assert.match(composer, /id="agent-mode-btn"[\s\S]*id="chat-project-btn"[\s\S]*class="chat-input-with-files"/);
+    assert.match(composer, /id="chat-project-text"[^>]*data-i18n="chat.defaultWorkspace"/);
+    assert.match(chat, /dataset\.projectName\?\.trim\(\)/);
+    assert.equal(zh.chat.defaultWorkspace, '默认工作区');
 });
 
 test('会话设置打开时提升整个输入区层级并遮住轮次导航', () => {
