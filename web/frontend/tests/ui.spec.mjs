@@ -12,7 +12,7 @@ if (!pageIds.length || new Set(pageIds).size !== pageIds.length) throw new Error
 
 const PAGE_READS = {
     dashboard: ['/api/vulnerabilities/stats', '/api/monitor/stats', '/api/usage/tokens', '/api/projects/dashboard-summary'],
-    chat: ['/api/conversations', '/api/projects'],
+    chat: ['/api/conversations', '/api/projects', '/api/roles'],
     'deep-assessments': ['/api/deep-assessments', `/api/deep-assessments/${ASSESSMENT.id}`],
     hitl: ['/api/hitl/pending'],
     'tool-guard': ['/api/tool-guard'],
@@ -474,7 +474,7 @@ for (const width of [1440, 1024, 390]) {
             await assertNoOverflow(page);
             const card = composer.locator('.chat-composer-box');
             const context = card.locator('.chat-composer-context');
-            await expect(context.getByRole('combobox')).toHaveCount(2);
+            await expect(context.getByRole('combobox')).toHaveCount(3);
             const project = context.locator('.chat-composer-project');
             await expect(project).toHaveText(stored ? PROJECT.name : label('chat.defaultWorkspace', '默认工作区'));
             const contextBox = await context.boundingBox();

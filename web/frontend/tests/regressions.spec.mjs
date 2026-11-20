@@ -173,7 +173,7 @@ test.describe('chat composer projects', () => {
             const sidebar = main.locator('.chat-sidebar');
             const projectGroup = sidebar.getByRole('button', { name: PROJECT.name + ' 1', exact: true });
             const workspace = sidebar.getByRole('button', { name: label('chat.defaultWorkspace') + ' 1', exact: true });
-            await expect(context.getByRole('combobox')).toHaveCount(2);
+            await expect(context.getByRole('combobox')).toHaveCount(3);
             await expect(project).toHaveText(noProject);
             await expect(workspace).toHaveAttribute('aria-expanded', 'true');
             await input.fill(draft);
@@ -251,7 +251,7 @@ test.describe('chat composer projects', () => {
         const main = await visit(page, 'chat');
         const context = main.locator('.chat-composer-context');
         const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
-        await expect(context.getByRole('combobox')).toHaveCount(2);
+        await expect(context.getByRole('combobox')).toHaveCount(3);
         await input.fill(message);
         await context.getByRole('combobox').filter({ hasText: label('chat.agentModePiSingle') }).click();
         for (const key of ['chat.agentModePiSingle', 'chat.agentModeDeep', 'chat.agentModePlanExecuteLabel', 'chat.agentModeSupervisorLabel']) {
@@ -271,6 +271,108 @@ test.describe('chat composer projects', () => {
             method: 'POST', path: '/api/agent/stream',
             body: { message, conversationId: '', projectId: PROJECT.id }
         }]);
+    });
+});
+
+const CHAT_ROLES = {
+    roles: [
+        { name: '默认', description: '不额外携带提示词', icon: '🔵', enabled: true },
+        { name: '渗透测试', description: '全面深入的漏洞检测', icon: '🎯', enabled: true },
+        { name: '后渗透测试', description: '权限维持与横向移动', icon: '🕵️', enabled: true },
+        { name: 'CTF', description: '解题和漏洞利用', icon: '🏆', enabled: true },
+        { name: '停用角色', description: '不应出现', enabled: false }
+    ]
+};
+
+test.describe('chat composer roles', () => {
+    test('places the role selector after the workspace and sends the chosen role', async ({ page, mockApi }) => {
+        mockApi.respond('GET', '/api/roles', { json: CHAT_ROLES });
+        mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
+        const message = 'FAKE：按所选角色整理 localhost 示例范围。';
+        const id = mockApi.enableChatStream(message);
+        const main = await visit(page, 'chat');
+        const context = main.locator('.chat-composer-context');
+        const project = context.locator('.chat-composer-project');
+        const role = context.getByRole('combobox', { name: label('chat.selectRole', '选择角色') });
+        const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+
+        await expect.poll(() => mockApi.calls('GET', '/api/roles').some(call => call.fulfilled)).toBe(true);
+        await expect(role).toBeEnabled();
+        await expect(role).toContainText(label('chat.defaultRole', '默认'));
+        const [projectBox, roleBox] = await Promise.all([project.boundingBox(), role.boundingBox()]);
+        expect(roleBox.x).toBeGreaterThan(projectBox.x + projectBox.width - 1);
+        expect(roleBox.y).toBeCloseTo(projectBox.y, 0);
+
+        await role.click();
+        const list = page.getByRole('listbox');
+        await expect(list.getByText('渗透测试', { exact: true })).toBeVisible();
+        await expect(list.getByText('全面深入的漏洞检测', { exact: true })).toBeVisible();
+        await expect(list.getByText('后渗透测试', { exact: true })).toBeVisible();
+        await expect(list.getByText('CTF', { exact: true })).toBeVisible();
+        await expect(list.getByText('停用角色')).toHaveCount(0);
+        await list.getByText('渗透测试', { exact: true }).click();
+        await expect(role).toContainText('渗透测试');
+        await expect.poll(() => page.evaluate(() => localStorage.getItem('csai-chat-role'))).toBe(JSON.stringify('渗透测试'));
+        expect(mockApi.writes()).toEqual([]);
+
+        await input.fill(message);
+        await input.press('Enter');
+        await expect(page).toHaveURL(new RegExp(`#/chat\\?conversation=${id}$`));
+        expect(mockApi.calls('POST', '/api/agent/stream')[0].body).toEqual({
+            message, conversationId: '', role: '渗透测试'
+        });
+        await expect(role).toContainText('渗透测试');
+    });
+
+    test('keeps an existing conversation role instead of the last draft selection', async ({ page, mockApi }) => {
+        const conversation = {
+            ...CONVERSATION,
+            id: 'fixture-role-conversation',
+            roleName: '后渗透测试',
+            messages: []
+        };
+        mockApi.respond('GET', '/api/roles', { json: CHAT_ROLES });
+        mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
+        mockApi.respond('GET', `/api/conversations/${conversation.id}`, { json: conversation });
+        mockApi.respond('GET', `/api/conversations/${conversation.id}/plan-tasks`, {
+            json: { tasks: [], total: 0, completed: 0, running: false }
+        });
+        mockApi.respond('GET', '/api/conversations', (_, url) => ({ json: conversationListFixture([conversation], url) }));
+        mockApi.respond('POST', '/api/agent/stream', {
+            contentType: 'text/event-stream; charset=utf-8',
+            body: 'data: {"type":"done","data":{}}\n\n'
+        });
+        await page.addInitScript(() => {
+            localStorage.setItem('csai-chat-role', JSON.stringify('CTF'));
+        });
+
+        const message = 'FAKE：沿用这个会话已经保存的角色。';
+        const main = await visit(page, `chat?conversation=${conversation.id}`);
+        const role = main.getByRole('combobox', { name: label('chat.selectRole', '选择角色') });
+        const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
+        await expect(role).toContainText('后渗透测试');
+        await expect(role).not.toContainText('CTF');
+
+        await expect(main.getByRole('button', { name: /发送$/ })).toBeEnabled();
+        await input.fill(message);
+        await input.press('Enter');
+        await expect.poll(() => mockApi.calls('POST', '/api/agent/stream').length).toBe(1);
+        expect(mockApi.calls('POST', '/api/agent/stream')[0].body).toEqual({
+            message, conversationId: conversation.id, role: '后渗透测试'
+        });
+
+        await expect(main.getByRole('button', { name: /发送$/ })).toBeEnabled();
+        await role.click();
+        await page.getByRole('option').filter({ hasText: label('chat.defaultRole', '默认') }).click();
+        await expect(role).toContainText(label('chat.defaultRole', '默认'));
+        await input.fill(`${message} 再改回默认。`);
+        await input.press('Enter');
+        await expect.poll(() => mockApi.calls('POST', '/api/agent/stream').length).toBe(2);
+        expect(mockApi.calls('POST', '/api/agent/stream')[1].body).toEqual({
+            message: `${message} 再改回默认。`,
+            conversationId: conversation.id
+        });
+        expect(mockApi.calls('POST', '/api/agent/stream')[1].body).not.toHaveProperty('role');
     });
 });
 

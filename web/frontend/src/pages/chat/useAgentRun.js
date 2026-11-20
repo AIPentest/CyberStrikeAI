@@ -69,7 +69,7 @@ export function useAgentRun({
         });
     }, [conversationRef, flushLive, onSettled, requestDetailReload]);
 
-    const send = useCallback(({ message, attachments, mode, projectId, aiChannelId, reasoning, hitl, requireHumanApproval }) => {
+    const send = useCallback(({ message, attachments, mode, projectId, role, aiChannelId, reasoning, hitl, requireHumanApproval }) => {
         const run = {
             live: createLiveState({ conversationId: conversationRef.current }),
             markedFinished: false,
@@ -92,6 +92,7 @@ export function useAgentRun({
             requireHumanApproval: requireHumanApproval || undefined
         };
         if (!conversationRef.current && projectId) body.projectId = projectId;
+        if (role) body.role = role;
         if (streaming) body.orchestration = mode;
         if (Array.isArray(attachments) && attachments.length) {
             body.attachments = attachments.map(item => ({

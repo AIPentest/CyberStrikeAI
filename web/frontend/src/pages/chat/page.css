@@ -318,6 +318,7 @@
 .chat-composer-context {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
     min-width: 0;
     margin-inline: calc(-1 * var(--chat-composer-padding));
@@ -345,9 +346,21 @@
 .chat-context-select .semi-select-prefix { padding-inline-start: 7px; color: var(--semi-color-primary); }
 .chat-context-select .semi-select-arrow { width: auto; padding-inline: 4px 7px; }
 .chat-context-divider { flex: 0 0 1px; height: 16px; background: var(--semi-color-border); }
-.chat-composer-mode { max-width: 45%; }
+.chat-composer-mode { max-width: min(220px, 100%); }
 .chat-mode-dropdown { width: min(390px, calc(100vw - 48px)); }
 .chat-project-dropdown { width: min(260px, calc(100vw - 48px)); }
+.chat-role-dropdown { width: min(360px, calc(100vw - 48px)); }
+.chat-role-option { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.chat-role-option-title { display: flex; align-items: center; gap: 6px; }
+.chat-role-option-description {
+    display: block;
+    margin-top: 2px;
+    color: var(--semi-color-text-2);
+    font-size: 12px;
+    font-weight: normal;
+    line-height: 1.45;
+}
+.chat-role-icon { font-size: 14px; line-height: 1; }
 .chat-mode-option { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 .chat-mode-option-description {
     display: block;
@@ -357,7 +370,8 @@
     font-weight: normal;
     line-height: 1.5;
 }
-.chat-composer-project { max-width: min(260px, 55%); }
+.chat-composer-project,
+.chat-composer-role { max-width: min(220px, 100%); }
 .chat-composer-box {
     --chat-composer-padding: 16px;
     --chat-composer-inner-radius: 19px;

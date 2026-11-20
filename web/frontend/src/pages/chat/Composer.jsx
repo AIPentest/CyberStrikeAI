@@ -1,6 +1,6 @@
 import { useId, useMemo, useRef } from 'react';
 import { Banner, Button, Popover, Select, Tag, TextArea, Tooltip, Typography } from '@douyinfe/semi-ui';
-import { IconArrowUp, IconChevronDown, IconDesktop, IconFolder, IconPaperclip, IconPlus, IconShield, IconStop } from '@douyinfe/semi-icons';
+import { IconArrowUp, IconChevronDown, IconDesktop, IconFolder, IconPaperclip, IconPlus, IconShield, IconStop, IconUser } from '@douyinfe/semi-icons';
 import { useT } from '../../lib/i18n';
 import { modelChannelName } from '../../lib/model-channel';
 import { ModelSettings } from './ChatSettings';
@@ -28,6 +28,10 @@ export default function Composer({
     onCreateProject,
     projects,
     projectDisabled,
+    role,
+    onRoleChange,
+    roles,
+    roleDisabled,
     model,
     canReadConfig,
     onOpenHitl,
@@ -40,6 +44,7 @@ export default function Composer({
     const fileRef = useRef(null);
     const modeLabelId = useId();
     const projectLabelId = useId();
+    const roleLabelId = useId();
     const list = Array.isArray(attachments) ? attachments : [];
     const modeOptions = useMemo(() => [
         {
@@ -85,6 +90,45 @@ export default function Composer({
     if (onCreateProject) {
         projectOptions.push({ value: CREATE_PROJECT, label: `+ ${t('projects.newProject', null, '新建项目')}` });
     }
+    const roleOptions = useMemo(() => {
+        const list = (Array.isArray(roles) ? roles : []).filter(item => item?.name);
+        const named = list
+            .filter(item => item.enabled !== false && item.name !== '默认')
+            .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+        const fallback = list.find(item => item.name === '默认');
+        const toOption = item => ({
+            value: item.name === '默认' ? '' : item.name,
+            name: item.name === '默认' ? t('chat.defaultRole', null, '默认') : item.name,
+            icon: item.icon || '',
+            description: item.description || '',
+            label: (
+                <span className="chat-role-option">
+                    <span className="chat-role-option-title">
+                        {item.icon ? <span className="chat-role-icon" aria-hidden="true">{item.icon}</span> : null}
+                        <span>{item.name === '默认' ? t('chat.defaultRole', null, '默认') : item.name}</span>
+                    </span>
+                    {item.description ? <span className="chat-role-option-description">{item.description}</span> : null}
+                </span>
+            )
+        });
+        const options = [toOption({
+            name: '默认',
+            icon: fallback?.icon || '',
+            description: fallback?.description || ''
+        })];
+        const seen = new Set(['']);
+        for (const item of named) {
+            if (seen.has(item.name)) continue;
+            seen.add(item.name);
+            options.push(toOption(item));
+        }
+        if (role && !seen.has(role)) {
+            const current = list.find(item => item.name === role);
+            options.push(toOption(current || { name: role, icon: '', description: '' }));
+        }
+        return options;
+    }, [role, roles, t]);
+    const selectedRole = roleOptions.find(option => option.value === (role || '')) || roleOptions[0];
     const uploadingCount = Number(uploading) || list.filter(item => item.uploading).length;
     const blocked = !canWrite || !canExecute;
     const busy = sending || checkingRun;
@@ -100,7 +144,7 @@ export default function Composer({
         if (event.key !== 'Enter' || event.shiftKey) return;
         if (event.nativeEvent?.isComposing) return;
         event.preventDefault();
-        if (busy || blocked || uploadingCount > 0) return;
+        if (busy || blocked || roleDisabled || uploadingCount > 0) return;
         onSend();
     };
 
@@ -153,6 +197,28 @@ export default function Composer({
                             aria-labelledby={projectLabelId}
                             disabled={busy || projectDisabled || !canWrite}
                         />
+                        {onRoleChange && (
+                            <>
+                                <span className="chat-context-divider" aria-hidden="true" />
+                                <span id={roleLabelId} hidden>{t('chat.selectRole', null, '选择角色')}</span>
+                                <Select
+                                    value={role || ''}
+                                    optionList={roleOptions}
+                                    onChange={onRoleChange}
+                                    prefix={selectedRole?.icon
+                                        ? <span className="chat-role-icon" aria-hidden="true">{selectedRole.icon}</span>
+                                        : <IconUser aria-hidden="true" />}
+                                    className="chat-context-select chat-composer-role"
+                                    dropdownClassName="chat-role-dropdown"
+                                    dropdownMatchSelectWidth={false}
+                                    position="topLeft"
+                                    size="small"
+                                    renderSelectedItem={option => <span title={option.description || option.name}>{option.name}</span>}
+                                    aria-labelledby={roleLabelId}
+                                    disabled={busy || roleDisabled || !canWrite}
+                                />
+                            </>
+                        )}
                     </div>
                     <input
                         ref={fileRef}
@@ -256,7 +322,7 @@ export default function Composer({
                                         className="chat-composer-send"
                                         icon={<IconArrowUp />}
                                         aria-label={t('chat.send', null, '发送')}
-                                        disabled={blocked || checkingRun || uploadingCount > 0}
+                                        disabled={blocked || checkingRun || roleDisabled || uploadingCount > 0}
                                         onClick={onSend}
                                     />
                                 </Tooltip>

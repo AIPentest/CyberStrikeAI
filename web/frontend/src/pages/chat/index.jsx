@@ -26,6 +26,12 @@ const { Text } = Typography;
 const PAGE_SIZE = 20;
 const DEFAULT_WORKSPACE = '__none__';
 const MODE_STORAGE_KEY = 'csai-chat-agent-mode';
+const ROLE_STORAGE_KEY = 'csai-chat-role';
+
+function chatRoleValue(value) {
+    const name = typeof value === 'string' ? value.trim() : '';
+    return !name || name === '默认' ? '' : name;
+}
 const EMPTY_PLAN = { tasks: [], total: 0, completed: 0, activeStep: 0, running: false };
 const EMPTY_DETAIL = { conversation: null, messages: [], loading: false, error: null };
 
@@ -58,6 +64,7 @@ export default function Page() {
     const canReadHitl = hasPermission('hitl:read');
     const canDecideHitl = hasPermission('hitl:write');
     const canReadConfig = hasPermission('config:read');
+    const canReadRoles = hasPermission('roles:read');
 
     const [searchParams, setSearchParams] = useSearchParams();
     const conversationId = searchParams.get('conversation') || '';
@@ -76,6 +83,9 @@ export default function Page() {
     const [projectFormOpen, setProjectFormOpen] = useState(false);
     const [storedMode, setStoredMode] = useLocalStorage(MODE_STORAGE_KEY, 'single');
     const mode = AGENT_MODES.includes(storedMode) ? storedMode : 'single';
+    const [storedRole, setStoredRole] = useLocalStorage(ROLE_STORAGE_KEY, '');
+    const [roleDrafts, setRoleDrafts] = useState(() => new Map());
+    const pendingRoleRef = useRef('');
     const model = useModelPreferences(canReadConfig);
     const [hitlOpen, setHitlOpen] = useState(false);
     const [draftHitl, setDraftHitl] = useState(null);
@@ -129,9 +139,20 @@ export default function Page() {
     useEffect(() => { reloadConversations.current = conversations.reload; }, [conversations.reload]);
 
     const projectsResource = useResource(() => api.get('/projects', { limit: 200 }), []);
+    const rolesResource = useResource(() => api.get('/roles'), [canReadRoles], { skip: !canReadRoles });
     const projects = useMemo(() => (
         Array.isArray(projectsResource.data?.projects) ? projectsResource.data.projects : []
     ), [projectsResource.data]);
+    const roles = useMemo(() => (
+        (Array.isArray(rolesResource.data?.roles) ? rolesResource.data.roles : [])
+            .filter(item => item && String(item.name || '').trim())
+            .map(item => ({
+                name: String(item.name).trim(),
+                description: String(item.description || ''),
+                icon: String(item.icon || ''),
+                enabled: item.enabled !== false
+            }))
+    ), [rolesResource.data]);
     const handleProjectCreated = project => {
         setProjectFormOpen(false);
         if (!project?.id) return;
@@ -223,6 +244,12 @@ export default function Page() {
         setDraftHitl(null);
         boundByRun.current = id;
         conversationRef.current = id;
+        setRoleDrafts(previous => {
+            if (previous.has(id)) return previous;
+            const next = new Map(previous);
+            next.set(id, pendingRoleRef.current);
+            return next;
+        });
         setSearchParams({ conversation: id }, { replace: true });
         reloadConversations.current?.({ silent: true });
     }, [setSearchParams]);
@@ -426,8 +453,26 @@ export default function Page() {
         }));
     }, [conversationId, updateComposer]);
 
+    const hasRoleDraft = roleDrafts.has(conversationId);
+    const savedConversation = detail.conversation?.id === conversationId ? detail.conversation : null;
+    const roleResolved = !conversationId || hasRoleDraft || Boolean(savedConversation);
+    const role = hasRoleDraft
+        ? chatRoleValue(roleDrafts.get(conversationId))
+        : (savedConversation
+            ? chatRoleValue(savedConversation.roleName)
+            : (conversationId ? '' : chatRoleValue(storedRole)));
+    const changeRole = useCallback(value => {
+        const next = chatRoleValue(value);
+        setStoredRole(next);
+        setRoleDrafts(previous => {
+            const drafts = new Map(previous);
+            drafts.set(conversationId, next);
+            return drafts;
+        });
+    }, [conversationId, setStoredRole]);
+
     const submit = useCallback(() => {
-        if (!canWrite || !canExecute || sending || backgroundRunning || checkingRun || projectSaving || model.waitingForChannel) return;
+        if (!canWrite || !canExecute || sending || backgroundRunning || checkingRun || projectSaving || model.waitingForChannel || !roleResolved) return;
         const text = draft.trim();
         if (!text && !attachments.length) {
             toastWarning(t('chat.emptyMessage', null, '请输入内容或添加附件'));
@@ -456,15 +501,17 @@ export default function Page() {
         }));
         resetRun();
         updateComposer(conversationId, () => ({ draft: '', attachments: [] }));
+        pendingRoleRef.current = role;
         run.send({
             message,
             attachments: ready,
             mode,
             projectId: newProjectId,
+            role,
             ...model.request,
             hitl: !conversationId && canDecideHitl ? draftHitl || undefined : undefined
         });
-    }, [attachments, backgroundRunning, canWrite, canExecute, canDecideHitl, checkingRun, conversationId, draft, draftHitl, mode, model, newProjectId, projectSaving, resetRun, run, sending, t, updateComposer]);
+    }, [attachments, backgroundRunning, canWrite, canExecute, canDecideHitl, checkingRun, conversationId, draft, draftHitl, mode, model, newProjectId, projectSaving, resetRun, role, roleResolved, run, sending, t, updateComposer]);
 
     const conversation = detail.conversation;
     const revealedConversation = useRef('');
@@ -613,6 +660,10 @@ export default function Page() {
                             ? () => setProjectFormOpen(true) : undefined}
                         projects={projects}
                         projectDisabled={projectsResource.loading || Boolean(conversationId && (detail.loading || !conversation || detail.error))}
+                        role={role}
+                        onRoleChange={changeRole}
+                        roles={roles}
+                        roleDisabled={!roleResolved}
                         model={model}
                         canReadConfig={canReadConfig}
                         onOpenHitl={canReadHitl ? () => setHitlOpen(true) : undefined}
