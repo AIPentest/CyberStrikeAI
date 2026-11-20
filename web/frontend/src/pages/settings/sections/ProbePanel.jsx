@@ -2,7 +2,7 @@
  * 编辑所选模型通道，并使用表单中的值测试连接或探测模型能力。
  */
 import { useEffect, useId, useState } from 'react';
-import { Banner, Button, Input, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
+import { Banner, Button, Collapse, Input, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import { api } from '../../../lib/http';
 import { useT } from '../../../lib/i18n';
 import { modelChannelOptions, selectedModelChannelName } from '../../../lib/model-channel';
@@ -57,6 +57,7 @@ function channelValues(channel) {
         base_url: channel.base_url || '',
         api_key: channel.api_key || '',
         model: channel.model || '',
+        image_input: channel.image_input || '',
         context_profile: channel.context_profile || '',
         context_window: channel.context_window > 0 ? String(channel.context_window) : '',
         max_total_tokens: channel.max_total_tokens || 0,
@@ -131,13 +132,15 @@ function ProbeOutput({ state, defaultWindow }) {
         );
     }
 
-    if (key === 'audit' || key === 'vision') {
+    if (key === 'audit' || key === 'image') {
         return (
             <div className="settings-probe-result">
                 {payload.success ? (
                     <KeyValueList
                         columns={3}
-                        items={summarizeTest(t, payload)}
+                        items={summarizeTest(t, payload).map((item, index) => key === 'image' && index === 0
+                            ? { ...item, value: <Tag color="green">{t('settingsProbe.imageReadSuccess', null, '图片读取成功')}</Tag> }
+                            : item)}
                     />
                 ) : (
                     <Banner type="danger" bordered closeIcon={null} description={payload.error || t('settingsBasic.testFailed', null, '连接失败')} />
@@ -193,6 +196,10 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
     const [drafts, setDrafts] = useState({});
     const draft = drafts[channelId] || {};
     const form = { ...baseline, ...draft };
+    const sameModelEndpoint = ['model', 'base_url', 'provider'].every(field => form[field] === baseline[field]);
+    const imageMode = draft.image_input ?? (sameModelEndpoint ? baseline.image_input : '');
+    const imageDefault = sameModelEndpoint ? config.image_input_defaults?.[legacy ? '' : channelId] : undefined;
+    const imageEnabled = imageMode === 'enabled' || (imageMode !== 'disabled' && imageDefault === true);
     const defaultWindow = config.context_window_defaults?.[legacy ? '' : channelId];
     const useDefaultWindow = defaultWindow > 0 && !form.context_window && !Object.hasOwn(draft, 'context_window')
         && ['base_url', 'model', 'context_profile'].every(field => form[field] === baseline[field]);
@@ -202,7 +209,7 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState(null);
     const [applyPending, setApplyPending] = useState(false);
-    const locked = !canWrite || saving;
+    const locked = !canWrite || saving || busy === 'image';
     const channelOptions = legacy
         ? [{ value: MAIN_CHANNEL, label: t('settingsProbe.mainChannel', null, '主模型通道') }]
         : modelChannelOptions(Object.entries(channels));
@@ -219,9 +226,13 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
         });
     };
     const update = (key, value) => {
+        setState(EMPTY_PROBE);
         setDrafts(current => {
             const next = { ...current[channelId] };
-            if (value === String(baseline[key])) delete next[key];
+            const modelFields = ['model', 'base_url', 'provider'];
+            if (modelFields.includes(key) && value !== form[key]) delete next.image_input;
+            const baselineValue = key === 'image_input' && !sameModelEndpoint ? '' : baseline[key];
+            if (value === String(baselineValue)) delete next[key];
             else next[key] = value;
             return { ...current, [channelId]: next };
         });
@@ -333,28 +344,6 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
         context_profile: form.context_profile
     });
 
-    // 视觉模型：vision 段优先，空字段回退 openai 段；密钥为 ******** 时由服务端恢复。
-    const vision = config.vision || {};
-    const [visionState, setVisionState] = useState({ key: '', payload: null, error: null });
-    const [visionBusy, setVisionBusy] = useState(false);
-    const testVision = async () => {
-        if (!canWrite) return;
-        setVisionBusy(true);
-        setVisionState({ key: 'vision', payload: null, error: null });
-        try {
-            const payload = await api.post('/config/test-vision', {
-                channel_id: channelId === MAIN_CHANNEL ? undefined : channelId,
-                vision,
-                openai: config.openai || {}
-            });
-            setVisionState({ key: 'vision', payload, error: null });
-        } catch (error) {
-            setVisionState({ key: 'vision', payload: null, error });
-        } finally {
-            setVisionBusy(false);
-        }
-    };
-
     // The server selects the configured audit backend and resolves inherited fields.
     const auditModel = config.hitl?.audit_model || {};
     const auditBackend = (config.hitl?.audit_backend || '').trim().toLowerCase();
@@ -364,6 +353,9 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
     const auditProtocol = auditTypeSafe ? 'TypeSafe / Jev'
         : auditClaude ? 'Claude (Anthropic Messages)'
             : t('settingsProbe.compatible', null, '兼容 OpenAI 的接口');
+    const auditSource = auditTypeSafe || ['provider', 'base_url', 'api_key', 'model'].some(key => auditModel[key])
+        ? auditModel.model || auditProtocol
+        : t('settingsProbe.auditInherit', null, '继承主模型');
     const auditURLPlaceholder = auditTypeSafe ? 'https://api.typesafe.ai'
         : config.openai?.base_url || (auditClaude ? 'https://api.anthropic.com' : 'https://api.openai.com/v1');
     const [auditDraft, setAuditDraft] = useState({});
@@ -444,7 +436,12 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
                     <Input value={form.base_url} onChange={value => update('base_url', value)} readOnly={locked} placeholder="https://api.openai.com/v1" />
                 </label>
                 <label className="settings-field">
-                    <Text type="tertiary" size="small">{t('settingsBasic.model', null, '模型')}</Text>
+                    <Space spacing={6}>
+                        <Text type="tertiary" size="small">{t('settingsBasic.model', null, '模型')}</Text>
+                        {(imageEnabled || state.key === 'image' && state.payload?.success) && (
+                            <Tag size="small" color="green">{t('settingsProbe.imageInputSupported', null, '支持图片')}</Tag>
+                        )}
+                    </Space>
                     <Input value={form.model} onChange={value => update('model', value)} readOnly={locked} placeholder="gpt-4o-mini" />
                 </label>
                 <label className="settings-field">
@@ -514,6 +511,18 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
                     {t('settingsBasic.test', null, '测试连接')}
                 </Button>
                 <Button
+                    loading={busy === 'image'}
+                    disabled={locked || !!busy}
+                    onClick={() => run('image', '/config/test-openai', { ...probeBody(), test_image: true })}
+                >
+                    {t('settingsProbe.testImage', null, '测试图片')}
+                </Button>
+                {!imageEnabled && state.key === 'image' && state.payload?.success && (
+                    <Button type="tertiary" disabled={locked || !!busy} onClick={() => update('image_input', 'enabled')}>
+                        {t('settingsProbe.enableImageInput', null, '为此通道启用图片')}
+                    </Button>
+                )}
+                <Button
                     loading={busy === 'context'}
                     disabled={locked || !!busy}
                     onClick={() => run('context', '/config/detect-context', probeBody())}
@@ -536,57 +545,51 @@ export default function ProbePanel({ config, canWrite, reloadConfig }) {
             </Space>
             <ProbeOutput state={state} defaultWindow={useDefaultWindow ? defaultWindow : 0} />
 
-            <div className="settings-probe-secondary">
-                <div className="settings-probe-card">
-                    <Text strong>{t('settings.visionTestTitle', null, '视觉模型连接测试')}</Text>
-                    <Hint>
-                        {t('settingsProbe.visionHint', { model: vision.model || '—' }, `当前视觉模型 ${vision.model || '—'}，未填写密钥时使用主模型配置。`)}
-                    </Hint>
-                    <Space>
-                        <Button size="small" loading={visionBusy} disabled={!canWrite} onClick={testVision}>
-                            {t('settingsBasic.testVision', null, '测试视觉模型')}
-                        </Button>
+            <Collapse className="settings-audit-model">
+                <Collapse.Panel itemKey="audit-model" header={(
+                    <Space wrap spacing={8}>
+                        <Text strong>{t('settingsProbe.auditModelTitle', null, '审计模型')}</Text>
+                        <Text type="tertiary" size="small">{auditSource}</Text>
                     </Space>
-                    <ProbeOutput state={visionState} />
-                </div>
-                <div className="settings-probe-card">
-                    <Text strong>{t('settingsProbe.auditTitle', null, '审计模型连接测试')}</Text>
-                    <Tag>{auditProtocol}</Tag>
-                    <Hint>
-                        {auditTypeSafe
-                            ? t('settingsProbe.auditTypeSafeHint', null, '按已配置的 TypeSafe / Jev 后端测试。地址和模型留空使用 Jev 默认值；密钥沿用已保存的审计密钥，不继承主模型。')
-                            : t('settingsProbe.auditChatHint', null, '按已配置的审计模型协议测试。地址和模型留空继承主模型；密钥留空或显示 ******** 时沿用已保存的审计密钥，未配置则继承主模型。')}
-                    </Hint>
-                    <div className="settings-probe-inline">
-                        {[
-                            ['base_url', 'baseUrl', 'API 地址', auditURLPlaceholder],
-                            ['api_key', 'apiKey', 'API 密钥', '********'],
-                            ['model', 'model', '模型', auditTypeSafe ? 'jev-latest' : config.openai?.model || '']
-                        ].map(([field, key, fallback, placeholder]) => (
-                            <label key={field} className="settings-field">
-                                <Text type="tertiary" size="small">{t('settingsBasic.' + key, null, fallback)}</Text>
-                                <Input
-                                    value={auditForm[field]}
-                                    onChange={value => {
-                                        setAuditDraft(current => ({ ...current, [field]: value }));
-                                        setAuditState(EMPTY_PROBE);
-                                    }}
-                                    placeholder={placeholder}
-                                    readOnly={!canWrite || auditBusy}
-                                    mode={field === 'api_key' ? 'password' : undefined}
-                                    autoComplete={field === 'api_key' ? 'new-password' : undefined}
-                                />
-                            </label>
-                        ))}
+                )}>
+                    <div className="settings-probe-card">
+                        <div><Tag size="small">{auditProtocol}</Tag></div>
+                        <Hint>
+                            {auditTypeSafe
+                                ? t('settingsProbe.auditTypeSafeHint', null, '按已配置的 TypeSafe / Jev 后端测试。地址和模型留空使用 Jev 默认值；密钥沿用已保存的审计密钥，不继承主模型。')
+                                : t('settingsProbe.auditChatHint', null, '按已配置的审计模型协议测试。地址和模型留空继承主模型；密钥留空或显示 ******** 时沿用已保存的审计密钥，未配置则继承主模型。')}
+                        </Hint>
+                        <div className="settings-probe-inline">
+                            {[
+                                ['base_url', 'baseUrl', 'API 地址', auditURLPlaceholder],
+                                ['api_key', 'apiKey', 'API 密钥', '********'],
+                                ['model', 'model', '模型', auditTypeSafe ? 'jev-latest' : config.openai?.model || '']
+                            ].map(([field, key, fallback, placeholder]) => (
+                                <label key={field} className="settings-field">
+                                    <Text type="tertiary" size="small">{t('settingsBasic.' + key, null, fallback)}</Text>
+                                    <Input
+                                        value={auditForm[field]}
+                                        onChange={value => {
+                                            setAuditDraft(current => ({ ...current, [field]: value }));
+                                            setAuditState(EMPTY_PROBE);
+                                        }}
+                                        placeholder={placeholder}
+                                        readOnly={!canWrite || auditBusy}
+                                        mode={field === 'api_key' ? 'password' : undefined}
+                                        autoComplete={field === 'api_key' ? 'new-password' : undefined}
+                                    />
+                                </label>
+                            ))}
+                        </div>
+                        <Space>
+                            <Button size="small" loading={auditBusy} disabled={!canWrite} onClick={testAuditModel}>
+                                {t('settingsProbe.testAuditModel', null, '测试审计模型')}
+                            </Button>
+                        </Space>
+                        <ProbeOutput state={auditState} />
                     </div>
-                    <Space>
-                        <Button size="small" loading={auditBusy} disabled={!canWrite} onClick={testAuditModel}>
-                            {t('settingsProbe.testAuditModel', null, '测试审计模型')}
-                        </Button>
-                    </Space>
-                    <ProbeOutput state={auditState} />
-                </div>
-            </div>
+                </Collapse.Panel>
+            </Collapse>
         </SectionCard>
     );
 }

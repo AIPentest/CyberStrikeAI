@@ -79,6 +79,30 @@ function userTexts(body) {
     typeof m.content === "string" ? m.content : m.content.map(block => block.text).join(""));
 }
 
+test("native chat images reach image-capable models without appearing in host events", { timeout: 30000 }, async t => {
+  const fixture = await startFixture(t, (_body, res) => {
+    sse(res, { role: "assistant", content: "done" }, "stop");
+  });
+  const image = {
+    mimeType: "image/png",
+    data: "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR4nO3NsQ0AAAzCMP5/un0CNkuZ41wybXsHAAAAAAAAAAAAxR4yw/wuPL6QkAAAAABJRU5ErkJggg==",
+  };
+  for (const capability of [true, false, undefined]) {
+    const req = request(fixture.url);
+    req.tools = [];
+    req.images = [image];
+    req.model.imageInput = capability;
+    const { result, records } = await invoke(t, req);
+    assert.equal(result.status, "completed", result.error);
+    const user = fixture.requests.at(-1).messages.find(m => m.role === "user");
+    const content = Array.isArray(user.content) ? user.content : [{ type: "text", text: user.content }];
+    assert.ok(content.some(block => block.type === "text" && block.text.includes(req.message)),
+      JSON.stringify(content.filter(block => block.type === "text")));
+    assert.equal(content.filter(block => block.type === "image_url").length, capability ? 1 : 0);
+    assert.ok(!JSON.stringify(records).includes(image.data));
+  }
+});
+
 test("real Pi SDK streams, invokes only host tools and restores persisted sessions", { timeout: 30000 }, async t => {
   const fixture = await startFixture(t, (body, res, count) => {
     if (count === 1) sse(res, { role: "assistant", tool_calls: [{ index: 0, id: "call-1", type: "function", function: { name: "echo", arguments: '{"text":"hello"}' } }] }, "tool_calls");

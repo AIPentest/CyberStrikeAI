@@ -5025,7 +5025,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 				"post": map[string]interface{}{
 					"tags":        []string{"配置管理"},
 					"summary":     "测试OpenAI API连接",
-					"description": "测试指定的OpenAI/Claude API配置是否可用，发送一个最小请求验证连通性。",
+					"description": "测试指定的 OpenAI/Claude API 配置。启用 test_image 时通过 Pi 发送合成图片并验证识别结果。",
 					"operationId": "testOpenAI",
 					"requestBody": map[string]interface{}{
 						"required": true,
@@ -5035,10 +5035,11 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 									"type":     "object",
 									"required": []string{"api_key", "model"},
 									"properties": map[string]interface{}{
-										"provider": map[string]interface{}{"type": "string", "description": "LLM提供商（openai/claude）", "example": "openai"},
-										"base_url": map[string]interface{}{"type": "string", "description": "API基地址（可选，默认根据provider自动选择）"},
-										"api_key":  map[string]interface{}{"type": "string", "description": "API密钥"},
-										"model":    map[string]interface{}{"type": "string", "description": "模型名称", "example": "gpt-4"},
+										"provider":   map[string]interface{}{"type": "string", "description": "LLM提供商（openai/claude）", "example": "openai"},
+										"base_url":   map[string]interface{}{"type": "string", "description": "API基地址（可选，默认根据provider自动选择）"},
+										"api_key":    map[string]interface{}{"type": "string", "description": "API密钥"},
+										"model":      map[string]interface{}{"type": "string", "description": "模型名称", "example": "gpt-4"},
+										"test_image": map[string]interface{}{"type": "boolean", "description": "验证模型是否能读取合成图片"},
 									},
 								},
 							},

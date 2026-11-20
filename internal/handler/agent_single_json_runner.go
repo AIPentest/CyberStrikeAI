@@ -34,7 +34,7 @@ func (h *AgentHandler) runSingleJSON(taskCtx, baseCtx context.Context, cancelWit
 	var autoCancelledPendingExecutionIDs []string
 	for {
 		result, runErr = multiagent.RunSingleAgent(
-			taskCtx,
+			prep.withChatImages(taskCtx, curMsg),
 			runCfg,
 			&runCfg.MultiAgent,
 			h.agent,

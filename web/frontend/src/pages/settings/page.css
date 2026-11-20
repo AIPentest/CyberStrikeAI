@@ -74,12 +74,8 @@
     overflow: auto;
     padding: 2px;
 }
-.settings-probe-secondary {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 16px;
+.settings-audit-model {
     margin-top: 18px;
-    padding-top: 16px;
     border-top: 1px solid var(--semi-color-border);
 }
 .settings-probe-card { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -127,7 +123,6 @@
 @media (max-width: 480px) {
     .settings-channel-panel .semi-card-header-wrapper { flex-direction: column-reverse; align-items: stretch; }
     .settings-channel-panel .semi-card-header-wrapper-title { margin-inline: 0; }
-    .settings-probe-secondary { grid-template-columns: minmax(0, 1fr); }
 }
 
 .settings-update-source-form {

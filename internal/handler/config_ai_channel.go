@@ -18,6 +18,7 @@ type AIChannelUpdate struct {
 	BaseURL             *string `json:"base_url,omitempty"`
 	APIKey              *string `json:"api_key,omitempty"`
 	Model               *string `json:"model,omitempty"`
+	ImageInput          *string `json:"image_input,omitempty"`
 	ContextProfile      *string `json:"context_profile,omitempty"`
 	ContextWindow       *int    `json:"context_window,omitempty"`
 	MaxTotalTokens      *int    `json:"max_total_tokens,omitempty"`
@@ -35,6 +36,20 @@ func (u AIChannelUpdate) merge(cfg *config.Config) (*config.AIConfig, error) {
 	ch, ok := ai.Channels[id]
 	if !ok || id == "" {
 		return nil, fmt.Errorf("通道已不存在，请刷新配置后重试")
+	}
+	if u.ImageInput != nil {
+		switch strings.TrimSpace(*u.ImageInput) {
+		case "", "auto":
+			ch.ImageInput = ""
+		case "enabled", "disabled":
+			ch.ImageInput = strings.TrimSpace(*u.ImageInput)
+		default:
+			return nil, fmt.Errorf("图片输入模式无效")
+		}
+	} else if (u.Model != nil && strings.TrimSpace(*u.Model) != ch.Model) ||
+		(u.BaseURL != nil && strings.TrimSpace(*u.BaseURL) != ch.BaseURL) ||
+		(u.Provider != nil && strings.TrimSpace(*u.Provider) != ch.Provider) {
+		ch.ImageInput = ""
 	}
 
 	for _, field := range []struct{ target, value *string }{

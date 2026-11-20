@@ -3159,6 +3159,12 @@
     "cleanupDuration": "Cleanup duration"
   },
   "settingsProbe": {
+    "auditModelTitle": "Audit model",
+    "auditInherit": "Inherits primary model",
+    "imageInputSupported": "Image input",
+    "testImage": "Test image",
+    "imageReadSuccess": "Image read successfully",
+    "enableImageInput": "Enable images for this channel",
     "auditTitle": "Audit model connection test",
     "auditTypeSafeHint": "Tests the configured TypeSafe / Jev backend. Blank URL and model use Jev defaults. A blank or masked key uses the saved audit key; the main model key is never inherited.",
     "auditChatHint": "Tests the configured audit model protocol. Blank URL and model inherit the main model. A blank or masked key uses the saved audit key, or inherits the main model key if none is configured.",

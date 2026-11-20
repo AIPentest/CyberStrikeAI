@@ -282,7 +282,8 @@ type GetConfigResponse struct {
 	MultiAgent   config.MultiAgentPublic   `json:"multi_agent,omitempty"`
 	C2           config.C2Public           `json:"c2"`
 
-	ContextWindowDefaults map[string]int `json:"context_window_defaults,omitempty"`
+	ContextWindowDefaults map[string]int  `json:"context_window_defaults,omitempty"`
+	ImageInputDefaults    map[string]bool `json:"image_input_defaults,omitempty"`
 }
 
 // ToolConfigInfo 工具配置信息
@@ -378,14 +379,25 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 	}
 
 	windowDefaults := make(map[string]int)
+	imageDefaults := make(map[string]bool)
 	for id, channel := range h.config.AI.Channels {
-		if window := channel.ToOpenAIConfig().DefaultContextWindow(); window > 0 {
+		model := channel.ToOpenAIConfig()
+		if window := model.DefaultContextWindow(); window > 0 {
 			windowDefaults[id] = window
+		}
+		model.ImageInput = ""
+		if capability := model.ImageInputCapability(); capability != nil {
+			imageDefaults[id] = *capability
 		}
 	}
 	if len(h.config.AI.Channels) == 0 {
 		if window := h.config.OpenAI.DefaultContextWindow(); window > 0 {
 			windowDefaults[""] = window
+		}
+		model := h.config.OpenAI
+		model.ImageInput = ""
+		if capability := model.ImageInputCapability(); capability != nil {
+			imageDefaults[""] = *capability
 		}
 	}
 
@@ -409,6 +421,7 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 		MultiAgent:   multiPub,
 
 		ContextWindowDefaults: windowDefaults,
+		ImageInputDefaults:    imageDefaults,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "配置序列化失败"})
@@ -1337,6 +1350,7 @@ type TestOpenAIRequest struct {
 	MaxTotalTokens      int               `json:"max_total_tokens,omitempty"`
 	MaxCompletionTokens int               `json:"max_completion_tokens,omitempty"`
 	ContextProfile      string            `json:"context_profile,omitempty"`
+	TestImage           bool              `json:"test_image,omitempty"`
 }
 
 // DetectContextRequest probes model metadata without issuing a completion.
@@ -1490,6 +1504,10 @@ func (h *ConfigHandler) testOpenAI(c *gin.Context, req TestOpenAIRequest) {
 	}
 	if strings.TrimSpace(req.Model) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "模型不能为空"})
+		return
+	}
+	if req.TestImage {
+		h.testChannelImage(c, req, resolvedHeaders)
 		return
 	}
 
@@ -2346,6 +2364,11 @@ func updateOpenAIConfig(doc *yaml.Node, cfg config.OpenAIConfig) {
 	setStringInMap(openaiNode, "api_key", cfg.APIKey)
 	setStringInMap(openaiNode, "base_url", cfg.BaseURL)
 	setStringInMap(openaiNode, "model", cfg.Model)
+	if cfg.ImageInput != "" {
+		setStringInMap(openaiNode, "image_input", cfg.ImageInput)
+	} else {
+		removeKeyFromMap(openaiNode, "image_input")
+	}
 	setStringMapInMap(openaiNode, "headers", cfg.Headers)
 	if cfg.MaxTotalTokens > 0 {
 		setIntInMap(openaiNode, "max_total_tokens", cfg.MaxTotalTokens)
@@ -2413,6 +2436,9 @@ func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) error {
 		setStringInMap(channelNode, "api_key", ch.APIKey)
 		setStringInMap(channelNode, "base_url", ch.BaseURL)
 		setStringInMap(channelNode, "model", ch.Model)
+		if ch.ImageInput != "" {
+			setStringInMap(channelNode, "image_input", ch.ImageInput)
+		}
 		setStringMapInMap(channelNode, "headers", ch.Headers)
 		if ch.MaxTotalTokens > 0 {
 			setIntInMap(channelNode, "max_total_tokens", ch.MaxTotalTokens)

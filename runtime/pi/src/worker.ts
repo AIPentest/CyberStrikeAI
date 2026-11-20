@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { InMemoryCredentialStore, type Model, type Api, type AssistantMessage, type Message } from "@earendil-works/pi-ai";
+import { InMemoryCredentialStore, type Model, type Api, type AssistantMessage, type ImageContent, type Message } from "@earendil-works/pi-ai";
 import {
   createAgentSession, createExtensionRuntime, ModelRuntime, SessionManager, SettingsManager,
   type AgentSession, type ResourceLoader, type ToolDefinition,
@@ -17,6 +17,7 @@ interface ModelConfig {
   provider: string; api?: "openai-completions" | "openai-responses" | "anthropic-messages";
   id: string; baseUrl: string; apiKey: string; headers?: Record<string, string>;
   contextWindow: number; maxTokens: number; thinking?: string;
+  imageInput?: boolean;
   extraFields?: Record<string, unknown>;
   compat?: Record<string, unknown>; inputBudget?: number;
   compactToolJSON?: boolean;
@@ -26,6 +27,7 @@ interface RunRequest {
   nativeWorkflow?: { receipts?: NativeReceipt[]; resumeRequired?: boolean; context?: string; completionTool: string; checkpointTool?: string; segmentSeconds?: number; skillPaths?: string[] };
   generateOnly?: boolean;
   runId: string; conversationId: string; systemPrompt: string; message: string;
+  images?: Omit<ImageContent, "type">[];
   workingDir?: string;
   model: ModelConfig; tools: { name: string; description: string; parameters: Record<string, unknown>; outputSchema?: Record<string, unknown>; annotations?: Record<string, boolean>; exposure?: ToolDefinition["exposure"]; namespace?: string; promptSnippet?: string; promptGuidelines?: string[]; executionMode?: "parallel" | "sequential" }[];
   sessionDir?: string; history?: Record<string, any>[]; maxTurns: number;
@@ -201,15 +203,22 @@ async function run(req: RunRequest): Promise<void> {
     const runtime = await ModelRuntime.create({ credentials: new InMemoryCredentialStore(), modelsPath: null,
       modelsStorePath: join(scratch, "models.json"), allowModelNetwork: false, refreshOnCreate: false });
     const configs = [req.model, ...(req.fallbackModels ?? [])];
+    const catalog = runtime.getModels();
     const physical: Model<Api>[] = [];
     const modelConfigs = new Map<string, ModelConfig>();
     for (const [index, config] of configs.entries()) {
       const provider = index === 0 ? "cyberstrike" : "cyberstrike-" + index;
       const api = config.api ?? (config.provider === "claude" ? "anthropic-messages" : "openai-completions");
+      const endpoint = config.baseUrl.replace(/\/+$/, "");
+      const matchingModels = catalog.filter(model => model.id === config.id && model.baseUrl.replace(/\/+$/, "") === endpoint);
+      // OpenAI's catalog can prefer Responses for a model also used through Chat Completions.
+      const catalogModel = matchingModels.find(model => model.api === api) ??
+        matchingModels.find(model => api === "openai-completions" && model.api === "openai-responses");
+      const imageInput = config.imageInput ?? catalogModel?.input.includes("image") ?? false;
       runtime.registerProvider(provider, {
       api, baseUrl: config.baseUrl, headers: config.headers,
       models: [{ id: config.id, name: config.id, api, reasoning: config.thinking !== "off" && !!config.thinking,
-        input: ["text", "image"], contextWindow: config.contextWindow || 128000, maxTokens: config.maxTokens || 16384, compat: config.compat,
+        input: imageInput ? ["text", "image"] : ["text"], contextWindow: config.contextWindow || 128000, maxTokens: config.maxTokens || 16384, compat: config.compat,
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }],
       });
       await runtime.setRuntimeApiKey(provider, config.apiKey || "local-no-key");
@@ -259,9 +268,14 @@ async function run(req: RunRequest): Promise<void> {
       model = runtime.getModel("cyberstrike-router", "auto")!;
     }
     if (!model) throw new Error("Model registration failed");
+    const images: ImageContent[] = physical.some(model => model.input.includes("image"))
+      ? (req.images ?? []).map(image => ({ ...image, type: "image" })) : [];
     if (req.generateOnly) {
       const input = SessionManager.inMemory(scratch);
       importHistory(input, req.history ?? [], req.model);
+      if (images.length) {
+        input.appendMessage({ role: "user", content: [{ type: "text", text: req.message }, ...images], timestamp: Date.now() });
+      }
       const answer = await runtime.completeSimple(physical[0], {
         systemPrompt: req.systemPrompt,
         messages: input.buildSessionContext().messages as Message[],
@@ -360,13 +374,16 @@ async function run(req: RunRequest): Promise<void> {
         data = { assistantMessageEvent: delta };
       }
       if (e.type === "agent_end") data = {};
+      if (e.message?.role === "user" && Array.isArray(e.message.content)) {
+        data = { ...e, message: { ...e.message, content: e.message.content.filter((block: { type: string }) => block.type !== "image") } };
+      }
       void send({ type: "event", event: { type: e.type, data } }).catch(() => session?.abort());
     });
     // Pi accepts steering before prompt() and drains it during the run.
     for (const note of steeringBeforeSession ?? []) await session.steer(note);
     steeringBeforeSession = undefined;
     if (canceled) throw new Error("Run canceled before start");
-    await session.prompt(req.message, { expandPromptTemplates: false });
+    await session.prompt(req.message, { expandPromptTemplates: false, images: images.length ? images : undefined });
     if (canceled || lastAssistant?.stopReason === "aborted") status = "canceled";
     else if (lastAssistant?.stopReason === "error") { status = "failed"; failure = lastAssistant.errorMessage || "Model request failed"; }
     else if (status === "completed" && lastAssistant?.stopReason === "length") status = "output_truncated";
