@@ -1,179 +1,73 @@
-/** 事实关系图：cytoscape 动态加载，节点点击展示事实详情。 */
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Checkbox, Empty, Input, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
-import { IconRefresh, IconSearch } from '@douyinfe/semi-icons';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Button, Checkbox, Empty, Input, Select, Space, Spin, Tag, Typography } from '@douyinfe/semi-ui';
+import { IconMinus, IconPlus, IconRefresh, IconSearch } from '@douyinfe/semi-icons';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
 import { useResource } from '../../components/hooks';
 import { ErrorBanner, SectionCard, confirmAction, toastError, toastSuccess } from '../../components/ui';
 import { CONFIDENCE_META, NODE_COLORS, NODE_TYPE_LABEL, errorProp, errText } from './helpers';
+import FactGraphCanvas from './fact-graph-canvas';
 
 const { Text } = Typography;
+const EMPTY = [];
+const nodeTitle = node => node.summary || node.label || node.fact_key || node.id;
 
-function themeColors(container) {
-    const styles = getComputedStyle(container);
-    const read = (name, fallback) => styles.getPropertyValue(name).trim() || fallback;
-    return {
-        text: read('--semi-color-text-0', '#1f2329'),
-        muted: read('--semi-color-text-2', '#646a73'),
-        border: read('--semi-color-border', '#e5e6eb'),
-        bg: read('--semi-color-bg-1', '#ffffff')
+function GraphSearch({ nodes, onSelect, t }) {
+    const [query, setQuery] = useState('');
+    const [open, setOpen] = useState(false);
+    const resultsId = useId();
+    const search = query.trim().toLowerCase();
+    const matches = useMemo(() => nodes.filter(node => !search
+        || [node.fact_key, node.label, node.summary, node.category].join(' ').toLowerCase().includes(search)
+    ), [nodes, search]);
+
+    const select = id => {
+        onSelect(id);
+        setOpen(false);
+        setQuery('');
     };
-}
-
-function buildStyle(colors) {
-    return [
-        {
-            selector: 'node',
-            style: {
-                'background-color': 'data(color)',
-                label: 'data(label)',
-                width: 26,
-                height: 26,
-                'font-size': 10,
-                color: colors.text,
-                'text-valign': 'bottom',
-                'text-halign': 'center',
-                'text-margin-y': 6,
-                'text-wrap': 'wrap',
-                'text-max-width': 132,
-                'border-width': 2,
-                'border-color': colors.bg,
-                'text-outline-width': 0
-            }
-        },
-        {
-            selector: 'node[type = "missing"]',
-            style: { 'border-style': 'dashed', 'border-color': '#94a3b8' }
-        },
-        {
-            selector: 'node:selected',
-            style: { 'border-width': 4, 'border-color': '#f59e0b' }
-        },
-        {
-            selector: 'edge',
-            style: {
-                width: 1.5,
-                'line-color': colors.border,
-                'target-arrow-color': colors.border,
-                'target-arrow-shape': 'triangle',
-                'arrow-scale': 0.7,
-                'curve-style': 'bezier',
-                'font-size': 8,
-                color: colors.muted,
-                label: 'data(type)',
-                'text-rotation': 'autorotate',
-                'text-background-color': colors.bg,
-                'text-background-opacity': 0.85,
-                'text-background-padding': 1
-            }
-        },
-        { selector: 'edge[confidence = "tentative"]', style: { 'line-style': 'dashed', 'line-dash-pattern': [4, 3] } },
-        { selector: 'edge[type = "links_vuln"]', style: { 'line-color': '#dc2626', 'target-arrow-color': '#dc2626', 'line-style': 'dotted' } }
-    ];
-}
-
-function GraphCanvas({ graph, search, onSelect, onReady }) {
-    const containerRef = useRef(null);
-    const cyRef = useRef(null);
-    const selectRef = useRef(onSelect);
-    const readyRef = useRef(onReady);
-    const [ready, setReady] = useState(false);
-    const [importError, setImportError] = useState(null);
-
-    selectRef.current = onSelect;
-    readyRef.current = onReady;
-
-    useEffect(() => {
-        const container = containerRef.current;
-        if (!container || !graph?.nodes?.length) return undefined;
-        let cancelled = false;
-        let instance = null;
-        setImportError(null);
-
-        import('cytoscape')
-            .then(mod => {
-                if (cancelled || !containerRef.current) return;
-                const cytoscape = mod.default || mod;
-                const colors = themeColors(containerRef.current);
-                const elements = [
-                    ...graph.nodes.map(node => ({
-                        group: 'nodes',
-                        data: {
-                            id: node.id,
-                            label: node.label || node.fact_key,
-                            fact_key: node.fact_key,
-                            type: node.type || 'note',
-                            category: node.category,
-                            confidence: node.confidence,
-                            summary: node.summary,
-                            color: NODE_COLORS[node.type] || NODE_COLORS.missing
-                        }
-                    })),
-                    ...(graph.edges || []).map((edge, index) => ({
-                        group: 'edges',
-                        data: {
-                            id: edge.id || `e-${index}`,
-                            source: edge.source,
-                            target: edge.target,
-                            type: edge.type,
-                            confidence: edge.confidence
-                        }
-                    }))
-                ];
-                instance = cytoscape({
-                    container: containerRef.current,
-                    elements,
-                    style: buildStyle(colors),
-                    layout: { name: 'cose', animate: false, padding: 36, idealEdgeLength: 110, nodeRepulsion: 9000, fit: true },
-                    wheelSensitivity: 0.2,
-                    boxSelectionEnabled: false,
-                    minZoom: 0.2,
-                    maxZoom: 2.5
-                });
-                cyRef.current = instance;
-                instance.on('tap', 'node', event => selectRef.current?.(event.target.data()));
-                instance.on('tap', event => {
-                    if (event.target === instance) selectRef.current?.(null);
-                });
-                readyRef.current?.(instance);
-                setReady(true);
-            })
-            .catch(error => {
-                if (!cancelled) setImportError(error);
-            });
-
-        return () => {
-            cancelled = true;
-            setReady(false);
-            cyRef.current = null;
-            readyRef.current?.(null);
-            if (instance) instance.destroy();
-        };
-    }, [graph]);
-
-    useEffect(() => {
-        const cy = cyRef.current;
-        if (!cy) return;
-        const query = search.trim().toLowerCase();
-        cy.batch(() => {
-            cy.nodes().forEach(node => {
-                const data = node.data();
-                const hit = !query || [data.fact_key, data.label, data.summary, data.category]
-                    .join(' ').toLowerCase().includes(query);
-                node.style('opacity', hit ? 1 : 0.16);
-            });
-        });
-    }, [search, ready, graph]);
 
     return (
-        <div className="project-graph-canvas-wrap">
-            <div ref={containerRef} className="project-graph-canvas" />
-            {importError ? (
-                <div className="project-graph-overlay">
-                    <Text type="danger">cytoscape 加载失败，请刷新页面重试</Text>
+        <div className="project-graph-search" onBlur={event => {
+            if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+        }}>
+            <Input
+                prefix={<IconSearch />}
+                value={query}
+                showClear
+                placeholder={t('projects.graphSearchPlaceholder', null, '搜索节点…')}
+                aria-label={t('projects.graphSearchSr', null, '搜索节点')}
+                aria-controls={open ? resultsId : undefined}
+                onChange={value => { setQuery(value); setOpen(true); }}
+                onFocus={() => setOpen(true)}
+                onClick={() => setOpen(true)}
+                onKeyDown={event => {
+                    if (event.key === 'Escape' && open) setOpen(false);
+                    if (event.key === 'Enter' && open && matches.length && !event.nativeEvent.isComposing) {
+                        event.preventDefault();
+                        select(matches[0].id);
+                    }
+                }}
+            />
+            {open && (
+                <div className="project-graph-search-results" id={resultsId}>
+                    <div className="project-graph-search-count" role="status">
+                        {matches.length
+                            ? t('projects.graphSearchCount', { count: matches.length }, `${matches.length} 个节点`)
+                            : t('projects.graphNoMatches', null, '未找到匹配节点')}
+                    </div>
+                    {matches.length > 0 && <ul className="project-graph-search-list">
+                        {matches.map(node => (
+                            <li key={node.id}>
+                                <button className="project-graph-search-hit" type="button" onClick={() => select(node.id)}>
+                                    <span title={nodeTitle(node)}>{nodeTitle(node)}</span>
+                                    <code dir="auto">{node.fact_key || node.id}</code>
+                                </button>
+                            </li>
+                        ))}
+                    </ul>}
                 </div>
-            ) : null}
+            )}
         </div>
     );
 }
@@ -184,25 +78,58 @@ export default function FactGraphPanel({
     const t = useT();
     const [view, setView] = useState('path');
     const [hideDeprecated, setHideDeprecated] = useState(true);
-    const [search, setSearch] = useState('');
-    const [selected, setSelected] = useState(null);
+    const [selectedId, setSelectedId] = useState('');
     const [showEdges, setShowEdges] = useState(false);
-    const cyRef = useRef(null);
+    const chartRef = useRef(null);
+    const sideRef = useRef(null);
+    const scope = `${view}:${hideDeprecated}`;
+    const graph = useResource(async () => ({
+        scope,
+        data: await api.get(`/projects/${projectId}/fact-graph`, {
+            view, exclude_deprecated: hideDeprecated ? '1' : '0'
+        })
+    }), [projectId, scope, revision]);
 
-    const graph = useResource(() => api.get(`/projects/${projectId}/fact-graph`, {
-        view,
-        exclude_deprecated: hideDeprecated ? '1' : '0'
-    }), [projectId, view, hideDeprecated, revision]);
+    const currentGraph = graph.data?.scope === scope ? graph.data.data : null;
+    const nodes = currentGraph?.nodes || EMPTY;
+    const byId = useMemo(() => new Map(nodes.map(node => [node.id, node])), [nodes]);
+    const edges = useMemo(() => (currentGraph?.edges || EMPTY)
+        .filter(edge => byId.has(edge.source) && byId.has(edge.target)), [currentGraph, byId]);
 
-    const nodes = graph.data?.nodes || [];
-    const edges = graph.data?.edges || [];
+    const selected = byId.get(selectedId);
+    useEffect(() => {
+        if (sideRef.current) sideRef.current.scrollTop = 0;
+    }, [selected?.id]);
+    const shownEdges = useMemo(() => selected
+        ? edges.filter(edge => edge.source === selected.id || edge.target === selected.id)
+        : edges, [edges, selected]);
+    const shownNodes = useMemo(() => {
+        if (!selected) return nodes;
+        const neighborhood = new Set([selected.id]);
+        for (const edge of shownEdges) {
+            neighborhood.add(edge.source);
+            neighborhood.add(edge.target);
+        }
+        return nodes.filter(node => neighborhood.has(node.id));
+    }, [nodes, selected, shownEdges]);
+    const types = Object.keys(NODE_COLORS).filter(type => shownNodes.some(node => node.type === type));
+    const typeLabel = type => t(`projects.graphNodeTypes.${type}`, null, NODE_TYPE_LABEL[type] || type);
 
+    const openNode = useCallback(id => setSelectedId(id), []);
     const edgeList = useResource(
         () => (showEdges ? api.get(`/projects/${projectId}/fact-edges`) : Promise.resolve(null)),
         [projectId, showEdges, revision]
     );
 
-    const deleteEdge = (edge) => {
+    const refresh = () => {
+        if (onChanged) onChanged();
+        else {
+            graph.reload();
+            if (showEdges) edgeList.reload();
+        }
+    };
+
+    const deleteEdge = edge => {
         confirmAction({
             title: t('projects.graphDeleteEdge', null, '删边'),
             content: t('projects.confirmDeleteGraphEdge', null, '确定删除此关系边？'),
@@ -211,78 +138,161 @@ export default function FactGraphPanel({
                 try {
                     await api.del(`/projects/${projectId}/fact-edges/${edge.id}`);
                     toastSuccess(t('projects.graphEdgeDeleteSuccess', null, '边已删除'));
-                    graph.reload({ silent: true });
-                    edgeList.reload({ silent: true });
-                    onChanged?.();
+                    refresh();
                 } catch (error) {
                     toastError(errText(error, t('projects.graphEdgeDeleteFailed', null, '删除边失败')));
                 }
             }
         });
     };
+    const stats = (nodeCount, edgeCount) => t(
+        'projects.graphStats', { nodes: nodeCount, edges: edgeCount }, `${nodeCount} 个节点 · ${edgeCount} 条关系`
+    );
 
-    const selectedEdges = useMemo(() => {
-        if (!selected) return [];
-        return edges
-            .filter(edge => edge.source === selected.id || edge.target === selected.id)
-            .map(edge => ({
-                ...edge,
-                outgoing: edge.source === selected.id,
-                peer: edge.source === selected.id ? edge.target : edge.source
-            }));
-    }, [edges, selected]);
-
-    useEffect(() => { setSelected(null); }, [projectId, view, hideDeprecated]);
-
+    const graphLabel = t('projects.tabGraph', null, '攻击路径');
+    const factSelected = selected && selected.type !== 'missing' && !selected.id.startsWith('vuln:');
     return (
         <SectionCard
-            title={t('projects.tabGraph', null, '攻击路径')}
-            description={t('projects.graphToolbarHint', null, '攻击路径图箭头与事实存储方向一致（source → target）')}
+            title={graphLabel}
+            className="project-graph-card"
             extra={(
                 <Space>
-                    <Text type="tertiary" size="small">
-                        {t('projects.graphStats', { nodes: nodes.length, edges: edges.length }, `节点: ${nodes.length} | 边: ${edges.length}`)}
-                    </Text>
-                    <Button icon={<IconRefresh />} theme="borderless" loading={graph.loading} onClick={() => { graph.reload(); onChanged?.(); }} />
+                    <Text type="tertiary" size="small">{stats(nodes.length, edges.length)}</Text>
+                    <Button
+                        icon={<IconRefresh />}
+                        aria-label={t('common.refresh', null, '刷新')}
+                        theme="borderless"
+                        loading={graph.loading}
+                        onClick={refresh}
+                    />
                 </Space>
             )}
         >
             <ErrorBanner error={errorProp(graph.error)} onRetry={graph.reload} />
-            <div className="project-toolbar">
+            <div className="project-toolbar project-graph-toolbar">
                 <Select
                     value={view}
-                    onChange={setView}
-                    style={{ width: 150 }}
+                    aria-label={t('projects.graphScope', null, '关系范围')}
+                    onChange={next => { setSelectedId(''); setView(next); }}
+                    style={{ width: 134 }}
                     optionList={[
                         { value: 'path', label: t('projects.graphViewPath', null, '攻击路径') },
                         { value: 'full', label: t('projects.graphViewFull', null, '完整关系') }
                     ]}
                 />
-                <Input
-                    prefix={<IconSearch />}
-                    value={search}
-                    showClear
-                    placeholder={t('projects.graphSearchPlaceholder', null, '搜索节点…')}
-                    aria-label={t('projects.graphSearchSr', null, '搜索节点')}
-                    onChange={setSearch}
-                    style={{ width: 240 }}
-                />
-                <Checkbox checked={hideDeprecated} onChange={event => setHideDeprecated(event.target.checked)}>
+                <GraphSearch nodes={nodes} onSelect={openNode} t={t} />
+                <Checkbox checked={hideDeprecated} onChange={event => {
+                    setSelectedId('');
+                    setHideDeprecated(event.target.checked);
+                }}>
                     {t('projects.hideDeprecated', null, '隐藏废弃')}
                 </Checkbox>
-                <Button
-                    theme="borderless"
-                    disabled={!graph.data}
-                    onClick={() => cyRef.current?.fit(undefined, 36)}
-                >
-                    {t('projects.graphCenter', null, '居中')}
-                </Button>
-                <Button theme="borderless" onClick={() => setShowEdges(value => !value)}>
-                    {t('projects.graphEdgesTitle', null, '关系边')}（{edges.length}）
+                <Button className="project-graph-edges-toggle" aria-expanded={showEdges} onClick={() => setShowEdges(value => !value)}>
+                    {t('projects.graphEdgesTitle', null, '关系边')}
                 </Button>
             </div>
-
-            {!graph.loading && !nodes.length ? (
+            {nodes.length > 0 ? (
+                <>
+                    <div className="project-graph-status">
+                        {selected ? (
+                            <>
+                                <Button size="small" theme="light" type="primary" onClick={() => setSelectedId('')}>
+                                    {t('projects.graphBackToOverview', null, '返回全图')}
+                                </Button>
+                                <Text size="small" aria-live="polite">
+                                    {t('projects.graphFocus', { stats: stats(shownNodes.length, shownEdges.length) }, `聚焦直接关系 · ${stats(shownNodes.length, shownEdges.length)}`)}
+                                </Text>
+                            </>
+                        ) : (
+                            <Text type="tertiary" size="small">
+                                {t('projects.graphOverviewHint', null, '点选节点查看直接关系，放大后显示更多标签。')}
+                            </Text>
+                        )}
+                    </div>
+                    <div className={`project-graph-layout${selected && shownNodes.length <= 6 ? ' is-compact' : ''}`}>
+                        <div className="project-graph-viewport">
+                            <FactGraphCanvas
+                                nodes={shownNodes}
+                                edges={shownEdges}
+                                selectedId={selected?.id}
+                                onSelect={openNode}
+                                chartRef={chartRef}
+                                label={t('projects.graphCanvas', null, '攻击路径画布')}
+                                errorText={t('projects.graphRenderError', null, '图谱加载失败，请刷新重试。')}
+                            />
+                            <div className="project-graph-footer">
+                                <div className="project-graph-legend">
+                                    {types.map(type => (
+                                        <span key={type}>
+                                            <i aria-hidden="true" style={{ background: NODE_COLORS[type] }} />
+                                            {typeLabel(type)}
+                                        </span>
+                                    ))}
+                                    {shownEdges.some(edge => edge.confidence === 'tentative') && (
+                                        <span><i className="project-graph-legend-dash" aria-hidden="true" />{t('projects.graphTentativeEdge', null, '待确认关系')}</span>
+                                    )}
+                                </div>
+                                <Space spacing={4}>
+                                    <Button size="small" icon={<IconMinus />} aria-label={t('projects.graphZoomOut', null, '缩小')} onClick={() => chartRef.current?.zoom(1 / 1.3)} />
+                                    <Button size="small" icon={<IconPlus />} aria-label={t('projects.graphZoomIn', null, '放大')} onClick={() => chartRef.current?.zoom(1.3)} />
+                                    <Button size="small" onClick={() => chartRef.current?.fit()}>{t('projects.graphFit', null, '适合画布')}</Button>
+                                </Space>
+                            </div>
+                        </div>
+                        {selected && (
+                            <aside ref={sideRef} className="project-graph-side" aria-label={t('projects.graphNodeDetails', null, '节点详情')}>
+                                <div className="project-detail-stack">
+                                    <div>
+                                        <Text strong>{nodeTitle(selected)}</Text>
+                                        <code className="project-graph-node-key" dir="auto">{selected.fact_key || selected.id}</code>
+                                        <div className="project-graph-side-tags">
+                                            <Tag size="small" color="blue" type="light">{typeLabel(selected.type)}</Tag>
+                                            <Tag size="small" color={CONFIDENCE_META[selected.confidence]?.color || 'grey'}>
+                                                {CONFIDENCE_META[selected.confidence]
+                                                    ? t(`projects.graphConfidence.${selected.confidence}`, null, CONFIDENCE_META[selected.confidence].label)
+                                                    : selected.confidence || '—'}
+                                            </Tag>
+                                        </div>
+                                    </div>
+                                    {factSelected && (
+                                        <Space>
+                                            <Button size="small" onClick={() => onOpenFact(selected.fact_key)}>{t('projects.details', null, '详情')}</Button>
+                                            <Button size="small" disabled={!canWrite} onClick={() => onEditFact(selected.fact_key)}>
+                                                {t('common.edit', null, '编辑')}
+                                            </Button>
+                                        </Space>
+                                    )}
+                                    <div>
+                                        <Text strong size="small">{t('projects.graphDirectLinks', null, '直接关系')} · {shownEdges.length}</Text>
+                                        {shownEdges.length ? (
+                                            <ul className="project-graph-neighbors">
+                                                {shownEdges.map((edge, index) => {
+                                                    const outgoing = edge.source === selected.id;
+                                                    const peer = byId.get(outgoing ? edge.target : edge.source);
+                                                    return (
+                                                        <li key={edge.id || index}>
+                                                            <div className="project-graph-edge-meta">
+                                                                <span>{outgoing ? '→' : '←'} {outgoing ? t('projects.graphEdgeOutgoing', null, '出边') : t('projects.graphEdgeIncoming', null, '入边')}</span>
+                                                                <code>{edge.type}</code>
+                                                                {edge.confidence === 'tentative' && <span>{t('projects.graphConfidence.tentative', null, '待确认')}</span>}
+                                                            </div>
+                                                            <button type="button" className="project-graph-peer project-link-button" onClick={() => openNode(peer.id)} title={peer.fact_key}>
+                                                                {nodeTitle(peer)}
+                                                            </button>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        ) : <div><Text type="tertiary" size="small">{t('projects.graphEdgesEmpty', null, '暂无关系边')}</Text></div>}
+                                    </div>
+                                </div>
+                            </aside>
+                        )}
+                    </div>
+                </>
+            ) : graph.loading ? (
+                <div className="project-graph-loading"><Spin /></div>
+            ) : currentGraph && !graph.error ? (
                 <Empty
                     title={t('projects.graphEmptyTitle', null, '构建攻击路径图')}
                     description={t('projects.graphEmpty', null, '暂无路径图数据。为 finding/exploit 类事实添加关系边（discovered_on → target/*）后将在此展示。')}
@@ -297,59 +307,7 @@ export default function FactGraphPanel({
                         {t('projects.graphEmptyCta', null, '添加第一条事实')}
                     </Button>
                 </Empty>
-            ) : (
-                <div className="project-graph-layout">
-                    <GraphCanvas
-                        graph={graph.data}
-                        search={search}
-                        onSelect={setSelected}
-                        onReady={instance => { cyRef.current = instance; }}
-                    />
-                    <div className={`project-graph-side${selected ? ' is-open' : ''}`}>
-                        {selected ? (
-                            <div className="project-detail-stack">
-                                <div>
-                                    <Text strong>{selected.fact_key}</Text>
-                                    <div className="project-graph-side-tags">
-                                        <Tag size="small" color="blue" type="light">{NODE_TYPE_LABEL[selected.type] || selected.type}</Tag>
-                                        <Tag size="small" color={(CONFIDENCE_META[selected.confidence] || {}).color || 'grey'}>
-                                            {(CONFIDENCE_META[selected.confidence] || {}).label || selected.confidence || '—'}
-                                        </Tag>
-                                    </div>
-                                </div>
-                                <Text type="tertiary" size="small">{selected.summary || '—'}</Text>
-                                <div>
-                                    <Text strong size="small">{t('projects.graphEdgesTitle', null, '关系边')}</Text>
-                                    {selectedEdges.length ? (
-                                        <ul className="project-link-list">
-                                            {selectedEdges.map(edge => (
-                                                <li key={edge.id}>
-                                                    <span className="project-graph-edge-dir">
-                                                        {edge.outgoing
-                                                            ? t('projects.graphEdgeOutgoing', null, '出边')
-                                                            : t('projects.graphEdgeIncoming', null, '入边')}
-                                                    </span>
-                                                    <code>{edge.type}</code>
-                                                    {' '}
-                                                    <span title={edge.peer}>{edge.outgoing ? '→' : '←'} {edge.peer}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    ) : <Text type="tertiary" size="small">{t('projects.graphEdgesEmpty', null, '暂无关系边')}</Text>}
-                                </div>
-                                <Space>
-                                    <Button size="small" onClick={() => onOpenFact(selected.fact_key)}>{t('projects.details', null, '详情')}</Button>
-                                    <Button size="small" disabled={!canWrite} onClick={() => onEditFact(selected.fact_key)}>
-                                        {t('common.edit', null, '编辑')}
-                                    </Button>
-                                </Space>
-                            </div>
-                        ) : (
-                            <Text type="tertiary" size="small">点击节点查看事实详情</Text>
-                        )}
-                    </div>
-                </div>
-            )}
+            ) : null}
 
             {showEdges ? (
                 <div className="project-edge-table">

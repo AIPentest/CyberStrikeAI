@@ -220,7 +220,7 @@ export default function ProjectsPage() {
             <ErrorBanner error={errorProp(overview.error)} onRetry={overview.reload} />
             <StatGrid metrics={metrics} columns={4} />
 
-            <div className="project-layout">
+            <div className={`project-layout${selectedId && activeTab === 'graph' ? ' project-layout--graph' : ''}`}>
                 <SectionCard
                     title={t('projects.projectList', null, '项目列表')}
                     className="project-list-card"

@@ -63,50 +63,52 @@ export default function ProjectDetail({ projectId, tab, refreshToken = 0, onTabC
 
     return (
         <div className="project-detail">
-            <ErrorBanner error={errorProp(project.error)} onRetry={project.reload} />
-            <SectionCard className="project-detail-head">
-                <div className="project-detail-head-main">
-                    <div className="project-detail-title-row">
-                        <Title heading={4} className="project-detail-title">
-                            {current?.name || t('projects.projectNotFound', null, '项目不存在')}
-                        </Title>
-                        {current?.pinned ? <Tag size="small" color="blue">{t('projects.pinned', null, '置顶')}</Tag> : null}
-                        <Tag size="small" color={(current?.status || 'active') === 'archived' ? 'grey' : 'green'}>
-                            {(current?.status || 'active') === 'archived'
-                                ? t('projects.statusArchived', null, '已归档')
-                                : t('projects.statusActive', null, '进行中')}
-                        </Tag>
+            <div className="project-detail-summary">
+                <ErrorBanner error={errorProp(project.error)} onRetry={project.reload} />
+                <SectionCard className="project-detail-head">
+                    <div className="project-detail-head-main">
+                        <div className="project-detail-title-row">
+                            <Title heading={4} className="project-detail-title">
+                                {current?.name || t('projects.projectNotFound', null, '项目不存在')}
+                            </Title>
+                            {current?.pinned ? <Tag size="small" color="blue">{t('projects.pinned', null, '置顶')}</Tag> : null}
+                            <Tag size="small" color={(current?.status || 'active') === 'archived' ? 'grey' : 'green'}>
+                                {(current?.status || 'active') === 'archived'
+                                    ? t('projects.statusArchived', null, '已归档')
+                                    : t('projects.statusActive', null, '进行中')}
+                            </Tag>
+                        </div>
+                        {current?.description
+                            ? <Paragraph className="project-detail-desc">{current.description}</Paragraph>
+                            : <Text type="tertiary" size="small">{t('projects.noProjectDescription', null, '暂无项目描述')}</Text>}
+                        <Text type="tertiary" size="small">
+                            {t('projects.updatedPrefix', { time: formatDateTime(current?.updated_at) }, `更新于 ${formatDateTime(current?.updated_at)}`)}
+                            {' · '}ID: <code>{projectId}</code>
+                        </Text>
                     </div>
-                    {current?.description
-                        ? <Paragraph className="project-detail-desc">{current.description}</Paragraph>
-                        : <Text type="tertiary" size="small">{t('projects.noProjectDescription', null, '暂无项目描述')}</Text>}
-                    <Text type="tertiary" size="small">
-                        {t('projects.updatedPrefix', { time: formatDateTime(current?.updated_at) }, `更新于 ${formatDateTime(current?.updated_at)}`)}
-                        {' · '}ID: <code>{projectId}</code>
-                    </Text>
-                </div>
-                <Space>
-                    <Button
-                        icon={<IconRefresh />}
-                        theme="borderless"
-                        loading={project.loading || stats.loading}
-                        onClick={() => { project.reload(); stats.reload(); }}
-                    />
-                    <Button type="primary" disabled={!canWrite} onClick={() => openFactForm('')}>
-                        {t('projects.addFactCta', null, '+ 添加事实')}
-                    </Button>
-                </Space>
-            </SectionCard>
+                    <Space>
+                        <Button
+                            icon={<IconRefresh />}
+                            theme="borderless"
+                            loading={project.loading || stats.loading}
+                            onClick={() => { project.reload(); stats.reload(); }}
+                        />
+                        <Button type="primary" disabled={!canWrite} onClick={() => openFactForm('')}>
+                            {t('projects.addFactCta', null, '+ 添加事实')}
+                        </Button>
+                    </Space>
+                </SectionCard>
 
-            <StatGrid metrics={metrics} columns={4} />
+                <StatGrid metrics={metrics} columns={4} />
 
-            <Tabs
-                type="line"
-                tabList={tabList}
-                activeKey={tab || 'facts'}
-                onChange={key => onTabChange?.(key)}
-                className="project-tabs"
-            />
+                <Tabs
+                    type="line"
+                    tabList={tabList}
+                    activeKey={tab || 'facts'}
+                    onChange={key => onTabChange?.(key)}
+                    className="project-tabs"
+                />
+            </div>
 
             {(!tab || tab === 'facts') && (
                 <FactsPanel
