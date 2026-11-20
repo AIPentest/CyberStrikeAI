@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-    Button, Checkbox, Form, Input, Modal, Space, Tabs, Tag, Typography
+    Button, Checkbox, Form, Input, Space, Tabs, Tag, Typography
 } from '@douyinfe/semi-ui';
 import { IconDelete, IconEdit, IconPlus, IconRefresh } from '@douyinfe/semi-icons';
 import { api } from '../../lib/http';
@@ -8,7 +8,7 @@ import { useAuth } from '../../lib/auth';
 import { useT } from '../../lib/i18n';
 import { useResource } from '../../components/hooks';
 import {
-    DataTable, ErrorBanner, PageHeader, SectionCard, confirmAction, toastError, toastSuccess
+    Drawer, DataTable, ErrorBanner, PageHeader, SectionCard, confirmAction, toastError, toastSuccess
 } from '../../components/ui';
 
 import ResourceGrant from './ResourceGrant';
@@ -247,7 +247,7 @@ export default function PlatformRbacPage() {
                 }} />
             )}
 
-            <Modal
+            <Drawer
                 title={roleEditor?.role ? '编辑角色' : '新建角色'}
                 visible={Boolean(roleEditor)}
                 key={roleEditor?.role?.id || 'new-rbac-role'}
@@ -281,9 +281,9 @@ export default function PlatformRbacPage() {
                         </Form.Slot>
                     </Form>
                 )}
-            </Modal>
+            </Drawer>
 
-            <Modal
+            <Drawer
                 title={userEditor?.user ? '编辑用户' : '新建用户'}
                 visible={Boolean(userEditor)}
                 key={userEditor?.user?.id || 'new-rbac-user'}
@@ -309,7 +309,7 @@ export default function PlatformRbacPage() {
                         <Form.Slot label="启用"><Form.Switch field="enabled" /></Form.Slot>
                     </Form>
                 )}
-            </Modal>
+            </Drawer>
         </div>
     );
 }

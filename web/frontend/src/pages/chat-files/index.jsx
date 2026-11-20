@@ -2,13 +2,13 @@
  * 对话附件管理：列表/分页/搜索、文件夹浏览、上传、建目录、预览、下载、导出与删除。
  */
 import { useMemo, useRef, useState } from 'react';
-import { Button, Input, Modal, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
+import { Button, Input, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import { IconPlus, IconRefresh, IconSearch, IconUpload } from '@douyinfe/semi-icons';
 import { useAuth } from '../../lib/auth';
 import { useT } from '../../lib/i18n';
 import { useDebounced, useResource } from '../../components/hooks';
 import {
-    PageHeader, SectionCard, DataTable, ErrorBanner,
+    Drawer, PageHeader, SectionCard, DataTable, ErrorBanner,
     confirmAction, toastError, toastSuccess, toastWarning
 } from '../../components/ui';
 import { formatBytes, formatDateTime } from '../../lib/format';
@@ -402,7 +402,7 @@ export default function ChatFilesPage() {
 
             <PreviewDrawer item={preview} onClose={() => setPreview(null)} />
 
-            <Modal
+            <Drawer
                 visible={Boolean(mkdir)}
                 title={t('chatFilesPage.newFolderTitle', null, '新建文件夹')}
                 width={420}
@@ -418,7 +418,7 @@ export default function ChatFilesPage() {
                     placeholder={t('chatFilesPage.newFolderNamePlaceholder', null, '仅名称，不含 /')}
                     style={{ marginTop: 8 }}
                 />
-            </Modal>
+            </Drawer>
         </div>
     );
 }

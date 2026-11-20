@@ -19,7 +19,7 @@ export function GraphNodeIcon({ type }) {
     return <span className="graph-node-icon" aria-hidden="true"><Icon size="small" /></span>;
 }
 
-export function GraphNodeCard({ id, title, type, category, color, factKey, boundary, ports = [], selected, card, onSelect }) {
+export function GraphNodeCard({ id, title, type, category, color, factKey, boundary, ports = [], selected, card, onSelect, onPreview }) {
     const { density, box } = card;
     const detail = density === 'detail';
     const textScale = Math.min(Math.max(box.width / CARD_WIDTH, 1), 1.6);
@@ -35,6 +35,10 @@ export function GraphNodeCard({ id, title, type, category, color, factKey, bound
             data-wrap={density === 'standard' && box.height >= 50 || undefined}
             style={{ ...box, '--graph-node-color': color, '--graph-node-text-scale': textScale }}
             onClick={() => onSelect(id)}
+            onMouseEnter={() => onPreview?.(id, true)}
+            onMouseLeave={() => onPreview?.(id, false)}
+            onFocus={() => onPreview?.(id, true)}
+            onBlur={() => onPreview?.(id, false)}
         >
             <span className="graph-node-content">
                 {density !== 'compact' && (

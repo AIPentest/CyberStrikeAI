@@ -765,7 +765,29 @@
     "currentVersion": "Текущая версия",
     "linkVulnerability": "Связать уязвимость",
     "createVulnerabilityDraft": "Создать черновик уязвимости",
-    "generatedFromFact": "Создано из факта проекта {{factKey}}"
+    "generatedFromFact": "Создано из факта проекта {{factKey}}",
+    "graphOverviewHint": "Выберите узел, чтобы увидеть его описание и связи.",
+    "graphFullOverview": "Общий вид",
+    "graphReadingHint": "Размер текста сохранён. Перетащите холст, чтобы увидеть другие узлы.",
+    "graphFullOverviewHint": "Наведите указатель для просмотра краткого описания, нажмите для подробностей.",
+    "graphScope": "Область связей",
+    "graphSearchCount": "Узлы · {{count}}",
+    "graphNoMatches": "Подходящие узлы не найдены",
+    "graphBackToOverview": "К общему виду",
+    "graphFocus": "Прямые связи · {{stats}}",
+    "graphCanvas": "Граф путей атаки",
+    "graphRenderError": "Не удалось загрузить граф. Обновите страницу.",
+    "graphTentativeEdge": "Предварительная связь",
+    "graphZoomOut": "Уменьшить",
+    "graphZoomIn": "Увеличить",
+    "graphFit": "Уместить на экране",
+    "graphNodeDetails": "Сведения об узле",
+    "graphDirectLinks": "Прямые связи",
+    "graphConfidence": {
+      "confirmed": "Подтверждено",
+      "tentative": "Предварительно",
+      "deprecated": "Устарело"
+    }
   },
   "chat": {
     "defaultWorkspace": "Рабочая область по умолчанию",

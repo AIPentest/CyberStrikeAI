@@ -28,7 +28,7 @@ function denseGraph() {
     return { nodes: [...targets, ...infra, ...findings, ...chains, ...vulns], edges };
 }
 
-test('project graph: dense overview keeps labels legible and search follows the stored connections', async ({ page, mockApi }, testInfo) => {
+test('project graph: readable fit, full overview previews and search work with a dense graph', async ({ page, mockApi }, testInfo) => {
     const graph = denseGraph();
     const selected = graph.nodes.find(node => node.id === 'finding/sample-0');
     const detail = { ...selected, body: '匿名事实正文，用于验证详情入口。' };
@@ -43,20 +43,55 @@ test('project graph: dense overview keeps labels legible and search follows the 
     await expect(main.getByText('节点: 127 | 边: 141', { exact: true })).toBeVisible();
 
     const reads = mockApi.calls('GET', graphPath).length;
+    const fit = main.getByRole('button', { name: '适合画布' });
+    const summaryCard = canvas.locator('.graph-node--detail').filter({ hasText: /^发现/ }).first();
+    await expect(fit).toHaveAttribute('aria-pressed', 'true');
+    await expect(summaryCard.locator('.graph-node-title')).toHaveCSS('font-size', '15px');
+
+    const overview = main.getByRole('button', { name: '全图总览', exact: true });
+    await overview.click();
+    await expect(overview).toHaveAttribute('aria-pressed', 'true');
+    await expect(canvas.locator('.graph-node--compact').first()).toBeVisible();
     const boxes = await labels.evaluateAll(items => items.map(item => {
         const { left, top, right, bottom } = item.getBoundingClientRect();
         return { left, top, right, bottom, fontSize: getComputedStyle(item).fontSize };
     }));
     expect(boxes.length).toBeGreaterThan(4);
     expect(boxes.length).toBeLessThanOrEqual(graph.nodes.length);
-    await expect(canvas.locator('.graph-node--compact').first()).toBeVisible();
     for (const [index, box] of boxes.entries()) {
         expect(box.fontSize).toBe('14px');
         for (const other of boxes.slice(index + 1)) {
             expect(box.left < other.right && box.right > other.left && box.top < other.bottom && box.bottom > other.top).toBe(false);
         }
     }
+    await expect(canvas.getByRole('button', { name: selected.label, exact: true })).toHaveCount(0);
+    await canvas.scrollIntoViewIfNeeded();
+    const point = await canvas.locator('.project-graph-canvas').evaluate((element, id) => {
+        const { x, y } = element._cyreg.cy.$id(id).renderedPosition();
+        const bounds = element.getBoundingClientRect();
+        return { x: bounds.left + x, y: bounds.top + y };
+    }, selected.id);
+    await page.mouse.move(point.x, point.y);
+    const preview = canvas.getByRole('tooltip');
+    await expect(preview.getByText(selected.label, { exact: true })).toBeVisible();
+    await expect(preview.getByText(selected.fact_key, { exact: true })).toBeVisible();
     await main.locator('.project-graph-card').screenshot({ path: testInfo.outputPath('project-graph-overview.png') });
+
+    await fit.click();
+    await expect(fit).toHaveAttribute('aria-pressed', 'true');
+    await expect(preview).toHaveCount(0);
+    await expect(summaryCard.locator('.graph-node-title')).toHaveCSS('font-size', '15px');
+    await main.locator('.project-graph-card').screenshot({ path: testInfo.outputPath('project-graph-readable-fit.png') });
+
+    await canvas.scrollIntoViewIfNeeded();
+    const anchor = canvas.getByRole('button', { name: '示例入口 1', exact: true });
+    const beforeDrag = await anchor.boundingBox();
+    const bounds = await canvas.boundingBox();
+    await page.mouse.move(bounds.x + 12, bounds.y + 12);
+    await page.mouse.down();
+    await page.mouse.move(bounds.x + 72, bounds.y + 28, { steps: 4 });
+    await page.mouse.up();
+    await expect.poll(async () => (await anchor.boundingBox()).x).toBeGreaterThan(beforeDrag.x + 30);
 
     const search = main.getByRole('textbox', { name: '搜索节点' });
     await search.fill('不匹配的节点');

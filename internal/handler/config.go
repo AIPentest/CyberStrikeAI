@@ -2150,7 +2150,9 @@ func (h *ConfigHandler) saveConfig() error {
 	updateAgentConfig(root, h.config.Agent)
 	updateAgentRuntimeConfig(root, h.config.AgentRuntime)
 	updateMCPConfig(root, h.config.MCP)
-	updateAIConfig(root, h.config.AI)
+	if err := updateAIConfig(root, h.config.AI); err != nil {
+		return err
+	}
 	removeKeyFromMap(root.Content[0], "openai")
 	updateVisionConfig(root, h.config.Vision)
 	updateUpdateSourceConfig(root, h.config.Update)
@@ -2377,7 +2379,7 @@ func updateOpenAIConfig(doc *yaml.Node, cfg config.OpenAIConfig) {
 	}
 }
 
-func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) {
+func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) error {
 	root := doc.Content[0]
 	aiNode := ensureMap(root, "ai")
 	if strings.TrimSpace(cfg.DefaultChannel) != "" {
@@ -2448,10 +2450,17 @@ func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) {
 		if strings.TrimSpace(ch.Reasoning.Profile) != "" {
 			setStringInMap(rn, "profile", ch.Reasoning.Profile)
 		}
+		if len(ch.Reasoning.ExtraRequestFields) > 0 {
+			_, value := ensureKeyValue(rn, "extra_request_fields")
+			if err := value.Encode(ch.Reasoning.ExtraRequestFields); err != nil {
+				return fmt.Errorf("保存 AI 通道 %s 的扩展请求字段失败: %w", id, err)
+			}
+		}
 		if len(rn.Content) == 0 {
 			removeKeyFromMap(channelNode, "reasoning")
 		}
 	}
+	return nil
 }
 
 func updateFOFAConfig(doc *yaml.Node, cfg config.FofaConfig) {

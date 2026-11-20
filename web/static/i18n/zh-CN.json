@@ -787,7 +787,29 @@
     "currentVersion": "当前版本",
     "linkVulnerability": "关联漏洞",
     "createVulnerabilityDraft": "生成漏洞草稿",
-    "generatedFromFact": "由项目事实 {{factKey}} 生成"
+    "generatedFromFact": "由项目事实 {{factKey}} 生成",
+    "graphOverviewHint": "点选节点查看直接关系和摘要。",
+    "graphFullOverview": "全图总览",
+    "graphReadingHint": "已保留可读字号，拖动画布浏览其他节点。",
+    "graphFullOverviewHint": "悬停预览节点摘要，点选查看详情。",
+    "graphScope": "关系范围",
+    "graphSearchCount": "{{count}} 个节点",
+    "graphNoMatches": "未找到匹配节点",
+    "graphBackToOverview": "返回全图",
+    "graphFocus": "聚焦直接关系 · {{stats}}",
+    "graphCanvas": "攻击路径画布",
+    "graphRenderError": "图谱加载失败，请刷新重试。",
+    "graphTentativeEdge": "待确认关系",
+    "graphZoomOut": "缩小",
+    "graphZoomIn": "放大",
+    "graphFit": "适合画布",
+    "graphNodeDetails": "节点详情",
+    "graphDirectLinks": "直接关系",
+    "graphConfidence": {
+      "confirmed": "已确认",
+      "tentative": "待确认",
+      "deprecated": "已废弃"
+    }
   },
   "chat": {
     "defaultWorkspace": "默认工作区",

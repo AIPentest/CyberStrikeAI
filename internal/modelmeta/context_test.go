@@ -201,6 +201,27 @@ func TestDetectContextVLLMModels(t *testing.T) {
 	}
 }
 
+func TestDetectContextWindowFromModelList(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/models", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": []map[string]any{
+				{"id": "other-model", "context_window": 32768},
+				{"id": "deepseek-flash", "owned_by": "deepseek", "context_window": 1048576},
+			},
+		})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	info := DetectContext(context.Background(), srv.URL, "deepseek-flash", "", srv.Client())
+	if info.Backend != BackendOpenAICompatible || info.ContextWindow != 1048576 ||
+		info.Source != "openai_models_context_window" || len(info.Warnings) != 0 {
+		t.Fatalf("unexpected info: %+v", info)
+	}
+}
+
 func TestDetectContextOMLXAndVLLMIdentity(t *testing.T) {
 	for _, tc := range []struct {
 		name, owner, backend, source string

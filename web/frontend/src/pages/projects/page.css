@@ -216,11 +216,49 @@
         color-mix(in srgb, var(--semi-color-bg-1) 96%, #537cba);
     overflow: hidden;
 }
-.project-graph-canvas { width: 100%; height: 100%; }
+.project-graph-canvas { width: 100%; height: 100%; cursor: grab; }
+.project-graph-canvas:active { cursor: grabbing; }
 .project-graph-overlay { position: absolute; inset: 0; }
 .project-graph-overlay, .project-graph-loading { display: grid; place-items: center; }
 .project-graph-overlay { padding: 16px; color: var(--semi-color-danger); background: var(--semi-color-bg-1); }
 .project-graph-loading { min-height: 180px; }
+.project-graph-node-preview {
+    position: absolute;
+    box-sizing: border-box;
+    z-index: 2;
+    display: grid;
+    gap: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--semi-color-border);
+    border-radius: 8px;
+    background: var(--semi-color-bg-1);
+    box-shadow: 0 6px 20px rgba(20, 31, 53, .17);
+    color: var(--semi-color-text-0);
+    pointer-events: none;
+}
+.project-graph-preview-type {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--semi-color-text-1);
+    font-size: 12px;
+}
+.project-graph-node-preview strong {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 5;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    font-size: 14px;
+    line-height: 1.45;
+}
+.project-graph-node-preview code {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--semi-color-text-2);
+    font-size: 12px;
+}
 .project-graph-footer {
     display: flex;
     flex-wrap: wrap;
@@ -228,6 +266,10 @@
     justify-content: space-between;
     gap: 8px 12px;
     margin-top: 8px;
+}
+.project-graph-footer .semi-button[aria-pressed="true"] {
+    background: var(--semi-color-primary-light-default);
+    color: var(--semi-color-primary);
 }
 .project-graph-legend {
     display: flex;

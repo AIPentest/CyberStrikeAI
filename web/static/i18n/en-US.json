@@ -799,7 +799,29 @@
     "currentVersion": "Current version",
     "linkVulnerability": "Link vulnerability",
     "createVulnerabilityDraft": "Create vulnerability draft",
-    "generatedFromFact": "Generated from project fact {{factKey}}"
+    "generatedFromFact": "Generated from project fact {{factKey}}",
+    "graphOverviewHint": "Select a node to see its summary and connections.",
+    "graphFullOverview": "Full overview",
+    "graphReadingHint": "Text stays readable. Drag the canvas to browse more nodes.",
+    "graphFullOverviewHint": "Hover to preview a node. Select it to see its details.",
+    "graphScope": "Relationship scope",
+    "graphSearchCount": "{{count}} nodes",
+    "graphNoMatches": "No matching nodes",
+    "graphBackToOverview": "Back to overview",
+    "graphFocus": "Direct connections · {{stats}}",
+    "graphCanvas": "Attack path canvas",
+    "graphRenderError": "Could not load the graph. Refresh to retry.",
+    "graphTentativeEdge": "Tentative link",
+    "graphZoomOut": "Zoom out",
+    "graphZoomIn": "Zoom in",
+    "graphFit": "Fit to canvas",
+    "graphNodeDetails": "Node details",
+    "graphDirectLinks": "Direct connections",
+    "graphConfidence": {
+      "confirmed": "Confirmed",
+      "tentative": "Tentative",
+      "deprecated": "Deprecated"
+    }
   },
   "chat": {
     "defaultWorkspace": "Default workspace",
