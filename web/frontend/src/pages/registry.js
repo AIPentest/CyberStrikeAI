@@ -12,6 +12,10 @@ export const PAGES = {
     'knowledge-retrieval-logs': lazy(() => import('./knowledge-retrieval-logs')),
     'knowledge-management': lazy(() => import('./knowledge-management')),
     'skills-monitor': lazy(() => import('./skills-monitor')),
+    'skills-management': lazy(() => import('./skills-management')),
+    'agents-management': lazy(() => import('./agents-management')),
+    'roles-management': lazy(() => import('./roles-management')),
     'platform-rbac': lazy(() => import('./platform-rbac')),
     settings: lazy(() => import('./settings')),
+    'api-docs': lazy(() => import('./api-docs')),
 };

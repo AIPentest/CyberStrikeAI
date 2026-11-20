@@ -73,7 +73,7 @@ export default function LoginPage() {
                             {t('login.submit', null, '登录')}
                         </Button>
                     </Form>
-                    <Typography.Text link={{ href: '/' }}>
+                    <Typography.Text link={{ href: '/classic' }}>
                         {t('header.classicWorkspace', null, '返回经典界面')}
                     </Typography.Text>
                     <Text type="tertiary" className="cs-login-note">{t('login.authorizedOnly', null, '仅在明确授权的范围内开展安全测试')}</Text>

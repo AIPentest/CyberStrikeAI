@@ -2,9 +2,9 @@ name: Semi frontend
 
 on:
   push:
-    paths: ['web/frontend/**', 'web/static/app/**', 'web/static/i18n/**', 'web/templates/index.html', '.github/workflows/frontend-build.yml']
+    paths: ['web/frontend/**', 'web/static/app/**', 'web/static/i18n/**', 'web/templates/index.html', 'internal/app/app.go', '.github/workflows/frontend-build.yml']
   pull_request:
-    paths: ['web/frontend/**', 'web/static/app/**', 'web/static/i18n/**', 'web/templates/index.html', '.github/workflows/frontend-build.yml']
+    paths: ['web/frontend/**', 'web/static/app/**', 'web/static/i18n/**', 'web/templates/index.html', 'internal/app/app.go', '.github/workflows/frontend-build.yml']
 
 permissions:
   contents: read
@@ -29,8 +29,8 @@ jobs:
             printf '%s\n' "$changes"
             exit 1
           fi
-      - name: Verify preview entry and build assets
-        run: node --test web/frontend/tests/preview-entry.test.mjs
+      - name: Frontend unit tests and built assets
+        run: node --test web/frontend/tests/*.test.mjs
       - name: Install Chromium for isolated UI tests
         working-directory: web/frontend
         run: npx playwright install --with-deps chromium

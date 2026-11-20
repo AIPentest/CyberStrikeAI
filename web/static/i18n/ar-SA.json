@@ -54,7 +54,7 @@
     "daysAgo": "قبل {{n}} يوم"
   },
   "header": {
-    "semiPreview": "معاينة واجهة Semi",
+    "semiWorkspace": "فتح مساحة عمل Semi",
     "classicWorkspace": "العودة إلى الواجهة الكلاسيكية",
     "title": "CyberStrikeAI",
     "apiDocs": "توثيق API",
@@ -477,6 +477,18 @@
     "usagePartial": "استخدام جزئي"
   },
   "projects": {
+    "graphNodeTypes": {
+      "target": "هدف",
+      "auth": "مصادقة",
+      "infra": "بنية تحتية",
+      "finding": "نتيجة",
+      "chain": "سلسلة هجوم",
+      "exploit": "استغلال",
+      "poc": "تحقق",
+      "vulnerability": "ثغرة",
+      "note": "ملاحظة",
+      "missing": "مفقودة"
+    },
     "title": "المشاريع",
     "showArchived": "عرض المؤرشفة",
     "newProjectCta": "+ مشروع جديد",

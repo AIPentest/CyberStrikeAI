@@ -54,7 +54,7 @@
     "daysAgo": "{{n}} d ago"
   },
   "header": {
-    "semiPreview": "Semi interface preview",
+    "semiWorkspace": "Open Semi workspace",
     "classicWorkspace": "Return to classic interface",
     "title": "CyberStrikeAI",
     "apiDocs": "API Docs",
@@ -477,6 +477,18 @@
     "usagePartial": "Partial usage"
   },
   "projects": {
+    "graphNodeTypes": {
+      "target": "Target",
+      "auth": "Authentication",
+      "infra": "Infrastructure",
+      "finding": "Finding",
+      "chain": "Attack chain",
+      "exploit": "Exploit",
+      "poc": "Validation",
+      "vulnerability": "Vulnerability",
+      "note": "Note",
+      "missing": "Missing"
+    },
     "title": "Projects",
     "showArchived": "Show archived",
     "newProjectCta": "+ New project",

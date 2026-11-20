@@ -30,26 +30,35 @@ test.describe('sign-in integration', () => {
     });
 });
 
-test('preview links keep the classic route and the current session', async ({ page, mockApi }) => {
-    await page.route(url => url.pathname === '/', route => route.fulfill({
+test('existing task links keep their classic route and session', async ({ page, mockApi }) => {
+    await page.route(url => url.pathname === '/classic', route => route.fulfill({
         contentType: 'text/html',
         body: '<title>Classic workspace fixture</title>'
     }));
 
     await visit(page, 'dashboard');
     await page.getByRole('button', { name: label('dashboard.runningConversations', '运行中任务'), exact: true }).click();
-    await expect(page).toHaveURL(/\/#tasks$/);
-
-    await visit(page, 'dashboard');
-    await page.getByRole('button', { name: label('dashboard.tokenUsage', 'Token 用量（7 天）'), exact: true }).click();
-    await expect(page).toHaveURL(/\/#settings\?section=token-usage$/);
+    await expect(page).toHaveURL(/\/classic#tasks$/);
 
     await visit(page, 'dashboard');
     await page.getByRole('button', { name: label('auth.userMenu', '用户菜单'), exact: true }).click();
     await page.getByText(label('header.classicWorkspace', '返回经典界面'), { exact: true }).click();
     await expect(page).toHaveTitle('Classic workspace fixture');
-    await expect(page).toHaveURL(/:5199\/$/);
+    await expect(page).toHaveURL(/\/classic$/);
     expect(await page.evaluate(() => Boolean(localStorage.getItem('cyberstrike-auth')))).toBe(true);
+    expect(mockApi.writes()).toEqual([]);
+});
+
+test('old bookmarks resolve to the matching workspace page', async ({ page, mockApi }) => {
+    await page.route(url => url.pathname === '/classic', route => route.fulfill({
+        contentType: 'text/html',
+        body: '<title>Classic workspace fixture</title>'
+    }));
+    await page.goto('/static/app/#chat?conversation=fixture%20record');
+    await expect(page).toHaveURL(/\/classic#chat\?conversation=fixture%20record$/);
+    await page.goto('/static/app/#system-update');
+    await expect(page).toHaveURL(/#\/settings\?section=update$/);
+    await expect.poll(() => mockApi.calls('GET', '/api/system/update').length).toBeGreaterThan(0);
     expect(mockApi.writes()).toEqual([]);
 });
 

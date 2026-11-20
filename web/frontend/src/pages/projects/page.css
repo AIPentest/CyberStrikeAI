@@ -211,39 +211,16 @@
     height: var(--project-graph-height);
     border: 1px solid var(--semi-color-border);
     border-radius: var(--cs-radius, 10px);
-    background: radial-gradient(circle, var(--semi-color-border) 1px, transparent 1px) 0 0 / 18px 18px var(--semi-color-bg-1);
+    background:
+        radial-gradient(circle, color-mix(in srgb, var(--semi-color-text-2) 19%, transparent) .8px, transparent 1px) 0 0 / 20px 20px,
+        color-mix(in srgb, var(--semi-color-bg-1) 96%, #537cba);
     overflow: hidden;
 }
 .project-graph-canvas { width: 100%; height: 100%; }
-.project-graph-overlay, .project-graph-labels { position: absolute; inset: 0; }
+.project-graph-overlay { position: absolute; inset: 0; }
 .project-graph-overlay, .project-graph-loading { display: grid; place-items: center; }
 .project-graph-overlay { padding: 16px; color: var(--semi-color-danger); background: var(--semi-color-bg-1); }
 .project-graph-loading { min-height: 180px; }
-.project-graph-labels { pointer-events: none; }
-.project-graph-label {
-    position: absolute;
-    height: 23px;
-    padding: 0 7px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    border: 1px solid var(--semi-color-border);
-    border-radius: 5px;
-    background: var(--semi-color-bg-1);
-    color: var(--semi-color-text-0);
-    font-family: inherit;
-    font-weight: 500;
-    font-size: 12px;
-    line-height: 21px;
-    text-align: start;
-    cursor: pointer;
-    pointer-events: auto;
-}
-.project-graph-label:hover, .project-graph-label[aria-pressed="true"] {
-    border-color: var(--semi-color-primary);
-    color: var(--semi-color-primary);
-    background: var(--semi-color-primary-light-default);
-}
 .project-graph-footer {
     display: flex;
     flex-wrap: wrap;
@@ -258,10 +235,9 @@
     flex-wrap: wrap;
     gap: 6px 12px;
     color: var(--semi-color-text-2);
-    font-size: 12px;
+    font-size: 13px;
 }
-.project-graph-legend span { display: inline-flex; align-items: center; gap: 5px; }
-.project-graph-legend i { width: 8px; height: 8px; border-radius: 50%; }
+.project-graph-legend > span { display: inline-flex; align-items: center; gap: 5px; }
 .project-graph-legend .project-graph-legend-dash {
     width: 16px;
     height: 0;

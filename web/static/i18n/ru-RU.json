@@ -54,7 +54,7 @@
     "daysAgo": "{{n}} дн. назад"
   },
   "header": {
-    "semiPreview": "Предпросмотр интерфейса Semi",
+    "semiWorkspace": "Открыть рабочее пространство Semi",
     "classicWorkspace": "Вернуться к классическому интерфейсу",
     "title": "CyberStrikeAI",
     "apiDocs": "Документация API",
@@ -489,6 +489,18 @@
     "usagePartial": "Частичный расход"
   },
   "projects": {
+    "graphNodeTypes": {
+      "target": "Цель",
+      "auth": "Аутентификация",
+      "infra": "Инфраструктура",
+      "finding": "Находка",
+      "chain": "Цепочка атаки",
+      "exploit": "Эксплуатация",
+      "poc": "Проверка",
+      "vulnerability": "Уязвимость",
+      "note": "Заметка",
+      "missing": "Отсутствует"
+    },
     "title": "Проекты",
     "showArchived": "Показывать архив",
     "newProjectCta": "+ Новый проект",

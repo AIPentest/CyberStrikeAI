@@ -199,7 +199,7 @@ function UserMenu({ navigate }) {
                         {
                             node: 'item',
                             name: t('header.classicWorkspace', null, '返回经典界面'),
-                            onClick: () => window.location.assign('/')
+                            onClick: () => window.location.assign('/classic')
                         },
                         {
                             node: 'item',
@@ -276,7 +276,7 @@ export default function AppLayout() {
 
     const onSelect = ({ itemKey }) => {
         const search = location.search;
-        const carry = ['chat', 'vulnerabilities', 'settings', 'deep-assessments'].includes(itemKey) && pageId === itemKey ? search : '';
+        const carry = pageId === itemKey ? search : '';
         navigate(`/${itemKey}${carry}`);
     };
 

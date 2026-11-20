@@ -54,7 +54,7 @@
     "daysAgo": "{{n}} 天前"
   },
   "header": {
-    "semiPreview": "Semi 界面预览",
+    "semiWorkspace": "打开 Semi 工作台",
     "classicWorkspace": "返回经典界面",
     "title": "CyberStrikeAI",
     "apiDocs": "API 文档",
@@ -465,6 +465,18 @@
     "usagePartial": "部分用量"
   },
   "projects": {
+    "graphNodeTypes": {
+      "target": "目标",
+      "auth": "认证",
+      "infra": "基础设施",
+      "finding": "发现",
+      "chain": "攻击链",
+      "exploit": "利用",
+      "poc": "验证",
+      "vulnerability": "漏洞",
+      "note": "备注",
+      "missing": "缺失"
+    },
     "title": "项目管理",
     "showArchived": "显示已归档",
     "newProjectCta": "+ 新建项目",

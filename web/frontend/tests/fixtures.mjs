@@ -11,7 +11,7 @@ export const READ_PERMISSIONS = [
     'tasks:read', 'project:read', 'vulnerability:read', 'asset:read', 'webshell:read',
     'c2:read', 'mcp:read', 'knowledge:read', 'skills:read', 'agents:read', 'roles:read',
     'config:read', 'rbac:read',
-    'notification:read', 'files:read', 'monitor:read'
+    'notification:read', 'files:read', 'monitor:read', 'openapi:read', 'update:read'
 ];
 export const UI_PERMISSIONS = [
     ...READ_PERMISSIONS, 'fofa:execute', 'project:write', 'vulnerability:write'
@@ -86,6 +86,13 @@ function makeReads(session) {
         '/api/knowledge/index-status': { indexed: 0, total: 0, running: false },
         '/api/knowledge/retrieval-logs': { logs: [], total: 0 },
         '/api/skills/stats': { total_skills: 0, total_calls: 0, total_success: 0, stats: [] },
+        '/api/skills': { skills: [], total: 0 },
+        '/api/config': { ai: { channels: {} }, tools: [] },
+        '/api/config/tools': { tools: [], total: 0 },
+        '/api/system/update': { status: { installed: true } },
+        '/api/openapi/spec': { paths: {
+            '/api/projects': { get: { summary: '浏览项目', tags: ['项目'], responses: {} } }
+        } },
         '/api/roles': { roles: [{ name: '示例只读角色', description: '匿名角色', tools: [], enabled: true }] },
         '/api/multi-agent/markdown-agents': { agents: [] },
         '/api/hitl/pending': { items: [], total: 0, page: 1, pageSize: 20 },

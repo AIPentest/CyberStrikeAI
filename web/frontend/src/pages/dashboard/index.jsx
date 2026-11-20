@@ -19,7 +19,8 @@ const compactNumber = new Intl.NumberFormat('en', { notation: 'compact', maximum
 async function safe(path, query) {
     try {
         return await api.get(path, query);
-    } catch {
+    } catch (error) {
+        if (error.status === 503 && error.payload?.error === 'c2_disabled') return { enabled: false };
         return null;
     }
 }
@@ -236,7 +237,8 @@ export default function DashboardPage() {
         { id: 'webshell', label: 'WebShell 连接', value: countList(data?.webshell, 'connections'), page: '/webshell' },
         { id: 'listeners', label: 'C2 监听器', value: countList(data?.c2Listeners, 'listeners'), page: '/c2-listeners' },
         { id: 'sessions', label: 'C2 会话', value: countList(data?.c2Sessions, 'sessions', 'items'), page: '/c2-sessions' }
-    ], [data]);
+    ].filter(item => (item.id !== 'listeners' || data?.c2Listeners?.enabled !== false)
+        && (item.id !== 'sessions' || data?.c2Sessions?.enabled !== false)), [data]);
 
     const lastUpdated = data?.loadedAt ? formatDateTime(data.loadedAt) : '—';
     const openProject = id => navigate(`/projects?id=${encodeURIComponent(id)}`);

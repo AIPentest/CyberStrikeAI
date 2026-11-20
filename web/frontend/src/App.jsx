@@ -9,7 +9,6 @@ import { findPage } from './lib/nav';
 import { PAGES } from './pages/registry';
 
 const { Title, Text } = Typography;
-const LEGACY_PAGES = new Set(['chat', 'tasks', 'system-update', 'info-collect', 'hitl', 'c2-sessions']);
 
 function Loading() {
     return (
@@ -31,14 +30,13 @@ function StatusPage({ code, title, description }) {
 
 function LegacyPage({ pageId }) {
     const { search } = useLocation();
-    const href = `/#${pageId}${search}`;
+    const href = `/classic#${pageId}${search}`;
     useEffect(() => { window.location.replace(href); }, [href]);
     return <Loading />;
 }
 
 function PageHost() {
     const { pageId } = useParams();
-    const { search } = useLocation();
     const { hasPermission, hasAnyPermission } = useAuth();
     const t = useT();
     const page = findPage(pageId);
@@ -53,18 +51,17 @@ function PageHost() {
         return true;
     }, [page, hasPermission, hasAnyPermission]);
 
-    const section = new URLSearchParams(search).get('section');
-    if (LEGACY_PAGES.has(pageId) || (pageId === 'settings' && section && section !== 'models')) {
-        return <LegacyPage pageId={pageId} />;
-    }
     if (!page) {
         return <StatusPage code="404" title={t('common.pageNotFound', null, '页面不存在')} />;
     }
-    if (!Component) {
-        return <StatusPage code="404" title={page.fallback} description={t('common.pagePending', null, '页面尚未注册')} />;
-    }
     if (!allowed) {
         return <StatusPage code="403" title={t('common.forbidden', null, '当前账号没有访问该页面的权限')} />;
+    }
+    if (page.classic) {
+        return <LegacyPage pageId={pageId} />;
+    }
+    if (!Component) {
+        return <StatusPage code="404" title={page.fallback} description={t('common.pagePending', null, '页面尚未注册')} />;
     }
     return (
         <Suspense fallback={<Loading />}>
@@ -81,6 +78,7 @@ export default function App() {
         <Routes>
             <Route element={<AppLayout />}>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/system-update" element={<Navigate to="/settings?section=update" replace />} />
                 <Route path="/:pageId" element={<PageHost />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>

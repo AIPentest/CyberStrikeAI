@@ -20,7 +20,12 @@ const PAGE_READS = {
     'knowledge-retrieval-logs': ['/api/knowledge/retrieval-logs'],
     'knowledge-management': ['/api/knowledge/items', '/api/knowledge/index-status'],
     'skills-monitor': ['/api/skills/stats'],
+    'skills-management': ['/api/skills'],
+    'agents-management': ['/api/multi-agent/markdown-agents'],
+    'roles-management': ['/api/roles'],
     'platform-rbac': ['/api/rbac/metadata', '/api/rbac/roles', '/api/rbac/users', '/api/rbac/resource-assignments'],
+    settings: ['/api/config'],
+    'api-docs': ['/api/openapi/spec'],
 };
 
 async function readsCompleted(mockApi, paths) {
