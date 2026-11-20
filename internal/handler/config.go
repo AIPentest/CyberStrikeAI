@@ -281,7 +281,8 @@ type GetConfigResponse struct {
 	MultiAgent   config.MultiAgentPublic   `json:"multi_agent,omitempty"`
 	C2           config.C2Public           `json:"c2"`
 
-	ImageInputDefaults map[string]bool `json:"image_input_defaults,omitempty"`
+	ImageInputDefaults    map[string]bool `json:"image_input_defaults,omitempty"`
+	ContextWindowDefaults map[string]int  `json:"context_window_defaults,omitempty"`
 }
 
 // ToolConfigInfo 工具配置信息
@@ -377,11 +378,15 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 	}
 
 	imageDefaults := make(map[string]bool)
+	windowDefaults := make(map[string]int)
 	for id, channel := range h.config.AI.Channels {
 		model := channel.ToOpenAIConfig()
 		model.ImageInput = ""
 		if capability := model.ImageInputCapability(); capability != nil {
 			imageDefaults[id] = *capability
+		}
+		if window := model.DefaultContextWindow(); window > 0 {
+			windowDefaults[id] = window
 		}
 	}
 	if len(h.config.AI.Channels) == 0 {
@@ -390,26 +395,30 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 		if capability := model.ImageInputCapability(); capability != nil {
 			imageDefaults[""] = *capability
 		}
+		if window := model.DefaultContextWindow(); window > 0 {
+			windowDefaults[""] = window
+		}
 	}
 
 	response, err := maskedConfigResponse(GetConfigResponse{
-		AgentRuntime:       h.config.AgentRuntime,
-		AI:                 h.config.AI,
-		OpenAI:             h.config.OpenAI,
-		Vision:             h.config.Vision,
-		FOFA:               h.config.FOFA,
-		ZoomEye:            h.config.ZoomEye,
-		Quake:              h.config.Quake,
-		Shodan:             h.config.Shodan,
-		MCP:                h.config.MCP,
-		Tools:              tools,
-		Agent:              h.config.Agent,
-		Hitl:               h.config.Hitl,
-		Knowledge:          h.config.Knowledge,
-		C2:                 h.config.C2.Public(),
-		Robots:             h.config.Robots,
-		MultiAgent:         multiPub,
-		ImageInputDefaults: imageDefaults,
+		AgentRuntime:          h.config.AgentRuntime,
+		AI:                    h.config.AI,
+		OpenAI:                h.config.OpenAI,
+		Vision:                h.config.Vision,
+		FOFA:                  h.config.FOFA,
+		ZoomEye:               h.config.ZoomEye,
+		Quake:                 h.config.Quake,
+		Shodan:                h.config.Shodan,
+		MCP:                   h.config.MCP,
+		Tools:                 tools,
+		Agent:                 h.config.Agent,
+		Hitl:                  h.config.Hitl,
+		Knowledge:             h.config.Knowledge,
+		C2:                    h.config.C2.Public(),
+		Robots:                h.config.Robots,
+		MultiAgent:            multiPub,
+		ImageInputDefaults:    imageDefaults,
+		ContextWindowDefaults: windowDefaults,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "配置序列化失败"})
