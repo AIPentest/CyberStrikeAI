@@ -1,7 +1,62 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { bindGraphCardWheel, CARD_HEIGHT, CARD_WIDTH, GraphNodeCard, visibleGraphCards, zoomGraph } from '../../components/graph-card';
+import { bindGraphCardWheel, CARD_HEIGHT, CARD_WIDTH, GraphNodeCard, GraphNodeIcon, visibleGraphCards, zoomGraph } from '../../components/graph-card';
 import { NODE_COLORS } from './helpers';
 import { projectGraphLayout } from './fact-graph-layout';
+
+const READABLE_ZOOM = 0.78;
+const PREVIEW_WIDTH = 340;
+
+function nodeText(node) {
+    const key = node.fact_key || node.id;
+    const title = (node.summary || (node.label !== '—' && node.label) || key).replace(/\s+/g, ' ').trim() || key;
+    return { key, title };
+}
+
+function fittedViewport(cy, selectedId, mode) {
+    const width = cy.width();
+    const height = cy.height();
+    const nodes = cy.nodes();
+    const elements = cy.elements();
+    const viewport = cy.getFitViewport(elements, Math.min(36, width / 10, height / 10));
+    if (!viewport) return null;
+    if (viewport.zoom > 1) {
+        return { zoom: 1, pan: cy.getCenterPan(elements, 1), view: mode === 'overview' ? mode : 'fitted' };
+    }
+    if (mode === 'overview' || viewport.zoom >= READABLE_ZOOM) {
+        return { ...viewport, view: mode === 'overview' ? mode : 'fitted' };
+    }
+
+    // On dense graphs start at a readable size and keep the focused node or first branch in view.
+    const anchor = selectedId ? cy.$id(selectedId) : nodes.reduce((first, node) => {
+        const point = node.position();
+        const current = first.position();
+        return point.x < current.x || (point.x === current.x && point.y < current.y) ? node : first;
+    }, nodes[0]);
+    const { x, y } = anchor.position();
+    const margin = 24;
+    return {
+        zoom: READABLE_ZOOM,
+        pan: selectedId
+            ? { x: width / 2 - x * READABLE_ZOOM, y: height / 2 - y * READABLE_ZOOM }
+            : { x: margin - (x - CARD_WIDTH / 2) * READABLE_ZOOM, y: margin - (y - CARD_HEIGHT / 2) * READABLE_ZOOM },
+        view: 'reading'
+    };
+}
+
+function previewPosition(cy, node) {
+    const { x, y } = node.renderedPosition();
+    const width = Math.min(PREVIEW_WIDTH, cy.width() - 24);
+    const left = Math.max(12, Math.min(x - width / 2, cy.width() - width - 12));
+    const offset = node.renderedHeight() / 2 + 9;
+    const maxInset = Math.max(8, cy.height() - 164);
+    const clampInset = value => Math.max(8, Math.min(value, maxInset));
+    return {
+        width, left,
+        ...(y <= cy.height() / 2
+            ? { top: clampInset(y + offset) }
+            : { bottom: clampInset(cy.height() - y + offset) })
+    };
+}
 
 const STYLE = [
     {
@@ -87,12 +142,15 @@ function graphElements(nodes, edges, selectedId) {
     };
 }
 
-export default function FactGraphCanvas({ nodes, edges, selectedId, onSelect, chartRef, label, errorText, typeLabel }) {
+export default function FactGraphCanvas({ nodes, edges, selectedId, onSelect, chartRef, label, errorText, typeLabel, onFitChange }) {
     const canvas = useRef(null);
     const nodeLayer = useRef(null);
     const [cards, setCards] = useState([]);
+    const [preview, setPreview] = useState(null);
     const [failed, setFailed] = useState(false);
     const nodeMap = useMemo(() => new Map(nodes.map(node => [node.id, node])), [nodes]);
+
+    const inspectCard = (id, visible) => chartRef.current?.inspect(id, visible);
 
     useEffect(() => {
         const container = canvas.current;
@@ -102,9 +160,10 @@ export default function FactGraphCanvas({ nodes, edges, selectedId, onSelect, ch
         let resize;
         let frame;
         let unbindWheel;
-        let fitted = true;
+        let fittedMode = 'reading';
         let fitting = false;
         setCards([]);
+        setPreview(null);
         setFailed(false);
 
         import('cytoscape').then(({ default: cytoscape }) => {
@@ -128,20 +187,40 @@ export default function FactGraphCanvas({ nodes, edges, selectedId, onSelect, ch
                     setCards(visible.map(card => ({ ...card, ports: ports.get(card.id) })));
                 });
             };
-            const fit = () => {
+            const fit = (mode = 'reading') => {
+                const viewport = fittedViewport(cy, selectedId, mode);
+                if (!viewport) return;
                 fitting = true;
-                fitted = true;
-                cy.fit(cy.elements(), Math.min(56, cy.width() / 8));
-                if (cy.zoom() > 1) cy.zoom(1).center();
+                fittedMode = mode;
+                setPreview(null);
+                cy.viewport({ zoom: viewport.zoom, pan: viewport.pan });
+                onFitChange(viewport.view);
                 fitting = false;
                 place();
             };
-            chartRef.current = { fit, zoom: factor => zoomGraph(cy, factor) };
+            const inspect = (id, visible) => {
+                const node = cy.$id(id);
+                if (visible && node.nonempty()) {
+                    setPreview({ id, box: previewPosition(cy, node) });
+                } else if (!visible) {
+                    setPreview(previous => previous?.id === id ? null : previous);
+                }
+            };
+            chartRef.current = {
+                fit: () => fit(),
+                overview: () => fit('overview'),
+                zoom: factor => zoomGraph(cy, factor),
+                inspect
+            };
             unbindWheel = bindGraphCardWheel(layer, cy);
             cy.on('viewport', () => {
-                if (!fitting) fitted = false;
+                if (!fitting) fittedMode = null;
+                setPreview(null);
                 place();
             });
+            cy.on('zoom', () => { if (!fitting) onFitChange('manual'); });
+            cy.on('mouseover', 'node', event => inspect(event.target.id(), true));
+            cy.on('mouseout', 'node', event => inspect(event.target.id(), false));
             cy.on('tap', 'node', event => onSelect(event.target.id()));
 
             let width = cy.width();
@@ -151,7 +230,7 @@ export default function FactGraphCanvas({ nodes, edges, selectedId, onSelect, ch
                 const nextWidth = cy.width();
                 const nextHeight = cy.height();
                 if (width === nextWidth && height === nextHeight) return;
-                if (fitted) fit();
+                if (fittedMode) fit(fittedMode);
                 else cy.panBy({ x: (nextWidth - width) / 2, y: (nextHeight - height) / 2 });
                 width = nextWidth;
                 height = nextHeight;
@@ -168,8 +247,10 @@ export default function FactGraphCanvas({ nodes, edges, selectedId, onSelect, ch
             cy?.destroy();
             chartRef.current = null;
         };
-    }, [nodes, edges, selectedId, onSelect, chartRef]);
+    }, [nodes, edges, selectedId, onSelect, chartRef, onFitChange]);
 
+    const previewNode = preview && nodeMap.get(preview.id);
+    const previewText = previewNode && nodeText(previewNode);
     return (
         <div className="project-graph-canvas-wrap" role="group" aria-label={label}>
             <div ref={canvas} className="project-graph-canvas" />
@@ -177,8 +258,7 @@ export default function FactGraphCanvas({ nodes, edges, selectedId, onSelect, ch
                 {cards.map(card => {
                     const node = nodeMap.get(card.id);
                     if (!node) return null;
-                    const key = node.fact_key || node.id;
-                    const title = (node.summary || (node.label !== '—' && node.label) || key).replace(/\s+/g, ' ').trim() || key;
+                    const { key, title } = nodeText(node);
                     return (
                         <GraphNodeCard
                             card={card}
@@ -192,10 +272,25 @@ export default function FactGraphCanvas({ nodes, edges, selectedId, onSelect, ch
                             ports={card.ports}
                             selected={node.id === selectedId}
                             onSelect={onSelect}
+                            onPreview={inspectCard}
                         />
                     );
                 })}
             </div>
+            {previewNode && (
+                <div
+                    className="project-graph-node-preview"
+                    role="tooltip"
+                    style={{ ...preview.box, '--graph-node-color': NODE_COLORS[previewNode.type] || NODE_COLORS.missing }}
+                >
+                    <span className="project-graph-preview-type">
+                        <GraphNodeIcon type={previewNode.type} />
+                        {typeLabel(previewNode.type || 'note')}
+                    </span>
+                    <strong dir="auto">{previewText.title}</strong>
+                    <code dir="auto">{previewText.key}</code>
+                </div>
+            )}
             {failed && <div className="project-graph-overlay" role="alert">{errorText}</div>}
         </div>
     );

@@ -88,6 +88,7 @@ export default function FactGraphPanel({
     const [hideDeprecated, setHideDeprecated] = useState(true);
     const [selectedId, setSelectedId] = useState('');
     const [showEdges, setShowEdges] = useState(false);
+    const [fitView, setFitView] = useState('fitted');
     const chartRef = useRef(null);
     const sideRef = useRef(null);
     const scope = `${view}:${hideDeprecated}`;
@@ -158,6 +159,10 @@ export default function FactGraphPanel({
     );
 
     const graphLabel = t('projects.tabGraph', null, '攻击路径');
+    const viewHint = {
+        reading: t('projects.graphReadingHint', null, '已保留可读字号，拖动画布浏览其他节点。'),
+        overview: t('projects.graphFullOverviewHint', null, '悬停预览节点摘要，点选查看详情。')
+    }[fitView];
     const factSelected = selected && selected.type !== 'missing' && !selected.id.startsWith('vuln:');
     return (
         <SectionCard
@@ -211,9 +216,10 @@ export default function FactGraphPanel({
                                     {t('projects.graphFocus', { stats: stats(shownNodes.length, shownEdges.length) }, `聚焦直接关系 · ${stats(shownNodes.length, shownEdges.length)}`)}
                                 </Text>
                             </>
-                        ) : (
+                        ) : null}
+                        {(!selected || viewHint) && (
                             <Text type="tertiary" size="small">
-                                {t('projects.graphOverviewHint', null, '点选节点查看直接关系，放大可查看卡片摘要。')}
+                                {viewHint || t('projects.graphOverviewHint', null, '点选节点查看直接关系和摘要。')}
                             </Text>
                         )}
                     </div>
@@ -226,6 +232,7 @@ export default function FactGraphPanel({
                                 onSelect={openNode}
                                 chartRef={chartRef}
                                 typeLabel={typeLabel}
+                                onFitChange={setFitView}
                                 label={t('projects.graphCanvas', null, '攻击路径画布')}
                                 errorText={t('projects.graphRenderError', null, '图谱加载失败，请刷新重试。')}
                             />
@@ -241,10 +248,23 @@ export default function FactGraphPanel({
                                         <span><i className="project-graph-legend-dash" aria-hidden="true" />{t('projects.graphTentativeEdge', null, '待确认关系')}</span>
                                     )}
                                 </div>
-                                <Space spacing={4}>
+                                <Space spacing={4} wrap>
                                     <Button size="small" icon={<IconMinus />} aria-label={t('projects.graphZoomOut', null, '缩小')} onClick={() => chartRef.current?.zoom(1 / 1.3)} />
                                     <Button size="small" icon={<IconPlus />} aria-label={t('projects.graphZoomIn', null, '放大')} onClick={() => chartRef.current?.zoom(1.3)} />
-                                    <Button size="small" onClick={() => chartRef.current?.fit()}>{t('projects.graphFit', null, '适合画布')}</Button>
+                                    <Button
+                                        size="small"
+                                        aria-pressed={fitView === 'fitted' || fitView === 'reading'}
+                                        onClick={() => chartRef.current?.fit()}
+                                    >
+                                        {t('projects.graphFit', null, '适合画布')}
+                                    </Button>
+                                    <Button
+                                        size="small"
+                                        aria-pressed={fitView === 'overview'}
+                                        onClick={() => chartRef.current?.overview()}
+                                    >
+                                        {t('projects.graphFullOverview', null, '全图总览')}
+                                    </Button>
                                 </Space>
                             </div>
                         </div>
