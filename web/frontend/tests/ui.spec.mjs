@@ -1383,7 +1383,7 @@ test('deep assessment: new-draft drawer retries options, validates and saves wit
     }).toBe(page.viewportSize().width);
     expect((await drawer.boundingBox()).x).toBeGreaterThan(0);
     await expect(drawer).toContainText('示例选项加载失败');
-    mockApi.restore('GET', '/api/deep-assessments/options');
+    mockApi.respond('GET', '/api/deep-assessments/options', { json: { models: [], roles: ['示例角色', '默认'], projects: [PROJECT] } });
     await button(drawer, '重试').click();
     await expect(drawer.locator('.cs-error-banner')).toHaveCount(0);
     await save.click();
@@ -1404,6 +1404,13 @@ test('deep assessment: new-draft drawer retries options, validates and saves wit
     mockApi.respond('GET', `/api/deep-assessments/${ASSESSMENT.id}/events`, { json: { events: [] } });
     await drawer.getByRole('textbox', { name: label('deepAssessments.name', '测评名称'), exact: true }).fill(ASSESSMENT.name);
     await drawer.getByRole('textbox', { name: /目标/ }).fill(ASSESSMENT.objective);
+    const role = drawer.getByRole('combobox', { name: label('deepAssessments.role', '角色') });
+    await expect(role).toHaveText('默认');
+    await role.click();
+    const roleOptions = page.getByRole('listbox').getByRole('option');
+    await expect(roleOptions).toHaveText(['默认', '示例角色']);
+    await roleOptions.getByText('示例角色', { exact: true }).click();
+    await expect(role).toHaveText('示例角色');
     await save.click();
     await expect(page).toHaveURL(/id=fixture-assessment&tab=overview$/);
     await expect(drawer).toHaveCount(0);
@@ -1413,7 +1420,7 @@ test('deep assessment: new-draft drawer retries options, validates and saves wit
     expect(writes).toHaveLength(1);
     expect(writes[0]).toMatchObject({
         method: 'POST', path: '/api/deep-assessments',
-        body: { name: ASSESSMENT.name, objective: ASSESSMENT.objective }
+        body: { name: ASSESSMENT.name, objective: ASSESSMENT.objective, role: '示例角色' }
     });
 });
 
@@ -1472,7 +1479,7 @@ test('deep assessment: create and select a new project without losing the draft'
     const writes = mockApi.writes();
     expect(writes.map(call => call.path)).toEqual(['/api/projects', '/api/projects', '/api/deep-assessments']);
     expect(writes[1].body).toEqual({ name: created.name, description: '' });
-    expect(writes[2].body).toMatchObject({ project_id: created.id, objective: ASSESSMENT.objective });
+    expect(writes[2].body).toMatchObject({ project_id: created.id, objective: ASSESSMENT.objective, role: '' });
 });
 
 test.describe('deep assessment: project read permission only', () => {

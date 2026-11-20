@@ -16,6 +16,7 @@ const HITL_OPTIONS = [
     { value: 'audit_agent', label: '审计代理审批' },
     { value: 'review_edit', label: '复核并允许编辑' }
 ];
+const DEFAULT_ROLE = '默认';
 
 export default function CreateAssessmentDrawer({ visible, onCancel, onCreated }) {
     const t = useT();
@@ -91,7 +92,11 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
     };
 
     const models = modelChannelOptions((options?.models || []).map(item => [item.id, item]));
-    const roles = (options?.roles || []).map(role => ({ value: role, label: role }));
+    const roleNames = options?.roles || [];
+    const roles = roleNames.filter(role => role !== DEFAULT_ROLE).map(role => ({ value: role, label: role }));
+    if (roleNames.includes(DEFAULT_ROLE)) {
+        roles.unshift({ value: '', label: DEFAULT_ROLE });
+    }
     const projects = (options?.projects || []).map(project => ({ value: project.id, label: project.name || project.id }));
 
     return (
@@ -134,7 +139,7 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
                 <Form
                     id={formId}
                     getFormApi={instance => { formApi.current = instance; }}
-                    initValues={{ concurrency: 2, auto_resume: true, hitl_policy: '' }}
+                    initValues={{ concurrency: 2, auto_resume: true, hitl_policy: '', role: '' }}
                     labelPosition="top"
                     autoScrollToError
                     onSubmit={submit}
@@ -178,7 +183,7 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
                         <Form.Select
                             field="role"
                             label={t('deepAssessments.role', null, '角色')}
-                            optionList={[{ value: '', label: '系统默认' }, ...roles]}
+                            optionList={roles}
                             style={{ width: '100%' }}
                         />
                         <div className="assessment-project-field">
