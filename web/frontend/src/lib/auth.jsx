@@ -12,6 +12,7 @@ function normalizeSession(raw, token) {
     return {
         token: token || raw.token,
         expiresAt: raw.expires_at || raw.expiresAt || '',
+        appVersion: typeof raw.app_version === 'string' ? raw.app_version.trim() : '',
         user: raw.user || null,
         roles: Array.isArray(raw.roles) ? raw.roles : [],
         permissions: Array.isArray(raw.permissions) ? raw.permissions : [],

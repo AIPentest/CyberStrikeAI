@@ -1087,9 +1087,11 @@ test.describe('sign-in integration', () => {
     test.use({ authenticated: false });
     test('successful sign-in opens the app with a synthetic scoped session', async ({ page, mockApi }) => {
         // The fixture validates its own synthetic token on all subsequent requests.
+        const version = 'v9.8.6-fixture';
         mockApi.respond('POST', '/api/auth/login', { json: {
             token: 'FAKE-PLAYWRIGHT-NOT-A-REAL-TOKEN', expires_at: new Date(Date.now() + 3600000).toISOString(),
-            permissions: UI_PERMISSIONS, roles: [], user: { id: 'fixture-user', username: 'fixture' }
+            app_version: version, permissions: UI_PERMISSIONS.filter(permission => permission !== 'update:read'),
+            roles: [], user: { id: 'fixture-user', username: 'fixture' }
         } });
         await page.goto('/static/app/');
         const form = page.locator('.cs-login-form');
@@ -1098,5 +1100,6 @@ test.describe('sign-in integration', () => {
         await form.getByRole('button', { name: /登录$/ }).click();
         await ready(page);
         await expect(form).toHaveCount(0);
+        await expect(page.locator('.cs-sider').getByText(version, { exact: true })).toBeVisible();
     });
 });

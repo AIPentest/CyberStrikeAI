@@ -64,10 +64,24 @@ body[theme-mode="dark"] .semi-button-primary.semi-button-solid:not(.semi-button-
 .cs-sidebar-inner { height: 100%; display: flex; flex-direction: column; background: var(--semi-color-nav-bg); }
 .cs-brand.semi-button { flex: 0 0 76px; height: 76px; padding: 0 20px; justify-content: flex-start; border-radius: 0; }
 .cs-brand.semi-button:hover { background: transparent; }
-.cs-brand .semi-button-content { gap: 10px; }
+.cs-brand .semi-button-content { min-width: 0; gap: 10px; }
+.cs-brand .cs-brand-logo { flex-shrink: 0; }
+.cs-brand-copy { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; gap: 3px; }
 .cs-brand-logo { width: 30px; height: 30px; object-fit: contain; border-radius: 8px; }
 .cs-brand-name { font-weight: 750; font-size: 17px; letter-spacing: -.6px; color: var(--semi-color-text-0); }
 .cs-brand-name > span { color: var(--semi-color-primary); }
+.cs-brand-version {
+    max-width: 100%;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--semi-color-primary-light-default);
+    color: var(--semi-color-primary);
+    font-size: 11px;
+    line-height: 16px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
 .is-compact .cs-brand { padding: 0 17px; }
 .cs-nav-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--semi-color-border) transparent; padding-bottom: 16px; }
 .cs-nav-section + .cs-nav-section { margin-top: 20px; }

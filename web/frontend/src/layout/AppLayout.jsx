@@ -249,7 +249,8 @@ function UserMenu({ navigate }) {
 }
 
 export default function AppLayout() {
-    const { hasPermission, hasAnyPermission } = useAuth();
+    const { session, hasPermission, hasAnyPermission } = useAuth();
+    const versionId = useId();
     const t = useT();
     const location = useLocation();
     const navigate = useNavigate();
@@ -287,11 +288,19 @@ export default function AppLayout() {
     };
 
     const compact = collapsed && !mobile;
+    const version = !compact && session?.appVersion;
     const navNode = (
         <div className={`cs-sidebar-inner ${compact ? 'is-compact' : ''}`}>
-            <Button className="cs-brand" theme="borderless" type="tertiary" onClick={() => navigate('/dashboard')} aria-label="CyberStrikeAI">
+            <Button className="cs-brand" theme="borderless" type="tertiary" onClick={() => navigate('/dashboard')}
+                aria-label="CyberStrikeAI" aria-describedby={version ? versionId : undefined}>
                 <img src="/static/logo.png" alt="" className="cs-brand-logo" />
-                {!compact && <span className="cs-brand-name">CyberStrike<span>AI</span></span>}
+                {!compact && (
+                    <span className="cs-brand-copy">
+                        <span className="cs-brand-name">CyberStrike<span>AI</span></span>
+                        {version && <span id={versionId} className="cs-brand-version" dir="ltr"
+                            title={`${t('header.version', null, '当前版本')} ${version}`}>{version}</span>}
+                    </span>
+                )}
             </Button>
             <div className="cs-nav-scroll">
                 {NAV_SECTIONS.map(section => {

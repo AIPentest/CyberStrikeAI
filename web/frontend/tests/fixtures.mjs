@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 export { expect };
 export const ORIGIN = 'http://127.0.0.1:5199';
 export const FAKE_TOKEN = 'FAKE-PLAYWRIGHT-NOT-A-REAL-TOKEN';
+export const APP_VERSION = 'v9.8.7-fixture';
 
 // Explicit keys from internal/security/rbac.go. No wildcard or application auth bypass.
 export const READ_PERMISSIONS = [
@@ -77,7 +78,7 @@ function makeReads(session) {
     return new Map(Object.entries({
         '/api/auth/validate': {
             expires_at: session.expiresAt, user: session.user, roles: session.roles,
-            permissions: session.permissions
+            permissions: session.permissions, app_version: APP_VERSION
         },
         '/api/notifications/summary': { items: [] },
         '/api/agent-loop/tasks': { tasks: [1, 2].map(id => ({

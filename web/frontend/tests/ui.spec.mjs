@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import {
     test, expect, visit, ready, screenshot, label,
     READ_PERMISSIONS, UI_PERMISSIONS, PROJECT, FACT, VULNERABILITY, ASSESSMENT,
-    CONVERSATION, STREAM_REPLY
+    CONVERSATION, STREAM_REPLY, APP_VERSION
 } from './fixtures.mjs';
 
 // Read the real registry without importing lazy JSX into Node. New pages join the sweep automatically.
@@ -224,6 +224,8 @@ for (const [key, fallback, target] of [
 test('navigation: four Semi groups, parent expansion, child selection and collapse persistence', async ({ page }) => {
     await visit(page, 'asset-library');
     const sidebar = page.locator('.cs-sider');
+    const version = sidebar.getByText(APP_VERSION, { exact: true });
+    await expect(version).toBeVisible();
     await expect(sidebar.locator('.cs-nav-section')).toHaveCount(4);
     await expect(sidebar.getByRole('menu')).toHaveCount(4);
     for (const [key, fallback] of [
@@ -248,12 +250,14 @@ test('navigation: four Semi groups, parent expansion, child selection and collap
     const wide = await sidebar.boundingBox();
     await button(sidebar, label('nav.collapse', '收起菜单')).click();
     await expect(page.locator('.cs-shell')).toHaveClass(/is-collapsed/);
+    await expect(version).toBeHidden();
     await expect.poll(async () => (await sidebar.boundingBox()).width).toBeLessThan(wide.width);
     await page.reload();
     await ready(page);
     await expect(page.locator('.cs-shell')).toHaveClass(/is-collapsed/);
     await button(sidebar, label('nav.expand', '展开菜单')).click();
     await expect(page.locator('.cs-shell')).not.toHaveClass(/is-collapsed/);
+    await expect(version).toBeVisible();
     await expect(parent).toHaveAttribute('aria-expanded', 'true');
     await expect(overview).toHaveClass(/semi-navigation-item-selected/);
     await expect.poll(() => page.evaluate(() => localStorage.getItem('csai-nav-collapsed'))).toBe('0');
@@ -1574,6 +1578,7 @@ test.describe('mobile @mobile', () => {
         await open.click();
         const nav = page.getByRole('dialog').filter({ has: page.locator('.cs-sidebar-inner') });
         await expect(nav).toBeVisible();
+        await expect(nav.getByText(APP_VERSION, { exact: true })).toBeVisible();
         await assertDrawerFits(page, nav);
         // Semi v2's built-in close icon has no accessible name; scope it to this dialog.
         await nav.locator('button.semi-sidesheet-close').click();
