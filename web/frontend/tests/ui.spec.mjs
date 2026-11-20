@@ -1118,7 +1118,7 @@ test('deep assessment: dense graph keeps labels readable and locates a cross-pag
         return { left, top, right, bottom, size: getComputedStyle(item).fontSize };
     }));
     for (const [i, box] of bounds.entries()) {
-        expect(box.size).toBe('12px');
+        expect(box.size).toBe('14px');
         for (const other of bounds.slice(i + 1)) {
             expect(box.left < other.right && box.right > other.left && box.top < other.bottom && box.bottom > other.top).toBe(false);
         }
@@ -1146,11 +1146,15 @@ test('deep assessment: dense graph keeps labels readable and locates a cross-pag
     await expect(selected).toBeVisible();
     await expect(graph.getByRole('button', { name: goal.title, exact: true })).toHaveCount(0);
     expect(new URLSearchParams(mockApi.calls('GET', `${path}/graph/node`).at(-1).query).get('node_id')).toBe(receipt.id);
-    const position = await selected.boundingBox();
+    const positionInCanvas = async () => {
+        const [card, canvas] = await Promise.all([selected.boundingBox(), graph.boundingBox()]);
+        return card && canvas ? { x: card.x - canvas.x, y: card.y - canvas.y } : null;
+    };
+    const position = await positionInCanvas();
     await main.locator('.cs-section-card').getByRole('button', { name: '刷新', exact: true }).click();
     await expect.poll(() => mockApi.calls('GET', `${path}/graph`).length).toBe(reads + 1);
     await expect.poll(async () => {
-        const restored = await selected.boundingBox();
+        const restored = await positionInCanvas();
         return restored ? Math.hypot(restored.x - position.x, restored.y - position.y) : Infinity;
     }).toBeLessThan(1);
     await screenshot(page, testInfo, 'assessment-graph-dense-selection');
@@ -1229,6 +1233,7 @@ test('deep assessment: graph polls saved progress without moving the selection o
     await page.mouse.down();
     await page.mouse.move(bounds.x + bounds.width * 0.65 + 48, bounds.y + 132, { steps: 4 });
     await page.mouse.up();
+    await page.clock.runFor(50);
     const canvas = graph.locator('canvas').first();
     await canvas.evaluate(element => { element.dataset.viewportCheck = 'kept'; });
     const coordinates = async () => {

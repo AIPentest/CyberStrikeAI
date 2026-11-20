@@ -1,3 +1,5 @@
+import { graphParents } from '../../components/graph-parents.js';
+
 const RELATION_STYLES = [
     { label: '规划与依赖', color: '#548df0', relations: ['plans', 'depends_on'] },
     { label: '产出与证据', color: '#24aa94', relations: ['produces', 'supports', 'derives', 'reviews'] },
@@ -46,27 +48,17 @@ export function prepareGraph(graph) {
             edgeOccurrences.set(key, occurrence + 1);
             return { ...edge, id: `edge:${key}:${occurrence}`, color: style.color };
         });
-    const parents = new Map();
     const ordered = edges.map(edge => ({ edge, priority: edgePriority(edge, nodes) }));
     ordered.sort((a, b) => a.priority - b.priority
         || Number(Boolean(nodes.get(a.edge.source).boundary)) - Number(Boolean(nodes.get(b.edge.source).boundary))
         || a.edge.source.localeCompare(b.edge.source)
         || a.edge.target.localeCompare(b.edge.target)
         || (a.edge.relation || '').localeCompare(b.edge.relation || ''));
-    const layoutEdges = new Set();
-    const backbone = new Set();
-    for (const { edge } of ordered) {
-        const target = nodes.get(edge.target);
-        if (target.kind === 'goal' || parents.has(edge.target)) continue;
-        let ancestor = edge.source;
-        while (ancestor && ancestor !== edge.target) ancestor = parents.get(ancestor);
-        if (ancestor === edge.target) continue;
-        parents.set(edge.target, edge.source);
-        layoutEdges.add(edge.id);
-        if (!isDetail(target)) backbone.add(edge.id);
-    }
+    const chosen = graphParents(ordered.map(item => item.edge), id => nodes.get(id).kind === 'goal');
+    const layoutEdges = new Set([...chosen.parentEdges].map(edge => edge.id));
+    const backbone = new Set([...chosen.parentEdges].filter(edge => !isDetail(nodes.get(edge.target))).map(edge => edge.id));
     const upstream = new Map([...nodes.keys()].map(id => [id, new Set()]));
-    for (const [target, source] of parents) upstream.get(target).add(source);
+    for (const [target, source] of chosen.parents) upstream.get(target).add(source);
     for (const { edge } of ordered) {
         if (edge.relation !== 'depends_on' || edge.projection || layoutEdges.has(edge.id)) continue;
         if (nodes.get(edge.target).kind === 'goal' || hasUpstream(upstream, edge.source, edge.target)) continue;
@@ -94,9 +86,9 @@ export function prepareGraph(graph) {
     };
 }
 
-export const GRAPH_COLUMN_GAP = 168;
-const GRAPH_LEVEL_GAP = 36;
-const GRAPH_ROW_GAP = 76;
+export const GRAPH_COLUMN_GAP = 266;
+const GRAPH_LEVEL_GAP = 27;
+const GRAPH_ROW_GAP = 118;
 
 export function graphPositions({ nodes, upstream }) {
     const depths = new Map();

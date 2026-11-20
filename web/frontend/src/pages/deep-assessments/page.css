@@ -284,6 +284,8 @@
     margin-bottom: 8px;
 }
 
+.assessment-graph-tools { margin-top: 8px; }
+
 .assessment-graph-legend {
     display: flex;
     flex-wrap: wrap;
@@ -327,53 +329,12 @@
     overflow: hidden;
     border: 1px solid var(--semi-color-border);
     border-radius: var(--semi-border-radius-medium);
-    background: var(--semi-color-bg-2);
-    background-image: radial-gradient(var(--semi-color-border) 1px, transparent 1px);
-    background-size: 20px 20px;
+    background:
+        radial-gradient(circle, color-mix(in srgb, var(--semi-color-text-2) 17%, transparent) .8px, transparent 1px) 0 0 / 20px 20px,
+        color-mix(in srgb, var(--semi-color-bg-1) 96%, #537cba);
 }
 
-.assessment-graph-canvas,
-.assessment-graph-labels {
-    position: absolute;
-    inset: 0;
-    direction: ltr;
-}
-
-.assessment-graph-labels {
-    pointer-events: none;
-}
-
-.assessment-graph-label-leader {
-    position: absolute;
-    width: 1px;
-    background: var(--semi-color-text-2);
-    opacity: 0.55;
-}
-
-.assessment-graph-label {
-    position: absolute;
-    height: 22px;
-    padding: 0 6px;
-    border: 1px solid var(--semi-color-border);
-    border-radius: var(--semi-border-radius-small);
-    background: var(--semi-color-bg-1);
-    color: var(--semi-color-text-0);
-    font-family: inherit;
-    font-size: 12px;
-    line-height: 20px;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    pointer-events: auto;
-    cursor: pointer;
-}
-
-.assessment-graph-label:hover,
-.assessment-graph-label:focus-visible,
-.assessment-graph-label[aria-pressed="true"] {
-    border-color: var(--semi-color-primary);
-    color: var(--semi-color-primary);
-}
+.assessment-graph-canvas { position: absolute; inset: 0; direction: ltr; }
 
 .assessment-node-panel {
     height: var(--assessment-graph-height);

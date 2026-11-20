@@ -6,7 +6,8 @@ import { useT } from '../../lib/i18n';
 import { useInterval, useResource } from '../../components/hooks';
 import { SectionCard, ErrorBanner, JsonViewer, KeyValueList, toastError } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
-import { kindText, stateText, truncateText } from './labels';
+import { GraphNodeIcon } from '../../components/graph-card';
+import { GRAPH_KIND_COLOR, kindText, stateText, truncateText } from './labels';
 import GraphCanvas from './GraphCanvas';
 import GraphBrief from './GraphBrief';
 import { prepareGraph } from './graphLayout';
@@ -152,7 +153,7 @@ export default function GraphTab({
         <div className="assessment-tab">
             <SectionCard
                 title={t('deepAssessments.graph', null, '探索图')}
-                description="点击节点查看原文与直接关联，放大可查看更多节点名称。"
+                description="点击节点查看原文与直接关联，放大可查看更多卡片内容。"
                 extra={headExtra}
             >
                 <ErrorBanner error={resource.error} onRetry={() => refresh()} />
@@ -210,30 +211,6 @@ export default function GraphTab({
                     />
                 ) : (
                     <>
-                        <div className="assessment-graph-tools">
-                            <Space wrap>
-                                <Button size="small" aria-label="缩小图谱" disabled={!nodes.length} onClick={() => chartRef.current?.zoom(0.8)}>−</Button>
-                                <Button size="small" aria-label="放大图谱" disabled={!nodes.length} onClick={() => chartRef.current?.zoom(1.25)}>+</Button>
-                                <Button size="small" disabled={!nodes.length} onClick={() => chartRef.current?.fit()}>适应画布</Button>
-                                <Button size="small" disabled={!nodes.length} onClick={() => chartRef.current?.resetLayout()}>重置布局</Button>
-                            </Space>
-                            {canExpand ? (
-                                <Space wrap>
-                                    <Text size="small" type="tertiary">
-                                        {showAll ? `全部 ${model.edges.length} 条连线` : `主干 ${model.backbone.size} / ${model.edges.length} 条连线`}
-                                        {!showAll && collapsedNodes > 0 ? ` · 收起 ${collapsedNodes} 个明细节点` : null}
-                                    </Text>
-                                    <Button size="small" onClick={() => setShowAll(value => !value)}>{showAll ? '仅看主干' : '显示全部节点与连线'}</Button>
-                                </Space>
-                            ) : null}
-                        </div>
-                        {model.legend.length ? (
-                            <div className="assessment-graph-legend" role="group" aria-label="连线图例">
-                                {model.legend.map(({ label, color }) => (
-                                    <span key={label}><i aria-hidden="true" style={{ backgroundColor: color }} />{label}</span>
-                                ))}
-                            </div>
-                        ) : null}
                         <div className={`assessment-graph-layout${selectedId ? ' with-details' : ''}`}>
                             <GraphCanvas model={model} graphKey={resource.data?.key} selectedId={selectedId} showAll={showAll} locate={locate} onSelect={selectNode} chartRef={chartRef} />
                             {selectedId ? (
@@ -322,6 +299,39 @@ export default function GraphTab({
                                 </div>
                             ) : null}
                         </div>
+                        <div className="assessment-graph-tools">
+                            <Space wrap>
+                                <Button size="small" aria-label="缩小图谱" disabled={!nodes.length} onClick={() => chartRef.current?.zoom(0.8)}>−</Button>
+                                <Button size="small" aria-label="放大图谱" disabled={!nodes.length} onClick={() => chartRef.current?.zoom(1.25)}>+</Button>
+                                <Button size="small" disabled={!nodes.length} onClick={() => chartRef.current?.fit()}>适应画布</Button>
+                                <Button size="small" disabled={!nodes.length} onClick={() => chartRef.current?.resetLayout()}>重置布局</Button>
+                            </Space>
+                            {canExpand ? (
+                                <Space wrap>
+                                    <Text size="small" type="tertiary">
+                                        {showAll ? `全部 ${model.edges.length} 条连线` : `主干 ${model.backbone.size} / ${model.edges.length} 条连线`}
+                                        {!showAll && collapsedNodes > 0 ? ` · 收起 ${collapsedNodes} 个明细节点` : null}
+                                    </Text>
+                                    <Button size="small" onClick={() => setShowAll(value => !value)}>{showAll ? '仅看主干' : '显示全部节点与连线'}</Button>
+                                </Space>
+                            ) : null}
+                        </div>
+                        {nodes.length ? (
+                            <div className="assessment-graph-legend" role="group" aria-label="节点图例">
+                                {[...new Set(nodes.map(node => node.kind))].map(kind => (
+                                    <span key={kind} style={{ '--graph-node-color': GRAPH_KIND_COLOR[kind] || '#86909c' }}>
+                                        <GraphNodeIcon type={kind} />{kindText(t, kind)}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : null}
+                        {model.legend.length ? (
+                            <div className="assessment-graph-legend" role="group" aria-label="连线图例">
+                                {model.legend.map(({ label, color }) => (
+                                    <span key={label}><i aria-hidden="true" style={{ backgroundColor: color }} />{label}</span>
+                                ))}
+                            </div>
+                        ) : null}
                     </>
                 )}
             </SectionCard>

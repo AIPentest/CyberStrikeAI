@@ -6,7 +6,8 @@ import { useT } from '../../lib/i18n';
 import { useResource } from '../../components/hooks';
 import { ErrorBanner, SectionCard, confirmAction, toastError, toastSuccess } from '../../components/ui';
 import { CONFIDENCE_META, NODE_COLORS, NODE_TYPE_LABEL, errorProp, errText } from './helpers';
-import FactGraphCanvas, { GraphNodeIcon } from './fact-graph-canvas';
+import { GraphNodeIcon } from '../../components/graph-card';
+import FactGraphCanvas from './fact-graph-canvas';
 
 const { Text } = Typography;
 const EMPTY = [];

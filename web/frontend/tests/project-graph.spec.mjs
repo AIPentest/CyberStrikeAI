@@ -49,7 +49,7 @@ test('project graph: dense overview keeps labels legible and search follows the 
     }));
     expect(boxes.length).toBeGreaterThan(4);
     expect(boxes.length).toBeLessThanOrEqual(graph.nodes.length);
-    await expect(canvas.locator('.project-graph-node--compact').first()).toBeVisible();
+    await expect(canvas.locator('.graph-node--compact').first()).toBeVisible();
     for (const [index, box] of boxes.entries()) {
         expect(box.fontSize).toBe('14px');
         for (const other of boxes.slice(index + 1)) {
