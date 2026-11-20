@@ -35,12 +35,16 @@ function hasUpstream(upstream, start, target) {
 export function prepareGraph(graph) {
     const nodes = new Map((graph?.nodes || []).map(node => [node.id, node]));
     const styles = new Set();
+    const edgeOccurrences = new Map();
     const edges = (graph?.edges || [])
         .filter(edge => nodes.has(edge.source) && nodes.has(edge.target))
-        .map((edge, index) => {
+        .map(edge => {
             const style = RELATION_STYLES.find(item => item.relations.includes(edge.relation)) || RELATION_STYLES.at(-1);
             styles.add(style);
-            return { ...edge, id: `edge-${index}`, color: style.color };
+            const key = JSON.stringify([edge.source, edge.target, edge.relation, edge.projection]);
+            const occurrence = edgeOccurrences.get(key) || 0;
+            edgeOccurrences.set(key, occurrence + 1);
+            return { ...edge, id: `edge:${key}:${occurrence}`, color: style.color };
         });
     const parents = new Map();
     const ordered = edges.map(edge => ({ edge, priority: edgePriority(edge, nodes) }));
@@ -92,6 +96,7 @@ export function prepareGraph(graph) {
 
 export const GRAPH_COLUMN_GAP = 168;
 const GRAPH_LEVEL_GAP = 36;
+const GRAPH_ROW_GAP = 76;
 
 export function graphPositions({ nodes, upstream }) {
     const depths = new Map();
@@ -142,7 +147,7 @@ export function graphPositions({ nodes, upstream }) {
                 const stagger = [0, 23, -23, 35, -35][columnIndex % 5];
                 column.forEach((id, index) => positions.set(id, {
                     x,
-                    y: (index - (column.length - 1) / 2) * 76 + stagger
+                    y: (index - (column.length - 1) / 2) * GRAPH_ROW_GAP + stagger
                 }));
                 x += GRAPH_COLUMN_GAP;
                 columnIndex += 1;
@@ -151,4 +156,26 @@ export function graphPositions({ nodes, upstream }) {
         x += GRAPH_LEVEL_GAP;
     }
     return positions;
+}
+
+
+/** Keep existing positions during refresh and give new nodes a free slot near their branch. */
+export function updatedGraphPositions(model, previous) {
+    const proposed = graphPositions(model);
+    if (!previous.size) return proposed;
+
+    const placed = new Map([...previous].filter(([id]) => model.nodes.has(id)));
+    for (const [id, position] of proposed) {
+        if (placed.has(id)) continue;
+        const parentPositions = [...model.upstream.get(id)].map(parent => placed.get(parent).x + GRAPH_COLUMN_GAP);
+        const x = Math.max(position.x, ...parentPositions);
+        const occupied = [...placed.values()].filter(other => Math.abs(other.x - x) < GRAPH_COLUMN_GAP / 2);
+        let y = position.y;
+        for (let offset = 1; occupied.some(other => Math.abs(other.y - y) < GRAPH_ROW_GAP / 2); offset += 1) {
+            const step = Math.ceil(offset / 2) * (offset % 2 ? 1 : -1);
+            y = position.y + step * GRAPH_ROW_GAP;
+        }
+        placed.set(id, { x, y });
+    }
+    return placed;
 }

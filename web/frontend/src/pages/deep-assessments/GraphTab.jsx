@@ -1,19 +1,21 @@
 /** 探索图：cytoscape 渲染、节点下钻与证据路径。 */
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Button, Empty, RadioGroup, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
+import { Button, Empty, RadioGroup, Select, Space, Switch, Tag, Typography } from '@douyinfe/semi-ui';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
-import { useResource } from '../../components/hooks';
+import { useInterval, useResource } from '../../components/hooks';
 import { SectionCard, ErrorBanner, JsonViewer, KeyValueList, toastError } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
 import { kindText, stateText, truncateText } from './labels';
-import GraphCanvas, { fitGraph, zoomGraph } from './GraphCanvas';
+import GraphCanvas from './GraphCanvas';
 import GraphBrief from './GraphBrief';
-import { prepareGraph, graphPositions } from './graphLayout';
+import { prepareGraph } from './graphLayout';
 
 const { Text, Paragraph } = Typography;
 
-export default function GraphTab({ id, task, reloadToken, onGoIntents }) {
+export default function GraphTab({
+    id, task, reloadToken, onGoIntents, autoRefresh, onAutoRefreshChange, onRefreshTask, refreshPaused
+}) {
     const t = useT();
     const [view, setView] = useState('summary');
     const [scope, setScope] = useState('');
@@ -30,15 +32,22 @@ export default function GraphTab({ id, task, reloadToken, onGoIntents }) {
     const [nodeLoading, setNodeLoading] = useState(false);
     const [pathView, setPathView] = useState(null);
     const [pathLoading, setPathLoading] = useState(false);
-    const cyRef = useRef(null);
+    const chartRef = useRef(null);
+    const lastGraph = useRef(null);
+    const polling = useRef(false);
     const nodeRequest = useRef(0);
 
     const graphKey = JSON.stringify([id, view, scope, offset]);
     const resource = useResource(
-        async () => ({
-            key: graphKey,
-            graph: await api.get(`/deep-assessments/${id}/graph`, { view, scope, offset, limit: 80 })
-        }),
+        async () => {
+            const graph = await api.get(`/deep-assessments/${id}/graph`, { view, scope, offset, limit: 80 });
+            const snapshot = JSON.stringify(graph);
+            const previous = lastGraph.current;
+            if (previous?.key === graphKey && previous.snapshot === snapshot) return previous;
+            const next = { key: graphKey, snapshot, graph };
+            lastGraph.current = next;
+            return next;
+        },
         [id, view, scope, offset, reloadToken]
     );
     const graph = resource.data?.graph;
@@ -103,13 +112,17 @@ export default function GraphTab({ id, task, reloadToken, onGoIntents }) {
         }
     };
 
-    const relayout = () => {
-        const cy = cyRef.current;
-        if (!cy) return;
-        const positions = graphPositions(model);
-        cy.nodes().positions(node => positions.get(node.id()));
-        fitGraph(cy);
-    };
+    const refresh = options => Promise.all([resource.reload(options), onRefreshTask(options)]);
+
+    useInterval(async () => {
+        if (document.hidden || refreshPaused || resource.loading || polling.current) return;
+        polling.current = true;
+        try {
+            await refresh({ silent: true });
+        } finally {
+            polling.current = false;
+        }
+    }, autoRefresh ? 10000 : 0);
 
     const headExtra = (
         <Space wrap>
@@ -125,7 +138,7 @@ export default function GraphTab({ id, task, reloadToken, onGoIntents }) {
                 onChange={event => { setView(event.target.value); setOffset(0); }}
             />
             <Button size="small" onClick={() => { setScope(''); setOffset(0); }} disabled={!scope && offset === 0}>全图概览</Button>
-            <Button size="small" onClick={() => resource.reload()} loading={resource.loading}>刷新</Button>
+            <Button size="small" onClick={() => refresh()} loading={resource.loading}>刷新</Button>
         </Space>
     );
 
@@ -142,7 +155,7 @@ export default function GraphTab({ id, task, reloadToken, onGoIntents }) {
                 description="点击节点查看原文与直接关联，放大可查看更多节点名称。"
                 extra={headExtra}
             >
-                <ErrorBanner error={resource.error} onRetry={() => resource.reload()} />
+                <ErrorBanner error={resource.error} onRetry={() => refresh()} />
                 <GraphBrief
                     task={task}
                     t={t}
@@ -162,6 +175,10 @@ export default function GraphTab({ id, task, reloadToken, onGoIntents }) {
                             <Button size="small" theme="borderless" onClick={() => { setScope(''); setOffset(0); }}>返回全图</Button>
                         </Space>
                     ) : null}
+                    <Space spacing={6}>
+                        <Text size="small" type="tertiary">自动刷新</Text>
+                        <Switch size="small" aria-label="自动刷新探索图" checked={autoRefresh} onChange={onAutoRefreshChange} />
+                    </Space>
                 </div>
                 {resource.loading && !graph ? <Text type="tertiary">正在读取图谱…</Text> : null}
                 <div className="assessment-graph-toolbar">
@@ -185,7 +202,7 @@ export default function GraphTab({ id, task, reloadToken, onGoIntents }) {
                         </Button>
                     </Space>
                 </div>
-                {graph && nodes.length === 0 ? (
+                {graph && nodes.length === 0 && !selectedId ? (
                     <Empty
                         title="暂无图谱节点"
                         description="开始测评后会生成目标、意图、事实与证据节点。"
@@ -195,10 +212,10 @@ export default function GraphTab({ id, task, reloadToken, onGoIntents }) {
                     <>
                         <div className="assessment-graph-tools">
                             <Space wrap>
-                                <Button size="small" aria-label="缩小图谱" disabled={!nodes.length} onClick={() => cyRef.current && zoomGraph(cyRef.current, 0.8)}>−</Button>
-                                <Button size="small" aria-label="放大图谱" disabled={!nodes.length} onClick={() => cyRef.current && zoomGraph(cyRef.current, 1.25)}>+</Button>
-                                <Button size="small" disabled={!nodes.length} onClick={() => cyRef.current && fitGraph(cyRef.current)}>适应画布</Button>
-                                <Button size="small" disabled={!nodes.length} onClick={relayout}>重置布局</Button>
+                                <Button size="small" aria-label="缩小图谱" disabled={!nodes.length} onClick={() => chartRef.current?.zoom(0.8)}>−</Button>
+                                <Button size="small" aria-label="放大图谱" disabled={!nodes.length} onClick={() => chartRef.current?.zoom(1.25)}>+</Button>
+                                <Button size="small" disabled={!nodes.length} onClick={() => chartRef.current?.fit()}>适应画布</Button>
+                                <Button size="small" disabled={!nodes.length} onClick={() => chartRef.current?.resetLayout()}>重置布局</Button>
                             </Space>
                             {canExpand ? (
                                 <Space wrap>
@@ -218,7 +235,7 @@ export default function GraphTab({ id, task, reloadToken, onGoIntents }) {
                             </div>
                         ) : null}
                         <div className={`assessment-graph-layout${selectedId ? ' with-details' : ''}`}>
-                            <GraphCanvas model={model} graphKey={resource.data?.key} selectedId={selectedId} showAll={showAll} locate={locate} onSelect={selectNode} cyRef={cyRef} />
+                            <GraphCanvas model={model} graphKey={resource.data?.key} selectedId={selectedId} showAll={showAll} locate={locate} onSelect={selectNode} chartRef={chartRef} />
                             {selectedId ? (
                                 <div className="assessment-node-panel" aria-live="polite">
                                     <div className="assessment-node-body">

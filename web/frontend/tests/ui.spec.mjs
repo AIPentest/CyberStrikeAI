@@ -1155,6 +1155,78 @@ test('deep assessment: graph brief reflects saved intents and the current task s
     expect(mockApi.writes()).toEqual([]);
 });
 
+test('deep assessment: graph polls saved progress without moving the selection or viewport', async ({ page, mockApi }) => {
+    await page.clock.install();
+    const path = `/api/deep-assessments/${ASSESSMENT.id}`;
+    const first = { id: 'existing', title: '已有意图', status: 'completed' };
+    const added = { id: 'new', title: '新保存的意图', status: 'pending' };
+    const goal = { id: 'goal', kind: 'goal', title: '图谱目标' };
+    const stepNode = step => ({ id: `step:${step.id}`, kind: 'step', title: step.title, state: step.status });
+    const node = { ...stepNode(first), body: '当前阅读中的意图详情' };
+    const connect = step => ({ source: goal.id, target: stepNode(step).id, relation: 'plans' });
+    const task = { ...ASSESSMENT, steps: [first], summary: '已有阶段总结' };
+
+    mockApi.respond('GET', path, { json: { task } });
+    mockApi.respond('GET', `${path}/events`, { json: { events: [] } });
+    mockApi.respond('GET', `${path}/graph`, { json: { nodes: [goal, node], edges: [connect(first)], primary_count: 1, total: 1 } });
+    mockApi.respond('GET', `${path}/graph/node`, { json: { node } });
+    await page.goto(`/static/app/#/deep-assessments?id=${ASSESSMENT.id}&tab=graph`);
+    const main = await ready(page);
+    const graph = main.getByRole('group', { name: '探索图' });
+    const brief = main.locator('.assessment-graph-brief');
+    await brief.locator('summary').click();
+    await button(brief, first.title).click();
+    await expect(main.getByText(node.body)).toBeVisible();
+    const selected = graph.getByRole('button', { name: first.title, pressed: true });
+    const root = graph.getByRole('button', { name: goal.title });
+    await expect(selected).toBeVisible();
+    await main.getByRole('button', { name: '放大图谱' }).click();
+    await graph.scrollIntoViewIfNeeded();
+    const bounds = await graph.boundingBox();
+    await page.mouse.move(bounds.x + bounds.width * 0.65, bounds.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(bounds.x + bounds.width * 0.65 + 48, bounds.y + 132, { steps: 4 });
+    await page.mouse.up();
+    const canvas = graph.locator('canvas').first();
+    await canvas.evaluate(element => { element.dataset.viewportCheck = 'kept'; });
+    const coordinates = async () => {
+        const box = await graph.boundingBox();
+        const markers = await Promise.all([selected.boundingBox(), root.boundingBox()]);
+        return markers.flatMap(marker => marker ? [marker.x - box.x, marker.y - box.y] : []);
+    };
+    const before = await coordinates();
+    expect(before).toHaveLength(4);
+
+    const updated = { ...task, steps: [first, added], summary: '自动读到的新阶段总结' };
+    mockApi.respond('GET', path, { json: { task: updated } });
+    mockApi.respond('GET', `${path}/graph`, { json: {
+        nodes: [goal, stepNode(added), node],
+        edges: [connect(added), connect(first)],
+        primary_count: 2, total: 2
+    } });
+
+    await page.clock.fastForward(10000);
+    await expect(brief.getByText(updated.summary)).toBeVisible();
+    await expect(button(brief, added.title)).toBeVisible();
+    await expect(main.getByText(/当前页节点 2 \/ 2/)).toBeVisible();
+    await expect(canvas).toHaveAttribute('data-viewport-check', 'kept');
+    await expect(main.getByText(node.body)).toBeVisible();
+    await expect(selected).toBeVisible();
+    const after = await coordinates();
+    expect(after).toHaveLength(before.length);
+    after.forEach((value, i) => expect(value).toBeCloseTo(before[i], 0));
+    await button(main, '关闭详情').click();
+    await expect(graph.getByRole('button', { name: added.title })).toBeVisible();
+
+    await main.getByRole('switch', { name: '自动刷新探索图' }).click();
+    const graphReads = mockApi.calls('GET', `${path}/graph`).length;
+    const taskReads = mockApi.calls('GET', path).length;
+    await page.clock.fastForward(20000);
+    expect(mockApi.calls('GET', `${path}/graph`)).toHaveLength(graphReads);
+    expect(mockApi.calls('GET', path)).toHaveLength(taskReads);
+    expect(mockApi.writes()).toEqual([]);
+});
+
 test('deep assessment: graph switches views and resets pagination on a narrow screen', async ({ page, mockApi }) => {
     const apiPath = `/api/deep-assessments/${ASSESSMENT.id}`;
     mockApi.respond('GET', `${apiPath}/events`, { json: { events: [] } });

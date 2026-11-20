@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { toastError } from '../../components/ui';
 import { GRAPH_KIND_COLOR } from './labels';
-import { GRAPH_COLUMN_GAP, graphPositions } from './graphLayout';
+import { GRAPH_COLUMN_GAP, graphPositions, updatedGraphPositions } from './graphLayout';
 
 const STYLE = [
     {
@@ -114,35 +114,58 @@ function visibleLabels(cy, model, selected, hovered, measure) {
     return labels;
 }
 
-export function fitGraph(cy) {
+function fitGraph(cy) {
     const nodes = cy.nodes(':visible');
     if (nodes.empty()) return;
     cy.fit(nodes, 45);
     if (cy.zoom() > 1) cy.zoom(1).center(nodes);
 }
 
-export function zoomGraph(cy, factor) {
+function zoomGraph(cy, factor) {
     cy.zoom({
         level: cy.zoom() * factor,
         renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 }
     });
 }
 
-export default function GraphCanvas({ model, graphKey, selectedId, showAll, locate, onSelect, cyRef }) {
+function graphElements(model, positions) {
+    return [
+        ...[...model.nodes.values()].map(node => ({
+            data: {
+                id: node.id, kind: node.kind, boundary: Number(Boolean(node.boundary)),
+                color: GRAPH_KIND_COLOR[node.kind] || '#86909c'
+            },
+            position: positions.get(node.id)
+        })),
+        ...model.edges.map(edge => {
+            const source = positions.get(edge.source);
+            const target = positions.get(edge.target);
+            const dx = target.x - source.x;
+            const route = dx > GRAPH_COLUMN_GAP * 1.5 ? 'long-flow' : 'flow';
+            return {
+                data: {
+                    ...edge, projection: edge.projection || '',
+                    bend: target.y < source.y ? -28 : 28
+                },
+                classes: dx > 0 && model.layoutEdges.has(edge.id) ? route : ''
+            };
+        })
+    ];
+}
+
+export default function GraphCanvas({ model, graphKey, selectedId, showAll, locate, onSelect, chartRef }) {
     const containerRef = useRef(null);
-    const chartRef = useRef(null);
-    const viewRef = useRef(null);
-    const controlsRef = useRef({ selectedId, showAll, locate, onSelect });
+    const controlsRef = useRef({ model, selectedId, showAll, locate, onSelect });
     const [labels, setLabels] = useState([]);
 
     useEffect(() => {
-        controlsRef.current = { selectedId, showAll, locate, onSelect };
-        chartRef.current?.syncSelection();
-    }, [selectedId, showAll, locate, onSelect]);
+        controlsRef.current = { model, selectedId, showAll, locate, onSelect };
+        chartRef.current?.sync();
+    }, [model, selectedId, showAll, locate, onSelect, chartRef]);
 
     useEffect(() => {
         const container = containerRef.current;
-        if (!model.nodes.size) {
+        if (!graphKey) {
             setLabels([]);
             return undefined;
         }
@@ -151,6 +174,7 @@ export default function GraphCanvas({ model, graphKey, selectedId, showAll, loca
         let frame;
         let resize;
         let hovered;
+        let appliedModel;
         let centeredRequest;
         let previousSelection;
         let previousShowAll = controlsRef.current.showAll;
@@ -158,36 +182,13 @@ export default function GraphCanvas({ model, graphKey, selectedId, showAll, loca
 
         import('cytoscape').then(({ default: cytoscape }) => {
             if (disposed) return;
-            const positions = graphPositions(model);
-            const elements = [
-                ...[...model.nodes.values()].map(node => ({
-                    data: {
-                        id: node.id, kind: node.kind, boundary: Number(Boolean(node.boundary)),
-                        color: GRAPH_KIND_COLOR[node.kind] || '#86909c'
-                    },
-                    position: positions.get(node.id)
-                })),
-                ...model.edges.map(edge => {
-                    const source = positions.get(edge.source);
-                    const target = positions.get(edge.target);
-                    const spansColumns = target.x - source.x > GRAPH_COLUMN_GAP * 1.5;
-                    return {
-                        data: {
-                            ...edge, projection: edge.projection || '',
-                            bend: target.y < source.y ? -28 : 28
-                        },
-                        classes: model.layoutEdges.has(edge.id) ? (spansColumns ? 'long-flow' : 'flow') : ''
-                    };
-                })
-            ];
             cy = cytoscape({
-                container, elements, style: STYLE,
+                container, style: STYLE,
                 layout: { name: 'preset', fit: false },
                 wheelSensitivity: 0.2, minZoom: 0.005, maxZoom: 3,
                 boxSelectionEnabled: false,
                 autounselectify: true
             });
-            cyRef.current = cy;
             const measurement = document.createElement('canvas').getContext('2d');
             measurement.font = `12px ${getComputedStyle(container).fontFamily}`;
             const widths = new Map();
@@ -198,10 +199,10 @@ export default function GraphCanvas({ model, graphKey, selectedId, showAll, loca
             const selectedNode = () => cy.$id(controlsRef.current.selectedId)[0];
             const updateLabels = () => {
                 cancelAnimationFrame(frame);
-                frame = requestAnimationFrame(() => setLabels(visibleLabels(cy, model, selectedNode(), hovered, measure)));
+                frame = requestAnimationFrame(() => setLabels(visibleLabels(cy, appliedModel, selectedNode(), hovered, measure)));
             };
             const syncSelection = () => {
-                const { showAll, locate } = controlsRef.current;
+                const { model, selectedId, showAll, locate } = controlsRef.current;
                 const selected = selectedNode();
                 const related = selected?.connectedEdges() || cy.collection();
                 const neighbors = related.connectedNodes();
@@ -225,22 +226,34 @@ export default function GraphCanvas({ model, graphKey, selectedId, showAll, loca
                     centeredRequest = locate;
                     const zoom = Math.max(cy.zoom(), 1);
                     cy.zoom(zoom).center(selected);
-                } else if (!selected && (showAll !== previousShowAll || (overview && previousSelection?.hidden()))) {
+                } else if (!selected && (showAll !== previousShowAll
+                    || (!selectedId && overview && previousSelection?.hidden()))) {
                     fitGraph(cy);
                 }
                 previousSelection = selected;
                 previousShowAll = showAll;
                 updateLabels();
             };
-            chartRef.current = { syncSelection };
-            const saved = viewRef.current;
-            const restore = saved?.key === graphKey;
-            if (restore) {
-                cy.viewport(saved);
-                centeredRequest = controlsRef.current.locate;
-            }
-            syncSelection();
-            if (!restore && !centeredRequest) fitGraph(cy);
+            const sync = (reset = false) => {
+                const { model } = controlsRef.current;
+                const initial = !appliedModel;
+                if (reset || model !== appliedModel) {
+                    const positions = reset ? graphPositions(model) : updatedGraphPositions(
+                        model, new Map(cy.nodes().map(node => [node.id(), node.position()]))
+                    );
+                    appliedModel = model;
+                    cy.json({ elements: graphElements(model, positions) });
+                }
+                syncSelection();
+                if (reset || (initial && !centeredRequest)) fitGraph(cy);
+            };
+            chartRef.current = {
+                sync,
+                fit: () => fitGraph(cy),
+                zoom: factor => zoomGraph(cy, factor),
+                resetLayout: () => sync(true)
+            };
+            sync();
             cy.on('pan zoom position', updateLabels);
             cy.on('tap', event => {
                 if (event.target === cy) controlsRef.current.onSelect('');
@@ -257,6 +270,7 @@ export default function GraphCanvas({ model, graphKey, selectedId, showAll, loca
                 cy.resize();
                 const nextWidth = cy.width();
                 const nextHeight = cy.height();
+                if (nextWidth === width && nextHeight === height) return;
                 cy.panBy({ x: (nextWidth - width) / 2, y: (nextHeight - height) / 2 });
                 width = nextWidth;
                 height = nextHeight;
@@ -276,14 +290,10 @@ export default function GraphCanvas({ model, graphKey, selectedId, showAll, loca
             disposed = true;
             cancelAnimationFrame(frame);
             resize?.disconnect();
-            if (cy) {
-                viewRef.current = { key: graphKey, zoom: cy.zoom(), pan: cy.pan() };
-                cy.destroy();
-            }
+            cy?.destroy();
             chartRef.current = null;
-            cyRef.current = null;
         };
-    }, [model, graphKey, cyRef]);
+    }, [graphKey, chartRef]);
 
     return (
         <div className="assessment-graph-viewport" role="group" aria-label="探索图">

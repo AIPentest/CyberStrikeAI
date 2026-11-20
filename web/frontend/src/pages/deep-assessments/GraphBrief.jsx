@@ -26,7 +26,7 @@ export default function GraphBrief({ task, t, onIntent, onGoIntents }) {
                     {steps.length ? (
                         <>
                             <ul className="assessment-graph-intents" aria-label="目标拆解">
-                                {steps.slice(0, PREVIEW_LIMIT).map(step => {
+                                {steps.slice(-PREVIEW_LIMIT).map(step => {
                                     const dependencies = (step.depends_on || []).map(id => titles.get(id) || id);
                                     return (
                                         <li key={step.id}>
