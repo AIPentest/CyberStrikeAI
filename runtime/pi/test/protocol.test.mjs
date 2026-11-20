@@ -3,6 +3,22 @@ import { test } from "node:test";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 
+test("the worker flushes a fatal record for a truncated input at EOF", { timeout: 10000 }, async t => {
+  const child = spawn(process.execPath, ["dist/worker.js"], { stdio: ["pipe", "pipe", "pipe"] });
+  t.after(() => child.kill());
+  const closed = once(child, "close");
+  const chunks = [];
+  child.stdout.on("data", chunk => chunks.push(chunk));
+  await once(child.stdout, "data");
+  child.stdin.end('{"type":');
+  const [code] = await closed;
+  const output = Buffer.concat(chunks).toString();
+  assert.equal(code, 1);
+  assert.ok(output.endsWith("\n"));
+  const records = output.trimEnd().split("\n").map(line => JSON.parse(line));
+  assert.deepEqual(records.at(-1), { type: "fatal", error: "Truncated protocol record" });
+});
+
 test("send waits for the write callback even below the stream high water mark", async () => {
   const child = spawn(process.execPath, ["--input-type=module", "-e", `
     import { send } from './dist/protocol.js';
