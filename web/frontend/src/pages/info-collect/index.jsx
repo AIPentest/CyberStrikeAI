@@ -165,7 +165,7 @@ export default function InfoCollectPage() {
                 : t('assets.importDone', { created: outcome.created, updated: outcome.updated },
                     `已新增 ${outcome.created} 条，更新 ${outcome.updated} 条`);
             const saved = outcome.collection?.name
-                ? `，并保存为资产集合「${outcome.collection.name}」`
+                ? `，已写入资产库，并记下检索结果「${outcome.collection.name}」`
                 : '';
             toastSuccess(`${message}${saved}`);
             setSelectedKeys([]);

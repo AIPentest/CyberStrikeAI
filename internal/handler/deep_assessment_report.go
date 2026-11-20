@@ -65,8 +65,10 @@ func (h *AgentHandler) appendAssessmentCoverageReport(c *gin.Context, t *deepass
 		} else {
 			fmt.Fprintf(b, "本次确认的资产集合 %s 当前不可读取。\n\n", t.CollectionID)
 		}
+	} else if strings.TrimSpace(t.ProjectID) != "" {
+		b.WriteString("资产范围是资产库中该项目的可读资产，与对话和批量任务使用同一批记录。\n\n")
 	} else {
-		b.WriteString("本次没有选定资产集合，范围以目标和补充限制为准。\n\n")
+		b.WriteString("未关联项目，范围以目标和补充限制为准。\n\n")
 	}
 	reportLiteral(b, t.Scope)
 	vis, _ := h.db.FactVisibilityFor(session.UserID)

@@ -32,6 +32,7 @@ export default function QueueFormModal({ visible, onCancel, onCreated }) {
     const [roles, setRoles] = useState([]);
     const [projects, setProjects] = useState([]);
     const [collections, setCollections] = useState([]);
+    const [assetTotal, setAssetTotal] = useState(null);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
@@ -55,12 +56,16 @@ export default function QueueFormModal({ visible, onCancel, onCreated }) {
     useEffect(() => {
         if (!visible || !form.projectId || !hasPermission('asset:read')) {
             setCollections([]);
+            setAssetTotal(null);
             return undefined;
         }
         let cancelled = false;
         api.get('/assets/collections', { project_id: form.projectId })
             .then(payload => { if (!cancelled) setCollections(Array.isArray(payload?.collections) ? payload.collections : []); })
             .catch(() => { if (!cancelled) setCollections([]); });
+        api.get('/assets', { project_id: form.projectId, page: 1, page_size: 1 })
+            .then(payload => { if (!cancelled) setAssetTotal(Number.isFinite(Number(payload?.total)) ? Number(payload.total) : 0); })
+            .catch(() => { if (!cancelled) setAssetTotal(null); });
         return () => { cancelled = true; };
     }, [visible, form.projectId, hasPermission]);
 
@@ -168,16 +173,26 @@ export default function QueueFormModal({ visible, onCancel, onCreated }) {
             </div>
 
             <div className="task-form-field">
-                <Text strong size="small">资产集合</Text>
-                <Select
-                    value={form.collectionId}
-                    style={{ width: '100%' }}
-                    disabled={!form.projectId}
-                    optionList={[{ value: '', label: '不指定集合' },
-                        ...collections.map(item => ({ value: item.id, label: `${item.name}（${item.member_count || 0}）` }))]}
-                    onChange={value => update({ collectionId: value || '' })}
-                />
-                <Text type="tertiary" size="small">与信息收集、深度测评共用同一批资产。不改变队列的暂停和子任务行为。</Text>
+                <Text strong size="small">资产范围</Text>
+                {collections.length ? (
+                    <Select
+                        value={form.collectionId}
+                        style={{ width: '100%' }}
+                        disabled={!form.projectId}
+                        optionList={[{
+                            value: '',
+                            label: assetTotal == null ? '资产库中该项目的全部资产' : `资产库中该项目的全部资产（${assetTotal}）`
+                        }, ...collections.map(item => ({ value: item.id, label: `${item.name}（${item.member_count || 0}）` }))]}
+                        onChange={value => update({ collectionId: value || '' })}
+                    />
+                ) : (
+                    <Text type="tertiary" size="small">
+                        {form.projectId
+                            ? (assetTotal == null ? '资产库中该项目的全部资产' : `资产库中该项目的全部资产（${assetTotal}）`)
+                            : '选择项目后，使用资产库里该项目的资产。'}
+                    </Text>
+                )}
+                <Text type="tertiary" size="small">与对话、深度测评共用资产库。只有信息收集保存过检索结果时，才需要从中缩小范围。</Text>
             </div>
 
             <div className="task-form-field">

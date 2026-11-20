@@ -52,32 +52,23 @@ function assessmentRoleOptions(raw) {
     ];
 }
 
-function ProjectCollectionField({ projectId }) {
+function ProjectAssetScope({ projectId }) {
     const t = useT();
-    const { data, loading, error } = useResource(
-        () => api.get('/assets/collections', { project_id: projectId }),
+    const assets = useResource(
+        () => api.get('/assets', { project_id: projectId, page: 1, page_size: 1 }),
         [projectId]
     );
-    const label = t('deepAssessments.assetCollection', null, '资产集合');
-    const collections = Array.isArray(data?.collections) ? data.collections : [];
-    if (collections.length) {
-        return (
-            <Form.Select
-                field="collection_id"
-                label={label}
-                placeholder={t('deepAssessments.selectCollection', null, '选择集合（可选）')}
-                optionList={collections.map(item => ({ value: item.id, label: `${item.name}（${item.member_count || 0}）` }))}
-                showClear
-                style={{ width: '100%' }}
-            />
-        );
+    const total = Number.isFinite(Number(assets.data?.total)) ? Number(assets.data.total) : null;
+    let message = t('common.loading', null, '加载中…');
+    if (!assets.loading && assets.error) {
+        message = '资产库暂时读不到。保存后仍使用该项目在资产库中的资产。';
+    } else if (!assets.loading && total === 0) {
+        message = '这个项目的资产库还是空的。测评中新发现的目标会写进资产库，对话和批量任务也能看到。';
+    } else if (!assets.loading && total != null) {
+        message = `资产范围是资产库里这个项目的 ${total} 个资产。对话、批量任务和这次测评用的是同一批，会自动交给模型。`;
     }
-
-    let message = t('deepAssessments.noCollections', null, '此项目暂无资产集合');
-    if (loading) message = t('common.loading', null, '加载中…');
-    if (error) message = t('common.loadFailed', null, '加载失败');
     return (
-        <Form.Slot label={label}>
+        <Form.Slot label={t('deepAssessments.assetScope', null, '资产范围')}>
             <Typography.Text type="tertiary" role="status">{message}</Typography.Text>
         </Form.Slot>
     );
@@ -112,7 +103,6 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
     }, [visible, loadOptions]);
 
     const changeProject = value => {
-        formApi.current?.setValue('collection_id', '');
         setProjectId(value || '');
     };
 
@@ -126,7 +116,6 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
                 scope: String(values.scope || '').trim(),
                 criteria: String(values.criteria || '').trim(),
                 project_id: values.project_id || '',
-                collection_id: values.collection_id || '',
                 role: values.role || '',
                 model: values.model || '',
                 hitl_policy: values.hitl_policy || '',
@@ -268,7 +257,7 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
                                 </Button>
                             )}
                         </div>
-                        {projectId && <ProjectCollectionField key={projectId} projectId={projectId} />}
+                        {projectId && <ProjectAssetScope key={projectId} projectId={projectId} />}
                         <Form.InputNumber
                             field="concurrency"
                             label={t('deepAssessments.concurrency', null, '并行步骤')}
@@ -292,7 +281,7 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
                         bordered
                         closeIcon={null}
                         className="assessment-form-note"
-                        description="创建后保存为草稿；打开页面不会自动启动，需要手动点击“开始 / 继续”。"
+                        description="创建后保存为草稿，需要手动点击“开始 / 继续”才会执行。关联项目后，资产范围直接使用资产库中的项目资产。"
                     />
                 </Form>
             )}

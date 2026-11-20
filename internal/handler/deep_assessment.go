@@ -190,28 +190,10 @@ func (h *AgentHandler) CreateDeepAssessment(c *gin.Context) {
 		c.JSON(403, gin.H{"error": "无权访问项目"})
 		return
 	}
-	var collectionMembers []string
-	if strings.TrimSpace(req.CollectionID) != "" {
-		collection, err := h.db.GetAssetCollection(strings.TrimSpace(req.CollectionID))
-		if err != nil || collection.ProjectID != req.ProjectID {
-			c.JSON(400, gin.H{"error": "资产集合不存在，或不属于所选项目"})
-			return
-		}
-		if collection.MemberCount > 5000 {
-			c.JSON(400, gin.H{"error": "资产集合超过 5000 个成员，请先缩小范围"})
-			return
-		}
-		members, err := h.db.CollectionMemberIDs(collection.ID, 5000)
-		if err != nil {
-			deepAssessmentError(c, err)
-			return
-		}
-		for _, id := range members {
-			if session.ScopeFor("asset:read") == database.RBACScopeAll || h.db.UserCanAccessResource(session.UserID, session.ScopeFor("asset:read"), "asset", id) {
-				collectionMembers = append(collectionMembers, id)
-			}
-		}
-		req.CollectionID = collection.ID
+	req.CollectionID = strings.TrimSpace(req.CollectionID)
+	if err := h.validateAssessmentAssetScope(assessmentActorFromSession(session), req.ProjectID, req.CollectionID); err != nil {
+		deepAssessmentError(c, err)
+		return
 	}
 	suppliedCriteria := strings.TrimSpace(req.Criteria)
 	if strings.TrimSpace(req.Scope) == "" {
@@ -237,11 +219,9 @@ func (h *AgentHandler) CreateDeepAssessment(c *gin.Context) {
 		deepAssessmentError(c, err)
 		return
 	}
-	if len(collectionMembers) > 0 {
-		if err := h.deepAssessments.Store.BindAssets(t.ID, collectionMembers); err != nil {
-			deepAssessmentError(c, err)
-			return
-		}
+	if err := h.syncAssessmentAssets(assessmentActorFromSession(session), t); err != nil {
+		deepAssessmentError(c, err)
+		return
 	}
 	if h.audit != nil {
 		h.audit.RecordOK(c, "task", "create_deep_assessment", "创建深度测评", "deep_assessment", t.ID, nil)
@@ -487,6 +467,12 @@ func (h *AgentHandler) ControlDeepAssessment(c *gin.Context) {
 	if action == "intent-guidance" && automaticPending {
 		if _, err = h.deepAssessmentRuntime.principal(t); err != nil {
 			c.JSON(403, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	if action == "start" || action == "continue-stopped" || action == "answer" {
+		if err = h.syncAssessmentAssets(assessmentActorFromSession(session), t); err != nil {
+			deepAssessmentError(c, err)
 			return
 		}
 	}

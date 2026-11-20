@@ -5,7 +5,7 @@ import { IconPlus, IconSearch } from '@douyinfe/semi-icons';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
 import { useAuth } from '../../lib/auth';
-import { useDebounced, useResource } from '../../components/hooks';
+import { useDebounced, useInterval, useResource } from '../../components/hooks';
 import { SectionCard, StatGrid, DataTable, ErrorBanner, KeyValueList, JsonViewer, toastError, toastSuccess, Drawer } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
 import { PERM_WRITE } from './labels';
@@ -136,6 +136,29 @@ function AssetPicker({ visible, task, onCancel, onSaved }) {
     );
 }
 
+function LinkedEndpoints({ taskId, assetId }) {
+    const resource = useResource(
+        () => api.get(`/deep-assessments/${taskId}/assets`, { asset_id: assetId }),
+        [taskId, assetId],
+        { skip: !assetId }
+    );
+    const endpoints = resource.data?.endpoints || [];
+    if (resource.loading && !resource.data) return <Text type="tertiary">正在读取端点…</Text>;
+    if (!endpoints.length) {
+        return <Text type="tertiary">这个服务在资产库里还没有端点。任务中发现的路径会写到这里。</Text>;
+    }
+    return (
+        <div>
+            <Text strong>端点</Text>
+            {endpoints.map(endpoint => (
+                <div key={endpoint.id}><Text>{endpoint.method} {endpoint.path}</Text></div>
+            ))}
+        </div>
+    );
+}
+
+const LIVE_ASSESSMENT = new Set(['running', 'recovering', 'waiting_progress', 'waiting_retry', 'pausing', 'cancelling']);
+
 export default function AssetsTab({ id, task, observation, reloadToken }) {
     const t = useT();
     const { hasPermission } = useAuth();
@@ -147,6 +170,10 @@ export default function AssetsTab({ id, task, observation, reloadToken }) {
         () => api.get(`/deep-assessments/${id}/assets`, { offset, observation }),
         [id, offset, observation, reloadToken]
     );
+    useInterval(() => {
+        if (document.hidden) return;
+        resource.reload({ silent: true });
+    }, LIVE_ASSESSMENT.has(task?.status) ? 10000 : 0);
     const graph = resource.data;
     const assets = graph?.assets || [];
     const coverage = graph?.coverage || {};
@@ -211,7 +238,7 @@ export default function AssetsTab({ id, task, observation, reloadToken }) {
             <SurfaceItems id={id} canWrite={canWrite && !task?.archived} reloadToken={reloadToken} />
             <SectionCard
                 title={t('deepAssessments.attackSurfaceGraph', null, '攻击面图')}
-                description="覆盖情况按已保存的 observed 事实计算，不代表测试穷尽或无漏洞。"
+                description="与资产库是同一批记录。项目资产和任务中新发现的同范围服务、端点会自动出现。观察覆盖只统计已有事实的资产。"
                 extra={(
                     <Space>
                         <Button
@@ -220,7 +247,7 @@ export default function AssetsTab({ id, task, observation, reloadToken }) {
                             disabled={!canWrite || task?.archived}
                             onClick={() => setPickerOpen(true)}
                         >
-                            添加资产
+                            从资产库补充
                         </Button>
                         <Button size="small" onClick={() => resource.reload()} loading={resource.loading}>刷新</Button>
                     </Space>
@@ -234,7 +261,7 @@ export default function AssetsTab({ id, task, observation, reloadToken }) {
                     loading={resource.loading}
                     pagination={false}
                     onRow={record => ({ onClick: () => setSelected(record), style: { cursor: 'pointer' } })}
-                    emptyText="本次测评尚未关联资产。"
+                    emptyText="资产库里还没有纳入本次测评的资产。关联项目后会自动带入该项目的资产。"
                 />
                 <div className="assessment-pager">
                     <Space>
@@ -280,6 +307,7 @@ export default function AssetsTab({ id, task, observation, reloadToken }) {
                                 { label: '最近发现', value: formatDateTime(selected.last_seen_at) }
                             ]}
                         />
+                        <LinkedEndpoints taskId={id} assetId={selected.id} />
                         <JsonViewer title="原始资产记录" value={selected} collapsed />
                     </div>
                 ) : null}

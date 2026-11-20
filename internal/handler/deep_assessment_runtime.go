@@ -22,6 +22,7 @@ import (
 	"cyberstrike-ai/internal/mcp"
 	"cyberstrike-ai/internal/multiagent"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type deepAssessmentRuntime struct {
@@ -239,7 +240,8 @@ func transientDeepAssessmentModelError(err error) bool {
 func (r *deepAssessmentRuntime) Plan(ctx context.Context, t *deepassessment.Task) (deepassessment.Proposal, error) {
 	var p deepassessment.Proposal
 	err := r.generate(ctx, t, `你是深度测评的规划器。本轮是全新的 Pi 会话，决策只依赖持久态势、队列、事实和原始回执，不依赖前一轮对话。只规划，不执行探测。
-步骤就是意图：一句话的开放方向，大于命令、小于整个任务。具体资产须填写 asset_ids（先查询 assessment_assets）；来源事实填 source_ids；priority 为 1–1000，数字越小越优先，默认 100。方向先入队，执行并行数不会限制保存的方向总量。用户手动暂停的意图（user_paused=true 或 paused/pausing）只能由用户继续；不得退休、重命名或复制方向绕过暂停，其他可行意图照常推进。每条意图的 guidance 只约束该意图。
+步骤就是意图：一句话的开放方向，大于命令、小于整个任务。具体资产须填写 asset_ids（先用预取里的 linked_asset_preview，不够再查 assessment_assets）；来源事实填 source_ids；priority 为 1–1000，数字越小越优先，默认 100。方向先入队，执行并行数不会限制保存的方向总量。用户手动暂停的意图（user_paused=true 或 paused/pausing）只能由用户继续；不得退休、重命名或复制方向绕过暂停，其他可行意图照常推进。每条意图的 guidance 只约束该意图。
+资产范围与资产库是同一批记录。未指定集合时，项目里当前可读的资产会自动关联，并出现在 linked_asset_preview 和攻击面图中。直接使用这些 asset_ids，不要要求用户再手工添加。任务中新发现的同范围服务和端点会写回资产库，下一轮预取就能用。补充限制和项目排除名单里的地址不会自动加入。
 先用 assessment_intents 检查未执行及在跑方向，禁止换措辞重复派发。查看 observed/inferred 事实及真实回执；失败状态、负面推断、版本号不能自动证明方向封死。reported 漏洞需派另一条独立意图实际复现并提交 assessment_review_finding，不能只读报告自证。发现高价值入口应深入，覆盖统计用于验收而非浅测刷数。
 只在有材料性新事实、资产或不同验证机理时重新探索旧方向；没有新方向时提交空增量等待，禁止为保持运行编造方向。强依赖方向保留在队列中等前置完成。
 每次只增加 0 到 8 个具体、有边界的步骤（单次增量，不限制累计数量）。参考探索图与 Pi 历史摘要，先展开相关历史、核对原证据；source_ids 可引用启发本步骤的图节点 ID，留下复用链路。保留一条清楚的长期路线，按依赖逐步推进。可并行的步骤没有依赖；需要前一步结果的步骤必须 depends_on。每一步由完整 Pi Agent 执行，不要拆成单条命令。
@@ -330,7 +332,7 @@ func (r *deepAssessmentRuntime) Run(ctx context.Context, t *deepassessment.Task,
 	contract += snapshot
 	message := "继续当前测评步骤，先核对已有结果与未完成项。可用工具和权限允许时，验证出可复现漏洞后及时调用 record_vulnerability 登记完整复现步骤和证据；平台会按本次执行会话自动关联测评与步骤。检查点里的描述不等同于已登记漏洞。"
 	message += "\n\n用 assessment_memory 检索其他步骤的结果和执行过程，复用已有证据。重要进展调用 assessment_checkpoint。最终必须调用 assessment_result 提交 completed 或 blocked、事实结论、证据回执 IDs（工具结果底部 Execution receipt）和未完成项；需要跨段继续时提交 continue。不能把阶段回复当成整个目标完成。"
-	message += "\n用 assessment_fact 记录 observed 观察或 inferred 推断及来源回执，不能把版本特征、报错或猜测登记为漏洞。record_vulnerability 必须传 evidence_receipt_ids，引用本意图实际触发的原始回执。验证其他意图的漏洞时先用 assessment_findings 读取证据，再实际复现并用 assessment_review_finding 保存独立结论。新资产沿用 create_asset，随后 assessment_anchor_assets 关联；端点用 assessment_endpoint 保存。"
+	message += "\n用 assessment_fact 记录 observed 观察或 inferred 推断及来源回执，不能把版本特征、报错或猜测登记为漏洞。record_vulnerability 必须传 evidence_receipt_ids，引用本意图实际触发的原始回执。验证其他意图的漏洞时先用 assessment_findings 读取证据，再实际复现并用 assessment_review_finding 保存独立结论。资产范围与资产库是同一批记录。create_asset 和 update_asset 写入当前项目后会自动进入本次攻击面图，不必再调用 assessment_anchor_assets。工具结果里属于项目资产、测评目标或项目授权范围的新服务和端点也会写回资产库。排除地址不会自动加入。需要补记路径时再用 assessment_endpoint。"
 	var roleTools []string
 	if t.Role != "" {
 		role := cfg.Roles[t.Role]
@@ -466,7 +468,13 @@ func (r *deepAssessmentRuntime) Run(ctx context.Context, t *deepassessment.Task,
 			if assessmentInternalTool(call.Name) {
 				return nil
 			}
-			return store.FinishCall(call, result, c.Err() != nil)
+			if err := store.FinishCall(call, result, c.Err() != nil); err != nil {
+				return err
+			}
+			if err := r.ingestToolSurface(t, call.Name, result); err != nil && h.logger != nil {
+				h.logger.Warn("自动写入资产库失败", zap.String("task", t.ID), zap.String("tool", call.Name), zap.Error(err))
+			}
+			return nil
 		}, Metrics: func(data map[string]any) {
 			if err := store.RecordMetrics(t.ID, step.ID, data); err != nil {
 				cancel(err)
@@ -791,6 +799,17 @@ func (r *deepAssessmentRuntime) reviewEvidence(t *deepassessment.Task) (string, 
 		}
 	}
 	return b.String(), nil
+}
+
+func (r *deepAssessmentRuntime) ingestToolSurface(t *deepassessment.Task, tool string, result agentruntime.ToolResult) error {
+	if t == nil || result.IsError || strings.TrimSpace(result.Content) == "" || assessmentInternalTool(tool) {
+		return nil
+	}
+	p, err := r.principal(t)
+	if err != nil {
+		return err
+	}
+	return r.h.ingestAssessmentSurface(assessmentActorFromPrincipal(p), t, tool, result.Content)
 }
 
 func assessmentInternalTool(name string) bool {

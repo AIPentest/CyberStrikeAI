@@ -882,6 +882,67 @@ func (db *DB) ListAssetsForOperation(limit int, filter AssetListFilter, access R
 	return items, total, rows.Err()
 }
 
+// AssetScopeSeed is the host identity used to decide whether a discovered
+// name belongs to an assessment. It is not an asset record.
+type AssetScopeSeed struct {
+	Host   string
+	IP     string
+	Domain string
+}
+
+// ListAssetIDs returns every matching asset ID. limit is a hard upper bound;
+// exceeding it returns the total and an error instead of a truncated set.
+func (db *DB) ListAssetIDs(limit int, filter AssetListFilter, access RBACListAccess) ([]string, int, error) {
+	if limit < 1 || limit > 5000 {
+		limit = 5000
+	}
+	where, args := assetWhere(filter, access)
+	var total int
+	if err := db.QueryRow("SELECT COUNT(*) FROM assets"+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	if total > limit {
+		return nil, total, fmt.Errorf("匹配资产超过 %d 条，请缩小筛选范围", limit)
+	}
+	rows, err := db.Query("SELECT assets.id FROM assets"+where+" ORDER BY assets.id", args...)
+	if err != nil {
+		return nil, total, err
+	}
+	defer rows.Close()
+	ids := make([]string, 0, total)
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			return nil, total, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, total, rows.Err()
+}
+
+// ListAssetScopeSeeds reads only the names needed to keep discovered hosts
+// inside an existing project or assessment scope.
+func (db *DB) ListAssetScopeSeeds(limit int, filter AssetListFilter, access RBACListAccess) ([]AssetScopeSeed, error) {
+	if limit < 1 || limit > 5000 {
+		limit = 5000
+	}
+	where, args := assetWhere(filter, access)
+	rows, err := db.Query("SELECT COALESCE(assets.host,''), COALESCE(assets.ip,''), COALESCE(assets.domain,'') FROM assets"+where+" ORDER BY assets.id LIMIT ?", append(args, limit)...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []AssetScopeSeed{}
+	for rows.Next() {
+		var seed AssetScopeSeed
+		if err = rows.Scan(&seed.Host, &seed.IP, &seed.Domain); err != nil {
+			return nil, err
+		}
+		out = append(out, seed)
+	}
+	return out, rows.Err()
+}
+
 func assetOrderBy(sortBy, sortOrder string) string {
 	direction := "DESC"
 	if strings.EqualFold(strings.TrimSpace(sortOrder), "asc") {

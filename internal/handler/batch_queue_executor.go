@@ -16,6 +16,7 @@ import (
 	"cyberstrike-ai/internal/database"
 	"cyberstrike-ai/internal/mcp"
 	"cyberstrike-ai/internal/multiagent"
+	"cyberstrike-ai/internal/project"
 
 	"go.uber.org/zap"
 )
@@ -165,7 +166,7 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 			vis, _ := h.db.FactVisibilityFor(access.User.ID)
 			visible, _, visErr = h.db.ObservationCoverageVisible(database.RBACListAccess{UserID: access.User.ID, Scope: assetScope}, vis, collection.ID)
 			if visErr == nil && visible > 0 {
-				collectionNote = fmt.Sprintf("本次队列选定的资产集合是「%s」（%s）。当前账号可见 %d 个资产，只针对这些资产。", collection.Name, collection.ID, visible)
+				collectionNote = fmt.Sprintf("本次只使用资产库中已保存的检索结果「%s」（%s），可见 %d 个资产。未保存检索结果时，范围是该项目的全部资产。", collection.Name, collection.ID, visible)
 			}
 		}
 		if collectionNote == "" {
@@ -175,6 +176,17 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 			}
 			h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusBlocked, "", reason)
 			return
+		}
+	} else if projectID := strings.TrimSpace(queue.ProjectID); projectID != "" && access.Permissions["asset:read"] {
+		assetScope := access.Scope
+		if value := strings.TrimSpace(access.PermissionScopes["asset:read"]); value != "" {
+			assetScope = value
+		}
+		block, blockErr := project.BuildAssetLibraryBlock(h.db, projectID, database.RBACListAccess{UserID: access.User.ID, Scope: assetScope})
+		if blockErr != nil && h.logger != nil {
+			h.logger.Warn("读取项目资产库失败", zap.String("queueId", queueID), zap.Error(blockErr))
+		} else if blockErr == nil {
+			collectionNote = block
 		}
 	}
 	title := safeTruncateString(task.Message, 50)
