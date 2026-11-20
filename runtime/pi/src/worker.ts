@@ -356,7 +356,16 @@ const reader = new RecordReader();
 process.stdin.on("data", (chunk: Buffer) => {
   try { for (const record of reader.push(chunk)) void command(record).catch(fatal); } catch (e) { void fatal(e); }
 });
-process.stdin.on("end", () => { if (started) void command({ type: "cancel" }); else process.exit(0); });
+process.stdin.on("end", () => {
+  try {
+    reader.finish();
+  } catch (error) {
+    void fatal(error);
+    return;
+  }
+  if (started) void command({ type: "cancel" });
+  else process.exit(0);
+});
 async function fatal(error: unknown): Promise<void> {
   await send({ type: "fatal", error: error instanceof Error ? error.message : String(error) });
   session?.dispose();
