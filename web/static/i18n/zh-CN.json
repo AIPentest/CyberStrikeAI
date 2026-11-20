@@ -744,6 +744,8 @@
     "generatedFromFact": "由项目事实 {{factKey}} 生成"
   },
   "chat": {
+    "defaultWorkspace": "默认工作区",
+    "boundProject": "已绑定项目",
     "toolExecBlocked": "工具 {{name}} 已拦截",
     "newChat": "新对话",
     "newTask": "新任务",

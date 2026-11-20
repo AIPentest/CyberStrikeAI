@@ -756,6 +756,8 @@
     "generatedFromFact": "Generated from project fact {{factKey}}"
   },
   "chat": {
+    "defaultWorkspace": "Default workspace",
+    "boundProject": "Linked project",
     "toolExecBlocked": "Tool {{name}} blocked",
     "newChat": "New chat",
     "newTask": "New task",

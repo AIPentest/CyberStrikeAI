@@ -3918,9 +3918,13 @@ function updateChatProjectButtonLabel() {
     const textEl = document.getElementById('chat-project-text');
     if (!textEl) return;
     const id = resolveChatProjectSelection();
+    const name = id ? projectNameById[id] || '' : '';
+    textEl.dataset.projectName = name;
+    if (id) delete textEl.dataset.i18n;
+    else textEl.dataset.i18n = 'chat.defaultWorkspace';
     window.applyProjectNameDisplay(
         textEl,
-        id && projectNameById[id] ? projectNameById[id] : tp('projects.noProject')
+        name || tp(id ? 'chat.boundProject' : 'chat.defaultWorkspace')
     );
     if (typeof window.refreshChatWelcomeEmptyState === 'function') {
         window.refreshChatWelcomeEmptyState();

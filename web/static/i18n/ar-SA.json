@@ -756,6 +756,8 @@
     "generatedFromFact": "مُولّدة من حقيقة المشروع {{factKey}}"
   },
   "chat": {
+    "defaultWorkspace": "مساحة العمل الافتراضية",
+    "boundProject": "مشروع مرتبط",
     "toolExecBlocked": "تم حظر الأداة {{name}}",
     "newChat": "محادثة جديدة",
     "newTask": "مهمّة جديدة",

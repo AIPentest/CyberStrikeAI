@@ -45320,9 +45320,7 @@ html[data-theme="dark"] .project-conversation-row:hover .project-conversation-it
     }
 }
 
-/* ============================================================================
-   Layered chat composer: Codex-style hierarchy with CyberStrikeAI controls
-   ============================================================================ */
+/* Chat composer and context toolbar */
 
 .chat-input-container {
     position: relative;
@@ -45348,17 +45346,14 @@ html[data-theme="dark"] .project-conversation-row:hover .project-conversation-it
 
 .chat-composer-context {
     position: relative;
-    z-index: 1;
+    z-index: 3;
     display: flex;
     align-items: center;
-    min-height: 52px;
-    margin: 0 30px -9px;
-    padding: 0 15px 9px;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-bottom: 0;
-    border-radius: 22px 22px 0 0;
-    background: #f5f6f7;
-    box-shadow: 0 -8px 28px rgba(15, 23, 42, 0.035);
+    min-height: 42px;
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 21px 21px 0 0;
+    background: color-mix(in srgb, var(--accent-color) 6%, var(--bg-primary));
     box-sizing: border-box;
 }
 
@@ -45374,37 +45369,35 @@ html[data-theme="dark"] .project-conversation-row:hover .project-conversation-it
 }
 
 .chat-composer-context .chat-input-leading > *:not(:last-child) {
-    margin-right: 4px;
-    padding-right: 5px;
+    margin-inline-end: 5px;
+    padding-inline-end: 5px;
 }
 
 .chat-composer-context .chat-input-leading > *:not(:last-child)::after {
     content: '';
     position: absolute;
-    top: 11px;
-    right: 0;
-    bottom: 11px;
+    inset-block: 7px;
+    inset-inline-end: 0;
     width: 1px;
-    background: rgba(15, 23, 42, 0.09);
+    background: var(--border-color);
 }
 
 .chat-composer-context .role-selector-btn {
-    height: 40px;
-    padding: 0 12px;
-    gap: 8px;
+    height: 30px;
+    max-width: 100%;
+    padding: 0 8px;
+    gap: 6px;
     border: 0;
-    border-radius: 12px;
+    border-radius: 8px;
     background: transparent;
     box-shadow: none;
-    color: #20242a;
-    font-size: 14px;
-    font-weight: 560;
+    color: var(--text-primary);
 }
 
 .chat-composer-context .role-selector-btn:hover,
 .chat-composer-context .role-selector-btn.active {
     border: 0;
-    background: rgba(15, 23, 42, 0.055);
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
     box-shadow: none;
 }
 
@@ -45414,20 +45407,24 @@ html[data-theme="dark"] .project-conversation-row:hover .project-conversation-it
 }
 
 .chat-composer-context .role-selector-icon {
-    width: 20px;
-    min-width: 20px;
-    height: 20px;
-    font-size: 18px;
+    width: 16px;
+    min-width: 16px;
+    height: 16px;
+    font-size: 16px;
+    color: var(--accent-color);
 }
 
 .chat-composer-context .role-selector-icon svg {
     display: block;
+    width: 100%;
+    height: 100%;
 }
 
 .chat-composer-context .role-selector-text {
-    color: #20242a;
-    font-size: 14px;
-    font-weight: 560;
+    min-width: 0;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
 }
 
 .chat-composer-context .role-selector-arrow {
@@ -45910,12 +45907,6 @@ html[data-theme="dark"] .chat-input-container {
     background: transparent !important;
 }
 
-html[data-theme="dark"] .chat-composer-context {
-    border-color: #263244;
-    background: #172033;
-    box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.15);
-}
-
 html[data-theme="dark"] .chat-composer-context .role-selector-btn {
     border: 0 !important;
     background: transparent !important;
@@ -45932,7 +45923,6 @@ html[data-theme="dark"] .chat-composer-context .role-selector-text {
     color: var(--text-primary);
 }
 
-html[data-theme="dark"] .chat-composer-context .chat-input-leading > *:not(:last-child)::after,
 html[data-theme="dark"] .chat-composer-meta-divider {
     background: rgba(148, 163, 184, 0.18);
 }
@@ -45997,16 +45987,11 @@ html[data-theme="dark"] .chat-system-model-retry:hover {
     }
 
     .chat-composer-context {
-        min-height: 54px;
-        margin-right: 16px;
-        margin-left: 16px;
-        padding-right: 8px;
-        padding-left: 8px;
+        padding-inline: 7px;
     }
 
     .chat-composer-context .role-selector-btn {
-        padding-right: 9px;
-        padding-left: 9px;
+        height: 34px;
     }
 
     .chat-composer-context .project-selector-wrapper .role-selector-text {
@@ -46022,8 +46007,8 @@ html[data-theme="dark"] .chat-system-model-retry:hover {
 
 @media (max-width: 620px) {
     .chat-composer-context .chat-input-leading > *:not(:last-child) {
-        margin-right: 1px;
-        padding-right: 2px;
+        margin-inline-end: 1px;
+        padding-inline-end: 2px;
     }
 
     .chat-composer-context .role-selector-btn {
@@ -46061,15 +46046,14 @@ html[data-theme="dark"] .chat-system-model-retry:hover {
 }
 
 @container chat-composer (max-width: 520px) {
-    .chat-composer-context {
-        margin-right: 8px;
-        margin-left: 8px;
-        padding-right: 7px;
-        padding-left: 7px;
-    }
-
     .chat-composer-context .chat-input-leading {
         width: 100%;
+    }
+
+    .chat-composer-context .chat-input-leading > *,
+    .chat-composer-context .agent-mode-inner {
+        flex-shrink: 1;
+        min-width: 0;
     }
 
     .chat-composer-context .role-selector-btn {
@@ -46079,7 +46063,9 @@ html[data-theme="dark"] .chat-system-model-retry:hover {
     }
 
     .chat-composer-context #agent-mode-text {
-        display: none;
+        max-width: 82px;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .chat-composer-footer {
@@ -46106,10 +46092,14 @@ html[data-theme="dark"] .chat-system-model-retry:hover {
 
 @container chat-composer (max-width: 350px) {
     .chat-composer-context .project-selector-wrapper .role-selector-text,
-    .chat-composer-context #role-selector-text {
-        max-width: 62px;
+    .chat-composer-context #agent-mode-text {
+        max-width: 78px;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    .chat-composer-context #role-selector-text {
+        display: none;
     }
 
     .chat-hitl-shortcut {
@@ -46844,7 +46834,6 @@ html[data-theme="dark"] .chat-composer-surface > .chat-session-settings-popover 
     display: none !important;
 }
 
-.chat-input-container.has-hitl-approval .chat-composer-context,
 .chat-input-container.has-hitl-approval .chat-composer-surface {
     display: none;
 }

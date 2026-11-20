@@ -768,6 +768,8 @@
     "generatedFromFact": "Создано из факта проекта {{factKey}}"
   },
   "chat": {
+    "defaultWorkspace": "Рабочая область по умолчанию",
+    "boundProject": "Связанный проект",
     "toolExecBlocked": "Инструмент {{name}} заблокирован",
     "newChat": "Новый диалог",
     "newTask": "Новая задача",
