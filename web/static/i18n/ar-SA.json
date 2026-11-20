@@ -4703,6 +4703,9 @@
     }
   },
   "deepAssessments": {
+    "assetCollection": "مجموعة الأصول",
+    "selectCollection": "اختر مجموعة (اختياري)",
+    "noCollections": "لا توجد مجموعات أصول في هذا المشروع",
     "assets": "الأصول المرتبطة",
     "attackSurfaceGraph": "مخطط سطح الهجوم",
     "attackSurfaceGraphNodes": "عُقد مخطط سطح الهجوم",

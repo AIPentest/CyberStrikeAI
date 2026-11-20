@@ -1426,6 +1426,10 @@ test('deep assessment: new-draft drawer retries options, validates and saves wit
 
 test('deep assessment: create and select a new project without losing the draft', async ({ page, mockApi }) => {
     const created = { ...PROJECT, id: 'fixture-new-assessment-project', name: '测评中新建的项目' };
+    const collection = { id: 'fixture-collection', name: '示例集合', member_count: 2 };
+    mockApi.respond('GET', '/api/assets/collections', (_, url) => ({
+        json: { collections: url.searchParams.get('project_id') === PROJECT.id ? [collection] : [] }
+    }));
     const main = await visit(page, 'deep-assessments');
     const drawer = page.getByRole('dialog', { name: label('deepAssessments.create', '新建测评') });
     const projectDrawer = page.getByRole('dialog', { name: label('projects.modalNewTitle', '新建项目') });
@@ -1433,11 +1437,19 @@ test('deep assessment: create and select a new project without losing the draft'
     const saveAssessment = button(drawer, label('deepAssessments.save', '保存草稿'));
     const objective = drawer.getByRole('textbox', { name: /目标/ });
     const select = drawer.getByRole('combobox', { name: label('deepAssessments.project', '关联项目') });
+    const selectCollection = drawer.getByRole('combobox', { name: label('deepAssessments.assetCollection', '资产集合') });
+    const collectionText = `${collection.name}（${collection.member_count}）`;
 
     await button(main, label('deepAssessments.create', '新建测评')).click();
     await objective.fill(ASSESSMENT.objective);
+    await expect(selectCollection).toHaveCount(0);
+    expect(mockApi.calls('GET', '/api/assets/collections')).toEqual([]);
     await select.click();
     await page.getByRole('option').filter({ hasText: PROJECT.name }).click();
+    await expect(selectCollection).toHaveText(label('deepAssessments.selectCollection', '选择集合（可选）'));
+    await selectCollection.click();
+    await page.getByRole('listbox').getByText(collectionText, { exact: true }).click();
+    await expect(selectCollection).toHaveText(collectionText);
     await createProject.click();
     await expect(projectDrawer).toBeVisible();
     await expect(saveAssessment).toBeDisabled();
@@ -1469,6 +1481,8 @@ test('deep assessment: create and select a new project without losing the draft'
     await submitProject.click();
     await expect(projectDrawer).not.toBeVisible();
     await expect(select).toContainText(created.name);
+    await expect(drawer.getByRole('status')).toHaveText(label('deepAssessments.noCollections', '此项目暂无资产集合'));
+    await expect(selectCollection).toHaveCount(0);
     await expect(objective).toHaveValue(ASSESSMENT.objective);
     expect(mockApi.calls('POST', '/api/deep-assessments')).toEqual([]);
 
@@ -1479,12 +1493,13 @@ test('deep assessment: create and select a new project without losing the draft'
     const writes = mockApi.writes();
     expect(writes.map(call => call.path)).toEqual(['/api/projects', '/api/projects', '/api/deep-assessments']);
     expect(writes[1].body).toEqual({ name: created.name, description: '' });
-    expect(writes[2].body).toMatchObject({ project_id: created.id, objective: ASSESSMENT.objective, role: '' });
+    expect(writes[2].body).toMatchObject({ project_id: created.id, objective: ASSESSMENT.objective, role: '', collection_id: '' });
 });
 
 test.describe('deep assessment: project read permission only', () => {
     test.use({ appPermissions: UI_PERMISSIONS.filter(permission => permission !== 'project:write') });
     test('can select an existing project without a create action', async ({ page, mockApi }) => {
+        mockApi.fail('GET', '/api/assets/collections');
         const main = await visit(page, 'deep-assessments');
         await button(main, label('deepAssessments.create', '新建测评')).click();
         const drawer = page.getByRole('dialog', { name: label('deepAssessments.create', '新建测评') });
@@ -1492,6 +1507,7 @@ test.describe('deep assessment: project read permission only', () => {
         await select.click();
         await page.getByRole('option').filter({ hasText: PROJECT.name }).click();
         await expect(select).toContainText(PROJECT.name);
+        await expect(drawer.getByRole('status')).toHaveText(label('common.loadFailed', '加载失败'));
         await expect(button(drawer, label('projects.newProject', '新建项目'))).toHaveCount(0);
         expect(mockApi.writes()).toEqual([]);
     });

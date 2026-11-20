@@ -1,11 +1,12 @@
 /** 新建深度测评表单：字段与 internal/handler/deep_assessment.go 的创建结构体一致。 */
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Banner, Button, Form, Spin } from '@douyinfe/semi-ui';
+import { Banner, Button, Form, Spin, Typography } from '@douyinfe/semi-ui';
 import { IconPlus } from '@douyinfe/semi-icons';
 import { useAuth } from '../../lib/auth';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
 import { modelChannelOptions, selectedModelChannelName } from '../../lib/model-channel';
+import { useResource } from '../../components/hooks';
 import { Drawer, ErrorBanner, toastError, toastSuccess } from '../../components/ui';
 import ProjectFormModal from '../projects/project-form';
 
@@ -18,6 +19,37 @@ const HITL_OPTIONS = [
 ];
 const DEFAULT_ROLE = '默认';
 
+function ProjectCollectionField({ projectId }) {
+    const t = useT();
+    const { data, loading, error } = useResource(
+        () => api.get('/assets/collections', { project_id: projectId }),
+        [projectId]
+    );
+    const label = t('deepAssessments.assetCollection', null, '资产集合');
+    const collections = Array.isArray(data?.collections) ? data.collections : [];
+    if (collections.length) {
+        return (
+            <Form.Select
+                field="collection_id"
+                label={label}
+                placeholder={t('deepAssessments.selectCollection', null, '选择集合（可选）')}
+                optionList={collections.map(item => ({ value: item.id, label: `${item.name}（${item.member_count || 0}）` }))}
+                showClear
+                style={{ width: '100%' }}
+            />
+        );
+    }
+
+    let message = t('deepAssessments.noCollections', null, '此项目暂无资产集合');
+    if (loading) message = t('common.loading', null, '加载中…');
+    if (error) message = t('common.loadFailed', null, '加载失败');
+    return (
+        <Form.Slot label={label}>
+            <Typography.Text type="tertiary" role="status">{message}</Typography.Text>
+        </Form.Slot>
+    );
+}
+
 export default function CreateAssessmentDrawer({ visible, onCancel, onCreated }) {
     const t = useT();
     const title = t('deepAssessments.create', null, '新建测评');
@@ -29,12 +61,13 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
     const [error, setError] = useState(null);
     const [saving, setSaving] = useState(false);
     const [projectFormOpen, setProjectFormOpen] = useState(false);
-    const [collections, setCollections] = useState([]);
+    const [projectId, setProjectId] = useState('');
     const busy = saving || projectFormOpen;
 
     const loadOptions = useCallback(() => {
         setOptions(null);
         setError(null);
+        setProjectId('');
         api.get('/deep-assessments/options')
             .then(data => setOptions(data || {}))
             .catch(err => setError(err));
@@ -45,14 +78,9 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
         loadOptions();
     }, [visible, loadOptions]);
 
-    const loadCollections = projectId => {
-        if (!projectId) {
-            setCollections([]);
-            return;
-        }
-        api.get('/assets/collections', { project_id: projectId })
-            .then(data => setCollections(Array.isArray(data?.collections) ? data.collections : []))
-            .catch(() => setCollections([]));
+    const changeProject = value => {
+        formApi.current?.setValue('collection_id', '');
+        setProjectId(value || '');
     };
 
     const submit = async values => {
@@ -87,8 +115,7 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
         if (!project?.id) return;
         setOptions(current => ({ ...current, projects: [project, ...(current?.projects || [])] }));
         formApi.current?.setValue('project_id', project.id);
-        formApi.current?.setValue('collection_id', '');
-        loadCollections(project.id);
+        changeProject(project.id);
     };
 
     const models = modelChannelOptions((options?.models || []).map(item => [item.id, item]));
@@ -192,10 +219,7 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
                                 label={t('deepAssessments.project', null, '关联项目')}
                                 optionList={[{ value: '', label: '不关联' }, ...projects]}
                                 style={{ width: '100%' }}
-                                onChange={value => {
-                                    formApi.current?.setValue('collection_id', '');
-                                    loadCollections(value || '');
-                                }}
+                                onChange={changeProject}
                             />
                             {canCreateProject && (
                                 <Button
@@ -209,12 +233,7 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
                                 </Button>
                             )}
                         </div>
-                        <Form.Select
-                            field="collection_id"
-                            label="资产集合"
-                            optionList={[{ value: '', label: '不指定集合' }, ...collections.map(item => ({ value: item.id, label: `${item.name}（${item.member_count || 0}）` }))]}
-                            style={{ width: '100%' }}
-                        />
+                        {projectId && <ProjectCollectionField key={projectId} projectId={projectId} />}
                         <Form.InputNumber
                             field="concurrency"
                             label={t('deepAssessments.concurrency', null, '并行步骤')}
