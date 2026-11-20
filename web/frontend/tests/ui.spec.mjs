@@ -160,6 +160,44 @@ test('dashboard: exact populated metrics and anonymous records', async ({ page }
     await expect(main.getByText(/^(部分数据不可用|数据暂不可用)$/)).toHaveCount(0);
 });
 
+test('dashboard: feed cards align above full-width facts that stack on small screens', async ({ page, mockApi }, testInfo) => {
+    const vulnerabilities = Array.from({ length: 8 }, (_, index) => ({
+        ...VULNERABILITY, id: `fixture-vulnerability-${index}`
+    }));
+    const facts = [FACT, { ...FACT, id: 'fixture-long-fact', summary: `示例事实 ${'localhost/'.repeat(45)}` }];
+    mockApi.respond('GET', '/api/vulnerabilities', () => ({ json: { vulnerabilities } }));
+    mockApi.respond('GET', '/api/projects/dashboard-summary', () => ({
+        json: { totals: { active_projects: 1, total_facts: facts.length }, projects: [PROJECT], recent_facts: facts }
+    }));
+
+    const main = await visit(page, 'dashboard');
+    const card = name => main.locator('.cs-section-card').filter({ has: page.getByText(name, { exact: true }) });
+    const recentVulnerabilities = await card('最近漏洞').boundingBox();
+    const capabilities = await card('能力与运行态').boundingBox();
+    const recentFacts = card('近期事实');
+    const factItems = recentFacts.locator('.semi-list-item');
+    await expect(factItems).toHaveCount(2);
+    const factsBox = await recentFacts.boundingBox();
+    const [left, right] = await Promise.all([factItems.nth(0).boundingBox(), factItems.nth(1).boundingBox()]);
+
+    expect(recentVulnerabilities.y + recentVulnerabilities.height).toBeCloseTo(capabilities.y + capabilities.height, 0);
+    expect(factsBox.y).toBeGreaterThan(capabilities.y + capabilities.height);
+    expect(factsBox.x).toBeCloseTo(recentVulnerabilities.x, 0);
+    expect(factsBox.x + factsBox.width).toBeCloseTo(capabilities.x + capabilities.width, 0);
+    expect(left.y).toBeCloseTo(right.y, 0);
+    expect(right.x).toBeGreaterThan(left.x + left.width);
+    await recentFacts.scrollIntoViewIfNeeded();
+    await screenshot(page, testInfo, 'dashboard-facts-desktop');
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const [first, second] = await Promise.all([factItems.nth(0).boundingBox(), factItems.nth(1).boundingBox()]);
+    expect(first.x).toBeCloseTo(second.x, 0);
+    expect(second.y).toBeGreaterThan(first.y + first.height);
+    await assertNoOverflow(page);
+    await factItems.first().getByRole('button', { name: '查看所属项目' }).click();
+    await expect(page).toHaveURL(new RegExp(`#/projects\\?id=${PROJECT.id}$`));
+});
+
 test('dashboard: severity segment and legend carry the active status into the vulnerability list', async ({ page, mockApi }) => {
     mockApi.respond('GET', '/api/vulnerabilities/stats', (_, url) => ({
         json: url.searchParams.get('status') === 'fixed'

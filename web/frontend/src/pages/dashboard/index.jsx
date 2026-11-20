@@ -116,7 +116,8 @@ function RecentFacts({ summary, loading, onOpen }) {
     const facts = getList(summary, 'recent_facts', 'facts');
     return (
         <List
-            className="dashboard-list dashboard-feed"
+            className="dashboard-list dashboard-feed dashboard-facts"
+            split={false}
             loading={loading}
             dataSource={facts || []}
             emptyContent={<DashboardEmpty loading={loading} unavailable={facts === null} title="暂无近期事实" description="项目沉淀的事实与证据将在这里展示。" />}
@@ -299,9 +300,6 @@ export default function DashboardPage() {
                     >
                         <RecentVulnerabilities data={data?.vulnList} loading={loading} onOpen={id => navigate(`/vulnerabilities?id=${encodeURIComponent(id)}`)} />
                     </SectionCard>
-                    <SectionCard title={t('dashboard.recentFacts', null, '近期事实')}>
-                        <RecentFacts summary={data?.projectSummary} loading={loading} onOpen={openProject} />
-                    </SectionCard>
                 </div>
                 <div className="dashboard-column">
                     <SectionCard
@@ -316,7 +314,11 @@ export default function DashboardPage() {
                     >
                         <TopTools data={data?.monitorStats} loading={loading} />
                     </SectionCard>
-                    <SectionCard title={t('dashboard.capability', null, '能力与运行态')}>
+                    <SectionCard
+                        className="dashboard-capability-card"
+                        bodyClassName="dashboard-capability-body"
+                        title={t('dashboard.capability', null, '能力与运行态')}
+                    >
                         <List
                             className="dashboard-capabilities"
                             split={false}
@@ -333,6 +335,9 @@ export default function DashboardPage() {
                     </SectionCard>
                 </div>
             </div>
+            <SectionCard className="dashboard-facts-card" title={t('dashboard.recentFacts', null, '近期事实')}>
+                <RecentFacts summary={data?.projectSummary} loading={loading} onOpen={openProject} />
+            </SectionCard>
         </div>
     );
 }
