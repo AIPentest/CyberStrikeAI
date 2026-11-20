@@ -19,10 +19,11 @@ const STATUS_ORDER = [
     'uncertain', 'cleanup_unconfirmed', 'interrupted', 'retired', 'reconciled'
 ];
 
-export default function IntentsTab({ id, reloadToken, status, onStatusChange, onChanged, archived }) {
+export default function IntentsTab({ id, reloadToken, status, onStatusChange, onChanged, archived, taskStatus, revision }) {
     const t = useT();
     const { hasPermission } = useAuth();
     const canWrite = hasPermission(PERM_WRITE);
+    const [pausing, setPausing] = useState(false);
     const [reconciling, setReconciling] = useState(false);
     const [offset, setOffset] = useState(0);
     const [selected, setSelected] = useState(null);
@@ -36,6 +37,20 @@ export default function IntentsTab({ id, reloadToken, status, onStatusChange, on
     const data = resource.data;
     const intents = data?.intents || [];
     const counts = data?.counts || {};
+
+    const pauseIntent = async step => {
+        setPausing(true);
+        try {
+            await api.post(`/deep-assessments/${id}/control/intent-pause`, { revision, step_id: step.id });
+            toastSuccess('已提交此方向的暂停请求');
+        } catch (error) {
+            toastError(error, '暂停方向失败');
+        } finally {
+            setPausing(false);
+            setSelected(null);
+            onChanged?.();
+        }
+    };
 
     const reconcileStep = step => {
         confirmAction({
@@ -174,6 +189,9 @@ export default function IntentsTab({ id, reloadToken, status, onStatusChange, on
             >
                 {selected ? (
                     <div className="assessment-drawer">
+                        {canWrite && !archived && taskStatus === 'running' && ['pending', 'running'].includes(selected.status) && (
+                            <Button onClick={() => pauseIntent(selected)} loading={pausing} disabled={pausing}>暂停此方向</Button>
+                        )}
                         <KeyValueList
                             columns={2}
                             items={[

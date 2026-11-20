@@ -15,6 +15,7 @@ import ConversationsPanel from './conversations-panel';
 import SettingsPanel from './settings-panel';
 import FactFormModal from './fact-form';
 import FactDetailSheet from './fact-detail';
+import AssetEditorModal from '../asset-library/components/AssetEditorModal';
 import { errorProp } from './helpers';
 
 const { Title, Text, Paragraph } = Typography;
@@ -28,6 +29,7 @@ export default function ProjectDetail({ projectId, tab, refreshToken = 0, onTabC
 
     const [revision, setRevision] = useState(0);
     const [factForm, setFactForm] = useState({ visible: false, factKey: '' });
+    const [addingAsset, setAddingAsset] = useState(false);
     const [factDetail, setFactDetail] = useState('');
 
     const project = useResource(() => api.get(`/projects/${projectId}`), [projectId, revision, refreshToken]);
@@ -89,6 +91,9 @@ export default function ProjectDetail({ projectId, tab, refreshToken = 0, onTabC
                         </Text>
                     </div>
                     <Space wrap>
+                        {current && hasPermission('asset:write') && (
+                            <Button onClick={() => setAddingAsset(true)}>{t('assets.addAsset', null, '新增资产')}</Button>
+                        )}
                         {current && hasPermission('asset:read') && (
                             <Button onClick={() => navigate(`/asset-library?project_id=${encodeURIComponent(projectId)}`)}>
                                 {t('assets.projectAssets', null, '项目资产')}
@@ -153,6 +158,11 @@ export default function ProjectDetail({ projectId, tab, refreshToken = 0, onTabC
                     onChanged={bump}
                     onDeleted={id => onDeleted?.(id)}
                 />
+            )}
+
+            {addingAsset && current && hasPermission('asset:write') && (
+                <AssetEditorModal visible defaultProjectId={projectId} fixedProject
+                    projects={[current]} onClose={() => setAddingAsset(false)} />
             )}
 
             <FactFormModal

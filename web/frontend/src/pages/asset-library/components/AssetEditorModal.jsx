@@ -37,7 +37,7 @@ function initialValues(asset, defaultProjectId) {
     };
 }
 
-export default function AssetEditorModal({ visible, asset, defaultProjectId = '', projects, onClose, onSaved }) {
+export default function AssetEditorModal({ visible, asset, defaultProjectId = '', fixedProject = false, projects, onClose, onSaved }) {
     const t = useT();
     const [formApi, setFormApi] = useState(null);
     const [busy, setBusy] = useState(false);
@@ -126,7 +126,7 @@ export default function AssetEditorModal({ visible, asset, defaultProjectId = ''
         const targets = splitAssetTargets(formApi.getValue('targets'));
         if (!targets.length) throw new Error(t('assets.targetRequired', null, '请输入资产地址'));
         if (targets.length > 200) throw new Error('一次最多添加 200 个地址');
-        const projectID = formApi.getValue('project_id') || '';
+        const projectID = fixedProject ? defaultProjectId : formApi.getValue('project_id') || '';
         return targets.map(target => {
             const parsed = parseAssetTarget(target);
             return {
@@ -246,8 +246,9 @@ export default function AssetEditorModal({ visible, asset, defaultProjectId = ''
                             field="project_id"
                             label={t('assets.project', null, '所属项目')}
                             optionList={projectOptions}
+                            disabled={fixedProject}
                             filter
-                            showClear
+                            showClear={!fixedProject}
                             placeholder={t('assets.unboundProject', null, '暂不绑定')}
                             style={{ width: '100%' }}
                         />

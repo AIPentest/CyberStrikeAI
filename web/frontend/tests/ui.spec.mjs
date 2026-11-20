@@ -1629,6 +1629,7 @@ test('deep assessment: guidance and asset selection open as drawers', async ({ p
     const path = `/api/deep-assessments/${ASSESSMENT.id}`;
     mockApi.respond('GET', `${path}/events`, { json: { events: [] } });
     mockApi.respond('GET', `${path}/assets`, { json: { assets: [] } });
+    mockApi.respond('GET', `${path}/surface-items`, { json: { items: [] } });
     await page.goto(`/static/app/#/deep-assessments?id=${ASSESSMENT.id}`);
     const main = await ready(page);
 
@@ -1642,7 +1643,7 @@ test('deep assessment: guidance and asset selection open as drawers', async ({ p
     await expect(page).toHaveURL(new RegExp(`#/deep-assessments\\?id=${ASSESSMENT.id}&tab=assets$`));
     await expect(main.locator('.cs-section-card').getByText('攻击面图', { exact: true })).toBeVisible();
     await expect(main.getByText('攻击面图节点', { exact: true })).toBeVisible();
-    await button(main, '添加资产').click();
+    await button(main, '从资产库补充').click();
     const assets = page.getByRole('dialog', { name: '关联共享资产' });
     await expect(assets).toHaveClass(/semi-sidesheet-inner/);
     await expect(button(assets, '关联')).toBeDisabled();

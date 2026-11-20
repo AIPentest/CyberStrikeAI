@@ -454,3 +454,12 @@
     gap: 8px;
     margin-bottom: 12px;
 }
+
+.assessment-question-form {
+    display: grid;
+    width: 100%;
+    gap: 8px;
+}
+.assessment-question-form > button { justify-self: end; }
+.assessment-question-turn { padding: 12px 0; border-top: 1px solid var(--semi-color-border); }
+.assessment-question-turn p { margin: 4px 0 12px; white-space: pre-wrap; overflow-wrap: anywhere; }

@@ -23,6 +23,7 @@ import FindingsTab from './FindingsTab';
 import AcceptanceTab from './AcceptanceTab';
 import EvidenceTab from './EvidenceTab';
 import ReportTab from './ReportTab';
+import ProgressQuestions from './ProgressQuestions';
 
 const { Text } = Typography;
 
@@ -190,6 +191,7 @@ export default function Workbench({ id, tab, criterion, evidencePath, evidenceSt
     };
 
     const headerExtra = [
+        task && canExecute ? <ProgressQuestions key={id} id={id} /> : null,
         <Button key="back" theme="borderless" onClick={onBack}>返回列表</Button>,
         <Button key="refresh" icon={<IconRefresh />} onClick={refreshAll} loading={resource.loading && !busy}>刷新</Button>,
         <Button
@@ -338,6 +340,8 @@ export default function Workbench({ id, tab, criterion, evidencePath, evidenceSt
                         status={intentFilter}
                         onStatusChange={setIntentFilter}
                         archived={Boolean(task.archived)}
+                        taskStatus={task.status}
+                        revision={task.revision}
                         onChanged={() => {
                             setReloadToken(value => value + 1);
                             resource.reload({ silent: true });
@@ -399,7 +403,7 @@ export default function Workbench({ id, tab, criterion, evidencePath, evidenceSt
                 <p className="assessment-hint">
                     {messageMode === 'answer'
                         ? '答复会保存到人工补充并清除待答复状态，随后自动继续测评。'
-                        : '补充方向会在下一轮规划中使用；执行中的测评需当前账号继续后才可补充。'}
+                        : '当前执行账号可以在测评运行时提交补充，下一轮规划会读取。'}
                 </p>
                 <TextArea
                     value={messageText}

@@ -123,6 +123,8 @@ func permissionForRequest(method, fullPath string) string {
 			return "hitl:read"
 		}
 		return "hitl:write"
+	case path == "/deep-assessments/:id/question" && method == http.MethodPost:
+		return "assessments:read"
 	case strings.HasPrefix(path, "/deep-assessments"):
 		return crudPermission(method, "assessments")
 	case strings.HasPrefix(path, "/agent-loop"), strings.HasPrefix(path, "/batch-tasks"):
