@@ -1,7 +1,7 @@
 /** 资产库：筛选、分页、行内操作、详情、新建/编辑、批量、导入、合并、绑定项目、导出。 */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Banner, Button, Select, Space, Typography } from '@douyinfe/semi-ui';
+import { Banner, Button, Space, Typography } from '@douyinfe/semi-ui';
 import { IconPlus, IconRefresh, IconCloudUploadStroked } from '@douyinfe/semi-icons';
 import { api } from '../../lib/http';
 import { useAuth } from '../../lib/auth';
@@ -52,10 +52,11 @@ export default function AssetLibraryPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const projectResource = useAssetProjects();
     const projectId = searchParams.get('project_id') || '';
-    const scope = projectId ? 'project' : searchParams.get('scope');
+    const requestedScope = searchParams.get('scope') === 'unassigned' ? 'unassigned' : 'all';
+    const scope = projectId ? `project:${projectId}` : requestedScope;
     return (
         <AssetLibraryWorkspace
-            key={projectId || scope || ''}
+            key={scope}
             projectId={projectId}
             scope={scope}
             projectResource={projectResource}
@@ -73,8 +74,6 @@ function AssetLibraryWorkspace({ projectId, scope, projectResource, searchParams
     const canDelete = hasPermission('asset:delete');
 
     const deepId = searchParams.get('id') || '';
-    const hasScope = Boolean(projectId) || scope === 'all' || scope === 'unassigned';
-    const scopeValue = projectId ? `project:${projectId}` : (hasScope ? scope : undefined);
     const scopeQuery = useMemo(() => ({
         project_id: projectId,
         project_unassigned: scope === 'unassigned' ? true : undefined
@@ -104,24 +103,23 @@ function AssetLibraryWorkspace({ projectId, scope, projectResource, searchParams
     );
     const { data, loading, error, reload } = useResource(
         () => api.get('/assets', query),
-        [query, canRead, hasScope],
-        { skip: !canRead || !hasScope }
+        [query, canRead],
+        { skip: !canRead }
     );
     const { projects, loading: projectsLoading, error: projectError, reload: reloadProjects } = projectResource;
 
     const assets = useMemo(() => (Array.isArray(data?.assets) ? data.assets : []), [data]);
     const total = error ? 0 : Number(data?.total || 0);
     const queryPending = loading || debouncedFilters !== filters;
-    const projectName = projects.find(project => project.id === projectId)?.name || projectId;
     const scopeOptions = [
-        ...projects.map(project => ({ value: `project:${project.id}`, label: project.name || project.id })),
+        { value: 'all', label: t('assets.scopeAll', null, '全部资产') },
         { value: 'unassigned', label: t('assets.scopeUnassigned', null, '未归属项目') },
-        { value: 'all', label: t('assets.scopeAll', null, '全部资产') }
+        ...projects.map(project => ({ value: `project:${project.id}`, label: project.name || project.id }))
     ];
-    if (projectId && !scopeOptions.some(option => option.value === scopeValue)) {
-        scopeOptions.unshift({ value: scopeValue, label: projectName });
+    if (projectId && !scopeOptions.some(option => option.value === scope)) {
+        scopeOptions.push({ value: scope, label: projectId });
     }
-    const scopeName = scopeOptions.find(option => option.value === scopeValue)?.label;
+    const scopeName = scopeOptions.find(option => option.value === scope)?.label;
 
     const resolvedDeep = useRef('');
 
@@ -146,6 +144,7 @@ function AssetLibraryWorkspace({ projectId, scope, projectResource, searchParams
     }, [canRead, deepId, scopeQuery, t]);
 
     const changeScope = value => {
+        if (value === scope) return;
         const next = new URLSearchParams();
         if (value?.startsWith('project:')) next.set('project_id', value.slice('project:'.length));
         else if (value) next.set('scope', value);
@@ -171,7 +170,7 @@ function AssetLibraryWorkspace({ projectId, scope, projectResource, searchParams
 
     const refresh = () => {
         clearSelection();
-        if (hasScope) reload();
+        reload();
         reloadProjects();
     };
 
@@ -324,111 +323,95 @@ function AssetLibraryWorkspace({ projectId, scope, projectResource, searchParams
                     </Space>
                 )}
             />
-            <SectionCard title={<span id="asset-library-scope-label">{t('assets.scopeLabel', null, '资产范围')}</span>}>
-                <Select
-                    aria-labelledby="asset-library-scope-label"
-                    className="asset-library-scope"
-                    value={scopeValue}
-                    placeholder={t('assets.scopePlaceholder', null, '选择项目或查看全部资产')}
-                    optionList={scopeOptions}
-                    loading={projectsLoading}
-                    onChange={changeScope}
-                    filter
+            <SectionCard title={t('assets.filterTitle', null, '筛选条件')}>
+                <AssetFilterBar
+                    scope={{ value: scope, options: scopeOptions, loading: projectsLoading, onChange: changeScope }}
+                    filters={filters}
+                    onChange={changeFilters}
+                    onReset={resetFilters}
                 />
                 <ErrorBanner error={projectError} onRetry={reloadProjects} />
             </SectionCard>
-            {hasScope && (
-                <>
-                    <ErrorBanner error={error} onRetry={refresh} />
+            <ErrorBanner error={error} onRetry={refresh} />
 
-                    <SectionCard title={t('assets.filterTitle', null, '筛选条件')}>
-                        <AssetFilterBar
-                            filters={filters}
-                            onChange={changeFilters}
-                            onReset={resetFilters}
-                        />
-                    </SectionCard>
-
-                    <SectionCard
-                        title={`${scopeName}（${total}）`}
-                        extra={(
-                            <Space>
-                                <Button
-                                    theme="borderless"
-                                    disabled={!selectedCount}
-                                    onClick={clearSelection}
-                                >
-                                    {t('assets.clearSelection', null, '清除选择')}
-                                </Button>
-                                <Button theme="borderless" disabled={queryPending || !total} onClick={() => exportCsv(false)} loading={exporting}>
-                                    {t('assets.exportCsv', null, '导出 CSV')}
-                                </Button>
-                                <Button theme="borderless" disabled={queryPending || !total} onClick={() => exportCsv(true)} loading={exporting}>
-                                    {t('assets.exportAll', null, '导出全部筛选结果')}
-                                </Button>
-                            </Space>
+            <SectionCard
+                title={`${scopeName}（${total}）`}
+                extra={(
+                    <Space>
+                        <Button
+                            theme="borderless"
+                            disabled={!selectedCount}
+                            onClick={clearSelection}
+                        >
+                            {t('assets.clearSelection', null, '清除选择')}
+                        </Button>
+                        <Button theme="borderless" disabled={queryPending || !total} onClick={() => exportCsv(false)} loading={exporting}>
+                            {t('assets.exportCsv', null, '导出 CSV')}
+                        </Button>
+                        <Button theme="borderless" disabled={queryPending || !total} onClick={() => exportCsv(true)} loading={exporting}>
+                            {t('assets.exportAll', null, '导出全部筛选结果')}
+                        </Button>
+                    </Space>
+                )}
+            >
+                <div className="asset-library-toolbar">
+                    <Space>
+                        <Text type="tertiary">
+                            {selectedCount
+                                ? t('assets.selectedCount', { count: selectedCount }, `已选择 ${selectedCount} 项`)
+                                : t('assets.selectedCount', { count: 0 }, '已选择 0 项')}
+                        </Text>
+                        <Button theme="borderless" size="small" disabled={queryPending || !total} onClick={selectAllMatching}>
+                            {t('assets.selectAllResults', { count: total }, `选择全部 ${total} 项`)}
+                        </Button>
+                    </Space>
+                    <Space>
+                        {canWrite && (
+                            <Button size="small" disabled={!canChangeSelection || selectedCount < 2 || !canDelete} onClick={() => setMergeOpen(true)}>
+                                {t('assets.mergeDuplicates', null, '合并重复资产')}
+                            </Button>
                         )}
-                    >
-                        <div className="asset-library-toolbar">
-                            <Space>
-                                <Text type="tertiary">
-                                    {selectedCount
-                                        ? t('assets.selectedCount', { count: selectedCount }, `已选择 ${selectedCount} 项`)
-                                        : t('assets.selectedCount', { count: 0 }, '已选择 0 项')}
-                                </Text>
-                                <Button theme="borderless" size="small" disabled={queryPending || !total} onClick={selectAllMatching}>
-                                    {t('assets.selectAllResults', { count: total }, `选择全部 ${total} 项`)}
-                                </Button>
-                            </Space>
-                            <Space>
-                                {canWrite && (
-                                    <Button size="small" disabled={!canChangeSelection || selectedCount < 2 || !canDelete} onClick={() => setMergeOpen(true)}>
-                                        {t('assets.mergeDuplicates', null, '合并重复资产')}
-                                    </Button>
-                                )}
-                                {canWrite && (
-                                    <Button size="small" disabled={!canChangeSelection} onClick={() => setProjectOpen(true)}>
-                                        {t('assets.bindProject', null, '绑定项目')}
-                                    </Button>
-                                )}
-                                {canWrite && (
-                                    <Button size="small" disabled={!canChangeSelection} onClick={() => setBulkOpen(true)}>
-                                        {t('assets.bulkEdit', null, '批量编辑')}
-                                    </Button>
-                                )}
-                                {canDelete && (
-                                    <Button size="small" type="danger" disabled={!canChangeSelection} onClick={batchDelete}>
-                                        {t('assets.batchDelete', null, '批量删除…')}
-                                    </Button>
-                                )}
-                            </Space>
-                        </div>
-                        {mixedProjects && (canWrite || canDelete) && (
-                            <Text type="tertiary" size="small">
-                                {t('assets.mixedProjectSelection', null, '批量修改前，请将选择缩小到同一项目或仅选择未归属资产。')}
-                            </Text>
+                        {canWrite && (
+                            <Button size="small" disabled={!canChangeSelection} onClick={() => setProjectOpen(true)}>
+                                {t('assets.bindProject', null, '绑定项目')}
+                            </Button>
                         )}
+                        {canWrite && (
+                            <Button size="small" disabled={!canChangeSelection} onClick={() => setBulkOpen(true)}>
+                                {t('assets.bulkEdit', null, '批量编辑')}
+                            </Button>
+                        )}
+                        {canDelete && (
+                            <Button size="small" type="danger" disabled={!canChangeSelection} onClick={batchDelete}>
+                                {t('assets.batchDelete', null, '批量删除…')}
+                            </Button>
+                        )}
+                    </Space>
+                </div>
+                {mixedProjects && (canWrite || canDelete) && (
+                    <Text type="tertiary" size="small">
+                        {t('assets.mixedProjectSelection', null, '批量修改前，请将选择缩小到同一项目或仅选择未归属资产。')}
+                    </Text>
+                )}
 
-                        <AssetTable
-                            assets={queryPending || error ? [] : assets}
-                            loading={queryPending}
-                            total={total}
-                            page={page}
-                            pageSize={pageSize}
-                            onPageChange={next => { setPage(next); clearSelection(); }}
-                            onPageSizeChange={next => { setPageSize(next); setPage(1); clearSelection(); }}
-                            selectedRowKeys={selection.keys}
-                            onSelectionChange={onSelectionChange}
-                            onView={openDetail}
-                            onEdit={openEditor}
-                            onDelete={deleteAsset}
-                            onRefresh={refresh}
-                            canWrite={canWrite}
-                            canDelete={canDelete}
-                        />
-                    </SectionCard>
-                </>
-            )}
+                <AssetTable
+                    assets={queryPending || error ? [] : assets}
+                    loading={queryPending}
+                    total={total}
+                    page={page}
+                    pageSize={pageSize}
+                    onPageChange={next => { setPage(next); clearSelection(); }}
+                    onPageSizeChange={next => { setPageSize(next); setPage(1); clearSelection(); }}
+                    selectedRowKeys={selection.keys}
+                    onSelectionChange={onSelectionChange}
+                    onView={openDetail}
+                    onEdit={openEditor}
+                    onDelete={deleteAsset}
+                    onRefresh={refresh}
+                    canWrite={canWrite}
+                    canDelete={canDelete}
+                />
+            </SectionCard>
 
             <AssetDetailDrawer
                 asset={detailAsset}
@@ -457,7 +440,7 @@ function AssetLibraryWorkspace({ projectId, scope, projectResource, searchParams
             />
             <AssetImportModal
                 visible={importOpen}
-                defaultProjectId={scope === 'all' || !hasScope ? undefined : projectId}
+                defaultProjectId={scope === 'all' ? undefined : projectId}
                 projects={projects}
                 onClose={() => setImportOpen(false)}
                 onDone={afterWrite}

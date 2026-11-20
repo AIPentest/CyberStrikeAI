@@ -18,7 +18,7 @@ const PAGE_READS = {
     'tool-guard': ['/api/tool-guard'],
     projects: ['/api/projects', `/api/projects/${PROJECT.id}`, `/api/projects/${PROJECT.id}/facts`],
     'asset-overview': ['/api/assets/stats', '/api/assets'],
-    'asset-library': ['/api/projects'],
+    'asset-library': ['/api/projects', '/api/assets'],
     'info-collect': [], // No search is triggered just by opening the page.
     vulnerabilities: ['/api/vulnerabilities', '/api/vulnerabilities/filter-options'],
     tasks: ['/api/batch-tasks'],
@@ -307,7 +307,7 @@ test('navigation: four Semi groups, parent expansion, child selection and collap
 test.describe('asset library project scope', () => {
     test.use({ appPermissions: [...UI_PERMISSIONS, 'asset:write', 'asset:delete'] });
 
-    test('requires an explicit scope and clears a pending selection on project switch', async ({ page, mockApi }) => {
+    test('shows all assets by default and clears a pending selection on project switch', async ({ page, mockApi }) => {
         const other = { id: 'other-project', name: '另一个项目' };
         const rows = [
             { id: 'asset-one', host: 'one.example.test', project_id: PROJECT.id, project_name: PROJECT.name },
@@ -327,11 +327,20 @@ test.describe('asset library project scope', () => {
         mockApi.respond('GET', '/api/assets', respond);
         const main = await visit(page, 'asset-library');
         await readsCompleted(mockApi, ['/api/projects']);
-        await expect(main.getByText(label('assets.scopePlaceholder'), { exact: true })).toBeVisible();
-        expect(mockApi.calls('GET', '/api/assets')).toEqual([]);
+        await expect(page).toHaveURL(/#\/asset-library$/);
+        const scope = main.getByRole('combobox', { name: label('assets.scopeLabel') });
+        await expect(scope).toHaveText(label('assets.scopeAll'));
+        const search = main.getByPlaceholder(label('assets.searchPlaceholder'));
+        expect(Math.abs((await scope.boundingBox()).y - (await search.boundingBox()).y)).toBeLessThan(10);
+        for (const row of rows) {
+            await expect(main.getByText(row.host, { exact: true })).toBeVisible();
+        }
+        const initialQuery = new URLSearchParams(mockApi.calls('GET', '/api/assets')[0].query);
+        expect(initialQuery.has('project_id')).toBe(false);
+        expect(initialQuery.has('project_unassigned')).toBe(false);
 
         const chooseScope = async name => {
-            await main.getByRole('combobox', { name: label('assets.scopeLabel') }).click();
+            await scope.click();
             await page.getByRole('option').filter({ has: page.getByText(name, { exact: true }) }).click();
         };
         await chooseScope(PROJECT.name);
@@ -364,6 +373,7 @@ test.describe('asset library project scope', () => {
         await expect(main.getByText(rows[2].host, { exact: true })).toBeVisible();
         await expect(main.getByText(rows[1].host, { exact: true })).toHaveCount(0);
         await chooseScope(label('assets.scopeAll'));
+        await expect(page).toHaveURL(/asset-library\?scope=all$/);
         await selectAll(3).click();
         await expect(main.getByText(label('assets.mixedProjectSelection'), { exact: true })).toBeVisible();
         await expect(bulkDelete).toBeDisabled();
@@ -2028,7 +2038,8 @@ test.describe('mobile @mobile', () => {
         await nav.getByRole('menuitem', { name: label('nav.assetLibrary', '资产库'), exact: true }).click();
         await expect(page).toHaveURL(/#\/asset-library$/);
         await expect(nav).toHaveCount(0);
-        await ready(page);
+        const main = await ready(page);
+        await expect(main.getByRole('combobox', { name: label('assets.scopeLabel') })).toHaveText(label('assets.scopeAll'));
         await assertNoOverflow(page);
         await open.click();
         await expect(nav.getByRole('menuitem', { name: label('nav.assetLibrary', '资产库'), exact: true })).toHaveClass(/semi-navigation-item-selected/);

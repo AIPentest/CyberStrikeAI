@@ -1,6 +1,6 @@
 /** 资产库筛选栏：常用条件平铺，其余条件收进“高级筛选”。 */
-import { useEffect, useState } from 'react';
-import { Button, Collapse, Input, Select, Space } from '@douyinfe/semi-ui';
+import { useEffect, useId, useState } from 'react';
+import { Button, Collapse, Input, Select } from '@douyinfe/semi-ui';
 import { IconSearch } from '@douyinfe/semi-icons';
 import { useT } from '../../../lib/i18n';
 import {
@@ -18,8 +18,9 @@ export function emptyAssetFilters() {
     return { ...EMPTY_FILTERS };
 }
 
-export default function AssetFilterBar({ filters, onChange, onReset, disabled }) {
+export default function AssetFilterBar({ scope, filters, onChange, onReset, disabled }) {
     const t = useT();
+    const scopeLabelId = useId();
     const [keyword, setKeyword] = useState(filters.q || '');
 
     useEffect(() => { setKeyword(filters.q || ''); }, [filters.q]);
@@ -29,8 +30,19 @@ export default function AssetFilterBar({ filters, onChange, onReset, disabled })
 
     return (
         <div className="asset-library-filters">
-            <div className="asset-library-filter-grid">
+            <div className="asset-library-filter-row">
+                <span id={scopeLabelId} hidden>{t('assets.scopeLabel', null, '资产范围')}</span>
+                <Select
+                    aria-labelledby={scopeLabelId}
+                    value={scope.value}
+                    optionList={scope.options}
+                    loading={scope.loading}
+                    disabled={disabled}
+                    onChange={scope.onChange}
+                    filter
+                />
                 <Input
+                    className="asset-library-filter-search"
                     prefix={<IconSearch />}
                     value={keyword}
                     disabled={disabled}
@@ -62,11 +74,9 @@ export default function AssetFilterBar({ filters, onChange, onReset, disabled })
                     onChange={value => onChange({ tag: value })}
                     showClear
                 />
-                <Space spacing={8} className="asset-library-filter-actions">
-                    <Button onClick={onReset} disabled={disabled}>
-                        {t('assets.resetFilters', null, '重置')}
-                    </Button>
-                </Space>
+                <Button onClick={onReset} disabled={disabled}>
+                    {t('assets.resetFilters', null, '重置')}
+                </Button>
             </div>
 
             <Collapse className="asset-library-filter-advanced" keepDOM={false}>
@@ -74,7 +84,7 @@ export default function AssetFilterBar({ filters, onChange, onReset, disabled })
                     itemKey="advanced"
                     header={`${t('assets.advancedFilters', null, '高级筛选')}${advancedCount ? `（${advancedCount}）` : ''}`}
                 >
-                    <div className="asset-library-filter-grid asset-library-filter-grid--advanced">
+                    <div className="asset-library-filter-grid">
                         <Select
                             value={filters.status || undefined}
                             placeholder={t('assets.allStatuses', null, '全部状态')}

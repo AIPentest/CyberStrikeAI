@@ -1,15 +1,24 @@
 /* 资产库页面私有布局样式（颜色一律使用 Semi 变量）。 */
 .asset-library-page { display: flex; flex-direction: column; gap: 0; }
-.asset-library-scope { width: min(100%, 360px); }
 
 .asset-library-filters { display: flex; flex-direction: column; gap: 8px; }
+.asset-library-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+.asset-library-filter-row > :is(.semi-select, .semi-input-wrapper) {
+    flex: 1 1 140px;
+    min-width: 0;
+}
+.asset-library-filter-row > .asset-library-filter-search { flex-grow: 2; }
 .asset-library-filter-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 10px;
     align-items: center;
 }
-.asset-library-filter-actions { justify-content: flex-end; }
 .asset-library-filter-advanced { margin-top: 2px; }
 
 .asset-library-toolbar {
