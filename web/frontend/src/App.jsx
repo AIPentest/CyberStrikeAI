@@ -1,5 +1,5 @@
-import { Suspense, useEffect, useMemo } from 'react';
-import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { Suspense, useMemo } from 'react';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { Spin, Typography } from '@douyinfe/semi-ui';
 import AppLayout from './layout/AppLayout';
 import LoginPage from './layout/LoginPage';
@@ -28,13 +28,6 @@ function StatusPage({ code, title, description }) {
     );
 }
 
-function LegacyPage({ pageId }) {
-    const { search } = useLocation();
-    const href = `/classic#${pageId}${search}`;
-    useEffect(() => { window.location.replace(href); }, [href]);
-    return <Loading />;
-}
-
 function PageHost() {
     const { pageId } = useParams();
     const { hasPermission, hasAnyPermission } = useAuth();
@@ -54,14 +47,11 @@ function PageHost() {
     if (!page) {
         return <StatusPage code="404" title={t('common.pageNotFound', null, '页面不存在')} />;
     }
-    if (!allowed) {
-        return <StatusPage code="403" title={t('common.forbidden', null, '当前账号没有访问该页面的权限')} />;
-    }
-    if (page.classic) {
-        return <LegacyPage pageId={pageId} />;
-    }
     if (!Component) {
         return <StatusPage code="404" title={page.fallback} description={t('common.pagePending', null, '页面尚未注册')} />;
+    }
+    if (!allowed) {
+        return <StatusPage code="403" title={t('common.forbidden', null, '当前账号没有访问该页面的权限')} />;
     }
     return (
         <Suspense fallback={<Loading />}>

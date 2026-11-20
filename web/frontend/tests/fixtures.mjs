@@ -4,17 +4,19 @@ import { readFileSync } from 'node:fs';
 export { expect };
 export const ORIGIN = 'http://127.0.0.1:5199';
 export const FAKE_TOKEN = 'FAKE-PLAYWRIGHT-NOT-A-REAL-TOKEN';
+export const APP_VERSION = 'v9.8.7-fixture';
 
 // Explicit keys from internal/security/rbac.go. No wildcard or application auth bypass.
 export const READ_PERMISSIONS = [
-    'auth:self', 'dashboard:read', 'chat:read', 'hitl:read',
+    'auth:self', 'dashboard:read', 'chat:read', 'hitl:read', 'assessments:read',
     'tasks:read', 'project:read', 'vulnerability:read', 'asset:read', 'webshell:read',
     'c2:read', 'mcp:read', 'knowledge:read', 'skills:read', 'agents:read', 'roles:read',
-    'config:read', 'rbac:read',
-    'notification:read', 'files:read', 'monitor:read', 'openapi:read', 'update:read'
+    'workflow:read', 'config:read', 'storage:read', 'audit:read', 'rbac:read',
+    'notification:read', 'files:read', 'openapi:read', 'update:read', 'monitor:read'
 ];
 export const UI_PERMISSIONS = [
-    ...READ_PERMISSIONS, 'fofa:execute', 'project:write', 'vulnerability:write'
+    ...READ_PERMISSIONS, 'fofa:execute', 'chat:write', 'agent:execute',
+    'assessments:write', 'project:write', 'vulnerability:write'
 ];
 
 const translations = new Map(['zh-CN', 'en-US'].map(lang => [
@@ -48,7 +50,39 @@ export const VULNERABILITY = {
     evidence: 'FAKE-EVIDENCE: local fixture only', recommendation: '核对示例访问权限。',
     created_at: STAMP, updated_at: STAMP
 };
-const CONVERSATION_ID = 'fixture-conversation';
+export const ASSESSMENT = {
+    id: 'fixture-assessment', name: '示例深度测评', status: 'draft', project_id: PROJECT.id,
+    objective: '仅评估 localhost 示例目标', summary: '匿名草稿，不自动执行',
+    rounds: 0, steps: [], created_at: STAMP, updated_at: STAMP
+};
+export const CONVERSATION = {
+    id: 'fixture-conversation', title: '示例会话', createdAt: STAMP, updatedAt: STAMP,
+    messages: [
+        { id: 'fixture-user-message', role: 'user', content: '仅整理 localhost 示例范围。', createdAt: STAMP },
+        { id: 'fixture-assistant-message', role: 'assistant', content: '已记录示例范围，未执行任何工具。', createdAt: STAMP }
+    ]
+};
+export const STREAM_REPLY = '模拟回复完成：仅处理匿名 localhost 数据，未执行真实任务。';
+const STREAM_ID = 'fixture-stream-conversation';
+
+export function conversationListFixture(items, url) {
+    const search = url.searchParams.get('search') || '';
+    const project = url.searchParams.get('project_id') || '';
+    const offset = Number(url.searchParams.get('offset') || 0);
+    const limit = Number(url.searchParams.get('limit') || 50);
+    const matching = items.filter(item => item.title.includes(search));
+    const filtered = matching.filter(item => !project || (item.projectId || '__none__') === project);
+    const response = { conversations: filtered.slice(offset, offset + limit), total: filtered.length };
+    if (url.searchParams.get('group_by_project') === '1') {
+        const totals = new Map();
+        for (const item of matching) {
+            const id = item.projectId || '';
+            totals.set(id, (totals.get(id) || 0) + 1);
+        }
+        response.projectGroups = [...totals].map(([projectId, total]) => ({ projectId, total }));
+    }
+    return response;
+}
 
 function makeReads(session) {
     const vulnerabilities = [
@@ -63,11 +97,11 @@ function makeReads(session) {
     return new Map(Object.entries({
         '/api/auth/validate': {
             expires_at: session.expiresAt, user: session.user, roles: session.roles,
-            permissions: session.permissions
+            permissions: session.permissions, app_version: APP_VERSION
         },
         '/api/notifications/summary': { items: [] },
         '/api/agent-loop/tasks': { tasks: [1, 2].map(id => ({
-            runId: `fixture-run-${id}`, conversationId: CONVERSATION_ID,
+            runId: `fixture-run-${id}`, conversationId: CONVERSATION.id,
             title: `示例任务 ${id}`, status: 'running', startedAt: STAMP
         })) },
         '/api/vulnerabilities/stats': { total: 3, distinct: 3, by_severity: { critical: 1, high: 1, medium: 0, low: 1, info: 0 }, by_status: { open: 3 } },
@@ -87,20 +121,20 @@ function makeReads(session) {
         '/api/knowledge/retrieval-logs': { logs: [], total: 0 },
         '/api/skills/stats': { total_skills: 0, total_calls: 0, total_success: 0, stats: [] },
         '/api/skills': { skills: [], total: 0 },
-        '/api/config': { ai: { channels: {} }, tools: [] },
-        '/api/config/tools': { tools: [], total: 0 },
-        '/api/system/update': { status: { installed: true } },
-        '/api/openapi/spec': { paths: {
-            '/api/projects': { get: { summary: '浏览项目', tags: ['项目'], responses: {} } }
-        } },
         '/api/roles': { roles: [{ name: '示例只读角色', description: '匿名角色', tools: [], enabled: true }] },
         '/api/multi-agent/markdown-agents': { agents: [] },
         '/api/hitl/pending': { items: [], total: 0, page: 1, pageSize: 20 },
         '/api/external-mcp/stats': { total: 0, enabled: 0, connected: 0, disabled: 0 },
+        '/api/external-mcp': { servers: {} },
         '/api/config/tools': { tools: [], total: 0, page: 1, page_size: 20 },
+        '/api/config': { ai: { default_channel: '', channels: {} }, tools: [], knowledge: { enabled: false }, c2: { enabled: false } },
+        '/api/tool-guard': { enabled: true, rules: [] },
         '/api/webshell/connections': { connections: [], total: 0 },
         '/api/c2/listeners': { listeners: [] },
         '/api/c2/sessions': { sessions: [], total: 0 },
+        '/api/c2/tasks': { tasks: [], total: 0 },
+        '/api/c2/events': { events: [], total: 0 },
+        '/api/c2/profiles': { profiles: [] },
         '/api/chat-uploads': { files: [], folders: [], total: 0 },
         '/api/projects': { projects: [PROJECT], total: 1 },
         '/api/projects/dashboard-summary': {
@@ -109,12 +143,26 @@ function makeReads(session) {
         [`/api/projects/${PROJECT.id}`]: PROJECT,
         [`/api/projects/${PROJECT.id}/stats`]: { fact_count: 1, vuln_count: 3, conversation_count: 1, sparse_fact_count: 0 },
         [`/api/projects/${PROJECT.id}/facts`]: url => url.searchParams.has('fact_key') ? FACT : [FACT],
+        '/api/conversations': url => conversationListFixture([CONVERSATION], url),
+        [`/api/conversations/${CONVERSATION.id}`]: CONVERSATION,
+        [`/api/conversations/${CONVERSATION.id}/plan-tasks`]: { tasks: [], total: 0, completed: 0, running: false },
+        '/api/deep-assessments': { tasks: [ASSESSMENT], has_more: false },
+        [`/api/deep-assessments/${ASSESSMENT.id}`]: { task: ASSESSMENT, intent_counts: {}, step_total: 0 },
+        [`/api/deep-assessments/${ASSESSMENT.id}/surface-items`]: { items: [], has_more: false },
+        '/api/deep-assessments/options': { models: [], roles: [], projects: [PROJECT] },
         '/api/assets': { assets: [], total: 0, page: 1, page_size: 20 },
-        '/api/assets/stats': { total: 0, ips: 0, domains: 0, ports: 0, recent: 0, protocols: [], coverage: { scanned: 0, scanned_30d: 0, never_scanned: 0, stale: 0 } },
+        '/api/assets/stats': { total: 0, ips: 0, domains: 0, ports: 0, recent: 0, protocols: [], coverage: { scanned: 0, scanned_30d: 0, never_scanned: 0, stale: 0 }, observation: { total: 0, observed: 0, rate: 0 } },
+        '/api/assets/collections': { collections: [] },
+        '/api/workflows': { workflows: [] },
+        '/api/workflows/runs/pending': { runs: [] },
         '/api/rbac/metadata': { permissions: Object.fromEntries(UI_PERMISSIONS.map(key => [key, key])) },
         '/api/rbac/roles': { roles: [] },
         '/api/rbac/users': { users: [session.user] },
-        '/api/rbac/resource-assignments': { assignments: [] }
+        '/api/rbac/resource-assignments': { assignments: [] },
+        '/api/openapi/spec': {
+            openapi: '3.0.3', info: { title: '匿名本地 API 文档', version: 'fixture' },
+            paths: { '/api/auth/validate': { get: { summary: '验证示例会话', tags: ['示例'], responses: { 200: { description: '示例响应' } } } } }
+        }
     }));
 }
 
@@ -149,6 +197,35 @@ class MockApi {
         return this.requests.filter(item => !['GET', 'HEAD', 'OPTIONS'].includes(item.method));
     }
 
+    enableChatStream(message) {
+        const conversation = {
+            id: STREAM_ID, title: '示例流式会话', createdAt: STAMP, updatedAt: STAMP,
+            messages: [
+                { id: 'fixture-stream-user', role: 'user', content: message, createdAt: STAMP },
+                { id: 'fixture-stream-assistant', role: 'assistant', content: STREAM_REPLY, createdAt: STAMP }
+            ]
+        };
+        this.respond('POST', '/api/agent/stream', () => {
+            this.reads.set(`/api/conversations/${STREAM_ID}`, conversation);
+            this.reads.set(`/api/conversations/${STREAM_ID}/plan-tasks`, { tasks: [], total: 0, completed: 0, running: false });
+            this.reads.set('/api/conversations', url => conversationListFixture([conversation, CONVERSATION], url));
+            const events = [
+                { type: 'conversation', data: { conversationId: STREAM_ID } },
+                { type: 'response_start', data: { conversationId: STREAM_ID } },
+                { type: 'response_delta', message: '模拟回复完成：', data: {} },
+                { type: 'response_delta', message: STREAM_REPLY.slice('模拟回复完成：'.length), data: { accumulated: STREAM_REPLY } },
+                { type: 'response', message: STREAM_REPLY, data: { conversationId: STREAM_ID, messageId: 'fixture-stream-assistant', finalizable: true } },
+                { type: 'done', data: {} }
+            ];
+            // Finite SSE exercises parsing, binding and history reconciliation, not transport timing.
+            return {
+                contentType: 'text/event-stream; charset=utf-8',
+                body: `${events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`
+            };
+        });
+        return STREAM_ID;
+    }
+
     async route(route) {
         const request = route.request();
         const url = new URL(request.url());
@@ -179,7 +256,7 @@ class MockApi {
             }
             await route.fulfill({
                 status: 200,
-                headers: { 'cache-control': 'no-store' },
+                headers: { 'cache-control': 'no-store', ...(url.pathname === '/api/tool-guard' ? { etag: '"fixture-v1"' } : {}) },
                 ...response
             });
             entry.fulfilled = true;
@@ -225,6 +302,7 @@ export const test = base.extend({
             localStorage.setItem('csai_lang', 'zh-CN');
             localStorage.setItem('cyberstrike-theme', 'system');
             localStorage.setItem('csai-nav-collapsed', '0');
+            localStorage.setItem('csai-chat-agent-mode', JSON.stringify('single'));
             if (authenticated) localStorage.setItem('cyberstrike-auth', JSON.stringify(session));
         }, { session, authenticated, origin: ORIGIN });
         await use(mock);

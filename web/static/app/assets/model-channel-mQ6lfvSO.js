@@ -1,0 +1,1 @@
+function e(e,t){return t?.name?.trim()||e}function t(t){let n=t.map(([t,n])=>({value:t,name:e(t,n)})),r=new Map;for(let{name:e}of n)r.set(e,(r.get(e)||0)+1);return n.map(({value:e,name:t})=>({value:e,name:t,label:r.get(t)>1?`${t} · ID ${e}`:t}))}function n(e){return e.name||e.label}export{t as n,n as r,e as t};

@@ -1,0 +1,97 @@
+/* 调用拦截页私有布局样式：只做排版，颜色沿用 Semi 变量。 */
+
+.tool-guard-page { display: flex; flex-direction: column; min-width: 0; }
+
+.tool-guard-policy { display: flex; flex-direction: column; gap: 8px; }
+
+.tool-guard-rule-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 26px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 6px;
+    background: var(--semi-color-fill-0);
+    color: var(--semi-color-text-2);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.tool-guard-rule-body { display: flex; flex-direction: column; gap: 14px; }
+
+.tool-guard-rule-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tool-guard-editor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px 16px;
+}
+.tool-guard-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tool-guard-field-wide { grid-column: 1 / -1; }
+
+.tool-guard-mono .semi-input-textarea,
+.tool-guard-args .semi-input-textarea {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 12.5px;
+    line-height: 1.55;
+}
+
+.tool-guard-test {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--semi-color-border);
+}
+.tool-guard-test-compact {
+    padding: 12px;
+    border: 1px solid var(--semi-color-border);
+    border-radius: 8px;
+    background: var(--semi-color-fill-0);
+}
+.tool-guard-test-form {
+    display: grid;
+    grid-template-columns: minmax(200px, 1fr);
+    gap: 10px;
+}
+.tool-guard-test-run { align-self: flex-start; }
+
+.tool-guard-test-result {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--semi-color-border);
+    background: var(--semi-color-bg-1);
+}
+.tool-guard-test-result.is-blocked { border-color: var(--semi-color-danger-light-default); }
+.tool-guard-test-result.is-pass { border-color: var(--semi-color-success-light-default); }
+
+.tool-guard-match {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+}
+.tool-guard-match pre {
+    margin: 2px 0 0;
+    padding: 8px;
+    border-radius: 6px;
+    background: var(--semi-color-fill-0);
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 160px;
+    overflow: auto;
+}
+
+@media (max-width: 720px) {
+    .tool-guard-editor-grid { grid-template-columns: minmax(0, 1fr); }
+}

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-    Avatar, Badge, Breadcrumb, Button, Dropdown, Form, Modal, Nav, Popover, SideSheet, Space, Typography
+    Avatar, Badge, Breadcrumb, Button, Dropdown, Form, Nav, Popover, SideSheet, Space, Typography
 } from '@douyinfe/semi-ui';
 import {
     IconBell, IconChevronLeft, IconChevronRight, IconExit, IconKey, IconLanguage, IconMenu, IconMoon, IconSun
@@ -11,11 +11,15 @@ import { useI18n, LANGUAGES, useT } from '../lib/i18n';
 import { useTheme } from '../lib/theme';
 import { NAV_SECTIONS, NAV_TREE, findPage } from '../lib/nav';
 import { api } from '../lib/http';
-import { toastError, toastSuccess } from '../components/ui';
+import { Drawer, toastError, toastSuccess } from '../components/ui';
 import { formatDateTime } from '../lib/format';
 import { useInterval } from '../components/hooks';
 
 const { Text } = Typography;
+const sidebarSubmenuProps = {
+    position: 'right',
+    contentClassName: 'cs-nav-flyout'
+};
 
 function useIsMobile() {
     const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 900px)').matches);
@@ -172,6 +176,7 @@ function UserMenu({ navigate }) {
     const { user, logout, refresh } = useAuth();
     const t = useT();
     const [passwordOpen, setPasswordOpen] = useState(false);
+    const passwordFormId = useId();
     const [formApi, setFormApi] = useState(null);
     const [saving, setSaving] = useState(false);
 
@@ -198,11 +203,6 @@ function UserMenu({ navigate }) {
                         { node: 'title', name: user?.display_name || user?.username || 'admin' },
                         {
                             node: 'item',
-                            name: t('header.classicWorkspace', null, '返回经典界面'),
-                            onClick: () => window.location.assign('/classic')
-                        },
-                        {
-                            node: 'item',
                             name: t('auth.changePassword', null, '修改密码'),
                             icon: <IconKey />,
                             onClick: () => setPasswordOpen(true)
@@ -226,31 +226,31 @@ function UserMenu({ navigate }) {
                     <span className="cs-user-name">{user?.display_name || user?.username || 'admin'}</span>
                 </Button>
             </Dropdown>
-            <Modal
+            <Drawer
                 title={t('auth.changePassword', null, '修改密码')}
                 visible={passwordOpen}
                 onCancel={() => setPasswordOpen(false)}
-                footer={null}
+                formId={passwordFormId}
+                okText={t('common.save', null, '保存')}
+                confirmLoading={saving}
                 width={420}
             >
-                <Form onSubmit={submitPassword} getFormApi={setFormApi}>
+                <Form id={passwordFormId} onSubmit={submitPassword} getFormApi={setFormApi}>
                     <Form.Input field="oldPassword" label={t('auth.currentPassword', null, '当前密码')} type="password" rules={[{ required: true, message: t('auth.required', null, '必填') }]} />
                     <Form.Input field="newPassword" label={t('auth.newPassword', null, '新密码')} type="password" rules={[{ required: true, min: 8, message: t('auth.passwordMin', null, '至少 8 位') }]} />
                     <Form.Input field="confirmPassword" label={t('auth.confirmPassword', null, '确认新密码')} type="password" rules={[
                         { required: true, message: t('auth.required', null, '必填') },
                         { validator: (rule, value) => value === formApi?.getValue('newPassword'), message: t('auth.passwordMismatch', null, '两次输入不一致') }
                     ]} />
-                    <Button htmlType="submit" theme="solid" type="primary" loading={saving} block>
-                        {t('common.save', null, '保存')}
-                    </Button>
                 </Form>
-            </Modal>
+            </Drawer>
         </>
     );
 }
 
 export default function AppLayout() {
-    const { hasPermission, hasAnyPermission } = useAuth();
+    const { session, hasPermission, hasAnyPermission } = useAuth();
+    const versionId = useId();
     const t = useT();
     const location = useLocation();
     const navigate = useNavigate();
@@ -276,7 +276,7 @@ export default function AppLayout() {
 
     const onSelect = ({ itemKey }) => {
         const search = location.search;
-        const carry = pageId === itemKey ? search : '';
+        const carry = ['chat', 'vulnerabilities', 'settings', 'deep-assessments'].includes(itemKey) && pageId === itemKey ? search : '';
         navigate(`/${itemKey}${carry}`);
     };
 
@@ -288,11 +288,19 @@ export default function AppLayout() {
     };
 
     const compact = collapsed && !mobile;
+    const version = !compact && session?.appVersion;
     const navNode = (
         <div className={`cs-sidebar-inner ${compact ? 'is-compact' : ''}`}>
-            <Button className="cs-brand" theme="borderless" type="tertiary" onClick={() => navigate('/dashboard')} aria-label="CyberStrikeAI">
+            <Button className="cs-brand" theme="borderless" type="tertiary" onClick={() => navigate('/dashboard')}
+                aria-label="CyberStrikeAI" aria-describedby={version ? versionId : undefined}>
                 <img src="/static/logo.png" alt="" className="cs-brand-logo" />
-                {!compact && <span className="cs-brand-name">CyberStrike<span>AI</span></span>}
+                {!compact && (
+                    <span className="cs-brand-copy">
+                        <span className="cs-brand-name">CyberStrike<span>AI</span></span>
+                        {version && <span id={versionId} className="cs-brand-version" dir="ltr"
+                            title={`${t('header.version', null, '当前版本')} ${version}`}>{version}</span>}
+                    </span>
+                )}
             </Button>
             <div className="cs-nav-scroll">
                 {NAV_SECTIONS.map(section => {
@@ -308,6 +316,7 @@ export default function AppLayout() {
                                 selectedKeys={selectedKeys}
                                 onSelect={onSelect}
                                 isCollapsed={compact}
+                                subDropdownProps={sidebarSubmenuProps}
                                 openKeys={openKeys}
                                 onOpenChange={({ openKeys: keys }) => setOpenKeys(keys)}
                             />
@@ -366,7 +375,7 @@ export default function AppLayout() {
                         <UserMenu navigate={navigate} />
                     </Space>
                 </header>
-                <main className="cs-content" id="main-content">
+                <main className={`cs-content ${pageId === 'chat' ? 'cs-content-workspace' : ''}`} id="main-content">
                     <Outlet context={{ navigate, pageId, mobile }} />
                 </main>
             </div>

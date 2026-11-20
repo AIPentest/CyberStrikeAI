@@ -1,0 +1,390 @@
+/* WebShell 页面：左侧连接列表 + 右侧工作区（终端/文件/历史/AI/备忘录）。 */
+
+.webshell-page {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.webshell-layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+}
+
+.webshell-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--semi-color-border);
+    border-radius: 8px;
+    background: var(--semi-color-bg-1);
+    min-height: 520px;
+}
+
+.webshell-sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.webshell-conn-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+    max-height: 620px;
+}
+
+.webshell-conn-loading {
+    display: flex;
+    justify-content: center;
+    padding: 24px 0;
+}
+
+.webshell-conn-empty {
+    padding: 12px 4px;
+    line-height: 1.6;
+}
+
+.webshell-conn-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    color: inherit;
+}
+
+.webshell-conn-item:hover {
+    background: var(--semi-color-fill-0);
+}
+
+.webshell-conn-item.is-active {
+    border-color: var(--semi-color-primary);
+    background: var(--semi-color-primary-light-default);
+}
+
+.webshell-conn-url {
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.webshell-conn-meta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.webshell-main {
+    min-height: 520px;
+    padding: 12px;
+    border: 1px solid var(--semi-color-border);
+    border-radius: 8px;
+    background: var(--semi-color-bg-1);
+}
+
+.webshell-workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.webshell-workspace-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--semi-color-border);
+}
+
+.webshell-workspace-title {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.webshell-workspace-url {
+    max-width: 640px;
+}
+
+/* 终端 */
+
+.webshell-terminal {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.webshell-terminal-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.webshell-terminal-log {
+    height: 360px;
+    overflow: auto;
+    padding: 10px;
+    border-radius: 6px;
+    background: var(--semi-color-fill-0);
+    border: 1px solid var(--semi-color-border);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+}
+
+.webshell-terminal-welcome {
+    color: var(--semi-color-text-2);
+    margin-bottom: 8px;
+}
+
+.webshell-terminal-line {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.5;
+}
+
+.webshell-terminal-line.kind-cmd {
+    color: var(--semi-color-primary);
+}
+
+.webshell-terminal-line.kind-err {
+    color: var(--semi-color-danger);
+}
+
+.webshell-terminal-pending {
+    color: var(--semi-color-warning);
+}
+
+.webshell-terminal-input {
+    display: flex;
+    gap: 8px;
+}
+
+/* 文件 */
+
+.webshell-files {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.webshell-file-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.webshell-file-pathbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.webshell-file-path-input {
+    min-width: 260px;
+    flex: 1;
+}
+
+.webshell-file-filter {
+    max-width: 200px;
+}
+
+.webshell-breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    font-size: 12px;
+}
+
+.webshell-breadcrumb-item button {
+    border: none;
+    background: none;
+    padding: 2px 4px;
+    cursor: pointer;
+    color: var(--semi-color-link);
+}
+
+.webshell-breadcrumb-sep {
+    color: var(--semi-color-text-3);
+}
+
+.webshell-file-name {
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--semi-color-link);
+    text-align: left;
+}
+
+.webshell-file-name.is-dir {
+    font-weight: 600;
+}
+
+.webshell-editor-path {
+    margin-bottom: 8px;
+}
+
+.webshell-editor-area textarea {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+}
+
+/* 历史 */
+
+.webshell-history {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.webshell-history-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.webshell-history-cmd {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    word-break: break-all;
+}
+
+/* AI */
+
+.webshell-ai {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 12px;
+}
+
+.webshell-ai-sidebar {
+    border-right: 1px solid var(--semi-color-border);
+    padding-right: 10px;
+    min-height: 300px;
+}
+
+.webshell-ai-sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.webshell-ai-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 460px;
+    overflow-y: auto;
+}
+
+.webshell-ai-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    text-align: left;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 6px 8px;
+    background: transparent;
+    cursor: pointer;
+    color: inherit;
+}
+
+.webshell-ai-item:hover {
+    background: var(--semi-color-fill-0);
+}
+
+.webshell-ai-item.is-active {
+    border-color: var(--semi-color-primary);
+    background: var(--semi-color-primary-light-default);
+}
+
+.webshell-ai-title {
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.webshell-ai-time {
+    font-size: 11px;
+    color: var(--semi-color-text-2);
+}
+
+.webshell-ai-main {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 520px;
+    overflow-y: auto;
+}
+
+.webshell-ai-loading {
+    display: flex;
+    justify-content: center;
+    padding: 24px 0;
+}
+
+.webshell-ai-message {
+    padding: 10px;
+    border: 1px solid var(--semi-color-border);
+    border-radius: 6px;
+}
+
+.webshell-ai-message-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+/* 表单 */
+
+.webshell-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+@media (max-width: 1100px) {
+    .webshell-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .webshell-ai {
+        grid-template-columns: 1fr;
+    }
+
+    .webshell-ai-sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--semi-color-border);
+        padding-right: 0;
+        padding-bottom: 8px;
+    }
+
+    .webshell-form-row {
+        grid-template-columns: 1fr;
+    }
+}
