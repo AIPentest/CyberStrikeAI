@@ -54,6 +54,20 @@ export function normalizeDomain(value) {
  * 解析用户输入的资产目标。始终返回结构体，格式无法识别时按不透明 host 处理；
  * 端口越界会抛出错误（与旧版行为一致）。
  */
+/** 把粘贴的通报拆成单个地址。支持换行、空格、逗号和分号。 */
+export function splitAssetTargets(value) {
+    const seen = new Set();
+    const targets = [];
+    for (const item of String(value || '').split(/[\s,，;；]+/)) {
+        const target = item.trim();
+        const key = target.toLowerCase();
+        if (!target || seen.has(key)) continue;
+        seen.add(key);
+        targets.push(target);
+    }
+    return targets;
+}
+
 export function parseAssetTarget(value) {
     const raw = String(value || '').trim();
     if (!raw) throw new Error('请输入资产地址');
