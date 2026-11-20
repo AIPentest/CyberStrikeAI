@@ -49,7 +49,7 @@ export default function AssetTable({
             title: t('assets.project', null, '所属项目'),
             dataIndex: 'project_name',
             width: 160,
-            render: value => <TooltipText text={value} max={18} />
+            render: (value, record) => <TooltipText text={value || record.project_id || t('assets.scopeUnassigned', null, '未归属项目')} max={18} />
         },
         {
             title: t('assets.source', null, '来源'),

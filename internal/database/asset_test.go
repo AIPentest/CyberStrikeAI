@@ -621,8 +621,26 @@ func TestProjectBoundImportCannotReassignDeduplicatedAsset(t *testing.T) {
 	if err != nil || result.Skipped != 1 {
 		t.Fatal("project boundary bypass via dedup", result, err)
 	}
+	result, err = db.UpsertAssets([]*Asset{
+		{Host: original.Host, ProjectID: currentProject.ID, Title: "Reassigned"},
+		{Host: original.Host, Title: "Overwritten without project"},
+	}, "admin", true)
+	if err != nil || result.Skipped != 2 {
+		t.Fatal("ordinary import ignored project boundary", result, err)
+	}
 	saved, err := db.GetAsset(original.ID, RBACListAccess{Scope: RBACScopeAll})
 	if err != nil || saved.ProjectID != otherProject.ID || saved.Title != "Original" {
 		t.Fatal("foreign project record changed", err)
+	}
+	other := &Asset{Host: "http://shared.example.test", ProjectID: currentProject.ID}
+	if _, err := db.UpsertAssets([]*Asset{other}, "admin", true); err != nil {
+		t.Fatal(err)
+	}
+	access := RBACListAccess{Scope: RBACScopeAll}
+	if _, err := db.MergeAssets(saved, []string{other.ID}, access, access); err == nil {
+		t.Fatal("cross-project merge succeeded")
+	}
+	if _, err := db.GetAsset(other.ID, access); err != nil {
+		t.Fatal("cross-project merge removed a record", err)
 	}
 }

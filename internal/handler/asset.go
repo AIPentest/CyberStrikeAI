@@ -263,6 +263,7 @@ func (h *AssetHandler) List(c *gin.Context) {
 
 func assetListFilterFromQuery(c *gin.Context) (database.AssetListFilter, error) {
 	filter := database.AssetListFilter{
+		ID:     strings.TrimSpace(c.Query("id")),
 		Search: strings.TrimSpace(c.Query("q")), Status: strings.ToLower(strings.TrimSpace(c.Query("status"))),
 		Protocol: strings.ToLower(strings.TrimSpace(c.Query("protocol"))), ProjectID: strings.TrimSpace(c.Query("project_id")),
 		Source: strings.TrimSpace(c.Query("source")), Tag: strings.TrimSpace(c.Query("tag")), Host: strings.TrimSpace(c.Query("host")),
@@ -273,6 +274,13 @@ func assetListFilterFromQuery(c *gin.Context) (database.AssetListFilter, error) 
 		ResponsiblePerson: strings.TrimSpace(c.Query("responsible_person")), Department: strings.TrimSpace(c.Query("department")),
 		BusinessSystem: strings.TrimSpace(c.Query("business_system")), Environment: strings.ToLower(strings.TrimSpace(c.Query("environment"))),
 		Criticality: strings.ToLower(strings.TrimSpace(c.Query("criticality"))),
+	}
+	if raw := strings.TrimSpace(c.Query("project_unassigned")); raw != "" {
+		var err error
+		filter.ProjectUnassigned, err = strconv.ParseBool(raw)
+		if err != nil || (filter.ProjectUnassigned && filter.ProjectID != "") {
+			return filter, &assetQueryError{field: "project_unassigned", value: raw}
+		}
 	}
 	if raw := strings.TrimSpace(c.Query("port")); raw != "" {
 		port, err := strconv.Atoi(raw)
@@ -591,6 +599,10 @@ func (h *AssetHandler) Merge(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "部分资产不存在或无权访问"})
 			return
 		}
+		if item.ProjectID != primary.ProjectID {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "只能合并同一项目或均未归属项目的资产"})
+			return
+		}
 		if !shareAssetIdentity(primary, item) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "所选资产没有共同域名、IP 或 Host，不能判定为重复资产"})
 			return
@@ -611,7 +623,6 @@ func (h *AssetHandler) Merge(c *gin.Context) {
 		tagSet[tag] = struct{}{}
 	}
 	for _, item := range others {
-		mergeText(&primary.ProjectID, item.ProjectID)
 		mergeText(&primary.Host, item.Host)
 		mergeText(&primary.IP, item.IP)
 		mergeText(&primary.Domain, item.Domain)

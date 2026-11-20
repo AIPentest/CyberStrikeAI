@@ -1,5 +1,5 @@
 /** 资产库筛选栏：常用条件平铺，其余条件收进“高级筛选”。 */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Collapse, Input, Select, Space } from '@douyinfe/semi-ui';
 import { IconSearch } from '@douyinfe/semi-icons';
 import { useT } from '../../../lib/i18n';
@@ -9,7 +9,7 @@ import {
 } from './assetConstants';
 
 const EMPTY_FILTERS = {
-    q: '', protocol: '', source: '', project_id: '', tag: '',
+    q: '', protocol: '', source: '', tag: '',
     status: '', risk_level: '', environment: '', criticality: '',
     ip: '', domain: '', port: '', scan: '', sort: 'last_seen_at:desc'
 };
@@ -18,16 +18,11 @@ export function emptyAssetFilters() {
     return { ...EMPTY_FILTERS };
 }
 
-export default function AssetFilterBar({ filters, projects, onChange, onReset, disabled }) {
+export default function AssetFilterBar({ filters, onChange, onReset, disabled }) {
     const t = useT();
     const [keyword, setKeyword] = useState(filters.q || '');
 
     useEffect(() => { setKeyword(filters.q || ''); }, [filters.q]);
-
-    const projectOptions = useMemo(() => (projects || []).map(project => ({
-        value: project.id,
-        label: project.name || project.id
-    })), [projects]);
 
     const advancedCount = ['status', 'risk_level', 'environment', 'criticality', 'ip', 'domain', 'port', 'scan']
         .filter(key => filters[key]).length;
@@ -59,15 +54,6 @@ export default function AssetFilterBar({ filters, projects, onChange, onReset, d
                     disabled={disabled}
                     onChange={value => onChange({ source: value })}
                     showClear
-                />
-                <Select
-                    value={filters.project_id || undefined}
-                    placeholder={t('assets.project', null, '所属项目')}
-                    optionList={projectOptions}
-                    filter
-                    showClear
-                    disabled={disabled}
-                    onChange={value => onChange({ project_id: value || '' })}
                 />
                 <Input
                     value={filters.tag}

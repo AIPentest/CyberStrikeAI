@@ -94,7 +94,7 @@ function resolveProject(value, projects) {
     return { projectId: project.id, projectName: project.name, error: '' };
 }
 
-function buildRecord(values, rowNumber, { projects, source }) {
+function buildRecord(values, rowNumber, { projects, projectId, source }) {
     const fail = message => ({ rowNumber, values, asset: null, error: message });
     const target = values.target || values.host || values.domain || values.ip || '';
     if (!target) return fail('缺少目标地址');
@@ -120,8 +120,9 @@ function buildRecord(values, rowNumber, { projects, source }) {
     if (environment === null) return fail('环境值无效');
     const criticality = localizedEnum(values.criticality, CRITICALITY_LABELS, '');
     if (criticality === null) return fail('重要性值无效');
-    const project = resolveProject(values.project, projects);
+    const project = resolveProject(values.project || projectId, projects);
     if (project.error) return fail(project.error);
+    if (projectId !== undefined && project.projectId !== projectId) return fail('该行的项目与当前资产范围不一致');
     const tags = splitTags(values.tags);
     if (tags.length > 30) return fail('标签最多 30 个');
     if (tags.some(tag => Array.from(tag).length > 64)) return fail('单个标签最多 64 个字符');

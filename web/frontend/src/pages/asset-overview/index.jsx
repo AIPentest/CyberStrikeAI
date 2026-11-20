@@ -97,8 +97,10 @@ export default function AssetOverviewPage() {
     ];
 
     const goLibrary = asset => {
-        const suffix = asset?.id ? `?id=${encodeURIComponent(asset.id)}` : '';
-        navigate(`/asset-library${suffix}`, asset ? { state: { asset } } : undefined);
+        const params = new URLSearchParams({ id: asset.id });
+        if (asset.project_id) params.set('project_id', asset.project_id);
+        else params.set('scope', 'unassigned');
+        navigate(`/asset-library?${params}`);
     };
 
     const columns = [

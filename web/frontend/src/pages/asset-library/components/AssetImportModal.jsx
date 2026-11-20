@@ -6,7 +6,7 @@ import {
 import { IconCloudUploadStroked } from '@douyinfe/semi-icons';
 import { api, errorMessage } from '../../../lib/http';
 import { useT } from '../../../lib/i18n';
-import { Drawer, toastSuccess } from '../../../components/ui';
+import { Drawer, toastSuccess, toastWarning } from '../../../components/ui';
 import { assetTargetLabel } from './assetTarget';
 import { csvTemplate, downloadTextFile, recordsFromCsv, recordsFromJson } from './assetCsv';
 
@@ -38,7 +38,7 @@ const PREVIEW_COLUMNS = (t) => [
     }
 ];
 
-export default function AssetImportModal({ visible, projects, onClose, onDone }) {
+export default function AssetImportModal({ visible, projects, defaultProjectId, onClose, onDone }) {
     const t = useT();
     const [format, setFormat] = useState('csv');
     const [text, setText] = useState('');
@@ -50,14 +50,15 @@ export default function AssetImportModal({ visible, projects, onClose, onDone })
     const parsed = useMemo(() => {
         if (!String(text || '').trim()) return { records: [], error: '' };
         try {
+            const options = { projects, projectId: defaultProjectId, source: 'manual-import' };
             const records = format === 'csv'
-                ? recordsFromCsv(text, { projects, source: 'manual-import' })
-                : recordsFromJson(text, { projects, source: 'manual-import' });
+                ? recordsFromCsv(text, options)
+                : recordsFromJson(text, options);
             return { records, error: '' };
         } catch (parseError) {
             return { records: [], error: parseError.message };
         }
-    }, [text, format, projects]);
+    }, [text, format, projects, defaultProjectId]);
 
     const records = parsed.records;
     const valid = records.filter(record => !record.error);
@@ -112,11 +113,15 @@ export default function AssetImportModal({ visible, projects, onClose, onDone })
                 source_query: fileName || 'paste'
             });
             const skipped = Number(result?.skipped || 0) + invalid;
+            const conflicts = Number(result?.project_conflicts || 0);
             toastSuccess(t('assets.bulkImportDone', {
                 created: Number(result?.created || 0),
                 updated: Number(result?.updated || 0),
                 skipped
             }, `导入完成：新增 ${Number(result?.created || 0)} 条，更新 ${Number(result?.updated || 0)} 条，跳过 ${skipped} 条`));
+            if (conflicts) {
+                toastWarning(t('assets.importProjectConflicts', { count: conflicts }, `已跳过 ${conflicts} 条归属不同的重复资产。`));
+            }
             reset();
             onDone?.();
             onClose?.();

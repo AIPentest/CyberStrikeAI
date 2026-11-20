@@ -63,6 +63,7 @@ type AssetListFilter struct {
 	Status             string
 	Protocol           string
 	ProjectID          string
+	ProjectUnassigned  bool
 	Source             string
 	Tag                string
 	Host               string
@@ -93,11 +94,12 @@ type AssetListFilter struct {
 }
 
 type AssetImportResult struct {
-	Created    int              `json:"created"`
-	Updated    int              `json:"updated"`
-	Skipped    int              `json:"skipped"`
-	AppliedIDs []string         `json:"-"`
-	Collection *AssetCollection `json:"collection,omitempty"`
+	Created          int              `json:"created"`
+	Updated          int              `json:"updated"`
+	Skipped          int              `json:"skipped"`
+	ProjectConflicts int              `json:"project_conflicts,omitempty"`
+	AppliedIDs       []string         `json:"-"`
+	Collection       *AssetCollection `json:"collection,omitempty"`
 }
 
 func normalizeAsset(a *Asset) {
@@ -374,12 +376,13 @@ func (db *DB) upsertAssets(assets []*Asset, ownerUserID string, global bool, pro
 			return result, fmt.Errorf("检查资产去重键失败: %w", err)
 		}
 		asset.ID = existingID
-		if projectBoundary != nil && existingProject.String != *projectBoundary {
+		if !global && strings.TrimSpace(existingOwner.String) != strings.TrimSpace(ownerUserID) {
 			result.Skipped++
 			continue
 		}
-		if !global && strings.TrimSpace(existingOwner.String) != strings.TrimSpace(ownerUserID) {
+		if existingProject.String != asset.ProjectID {
 			result.Skipped++
+			result.ProjectConflicts++
 			continue
 		}
 		_, err = tx.Exec(`UPDATE assets SET
@@ -388,7 +391,7 @@ func (db *DB) upsertAssets(assets []*Asset, ownerUserID string, global bool, pro
 			title=CASE WHEN ?<>'' THEN ? ELSE title END, server=CASE WHEN ?<>'' THEN ? ELSE server END,
 			country=CASE WHEN ?<>'' THEN ? ELSE country END, province=CASE WHEN ?<>'' THEN ? ELSE province END,
 			city=CASE WHEN ?<>'' THEN ? ELSE city END, source=CASE WHEN ?<>'' THEN ? ELSE source END,
-			source_query=CASE WHEN ?<>'' THEN ? ELSE source_query END, project_id=CASE WHEN ?<>'' THEN ? ELSE project_id END,
+			source_query=CASE WHEN ?<>'' THEN ? ELSE source_query END,
 			responsible_person=CASE WHEN ?<>'' THEN ? ELSE responsible_person END,
 			department=CASE WHEN ?<>'' THEN ? ELSE department END,
 			business_system=CASE WHEN ?<>'' THEN ? ELSE business_system END,
@@ -398,7 +401,7 @@ func (db *DB) upsertAssets(assets []*Asset, ownerUserID string, global bool, pro
 			last_seen_at=?, updated_at=? WHERE id=?`,
 			asset.Host, asset.Host, asset.IP, asset.IP, asset.Domain, asset.Domain, asset.Protocol, asset.Protocol,
 			asset.Title, asset.Title, asset.Server, asset.Server, asset.Country, asset.Country, asset.Province, asset.Province,
-			asset.City, asset.City, asset.Source, asset.Source, asset.SourceQuery, asset.SourceQuery, asset.ProjectID, nullIfEmpty(asset.ProjectID),
+			asset.City, asset.City, asset.Source, asset.Source, asset.SourceQuery, asset.SourceQuery,
 			asset.ResponsiblePerson, asset.ResponsiblePerson, asset.Department, asset.Department, asset.BusinessSystem, asset.BusinessSystem,
 			asset.Environment, asset.Environment, asset.Criticality, asset.Criticality, string(tagsJSON), string(tagsJSON),
 			now, now, existingID)
@@ -446,6 +449,9 @@ func assetWhere(filter AssetListFilter, access RBACListAccess) (string, []interf
 	if filter.ProjectID != "" {
 		query += " AND assets.project_id = ?"
 		args = append(args, filter.ProjectID)
+	}
+	if filter.ProjectUnassigned {
+		query += " AND (assets.project_id IS NULL OR assets.project_id = '')"
 	}
 	if filter.AssessmentID != "" {
 		query += " AND EXISTS(SELECT 1 FROM deep_assessment_assets da WHERE da.asset_id=assets.id AND da.task_id=?)"
@@ -1236,20 +1242,26 @@ func (db *DB) MergeAssets(primary *Asset, duplicateIDs []string, writeAccess, de
 		return 0, err
 	}
 	defer tx.Rollback()
-	primaryQuery, primaryArgs := appendAssetAccess("SELECT COUNT(*) FROM assets WHERE id=?", []interface{}{primary.ID}, writeAccess, "assets")
-	var primaryCount int
-	if err := tx.QueryRow(primaryQuery, primaryArgs...).Scan(&primaryCount); err != nil || primaryCount != 1 {
+	primaryQuery, primaryArgs := appendAssetAccess("SELECT COALESCE(project_id,'') FROM assets WHERE id=?", []interface{}{primary.ID}, writeAccess, "assets")
+	var projectID string
+	if err := tx.QueryRow(primaryQuery, primaryArgs...).Scan(&projectID); err != nil {
 		return 0, fmt.Errorf("主资产不存在或无权更新")
+	}
+	if projectID != primary.ProjectID {
+		return 0, fmt.Errorf("主资产的项目归属已变更")
 	}
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(duplicates)), ",")
 	deleteArgs := make([]interface{}, len(duplicates))
 	for i, id := range duplicates {
 		deleteArgs[i] = id
 	}
-	countQuery, countArgs := appendAssetAccess("SELECT COUNT(*) FROM assets WHERE id IN ("+placeholders+")", deleteArgs, deleteAccess, "assets")
-	var accessible int
-	if err := tx.QueryRow(countQuery, countArgs...).Scan(&accessible); err != nil || accessible != len(duplicates) {
+	countQuery, countArgs := appendAssetAccess("SELECT COUNT(*), COUNT(CASE WHEN COALESCE(project_id,'') = ? THEN 1 END) FROM assets WHERE id IN ("+placeholders+")", append([]interface{}{projectID}, deleteArgs...), deleteAccess, "assets")
+	var accessible, sameProject int
+	if err := tx.QueryRow(countQuery, countArgs...).Scan(&accessible, &sameProject); err != nil || accessible != len(duplicates) {
 		return 0, fmt.Errorf("部分重复资产不存在或无权删除")
+	}
+	if sameProject != len(duplicates) {
+		return 0, fmt.Errorf("只能合并同一项目或均未归属项目的资产")
 	}
 	deleteQuery, scopedDeleteArgs := appendAssetAccess("DELETE FROM assets WHERE id IN ("+placeholders+")", deleteArgs, deleteAccess, "assets")
 	if result, err := tx.Exec(deleteQuery, scopedDeleteArgs...); err != nil {

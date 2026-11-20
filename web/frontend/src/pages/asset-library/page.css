@@ -1,5 +1,6 @@
 /* 资产库页面私有布局样式（颜色一律使用 Semi 变量）。 */
 .asset-library-page { display: flex; flex-direction: column; gap: 0; }
+.asset-library-scope { width: min(100%, 360px); }
 
 .asset-library-filters { display: flex; flex-direction: column; gap: 8px; }
 .asset-library-filter-grid {

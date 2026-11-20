@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Banner, Button, Form, Space } from '@douyinfe/semi-ui';
 import { api, errorMessage } from '../../../lib/http';
 import { useT } from '../../../lib/i18n';
-import { Drawer, toastSuccess } from '../../../components/ui';
+import { Drawer, toastSuccess, toastWarning } from '../../../components/ui';
 import {
     CRITICALITY_OPTIONS, ENVIRONMENT_OPTIONS, STATUS_OPTIONS
 } from './assetConstants';
@@ -173,17 +173,17 @@ export default function AssetEditorModal({ visible, asset, defaultProjectId = ''
                 const created = Number(result?.created || 0);
                 const updated = Number(result?.updated || 0);
                 const skipped = Number(result?.skipped || 0);
-                if (result?.project_conflicts) {
-                    throw new Error(t('assets.importProjectConflicts', { count: 1 }, '已跳过 1 条归属不同的重复资产。'));
-                }
+                const conflicts = Number(result?.project_conflicts || 0);
+                const conflictMessage = conflicts ? t('assets.importProjectConflicts', { count: conflicts }, `已跳过 ${conflicts} 条归属不同的重复资产。`) : '';
                 if (!created && !updated && skipped) {
-                    throw new Error(t('assets.assetSkipped', null, '资产未保存，可能已存在且你没有更新权限'));
+                    throw new Error(conflictMessage || t('assets.assetSkipped', null, '资产未保存，可能已存在且你没有更新权限'));
                 }
                 const parts = [];
                 if (created) parts.push(`新增 ${created}`);
                 if (updated) parts.push(`合并 ${updated}`);
                 if (skipped) parts.push(`跳过 ${skipped}`);
                 toastSuccess(parts.length ? `已写入资产库：${parts.join('，')}` : t('assets.createdSuccessfully', null, '资产已添加'));
+                if (conflictMessage) toastWarning(conflictMessage);
             }
             onSaved?.();
             onClose?.();

@@ -18,7 +18,7 @@ const PAGE_READS = {
     'tool-guard': ['/api/tool-guard'],
     projects: ['/api/projects', `/api/projects/${PROJECT.id}`, `/api/projects/${PROJECT.id}/facts`],
     'asset-overview': ['/api/assets/stats', '/api/assets'],
-    'asset-library': ['/api/assets'],
+    'asset-library': ['/api/projects'],
     'info-collect': [], // No search is triggered just by opening the page.
     vulnerabilities: ['/api/vulnerabilities', '/api/vulnerabilities/filter-options'],
     tasks: ['/api/batch-tasks'],
@@ -302,6 +302,96 @@ test('navigation: four Semi groups, parent expansion, child selection and collap
     await expect(parent).toHaveAttribute('aria-expanded', 'true');
     await expect(overview).toHaveClass(/semi-navigation-item-selected/);
     await expect.poll(() => page.evaluate(() => localStorage.getItem('csai-nav-collapsed'))).toBe('0');
+});
+
+test.describe('asset library project scope', () => {
+    test.use({ appPermissions: [...UI_PERMISSIONS, 'asset:write', 'asset:delete'] });
+
+    test('requires an explicit scope and clears a pending selection on project switch', async ({ page, mockApi }) => {
+        const other = { id: 'other-project', name: '另一个项目' };
+        const rows = [
+            { id: 'asset-one', host: 'one.example.test', project_id: PROJECT.id, project_name: PROJECT.name },
+            { id: 'asset-two', host: 'two.example.test', project_id: other.id, project_name: other.name },
+            { id: 'asset-three', host: 'three.example.test' }
+        ];
+        const respond = (_, url) => {
+            const params = url.searchParams;
+            const assets = rows.filter(asset => (
+                (!params.has('id') || asset.id === params.get('id'))
+                && (!params.has('project_id') || asset.project_id === params.get('project_id'))
+                && (!params.has('project_unassigned') || !asset.project_id)
+            ));
+            return { json: { assets, total: assets.length } };
+        };
+        mockApi.respond('GET', '/api/projects', { json: { projects: [PROJECT, other], total: 2 } });
+        mockApi.respond('GET', '/api/assets', respond);
+        const main = await visit(page, 'asset-library');
+        await readsCompleted(mockApi, ['/api/projects']);
+        await expect(main.getByText(label('assets.scopePlaceholder'), { exact: true })).toBeVisible();
+        expect(mockApi.calls('GET', '/api/assets')).toEqual([]);
+
+        const chooseScope = async name => {
+            await main.getByRole('combobox', { name: label('assets.scopeLabel') }).click();
+            await page.getByRole('option').filter({ has: page.getByText(name, { exact: true }) }).click();
+        };
+        await chooseScope(PROJECT.name);
+        await expect(page).toHaveURL(/project_id=fixture-project$/);
+        await expect(main.getByText(rows[0].host, { exact: true })).toBeVisible();
+        await expect(main.getByText(rows[1].host, { exact: true })).toHaveCount(0);
+
+        let finishSelection;
+        const pending = new Promise(resolve => { finishSelection = resolve; });
+        mockApi.respond('GET', '/api/assets/selection', async (request, url) => {
+            await pending;
+            return respond(request, url);
+        });
+        const selectAll = count => button(main, label('assets.selectAllResults').replace('{{count}}', String(count)));
+        const bulkDelete = button(main, label('assets.batchDelete', '批量删除…'));
+        await selectAll(1).click();
+        try {
+            await expect.poll(() => mockApi.calls('GET', '/api/assets/selection').length).toBe(1);
+            expect(new URLSearchParams(mockApi.calls('GET', '/api/assets/selection')[0].query).get('project_id')).toBe(PROJECT.id);
+            await chooseScope(other.name);
+            await expect(main.getByText(rows[1].host, { exact: true })).toBeVisible();
+            await expect(main.getByText(rows[0].host, { exact: true })).toHaveCount(0);
+        } finally {
+            finishSelection();
+        }
+        await readsCompleted(mockApi, ['/api/assets/selection']);
+        await expect(bulkDelete).toBeDisabled();
+
+        await chooseScope(label('assets.scopeUnassigned'));
+        await expect(main.getByText(rows[2].host, { exact: true })).toBeVisible();
+        await expect(main.getByText(rows[1].host, { exact: true })).toHaveCount(0);
+        await chooseScope(label('assets.scopeAll'));
+        await selectAll(3).click();
+        await expect(main.getByText(label('assets.mixedProjectSelection'), { exact: true })).toBeVisible();
+        await expect(bulkDelete).toBeDisabled();
+        expect(mockApi.writes()).toEqual([]);
+        expect(mockApi.unexpected).toEqual([]);
+    });
+
+    test('opens project assets and imports blank project fields into that scope', async ({ page, mockApi }) => {
+        const other = { id: 'other-project', name: '另一个项目' };
+        mockApi.respond('GET', '/api/projects', { json: { projects: [PROJECT, other], total: 2 } });
+        const main = await visit(page, 'projects');
+        await button(main, label('assets.projectAssets')).click();
+        await expect(page).toHaveURL(/asset-library\?project_id=fixture-project$/);
+        await readsCompleted(mockApi, ['/api/assets']);
+        expect(mockApi.calls('GET', '/api/assets').every(call => new URLSearchParams(call.query).get('project_id') === PROJECT.id)).toBe(true);
+
+        await button(main, label('assets.bulkImport')).click();
+        const drawer = page.getByRole('dialog', { name: label('assets.bulkImportTitle') });
+        await drawer.locator('textarea').fill(`target,project\r\nhttps://one.example.test,\r\nhttps://two.example.test,${other.name}`);
+        await expect(drawer.getByText('该行的项目与当前资产范围不一致', { exact: true })).toBeVisible();
+        mockApi.respond('POST', '/api/assets/import', { json: { created: 1, updated: 0, skipped: 0 } });
+        await drawer.getByRole('button', { name: /导入 1 条有效数据/ }).click();
+        await expect(drawer).toHaveCount(0);
+        const [request] = mockApi.writes();
+        expect(request.path).toBe('/api/assets/import');
+        expect(request.body.assets).toEqual([expect.objectContaining({ domain: 'one.example.test', project_id: PROJECT.id })]);
+        expect(mockApi.unexpected).toEqual([]);
+    });
 });
 
 test('navigation: collapsed submenus fit their labels and center beside the parent', async ({ page }, testInfo) => {
