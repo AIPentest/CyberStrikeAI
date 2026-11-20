@@ -32,6 +32,7 @@ test('project graph: dense overview keeps labels legible and search follows the 
     const graph = denseGraph();
     const selected = graph.nodes.find(node => node.id === 'finding/sample-0');
     const detail = { ...selected, body: '匿名事实正文，用于验证详情入口。' };
+    graph.nodes.find(node => node.type === 'chain').summary += `（参见 ${selected.fact_key}）`;
     mockApi.respond('GET', graphPath, { json: graph });
     mockApi.respond('GET', `/api/projects/${PROJECT.id}/facts`, { json: detail });
     await page.goto(`/static/app/#/projects?id=${PROJECT.id}&tab=graph`);
@@ -81,6 +82,11 @@ test('project graph: dense overview keeps labels legible and search follows the 
     await expect(side.getByRole('button', { name: '详情', exact: true })).toHaveCount(0);
     await main.getByRole('button', { name: '返回全图' }).click();
     await expect(side).toHaveCount(0);
+
+    // The fact key takes precedence over a different node whose summary mentions it.
+    await search.fill(selected.fact_key);
+    await search.press('Enter');
+    await expect(side.getByText(selected.fact_key, { exact: true })).toBeVisible();
     expect(mockApi.calls('GET', graphPath)).toHaveLength(reads);
     expect(mockApi.writes()).toEqual([]);
 });

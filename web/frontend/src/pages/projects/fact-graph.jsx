@@ -17,9 +17,16 @@ function GraphSearch({ nodes, onSelect, t }) {
     const [open, setOpen] = useState(false);
     const resultsId = useId();
     const search = query.trim().toLowerCase();
-    const matches = useMemo(() => nodes.filter(node => !search
-        || [node.fact_key, node.label, node.summary, node.category].join(' ').toLowerCase().includes(search)
-    ), [nodes, search]);
+    const ordered = useMemo(() => [...nodes].sort((a, b) =>
+        (a.fact_key || a.id).localeCompare(b.fact_key || b.id)), [nodes]);
+    const matches = useMemo(() => {
+        if (!search) return ordered;
+        const results = ordered.filter(node => [node.fact_key, node.label, node.summary, node.category]
+            .join(' ').toLowerCase().includes(search));
+        const exact = results.findIndex(node => (node.fact_key || node.id).toLowerCase() === search);
+        if (exact > 0) results.unshift(...results.splice(exact, 1));
+        return results;
+    }, [ordered, search]);
 
     const select = id => {
         onSelect(id);
