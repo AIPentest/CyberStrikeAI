@@ -1344,6 +1344,31 @@ test('deep assessment: graph switches views and resets pagination on a narrow sc
     expect(mockApi.writes()).toEqual([]);
 });
 
+test('deep assessment: focused text fields use a complete border without a second outline', async ({ page }) => {
+    const main = await visit(page, 'deep-assessments');
+    await button(main, label('deepAssessments.create', '新建测评')).click();
+    const drawer = page.getByRole('dialog', { name: label('deepAssessments.create', '新建测评') });
+    const name = drawer.getByRole('textbox', { name: label('deepAssessments.name', '测评名称'), exact: true });
+    const objective = drawer.getByRole('textbox', { name: /目标/ });
+    const concurrency = drawer.getByRole('spinbutton', { name: label('deepAssessments.concurrency', '并行步骤') });
+    const focusBorder = 'rgb(50, 102, 227)';
+
+    await name.click();
+    await expect(name).toBeFocused();
+    await expect(name).toHaveCSS('outline-style', 'none');
+    await expect(drawer.locator('.semi-input-wrapper:focus-within')).toHaveCSS('border-color', focusBorder);
+
+    await name.press('Tab');
+    await expect(objective).toBeFocused();
+    await expect(objective).toHaveCSS('outline-style', 'none');
+    await expect(drawer.locator('.semi-input-textarea-wrapper:focus-within')).toHaveCSS('border-color', focusBorder);
+
+    await concurrency.click();
+    await expect(concurrency).toBeFocused();
+    await expect(concurrency).toHaveCSS('outline-style', 'none');
+    await expect(drawer.locator('.semi-input-wrapper:focus-within')).toHaveCSS('border-color', focusBorder);
+});
+
 test('deep assessment: new-draft drawer retries options, validates and saves without execution', async ({ page, mockApi }, testInfo) => {
     mockApi.fail('GET', '/api/deep-assessments/options', '示例选项加载失败');
     const main = await visit(page, 'deep-assessments');

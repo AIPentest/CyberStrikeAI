@@ -54,7 +54,8 @@ html[data-theme="dark"], body[theme-mode="dark"] {
 html, body, #root { height: 100%; }
 body { margin: 0; background: var(--semi-color-bg-0); color: var(--semi-color-text-0); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; -webkit-font-smoothing: antialiased; }
 * { box-sizing: border-box; }
-:focus-visible { outline: 2px solid var(--semi-color-focus-border); outline-offset: 3px; }
+/* Semi applies the input focus border to the wrapper. An outline on the inner control gets clipped. */
+:focus-visible:where(:not(.semi-input, .semi-input-textarea)) { outline: 2px solid var(--semi-color-focus-border); outline-offset: 3px; }
 ::selection { background: var(--semi-color-primary-light-active); }
 body[theme-mode="dark"] .semi-button-primary.semi-button-solid:not(.semi-button-disabled) { color: var(--semi-color-bg-0); }
 
