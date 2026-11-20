@@ -54,6 +54,8 @@
     "daysAgo": "قبل {{n}} يوم"
   },
   "header": {
+    "semiPreview": "معاينة واجهة Semi",
+    "classicWorkspace": "العودة إلى الواجهة الكلاسيكية",
     "title": "CyberStrikeAI",
     "apiDocs": "توثيق API",
     "github": "GitHub",

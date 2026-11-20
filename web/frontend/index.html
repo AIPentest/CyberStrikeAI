@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#3266e3">
+    <title>CyberStrikeAI</title>
+    <link rel="icon" href="/static/favicon.ico">
+    <link rel="manifest" href="/static/site.webmanifest">
+    <script>
+        (function () {
+            try {
+                var stored = localStorage.getItem('cyberstrike-theme') || 'system';
+                var dark = stored === 'dark' || (stored !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme-preference', stored);
+                document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+            } catch (error) { /* first paint fallback */ }
+        })();
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>

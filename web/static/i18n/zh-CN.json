@@ -54,6 +54,8 @@
     "daysAgo": "{{n}} 天前"
   },
   "header": {
+    "semiPreview": "Semi 界面预览",
+    "classicWorkspace": "返回经典界面",
     "title": "CyberStrikeAI",
     "apiDocs": "API 文档",
     "github": "GitHub",

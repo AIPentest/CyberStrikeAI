@@ -54,6 +54,8 @@
     "daysAgo": "{{n}} дн. назад"
   },
   "header": {
+    "semiPreview": "Предпросмотр интерфейса Semi",
+    "classicWorkspace": "Вернуться к классическому интерфейсу",
     "title": "CyberStrikeAI",
     "apiDocs": "Документация API",
     "github": "GitHub",
