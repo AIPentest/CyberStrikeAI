@@ -74,9 +74,37 @@
 
 .vulnerability-group-node,
 .vulnerability-group-overview { justify-content: space-between; }
-.vulnerability-group-scroll .semi-tree-label-text,
+.vulnerability-group-scroll .semi-tree-option-label,
+.vulnerability-group-scroll .semi-tree-option-label-text,
 .vulnerability-group-results { min-width: 0; }
-.vulnerability-group-scroll .semi-tree-label-text { flex: 1; }
+
+.vulnerability-group-scroll .semi-tree-option {
+    padding-inline-end: 8px;
+    border-radius: var(--semi-border-radius-small);
+}
+
+.vulnerability-group-scroll .semi-tree-option-expand-icon,
+.vulnerability-group-scroll .semi-tree-option-empty-icon {
+    margin-inline-end: 4px;
+}
+
+.vulnerability-group-scroll .semi-tree-option-indent-unit {
+    position: relative;
+    width: 16px;
+    height: 100%;
+}
+
+.vulnerability-group-scroll .semi-tree-option-indent-unit::before {
+    position: absolute;
+    inset-block: -4px;
+    inset-inline-start: 6px;
+    border-inline-start: 1px solid var(--semi-color-border);
+    content: "";
+}
+
+.vulnerability-group-scroll .semi-tree-option-tree-node-last-leaf .semi-tree-option-indent-unit::before {
+    inset-block-end: 50%;
+}
 
 .vulnerability-group-name {
     min-width: 0;
@@ -85,7 +113,15 @@
     white-space: nowrap;
 }
 
-.vulnerability-group-node .semi-tag { flex-shrink: 0; }
+.vulnerability-group-name--parent { font-weight: 600; }
+
+.vulnerability-group-node .semi-tag {
+    flex-shrink: 0;
+    justify-content: center;
+    min-inline-size: 4ch;
+    font-variant-numeric: tabular-nums;
+}
+
 .vulnerability-group-empty { display: block; padding: 8px; }
 
 .vulnerability-group-overview {
