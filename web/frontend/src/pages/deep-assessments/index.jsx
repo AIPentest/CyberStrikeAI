@@ -56,6 +56,7 @@ export default function DeepAssessmentsPage() {
                 criterion={Number(params.get('criterion')) || 0}
                 evidencePath={requestedTab === 'evidence-path'}
                 evidenceStepId={params.get('step_id') || ''}
+                evidenceFactId={requestedTab === 'evidence-path' ? params.get('fact_id') || '' : ''}
                 observation={params.get('observation') || ''}
                 onTabChange={changeTab}
                 onBack={backToList}

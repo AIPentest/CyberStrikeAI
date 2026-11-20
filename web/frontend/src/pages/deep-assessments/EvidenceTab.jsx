@@ -36,14 +36,14 @@ const PATH_TYPES = [
     { value: 'fact', label: '事实 ID' }
 ];
 
-export default function EvidenceTab({ id, criterion = 0, stepId = '', reloadToken }) {
+export default function EvidenceTab({ id, criterion = 0, factId = '', stepId = '', reloadToken }) {
     const t = useT();
     const { hasPermission } = useAuth();
     const modes = useMemo(
         () => ALL_MODES.filter(item => !item.permission || hasPermission(item.permission)),
         [hasPermission]
     );
-    const [mode, setMode] = useState(criterion > 0 ? 'path' : 'receipts');
+    const [mode, setMode] = useState(criterion > 0 || factId ? 'path' : 'receipts');
     const activeMode = modes.some(item => item.value === mode) ? mode : 'receipts';
 
     const [offset, setOffset] = useState(0);
@@ -55,8 +55,8 @@ export default function EvidenceTab({ id, criterion = 0, stepId = '', reloadToke
         { skip: activeMode !== 'receipts' }
     );
 
-    const [pathType, setPathType] = useState('criterion');
-    const [pathValue, setPathValue] = useState(criterion > 0 ? String(criterion) : '');
+    const [pathType, setPathType] = useState(factId ? 'fact' : 'criterion');
+    const [pathValue, setPathValue] = useState(factId || (criterion > 0 ? String(criterion) : ''));
     const [pathView, setPathView] = useState(null);
     const [pathState, setPathState] = useState({ loading: false, error: null });
 
@@ -99,10 +99,10 @@ export default function EvidenceTab({ id, criterion = 0, stepId = '', reloadToke
     };
 
     useEffect(() => {
-        if (criterion > 0) loadPath();
+        if (criterion > 0 || factId) loadPath();
         // A different link remounts this view via Workbench's key.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [id, criterion]);
+    }, [id, criterion, factId]);
 
     const loadHistory = async () => {
         const value = assetId.trim();
@@ -382,7 +382,7 @@ export default function EvidenceTab({ id, criterion = 0, stepId = '', reloadToke
                                     emptyText="该资产暂无登记端点。"
                                 />
                                 <Paragraph type="tertiary" className="assessment-hint">
-                                    端点状态来自明确关联的事实；服务级观察不会计入端点。端点关联的写入在资产图与漏洞复核流程中完成。
+                                    端点状态来自明确关联的事实；服务级观察不会计入端点。端点关联的写入在攻击面图与漏洞复核流程中完成。
                                 </Paragraph>
                                 <JsonViewer title="端点证据原始数据" value={endpoints} collapsed />
                             </>

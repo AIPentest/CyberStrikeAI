@@ -9,6 +9,7 @@ import { useDebounced, useResource } from '../../components/hooks';
 import { SectionCard, StatGrid, DataTable, ErrorBanner, KeyValueList, JsonViewer, toastError, toastSuccess, Drawer } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
 import { PERM_WRITE } from './labels';
+import SurfaceItems from './SurfaceItems';
 
 const { Text } = Typography;
 
@@ -159,8 +160,8 @@ export default function AssetsTab({ id, task, observation, reloadToken }) {
         { id: 'linked', label: '关联资产', value: linked },
         { id: 'observed', label: '已有观察证据', value: observed },
         { id: 'coverage', label: '观察覆盖率', value: `${percent}%`, detail: '只统计当前账号可读的关联资产' },
-        { id: 'nodes', label: '资产图节点', value: graph?.nodes?.length ?? 0 }
-    ], [linked, observed, percent, graph?.nodes?.length]);
+        { id: 'nodes', label: t('deepAssessments.attackSurfaceGraphNodes', null, '攻击面图节点'), value: graph?.nodes?.length ?? 0 }
+    ], [t, linked, observed, percent, graph?.nodes?.length]);
 
     const columns = [
         {
@@ -207,8 +208,9 @@ export default function AssetsTab({ id, task, observation, reloadToken }) {
     return (
         <div className="assessment-tab">
             <StatGrid metrics={metrics} columns={4} />
+            <SurfaceItems id={id} canWrite={canWrite && !task?.archived} reloadToken={reloadToken} />
             <SectionCard
-                title={t('deepAssessments.assets', null, '资产图')}
+                title={t('deepAssessments.attackSurfaceGraph', null, '攻击面图')}
                 description="覆盖情况按已保存的 observed 事实计算，不代表测试穷尽或无漏洞。"
                 extra={(
                     <Space>

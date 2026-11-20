@@ -4704,6 +4704,32 @@
     }
   },
   "deepAssessments": {
+    "assets": "الأصول المرتبطة",
+    "attackSurfaceGraph": "مخطط سطح الهجوم",
+    "attackSurfaceGraphNodes": "عُقد مخطط سطح الهجوم",
+    "surface": {
+      "title": "ملاحظات سطح الهجوم",
+      "add": "إضافة ملاحظة",
+      "edit": "تعديل الملاحظة",
+      "saved": "تم حفظ الملاحظة",
+      "empty": "لا توجد ملاحظات بعد.",
+      "kind": "النوع",
+      "kindRequired": "اختر نوع الملاحظة",
+      "summary": "ملخص منقّح",
+      "summaryRequired": "أدخل ملخصًا منقّحًا",
+      "location": "مكان الاكتشاف",
+      "factId": "معرّف الواقعة (اختياري)",
+      "factHint": "انسخ المعرّف من تفاصيل الواقعة في هذا التقييم",
+      "evidence": "الدليل",
+      "viewEvidence": "عرض مسار الدليل",
+      "redactionHint": "أدخل معلومات منقّحة. احتفظ بالمفاتيح وكلمات المرور والرموز الأصلية في مصدر الدليل.",
+      "kinds": {
+        "cloud_access_key": "AK/SK",
+        "credential": "بيانات اعتماد الحساب",
+        "api_token": "API Key / Token",
+        "other": "أخرى"
+      }
+    },
     "unarchivedTasks": "غير مؤرشف",
     "archivedTasks": "مؤرشف",
     "archiveFilter": "حالة الأرشفة",

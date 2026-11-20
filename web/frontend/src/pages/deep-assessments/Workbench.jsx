@@ -30,7 +30,7 @@ const TABS = [
     { key: 'overview', i18n: 'deepAssessments.overview', fallback: '概览' },
     { key: 'intents', i18n: 'deepAssessments.intents', fallback: '意图' },
     { key: 'facts', i18n: 'deepAssessments.facts', fallback: '事实' },
-    { key: 'assets', i18n: 'deepAssessments.assets', fallback: '资产', permission: 'asset:read' },
+    { key: 'assets', i18n: 'deepAssessments.attackSurfaceGraph', fallback: '攻击面图', permission: 'asset:read' },
     { key: 'graph', i18n: 'deepAssessments.graph', fallback: '图谱' },
     { key: 'findings', i18n: 'deepAssessments.findings', fallback: '漏洞', permission: 'vulnerability:read' },
     { key: 'acceptance', i18n: 'deepAssessments.acceptance', fallback: '验收' },
@@ -38,7 +38,7 @@ const TABS = [
     { key: 'report', i18n: 'deepAssessments.reportTab', fallback: '报告' }
 ];
 
-export default function Workbench({ id, tab, criterion, evidencePath, evidenceStepId, observation, onTabChange, onBack, onDeleted }) {
+export default function Workbench({ id, tab, criterion, evidencePath, evidenceStepId, evidenceFactId, observation, onTabChange, onBack, onDeleted }) {
     const t = useT();
     const { hasPermission } = useAuth();
     const resource = useResource(() => api.get(`/deep-assessments/${id}`), [id]);
@@ -363,7 +363,14 @@ export default function Workbench({ id, tab, criterion, evidencePath, evidenceSt
                 ) : activeTab === 'acceptance' ? (
                     <AcceptanceTab id={id} criterion={criterion} canWrite={canWrite && !task.archived} reloadToken={reloadToken} />
                 ) : activeTab === 'evidence' ? (
-                    <EvidenceTab key={`${evidencePath}-${criterion}-${evidenceStepId}`} id={id} criterion={evidencePath ? criterion : 0} stepId={evidenceStepId} reloadToken={reloadToken} />
+                    <EvidenceTab
+                        key={`${evidencePath}-${criterion}-${evidenceStepId}-${evidenceFactId}`}
+                        id={id}
+                        criterion={evidencePath ? criterion : 0}
+                        factId={evidenceFactId}
+                        stepId={evidenceStepId}
+                        reloadToken={reloadToken}
+                    />
                 ) : (
                     <ReportTab id={id} task={task} reloadToken={reloadToken} />
                 )}

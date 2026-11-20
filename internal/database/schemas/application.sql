@@ -981,6 +981,14 @@ CREATE TABLE IF NOT EXISTS deep_assessment_facts (
  assets_json TEXT NOT NULL, sources_json TEXT NOT NULL, created_at DATETIME NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_assessment_facts_task ON deep_assessment_facts(task_id,created_at,id);
+CREATE TABLE IF NOT EXISTS deep_assessment_surface_items (
+ id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES deep_assessments(id) ON DELETE CASCADE,
+ kind TEXT NOT NULL CHECK(kind IN ('cloud_access_key','credential','api_token','other')),
+ summary TEXT NOT NULL, location TEXT NOT NULL DEFAULT '',
+ fact_id TEXT REFERENCES deep_assessment_facts(id) ON DELETE SET NULL,
+ revision INTEGER NOT NULL, updated_at DATETIME NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_assessment_surface_items_task ON deep_assessment_surface_items(task_id,updated_at,id);
 CREATE TABLE IF NOT EXISTS deep_assessment_acceptance (
  task_id TEXT NOT NULL REFERENCES deep_assessments(id) ON DELETE CASCADE,
  criterion INTEGER NOT NULL, revision INTEGER NOT NULL, mapping TEXT NOT NULL,

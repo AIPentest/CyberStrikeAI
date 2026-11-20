@@ -1469,7 +1469,10 @@ test('deep assessment: guidance and asset selection open as drawers', async ({ p
     await button(guidance, '取消').click();
     await expect(guidance).toHaveCount(0);
 
-    await main.getByRole('tab', { name: label('deepAssessments.assets', '资产'), exact: true }).click();
+    await main.getByRole('tab', { name: '攻击面图', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`#/deep-assessments\\?id=${ASSESSMENT.id}&tab=assets$`));
+    await expect(main.locator('.cs-section-card').getByText('攻击面图', { exact: true })).toBeVisible();
+    await expect(main.getByText('攻击面图节点', { exact: true })).toBeVisible();
     await button(main, '添加资产').click();
     const assets = page.getByRole('dialog', { name: '关联共享资产' });
     await expect(assets).toHaveClass(/semi-sidesheet-inner/);
@@ -1477,6 +1480,64 @@ test('deep assessment: guidance and asset selection open as drawers', async ({ p
     await button(assets, '取消').click();
     await expect(assets).toHaveCount(0);
     expect(mockApi.writes()).toEqual([]);
+});
+
+test('deep assessment: register and edit an attack surface clue with a fact reference', async ({ page, mockApi }) => {
+    const path = `/api/deep-assessments/${ASSESSMENT.id}`;
+    const endpoint = `${path}/surface-items`;
+    const factId = 'fact:fixture-surface';
+    const itemId = 'fixture-surface-item';
+    let item = null;
+    mockApi.respond('GET', `${path}/assets`, { json: { assets: [{ id: 'fixture-asset', host: 'fixture.example', port: 443, protocol: 'https' }] } });
+    mockApi.respond('GET', `${path}/events`, { json: { events: [] } });
+    mockApi.respond('GET', endpoint, () => ({ json: { items: item ? [item] : [], has_more: false } }));
+    mockApi.respond('POST', endpoint, ({ body }) => {
+        item = { ...body, id: itemId, revision: 1 };
+        return { json: item };
+    });
+    mockApi.respond('PUT', `${endpoint}/${itemId}`, ({ body }) => {
+        item = { ...body, id: itemId, revision: 2 };
+        return { json: item };
+    });
+    mockApi.respond('GET', `${path}/evidence-path`, { json: { title: '示例配置事实', nodes: [], edges: [] } });
+
+    await page.goto(`/static/app/#/deep-assessments?id=${ASSESSMENT.id}&tab=assets`);
+    const main = await ready(page);
+    await expect(main.getByRole('tab', { name: '探索图', exact: true })).toBeVisible();
+    await expect(main.getByRole('tab', { name: '攻击面图', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(main.getByText('fixture.example', { exact: true })).toBeVisible();
+    await expect(main.getByText('暂无攻击面线索。')).toBeVisible();
+    await button(main, '新增线索').click();
+    const create = page.getByRole('dialog', { name: '新增线索' });
+    const saveLabel = label('common.save', '保存');
+    await button(create, saveLabel).click();
+    await expect(create.getByText('请填写脱敏摘要', { exact: true })).toBeVisible();
+    expect(mockApi.writes()).toEqual([]);
+    await create.getByRole('textbox', { name: '脱敏摘要' }).fill('示例配置发现云访问密钥');
+    await create.getByRole('textbox', { name: '发现位置' }).fill('示例配置文件');
+    await create.getByRole('textbox', { name: '关联事实 ID（选填）' }).fill(factId);
+    await button(create, saveLabel).click();
+    await expect(create).toHaveCount(0);
+    const row = main.getByRole('row').filter({ hasText: '示例配置发现云访问密钥' });
+    await expect(row).toContainText('AK/SK');
+    expect(mockApi.calls('POST', endpoint)[0].body).toEqual({
+        kind: 'cloud_access_key', summary: '示例配置发现云访问密钥', location: '示例配置文件', fact_id: factId
+    });
+
+    await button(row, '编辑线索').click();
+    const edit = page.getByRole('dialog', { name: '编辑线索' });
+    await edit.getByRole('textbox', { name: '脱敏摘要' }).fill('示例配置发现账号凭据');
+    const credential = edit.getByRole('radio', { name: '账号凭据', exact: true });
+    await credential.check();
+    await expect(credential).toBeChecked();
+    await button(edit, saveLabel).click();
+    await expect(edit).toHaveCount(0);
+    expect(mockApi.calls('PUT', `${endpoint}/${itemId}`)[0].body).toMatchObject({ kind: 'credential', revision: 1 });
+
+    await main.getByRole('link', { name: '查看证据路径' }).click();
+    await expect(main.getByText('示例配置事实', { exact: true })).toBeVisible();
+    const evidenceRead = mockApi.calls('GET', `${path}/evidence-path`)[0];
+    expect(new URLSearchParams(evidenceRead.query).get('fact_id')).toBe(factId);
 });
 
 test('vulnerability: dashboard deep link, detail retry, evidence and close; new form validation', async ({ page, mockApi }, testInfo) => {
