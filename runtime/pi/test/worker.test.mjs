@@ -56,8 +56,12 @@ async function invoke(t, request, onRecord = () => {}, env = fixtureEnv) {
   worker.stdout.on("data", chunk => {
     for (const r of reader.push(chunk)) {
       records.push(r);
+      // Deliver the run and any synchronous startup commands in the same write.
+      // Separate pipe writes can let the first model request start between them.
+      worker.stdin.cork();
       if (r.type === "ready") send({ type: "run", version: 1, request });
       onRecord(r, send);
+      worker.stdin.uncork();
     }
   });
   const [code] = await exit;
