@@ -1583,7 +1583,7 @@
     "staleScansHint": "Scan results may be stale",
     "coverageOfTotal": "{{percent}}% of all assets",
     "coverageMeta": "{{scanned}} / {{total}} covered",
-    "addAsset": "+ Add asset",
+    "addAsset": "Add asset",
     "bulkImport": "Bulk import",
     "bulkImportTitle": "Bulk import assets",
     "bulkImportSubtitle": "Fill in a template, upload it, then review validation results before importing",

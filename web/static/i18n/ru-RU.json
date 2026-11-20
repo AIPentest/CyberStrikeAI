@@ -1595,7 +1595,7 @@
     "staleScansHint": "Результаты сканирования могут устареть",
     "coverageOfTotal": "{{percent}}% всех активов",
     "coverageMeta": "{{scanned}} / {{total}} охвачено",
-    "addAsset": "+ Добавить актив",
+    "addAsset": "Добавить актив",
     "bulkImport": "Массовый импорт",
     "bulkImportTitle": "Массовый импорт активов",
     "bulkImportSubtitle": "Заполните шаблон, загрузите файл и проверьте результат перед импортом",

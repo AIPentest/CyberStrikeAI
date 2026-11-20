@@ -1582,7 +1582,7 @@
     "staleScansHint": "قد تكون نتائج الفحص قديمة",
     "coverageOfTotal": "{{percent}}% من إجمالي الأصول",
     "coverageMeta": "{{scanned}} / {{total}} مُغطّاة",
-    "addAsset": "+ إضافة أصل",
+    "addAsset": "إضافة أصل",
     "bulkImport": "استيراد جماعي",
     "bulkImportTitle": "استيراد جماعي للأصول",
     "bulkImportSubtitle": "عبّئ القالب وارفعه، ثم راجع نتائج التحقّق قبل الاستيراد",

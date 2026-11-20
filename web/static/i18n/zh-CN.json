@@ -1571,7 +1571,7 @@
     "staleScansHint": "扫描结果可能已过期",
     "coverageOfTotal": "占全部资产 {{percent}}%",
     "coverageMeta": "{{scanned}} / {{total}} 已覆盖",
-    "addAsset": "+ 新增资产",
+    "addAsset": "新增资产",
     "bulkImport": "批量导入",
     "bulkImportTitle": "批量导入资产",
     "bulkImportSubtitle": "下载模板填写后上传，提交前会先校验并预览数据",
