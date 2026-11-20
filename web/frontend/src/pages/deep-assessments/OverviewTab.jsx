@@ -4,7 +4,7 @@ import { api } from '../../lib/http';
 import { Button, Empty, Space, Switch, Tag, Timeline, Typography } from '@douyinfe/semi-ui';
 import { useT } from '../../lib/i18n';
 import { useInterval } from '../../components/hooks';
-import { SectionCard, StatGrid, ErrorBanner, StatusTag, KeyValueList } from '../../components/ui';
+import { SectionCard, StatGrid, ErrorBanner, KeyValueList } from '../../components/ui';
 import { formatDateTime, formatNumber } from '../../lib/format';
 import { countsProgress, eventText, formatElapsed, isActive, statusText } from './labels';
 
@@ -66,7 +66,7 @@ export default function OverviewTab({
         {
             id: 'status',
             label: t('deepAssessments.status', null, '状态'),
-            value: <StatusTag status={task.status} label={statusText(t, task.status)} />,
+            value: <span className="assessment-status-value">{statusText(t, task.status)}</span>,
             detail: statusDetail
         },
         {

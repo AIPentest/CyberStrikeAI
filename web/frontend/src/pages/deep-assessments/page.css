@@ -33,6 +33,12 @@
     padding-top: 4px;
 }
 
+.assessment-status-value {
+    display: block;
+    letter-spacing: normal;
+    overflow-wrap: anywhere;
+}
+
 .assessment-loading {
     display: flex;
     align-items: center;
