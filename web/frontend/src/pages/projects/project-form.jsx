@@ -18,6 +18,7 @@ export default function ProjectFormModal({ visible, project, onCancel, onSaved }
     useEffect(() => { setError(null); }, [visible, project?.id]);
 
     const submit = async values => {
+        if (saving) return;
         setSaving(true);
         setError(null);
         try {
@@ -39,7 +40,10 @@ export default function ProjectFormModal({ visible, project, onCancel, onSaved }
             visible={visible}
             width={560}
             maskClosable={false}
+            closable={!saving}
+            closeOnEsc={!saving}
             onCancel={onCancel}
+            cancelButtonProps={{ disabled: saving }}
             title={editing ? t('projects.modalEditTitle', null, '编辑项目') : t('projects.modalNewTitle', null, '新建项目')}
             formId={formId}
             okText={editing ? t('projects.saveChanges', null, '保存修改') : t('projects.createProject', null, '创建项目')}
@@ -52,11 +56,11 @@ export default function ProjectFormModal({ visible, project, onCancel, onSaved }
             </Text>
             <Form id={formId} key={`${visible}-${project?.id || 'new'}`} onSubmit={submit}
                 initValues={{ name: project?.name || '', description: project?.description || '' }}>
-                <Form.Input field="name" maxLength={MAX_NAME}
+                <Form.Input id={`${formId}-name`} field="name" maxLength={MAX_NAME}
                     label={t('projects.projectName', null, '项目名称')}
                     placeholder={t('projects.projectNamePlaceholder', null, '例如：某客户 Web 渗透')}
                     rules={[{ required: true, whitespace: true, message: t('projects.enterProjectName', null, '请输入项目名称') }]} />
-                <Form.TextArea field="description" rows={4} maxCount={MAX_DESCRIPTION}
+                <Form.TextArea id={`${formId}-description`} field="description" rows={4} maxCount={MAX_DESCRIPTION}
                     label={t('projects.projectDescription', null, '项目描述')}
                     placeholder={t('projects.projectDescriptionPlaceholder', null, '客户/任务备注、协作说明…')}
                     extraText={t('projects.descriptionLengthHint', null, '仅供团队成员查阅，Agent 不会读取；需让 Agent 知晓的内容请写入事实黑板')} />

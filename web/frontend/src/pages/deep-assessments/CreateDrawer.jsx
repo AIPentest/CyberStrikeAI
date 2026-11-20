@@ -1,10 +1,13 @@
 /** 新建深度测评表单：字段与 internal/handler/deep_assessment.go 的创建结构体一致。 */
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Banner, Button, Form, Spin } from '@douyinfe/semi-ui';
+import { IconPlus } from '@douyinfe/semi-icons';
+import { useAuth } from '../../lib/auth';
 import { api } from '../../lib/http';
 import { useT } from '../../lib/i18n';
 import { modelChannelOptions, selectedModelChannelName } from '../../lib/model-channel';
 import { Drawer, ErrorBanner, toastError, toastSuccess } from '../../components/ui';
+import ProjectFormModal from '../projects/project-form';
 
 const HITL_OPTIONS = [
     { value: '', label: '系统默认' },
@@ -17,10 +20,15 @@ const HITL_OPTIONS = [
 export default function CreateAssessmentDrawer({ visible, onCancel, onCreated }) {
     const t = useT();
     const title = t('deepAssessments.create', null, '新建测评');
+    const { hasPermission } = useAuth();
+    const canCreateProject = hasPermission('project:read') && hasPermission('project:write');
     const formId = useId();
+    const formApi = useRef(null);
     const [options, setOptions] = useState(null);
     const [error, setError] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [projectFormOpen, setProjectFormOpen] = useState(false);
+    const busy = saving || projectFormOpen;
 
     const loadOptions = useCallback(() => {
         setOptions(null);
@@ -36,7 +44,7 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
     }, [visible, loadOptions]);
 
     const submit = async values => {
-        if (saving) return;
+        if (busy) return;
         setSaving(true);
         try {
             const body = {
@@ -61,6 +69,13 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
         }
     };
 
+    const handleProjectCreated = project => {
+        setProjectFormOpen(false);
+        if (!project?.id) return;
+        setOptions(current => ({ ...current, projects: [project, ...(current?.projects || [])] }));
+        formApi.current?.setValue('project_id', project.id);
+    };
+
     const models = modelChannelOptions((options?.models || []).map(item => [item.id, item]));
     const roles = (options?.roles || []).map(role => ({ value: role, label: role }));
     const projects = (options?.projects || []).map(project => ({ value: project.id, label: project.name || project.id }));
@@ -72,12 +87,12 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
             aria-label={title}
             onCancel={onCancel}
             width={680}
-            closable={!saving}
-            closeOnEsc={!saving}
-            maskClosable={!saving}
+            closable={!busy}
+            closeOnEsc={!busy}
+            maskClosable={!busy}
             footer={(
                 <div className="assessment-form-actions">
-                    <Button theme="borderless" onClick={onCancel} disabled={saving}>
+                    <Button theme="borderless" onClick={onCancel} disabled={busy}>
                         {t('deepAssessments.close', null, '关闭')}
                     </Button>
                     <Button
@@ -86,7 +101,7 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
                         theme="solid"
                         type="primary"
                         loading={saving}
-                        disabled={saving || (!options && !error)}
+                        disabled={busy || (!options && !error)}
                     >
                         {t('deepAssessments.save', null, '保存草稿')}
                     </Button>
@@ -104,6 +119,7 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
             ) : (
                 <Form
                     id={formId}
+                    getFormApi={instance => { formApi.current = instance; }}
                     initValues={{ concurrency: 2, auto_resume: true, hitl_policy: '' }}
                     labelPosition="top"
                     autoScrollToError
@@ -151,12 +167,25 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
                             optionList={[{ value: '', label: '系统默认' }, ...roles]}
                             style={{ width: '100%' }}
                         />
-                        <Form.Select
-                            field="project_id"
-                            label={t('deepAssessments.project', null, '关联项目')}
-                            optionList={[{ value: '', label: '不关联' }, ...projects]}
-                            style={{ width: '100%' }}
-                        />
+                        <div className="assessment-project-field">
+                            <Form.Select
+                                field="project_id"
+                                label={t('deepAssessments.project', null, '关联项目')}
+                                optionList={[{ value: '', label: '不关联' }, ...projects]}
+                                style={{ width: '100%' }}
+                            />
+                            {canCreateProject && (
+                                <Button
+                                    icon={<IconPlus aria-hidden />}
+                                    theme="light"
+                                    type="primary"
+                                    disabled={saving}
+                                    onClick={() => setProjectFormOpen(true)}
+                                >
+                                    {t('projects.newProject', null, '新建项目')}
+                                </Button>
+                            )}
+                        </div>
                         <Form.InputNumber
                             field="concurrency"
                             label={t('deepAssessments.concurrency', null, '并行步骤')}
@@ -183,6 +212,13 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
                         description="创建后保存为草稿；打开页面不会自动启动，需要手动点击“开始 / 继续”。"
                     />
                 </Form>
+            )}
+            {projectFormOpen && (
+                <ProjectFormModal
+                    visible
+                    onCancel={() => setProjectFormOpen(false)}
+                    onSaved={handleProjectCreated}
+                />
             )}
         </Drawer>
     );

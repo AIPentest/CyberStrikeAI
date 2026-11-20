@@ -1309,6 +1309,72 @@ test('deep assessment: new-draft drawer retries options, validates and saves wit
     });
 });
 
+test('deep assessment: create and select a new project without losing the draft', async ({ page, mockApi }) => {
+    const created = { ...PROJECT, id: 'fixture-new-assessment-project', name: '测评中新建的项目' };
+    const main = await visit(page, 'deep-assessments');
+    const drawer = page.getByRole('dialog', { name: label('deepAssessments.create', '新建测评') });
+    const projectDrawer = page.getByRole('dialog', { name: label('projects.modalNewTitle', '新建项目') });
+    const createProject = button(drawer, label('projects.newProject', '新建项目'));
+    const saveAssessment = button(drawer, label('deepAssessments.save', '保存草稿'));
+    const objective = drawer.getByRole('textbox', { name: /目标/ });
+    const select = drawer.getByRole('combobox', { name: label('deepAssessments.project', '关联项目') });
+
+    await button(main, label('deepAssessments.create', '新建测评')).click();
+    await objective.fill(ASSESSMENT.objective);
+    await select.click();
+    await page.getByRole('option').filter({ hasText: PROJECT.name }).click();
+    await createProject.click();
+    await expect(projectDrawer).toBeVisible();
+    await expect(saveAssessment).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await expect(projectDrawer).not.toBeVisible();
+    await expect(createProject).toBeFocused();
+    await expect(select).toContainText(PROJECT.name);
+    await expect(objective).toHaveValue(ASSESSMENT.objective);
+    expect(mockApi.writes()).toEqual([]);
+
+    await page.setViewportSize({ width: 390, height: 650 });
+    await createProject.click();
+    await assertDrawerFits(page, projectDrawer);
+    const projectName = projectDrawer.getByLabel(label('projects.projectName', '项目名称'), { exact: true });
+    const submitProject = button(projectDrawer, label('projects.createProject', '创建项目'));
+    mockApi.fail('POST', '/api/projects', '示例项目创建失败');
+    await projectName.fill(created.name);
+    await submitProject.click();
+    await expect(projectDrawer).toContainText('示例项目创建失败');
+    await expect(projectName).toHaveValue(created.name);
+    mockApi.respond('POST', '/api/projects', { json: created });
+    await submitProject.click();
+    await expect(projectDrawer).not.toBeVisible();
+    await expect(select).toContainText(created.name);
+    await expect(objective).toHaveValue(ASSESSMENT.objective);
+    expect(mockApi.calls('POST', '/api/deep-assessments')).toEqual([]);
+
+    mockApi.respond('POST', '/api/deep-assessments', { json: { task: ASSESSMENT } });
+    mockApi.respond('GET', `/api/deep-assessments/${ASSESSMENT.id}/events`, { json: { events: [] } });
+    await saveAssessment.click();
+    await expect(page).toHaveURL(/id=fixture-assessment&tab=overview$/);
+    const writes = mockApi.writes();
+    expect(writes.map(call => call.path)).toEqual(['/api/projects', '/api/projects', '/api/deep-assessments']);
+    expect(writes[1].body).toEqual({ name: created.name, description: '' });
+    expect(writes[2].body).toMatchObject({ project_id: created.id, objective: ASSESSMENT.objective });
+});
+
+test.describe('deep assessment: project read permission only', () => {
+    test.use({ appPermissions: UI_PERMISSIONS.filter(permission => permission !== 'project:write') });
+    test('can select an existing project without a create action', async ({ page, mockApi }) => {
+        const main = await visit(page, 'deep-assessments');
+        await button(main, label('deepAssessments.create', '新建测评')).click();
+        const drawer = page.getByRole('dialog', { name: label('deepAssessments.create', '新建测评') });
+        const select = drawer.getByRole('combobox', { name: label('deepAssessments.project', '关联项目') });
+        await select.click();
+        await page.getByRole('option').filter({ hasText: PROJECT.name }).click();
+        await expect(select).toContainText(PROJECT.name);
+        await expect(button(drawer, label('projects.newProject', '新建项目'))).toHaveCount(0);
+        expect(mockApi.writes()).toEqual([]);
+    });
+});
+
 test('deep assessment: guidance and asset selection open as drawers', async ({ page, mockApi }) => {
     const path = `/api/deep-assessments/${ASSESSMENT.id}`;
     mockApi.respond('GET', `${path}/events`, { json: { events: [] } });

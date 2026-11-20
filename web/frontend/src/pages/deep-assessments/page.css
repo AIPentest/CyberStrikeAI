@@ -174,6 +174,19 @@
     gap: 0 16px;
 }
 
+.assessment-project-field {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding-bottom: 12px;
+}
+
+.semi-form-vertical .assessment-project-field > .semi-form-field {
+    flex: 1;
+    min-width: 0;
+    padding-bottom: 0;
+}
+
 .assessment-form-note {
     margin-top: 8px;
 }
