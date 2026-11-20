@@ -59,6 +59,9 @@ export default function FactDetailSheet({ projectId, factKey, visible, canWrite,
                             fact.related_vulnerability_id
                                 ? { label: t('projects.relatedVulnIdTitle', null, '关联漏洞 ID'), value: fact.related_vulnerability_id }
                                 : null,
+                            fact.confirmation_note
+                                ? { label: t('projects.confirmationNote', null, '审核说明'), value: fact.confirmation_note }
+                                : null,
                             fact.source_conversation_id
                                 ? { label: t('projects.factMetaSourceConversation', { value: '' }, '来源对话'), value: fact.source_conversation_id }
                                 : null

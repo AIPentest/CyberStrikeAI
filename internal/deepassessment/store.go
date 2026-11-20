@@ -1,6 +1,7 @@
 package deepassessment
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -58,12 +59,32 @@ func (s *Store) Get(id string) (*Task, error) {
 
 // State and lifecycle events commit together, before any dependent run starts.
 func (s *Store) Change(id, step, kind, message string, fn func(*Task) error) error {
-	return s.change(id, step, kind, message, nil, fn)
+	return s.change(id, step, kind, message, nil, func(_ *sql.Tx, task *Task) error { return fn(task) })
 }
 func (s *Store) ChangeAtVersion(id, step, kind, message string, version int64, fn func(*Task) error) error {
-	return s.change(id, step, kind, message, &version, fn)
+	return s.change(id, step, kind, message, &version, func(_ *sql.Tx, task *Task) error { return fn(task) })
 }
-func (s *Store) change(id, step, kind, message string, version *int64, fn func(*Task) error) error {
+
+// CompleteAtGate writes completed only when the acceptance snapshot still matches the one just checked.
+func (s *Store) CompleteAtGate(id string, changeVersion, taskRevision int64, summary string, expected AcceptanceGate) error {
+	return s.change(id, "", "completed", summary, &changeVersion, func(tx *sql.Tx, latest *Task) error {
+		if latest.Status != "running" || latest.Revision != taskRevision {
+			return ErrConflict
+		}
+		gate, err := acceptanceGate(tx, latest)
+		if err != nil {
+			return err
+		}
+		if gate.Version != expected.Version || gate.Blocking || gate.Legacy != expected.Legacy {
+			return ErrConflict
+		}
+		latest.Status = "completed"
+		latest.Summary = Clip(summary, 16000)
+		return nil
+	})
+}
+
+func (s *Store) change(id, step, kind, message string, version *int64, fn func(*sql.Tx, *Task) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	tx, err := s.DB.Begin()
@@ -89,7 +110,7 @@ func (s *Store) change(id, step, kind, message string, version *int64, fn func(*
 		return err
 	}
 	t.Continuous()
-	if err = fn(&t); err != nil {
+	if err = fn(tx, &t); err != nil {
 		return err
 	}
 	t.Continuous()

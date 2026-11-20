@@ -28,6 +28,7 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
     const [error, setError] = useState(null);
     const [saving, setSaving] = useState(false);
     const [projectFormOpen, setProjectFormOpen] = useState(false);
+    const [collections, setCollections] = useState([]);
     const busy = saving || projectFormOpen;
 
     const loadOptions = useCallback(() => {
@@ -43,6 +44,16 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
         loadOptions();
     }, [visible, loadOptions]);
 
+    const loadCollections = projectId => {
+        if (!projectId) {
+            setCollections([]);
+            return;
+        }
+        api.get('/assets/collections', { project_id: projectId })
+            .then(data => setCollections(Array.isArray(data?.collections) ? data.collections : []))
+            .catch(() => setCollections([]));
+    };
+
     const submit = async values => {
         if (busy) return;
         setSaving(true);
@@ -53,6 +64,7 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
                 scope: String(values.scope || '').trim(),
                 criteria: String(values.criteria || '').trim(),
                 project_id: values.project_id || '',
+                collection_id: values.collection_id || '',
                 role: values.role || '',
                 model: values.model || '',
                 hitl_policy: values.hitl_policy || '',
@@ -74,6 +86,8 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
         if (!project?.id) return;
         setOptions(current => ({ ...current, projects: [project, ...(current?.projects || [])] }));
         formApi.current?.setValue('project_id', project.id);
+        formApi.current?.setValue('collection_id', '');
+        loadCollections(project.id);
     };
 
     const models = modelChannelOptions((options?.models || []).map(item => [item.id, item]));
@@ -173,6 +187,10 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
                                 label={t('deepAssessments.project', null, '关联项目')}
                                 optionList={[{ value: '', label: '不关联' }, ...projects]}
                                 style={{ width: '100%' }}
+                                onChange={value => {
+                                    formApi.current?.setValue('collection_id', '');
+                                    loadCollections(value || '');
+                                }}
                             />
                             {canCreateProject && (
                                 <Button
@@ -186,6 +204,12 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
                                 </Button>
                             )}
                         </div>
+                        <Form.Select
+                            field="collection_id"
+                            label="资产集合"
+                            optionList={[{ value: '', label: '不指定集合' }, ...collections.map(item => ({ value: item.id, label: `${item.name}（${item.member_count || 0}）` }))]}
+                            style={{ width: '100%' }}
+                        />
                         <Form.InputNumber
                             field="concurrency"
                             label={t('deepAssessments.concurrency', null, '并行步骤')}

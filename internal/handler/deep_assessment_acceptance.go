@@ -70,7 +70,7 @@ func (h *AgentHandler) appendAcceptanceReport(c *gin.Context, task *deepassessme
 	for _, row := range matrix {
 		counts[row.Status]++
 	}
-	fmt.Fprintf(b, "\n## 验收证据矩阵\n\n已有证据 %d 项，缺证据 %d 项，待人工复核 %d 项。状态反映当前证据关联情况，验收结论由审阅人核对。\n",
+	fmt.Fprintf(b, "\n## 逐项验收\n\n验收证据矩阵：已有证据 %d 项，缺证据 %d 项，待人工复核 %d 项。缺证据的必验项不能视为完成。\n",
 		counts["has_evidence"], counts["missing"], counts["needs_review"])
 	matrixURL := assessmentReportLink(c, task.ID, "", "acceptance")
 	pathURL := assessmentReportLink(c, task.ID, "", "evidence-path")

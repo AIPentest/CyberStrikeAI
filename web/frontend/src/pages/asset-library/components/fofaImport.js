@@ -56,23 +56,34 @@ export function fofaRowToAsset(row, fields, provider = 'fofa') {
  * 将选中的结果行入库。
  * 返回 { assets, invalidCount, created, updated, skipped }。
  */
-export async function importFofaRows(rows, { fields, provider, query }) {
+export async function importFofaRows(rows, { fields, provider, query, projectId, collectionName }) {
     const converted = (rows || []).map(row => fofaRowToAsset(row, fields, provider));
     const assets = converted.filter(asset => asset.host || asset.ip || asset.domain);
     const invalidCount = converted.length - assets.length;
     if (!assets.length) {
         return { assets, invalidCount, created: 0, updated: 0, skipped: 0 };
     }
-    const result = await api.post('/assets/import', {
+    if (projectId) {
+        assets.forEach(asset => { asset.project_id = projectId; });
+    }
+    const body = {
         assets,
         source: provider || 'fofa',
         source_query: query || ''
-    });
+    };
+    if (projectId) {
+        body.collection = {
+            project_id: projectId,
+            name: String(collectionName || query || '导入资产').trim()
+        };
+    }
+    const result = await api.post('/assets/import', body);
     return {
         assets,
         invalidCount,
         created: Number(result?.created || 0),
         updated: Number(result?.updated || 0),
-        skipped: Number(result?.skipped || 0)
+        skipped: Number(result?.skipped || 0),
+        collection: result?.collection || null
     };
 }

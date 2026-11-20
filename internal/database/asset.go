@@ -93,9 +93,11 @@ type AssetListFilter struct {
 }
 
 type AssetImportResult struct {
-	Created int `json:"created"`
-	Updated int `json:"updated"`
-	Skipped int `json:"skipped"`
+	Created    int              `json:"created"`
+	Updated    int              `json:"updated"`
+	Skipped    int              `json:"skipped"`
+	AppliedIDs []string         `json:"-"`
+	Collection *AssetCollection `json:"collection,omitempty"`
 }
 
 func normalizeAsset(a *Asset) {
@@ -365,6 +367,7 @@ func (db *DB) upsertAssets(assets []*Asset, ownerUserID string, global bool, pro
 				}
 			}
 			result.Created++
+			result.AppliedIDs = append(result.AppliedIDs, asset.ID)
 			continue
 		}
 		if err != nil {
@@ -408,6 +411,7 @@ func (db *DB) upsertAssets(assets []*Asset, ownerUserID string, global bool, pro
 			}
 		}
 		result.Updated++
+		result.AppliedIDs = append(result.AppliedIDs, existingID)
 	}
 	if err := tx.Commit(); err != nil {
 		return result, err
@@ -1326,6 +1330,20 @@ func (db *DB) GetAssetStats(access RBACListAccess, requestedDays ...int) (map[st
 		coverage["rate"], coverage["recent_rate"] = 0, 0
 	}
 	stats["coverage"] = coverage
+	observedTotal, observed, err := db.ObservationCoverage(access, "")
+	if err != nil {
+		return nil, err
+	}
+	observation := map[string]interface{}{
+		"total": observedTotal, "observed": observed,
+		"meaning": "已有观察证据的资产。成功原始回执支持的测评观察，或带成功工具回执的已确认项目事实，同一资产只计一次。这不是扫描覆盖。",
+	}
+	if observedTotal > 0 {
+		observation["rate"] = int(float64(observed) / float64(observedTotal) * 100)
+	} else {
+		observation["rate"] = 0
+	}
+	stats["observation"] = observation
 
 	assetDaily := map[string]map[string]int{}
 	trendWhere, trendArgs := appendAssetAccess(" WHERE datetime(first_seen_at)>=datetime('now',?)", []interface{}{fmt.Sprintf("-%d days", days-1)}, access, "assets")

@@ -1692,6 +1692,54 @@ test('project: compact pagination supports selection, filtering and a shrinking 
     expect(mockApi.writes()).toEqual([]);
 });
 
+test('project: review a tentative fact and only link a readable source', async ({ page, mockApi }) => {
+    const hidden = 'secret-conversation-id';
+    const pending = {
+        ...FACT, id: 'fixture-pending-fact', fact_key: 'fixture.pending', confidence: 'tentative',
+        summary: '待审核示例事实', confirmation_note: '', source_conversation_id: '', source_message_id: '', execution_ids: []
+    };
+    const readable = {
+        ...FACT, id: 'fixture-readable-fact', fact_key: 'fixture.readable', confidence: 'tentative',
+        summary: '可回看来源', source_conversation_id: CONVERSATION.id, source_message_id: 'fixture-user-message',
+        execution_ids: ['fixture-execution']
+    };
+    const facts = [pending, readable];
+    mockApi.respond('GET', `/api/projects/${PROJECT.id}/facts`, (_entry, url) => {
+        const key = url.searchParams.get('fact_key');
+        return { json: key ? facts.find(item => item.fact_key === key) : facts };
+    });
+    mockApi.respond('PUT', `/api/projects/${PROJECT.id}/facts/${pending.id}`, (entry) => {
+        Object.assign(pending, entry.body);
+        return { json: { ...pending, incoming_links: [], outgoing_links: [] } };
+    });
+    const main = await visit(page, 'projects');
+    await expect(main.getByRole('button', { name: '会话', exact: true })).toHaveCount(1);
+    await expect(main.getByText(hidden)).toHaveCount(0);
+
+    const row = main.locator('tr', { hasText: pending.summary });
+    await button(row, label('common.edit', '编辑')).click();
+    const dialog = page.getByRole('dialog', { name: label('projects.editFact', '编辑事实') });
+    const confidence = dialog.getByRole('combobox').nth(1);
+    await confidence.click();
+    await page.locator('.semi-select-option').filter({ hasText: '已确认' }).click();
+    await expect(confidence).toContainText('已确认');
+    await button(dialog, label('projects.saveChanges', '保存修改')).click();
+    await expect(page.getByText('升级为已确认需要审核说明', { exact: true })).toBeVisible();
+    expect(mockApi.writes()).toEqual([]);
+
+    const note = '人工核对来源回执后确认';
+    await dialog.getByPlaceholder('说明为何把这条事实标为已确认').fill(note);
+    await button(dialog, label('projects.saveChanges', '保存修改')).click();
+    await expect(dialog).toHaveCount(0);
+    expect(mockApi.calls('PUT', `/api/projects/${PROJECT.id}/facts/${pending.id}`).map(call => call.body)).toEqual([
+        expect.objectContaining({ confidence: 'confirmed', confirmation_note: note, fact_key: pending.fact_key })
+    ]);
+    await expect(row.getByText('已确认', { exact: true })).toBeVisible();
+    await button(row, label('common.edit', '编辑')).click();
+    await expect(page.getByRole('dialog').getByPlaceholder('说明为何把这条事实标为已确认')).toHaveValue(note);
+    await expect(main.getByText(hidden)).toHaveCount(0);
+});
+
 test('project: dashboard jump, fact detail opens/closes and create validates then retries', async ({ page, mockApi }) => {
     await visit(page, 'dashboard');
     await button(page.locator('#main-content'), PROJECT.name).click();

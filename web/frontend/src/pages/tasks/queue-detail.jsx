@@ -300,6 +300,7 @@ export default function QueueDetailDrawer({ queueId, visible, canWrite, canDelet
                             <span>{t('tasks.completedLabel', null, '已完成')} {stats.completed}</span>
                             <span>{t('tasks.failedLabel', null, '失败')} {stats.failed}</span>
                             <span>{t('tasks.cancelledLabel', null, '已取消')} {stats.cancelled}</span>
+                            <span>受阻 {stats.blocked}</span>
                         </div>
                         <Text type="tertiary" size="small">
                             {cronOn
@@ -400,7 +401,9 @@ export default function QueueDetailDrawer({ queueId, visible, canWrite, canDelet
                     />
                     {resultModal.task?.error ? (
                         <div>
-                            <Text strong type="danger">{t('tasks.statusFailed', null, '执行失败')}</Text>
+                            <Text strong type="danger">
+                                {resultModal.task.status === 'blocked' ? '受阻原因' : t('tasks.statusFailed', null, '执行失败')}
+                            </Text>
                             <pre className="task-result-pre">{resultModal.task.error}</pre>
                         </div>
                     ) : null}

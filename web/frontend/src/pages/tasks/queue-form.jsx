@@ -14,6 +14,7 @@ const EMPTY = {
     tasksText: '',
     role: '',
     projectId: '',
+    collectionId: '',
     agentMode: 'single',
     hitlPolicy: '',
     scheduleMode: 'manual',
@@ -30,6 +31,7 @@ export default function QueueFormModal({ visible, onCancel, onCreated }) {
     const [form, setForm] = useState(EMPTY);
     const [roles, setRoles] = useState([]);
     const [projects, setProjects] = useState([]);
+    const [collections, setCollections] = useState([]);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
@@ -49,6 +51,18 @@ export default function QueueFormModal({ visible, onCancel, onCreated }) {
         }
         return () => { cancelled = true; };
     }, [visible, hasPermission]);
+
+    useEffect(() => {
+        if (!visible || !form.projectId || !hasPermission('asset:read')) {
+            setCollections([]);
+            return undefined;
+        }
+        let cancelled = false;
+        api.get('/assets/collections', { project_id: form.projectId })
+            .then(payload => { if (!cancelled) setCollections(Array.isArray(payload?.collections) ? payload.collections : []); })
+            .catch(() => { if (!cancelled) setCollections([]); });
+        return () => { cancelled = true; };
+    }, [visible, form.projectId, hasPermission]);
 
     const update = patch => setForm(prev => ({ ...prev, ...patch }));
 
@@ -78,6 +92,7 @@ export default function QueueFormModal({ visible, onCancel, onCreated }) {
                 tasks,
                 role: form.role || '',
                 projectId: form.projectId || '',
+                collectionId: form.collectionId || '',
                 agentMode: form.agentMode || 'single',
                 hitlPolicy: form.hitlPolicy || '',
                 scheduleMode: form.scheduleMode === 'cron' ? 'cron' : 'manual',
@@ -104,6 +119,7 @@ export default function QueueFormModal({ visible, onCancel, onCreated }) {
             cancelText={t('common.cancel', null, '取消')}
             confirmLoading={saving}
             width={760}
+            maskClosable={false}
         >
             <div className="task-form-grid">
                 <div className="task-form-field">
@@ -136,7 +152,7 @@ export default function QueueFormModal({ visible, onCancel, onCreated }) {
                         style={{ width: '100%' }}
                         optionList={[{ value: '', label: t('batchImportModal.projectNone', null, '（未绑定）') },
                             ...projects.map(item => ({ value: item.id, label: item.name || item.id }))]}
-                        onChange={value => update({ projectId: value })}
+                        onChange={value => update({ projectId: value || '', collectionId: '' })}
                     />
                 </div>
                 <div className="task-form-field">
@@ -149,6 +165,19 @@ export default function QueueFormModal({ visible, onCancel, onCreated }) {
                     />
                     <Text type="tertiary" size="small">{t('batchImportModal.agentModeHint', null, '与对话页一致：Pi 单代理，或 Deep / Plan-Execute / Supervisor（后三种需已启用多代理）。')}</Text>
                 </div>
+            </div>
+
+            <div className="task-form-field">
+                <Text strong size="small">资产集合</Text>
+                <Select
+                    value={form.collectionId}
+                    style={{ width: '100%' }}
+                    disabled={!form.projectId}
+                    optionList={[{ value: '', label: '不指定集合' },
+                        ...collections.map(item => ({ value: item.id, label: `${item.name}（${item.member_count || 0}）` }))]}
+                    onChange={value => update({ collectionId: value || '' })}
+                />
+                <Text type="tertiary" size="small">与信息收集、深度测评共用同一批资产。不改变队列的暂停和子任务行为。</Text>
             </div>
 
             <div className="task-form-field">

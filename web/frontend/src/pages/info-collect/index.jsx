@@ -49,9 +49,21 @@ export default function InfoCollectPage() {
     const [visibleFields, setVisibleFields] = useState([]);
     const [detailRow, setDetailRow] = useState(null);
     const [importing, setImporting] = useState(false);
+    const [projects, setProjects] = useState([]);
+    const [projectId, setProjectId] = useState('');
+    const [collectionName, setCollectionName] = useState('');
 
     const config = providerConfig(form.provider);
     const providerLabel = config.label;
+
+    useEffect(() => {
+        if (!hasPermission('project:read')) return undefined;
+        let cancelled = false;
+        api.get('/projects', { limit: 500 })
+            .then(payload => { if (!cancelled) setProjects(Array.isArray(payload?.projects) ? payload.projects : []); })
+            .catch(() => { if (!cancelled) setProjects([]); });
+        return () => { cancelled = true; };
+    }, [hasPermission]);
 
     useEffect(() => {
         // provider 切换后字段模板与数量上限需要跟随，避免残留其他 provider 的字段。
@@ -138,7 +150,9 @@ export default function InfoCollectPage() {
             const outcome = await importFofaRows(rows, {
                 fields,
                 provider: result?.provider || form.provider,
-                query: result?.query || form.query
+                query: result?.query || form.query,
+                projectId,
+                collectionName
             });
             if (!outcome.assets.length) {
                 toastWarning(t('assets.noValidImportTarget', null, '所选结果中没有可入库的有效资产目标'));
@@ -150,7 +164,10 @@ export default function InfoCollectPage() {
                 }, `已新增 ${outcome.created} 条，更新 ${outcome.updated} 条，跳过 ${outcome.invalidCount} 条无有效目标的结果`)
                 : t('assets.importDone', { created: outcome.created, updated: outcome.updated },
                     `已新增 ${outcome.created} 条，更新 ${outcome.updated} 条`);
-            toastSuccess(message);
+            const saved = outcome.collection?.name
+                ? `，并保存为资产集合「${outcome.collection.name}」`
+                : '';
+            toastSuccess(`${message}${saved}`);
             setSelectedKeys([]);
         } catch (importError) {
             toastError(importError, t('assets.importFailed', null, '资产入库失败'));
@@ -274,6 +291,23 @@ export default function InfoCollectPage() {
                         ))}
                     </Space>
 
+                    <Space className="info-collect-form-row">
+                        <Select
+                            value={projectId}
+                            optionList={[{ value: '', label: '不归入项目集合' }, ...projects.map(item => ({ value: item.id, label: item.name || item.id }))]}
+                            placeholder="归入项目"
+                            style={{ width: 220 }}
+                            onChange={value => setProjectId(value || '')}
+                        />
+                        <Input
+                            value={collectionName}
+                            disabled={!projectId}
+                            placeholder="集合名称，留空则使用查询语句"
+                            style={{ width: 280 }}
+                            onChange={setCollectionName}
+                        />
+                    </Space>
+
                     <TextArea
                         value={naturalText}
                         rows={2}
@@ -285,9 +319,10 @@ export default function InfoCollectPage() {
             </SectionCard>
 
             <SectionCard
+                className="info-collect-results"
                 title={t('infoCollectPage.queryResults', null, '查询结果')}
                 extra={(
-                    <Space>
+                    <Space className="info-collect-results-actions" wrap>
                         <Text type="tertiary" size="small">{metaText}</Text>
                         <Select
                             multiple

@@ -149,16 +149,17 @@ func (h *AgentHandler) DeepAssessmentOptions(c *gin.Context) {
 
 func (h *AgentHandler) CreateDeepAssessment(c *gin.Context) {
 	var req struct {
-		Name        string `json:"name"`
-		Objective   string `json:"objective"`
-		Scope       string `json:"scope"`
-		Criteria    string `json:"criteria"`
-		ProjectID   string `json:"project_id"`
-		Role        string `json:"role"`
-		Model       string `json:"model"`
-		HITLPolicy  string `json:"hitl_policy"`
-		Concurrency int    `json:"concurrency"`
-		AutoResume  *bool  `json:"auto_resume"`
+		Name         string `json:"name"`
+		Objective    string `json:"objective"`
+		Scope        string `json:"scope"`
+		Criteria     string `json:"criteria"`
+		ProjectID    string `json:"project_id"`
+		CollectionID string `json:"collection_id"`
+		Role         string `json:"role"`
+		Model        string `json:"model"`
+		HITLPolicy   string `json:"hitl_policy"`
+		Concurrency  int    `json:"concurrency"`
+		AutoResume   *bool  `json:"auto_resume"`
 	}
 	if !deepAssessmentBody(c, &req) {
 		return
@@ -184,10 +185,34 @@ func (h *AgentHandler) CreateDeepAssessment(c *gin.Context) {
 		c.JSON(403, gin.H{"error": "无权访问项目"})
 		return
 	}
+	var collectionMembers []string
+	if strings.TrimSpace(req.CollectionID) != "" {
+		collection, err := h.db.GetAssetCollection(strings.TrimSpace(req.CollectionID))
+		if err != nil || collection.ProjectID != req.ProjectID {
+			c.JSON(400, gin.H{"error": "资产集合不存在，或不属于所选项目"})
+			return
+		}
+		if collection.MemberCount > 5000 {
+			c.JSON(400, gin.H{"error": "资产集合超过 5000 个成员，请先缩小范围"})
+			return
+		}
+		members, err := h.db.CollectionMemberIDs(collection.ID, 5000)
+		if err != nil {
+			deepAssessmentError(c, err)
+			return
+		}
+		for _, id := range members {
+			if session.ScopeFor("asset:read") == database.RBACScopeAll || h.db.UserCanAccessResource(session.UserID, session.ScopeFor("asset:read"), "asset", id) {
+				collectionMembers = append(collectionMembers, id)
+			}
+		}
+		req.CollectionID = collection.ID
+	}
+	suppliedCriteria := strings.TrimSpace(req.Criteria)
 	if strings.TrimSpace(req.Scope) == "" {
 		req.Scope = req.Objective
 	}
-	if strings.TrimSpace(req.Criteria) == "" {
+	if suppliedCriteria == "" {
 		req.Criteria = req.Objective
 	}
 	autoResume := true
@@ -195,7 +220,10 @@ func (h *AgentHandler) CreateDeepAssessment(c *gin.Context) {
 		autoResume = *req.AutoResume
 	}
 	now := time.Now().UTC()
-	t := &deepassessment.Task{ID: uuid.NewString(), AutoResume: autoResume, OwnerID: session.UserID, ExecutorID: session.UserID, Name: req.Name, Objective: req.Objective, Scope: strings.TrimSpace(req.Scope), Criteria: strings.TrimSpace(req.Criteria), ProjectID: req.ProjectID, Role: req.Role, Model: req.Model, HITLPolicy: req.HITLPolicy, Concurrency: req.Concurrency, Status: "draft", Steps: []deepassessment.Step{}, Guidance: []string{}, CreatedAt: now, UpdatedAt: now}
+	t := &deepassessment.Task{ID: uuid.NewString(), AutoResume: autoResume, OwnerID: session.UserID, ExecutorID: session.UserID, Name: req.Name, Objective: req.Objective, Scope: strings.TrimSpace(req.Scope), Criteria: strings.TrimSpace(req.Criteria), ProjectID: req.ProjectID, CollectionID: strings.TrimSpace(req.CollectionID), Role: req.Role, Model: req.Model, HITLPolicy: req.HITLPolicy, Concurrency: req.Concurrency, Status: "draft", Steps: []deepassessment.Step{}, Guidance: []string{}, CreatedAt: now, UpdatedAt: now}
+	if suppliedCriteria != "" && suppliedCriteria != strings.TrimSpace(req.Objective) {
+		t.AcceptanceMode = deepassessment.AcceptanceModePerItem
+	}
 	if _, err := h.deepAssessmentRuntime.configuration(t); err != nil {
 		deepAssessmentError(c, err)
 		return
@@ -203,6 +231,12 @@ func (h *AgentHandler) CreateDeepAssessment(c *gin.Context) {
 	if err := h.deepAssessments.Store.Create(t); err != nil {
 		deepAssessmentError(c, err)
 		return
+	}
+	if len(collectionMembers) > 0 {
+		if err := h.deepAssessments.Store.BindAssets(t.ID, collectionMembers); err != nil {
+			deepAssessmentError(c, err)
+			return
+		}
 	}
 	if h.audit != nil {
 		h.audit.RecordOK(c, "task", "create_deep_assessment", "创建深度测评", "deep_assessment", t.ID, nil)

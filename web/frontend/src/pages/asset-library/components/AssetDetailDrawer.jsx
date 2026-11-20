@@ -1,6 +1,8 @@
 /** 资产详情抽屉：全字段 + 关联漏洞/项目跳转。 */
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Divider, SideSheet, Space, Typography } from '@douyinfe/semi-ui';
+import { api } from '../../../lib/http';
 import { CopyButton, KeyValueList } from '../../../components/ui';
 import { formatDateTime } from '../../../lib/format';
 import { useT } from '../../../lib/i18n';
@@ -13,6 +15,18 @@ const { Text } = Typography;
 export default function AssetDetailDrawer({ asset, visible, onClose, onEdit, onDelete, canWrite, canDelete }) {
     const t = useT();
     const navigate = useNavigate();
+    const [facts, setFacts] = useState([]);
+    useEffect(() => {
+        if (!visible || !asset?.id) {
+            setFacts([]);
+            return undefined;
+        }
+        let cancelled = false;
+        api.get(`/assets/${asset.id}/facts`)
+            .then(data => { if (!cancelled) setFacts(Array.isArray(data?.facts) ? data.facts : []); })
+            .catch(() => { if (!cancelled) setFacts([]); });
+        return () => { cancelled = true; };
+    }, [visible, asset?.id]);
     if (!asset) return null;
 
     const openVulnerabilities = () => {
@@ -100,6 +114,31 @@ export default function AssetDetailDrawer({ asset, visible, onClose, onEdit, onD
             </div>
             <Divider margin="12px" />
             <KeyValueList items={items} columns={2} />
+            <Divider margin="12px" />
+            <Text strong>项目事实</Text>
+            {facts.length === 0 ? (
+                <Text type="tertiary" size="small">还没有关联到这条资产的项目事实。</Text>
+            ) : facts.map(fact => (
+                <div key={fact.id} className="asset-library-detail-target">
+                    <Text>{fact.summary || fact.fact_key}</Text>
+                    <Space>
+                        {fact.source_conversation_id ? (
+                            <Button
+                                size="small"
+                                theme="borderless"
+                                onClick={() => navigate(`/chat?conversation=${encodeURIComponent(fact.source_conversation_id)}`)}
+                            >
+                                打开来源会话
+                            </Button>
+                        ) : null}
+                        {fact.project_id ? (
+                            <Button size="small" theme="borderless" onClick={() => navigate(`/projects/${fact.project_id}?tab=facts`)}>
+                                项目事实
+                            </Button>
+                        ) : null}
+                    </Space>
+                </div>
+            ))}
             <Divider margin="12px" />
             <Space>
                 <Button theme="light" onClick={openVulnerabilities}>

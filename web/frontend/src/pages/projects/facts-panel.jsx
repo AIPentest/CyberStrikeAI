@@ -1,5 +1,6 @@
 /** 事实黑板：筛选、表格与增删改/废弃恢复入口。 */
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Button, Checkbox, Input, Popconfirm, Select, Space, Tag, Typography
 } from '@douyinfe/semi-ui';
@@ -26,6 +27,7 @@ export default function FactsPanel({
     projectId, canWrite, revision = 0, onAddFact, onEditFact, onViewFact, onMutated
 }) {
     const t = useT();
+    const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const debounced = useDebounced(search, 300);
     const [category, setCategory] = useState('all');
@@ -161,6 +163,15 @@ export default function FactsPanel({
                         <Button size="small" theme="borderless" onClick={() => onViewFact?.(record.fact_key)}>
                             {t('projects.details', null, '详情')}
                         </Button>
+                        {record.source_conversation_id ? (
+                            <Button
+                                size="small"
+                                theme="borderless"
+                                onClick={() => navigate(`/chat?conversation=${encodeURIComponent(record.source_conversation_id)}`)}
+                            >
+                                会话
+                            </Button>
+                        ) : null}
                         <Button size="small" theme="borderless" disabled={!canWrite} onClick={() => onEditFact?.(record.fact_key)}>
                             {t('common.edit', null, '编辑')}
                         </Button>

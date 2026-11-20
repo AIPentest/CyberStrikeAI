@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"cyberstrike-ai/internal/agentruntime"
+	"cyberstrike-ai/internal/database"
 	"cyberstrike-ai/internal/deepassessment"
 	"github.com/gin-gonic/gin"
 )
@@ -129,5 +130,35 @@ func TestDeepAssessmentAcceptanceMatrix(t *testing.T) {
 	}
 	if rows = matrix(); rows[0].Status != "needs_review" || len(rows[0].Receipts) != 0 {
 		t.Fatal(rows)
+	}
+}
+
+func TestReportKeepsLegacyRetestExecutionReference(t *testing.T) {
+	h, task := deepAssessmentFixture(t)
+	conv, err := h.db.CreateConversation("legacy", database.ConversationCreateMeta{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	vuln, err := h.db.CreateVulnerability(&database.Vulnerability{ConversationID: conv.ID, Title: "legacy", Severity: "low", Status: "fixed", Target: "fixture.example"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = h.db.Exec(`UPDATE vulnerabilities SET owner_user_id=? WHERE id=?`, task.OwnerID, vuln.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = h.db.Exec(`INSERT INTO vulnerability_assessment_sources(vulnerability_id,assessment_id,assessment_name,step_id,step_title,conversation_id) VALUES(?,?,?,?,?,?)`, vuln.ID, task.ID, task.Name, "inventory", "inventory", conv.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = h.db.Exec(`INSERT INTO deep_assessment_finding_reviews(id,vulnerability_id,task_id,step_id,verdict,reason,evidence_json,created_at) VALUES(?,?,?,?,?,?,?,?)`, "old-review", vuln.ID, task.ID, "retest", "inconclusive", "old retest", `["exec-not-a-call"]`, task.CreatedAt); err != nil {
+		t.Fatal(err)
+	}
+	r := explorationRouter(h, task.OwnerID, map[string]bool{"assessments:read": true, "vulnerability:read": true})
+	r.GET("/api/deep-assessments/:id/report", h.DeepAssessmentReport)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/deep-assessments/task/report", nil)
+	r.ServeHTTP(w, req)
+	body := w.Body.String()
+	if w.Code != 200 || !strings.Contains(body, "证据不可用") || !strings.Contains(body, "已标记修复") || !strings.Contains(body, "尚无复测记录") || strings.Contains(body, "修复已验证") {
+		t.Fatalf("manual fixed was treated as a verified retest: %d %s", w.Code, body)
 	}
 }

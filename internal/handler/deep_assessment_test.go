@@ -304,6 +304,11 @@ func TestDeepAssessmentCreateOnlySavesDraftAndRejectsOversizedBody(t *testing.T)
 	}
 }
 
+func suppliedPerItem(extra map[string]string) bool {
+	criteria := strings.TrimSpace(extra["criteria"])
+	return criteria != "" && criteria != "inspect fixture"
+}
+
 func TestDeepAssessmentOptionalFieldsInheritObjective(t *testing.T) {
 	h, owner := deepAssessmentFixture(t)
 	router := assessmentRouter(h, owner.OwnerID)
@@ -353,6 +358,13 @@ func TestDeepAssessmentOptionalFieldsInheritObjective(t *testing.T) {
 			}
 			if saved.Scope != tc.wantScope || saved.Criteria != tc.wantCriteria || saved.Objective != strings.TrimSpace(tc.objective) {
 				t.Fatal("optional fields were not inherited or explicit values were changed")
+			}
+			perItem := suppliedPerItem(tc.extra)
+			if perItem && saved.AcceptanceMode != deepassessment.AcceptanceModePerItem {
+				t.Fatal("explicit acceptance lines did not enable per-item evidence")
+			}
+			if !perItem && saved.AcceptanceMode != "" {
+				t.Fatalf("inherited criteria enabled per-item acceptance: %q", saved.AcceptanceMode)
 			}
 			wantName := strings.TrimSpace(values["name"])
 			if wantName == "" {

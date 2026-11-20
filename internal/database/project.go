@@ -54,6 +54,9 @@ type ProjectFact struct {
 	SourceMessageID        string    `json:"source_message_id,omitempty"`
 	Pinned                 bool      `json:"pinned"`
 	RelatedVulnerabilityID string    `json:"related_vulnerability_id,omitempty"`
+	ConfirmationNote       string    `json:"confirmation_note,omitempty"`
+	AssetIDs               []string  `json:"asset_ids,omitempty"`
+	ExecutionIDs           []string  `json:"execution_ids,omitempty"`
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
 }
@@ -400,7 +403,7 @@ func (db *DB) SetConversationProjectID(conversationID, projectID string) error {
 func (db *DB) ListProjectFactsForIndex(projectID string, includeDeprecated bool, conversationIDs ...string) ([]*ProjectFact, error) {
 	query := `SELECT id, project_id, fact_key, category, summary, '', confidence,
 		COALESCE(source_conversation_id,''), COALESCE(source_message_id,''), pinned,
-		COALESCE(related_vulnerability_id,''), created_at, updated_at
+		COALESCE(related_vulnerability_id,''), COALESCE(confirmation_note,''), created_at, updated_at
 		FROM project_facts WHERE project_id = ?`
 	args := []interface{}{projectID}
 	if len(conversationIDs) > 0 {
@@ -427,7 +430,7 @@ func (db *DB) ListProjectFacts(projectID string, filter ProjectFactListFilter, l
 	}
 	query := `SELECT id, project_id, fact_key, category, summary, COALESCE(body,''), confidence,
 		COALESCE(source_conversation_id,''), COALESCE(source_message_id,''), pinned,
-		COALESCE(related_vulnerability_id,''), created_at, updated_at
+		COALESCE(related_vulnerability_id,''), COALESCE(confirmation_note,''), created_at, updated_at
 		FROM project_facts WHERE project_id = ?`
 	args := []interface{}{projectID}
 	if filter.RestrictContextCheckpoints {
@@ -475,7 +478,7 @@ func (db *DB) GetProjectFactByKey(projectID, factKey string) (*ProjectFact, erro
 	row := db.QueryRow(
 		`SELECT id, project_id, fact_key, category, summary, COALESCE(body,''), confidence,
 			COALESCE(source_conversation_id,''), COALESCE(source_message_id,''), pinned,
-			COALESCE(related_vulnerability_id,''), created_at, updated_at
+			COALESCE(related_vulnerability_id,''), COALESCE(confirmation_note,''), created_at, updated_at
 		 FROM project_facts WHERE project_id = ? AND fact_key = ?`,
 		projectID, factKey,
 	)
@@ -487,7 +490,7 @@ func (db *DB) GetProjectFact(id string) (*ProjectFact, error) {
 	row := db.QueryRow(
 		`SELECT id, project_id, fact_key, category, summary, COALESCE(body,''), confidence,
 			COALESCE(source_conversation_id,''), COALESCE(source_message_id,''), pinned,
-			COALESCE(related_vulnerability_id,''), created_at, updated_at
+			COALESCE(related_vulnerability_id,''), COALESCE(confirmation_note,''), created_at, updated_at
 		 FROM project_facts WHERE id = ?`, id,
 	)
 	return scanProjectFactRow(row)
@@ -571,6 +574,70 @@ func (db *DB) UpsertProjectFact(f *ProjectFact) (*ProjectFact, error) {
 	return f, nil
 }
 
+// SaveProjectFact writes the fact body, confidence and evidence links in one transaction.
+// Evidence validation failure leaves the previous row unchanged.
+func (db *DB) SaveProjectFact(f *ProjectFact, assetIDs, executionIDs []string, replaceAssets, replaceExecutions bool) (*ProjectFact, error) {
+	keyErr := ValidateFactKey(f.FactKey)
+	if keyErr != nil {
+		var n int
+		_ = db.QueryRow(`SELECT COUNT(*) FROM project_facts WHERE project_id=? AND fact_key=?`, f.ProjectID, f.FactKey).Scan(&n)
+		if n == 0 {
+			return nil, keyErr
+		}
+	}
+	if strings.TrimSpace(f.Category) == "" {
+		f.Category = "note"
+	}
+	if strings.TrimSpace(f.Confidence) == "" {
+		f.Confidence = "tentative"
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	var existingID, existingBody, existingConfidence, existingCreatedRaw string
+	err = tx.QueryRow(`SELECT id, body, confidence, created_at FROM project_facts WHERE project_id=? AND fact_key=?`, f.ProjectID, f.FactKey).Scan(&existingID, &existingBody, &existingConfidence, &existingCreatedRaw)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	if f.Confidence == "confirmed" && existingConfidence != "confirmed" && strings.TrimSpace(f.ConfirmationNote) == "" {
+		return nil, fmt.Errorf("升级为已确认需要审核说明")
+	}
+	now := time.Now().UTC()
+	if err == nil {
+		f.ID = existingID
+		f.CreatedAt = parseDBTime(existingCreatedRaw)
+		f.Body = mergeFactBodyOnUpdate(f.Body, existingBody)
+		if _, err = tx.Exec(`UPDATE project_facts SET category=?, summary=?, body=?, confidence=?,
+			source_conversation_id=COALESCE(?, source_conversation_id), source_message_id=COALESCE(?, source_message_id),
+			pinned=?, related_vulnerability_id=?, confirmation_note=CASE WHEN ?<>'' THEN ? ELSE confirmation_note END, updated_at=?
+			WHERE id=?`, f.Category, f.Summary, f.Body, f.Confidence, nullIfEmpty(f.SourceConversationID), nullIfEmpty(f.SourceMessageID), boolToInt(f.Pinned), nullIfEmpty(f.RelatedVulnerabilityID), strings.TrimSpace(f.ConfirmationNote), strings.TrimSpace(f.ConfirmationNote), now, f.ID); err != nil {
+			return nil, err
+		}
+	} else {
+		if f.ID == "" {
+			f.ID = uuid.New().String()
+		}
+		f.CreatedAt = now
+		if _, err = tx.Exec(`INSERT INTO project_facts(id,project_id,fact_key,category,summary,body,confidence,source_conversation_id,source_message_id,pinned,related_vulnerability_id,confirmation_note,created_at,updated_at)
+			VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, f.ID, f.ProjectID, f.FactKey, f.Category, f.Summary, f.Body, f.Confidence, nullIfEmpty(f.SourceConversationID), nullIfEmpty(f.SourceMessageID), boolToInt(f.Pinned), nullIfEmpty(f.RelatedVulnerabilityID), strings.TrimSpace(f.ConfirmationNote), now, now); err != nil {
+			return nil, err
+		}
+	}
+	f.UpdatedAt = now
+	f.ConfirmationNote = strings.TrimSpace(f.ConfirmationNote)
+	if replaceAssets || replaceExecutions {
+		if err = replaceProjectFactEvidence(tx, f.ID, f.ProjectID, assetIDs, executionIDs, replaceAssets, replaceExecutions); err != nil {
+			return nil, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return f, nil
+}
+
 // DeprecateProjectFact 将事实标记为 deprecated（关联边同步 deprecated）。
 func (db *DB) DeprecateProjectFact(projectID, factKey string) error {
 	res, err := db.Exec(
@@ -644,7 +711,7 @@ func scanProjectFactRow(row *sql.Row) (*ProjectFact, error) {
 	err := row.Scan(
 		&f.ID, &f.ProjectID, &f.FactKey, &f.Category, &f.Summary, &f.Body, &f.Confidence,
 		&f.SourceConversationID, &f.SourceMessageID, &pinned,
-		&f.RelatedVulnerabilityID, &createdAt, &updatedAt,
+		&f.RelatedVulnerabilityID, &f.ConfirmationNote, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -665,7 +732,7 @@ func scanProjectFactFromRows(rows *sql.Rows) (*ProjectFact, error) {
 	err := rows.Scan(
 		&f.ID, &f.ProjectID, &f.FactKey, &f.Category, &f.Summary, &f.Body, &f.Confidence,
 		&f.SourceConversationID, &f.SourceMessageID, &pinned,
-		&f.RelatedVulnerabilityID, &createdAt, &updatedAt,
+		&f.RelatedVulnerabilityID, &f.ConfirmationNote, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		return nil, err

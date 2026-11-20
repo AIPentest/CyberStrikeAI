@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"go.uber.org/zap"
@@ -114,6 +115,35 @@ func TestDeleteQueueBlockedWhileRunning(t *testing.T) {
 	err = m.DeleteQueue(queue.ID)
 	if !errors.Is(err, ErrBatchQueueStillRunning) {
 		t.Fatalf("expected ErrBatchQueueStillRunning, got %v", err)
+	}
+}
+
+func TestBlockedTasksEnterQueueSummary(t *testing.T) {
+	h := &AgentHandler{batchTaskManager: NewBatchTaskManager(zap.NewNop()), logger: zap.NewNop()}
+	all, err := h.batchTaskManager.CreateBatchQueue("all blocked", "", "single", "manual", "", "", nil, 1, []string{"one", "two"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.batchTaskManager.UpdateQueueStatus(all.ID, BatchQueueStatusRunning)
+	h.batchTaskManager.UpdateTaskStatus(all.ID, all.Tasks[0].ID, BatchTaskStatusBlocked, "", "资产集合无法确认")
+	h.batchTaskManager.UpdateTaskStatus(all.ID, all.Tasks[1].ID, BatchTaskStatusBlocked, "", "资产集合无法确认")
+	h.tryFinalizeBatchQueue(all.ID)
+	got, ok := h.batchTaskManager.GetBatchQueue(all.ID)
+	if !ok || got.LastRunError == "" || !strings.Contains(got.LastRunError, "受阻 2 项") || !strings.Contains(got.LastRunError, "资产集合无法确认") {
+		t.Fatalf("all blocked finished without a reason: ok=%v err=%q", ok, got.LastRunError)
+	}
+
+	mixed, err := h.batchTaskManager.CreateBatchQueue("mixed", "", "single", "manual", "", "", nil, 1, []string{"done", "held"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.batchTaskManager.UpdateQueueStatus(mixed.ID, BatchQueueStatusRunning)
+	h.batchTaskManager.UpdateTaskStatus(mixed.ID, mixed.Tasks[0].ID, BatchTaskStatusCompleted, "ok", "")
+	h.batchTaskManager.UpdateTaskStatus(mixed.ID, mixed.Tasks[1].ID, BatchTaskStatusBlocked, "", "成员当前不可见")
+	h.tryFinalizeBatchQueue(mixed.ID)
+	got, ok = h.batchTaskManager.GetBatchQueue(mixed.ID)
+	if !ok || got.Status != BatchQueueStatusCompleted || !strings.Contains(got.LastRunError, "受阻 1 项") || !strings.Contains(got.LastRunError, "成员当前不可见") {
+		t.Fatalf("mixed result: ok=%v status=%s err=%q", ok, got.Status, got.LastRunError)
 	}
 }
 

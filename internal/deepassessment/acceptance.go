@@ -1,12 +1,17 @@
 package deepassessment
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
 )
+
+// AcceptanceModePerItem requires every acceptance line to have evidence before completion.
+const AcceptanceModePerItem = "per_item"
 
 const AcceptanceSourcePageSize = 20
 
@@ -53,6 +58,7 @@ func acceptanceCriteria(t *Task) []string {
 
 type acceptanceQueryer interface {
 	Query(query string, args ...any) (*sql.Rows, error)
+	QueryRow(query string, args ...any) *sql.Row
 }
 
 func queryAcceptanceSources(db acceptanceQueryer, task, kind, suffix string, args ...any) ([]AcceptanceSource, error) {
@@ -111,13 +117,70 @@ func acceptanceSourcesByID(db acceptanceQueryer, task, kind string, ids []string
 	return out, err
 }
 
+// AcceptanceGate is the completion rule for one saved task version.
+// A task with no per-item mode and no saved mapping is legacy: the model verdict
+// can still finish it. Enabling per-item acceptance, or saving any mapping, keeps
+// the task incomplete while any required line is missing evidence or waiting for review.
+type AcceptanceGate struct {
+	Legacy   bool
+	Blocking bool
+	Version  string
+	Reason   string
+}
+
+func (s *Store) AcceptanceGate(t *Task) (AcceptanceGate, error) {
+	return acceptanceGate(s.DB, t)
+}
+
+func acceptanceGate(db acceptanceQueryer, t *Task) (AcceptanceGate, error) {
+	var saved int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM deep_assessment_acceptance WHERE task_id=?`, t.ID).Scan(&saved); err != nil {
+		return AcceptanceGate{}, err
+	}
+	matrix, err := acceptanceMatrix(db, t)
+	if err != nil {
+		return AcceptanceGate{}, err
+	}
+	gate := AcceptanceGate{Legacy: t.AcceptanceMode != AcceptanceModePerItem && saved == 0, Version: acceptanceVersion(t, matrix)}
+	if gate.Legacy {
+		return gate, nil
+	}
+	for _, row := range matrix {
+		switch row.Status {
+		case "missing":
+			gate.Blocking = true
+			gate.Reason = "仍有必验项没有对应证据"
+		case "needs_review":
+			gate.Blocking = true
+			if gate.Reason == "" {
+				gate.Reason = "仍有必验项待复核"
+			}
+		}
+	}
+	return gate, nil
+}
+
+func acceptanceVersion(t *Task, rows []AcceptanceRow) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s\n%s\n", t.AcceptanceMode, t.Criteria)
+	for _, row := range rows {
+		fmt.Fprintf(&b, "%d\t%s\t%d\t%t\t%s\t%s\t%s\n", row.Number, row.Status, row.Revision, row.NeedsReview, strings.Join(row.FactIDs, ","), strings.Join(row.ReceiptIDs, ","), row.ReviewNote)
+	}
+	sum := sha256.Sum256([]byte(b.String()))
+	return hex.EncodeToString(sum[:])
+}
+
 func (s *Store) AcceptanceMatrix(t *Task) ([]AcceptanceRow, error) {
+	return acceptanceMatrix(s.DB, t)
+}
+
+func acceptanceMatrix(db acceptanceQueryer, t *Task) ([]AcceptanceRow, error) {
 	criteria := acceptanceCriteria(t)
 	matrix := make([]AcceptanceRow, len(criteria))
 	for i, text := range criteria {
 		matrix[i] = AcceptanceRow{Number: i + 1, Text: text, Status: "missing"}
 	}
-	rows, err := s.DB.Query(`SELECT criterion,revision,mapping FROM deep_assessment_acceptance WHERE task_id=? ORDER BY criterion`, t.ID)
+	rows, err := db.Query(`SELECT criterion,revision,mapping FROM deep_assessment_acceptance WHERE task_id=? ORDER BY criterion`, t.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -144,14 +207,14 @@ func (s *Store) AcceptanceMatrix(t *Task) ([]AcceptanceRow, error) {
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
-	facts, err := acceptanceSourcesByID(s.DB, t.ID, "fact", factIDs)
+	facts, err := acceptanceSourcesByID(db, t.ID, "fact", factIDs)
 	if err != nil {
 		return nil, err
 	}
 	for _, fact := range facts {
 		receiptIDs = append(receiptIDs, fact.ReceiptIDs...)
 	}
-	receipts, err := acceptanceSourcesByID(s.DB, t.ID, "receipt", receiptIDs)
+	receipts, err := acceptanceSourcesByID(db, t.ID, "receipt", receiptIDs)
 	if err != nil {
 		return nil, err
 	}

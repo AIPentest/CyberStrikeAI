@@ -247,6 +247,20 @@ export default function AssetOverviewPage() {
                         </div>
                     </div>
                 </SectionCard>
+                <SectionCard
+                    className="asset-overview-card"
+                    title="观察覆盖"
+                    description="有成功回执的测评观察，或带成功工具回执的已确认项目事实。同一资产只计一次，不替代上面的扫描覆盖。"
+                    extra={<Text type="tertiary" size="small">{`${stats.observation?.observed || 0} / ${stats.observation?.total || stats.total || 0}`}</Text>}
+                >
+                    <div className="asset-overview-coverage">
+                        <Text type="tertiary" size="small">已有观察证据</Text>
+                        <Progress
+                            percent={Number(stats.observation?.rate || 0)}
+                            format={percent => `${percent}%`}
+                        />
+                    </div>
+                </SectionCard>
             </div>)}
 
             {canRead && (<SectionCard

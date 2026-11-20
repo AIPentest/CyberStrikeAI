@@ -101,7 +101,8 @@ CREATE TABLE batch_task_queues (
     started_at DATETIME,
     completed_at DATETIME,
     current_index INTEGER NOT NULL DEFAULT 0,
-    owner_user_id TEXT
+    owner_user_id TEXT,
+    collection_id TEXT
 );
 
 CREATE TABLE batch_tasks (
@@ -377,6 +378,7 @@ CREATE TABLE project_facts (
     source_message_id TEXT,
     pinned INTEGER NOT NULL DEFAULT 0,
     related_vulnerability_id TEXT,
+    confirmation_note TEXT NOT NULL DEFAULT '',
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
@@ -978,7 +980,8 @@ CREATE TABLE IF NOT EXISTS deep_assessment_facts (
  id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES deep_assessments(id) ON DELETE CASCADE,
  step_id TEXT NOT NULL, confidence TEXT NOT NULL CHECK(confidence IN ('observed','inferred')),
  summary TEXT NOT NULL, body TEXT NOT NULL, evidence_json TEXT NOT NULL,
- assets_json TEXT NOT NULL, sources_json TEXT NOT NULL, created_at DATETIME NOT NULL
+ assets_json TEXT NOT NULL, sources_json TEXT NOT NULL, created_at DATETIME NOT NULL,
+ project_fact_id TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_assessment_facts_task ON deep_assessment_facts(task_id,created_at,id);
 CREATE TABLE IF NOT EXISTS deep_assessment_surface_items (
@@ -1013,3 +1016,37 @@ CREATE TABLE IF NOT EXISTS deep_assessment_finding_reviews (
  reason TEXT NOT NULL, evidence_json TEXT NOT NULL, created_at DATETIME NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_assessment_finding_reviews ON deep_assessment_finding_reviews(vulnerability_id,created_at,id);
+
+-- A collection is a named set of existing assets. It does not copy asset rows.
+CREATE TABLE IF NOT EXISTS asset_collections (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT '',
+    source_query TEXT NOT NULL DEFAULT '',
+    created_by TEXT NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_asset_collections_project ON asset_collections(project_id, updated_at);
+
+CREATE TABLE IF NOT EXISTS asset_collection_members (
+    collection_id TEXT NOT NULL REFERENCES asset_collections(id) ON DELETE CASCADE,
+    asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+    created_at DATETIME NOT NULL,
+    PRIMARY KEY(collection_id, asset_id)
+);
+CREATE INDEX IF NOT EXISTS idx_asset_collection_members_asset ON asset_collection_members(asset_id, collection_id);
+
+CREATE TABLE IF NOT EXISTS project_fact_assets (
+    fact_id TEXT NOT NULL REFERENCES project_facts(id) ON DELETE CASCADE,
+    asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+    PRIMARY KEY(fact_id, asset_id)
+);
+CREATE INDEX IF NOT EXISTS idx_project_fact_assets_asset ON project_fact_assets(asset_id, fact_id);
+
+CREATE TABLE IF NOT EXISTS project_fact_receipts (
+    fact_id TEXT NOT NULL REFERENCES project_facts(id) ON DELETE CASCADE,
+    execution_id TEXT NOT NULL REFERENCES tool_executions(id) ON DELETE CASCADE,
+    PRIMARY KEY(fact_id, execution_id)
+);

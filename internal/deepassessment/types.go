@@ -20,39 +20,43 @@ type Task struct {
 	ActiveSeconds       int64      `json:"active_seconds"`
 	// Legacy budget fields are decoded only to normalize old saved tasks.
 
-	Deadline         *time.Time                `json:"deadline,omitempty"`
-	AutoResume       bool                      `json:"auto_resume"`
-	RestartPending   bool                      `json:"restart_pending,omitempty"`
-	NextWake         *time.Time                `json:"next_wake,omitempty"`
-	RetryCount       int                       `json:"retry_count"`
-	TokenBudget      int64                     `json:"token_budget,omitempty"`
-	TokensUsed       int64                     `json:"tokens_used"`
-	Metrics          map[string]SessionMetrics `json:"metrics,omitempty"`
-	ID               string                    `json:"id"`
-	OwnerID          string                    `json:"owner_id"`
-	ExecutorID       string                    `json:"executor_id"`
-	ProjectID        string                    `json:"project_id"`
-	Name             string                    `json:"name"`
-	Objective        string                    `json:"objective"`
-	Scope            string                    `json:"scope"`
-	Criteria         string                    `json:"criteria"`
-	Role             string                    `json:"role"`
-	Model            string                    `json:"model"`
-	HITLPolicy       string                    `json:"hitl_policy"`
-	Concurrency      int                       `json:"concurrency"`
-	MaxRounds        int                       `json:"max_rounds,omitempty"`
-	RemainingSeconds int64                     `json:"remaining_seconds,omitempty"`
-	Rounds           int                       `json:"rounds"`
-	Status           string                    `json:"status"`
-	Revision         int64                     `json:"revision"`
-	Strategy         string                    `json:"strategy"`
-	Summary          string                    `json:"summary"`
-	Question         string                    `json:"question"`
-	Guidance         []string                  `json:"guidance"`
-	Steps            []Step                    `json:"steps"`
-	CreatedAt        time.Time                 `json:"created_at"`
-	UpdatedAt        time.Time                 `json:"updated_at"`
-	RunStartedAt     *time.Time                `json:"run_started_at,omitempty"`
+	Deadline       *time.Time                `json:"deadline,omitempty"`
+	AutoResume     bool                      `json:"auto_resume"`
+	RestartPending bool                      `json:"restart_pending,omitempty"`
+	NextWake       *time.Time                `json:"next_wake,omitempty"`
+	RetryCount     int                       `json:"retry_count"`
+	TokenBudget    int64                     `json:"token_budget,omitempty"`
+	TokensUsed     int64                     `json:"tokens_used"`
+	Metrics        map[string]SessionMetrics `json:"metrics,omitempty"`
+	ID             string                    `json:"id"`
+	OwnerID        string                    `json:"owner_id"`
+	ExecutorID     string                    `json:"executor_id"`
+	ProjectID      string                    `json:"project_id"`
+	CollectionID   string                    `json:"collection_id,omitempty"`
+	Name           string                    `json:"name"`
+	Objective      string                    `json:"objective"`
+	Scope          string                    `json:"scope"`
+	Criteria       string                    `json:"criteria"`
+	// AcceptanceMode is "per_item" only when this task was created with its own
+	// acceptance lines. Older tasks leave it empty and keep the previous verdict rule.
+	AcceptanceMode   string     `json:"acceptance_mode,omitempty"`
+	Role             string     `json:"role"`
+	Model            string     `json:"model"`
+	HITLPolicy       string     `json:"hitl_policy"`
+	Concurrency      int        `json:"concurrency"`
+	MaxRounds        int        `json:"max_rounds,omitempty"`
+	RemainingSeconds int64      `json:"remaining_seconds,omitempty"`
+	Rounds           int        `json:"rounds"`
+	Status           string     `json:"status"`
+	Revision         int64      `json:"revision"`
+	Strategy         string     `json:"strategy"`
+	Summary          string     `json:"summary"`
+	Question         string     `json:"question"`
+	Guidance         []string   `json:"guidance"`
+	Steps            []Step     `json:"steps"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	RunStartedAt     *time.Time `json:"run_started_at,omitempty"`
 }
 
 type Step struct {

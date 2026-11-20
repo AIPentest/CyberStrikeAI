@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -616,18 +617,23 @@ func (e *Engine) run(parent context.Context, id string) {
 					needPlan = true
 					continue
 				}
-				if AcceptVerdict(current, r.verdict) {
-					err = e.Store.ChangeAtVersion(id, "", "completed", r.verdict.Summary, r.changeVersion, func(latest *Task) error {
-						if latest.Status != "running" || latest.Revision != current.Revision {
-							return ErrConflict
-						}
-						latest.Status = "completed"
-						latest.Summary = Clip(r.verdict.Summary, 16000)
-						return nil
-					})
+				gate, missErr := e.Store.AcceptanceGate(current)
+				if missErr != nil {
+					stop("blocked", missErr.Error())
+					return
+				}
+				if gate.Blocking && strings.TrimSpace(r.verdict.Missing) == "" {
+					r.verdict.Missing = gate.Reason
+				}
+				if AcceptVerdict(current, r.verdict) && !gate.Blocking {
+					err = e.Store.CompleteAtGate(id, r.changeVersion, current.Revision, r.verdict.Summary, gate)
 					if err == ErrConflict {
 						needPlan = true
 						continue
+					}
+					if err != nil {
+						stop("blocked", err.Error())
+						return
 					}
 					return
 				}

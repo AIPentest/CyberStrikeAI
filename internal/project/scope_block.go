@@ -95,5 +95,42 @@ func BuildProjectBlackboardBlock(db *database.DB, projectID string, cfg config.P
 	if strings.TrimSpace(index) != "" {
 		parts = append(parts, index)
 	}
+	vis := database.FactVisibility{CanReadProjects: true, ProjectScope: database.RBACScopeAll, CanReadConversations: true, ConversationScope: database.RBACScopeAll}
+	if len(conversationIDs) > 0 {
+		var owner string
+		_ = db.QueryRow(`SELECT COALESCE(owner_user_id,'') FROM conversations WHERE id=?`, conversationIDs[0]).Scan(&owner)
+		if owner != "" {
+			if resolved, err := db.FactVisibilityFor(owner); err == nil {
+				vis = resolved
+			}
+		}
+	}
+	if collections, err := BuildCollectionBlock(db, projectID, vis); err != nil {
+		return "", err
+	} else if strings.TrimSpace(collections) != "" {
+		parts = append(parts, collections)
+	}
 	return strings.Join(parts, "\n\n"), nil
+}
+
+// BuildCollectionBlock lists named asset collections visible to the caller.
+func BuildCollectionBlock(db *database.DB, projectID string, vis database.FactVisibility) (string, error) {
+	items, err := db.ListAssetCollections(projectID)
+	if err != nil || len(items) == 0 {
+		return "", err
+	}
+	if len(items) > 20 {
+		items = items[:20]
+	}
+	var b strings.Builder
+	b.WriteString("## 项目资产集合\n")
+	b.WriteString("以下集合与信息收集、批量任务和深度测评共用。已确认观察只统计当前账号能读取、且有成功回执的项目事实，不等于已经扫描。\n")
+	for _, item := range items {
+		total, observed, err := db.ObservationCoverageVisible(database.RBACListAccess{UserID: vis.UserID, Scope: vis.ProjectScope}, vis, item.ID)
+		if err != nil {
+			return "", err
+		}
+		fmt.Fprintf(&b, "- %s（%s）：可见资产 %d 个，已确认观察 %d 个\n", item.Name, item.ID, total, observed)
+	}
+	return b.String(), nil
 }

@@ -45,6 +45,10 @@ type importAssetsRequest struct {
 	Assets      []*database.Asset `json:"assets" binding:"required"`
 	Source      string            `json:"source"`
 	SourceQuery string            `json:"source_query"`
+	Collection  *struct {
+		ProjectID string `json:"project_id"`
+		Name      string `json:"name"`
+	} `json:"collection"`
 }
 
 type assetScanLink struct {
@@ -100,6 +104,13 @@ func (h *AssetHandler) Import(c *gin.Context) {
 		owner = session.UserID
 		allowGlobal = session.Scope == database.RBACScopeAll
 	}
+	if req.Collection != nil && strings.TrimSpace(req.Collection.ProjectID) != "" {
+		projectID := strings.TrimSpace(req.Collection.ProjectID)
+		if session, ok := security.CurrentSession(c); ok && !h.db.UserCanAccessResource(session.UserID, session.ScopeFor("project:read"), "project", projectID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "无权把资产归入该项目集合"})
+			return
+		}
+	}
 	for _, asset := range req.Assets {
 		if asset == nil {
 			continue
@@ -128,7 +139,99 @@ func (h *AssetHandler) Import(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	if req.Collection != nil && strings.TrimSpace(req.Collection.ProjectID) != "" && len(result.AppliedIDs) > 0 {
+		projectID := strings.TrimSpace(req.Collection.ProjectID)
+		name := strings.TrimSpace(req.Collection.Name)
+		if name == "" {
+			name = strings.TrimSpace(req.SourceQuery)
+		}
+		if name == "" {
+			name = "导入资产"
+		}
+		collection, err := h.db.CreateAssetCollection(projectID, name, req.Source, req.SourceQuery, owner, result.AppliedIDs)
+		if err != nil {
+			h.logger.Error("保存资产集合失败", zap.Error(err))
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "created": result.Created, "updated": result.Updated, "skipped": result.Skipped})
+			return
+		}
+		result.Collection = collection
+	}
 	c.JSON(http.StatusOK, result)
+}
+
+func (h *AssetHandler) ListCollections(c *gin.Context) {
+	projectID := strings.TrimSpace(c.Query("project_id"))
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "需要 project_id"})
+		return
+	}
+	if session, ok := security.CurrentSession(c); ok && !h.db.UserCanAccessResource(session.UserID, session.ScopeFor("project:read"), "project", projectID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问项目"})
+		return
+	}
+	list, err := h.db.ListAssetCollections(projectID)
+	if err != nil {
+		h.logger.Error("加载资产集合失败", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	session, _ := security.CurrentSession(c)
+	vis, _ := h.db.FactVisibilityFor(session.UserID)
+	for i := range list {
+		total, observed, err := h.db.ObservationCoverageVisible(assetAccess(c), vis, list[i].ID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		list[i].MemberCount = total
+		list[i].Observed = observed
+	}
+	c.JSON(http.StatusOK, gin.H{"collections": list})
+}
+
+func (h *AssetHandler) GetCollection(c *gin.Context) {
+	item, err := h.db.GetAssetCollection(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "资产集合不存在"})
+		return
+	}
+	if session, ok := security.CurrentSession(c); ok && !h.db.UserCanAccessResource(session.UserID, session.ScopeFor("project:read"), "project", item.ProjectID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问项目"})
+		return
+	}
+	session, _ := security.CurrentSession(c)
+	vis, _ := h.db.FactVisibilityFor(session.UserID)
+	total, observed, err := h.db.ObservationCoverageVisible(assetAccess(c), vis, item.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	item.MemberCount = total
+	item.Observed = observed
+	c.JSON(http.StatusOK, gin.H{"collection": item, "meaning": "observed 统计该集合中已有观察证据的资产，扫描覆盖另行计算。"})
+}
+
+func (h *AssetHandler) Facts(c *gin.Context) {
+	asset, err := h.db.GetAsset(c.Param("id"), assetAccessForPermission(c, "asset:read"))
+	if err != nil || asset == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "资产不存在"})
+		return
+	}
+	session, _ := security.CurrentSession(c)
+	vis, err := h.db.FactVisibilityFor(session.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	facts, err := h.db.ListVisibleFactsForAsset(asset.ID, vis, 50)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if facts == nil {
+		facts = []*database.ProjectFact{}
+	}
+	c.JSON(http.StatusOK, gin.H{"facts": facts})
 }
 
 func (h *AssetHandler) List(c *gin.Context) {
@@ -263,6 +366,23 @@ func (h *AssetHandler) Stats(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+	if session, ok := security.CurrentSession(c); ok {
+		if vis, visErr := h.db.FactVisibilityFor(session.UserID); visErr == nil {
+			total, observed, covErr := h.db.ObservationCoverageVisible(assetAccess(c), vis, "")
+			if covErr != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": covErr.Error()})
+				return
+			}
+			rate := 0
+			if total > 0 {
+				rate = int(float64(observed) / float64(total) * 100)
+			}
+			stats["observation"] = map[string]interface{}{
+				"total": total, "observed": observed, "rate": rate,
+				"meaning": "只统计当前账号能读取的项目事实。已确认且有成功回执才计入；扫描覆盖另行计算。",
+			}
+		}
 	}
 	c.JSON(http.StatusOK, stats)
 }

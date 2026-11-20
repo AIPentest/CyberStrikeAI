@@ -78,8 +78,12 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 				},
 				"confidence": map[string]interface{}{
 					"type":        "string",
-					"description": "confirmed | tentative | deprecated",
+					"description": "confirmed | tentative | deprecated。升级为 confirmed 必须同时提供 confirmation_note。",
 					"enum":        []string{"confirmed", "tentative", "deprecated"},
+				},
+				"confirmation_note": map[string]interface{}{
+					"type":        "string",
+					"description": "把事实标为 confirmed 时的审核说明。省略则不能从其他可信度升级为已确认。",
 				},
 				"pinned": map[string]interface{}{
 					"type":        "boolean",
@@ -88,6 +92,16 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 				"related_vulnerability_id": map[string]interface{}{
 					"type":        "string",
 					"description": "可选：关联的漏洞记录 ID",
+				},
+				"asset_ids": map[string]interface{}{
+					"type":        "array",
+					"description": "可选：这条事实对应的资产 ID。传入后替换原关联；不传则保留。已确认且同时有成功工具回执时，计入资产观察覆盖。",
+					"items":       map[string]interface{}{"type": "string"},
+				},
+				"execution_ids": map[string]interface{}{
+					"type":        "array",
+					"description": "可选：支持这条事实的成功工具执行 ID（tool_executions.id）。传入后替换原关联；不传则保留。",
+					"items":       map[string]interface{}{"type": "string"},
 				},
 				"links": map[string]interface{}{
 					"type":        "array",
@@ -141,11 +155,14 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 			Confidence:             strArg(args, "confidence"),
 			Pinned:                 boolArg(args, "pinned"),
 			RelatedVulnerabilityID: strArg(args, "related_vulnerability_id"),
+			ConfirmationNote:       strArg(args, "confirmation_note"),
 		}
 		if convID := mcpAuthorizationConversationID(ctx); convID != "" {
 			f.SourceConversationID = convID
 		}
-		created, err := db.UpsertProjectFact(f)
+		_, hasAssets := args["asset_ids"]
+		_, hasExecutions := args["execution_ids"]
+		created, err := db.SaveProjectFact(f, stringListArg(args["asset_ids"]), stringListArg(args["execution_ids"]), hasAssets, hasExecutions)
 		if err != nil {
 			return textResult("错误: "+err.Error(), true), nil
 		}
@@ -395,6 +412,20 @@ func registerProjectFactTools(mcpServer *mcp.Server, db *database.DB, cfg *confi
 	if logger != nil {
 		logger.Debug("项目黑板 MCP 工具注册成功")
 	}
+}
+
+func stringListArg(raw interface{}) []string {
+	items, ok := raw.([]interface{})
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		if text, ok := item.(string); ok {
+			out = append(out, text)
+		}
+	}
+	return out
 }
 
 func strArg(args map[string]interface{}, key string) string {

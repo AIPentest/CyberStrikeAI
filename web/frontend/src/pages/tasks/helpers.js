@@ -13,7 +13,8 @@ export const TASK_STATUS = {
     running: { label: '执行中', color: 'blue' },
     completed: { label: '已完成', color: 'green' },
     failed: { label: '失败', color: 'red' },
-    cancelled: { label: '已取消', color: 'grey' }
+    cancelled: { label: '已取消', color: 'grey' },
+    blocked: { label: '受阻', color: 'orange' }
 };
 
 export const AGENT_MODES = [
@@ -51,11 +52,12 @@ export function queueStats(queue) {
     const completed = tasks.filter(task => task.status === 'completed').length;
     const failed = tasks.filter(task => task.status === 'failed').length;
     const cancelled = tasks.filter(task => task.status === 'cancelled').length;
+    const blocked = tasks.filter(task => task.status === 'blocked').length;
     const running = tasks.filter(task => task.status === 'running').length;
     const pending = tasks.filter(task => task.status === 'pending').length;
-    const done = completed + failed + cancelled;
+    const done = completed + failed + cancelled + blocked;
     const percent = total ? Math.round((done / total) * 100) : 0;
-    return { total, completed, failed, cancelled, running, pending, done, percent };
+    return { total, completed, failed, cancelled, blocked, running, pending, done, percent };
 }
 
 export function agentModeLabel(mode) {
@@ -69,11 +71,17 @@ export function queueStatusView(queue) {
     const nextRun = queue?.nextRunAt ? new Date(queue.nextRunAt) : null;
     const nextText = nextRun && Number.isFinite(nextRun.getTime()) ? nextRun.toLocaleString('zh-CN', { hour12: false }) : '';
     const stats = queueStats(queue);
+    const blockedNote = stats.blocked > 0 ? (queue?.lastRunError || `${stats.blocked} 项受阻`) : '';
+    if (stats.blocked > 0 && stats.completed === 0 && stats.failed === 0) {
+        return { ...base, label: `受阻（${stats.blocked} 项）`, color: 'orange', sublabel: blockedNote };
+    }
     if (cronOn && queue?.status === 'completed') {
+        const unfinished = stats.failed > 0 || stats.blocked > 0;
         return {
             ...base,
-            label: '本轮已完成 · 定时循环中',
-            sublabel: nextText ? `下次执行：${nextText}` : '',
+            label: unfinished ? '本轮已结束 · 定时循环中' : '本轮已完成 · 定时循环中',
+            color: stats.failed > 0 ? 'red' : (stats.blocked > 0 ? 'orange' : base.color),
+            sublabel: blockedNote || (nextText ? `下次执行：${nextText}` : ''),
             note: '定时队列：子任务已跑完，到点将自动下一轮'
         };
     }
@@ -81,7 +89,11 @@ export function queueStatusView(queue) {
         return { ...base, sublabel: `Cron 已排程 · 下次 ${nextText}` };
     }
     if (queue?.status === 'completed' && stats.failed > 0) {
-        return { ...base, label: `已结束（${stats.failed} 项失败）`, color: 'red' };
+        const blockedText = stats.blocked > 0 ? `，${stats.blocked} 项受阻` : '';
+        return { ...base, label: `已结束（${stats.failed} 项失败${blockedText}）`, color: 'red', sublabel: blockedNote };
+    }
+    if (queue?.status === 'completed' && stats.blocked > 0) {
+        return { ...base, label: `已结束（${stats.blocked} 项受阻）`, color: 'orange', sublabel: blockedNote };
     }
     return { ...base, sublabel: '' };
 }

@@ -1,5 +1,6 @@
 /** 概览：统计、目标与验收要求、事件时间线。 */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { api } from '../../lib/http';
 import { Button, Empty, Space, Switch, Tag, Timeline, Typography } from '@douyinfe/semi-ui';
 import { useT } from '../../lib/i18n';
 import { useInterval } from '../../components/hooks';
@@ -22,6 +23,23 @@ function ActiveElapsed({ startedAt, seconds }) {
     useInterval(() => setNow(Date.now()), 1000);
     const currentRunSeconds = Math.max(0, Math.floor((now - startedAt) / 1000));
     return formatElapsed(seconds + currentRunSeconds);
+}
+
+function CollectionNote({ id }) {
+    const [info, setInfo] = useState(null);
+    useEffect(() => {
+        let cancelled = false;
+        api.get(`/assets/collections/${id}`)
+            .then(data => { if (!cancelled) setInfo(data?.collection || null); })
+            .catch(() => { if (!cancelled) setInfo(null); });
+        return () => { cancelled = true; };
+    }, [id]);
+    if (!info) return null;
+    return (
+        <Text type="tertiary">
+            本次范围 {info.name}：可见资产 {info.member_count || 0} 个，已确认观察 {info.observed || 0} 个。项目历史观察和逐项验收分开统计，缺证据的必验项保持未完成。
+        </Text>
+    );
 }
 
 export default function OverviewTab({
@@ -110,6 +128,7 @@ export default function OverviewTab({
     return (
         <div className="assessment-tab">
             <StatGrid metrics={metrics} columns={5} />
+            {task.collection_id ? <CollectionNote id={task.collection_id} /> : null}
 
             <SectionCard
                 title="目标与测评要求"

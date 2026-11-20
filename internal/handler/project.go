@@ -249,6 +249,9 @@ type upsertFactRequest struct {
 	Confidence             string            `json:"confidence"`
 	Pinned                 bool              `json:"pinned"`
 	RelatedVulnerabilityID string            `json:"related_vulnerability_id"`
+	ConfirmationNote       string            `json:"confirmation_note"`
+	AssetIDs               *[]string         `json:"asset_ids"`
+	ExecutionIDs           *[]string         `json:"execution_ids"`
 	Links                  []factLinkRequest `json:"links"`
 	LinksText              *string           `json:"links_text"`
 }
@@ -262,6 +265,9 @@ type updateFactRequest struct {
 	Confidence             *string            `json:"confidence"`
 	Pinned                 *bool              `json:"pinned"`
 	RelatedVulnerabilityID *string            `json:"related_vulnerability_id"`
+	ConfirmationNote       *string            `json:"confirmation_note"`
+	AssetIDs               *[]string          `json:"asset_ids"`
+	ExecutionIDs           *[]string          `json:"execution_ids"`
 	ClearBody              bool               `json:"clear_body"`
 	Links                  *[]factLinkRequest `json:"links"`
 	LinksText              *string            `json:"links_text"`
@@ -320,12 +326,44 @@ func (h *ProjectHandler) applyFactLinksAfterUpsert(projectID string, fact *datab
 	return nil
 }
 
-func (h *ProjectHandler) factResponseWithLinks(projectID string, f *database.ProjectFact, includeLinks bool) interface{} {
+func (h *ProjectHandler) replaceFactEvidence(fact *database.ProjectFact, assets, executions *[]string) error {
+	if fact == nil || (assets == nil && executions == nil) {
+		return nil
+	}
+	assetIDs, executionIDs := []string{}, []string{}
+	if assets != nil {
+		assetIDs = *assets
+	}
+	if executions != nil {
+		executionIDs = *executions
+	}
+	return h.db.ReplaceProjectFactEvidence(fact.ID, fact.ProjectID, assetIDs, executionIDs, assets != nil, executions != nil)
+}
+
+func (h *ProjectHandler) factVisibility(c *gin.Context) database.FactVisibility {
+	session, ok := security.CurrentSession(c)
+	if !ok || strings.TrimSpace(session.UserID) == "" {
+		return database.FactVisibility{}
+	}
+	vis, err := h.db.FactVisibilityFor(session.UserID)
+	if err != nil {
+		return database.FactVisibility{}
+	}
+	return vis
+}
+
+func (h *ProjectHandler) factResponseWithLinks(c *gin.Context, projectID string, f *database.ProjectFact, includeLinks bool) interface{} {
+	vis := h.factVisibility(c)
+	if f != nil {
+		_ = h.db.PresentProjectFacts([]*database.ProjectFact{f}, vis)
+	}
 	if !includeLinks || f == nil {
 		return f
 	}
 	out, _ := h.db.ListOutgoingProjectFactEdges(projectID, f.FactKey)
 	in, _ := h.db.ListIncomingProjectFactEdges(projectID, f.FactKey)
+	h.db.RedactFactEdges(out, vis)
+	h.db.RedactFactEdges(in, vis)
 	return &factWithLinksResponse{
 		ProjectFact:   f,
 		OutgoingLinks: out,
@@ -343,7 +381,7 @@ func (h *ProjectHandler) ListFacts(c *gin.Context) {
 			return
 		}
 		includeLinks := c.Query("include_links") == "1" || c.Query("include_links") == "true"
-		c.JSON(http.StatusOK, h.factResponseWithLinks(projectID, f, includeLinks))
+		c.JSON(http.StatusOK, h.factResponseWithLinks(c, projectID, f, includeLinks))
 		return
 	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
@@ -364,6 +402,10 @@ func (h *ProjectHandler) ListFacts(c *gin.Context) {
 	}
 	if list == nil {
 		list = []*database.ProjectFact{}
+	}
+	if err = h.db.PresentProjectFacts(list, h.factVisibility(c)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 	if sparseOnly := c.Query("sparse_only"); sparseOnly == "1" || sparseOnly == "true" {
 		filtered := make([]*database.ProjectFact, 0, len(list))
@@ -446,8 +488,16 @@ func (h *ProjectHandler) CreateFact(c *gin.Context) {
 		Confidence:             req.Confidence,
 		Pinned:                 req.Pinned,
 		RelatedVulnerabilityID: req.RelatedVulnerabilityID,
+		ConfirmationNote:       req.ConfirmationNote,
 	}
-	created, err := h.db.UpsertProjectFact(f)
+	assetIDs, executionIDs := []string{}, []string{}
+	if req.AssetIDs != nil {
+		assetIDs = *req.AssetIDs
+	}
+	if req.ExecutionIDs != nil {
+		executionIDs = *req.ExecutionIDs
+	}
+	created, err := h.db.SaveProjectFact(f, assetIDs, executionIDs, req.AssetIDs != nil, req.ExecutionIDs != nil)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -458,7 +508,7 @@ func (h *ProjectHandler) CreateFact(c *gin.Context) {
 		return
 	}
 	created, _ = h.db.GetProjectFactByKey(projectID, created.FactKey)
-	c.JSON(http.StatusOK, h.factResponseWithLinks(projectID, created, true))
+	c.JSON(http.StatusOK, h.factResponseWithLinks(c, projectID, created, true))
 }
 
 // UpdateFact PUT /api/projects/:id/facts/:factId
@@ -508,7 +558,17 @@ func (h *ProjectHandler) UpdateFact(c *gin.Context) {
 	if req.RelatedVulnerabilityID != nil {
 		existing.RelatedVulnerabilityID = *req.RelatedVulnerabilityID
 	}
-	updated, err := h.db.UpsertProjectFact(existing)
+	if req.ConfirmationNote != nil {
+		existing.ConfirmationNote = *req.ConfirmationNote
+	}
+	assetIDs, executionIDs := []string{}, []string{}
+	if req.AssetIDs != nil {
+		assetIDs = *req.AssetIDs
+	}
+	if req.ExecutionIDs != nil {
+		executionIDs = *req.ExecutionIDs
+	}
+	updated, err := h.db.SaveProjectFact(existing, assetIDs, executionIDs, req.AssetIDs != nil, req.ExecutionIDs != nil)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -535,7 +595,7 @@ func (h *ProjectHandler) UpdateFact(c *gin.Context) {
 		}
 	}
 	updated, _ = h.db.GetProjectFactByKey(projectID, updated.FactKey)
-	c.JSON(http.StatusOK, h.factResponseWithLinks(projectID, updated, true))
+	c.JSON(http.StatusOK, h.factResponseWithLinks(c, projectID, updated, true))
 }
 
 // DeleteFact DELETE /api/projects/:id/facts/:factId

@@ -173,6 +173,48 @@ func (s *Store) AddFact(task string, f *Fact) error {
 			return err
 		}
 	}
+	if f.Confidence == "observed" && strings.TrimSpace(t.ProjectID) != "" && len(f.AssetIDs) > 0 {
+		executions := []string{}
+		for _, callID := range receipts {
+			var executionID string
+			err = tx.QueryRow(`SELECT execution_id FROM deep_assessment_calls WHERE id=? AND execution_id<>'' AND status='completed'`, callID).Scan(&executionID)
+			if err == nil && executionID != "" {
+				executions = append(executions, executionID)
+			}
+		}
+		keptAssets := []string{}
+		for _, id := range f.AssetIDs {
+			var assetProject string
+			if err = tx.QueryRow(`SELECT COALESCE(project_id,'') FROM assets WHERE id=?`, id).Scan(&assetProject); err == nil && (assetProject == "" || assetProject == t.ProjectID) {
+				keptAssets = append(keptAssets, id)
+			}
+		}
+		validExecutions := database.FilterProjectExecutions(tx, t.ProjectID, executions)
+		if len(keptAssets) > 0 && len(validExecutions) > 0 {
+			access, accessErr := s.DB.ResolveRBACAccess(t.ExecutorID)
+			canWrite := accessErr == nil && access != nil && access.Permissions["project:write"]
+			if canWrite {
+				scope := access.Scope
+				if value := strings.TrimSpace(access.PermissionScopes["project:write"]); value != "" {
+					scope = value
+				}
+				canWrite = s.DB.UserCanAccessResource(t.ExecutorID, scope, "project", t.ProjectID)
+			}
+			if canWrite {
+				var conversationID string
+				_ = tx.QueryRow(`SELECT conversation_id FROM deep_assessment_sessions WHERE task_id=? AND step_id=? LIMIT 1`, task, f.StepID).Scan(&conversationID)
+				projectFactID, err := database.PublishConfirmedProjectFact(tx, database.ProjectFact{
+					ProjectID: t.ProjectID, FactKey: "observation/" + strings.ReplaceAll(f.ID, ":", "-"), Confidence: "tentative", Category: "note", Summary: f.Summary, Body: f.Body, SourceConversationID: conversationID,
+				}, keptAssets, validExecutions)
+				if err != nil {
+					return err
+				}
+				if _, err = tx.Exec(`UPDATE deep_assessment_facts SET project_fact_id=? WHERE id=?`, projectFactID, f.ID); err != nil {
+					return err
+				}
+			}
+		}
+	}
 	if err = Signal(tx, task); err != nil {
 		return err
 	}

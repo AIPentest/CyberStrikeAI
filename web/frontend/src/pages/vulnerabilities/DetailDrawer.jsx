@@ -25,6 +25,41 @@ function Section({ title, extra, children }) {
     );
 }
 
+function RelatedFacts({ vulnerability }) {
+    const navigate = useNavigate();
+    const [facts, setFacts] = useState([]);
+    useEffect(() => {
+        if (!vulnerability?.project_id || !vulnerability?.id) {
+            setFacts([]);
+            return undefined;
+        }
+        let cancelled = false;
+        api.get(`/projects/${vulnerability.project_id}/facts`, { related_vulnerability_id: vulnerability.id, limit: 20 })
+            .then(data => { if (!cancelled) setFacts(Array.isArray(data) ? data : []); })
+            .catch(() => { if (!cancelled) setFacts([]); });
+        return () => { cancelled = true; };
+    }, [vulnerability?.project_id, vulnerability?.id]);
+    if (!facts.length) return null;
+    return (
+        <Section title="同一项目事实">
+            {facts.map(fact => (
+                <div key={fact.id} className="vulnerability-history-item">
+                    <Text>{fact.summary || fact.fact_key}</Text>
+                    {fact.source_conversation_id ? (
+                        <Button
+                            size="small"
+                            theme="borderless"
+                            onClick={() => navigate(`/chat?conversation=${encodeURIComponent(fact.source_conversation_id)}`)}
+                        >
+                            打开来源会话
+                        </Button>
+                    ) : null}
+                </div>
+            ))}
+        </Section>
+    );
+}
+
 function Narrative({ title, content, code }) {
     const text = String(content ?? '').trim();
     if (!text) return null;
@@ -187,6 +222,7 @@ export default function DetailDrawer({
                         <Narrative title={t('vulnerabilityPage.detailEvidence', null, '证据 / POC')} content={vuln.evidence} code />
                         <Narrative title={t('vulnerabilityPage.detailRetestNotes', null, '复测方式')} content={vuln.retest_notes} />
                         <Narrative title={t('vulnerabilityPage.detailRetestLog', null, '复测记录')} content={vuln.retest_log} code />
+                        <RelatedFacts vulnerability={vuln} />
                         <Section title={t('vulnerabilityPage.inspector_history', null, '处置历史')}>
                             {history.length ? (
                                 <Timeline>

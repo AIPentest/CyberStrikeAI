@@ -1887,6 +1887,7 @@ type BatchTaskRequest struct {
 	CronExpr     string   `json:"cronExpr,omitempty"`       // scheduleMode=cron 时必填
 	ExecuteNow   bool     `json:"executeNow,omitempty"`     // 创建后是否立即执行（默认 false）
 	ProjectID    string   `json:"projectId,omitempty"`      // 队列内子对话绑定的项目（可选）
+	CollectionID string   `json:"collectionId,omitempty"`   // 与信息收集、深度测评共用的资产集合
 	Concurrency  int      `json:"concurrency,omitempty"`    // 同时执行的子任务数，默认 1，最大 8
 }
 
@@ -1934,6 +1935,17 @@ func (h *AgentHandler) CreateBatchQueue(c *gin.Context) {
 			return
 		}
 	}
+	if strings.TrimSpace(req.CollectionID) != "" {
+		collection, err := h.db.GetAssetCollection(strings.TrimSpace(req.CollectionID))
+		if err != nil || collection.ProjectID != strings.TrimSpace(req.ProjectID) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "资产集合不存在，或不属于所选项目"})
+			return
+		}
+		if collection.MemberCount > 5000 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "资产集合超过 5000 个成员，请先缩小范围"})
+			return
+		}
+	}
 
 	agentMode := config.NormalizeAgentMode(req.AgentMode)
 	scheduleMode := normalizeBatchQueueScheduleMode(req.ScheduleMode)
@@ -1957,6 +1969,12 @@ func (h *AgentHandler) CreateBatchQueue(c *gin.Context) {
 	if createErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": createErr.Error()})
 		return
+	}
+	if strings.TrimSpace(req.CollectionID) != "" {
+		if err := h.batchTaskManager.SetQueueCollection(queue.ID, req.CollectionID); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "queueId": queue.ID})
+			return
+		}
 	}
 	if session, ok := security.CurrentSession(c); ok && h.db != nil {
 		_ = h.db.SetResourceOwner("batch_task", queue.ID, session.UserID)

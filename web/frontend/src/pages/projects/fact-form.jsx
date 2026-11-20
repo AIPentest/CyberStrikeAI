@@ -18,6 +18,7 @@ const EMPTY = {
     confidence: 'tentative',
     pinned: false,
     related_vulnerability_id: '',
+    confirmation_note: '',
     links_text: ''
 };
 
@@ -57,6 +58,7 @@ export default function FactFormModal({ visible, projectId, factKey, onCancel, o
                     confidence: (fact.confidence || 'tentative').toLowerCase(),
                     pinned: Boolean(fact.pinned),
                     related_vulnerability_id: fact.related_vulnerability_id || '',
+                    confirmation_note: fact.confirmation_note || '',
                     links_text: formatIncomingLinks(fact.incoming_links)
                 });
             })
@@ -74,8 +76,13 @@ export default function FactFormModal({ visible, projectId, factKey, onCancel, o
     const submit = async () => {
         const key = form.fact_key.trim();
         const summary = form.summary.trim();
+        const note = form.confirmation_note.trim();
         if (!key || !summary) {
             toastError(t('projects.factKeySummaryRequired', null, 'fact_key 与 summary 必填'));
+            return;
+        }
+        if ((form.confidence || 'tentative') === 'confirmed' && !note) {
+            toastError(t('projects.confirmationNoteRequired', null, '升级为已确认需要审核说明'));
             return;
         }
         const payload = {
@@ -86,6 +93,7 @@ export default function FactFormModal({ visible, projectId, factKey, onCancel, o
             confidence: form.confidence || 'tentative',
             pinned: Boolean(form.pinned),
             related_vulnerability_id: form.related_vulnerability_id.trim(),
+            confirmation_note: note,
             links_text: form.links_text
         };
         if (editing && !factId) {
@@ -118,6 +126,7 @@ export default function FactFormModal({ visible, projectId, factKey, onCancel, o
             cancelText={t('common.cancel', null, '取消')}
             confirmLoading={saving}
             width={720}
+            maskClosable={false}
         >
             <Text type="tertiary" size="small">
                 {t('projects.factModalSubtitle', null, '摘要注入黑板索引；body 沉淀攻击链与 POC，供审计复现（与漏洞记录分工）')}
@@ -171,6 +180,17 @@ export default function FactFormModal({ visible, projectId, factKey, onCancel, o
                         onChange={value => update({ related_vulnerability_id: value })}
                     />
                 </div>
+            </div>
+
+            <div className="project-form-field">
+                <Text strong size="small">{t('projects.confirmationNote', null, '审核说明')}</Text>
+                <TextArea
+                    value={form.confirmation_note}
+                    rows={3}
+                    disabled={form.confidence !== 'confirmed'}
+                    placeholder={t('projects.confirmationNotePlaceholder', null, '说明为何把这条事实标为已确认')}
+                    onChange={value => update({ confirmation_note: value })}
+                />
             </div>
 
             <div className="project-form-field">
