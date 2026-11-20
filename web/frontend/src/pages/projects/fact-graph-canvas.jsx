@@ -1,11 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
+import {
+    IconAlertTriangle, IconBolt, IconBranch, IconFile, IconGlobe,
+    IconHelpCircle, IconKey, IconSearch, IconServer, IconTickCircle
+} from '@douyinfe/semi-icons';
 import { NODE_COLORS } from './helpers';
 
 const STAGE = { target: 0, infra: 1, auth: 1, finding: 2, chain: 3, exploit: 3, poc: 3, vulnerability: 4 };
-const LABEL_WIDTH = 144;
-const LABEL_HEIGHT = 23;
-const overlaps = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width
-    && a.y < b.y + b.height && b.y < a.y + a.height;
+const CARD_WIDTH = 216;
+const CARD_HEIGHT = 84;
+const COLUMN_GAP = 64;
+const ROW_GAP = 16;
+
+const NODE_ICONS = {
+    target: IconGlobe, infra: IconServer, auth: IconKey, finding: IconSearch, chain: IconBranch,
+    exploit: IconBolt, poc: IconTickCircle, vulnerability: IconAlertTriangle, note: IconFile, missing: IconHelpCircle
+};
+
+export function GraphNodeIcon({ type }) {
+    const Icon = NODE_ICONS[type] || IconFile;
+    return <span className="project-graph-node-icon" aria-hidden="true"><Icon size="small" /></span>;
+}
 
 function graphPositions(nodes, edges, selectedId) {
     const adjacent = new Map(nodes.map(node => [node.id, new Set()]));
@@ -52,11 +66,11 @@ function graphPositions(nodes, edges, selectedId) {
         for (let start = 0; start < group.length; start += columnSize) {
             const column = group.slice(start, start + columnSize);
             column.forEach((id, index) => positions.set(id, {
-                x, y: (index - (column.length - 1) / 2) * 63
+                x, y: (index - (column.length - 1) / 2) * (CARD_HEIGHT + ROW_GAP)
             }));
-            x += 172;
+            x += CARD_WIDTH + COLUMN_GAP;
         }
-        x += 34;
+        x += 24;
     }
     return positions;
 }
@@ -64,121 +78,170 @@ function graphPositions(nodes, edges, selectedId) {
 const STYLE = [
     {
         selector: 'node',
-        style: { 'background-color': 'data(color)', width: 21, height: 21 }
+        style: {
+            shape: 'round-rectangle', width: CARD_WIDTH, height: CARD_HEIGHT,
+            'background-color': 'data(color)', 'background-opacity': 0.44
+        }
     },
-    { selector: 'node[type = "target"]', style: { width: 25, height: 25 } },
-    {
-        selector: 'node[type = "missing"]',
-        style: { 'background-opacity': 0.15, 'border-width': 2, 'border-color': 'data(color)', 'border-style': 'dashed' }
-    },
-    { selector: 'node.current', style: { width: 30, height: 30, 'underlay-color': 'data(color)', 'underlay-opacity': 0.22, 'underlay-padding': 6 } },
+    { selector: 'node.current', style: { 'background-opacity': 0.85 } },
     {
         selector: 'edge',
         style: {
-            width: 1.75, 'line-color': '#8191a9', 'target-arrow-color': '#8191a9',
-            'target-arrow-shape': 'triangle', 'arrow-scale': 0.9,
-            'curve-style': 'bezier', opacity: 0.55
+            width: 1.9, 'line-color': '#748fbb', 'target-arrow-color': '#748fbb',
+            'target-arrow-shape': 'triangle', 'arrow-scale': 0.85,
+            'curve-style': 'bezier', opacity: 0.59
         }
     },
-    { selector: 'edge.focused', style: { width: 2, opacity: 0.92 } },
-    { selector: 'edge[type = "links_vuln"]', style: { 'line-color': '#d45363', 'target-arrow-color': '#d45363' } },
+    {
+        selector: 'edge.forward',
+        style: { 'source-endpoint': '50% 0px', 'target-endpoint': '-50% 0px' }
+    },
+    {
+        selector: 'edge.backward',
+        style: { 'source-endpoint': '-50% 0px', 'target-endpoint': '50% 0px' }
+    },
+    {
+        selector: 'edge.curved',
+        style: {
+            'curve-style': 'unbundled-bezier', 'edge-distances': 'endpoints',
+            'control-point-weights': '0.30 0.70', 'control-point-distances': 'data(bend)'
+        }
+    },
+    { selector: 'edge.focused', style: { width: 2.3, opacity: 0.96 } },
+    { selector: 'edge[type = "links_vuln"]', style: { 'line-color': '#c96b81', 'target-arrow-color': '#c96b81' } },
     { selector: 'edge[confidence = "tentative"]', style: { 'line-style': 'dashed', 'line-dash-pattern': [5, 4] } }
 ];
 
-function placeLabels(cy, nodes, selectedId, hoveredId, measure) {
-    const width = cy.width();
-    const height = cy.height();
-    const scale = cy.zoom();
-    const points = cy.nodes().map(element => {
-        const { x, y } = element.renderedPosition();
-        return { id: element.id(), x, y, radius: Math.max(3, element.renderedOuterWidth() / 2) };
-    }).filter(({ x, y }) => x >= 0 && x <= width && y >= 0 && y <= height);
-    const occupied = points.map(({ x, y, radius }) => ({
-        x: x - radius - 1, y: y - radius - 1, width: radius * 2 + 2, height: radius * 2 + 2
-    }));
-    const priority = ({ id }) => {
-        if (id === selectedId) return 0;
-        if (id === hoveredId) return 1;
-        const type = nodes.get(id).type;
-        if (type === 'target') return 2;
-        if (type === 'chain') return 3;
-        return 4;
-    };
-    const labels = [];
-    for (const point of points.sort((a, b) => priority(a) - priority(b))) {
-        const { id, x, y, radius } = point;
-        if (scale < 0.46 && priority(point) > 3) continue;
-        const node = nodes.get(id);
-        const title = ((node.label !== '—' && node.label) || node.fact_key || id).replace(/\s+/g, ' ').trim() || id;
-        const maxWidth = scale < 0.55 && hoveredId !== id && selectedId !== id ? 96 : LABEL_WIDTH;
-        const boxWidth = Math.min(maxWidth, Math.ceil(measure(title)) + 21);
-        const center = Math.max(4, Math.min(x - boxWidth / 2, width - boxWidth - 4));
-        const candidates = [
-            { x: center, y: y + radius + 4 },
-            { x: center, y: y - radius - LABEL_HEIGHT - 4 },
-            { x: x + radius + 5, y: y - LABEL_HEIGHT / 2 },
-            { x: x - radius - boxWidth - 5, y: y - LABEL_HEIGHT / 2 }
-        ];
-        if (!selectedId) candidates.push(...candidates.splice(0, 2));
-        const box = candidates.map(candidate => ({ ...candidate, width: boxWidth, height: LABEL_HEIGHT }))
-            .find(rect => rect.x >= 3 && rect.x + rect.width <= width - 3
-                && rect.y >= 3 && rect.y + rect.height <= height - 3
-                && !occupied.some(other => overlaps(rect, other)));
-        if (!box) continue;
-        occupied.push({ x: box.x - 3, y: box.y - 2, width: box.width + 6, height: box.height + 4 });
-        labels.push({ id, title, box });
+function graphElements(nodes, edges, selectedId) {
+    const positions = graphPositions(nodes, edges, selectedId);
+    const ports = new Map(nodes.map(node => [node.id, new Set()]));
+    // Preserve Cytoscape's normal separation for parallel links.
+    const pairKey = edge => JSON.stringify([edge.source, edge.target].sort());
+    const pairCounts = new Map();
+    for (const edge of edges) {
+        const key = pairKey(edge);
+        pairCounts.set(key, (pairCounts.get(key) || 0) + 1);
     }
-    return labels;
+    const links = edges.map((edge, index) => {
+        const source = positions.get(edge.source);
+        const target = positions.get(edge.target);
+        const dx = target.x - source.x;
+        const dy = target.y - source.y;
+        const classes = [];
+        if (selectedId) classes.push('focused');
+        if (dx !== 0) {
+            const forward = dx > 0;
+            classes.push(forward ? 'forward' : 'backward');
+            ports.get(edge.source).add(forward ? 'right' : 'left');
+            ports.get(edge.target).add(forward ? 'left' : 'right');
+            if (pairCounts.get(pairKey(edge)) === 1) classes.push('curved');
+        }
+        const bend = Math.sign(dy * dx) * Math.min(Math.abs(dy) * 0.3, 60);
+        return {
+            group: 'edges', classes: classes.join(' '),
+            data: { ...edge, id: `edge|${index}|${edge.id || ''}`, bend: [-bend, bend] }
+        };
+    });
+    return {
+        ports,
+        elements: [
+            ...nodes.map(node => ({
+                group: 'nodes',
+                data: { id: node.id, color: NODE_COLORS[node.type] || NODE_COLORS.missing },
+                position: positions.get(node.id),
+                classes: node.id === selectedId ? 'current' : ''
+            })),
+            ...links
+        ]
+    };
 }
 
-export default function FactGraphCanvas({ nodes, edges, selectedId, onSelect, chartRef, label, errorText }) {
+function visibleCards(cy, byId, ports) {
+    const width = cy.width();
+    const height = cy.height();
+    const cardWidth = CARD_WIDTH * cy.zoom();
+    const cardHeight = CARD_HEIGHT * cy.zoom();
+    // Below this scale Cytoscape's tiles preserve the overall shape of the graph.
+    if (cardWidth < 49) return [];
+    const density = cardHeight >= 62 ? 'detail' : cardHeight >= 33 ? 'standard' : 'compact';
+    return cy.nodes().map(element => {
+        const { x, y } = element.renderedPosition();
+        const id = element.id();
+        return {
+            node: byId.get(id), ports: ports.get(id), density,
+            box: { left: x - cardWidth / 2, top: y - cardHeight / 2, width: cardWidth, height: cardHeight }
+        };
+    }).filter(({ box }) => box.left + box.width > 0 && box.left < width
+        && box.top + box.height > 0 && box.top < height);
+}
+
+function GraphNodeCard({ card, selected, typeLabel, onSelect }) {
+    const { node, ports, density, box } = card;
+    const detail = density === 'detail';
+    const key = node.fact_key || node.id;
+    const title = (node.summary || (node.label !== '—' && node.label) || key).replace(/\s+/g, ' ').trim() || key;
+    const category = typeLabel(node.type || 'note');
+    return (
+        <button
+            type="button"
+            className={`project-graph-node project-graph-node--${density}`}
+            title={title}
+            aria-label={title}
+            aria-pressed={selected}
+            style={{ ...box, '--graph-node-color': NODE_COLORS[node.type] || NODE_COLORS.missing }}
+            onClick={() => onSelect(node.id)}
+        >
+            <span className="project-graph-node-content">
+                {density !== 'compact' && (
+                    <span className="project-graph-node-kind">
+                        <GraphNodeIcon type={node.type} />
+                        <span>{category}</span>
+                    </span>
+                )}
+                <span className="project-graph-node-title" dir="auto">{title}</span>
+                {detail && box.height >= 76 && title !== key && <span className="project-graph-node-keyline" dir="auto">{key}</span>}
+            </span>
+            {detail && [...ports].map(side => (
+                <span key={side} className={`project-graph-node-port is-${side}`} aria-hidden="true" />
+            ))}
+        </button>
+    );
+}
+
+export default function FactGraphCanvas({ nodes, edges, selectedId, onSelect, chartRef, label, errorText, typeLabel }) {
     const canvas = useRef(null);
-    const [labels, setLabels] = useState([]);
+    const nodeLayer = useRef(null);
+    const [cards, setCards] = useState([]);
     const [failed, setFailed] = useState(false);
 
     useEffect(() => {
         const container = canvas.current;
+        const layer = nodeLayer.current;
         let disposed = false;
         let cy;
         let resize;
         let frame;
-        let hoveredId;
+        let onCardWheel;
         let fitted = true;
         let fitting = false;
-        setLabels([]);
+        setCards([]);
         setFailed(false);
 
         import('cytoscape').then(({ default: cytoscape }) => {
             if (disposed) return;
             const byId = new Map(nodes.map(node => [node.id, node]));
-            const positions = graphPositions(nodes, edges, selectedId);
+            const { ports, elements } = graphElements(nodes, edges, selectedId);
             cy = cytoscape({
                 container,
-                elements: [
-                    ...nodes.map(node => ({
-                        group: 'nodes',
-                        data: { id: node.id, type: node.type || 'note', color: NODE_COLORS[node.type] || NODE_COLORS.missing },
-                        position: positions.get(node.id),
-                        classes: node.id === selectedId ? 'current' : ''
-                    })),
-                    ...edges.map((edge, index) => ({
-                        group: 'edges',
-                        classes: selectedId ? 'focused' : '',
-                        data: { ...edge, id: `edge|${index}|${edge.id || ''}` }
-                    }))
-                ],
+                elements,
                 style: STYLE,
                 layout: { name: 'preset', fit: false },
                 minZoom: 0.006, maxZoom: 3, wheelSensitivity: 0.2,
                 boxSelectionEnabled: false, autounselectify: true, autoungrabify: true
             });
-            const measure = document.createElement('canvas').getContext('2d');
-            measure.font = `500 12px ${getComputedStyle(container).fontFamily}`;
             const place = () => {
                 cancelAnimationFrame(frame);
-                frame = requestAnimationFrame(() => setLabels(
-                    placeLabels(cy, byId, selectedId, hoveredId, title => measure.measureText(title).width)
-                ));
+                frame = requestAnimationFrame(() => setCards(visibleCards(cy, byId, ports)));
             };
             const fit = () => {
                 fitting = true;
@@ -188,20 +251,25 @@ export default function FactGraphCanvas({ nodes, edges, selectedId, onSelect, ch
                 fitting = false;
                 place();
             };
-            chartRef.current = {
-                fit,
-                zoom: factor => cy.zoom({
-                    level: cy.zoom() * factor,
-                    renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 }
-                })
+            const zoom = (factor, renderedPosition = { x: cy.width() / 2, y: cy.height() / 2 }) => {
+                cy.zoom({ level: cy.zoom() * factor, renderedPosition });
             };
+            chartRef.current = { fit, zoom };
+            // Card buttons sit above the canvas, so mirror its wheel zoom at the pointer.
+            onCardWheel = event => {
+                if (!event.deltaY) return;
+                event.preventDefault();
+                const { left, top, height } = container.getBoundingClientRect();
+                const units = event.deltaMode === 1 ? 33 : event.deltaMode === 2 ? height : 1;
+                zoom(10 ** (-event.deltaY * units / 1250), { x: event.clientX - left, y: event.clientY - top });
+            };
+            layer.addEventListener('wheel', onCardWheel, { passive: false });
             cy.on('viewport', () => {
                 if (!fitting) fitted = false;
                 place();
             });
             cy.on('tap', 'node', event => onSelect(event.target.id()));
-            cy.on('mouseover', 'node', event => { hoveredId = event.target.id(); place(); });
-            cy.on('mouseout', 'node', () => { hoveredId = undefined; place(); });
+
             let width = cy.width();
             let height = cy.height();
             resize = new ResizeObserver(() => {
@@ -222,6 +290,7 @@ export default function FactGraphCanvas({ nodes, edges, selectedId, onSelect, ch
             disposed = true;
             cancelAnimationFrame(frame);
             resize?.disconnect();
+            if (onCardWheel) layer.removeEventListener('wheel', onCardWheel);
             cy?.destroy();
             chartRef.current = null;
         };
@@ -230,20 +299,15 @@ export default function FactGraphCanvas({ nodes, edges, selectedId, onSelect, ch
     return (
         <div className="project-graph-canvas-wrap" role="group" aria-label={label}>
             <div ref={canvas} className="project-graph-canvas" />
-            <div className="project-graph-labels">
-                {labels.map(({ id, title, box }) => (
-                    <button
-                        type="button"
-                        className="project-graph-label"
-                        key={id}
-                        title={title}
-                        aria-pressed={id === selectedId}
-                        style={{ left: box.x, top: box.y, width: box.width }}
-                        onClick={() => onSelect(id)}
-                        dir="auto"
-                    >
-                        {title}
-                    </button>
+            <div ref={nodeLayer} className="project-graph-nodes">
+                {cards.map(card => (
+                    <GraphNodeCard
+                        card={card}
+                        key={card.node.id}
+                        selected={card.node.id === selectedId}
+                        typeLabel={typeLabel}
+                        onSelect={onSelect}
+                    />
                 ))}
             </div>
             {failed && <div className="project-graph-overlay" role="alert">{errorText}</div>}

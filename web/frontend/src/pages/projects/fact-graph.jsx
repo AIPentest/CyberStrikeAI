@@ -6,7 +6,7 @@ import { useT } from '../../lib/i18n';
 import { useResource } from '../../components/hooks';
 import { ErrorBanner, SectionCard, confirmAction, toastError, toastSuccess } from '../../components/ui';
 import { CONFIDENCE_META, NODE_COLORS, NODE_TYPE_LABEL, errorProp, errText } from './helpers';
-import FactGraphCanvas from './fact-graph-canvas';
+import FactGraphCanvas, { GraphNodeIcon } from './fact-graph-canvas';
 
 const { Text } = Typography;
 const EMPTY = [];
@@ -212,7 +212,7 @@ export default function FactGraphPanel({
                             </>
                         ) : (
                             <Text type="tertiary" size="small">
-                                {t('projects.graphOverviewHint', null, '点选节点查看直接关系，放大后显示更多标签。')}
+                                {t('projects.graphOverviewHint', null, '点选节点查看直接关系，放大可查看卡片摘要。')}
                             </Text>
                         )}
                     </div>
@@ -224,14 +224,15 @@ export default function FactGraphPanel({
                                 selectedId={selected?.id}
                                 onSelect={openNode}
                                 chartRef={chartRef}
+                                typeLabel={typeLabel}
                                 label={t('projects.graphCanvas', null, '攻击路径画布')}
                                 errorText={t('projects.graphRenderError', null, '图谱加载失败，请刷新重试。')}
                             />
                             <div className="project-graph-footer">
                                 <div className="project-graph-legend">
                                     {types.map(type => (
-                                        <span key={type}>
-                                            <i aria-hidden="true" style={{ background: NODE_COLORS[type] }} />
+                                        <span key={type} style={{ '--graph-node-color': NODE_COLORS[type] }}>
+                                            <GraphNodeIcon type={type} />
                                             {typeLabel(type)}
                                         </span>
                                     ))}

@@ -511,7 +511,7 @@
     "graphNoMatches": "No matching nodes",
     "graphBackToOverview": "Back to overview",
     "graphFocus": "Direct connections · {{stats}}",
-    "graphOverviewHint": "Select a node to see its connections. Zoom in to reveal more labels.",
+    "graphOverviewHint": "Select a node to see its connections. Zoom in to read the card summaries.",
     "graphCanvas": "Attack path canvas",
     "graphRenderError": "Could not load the graph. Refresh to retry.",
     "graphTentativeEdge": "Tentative link",

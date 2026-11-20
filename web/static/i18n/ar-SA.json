@@ -510,7 +510,7 @@
     "graphNoMatches": "لا توجد عُقد مطابقة",
     "graphBackToOverview": "العودة إلى النظرة العامة",
     "graphFocus": "العلاقات المباشرة · {{stats}}",
-    "graphOverviewHint": "اختر عقدة لعرض علاقاتها. كبّر الرسم لرؤية مزيد من التسميات.",
+    "graphOverviewHint": "اختر عقدة لعرض علاقاتها. كبّر الرسم لقراءة ملخصات البطاقات.",
     "graphCanvas": "لوحة مسار الهجوم",
     "graphRenderError": "تعذّر تحميل الرسم. حدّث الصفحة للمحاولة مجددًا.",
     "graphTentativeEdge": "علاقة مبدئية",

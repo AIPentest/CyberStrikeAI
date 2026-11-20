@@ -499,7 +499,7 @@
     "graphNoMatches": "未找到匹配节点",
     "graphBackToOverview": "返回全图",
     "graphFocus": "聚焦直接关系 · {{stats}}",
-    "graphOverviewHint": "点选节点查看直接关系，放大后显示更多标签。",
+    "graphOverviewHint": "点选节点查看直接关系，放大可查看卡片摘要。",
     "graphCanvas": "攻击路径画布",
     "graphRenderError": "图谱加载失败，请刷新重试。",
     "graphTentativeEdge": "待确认关系",
