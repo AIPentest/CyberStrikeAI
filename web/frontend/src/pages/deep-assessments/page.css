@@ -185,6 +185,73 @@
 }
 
 /* 图谱 */
+.assessment-graph-brief {
+    margin-bottom: 12px;
+    border: 1px solid var(--semi-color-border);
+    border-radius: var(--semi-border-radius-medium);
+    background: var(--semi-color-bg-1);
+}
+
+.assessment-graph-brief > summary {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.assessment-graph-brief-counts {
+    margin-inline-start: 10px;
+}
+
+.assessment-graph-brief-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    padding: 12px;
+    border-top: 1px solid var(--semi-color-border);
+}
+
+.assessment-graph-brief-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    gap: 6px;
+    overflow-wrap: anywhere;
+}
+
+.assessment-graph-summary {
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.assessment-graph-intents {
+    list-style: none;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.assessment-graph-intents li {
+    padding: 4px 0;
+    border-top: 1px solid var(--semi-color-border);
+}
+
+.assessment-graph-intent-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.assessment-graph-intent-head button {
+    max-width: 100%;
+}
+
+.assessment-graph-intent-head .semi-button-content {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .assessment-graph-meta {
     display: flex;
     flex-wrap: wrap;
@@ -194,7 +261,8 @@
     margin-bottom: 8px;
 }
 
-.assessment-graph-toolbar {
+.assessment-graph-toolbar,
+.assessment-graph-tools {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -203,30 +271,117 @@
     margin-bottom: 8px;
 }
 
-.assessment-graph-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: 12px;
-    align-items: stretch;
+.assessment-graph-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 16px;
+    margin: 2px 0 10px;
+    color: var(--semi-color-text-1);
+    font-size: 12px;
 }
 
-.assessment-graph-canvas {
-    height: 520px;
-    width: 100%;
+.assessment-graph-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.assessment-graph-legend i {
+    width: 15px;
+    height: 2px;
+    border-radius: 2px;
+}
+
+.assessment-graph-search {
+    width: min(100%, 340px);
+}
+
+.assessment-graph-layout {
+    --assessment-graph-height: clamp(480px, 66svh, 720px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+}
+
+.assessment-graph-layout.with-details {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 350px);
+}
+
+.assessment-graph-viewport {
+    position: relative;
+    height: var(--assessment-graph-height);
+    overflow: hidden;
     border: 1px solid var(--semi-color-border);
     border-radius: var(--semi-border-radius-medium);
     background: var(--semi-color-bg-2);
+    background-image: radial-gradient(var(--semi-color-border) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+.assessment-graph-canvas,
+.assessment-graph-labels {
+    position: absolute;
+    inset: 0;
+    direction: ltr;
+}
+
+.assessment-graph-labels {
+    pointer-events: none;
+}
+
+.assessment-graph-label-leader {
+    position: absolute;
+    width: 1px;
+    background: var(--semi-color-text-2);
+    opacity: 0.55;
+}
+
+.assessment-graph-label {
+    position: absolute;
+    height: 22px;
+    padding: 0 6px;
+    border: 1px solid var(--semi-color-border);
+    border-radius: var(--semi-border-radius-small);
+    background: var(--semi-color-bg-1);
     color: var(--semi-color-text-0);
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 20px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     overflow: hidden;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.assessment-graph-label:hover,
+.assessment-graph-label:focus-visible,
+.assessment-graph-label[aria-pressed="true"] {
+    border-color: var(--semi-color-primary);
+    color: var(--semi-color-primary);
 }
 
 .assessment-node-panel {
-    height: 520px;
+    height: var(--assessment-graph-height);
+    min-width: 0;
     overflow-y: auto;
     border: 1px solid var(--semi-color-border);
     border-radius: var(--semi-border-radius-medium);
     background: var(--semi-color-bg-1);
     padding: 12px;
+}
+
+.assessment-node-title {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    overflow-wrap: anywhere;
+}
+
+.assessment-node-title > button {
+    flex-shrink: 0;
 }
 
 .assessment-node-body {
@@ -278,7 +433,7 @@
 }
 
 @media (max-width: 1180px) {
-    .assessment-graph-layout {
+    .assessment-graph-layout.with-details {
         grid-template-columns: minmax(0, 1fr);
     }
 
@@ -289,12 +444,13 @@
 }
 
 @media (max-width: 720px) {
-    .assessment-form-grid {
+    .assessment-form-grid,
+    .assessment-graph-brief-grid {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .assessment-graph-canvas {
-        height: 420px;
+    .assessment-graph-layout {
+        --assessment-graph-height: clamp(390px, 58svh, 500px);
     }
 }
 

@@ -1017,29 +1017,141 @@ test('deep assessment: graph label color follows the theme with the graph open',
         nodes: [{ id: 'goal', kind: 'goal', title }, { id: 'note', kind: 'observation', title: '示例观察记录' }],
         edges: [{ source: 'goal', target: 'note' }]
     } });
-    await page.addInitScript(nodeTitle => {
-        for (const context of [CanvasRenderingContext2D, globalThis.OffscreenCanvasRenderingContext2D]) {
-            if (!context) continue;
-            const fillText = context.prototype.fillText;
-            context.prototype.fillText = function (text, ...args) {
-                if (text === nodeTitle) window.graphLabelColor = this.fillStyle;
-                return fillText.call(this, text, ...args);
-            };
-        }
-    }, title);
     await page.goto(`/static/app/#/deep-assessments?id=${ASSESSMENT.id}&tab=graph`);
     const main = await ready(page);
-    const canvas = main.locator('.assessment-graph-canvas canvas').first();
-    await expect(canvas).toBeAttached();
-    await expect.poll(() => page.evaluate(() => window.graphLabelColor)).toBe('#192438');
+    const nodeLabel = main.getByRole('group', { name: '探索图' }).getByRole('button', { name: title });
+    await expect(nodeLabel).toHaveCSS('color', 'rgb(25, 36, 56)');
     const reads = mockApi.calls('GET', `${path}/graph`).length;
 
     await button(page.locator('.cs-header'), label('theme.system', '跟随系统')).click();
     await page.getByRole('menuitem', { name: label('theme.dark', '暗色'), exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-    await expect.poll(() => page.evaluate(() => window.graphLabelColor)).toBe('#e8edf6');
+    await expect(nodeLabel).toHaveCSS('color', 'rgb(232, 237, 246)');
     expect(mockApi.calls('GET', `${path}/graph`)).toHaveLength(reads);
     await screenshot(page, testInfo, 'assessment-graph-dark');
+    expect(mockApi.writes()).toEqual([]);
+});
+
+test('deep assessment: dense graph keeps labels readable and locates a cross-page node', async ({ page, mockApi }, testInfo) => {
+    const path = `/api/deep-assessments/${ASSESSMENT.id}`;
+    const goal = { id: 'goal', kind: 'goal', title: '示例测评目标' };
+    const steps = Array.from({ length: 20 }, (_, i) => ({
+        id: `step:${i}`, step_id: String(i), kind: 'step', title: `探索意图 ${i + 1}`
+    }));
+    const facts = Array.from({ length: 60 }, (_, i) => ({
+        id: `fact:${i}`, step_id: String(i % steps.length), kind: 'fact',
+        title: `已观察到的第 ${i + 1} 条事实记录及其关联说明`
+    }));
+    const receipts = Array.from({ length: 80 }, (_, i) => ({
+        id: `receipt:${i}`, step_id: String(i % steps.length), kind: 'receipt', boundary: true,
+        title: `跨页引用中的回执说明和完整执行记录${'示例'.repeat(18)} 唯一编号 ${i + 1}`, body: '合成回执原文'
+    }));
+    const edges = [
+        ...steps.map(step => ({ source: goal.id, target: step.id, relation: 'plans' })),
+        ...facts.map(fact => ({ source: `step:${fact.step_id}`, target: fact.id, relation: 'produces' })),
+        ...receipts.map(receipt => ({ source: `step:${receipt.step_id}`, target: receipt.id, relation: 'executes' })),
+        ...facts.map((fact, i) => ({ source: receipts[i].id, target: fact.id, relation: 'supports' })),
+        ...facts.map((fact, i) => ({ source: fact.id, target: steps[(i + 1) % steps.length].id, relation: 'informs' }))
+    ];
+    mockApi.respond('GET', `${path}/events`, { json: { events: [] } });
+    mockApi.respond('GET', `${path}/graph`, { json: {
+        nodes: [goal, ...steps, ...facts, ...receipts], edges,
+        primary_count: 80, total: 160, boundary_total: 80, has_more: true
+    } });
+    const receipt = receipts.at(-1);
+    mockApi.respond('GET', `${path}/graph/node`, { json: {
+        node: receipt,
+        relations: [{ node: steps.at(-1), relation: 'executes', direction: 'upstream' }]
+    } });
+    await page.addInitScript(() => localStorage.setItem('cyberstrike-theme', 'dark'));
+    await page.goto(`/static/app/#/deep-assessments?id=${ASSESSMENT.id}&tab=graph`);
+    const main = await ready(page);
+    const graph = main.getByRole('group', { name: '探索图' });
+    const labels = graph.getByRole('button');
+    await expect(graph.getByRole('button', { name: goal.title, exact: true })).toBeVisible();
+    expect(await labels.count()).toBeGreaterThan(5);
+    expect(await labels.count()).toBeLessThan(25);
+    const bounds = await labels.evaluateAll(items => items.map(item => {
+        const { left, top, right, bottom } = item.getBoundingClientRect();
+        return { left, top, right, bottom, size: getComputedStyle(item).fontSize };
+    }));
+    for (const [i, box] of bounds.entries()) {
+        expect(box.size).toBe('12px');
+        for (const other of bounds.slice(i + 1)) {
+            expect(box.left < other.right && box.right > other.left && box.top < other.bottom && box.bottom > other.top).toBe(false);
+        }
+    }
+    await expect(main.locator('.assessment-node-panel')).toHaveCount(0);
+    await expect(main.getByText('主干 80 / 280 条连线 · 收起 80 个明细节点')).toBeVisible();
+    const goalLabel = graph.getByRole('button', { name: goal.title, exact: true });
+    const firstIntent = graph.getByRole('button', { name: /^探索意图/ }).first();
+    expect((await goalLabel.boundingBox()).x).toBeLessThan((await firstIntent.boundingBox()).x);
+    const legend = main.getByRole('group', { name: '连线图例' });
+    await expect(legend.getByText('规划与依赖')).toBeVisible();
+    await expect(legend.getByText('产出与证据')).toBeVisible();
+    await graph.screenshot({ path: testInfo.outputPath('assessment-graph-dense-overview.png') });
+    const reads = mockApi.calls('GET', `${path}/graph`).length;
+    await button(main, '显示全部节点与连线').click();
+    await expect(main.getByText('全部 280 条连线')).toBeVisible();
+    await button(main, '仅看主干').click();
+    expect(mockApi.calls('GET', `${path}/graph`)).toHaveLength(reads);
+
+    await main.getByText('搜索并定位节点', { exact: true }).click();
+    await main.getByRole('combobox').getByRole('textbox').fill('唯一编号 80');
+    await page.getByRole('option', { name: /跨页引用/ }).click();
+    await expect(main.getByText('合成回执原文')).toBeVisible();
+    const selected = graph.getByRole('button', { name: receipt.title, pressed: true });
+    await expect(selected).toBeVisible();
+    await expect(graph.getByRole('button', { name: goal.title, exact: true })).toHaveCount(0);
+    expect(new URLSearchParams(mockApi.calls('GET', `${path}/graph/node`).at(-1).query).get('node_id')).toBe(receipt.id);
+    const position = await selected.boundingBox();
+    await main.locator('.cs-section-card').getByRole('button', { name: '刷新', exact: true }).click();
+    await expect.poll(() => mockApi.calls('GET', `${path}/graph`).length).toBe(reads + 1);
+    await expect.poll(async () => {
+        const restored = await selected.boundingBox();
+        return restored ? Math.hypot(restored.x - position.x, restored.y - position.y) : Infinity;
+    }).toBeLessThan(1);
+    await screenshot(page, testInfo, 'assessment-graph-dense-selection');
+
+    await button(main, '关闭详情').click();
+    await expect(main.locator('.assessment-node-panel')).toHaveCount(0);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await button(main, '适应画布').click();
+    await expect(graph.getByRole('button', { name: goal.title, exact: true })).toBeVisible();
+    await assertNoOverflow(page);
+    await graph.screenshot({ path: testInfo.outputPath('assessment-graph-dense-mobile.png') });
+    expect(mockApi.writes()).toEqual([]);
+});
+
+test('deep assessment: graph brief reflects saved intents and the current task summary', async ({ page, mockApi }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const path = `/api/deep-assessments/${ASSESSMENT.id}`;
+    const first = { id: 'notes', title: '整理已有记录', status: 'completed' };
+    const second = { id: 'summary', title: '归并阶段结果', status: 'pending', depends_on: [first.id] };
+    const task = { ...ASSESSMENT, steps: [first, second], summary: '已整理首批记录，阶段结果待归并。' };
+    mockApi.respond('GET', path, { json: { task } });
+    mockApi.respond('GET', `${path}/events`, { json: { events: [] } });
+    const node = { id: `step:${second.id}`, kind: 'step', title: second.title, body: '已保存的意图详情' };
+    mockApi.respond('GET', `${path}/graph`, { json: { nodes: [node], edges: [] } });
+    mockApi.respond('GET', `${path}/graph/node`, { json: { node } });
+
+    await page.goto(`/static/app/#/deep-assessments?id=${ASSESSMENT.id}&tab=graph`);
+    const main = await ready(page);
+    const brief = main.locator('.assessment-graph-brief');
+    await expect(brief.getByText('2 个意图 · 1 个已完成')).toBeVisible();
+    await brief.locator('summary').click();
+    await expect(brief.getByText(task.objective)).toBeVisible();
+    await expect(brief.getByText(`上游依赖 · ${first.title}`)).toBeVisible();
+    await expect(brief.getByText(task.summary)).toBeVisible();
+    await button(brief, second.title).click();
+    await expect(main.getByText(node.body)).toBeVisible();
+
+    const updated = { ...task, steps: [first, { ...second, status: 'completed' }], summary: '已归并本阶段结果。' };
+    mockApi.respond('GET', path, { json: { task: updated } });
+    await main.getByRole('button', { name: 'refresh 刷新', exact: true }).click();
+    await expect(brief.getByText('2 个意图 · 2 个已完成')).toBeVisible();
+    await expect(brief.getByText(updated.summary)).toBeVisible();
+    await assertNoOverflow(page);
     expect(mockApi.writes()).toEqual([]);
 });
 

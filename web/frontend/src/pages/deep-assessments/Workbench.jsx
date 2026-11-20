@@ -348,7 +348,7 @@ export default function Workbench({ id, tab, criterion, evidencePath, evidenceSt
                 ) : activeTab === 'assets' ? (
                     <AssetsTab id={id} task={task} observation={observation} reloadToken={reloadToken} />
                 ) : activeTab === 'graph' ? (
-                    <GraphTab id={id} reloadToken={reloadToken} />
+                    <GraphTab id={id} task={task} reloadToken={reloadToken} onGoIntents={() => onTabChange?.('intents')} />
                 ) : activeTab === 'findings' ? (
                     <FindingsTab id={id} task={task} reloadToken={reloadToken} />
                 ) : activeTab === 'acceptance' ? (
