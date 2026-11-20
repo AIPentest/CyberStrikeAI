@@ -96,7 +96,6 @@ export function ModelSettings({ model, busy, canReadConfig }) {
     ];
     const reasoningLabels = Object.fromEntries(REASONING_MODES.map(mode => [mode, reasoningSummary(t, mode, '')]));
     const reasoningDisabled = busy || model.overrideBlocked;
-    const deepSeekMapsToHigh = model.officialDeepSeek && model.mode !== 'off' && ['medium', 'xhigh'].includes(model.effort);
     const levels = ['', ...REASONING_EFFORTS];
     const marks = Object.fromEntries(levels.map((effort, index) => [
         index, reasoningSummary(t, effort ? 'on' : 'default', effort)
@@ -184,13 +183,9 @@ export function ModelSettings({ model, busy, canReadConfig }) {
                     model.setMode(value === 0 ? 'default' : model.mode === 'auto' ? 'auto' : 'on');
                 }}
             />
-            {model.overrideBlocked ? (
+            {model.overrideBlocked && (
                 <Text type="tertiary" size="small" className="chat-reasoning-hint">
                     {t('chat.reasoningOverrideBlocked', null, '此通道使用系统设置中的推理强度。')}
-                </Text>
-            ) : deepSeekMapsToHigh && (
-                <Text type="tertiary" size="small" className="chat-reasoning-hint">
-                    {t('chat.deepSeekEffortHint', { effort: marks[levels.indexOf(model.effort)] }, 'DeepSeek 会按「高」执行此档。')}
                 </Text>
             )}
         </div>

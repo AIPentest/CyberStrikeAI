@@ -318,8 +318,14 @@ test.describe('chat composer settings', () => {
         await menu.getByRole('menuitem', { name: label('chat.reasoningModeOn') }).click();
         await effort.press('ArrowRight');
         await expect(effort).toHaveAttribute('aria-valuenow', '2');
-        const mediumHint = label('chat.deepSeekEffortHint').replace('{{effort}}', label('chat.reasoningEffortLabels.medium'));
-        await expect(popover.getByText(mediumHint, { exact: true })).toBeVisible();
+        await expect(popover.locator('.chat-reasoning-hint')).toHaveCount(0);
+        await effort.press('End');
+        await effort.press('ArrowLeft');
+        await expect(effort).toHaveAttribute('aria-valuenow', '4');
+        await expect(popover.locator('.chat-reasoning-hint')).toHaveCount(0);
+        await effort.press('ArrowLeft');
+        await effort.press('ArrowLeft');
+        await expect(effort).toHaveAttribute('aria-valuenow', '2');
         await page.reload();
         await ready(page);
         await openModel.click();
@@ -588,7 +594,7 @@ test.describe('chat composer settings', () => {
         await slider.press('Home');
         const levels = [
             ['', label('chat.reasoningModeDefault')],
-            ['low', '低'], ['medium', '中'], ['high', '高'], ['xhigh', '超高'], ['max', '最高']
+            ['low', '低'], ['medium', '中'], ['high', '高'], ['xhigh', '超高'], ['max', 'ultra']
         ];
         for (const [index, [effort, text]] of levels.entries()) {
             if (index > 0) await slider.press('ArrowRight');
@@ -603,7 +609,7 @@ test.describe('chat composer settings', () => {
         }
         await slider.press('ArrowRight');
         await expect(slider).toHaveAttribute('aria-valuenow', '5');
-        await expect(value).toHaveText('最高');
+        await expect(value).toHaveText('ultra');
         await expect.poll(() => page.evaluate(() => ({
             mode: localStorage.getItem('cyberstrike-chat-reasoning-mode'),
             effort: localStorage.getItem('cyberstrike-chat-reasoning-effort')
@@ -747,13 +753,13 @@ test.describe('chat composer settings', () => {
         // Mode menu actions and genuine keyboard input share the same persisted preferences.
         const transitions = [
             ['auto', 'auto', '', 0, modes.auto],
-            ['End', 'auto', 'max', 5, '最高'],
+            ['End', 'auto', 'max', 5, 'ultra'],
             ['off', 'off', 'max', 5, modes.off],
             ['Home', 'off', 'max', 5, modes.off],
-            ['auto', 'auto', 'max', 5, '最高'],
+            ['auto', 'auto', 'max', 5, 'ultra'],
             ['Home', 'default', '', 0, modes.default],
             ['auto', 'auto', '', 0, modes.auto],
-            ['End', 'auto', 'max', 5, '最高'],
+            ['End', 'auto', 'max', 5, 'ultra'],
             ['default', 'default', '', 0, modes.default],
             ['on', 'on', '', 0, modes.on],
             ['ArrowRight', 'on', 'low', 1, '低'],
@@ -929,7 +935,7 @@ test.describe('chat composer read-only permissions', () => {
         await expect(reset).toBeDisabled();
         await expect(slider).toHaveAttribute('aria-disabled', 'true');
         await expect(slider).toHaveAttribute('aria-valuenow', '5');
-        await expect(value).toHaveText('最高');
+        await expect(value).toHaveText('ultra');
         const track = popover.locator('.semi-slider-track');
         await expect(popover.locator('.chat-reasoning-picker')).toHaveClass(/is-max/);
         await expect(track).toHaveCSS('background-image', /linear-gradient/);
@@ -939,7 +945,7 @@ test.describe('chat composer read-only permissions', () => {
             await slider.press(key);
             await expect(slider).toHaveAttribute('aria-valuenow', '5');
         }
-        await expect(value).toHaveText('最高');
+        await expect(value).toHaveText('ultra');
         await expect.poll(() => page.evaluate(() => ({
             channel: localStorage.getItem('cyberstrike-chat-ai-channel'),
             mode: localStorage.getItem('cyberstrike-chat-reasoning-mode'),

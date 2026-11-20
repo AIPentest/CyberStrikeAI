@@ -562,18 +562,27 @@ for (const width of [1440, 390]) {
             await expect(popover.locator('.chat-reasoning-channel .semi-select-arrow')).toHaveCSS('opacity', '1');
             const picker = popover.locator('.chat-reasoning-picker');
             const track = picker.locator('.semi-slider-track');
+            const rail = picker.locator('.semi-slider-rail');
+            const marks = picker.locator('.semi-slider-dot');
             const strength = popover.getByRole('status');
             const normalColor = await strength.evaluate(element => getComputedStyle(element).color);
             await expect(picker).not.toHaveClass(/is-max/);
             await expect(track).toHaveCSS('background-image', 'none');
             await expect(track).toHaveCSS('animation-name', 'none');
+            const [firstMark, lastMark, railBounds] = await Promise.all(
+                [marks.first(), marks.last(), rail].map(element => element.boundingBox())
+            );
+            expect(firstMark.x - railBounds.x).toBeGreaterThanOrEqual(6);
+            expect(railBounds.x + railBounds.width - lastMark.x - lastMark.width).toBeGreaterThanOrEqual(6);
             await strength.click();
             await screenshot(page, testInfo, `chat-reasoning-${width}-${colorScheme}`);
             await popover.screenshot({ path: testInfo.outputPath(`reasoning-panel-${width}-${colorScheme}.png`) });
 
-            await slider.press('End');
+            await marks.last().click();
             await expect(picker).toHaveClass(/is-max/);
-            await expect(strength).toHaveText(label('chat.reasoningEffortLabels.max'));
+            await expect(strength).toHaveText('ultra');
+            await expect(slider).toHaveAttribute('aria-valuetext', 'ultra');
+            await expect(composer.locator('.chat-composer-effort')).toHaveText('ultra');
             await expect(strength).not.toHaveCSS('color', normalColor);
             await expect(track).toHaveCSS('background-image', /linear-gradient/);
             await expect(track).toHaveCSS('animation-name', 'chat-reasoning-flow');

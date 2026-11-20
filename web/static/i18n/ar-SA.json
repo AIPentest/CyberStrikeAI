@@ -779,7 +779,6 @@
   },
   "chat": {
     "chooseWorkspace": "اختر مساحة عمل المحادثة",
-    "deepSeekEffortHint": "يستخدم DeepSeek المستوى العالي عند اختيار «{{effort}}».",
     "reasoningOverrideBlocked": "تستخدم هذه القناة مستوى الاستدلال المحدد في إعدادات النظام.",
     "defaultWorkspace": "مساحة العمل الافتراضية",
     "boundProject": "مشروع مرتبط",
@@ -1016,7 +1015,7 @@
       "medium": "متوسط",
       "high": "عالٍ",
       "xhigh": "عالٍ جدًا",
-      "max": "أقصى"
+      "max": "ultra"
     },
     "reasoningCompactLabel": "الاستدلال",
     "reasoningCompactAria": "فتح خيارات استدلال النموذج",

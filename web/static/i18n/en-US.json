@@ -780,7 +780,6 @@
   },
   "chat": {
     "chooseWorkspace": "Choose the conversation workspace",
-    "deepSeekEffortHint": "DeepSeek runs {{effort}} at High effort.",
     "reasoningOverrideBlocked": "This channel uses the reasoning effort from system settings.",
     "defaultWorkspace": "Default workspace",
     "boundProject": "Linked project",
@@ -1017,7 +1016,7 @@
       "medium": "Medium",
       "high": "High",
       "xhigh": "Extra high",
-      "max": "Maximum"
+      "max": "ultra"
     },
     "reasoningCompactLabel": "Reasoning",
     "reasoningCompactAria": "Open model reasoning options",

@@ -415,14 +415,27 @@
 .chat-reasoning-channel.semi-select-borderless:not(:focus-within):not(:hover) .semi-select-arrow { opacity: 1; }
 .chat-reasoning-channel-label { display: block; text-align: center; font-size: 12px; line-height: 22px; }
 .chat-reasoning-hint.semi-typography { display: block; margin: 5px 4px 0; text-align: center; line-height: 1.4; }
-.chat-reasoning-slider.semi-slider { padding: 0; margin: 10px 8px 0; }
-.chat-reasoning-slider .semi-slider-wrapper { height: 28px; }
+.chat-reasoning-slider.semi-slider-wrapper {
+    --chat-reasoning-end-cap: 10px;
+    height: 28px;
+    margin-top: 6px;
+}
 .chat-reasoning-slider .semi-slider-rail,
 .chat-reasoning-slider .semi-slider-track { top: 4px; height: 20px; border-radius: 12px; }
-.chat-reasoning-slider .semi-slider-rail { background: var(--semi-color-fill-1); }
-.chat-reasoning-slider .semi-slider-track { background: rgba(var(--semi-orange-5), 1); }
+.chat-reasoning-slider .semi-slider-rail {
+    inset-inline: calc(-1 * var(--chat-reasoning-end-cap));
+    width: auto;
+    background: var(--semi-color-fill-1);
+}
+.chat-reasoning-slider .semi-slider-track {
+    /* Keep Semi's value coordinates and extend the rounded caps past both endpoint marks. */
+    box-sizing: content-box;
+    margin-inline-start: calc(-1 * var(--chat-reasoning-end-cap));
+    padding-inline: var(--chat-reasoning-end-cap);
+    background: rgba(var(--semi-orange-5), 1);
+}
 .chat-reasoning-slider .semi-slider-handle { width: 28px; height: 28px; margin-top: 0; background: var(--semi-color-bg-2); border: 1px solid var(--semi-color-border); }
-.chat-reasoning-slider .semi-slider-dot { top: 12px; width: 3px; height: 3px; background: var(--semi-color-text-3); transform: translateX(-50%); }
+.chat-reasoning-slider .semi-slider-dot { top: 12px; background: var(--semi-color-text-3); }
 .chat-reasoning-slider .semi-slider-dot-active { background: var(--semi-color-white); }
 .chat-reasoning-slider.semi-slider-disabled { opacity: .5; }
 .chat-reasoning-picker.is-max .chat-reasoning-value { color: color-mix(in srgb, rgba(var(--semi-purple-5), 1) 70%, var(--semi-color-text-0)); }

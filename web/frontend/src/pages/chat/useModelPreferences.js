@@ -7,7 +7,7 @@ export const REASONING_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 
 export function reasoningSummary(t, mode, effort) {
     if (mode !== 'off' && effort) {
-        const labels = { low: '低', medium: '中', high: '高', xhigh: '超高', max: '最高' };
+        const labels = { low: '低', medium: '中', high: '高', xhigh: '超高', max: 'ultra' };
         return t(`chat.reasoningEffortLabels.${effort}`, null, labels[effort]);
     }
     const labels = { default: '跟随系统', off: '关闭', on: '开启', auto: '自动' };
@@ -37,8 +37,6 @@ export function useModelPreferences(canReadConfig) {
         || channels.find(([id]) => id === normalizedChannel)?.[0] || '';
     const channelConfig = config.data?.channels?.[channel || config.data?.default_channel];
     const overrideBlocked = channelConfig?.reasoning?.allow_client_reasoning === false;
-    const officialDeepSeek = /^(?:https?:\/\/)?(?:www\.)?api\.deepseek\.com(?=[:/?#]|$)/i
-        .test(channelConfig?.base_url?.trim() || '');
     const mode = REASONING_MODES.includes(storedMode) ? storedMode : 'default';
     const effort = REASONING_EFFORTS.includes(storedEffort) ? storedEffort : '';
     const reasoning = {
@@ -47,7 +45,7 @@ export function useModelPreferences(canReadConfig) {
     };
 
     return {
-        channel, channels, setChannel, config, mode, setMode, effort, setEffort, overrideBlocked, officialDeepSeek,
+        channel, channels, setChannel, config, mode, setMode, effort, setEffort, overrideBlocked,
         waitingForChannel: Boolean(canReadConfig && storedChannel && config.loading),
         request: {
             aiChannelId: canReadConfig ? channel || undefined : undefined,

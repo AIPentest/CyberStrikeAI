@@ -768,7 +768,6 @@
   },
   "chat": {
     "chooseWorkspace": "选择会话工作区",
-    "deepSeekEffortHint": "DeepSeek 会把「{{effort}}」按「高」处理。",
     "reasoningOverrideBlocked": "此通道使用系统设置中的推理强度。",
     "defaultWorkspace": "默认工作区",
     "boundProject": "已绑定项目",
@@ -1005,7 +1004,7 @@
       "medium": "中",
       "high": "高",
       "xhigh": "超高",
-      "max": "最高"
+      "max": "ultra"
     },
     "reasoningCompactLabel": "推理",
     "reasoningCompactAria": "打开模型推理选项",
