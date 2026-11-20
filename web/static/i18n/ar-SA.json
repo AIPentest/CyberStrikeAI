@@ -277,6 +277,9 @@
     "administration": "الإدارة"
   },
   "tokenUsageUI": {
+    "selectConversation": "ابحث عن محادثة واخترها",
+    "periodDays": "{{count}} يومًا",
+    "recentLimit": "أحدث {{count}} سجلًا",
     "chartHint": "مرّر المؤشّر فوق شريط أو ركّز عليه لعرض الاستهلاك الدقيق",
     "scopeProject": "المشروع الحالي",
     "scopeAccessible": "المحادثات المتاحة",
@@ -772,6 +775,16 @@
     "generatedFromFact": "مُولّدة من حقيقة المشروع {{factKey}}"
   },
   "chat": {
+    "chooseWorkspace": "اختر مساحة عمل المحادثة",
+    "deepSeekEffortHint": "يستخدم DeepSeek المستوى العالي عند اختيار «{{effort}}».",
+    "reasoningOverrideBlocked": "تستخدم هذه القناة مستوى الاستدلال المحدد في إعدادات النظام.",
+    "defaultWorkspace": "مساحة العمل الافتراضية",
+    "boundProject": "مشروع مرتبط",
+    "refreshConversation": "تحديث المحادثة",
+    "refreshConversationList": "تحديث قائمة المحادثات",
+    "refreshConversationHint": "إعادة تحميل قائمة المحادثات والرسائل والموافقات المعلقة وخطة التنفيذ",
+    "planTasks": "خطة التنفيذ",
+    "planEmpty": "لا توجد خطة تنفيذ",
     "taskSummary": "ملخص المهمة",
     "toolExecBlocked": "تم حظر الأداة {{name}}",
     "newChat": "محادثة جديدة",
@@ -3065,7 +3078,7 @@
     "maxCompletionTokensPlaceholder": "32768",
     "maxCompletionTokensHint": "أقصى عدد للرموز (Tokens) في استجابة واحدة للنموذج. الافتراضي: 32768",
     "openaiReasoningTitle": "إعدادات الاستدلال",
-    "openaiReasoningHint": "إعدادات الاستدلال الافتراضية لقناة الذكاء الاصطناعي هذه؛ ويمكن لإعدادات جلسة المحادثة تجاوزها.",
+    "openaiReasoningHint": "إعدادات الاستدلال الافتراضية لهذه القناة. يمكن تغييرها من خيارات النموذج في مربع كتابة المحادثة.",
     "openaiReasoningProfile": "ملف تعريف الإرسال",
     "openaiReasoningAllowClient": "السماح لصفحة المحادثة بتجاوز خيارات الاستدلال",
     "fofaBaseUrlPlaceholder": "https://fofa.info/api/v1/search/all (اختياري)",

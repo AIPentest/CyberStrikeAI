@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import {
-    test, expect, visit, ready, screenshot, label,
+    test, expect, visit, ready, screenshot, label, conversationListFixture,
     READ_PERMISSIONS, UI_PERMISSIONS, PROJECT, FACT, VULNERABILITY, ASSESSMENT,
     CONVERSATION, STREAM_REPLY, APP_VERSION
 } from './fixtures.mjs';
@@ -438,7 +438,7 @@ for (const uploadFails of [false, true]) {
 }
 
 for (const width of [1440, 1024, 390]) {
-    test(`chat: header spacing and session settings stay usable at ${width}px`, async ({ page, mockApi }, testInfo) => {
+    test(`chat: header spacing and composer settings stay usable at ${width}px`, async ({ page, mockApi }, testInfo) => {
         await page.setViewportSize({ width, height: 900 });
         const longTitle = '用于验证对话页标题换行与操作区布局的长会话名称'.repeat(4);
         mockApi.respond('GET', `/api/conversations/${CONVERSATION.id}`, { json: { ...CONVERSATION, title: longTitle, projectId: PROJECT.id } });
@@ -454,11 +454,12 @@ for (const width of [1440, 1024, 390]) {
             const main = await visit(page, stored ? `chat?conversation=${CONVERSATION.id}` : 'chat');
             const header = main.locator('.chat-header');
             const title = header.locator('.chat-header-title');
-            const settingsButton = button(header, label('chat.sessionSettingsTitle', '会话设置'));
             const composer = main.locator('.chat-composer');
             const input = composer.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
             await expect(title).toHaveText(stored ? longTitle : label('chat.newChat', '新对话'));
-            await expect(settingsButton).toBeInViewport({ ratio: 1 });
+            await expect(button(header, label('chat.sessionSettingsTitle'))).toHaveCount(0);
+            await expect(button(header, label('chat.tokenUsage', 'Token 用量'))).toHaveCount(0);
+            await expect(button(header, label('chat.refreshConversation'))).toHaveCount(stored ? 1 : 0);
             await expect(button(composer, label('chat.sessionSettingsTitle', '会话设置'))).toHaveCount(0);
             const [workspaceBox, titleBox, textBox, actionsBox] = await Promise.all(
                 [main.locator('.chat-main'), title, header.locator('.chat-header-main'), header.locator('.chat-header-actions')]
@@ -474,7 +475,10 @@ for (const width of [1440, 1024, 390]) {
             const context = composer.locator('.chat-composer-context');
             await expect(context.getByRole('combobox')).toHaveCount(2);
             const project = context.locator('.chat-composer-project');
-            await expect(project).toHaveText(stored ? PROJECT.name : label('chat.noProject', '不绑定项目'));
+            await expect(project).toHaveText(stored ? PROJECT.name : label('chat.defaultWorkspace', '默认工作区'));
+            const contextBox = await context.boundingBox();
+            const projectBounds = await project.boundingBox();
+            expect(projectBounds.x + projectBounds.width).toBeLessThan(contextBox.x + contextBox.width - 16);
             const box = await composer.locator('.chat-composer-box').boundingBox();
             for (const control of await context.getByRole('combobox').all()) {
                 await expect(control).toBeInViewport({ ratio: 1 });
@@ -505,9 +509,9 @@ for (const width of [1440, 1024, 390]) {
             await expect(modelPopover).not.toBeVisible();
 
             await input.fill('保留会话草稿');
-            await settingsButton.click();
-            const settings = page.getByRole('dialog').filter({ hasText: label('chat.sessionSettingsTitle', '会话设置') });
-            await expect(settings.getByRole('combobox', { name: label('chat.reasoningModeLabel') })).toBeVisible();
+            await hitl.click();
+            const settings = page.getByRole('dialog').filter({ hasText: label('chat.hitlTitle') });
+            await expect(settings.getByRole('combobox', { name: label('chat.hitlModeLabel') })).toBeVisible();
             await settings.locator('button.semi-sidesheet-close').click();
             await expect(settings).not.toBeVisible();
             await expect(input).toHaveValue('保留会话草稿');
@@ -611,11 +615,11 @@ for (const width of [1440, 390]) {
     }
 }
 
-test.describe('chat: session settings permission boundary', () => {
+test.describe('chat: composer settings permission boundary', () => {
     test.use({ appPermissions: READ_PERMISSIONS.filter(permission => !['config:read', 'hitl:read'].includes(permission)) });
-    test('hides session settings without configuration, approval or execution access', async ({ page, mockApi }) => {
+    test('disables the approval shortcut without approval access', async ({ page, mockApi }) => {
         const main = await visit(page, 'chat');
-        await expect(button(main, label('chat.sessionSettingsTitle', '会话设置'))).toHaveCount(0);
+        await expect(button(main, label('chat.hitlTitle'))).toBeDisabled();
         expect(mockApi.writes()).toEqual([]);
     });
 });
@@ -661,7 +665,7 @@ test('chat: create a project from the composer and select it for the current dra
     const main = await visit(page, 'chat');
     const composer = main.locator('.chat-composer');
     const input = composer.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
-    const projectSelect = composer.getByRole('combobox').filter({ hasText: label('chat.noProject', '不绑定项目') });
+    const projectSelect = composer.getByRole('combobox').filter({ hasText: label('chat.defaultWorkspace', '默认工作区') });
     const createOption = page.getByRole('option').filter({ hasText: `+ ${label('projects.newProject', '新建项目')}` });
     const dialog = page.getByRole('dialog', { name: label('projects.modalNewTitle', '新建项目') });
 
@@ -700,7 +704,7 @@ test.describe('chat: read-only permissions', () => {
         await expect(main.getByText(label('chat.noWritePermission', '当前账号没有对话写入权限（chat:write），发送已禁用。'), { exact: true })).toBeVisible();
         await readsCompleted(mockApi, ['/api/projects', '/api/conversations']);
         await expect(button(main, label('chat.batchManage', '批量管理'))).toHaveCount(0);
-        await expect(main.locator('.chat-composer-context').getByRole('combobox').filter({ hasText: label('chat.noProject', '不绑定项目') })).toBeDisabled();
+        await expect(main.locator('.chat-composer-context').getByRole('combobox').filter({ hasText: label('chat.defaultWorkspace', '默认工作区') })).toBeDisabled();
         await expect(main.locator('.chat-composer-mode')).toBeDisabled();
         // Send real keyboard events, without force-enabling a disabled application control.
         await main.locator('.chat-header-title').click();
@@ -777,19 +781,18 @@ test.describe('chat: batch selection', () => {
         ...CONVERSATION,
         id: `fixture-batch-${index + 1}`,
         title: `批量示例 ${String(index + 1).padStart(2, '0')}`,
-        projectId: index % 2 ? PROJECT.id : ''
+        projectId: ''
+    }));
+    const projectConversations = conversations.slice(0, 21).map((item, index) => ({
+        ...item,
+        id: 'fixture-project-chat-' + (index + 1),
+        title: '项目示例 ' + String(index + 1).padStart(2, '0'),
+        projectId: PROJECT.id
     }));
 
     test.beforeEach(async ({ mockApi }) => {
-        let remaining = [...conversations];
-        mockApi.respond('GET', '/api/conversations', (_, url) => {
-            const search = url.searchParams.get('search') || '';
-            const project = url.searchParams.get('project_id') || '';
-            const filtered = remaining.filter(item => item.title.includes(search) && (!project || item.projectId === project));
-            const offset = Number(url.searchParams.get('offset') || 0);
-            const limit = Number(url.searchParams.get('limit') || 20);
-            return { json: { conversations: filtered.slice(offset, offset + limit), total: filtered.length } };
-        });
+        let remaining = [...conversations, ...projectConversations];
+        mockApi.respond('GET', '/api/conversations', (_, url) => ({ json: conversationListFixture(remaining, url) }));
         for (const item of conversations) {
             mockApi.respond('DELETE', `/api/conversations/${item.id}`, () => {
                 remaining = remaining.filter(row => row.id !== item.id);
@@ -849,6 +852,28 @@ test.describe('chat: batch selection', () => {
         });
     }
 
+    test('keeps default workspace and project conversations in their own collapsible pages', async ({ page }) => {
+        const main = await visit(page, 'chat');
+        const sidebar = main.locator('.chat-sidebar-inner');
+        const workspace = button(sidebar, label('chat.defaultWorkspace') + ' 23');
+        const project = button(sidebar, PROJECT.name + ' 21');
+        await expect(workspace).toHaveAttribute('aria-expanded', 'true');
+        await expect(project).toHaveAttribute('aria-expanded', 'false');
+        await expect(sidebar.getByText('批量示例 01', { exact: true })).toBeVisible();
+        await project.click();
+        await expect(workspace).toHaveAttribute('aria-expanded', 'false');
+        await expect(project).toHaveAttribute('aria-expanded', 'true');
+        await expect(sidebar.getByText('批量示例 01', { exact: true })).toHaveCount(0);
+        await expect(sidebar.getByText('项目示例 01', { exact: true })).toBeVisible();
+        await sidebar.getByRole('button', { name: 'Next', exact: true }).click();
+        await expect(sidebar.getByText('项目示例 21', { exact: true })).toBeVisible();
+        await expect(sidebar.getByText(PROJECT.id.slice(0, 8), { exact: true })).toHaveCount(0);
+        await project.click();
+        await expect(sidebar.locator('.chat-conv-item')).toHaveCount(0);
+        await workspace.click();
+        await expect(sidebar.getByText('批量示例 01', { exact: true })).toBeVisible();
+    });
+
     test('resets selections on pagination, search, project filtering and cancel', async ({ page, mockApi }) => {
         await visit(page, 'chat');
         const sidebar = page.locator('.chat-sidebar-inner:visible');
@@ -873,6 +898,8 @@ test.describe('chat: batch selection', () => {
         await bar.getByText(label('chat.selectPage'), { exact: true }).click();
         await expect(bar).toContainText('已选 4');
 
+        await sidebar.getByRole('textbox', { name: label('chat.searchHistory') }).fill('项目示例 2');
+        await expect(button(sidebar, PROJECT.name + ' 2')).toBeVisible();
         await sidebar.getByRole('combobox').filter({ hasText: label('chat.filterAllProjects', '全部项目') }).click();
         await page.getByRole('option').filter({ hasText: PROJECT.name }).click();
         await expect(bar).toHaveCount(0);

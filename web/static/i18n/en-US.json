@@ -278,6 +278,9 @@
     "administration": "Administration"
   },
   "tokenUsageUI": {
+    "selectConversation": "Search and select a conversation",
+    "periodDays": "{{count}} days",
+    "recentLimit": "Latest {{count}} records",
     "chartHint": "Hover or focus a bar for exact usage",
     "scopeProject": "Current project",
     "scopeAccessible": "Accessible conversations",
@@ -773,6 +776,16 @@
     "generatedFromFact": "Generated from project fact {{factKey}}"
   },
   "chat": {
+    "chooseWorkspace": "Choose the conversation workspace",
+    "deepSeekEffortHint": "DeepSeek runs {{effort}} at High effort.",
+    "reasoningOverrideBlocked": "This channel uses the reasoning effort from system settings.",
+    "defaultWorkspace": "Default workspace",
+    "boundProject": "Linked project",
+    "refreshConversation": "Refresh conversation",
+    "refreshConversationList": "Refresh conversation list",
+    "refreshConversationHint": "Reload the conversation list, messages, pending approvals, and execution plan",
+    "planTasks": "Execution plan",
+    "planEmpty": "No execution plan",
     "taskSummary": "Task summary",
     "toolExecBlocked": "Tool {{name}} blocked",
     "newChat": "New chat",
@@ -3353,7 +3366,7 @@
     "contextWarnLlamaCppSlots": "llama.cpp is running multiple parallel slots; the per-request window may be smaller than n_ctx. Check --parallel and the KV mode",
     "contextWarnUnknown": "No context window detected; enter it manually",
     "openaiReasoningTitle": "Reasoning settings",
-    "openaiReasoningHint": "Default reasoning settings for this AI channel; chat Session settings can override them.",
+    "openaiReasoningHint": "Default reasoning settings for this AI channel. Override them in the model options in the chat composer.",
     "openaiReasoningProfile": "Wire profile",
     "openaiReasoningAllowClient": "Allow chat page to override reasoning options",
     "fofaBaseUrlPlaceholder": "https://fofa.info/api/v1/search/all (optional)",

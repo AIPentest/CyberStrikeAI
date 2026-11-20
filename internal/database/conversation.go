@@ -17,6 +17,39 @@ import (
 // ProjectFilterUnbound 列表 API 中 project_id=__none__ 表示仅未绑定项目的对话。
 const ProjectFilterUnbound = "__none__"
 
+type ConversationProjectGroup struct {
+	ProjectID string `json:"projectId"`
+	Total     int    `json:"total"`
+}
+
+// ListConversationProjectGroups counts matching, accessible conversations by project.
+func (db *DB) ListConversationProjectGroups(search, userID, scope string) ([]ConversationProjectGroup, error) {
+	where := " WHERE 1 = 1"
+	var args []interface{}
+	if search != "" {
+		where += ` AND (c.title LIKE ?
+			OR EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = c.id AND m.content LIKE ?))`
+		pattern := "%" + search + "%"
+		args = append(args, pattern, pattern)
+	}
+	where, args = appendConversationAccessFilter(where, args, userID, scope, "c")
+	rows, err := db.Query(`SELECT TRIM(COALESCE(c.project_id, '')), COUNT(*) FROM conversations c`+where+`
+		GROUP BY 1 ORDER BY MAX(c.updated_at) DESC, 1`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	groups := []ConversationProjectGroup{}
+	for rows.Next() {
+		var group ConversationProjectGroup
+		if err := rows.Scan(&group.ProjectID, &group.Total); err != nil {
+			return nil, err
+		}
+		groups = append(groups, group)
+	}
+	return groups, rows.Err()
+}
+
 // Conversation 对话
 type Conversation struct {
 	ID        string               `json:"id"`

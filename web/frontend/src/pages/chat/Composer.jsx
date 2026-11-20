@@ -73,11 +73,14 @@ export default function Composer({
         )
     })), [t]);
     const projectOptions = [
-        { value: '', label: t('chat.noProject', null, '不绑定项目') },
-        ...(Array.isArray(projects) ? projects : []).map(project => ({ value: project.id, label: project.name || project.id }))
+        { value: '', label: t('chat.defaultWorkspace', null, '默认工作区') },
+        ...(Array.isArray(projects) ? projects : []).map(project => ({
+            value: project.id,
+            label: project.name || t('chat.boundProject', null, '已绑定项目')
+        }))
     ];
     if (projectId && !projectOptions.some(option => option.value === projectId)) {
-        projectOptions.push({ value: projectId, label: projectId });
+        projectOptions.push({ value: projectId, label: t('chat.boundProject', null, '已绑定项目') });
     }
     if (onCreateProject) {
         projectOptions.push({ value: CREATE_PROJECT, label: `+ ${t('projects.newProject', null, '新建项目')}` });
@@ -89,7 +92,9 @@ export default function Composer({
     const channelName = channelId
         ? modelChannelName(channelId, model.config.data?.channels?.[channelId])
         : t('chat.aiChannelDefaultShort', null, '默认通道');
-    const reasoningLabel = reasoningSummary(t, model.mode, model.effort);
+    const reasoningLabel = model.overrideBlocked
+        ? reasoningSummary(t, 'default', '')
+        : reasoningSummary(t, model.mode, model.effort);
 
     const handleKeyDown = event => {
         if (event.key !== 'Enter' || event.shiftKey) return;
@@ -120,14 +125,15 @@ export default function Composer({
                         optionList={modeOptions}
                         renderSelectedItem={option => option.title}
                         onChange={onModeChange}
-                        prefix={<IconDesktop />}
+                        prefix={<IconDesktop aria-hidden="true" />}
                         className="chat-context-select chat-composer-mode"
                         dropdownClassName="chat-mode-dropdown"
+                        size="small"
                         position="topLeft"
                         aria-labelledby={modeLabelId}
                         disabled={busy || blocked}
                     />
-                    <span id={projectLabelId} hidden>{t('chat.filterByProject', null, '选择项目')}</span>
+                    <span id={projectLabelId} hidden>{t('chat.chooseWorkspace', null, '选择会话工作区')}</span>
                     <Select
                         value={projectId}
                         optionList={projectOptions}
@@ -135,8 +141,13 @@ export default function Composer({
                             if (value === CREATE_PROJECT) onCreateProject?.();
                             else onProjectChange(value);
                         }}
-                        prefix={<IconFolder />}
+                        prefix={<IconFolder aria-hidden="true" />}
                         className="chat-context-select chat-composer-project"
+                        dropdownClassName="chat-project-dropdown"
+                        dropdownMatchSelectWidth={false}
+                        position="topLeft"
+                        size="small"
+                        renderSelectedItem={option => <span title={option.label}>{option.label}</span>}
                         aria-labelledby={projectLabelId}
                         disabled={busy || projectDisabled || !canWrite}
                     />
@@ -213,7 +224,7 @@ export default function Composer({
                                 position="topRight"
                                 className="chat-model-popover"
                                 condition={!busy}
-                                content={<ModelSettings compact model={model} busy={busy || blocked} canReadConfig={canReadConfig} />}
+                                content={<ModelSettings model={model} busy={busy || blocked} canReadConfig={canReadConfig} />}
                             >
                                 <Button
                                     theme="borderless"

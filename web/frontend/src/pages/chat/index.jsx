@@ -1,4 +1,4 @@
-/** 对话工作台：会话列表 + 消息区 + 流式发送 + 内联 HITL + 用量/计划侧滑。 */
+/** 对话工作台：会话列表、消息区、流式发送、审批和执行计划。 */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button, Collapse, Progress, SideSheet, Typography } from '@douyinfe/semi-ui';
@@ -15,7 +15,7 @@ import ConversationList from './ConversationList';
 import MessageList from './MessageList';
 import Composer, { AGENT_MODES } from './Composer';
 import HitlDock from './HitlDock';
-import { PlanTasksSheet, TokenUsageSheet } from './Sheets';
+import PlanTasksSheet from './PlanTasksSheet';
 import { useAgentRun } from './useAgentRun';
 import { useConversationActions } from './useConversationActions';
 import { useModelPreferences } from './useModelPreferences';
@@ -24,6 +24,7 @@ import './page.css';
 const { Text } = Typography;
 
 const PAGE_SIZE = 20;
+const DEFAULT_WORKSPACE = '__none__';
 const MODE_STORAGE_KEY = 'csai-chat-agent-mode';
 const EMPTY_PLAN = { tasks: [], total: 0, completed: 0, activeStep: 0, running: false };
 const EMPTY_DETAIL = { conversation: null, messages: [], loading: false, error: null };
@@ -67,6 +68,8 @@ export default function Page() {
     const [search, setSearch] = useState('');
     const debouncedSearch = useDebounced(search, 350);
     const [projectFilter, setProjectFilter] = useState('');
+    const [projectGroup, setProjectGroup] = useState(DEFAULT_WORKSPACE);
+    const [groupOpen, setGroupOpen] = useState(true);
     const [page, setPage] = useState(1);
     const [newProjectId, setNewProjectId] = useState('');
     const [projectSaving, setProjectSaving] = useState(false);
@@ -74,7 +77,7 @@ export default function Page() {
     const [storedMode, setStoredMode] = useLocalStorage(MODE_STORAGE_KEY, 'single');
     const mode = AGENT_MODES.includes(storedMode) ? storedMode : 'single';
     const model = useModelPreferences(canReadConfig);
-    const [settingsOpen, setSettingsOpen] = useState('');
+    const [hitlOpen, setHitlOpen] = useState(false);
     const [draftHitl, setDraftHitl] = useState(null);
 
     const [detail, setDetail] = useState(EMPTY_DETAIL);
@@ -93,7 +96,6 @@ export default function Page() {
     const [hitlBusy, setHitlBusy] = useState('');
     const [plan, setPlan] = useState(EMPTY_PLAN);
     const [planLoading, setPlanLoading] = useState(false);
-    const [usageOpen, setUsageOpen] = useState(false);
     const [planOpen, setPlanOpen] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const narrow = useMediaQuery('(max-width: 900px)');
@@ -110,13 +112,17 @@ export default function Page() {
     const lastActive = useRef(null);
 
     const conversations = useResource(
-        () => api.get('/conversations', {
-            limit: PAGE_SIZE,
-            offset: (page - 1) * PAGE_SIZE,
-            search: debouncedSearch || undefined,
-            project_id: projectFilter || undefined
+        async () => ({
+            ...(await api.get('/conversations', {
+                limit: PAGE_SIZE,
+                offset: (page - 1) * PAGE_SIZE,
+                search: debouncedSearch || undefined,
+                project_id: projectGroup,
+                group_by_project: 1
+            })),
+            projectGroup, page, search: debouncedSearch
         }),
-        [page, debouncedSearch, projectFilter]
+        [page, debouncedSearch, projectGroup]
     );
 
     const reloadConversations = useRef(conversations.reload);
@@ -136,7 +142,23 @@ export default function Page() {
         void changeProject(project.id);
     };
 
-    const listItems = Array.isArray(conversations.data?.conversations) ? conversations.data.conversations : [];
+    const groups = Array.isArray(conversations.data?.projectGroups) ? conversations.data.projectGroups : [];
+    const currentGroup = conversations.data?.projectGroup === projectGroup && conversations.data?.search === debouncedSearch;
+    const currentPage = currentGroup && conversations.data?.page === page;
+    const listItems = currentPage && Array.isArray(conversations.data.conversations) ? conversations.data.conversations : [];
+    const groupTotal = currentGroup ? conversations.data.total || 0 : 0;
+
+    useEffect(() => {
+        if (!currentPage) return;
+        const lastPage = Math.max(1, Math.ceil(groupTotal / PAGE_SIZE));
+        if (page > lastPage) setPage(lastPage);
+    }, [currentPage, groupTotal, page]);
+
+    const openGroup = useCallback(id => {
+        setProjectGroup(id);
+        setGroupOpen(true);
+        setPage(1);
+    }, []);
 
     const loadDetail = useCallback(async (id, { silent = false } = {}) => {
         const seq = ++detailSeq.current;
@@ -292,6 +314,7 @@ export default function Page() {
             setDetail(previous => previous.conversation?.id === id
                 ? { ...previous, conversation: { ...previous.conversation, projectId } }
                 : previous);
+            if (!projectFilter || projectFilter === projectId) openGroup(projectId || DEFAULT_WORKSPACE);
             reloadList();
         } catch (error) {
             toastError(error, t('chat.projectChangeFailed', null, '更新对话所属项目失败'));
@@ -444,18 +467,47 @@ export default function Page() {
     }, [attachments, backgroundRunning, canWrite, canExecute, canDecideHitl, checkingRun, conversationId, draft, draftHitl, mode, model, newProjectId, projectSaving, resetRun, run, sending, t, updateComposer]);
 
     const conversation = detail.conversation;
+    const revealedConversation = useRef('');
+    useEffect(() => {
+        if (!conversationId) {
+            revealedConversation.current = '';
+            return;
+        }
+        if (conversation?.id !== conversationId || revealedConversation.current === conversationId) return;
+        revealedConversation.current = conversationId;
+        const id = conversation.projectId || DEFAULT_WORKSPACE;
+        if ((!projectFilter || projectFilter === id) && (projectGroup !== id || !groupOpen)) openGroup(id);
+    }, [conversation, conversationId, groupOpen, openGroup, projectFilter, projectGroup]);
+
+    const defaultTotal = groups.find(group => !group.projectId)?.total || 0;
+    const workspaceGroups = [
+        { id: DEFAULT_WORKSPACE, title: t('chat.defaultWorkspace', null, '默认工作区'), total: defaultTotal },
+        ...groups.filter(group => group.projectId).map(group => ({
+            id: group.projectId,
+            title: projects.find(project => project.id === group.projectId)?.name || t('chat.boundProject', null, '已绑定项目'),
+            total: group.total,
+            projectId: group.projectId
+        }))
+    ];
 
     const sidebar = (
         <ConversationList
-            items={listItems}
-            total={conversations.data?.total || 0}
-            loading={conversations.loading}
+            items={groupOpen ? listItems : []}
+            groups={workspaceGroups.filter(group => !projectFilter || group.id === projectFilter)}
+            expandedGroup={groupOpen ? projectGroup : ''}
+            groupTotal={groupTotal}
+            onToggleGroup={id => {
+                if (id === projectGroup && groupOpen) setGroupOpen(false);
+                else if (id === projectGroup) setGroupOpen(true);
+                else openGroup(id);
+            }}
+            loading={conversations.loading || (!currentPage && !conversations.error)}
             error={conversations.error}
             onRetry={() => conversations.reload()}
             search={search}
             onSearch={value => { setSearch(value); setPage(1); }}
             projectId={projectFilter}
-            onProjectChange={value => { setProjectFilter(value || ''); setPage(1); }}
+            onProjectChange={value => { setProjectFilter(value || ''); openGroup(value || DEFAULT_WORKSPACE); }}
             projects={projects}
             page={page}
             pageSize={PAGE_SIZE}
@@ -481,16 +533,8 @@ export default function Page() {
                     mode={mode}
                     hitlCount={hitlPending.length}
                     conversationId={conversationId}
-                    plan={plan}
                     narrow={narrow}
                     onToggleSidebar={() => setSidebarOpen(true)}
-                    onOpenUsage={() => setUsageOpen(true)}
-                    onOpenSettings={canReadConfig || canReadHitl || (canWrite && canExecute)
-                        ? () => setSettingsOpen('all') : undefined}
-                    onOpenPlan={() => {
-                        refreshPlan();
-                        setPlanOpen(true);
-                    }}
                     onRefresh={() => {
                         reloadConversations.current?.();
                         if (conversationId) loadDetail(conversationId);
@@ -511,7 +555,7 @@ export default function Page() {
                     />
                     {plan.running && plan.total > 0 && (
                         <div className="chat-plan-strip">
-                            <Text size="small">{t('chat.planTasks', null, '计划任务')}</Text>
+                            <Text size="small">{t('chat.planTasks', null, '执行计划')}</Text>
                             <Progress
                                 percent={Math.round((Number(plan.completed || 0) / Math.max(1, Number(plan.total))) * 100)}
                                 showInfo={false}
@@ -571,7 +615,7 @@ export default function Page() {
                         projectDisabled={projectsResource.loading || Boolean(conversationId && (detail.loading || !conversation || detail.error))}
                         model={model}
                         canReadConfig={canReadConfig}
-                        onOpenHitl={canReadHitl ? () => setSettingsOpen('hitl') : undefined}
+                        onOpenHitl={canReadHitl ? () => setHitlOpen(true) : undefined}
                         attachments={attachments}
                         onPickFiles={uploadFiles}
                         onRemoveAttachment={removeAttachment}
@@ -586,17 +630,12 @@ export default function Page() {
                     onSaved={handleProjectCreated}
                 />
             )}
-            {settingsOpen && (
+            {hitlOpen && canReadHitl && (
                 <ChatSettings
                     key={conversationId}
-                    section={settingsOpen}
-                    onClose={() => setSettingsOpen('')}
+                    onClose={() => setHitlOpen(false)}
                     narrow={narrow}
-                    busy={sending || backgroundRunning || checkingRun || !(canWrite && canExecute)}
-                    canReadConfig={canReadConfig}
-                    canReadHitl={canReadHitl}
                     canEnableHitl={canDecideHitl}
-                    model={model}
                     conversationId={conversationId}
                     draftHitl={!conversationId ? draftHitl : null}
                     onDraftHitlChange={setDraftHitl}
@@ -612,11 +651,6 @@ export default function Page() {
             >
                 {sidebar}
             </SideSheet>
-            <TokenUsageSheet
-                visible={usageOpen}
-                onClose={() => setUsageOpen(false)}
-                conversationId={conversationId}
-            />
             <PlanTasksSheet
                 visible={planOpen}
                 onClose={() => setPlanOpen(false)}

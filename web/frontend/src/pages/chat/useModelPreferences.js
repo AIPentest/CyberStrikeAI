@@ -35,6 +35,10 @@ export function useModelPreferences(canReadConfig) {
     const normalizedChannel = storedChannel.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     const channel = channels.find(([id]) => id === storedChannel)?.[0]
         || channels.find(([id]) => id === normalizedChannel)?.[0] || '';
+    const channelConfig = config.data?.channels?.[channel || config.data?.default_channel];
+    const overrideBlocked = channelConfig?.reasoning?.allow_client_reasoning === false;
+    const officialDeepSeek = /^(?:https?:\/\/)?(?:www\.)?api\.deepseek\.com(?=[:/?#]|$)/i
+        .test(channelConfig?.base_url?.trim() || '');
     const mode = REASONING_MODES.includes(storedMode) ? storedMode : 'default';
     const effort = REASONING_EFFORTS.includes(storedEffort) ? storedEffort : '';
     const reasoning = {
@@ -43,7 +47,7 @@ export function useModelPreferences(canReadConfig) {
     };
 
     return {
-        channel, channels, setChannel, config, mode, setMode, effort, setEffort,
+        channel, channels, setChannel, config, mode, setMode, effort, setEffort, overrideBlocked, officialDeepSeek,
         waitingForChannel: Boolean(canReadConfig && storedChannel && config.loading),
         request: {
             aiChannelId: canReadConfig ? channel || undefined : undefined,

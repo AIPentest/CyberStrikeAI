@@ -83,7 +83,7 @@ function SettingSelect({ label, ...props }) {
     );
 }
 
-export function ModelSettings({ model, busy, canReadConfig, compact = false }) {
+export function ModelSettings({ model, busy, canReadConfig }) {
     const t = useT();
     const channelLabelId = useId();
     const pickerRef = useRef(null);
@@ -95,139 +95,113 @@ export function ModelSettings({ model, busy, canReadConfig, compact = false }) {
         ...modelChannelOptions(model.channels)
     ];
     const reasoningLabels = Object.fromEntries(REASONING_MODES.map(mode => [mode, reasoningSummary(t, mode, '')]));
-    if (compact) {
-        const levels = ['', ...REASONING_EFFORTS];
-        const marks = Object.fromEntries(levels.map((effort, index) => [
-            index, reasoningSummary(t, effort ? 'on' : 'default', effort)
-        ]));
-        const resetReasoning = () => {
-            model.setMode('default');
-            model.setEffort('');
-        };
-        return (
-            <div className={`chat-reasoning-picker${model.mode !== 'off' && model.effort === 'max' ? ' is-max' : ''}${busy ? ' is-disabled' : ''}`} ref={pickerRef}>
-                <div className="chat-reasoning-heading">
-                    <Dropdown
-                        trigger="click"
-                        position="bottomLeft"
-                        className="chat-reasoning-mode-menu"
-                        getPopupContainer={() => pickerRef.current}
-                        showTick
-                        menu={REASONING_MODES.map(mode => ({
-                            node: 'item',
-                            name: reasoningLabels[mode],
-                            active: model.mode === mode,
-                            disabled: busy,
-                            onClick: () => mode === 'default' ? resetReasoning() : model.setMode(mode)
-                        }))}
-                    >
-                        <Button
-                            theme="borderless"
-                            type="tertiary"
-                            icon={<IconBolt />}
-                            className="chat-reasoning-mode"
-                            aria-label={t('chat.reasoningModeLabel', null, '模型推理')}
-                            title={`${t('chat.reasoningModeLabel', null, '模型推理')} · ${reasoningLabels[model.mode]}`}
-                            disabled={busy}
-                        />
-                    </Dropdown>
-                    <Text strong className="chat-reasoning-value" role="status">
-                        {reasoningSummary(t, model.mode, model.effort)}
-                    </Text>
+    const reasoningDisabled = busy || model.overrideBlocked;
+    const deepSeekMapsToHigh = model.officialDeepSeek && model.mode !== 'off' && ['medium', 'xhigh'].includes(model.effort);
+    const levels = ['', ...REASONING_EFFORTS];
+    const marks = Object.fromEntries(levels.map((effort, index) => [
+        index, reasoningSummary(t, effort ? 'on' : 'default', effort)
+    ]));
+    const resetReasoning = () => {
+        model.setMode('default');
+        model.setEffort('');
+    };
+    return (
+        <div className={`chat-reasoning-picker${!model.overrideBlocked && model.mode !== 'off' && model.effort === 'max' ? ' is-max' : ''}${reasoningDisabled ? ' is-disabled' : ''}`} ref={pickerRef}>
+            <div className="chat-reasoning-heading">
+                <Dropdown
+                    trigger="click"
+                    position="bottomLeft"
+                    className="chat-reasoning-mode-menu"
+                    getPopupContainer={() => pickerRef.current}
+                    showTick
+                    menu={REASONING_MODES.map(mode => ({
+                        node: 'item',
+                        name: reasoningLabels[mode],
+                        active: model.mode === mode,
+                        disabled: reasoningDisabled,
+                        onClick: () => mode === 'default' ? resetReasoning() : model.setMode(mode)
+                    }))}
+                >
                     <Button
                         theme="borderless"
                         type="tertiary"
-                        icon={<IconUndo />}
-                        aria-label={t('chat.reasoningReset', null, '重置推理设置')}
-                        title={t('chat.reasoningReset', null, '重置推理设置')}
-                        disabled={busy}
-                        onClick={resetReasoning}
+                        icon={<IconBolt />}
+                        className="chat-reasoning-mode"
+                        aria-label={t('chat.reasoningModeLabel', null, '模型推理')}
+                        title={`${t('chat.reasoningModeLabel', null, '模型推理')} · ${reasoningLabels[model.overrideBlocked ? 'default' : model.mode]}`}
+                        disabled={reasoningDisabled}
                     />
-                </div>
-                {canReadConfig ? (
-                    <>
-                        <span id={channelLabelId} hidden>{t('chat.aiChannelLabel', null, 'AI 通道')}</span>
-                        <Select
-                            className="chat-reasoning-channel"
-                            aria-labelledby={channelLabelId}
-                            value={model.channel}
-                            optionList={channelOptions}
-                            renderSelectedItem={option => option.value === ''
-                                ? defaultName || t('chat.aiChannelDefaultShort', null, '默认通道')
-                                : selectedModelChannelName(option)}
-                            arrowIcon={<IconChevronRight size="small" />}
-                            borderless
-                            onSelect={model.setChannel}
-                            dropdownMatchSelectWidth={false}
-                            dropdownStyle={{ maxWidth: 'calc(100vw - 32px)' }}
-                            loading={model.config.loading}
-                            disabled={busy || model.config.loading || Boolean(model.config.error)}
-                        />
-                        <ErrorBanner error={model.config.error} onRetry={() => model.config.reload()} />
-                    </>
-                ) : <Text type="tertiary" className="chat-reasoning-channel-label">{defaultLabel}</Text>}
-                <Slider
-                    className="chat-reasoning-slider"
-                    aria-label={t('chat.reasoningEffortLabel', null, '推理强度')}
-                    min={0}
-                    max={levels.length - 1}
-                    step={1}
-                    marks={marks}
-                    showMarkLabel={false}
-                    tipFormatter={value => marks[value]}
-                    getAriaValueText={value => model.mode === 'off' ? reasoningLabels.off : marks[value]}
-                    value={levels.indexOf(model.effort)}
-                    disabled={busy || model.mode === 'off'}
-                    onChange={value => {
-                        model.setEffort(levels[value]);
-                        model.setMode(value === 0 ? 'default' : model.mode === 'auto' ? 'auto' : 'on');
-                    }}
+                </Dropdown>
+                <Text strong className="chat-reasoning-value" role="status">
+                    {model.overrideBlocked ? reasoningLabels.default : reasoningSummary(t, model.mode, model.effort)}
+                </Text>
+                <Button
+                    theme="borderless"
+                    type="tertiary"
+                    icon={<IconUndo />}
+                    aria-label={t('chat.reasoningReset', null, '重置推理设置')}
+                    title={t('chat.reasoningReset', null, '重置推理设置')}
+                    disabled={reasoningDisabled}
+                    onClick={resetReasoning}
                 />
             </div>
-        );
-    }
-    return (
-        <>
-            {canReadConfig && (
+            {canReadConfig ? (
                 <>
-                    <SettingSelect
-                        label={t('chat.aiChannelLabel', null, 'AI 通道')}
+                    <span id={channelLabelId} hidden>{t('chat.aiChannelLabel', null, 'AI 通道')}</span>
+                    <Select
+                        className="chat-reasoning-channel"
+                        aria-labelledby={channelLabelId}
                         value={model.channel}
                         optionList={channelOptions}
-                        renderSelectedItem={selectedModelChannelName}
+                        renderSelectedItem={option => option.value === ''
+                            ? defaultName || t('chat.aiChannelDefaultShort', null, '默认通道')
+                            : selectedModelChannelName(option)}
+                        arrowIcon={<IconChevronRight size="small" />}
+                        borderless
                         onSelect={model.setChannel}
+                        dropdownMatchSelectWidth={false}
+                        dropdownStyle={{ maxWidth: 'calc(100vw - 32px)' }}
                         loading={model.config.loading}
                         disabled={busy || model.config.loading || Boolean(model.config.error)}
                     />
                     <ErrorBanner error={model.config.error} onRetry={() => model.config.reload()} />
                 </>
+            ) : <Text type="tertiary" className="chat-reasoning-channel-label">{defaultLabel}</Text>}
+            <Slider
+                className="chat-reasoning-slider"
+                aria-label={t('chat.reasoningEffortLabel', null, '推理强度')}
+                min={0}
+                max={levels.length - 1}
+                step={1}
+                marks={marks}
+                showMarkLabel={false}
+                tipFormatter={value => marks[value]}
+                getAriaValueText={value => model.mode === 'off' && !model.overrideBlocked ? reasoningLabels.off : marks[value]}
+                value={model.overrideBlocked ? 0 : levels.indexOf(model.effort)}
+                disabled={reasoningDisabled || model.mode === 'off'}
+                onChange={value => {
+                    model.setEffort(levels[value]);
+                    model.setMode(value === 0 ? 'default' : model.mode === 'auto' ? 'auto' : 'on');
+                }}
+            />
+            {model.overrideBlocked ? (
+                <Text type="tertiary" size="small" className="chat-reasoning-hint">
+                    {t('chat.reasoningOverrideBlocked', null, '此通道使用系统设置中的推理强度。')}
+                </Text>
+            ) : deepSeekMapsToHigh && (
+                <Text type="tertiary" size="small" className="chat-reasoning-hint">
+                    {t('chat.deepSeekEffortHint', { effort: marks[levels.indexOf(model.effort)] }, 'DeepSeek 会按「高」执行此档。')}
+                </Text>
             )}
-            <SettingSelect
-                label={t('chat.reasoningModeLabel', null, '模型推理')}
-                value={model.mode}
-                optionList={REASONING_MODES.map(value => ({ value, label: reasoningLabels[value] }))}
-                onSelect={model.setMode}
-                disabled={busy}
-            />
-            <SettingSelect
-                label={t('chat.reasoningEffortLabel', null, '推理强度')}
-                value={model.mode === 'off' ? '' : model.effort}
-                optionList={[
-                    { value: '', label: t('chat.reasoningEffortUnset', null, '不指定') },
-                    ...REASONING_EFFORTS.map(value => ({ value, label: value }))
-                ]}
-                onSelect={model.setEffort}
-                disabled={busy || model.mode === 'off'}
-            />
-        </>
+        </div>
     );
 }
 
 export default function ChatSettings({
-    onClose, narrow, busy, canReadConfig, canReadHitl, canEnableHitl,
-    model, conversationId, draftHitl, onDraftHitlChange, section = 'all'
+    onClose, narrow, canEnableHitl, conversationId, draftHitl, onDraftHitlChange
 }) {
     const t = useT();
+    const title = t('chat.hitlTitle', null, '人机协同');
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [form, setForm] = useState(null);
@@ -240,8 +214,7 @@ export default function ChatSettings({
 
     const approvals = useResource(
         () => api.get(conversationId ? `/hitl/config/${encodeURIComponent(conversationId)}` : '/hitl/default-config'),
-        [conversationId, canReadHitl],
-        { skip: !canReadHitl }
+        [conversationId]
     );
 
     useEffect(() => {
@@ -316,7 +289,8 @@ export default function ChatSettings({
     return (
         <SideSheet
             visible
-            title={section === 'hitl' ? t('chat.hitlTitle', null, '人机协同') : t('chat.sessionSettingsTitle', null, '会话设置')}
+            title={title}
+            aria-label={title}
             width={narrow ? '100%' : 420}
             closable={!saving}
             maskClosable={!saving}
@@ -324,77 +298,73 @@ export default function ChatSettings({
             onCancel={onClose}
         >
             <div className="chat-settings-fields">
-                {section !== 'hitl' && <ModelSettings model={model} busy={busy} canReadConfig={canReadConfig} />}
-                {canReadHitl && (
-                    <section className="chat-setting-field chat-setting-hitl">
-                        {section !== 'hitl' && <Text strong>{t('chat.hitlTitle', null, '人机协同')}</Text>}
-                        <Text type="tertiary" size="small">
-                            {t('chat.sessionSettingsHint', null, '人机协同设置只影响后续消息。')}
+                <section className="chat-setting-field chat-setting-hitl">
+                    <Text type="tertiary" size="small">
+                        {t('chat.sessionSettingsHint', null, '人机协同设置只影响后续消息。')}
+                    </Text>
+                    {(saving || saved) && (
+                        <Text type="tertiary" size="small" role="status">
+                            {saving
+                                ? t('chat.systemModelSaving', null, '正在保存…')
+                                : t('chat.hitlApplyOkSync', null, '人机协同配置已保存并同步到服务器。')}
                         </Text>
-                        {(saving || saved) && (
-                            <Text type="tertiary" size="small" role="status">
-                                {saving
-                                    ? t('chat.systemModelSaving', null, '正在保存…')
-                                    : t('chat.hitlApplyOkSync', null, '人机协同配置已保存并同步到服务器。')}
-                            </Text>
-                        )}
-                        <ErrorBanner error={approvals.error} onRetry={() => approvals.reload()} />
-                        {approvals.loading && <Spin />}
-                        {form && approvals.data && !approvals.error && (
-                            <>
-                                <SettingSelect
-                                    label={t('chat.hitlModeLabel', null, '模式')}
-                                    value={form.mode}
-                                    optionList={HITL_MODES.map(value => ({ value, label: modeLabels[value] }))}
-                                    onSelect={value => updateConfig({ mode: value })}
+                    )}
+                    <ErrorBanner error={approvals.error} onRetry={() => approvals.reload()} />
+                    {approvals.loading && <Spin />}
+                    {form && approvals.data && !approvals.error && (
+                        <>
+                            <SettingSelect
+                                label={t('chat.hitlModeLabel', null, '模式')}
+                                value={form.mode}
+                                optionList={HITL_MODES.map(value => ({ value, label: modeLabels[value] }))}
+                                onSelect={value => updateConfig({ mode: value })}
+                                disabled={hitlDisabled}
+                            />
+                            <div className="chat-setting-field">
+                                <Text id={reviewerId} strong>{t('chat.hitlReviewerLabel', null, '审批方')}</Text>
+                                <RadioGroup
+                                    aria-labelledby={reviewerId}
+                                    type="button"
+                                    className="chat-setting-reviewer"
+                                    value={form.reviewer}
+                                    options={[
+                                        { value: 'human', label: t('chat.hitlReviewerHuman', null, '人工审批') },
+                                        { value: 'audit_agent', label: t('chat.hitlReviewerAgent', null, '审计 Agent') }
+                                    ]}
+                                    onChange={event => updateConfig({ reviewer: event.target.value })}
                                     disabled={hitlDisabled}
                                 />
-                                <div className="chat-setting-field">
-                                    <Text id={reviewerId} strong>{t('chat.hitlReviewerLabel', null, '审批方')}</Text>
-                                    <RadioGroup
-                                        aria-labelledby={reviewerId}
-                                        type="button"
-                                        className="chat-setting-reviewer"
-                                        value={form.reviewer}
-                                        options={[
-                                            { value: 'human', label: t('chat.hitlReviewerHuman', null, '人工审批') },
-                                            { value: 'audit_agent', label: t('chat.hitlReviewerAgent', null, '审计 Agent') }
-                                        ]}
-                                        onChange={event => updateConfig({ reviewer: event.target.value })}
-                                        disabled={hitlDisabled}
-                                    />
-                                    <Text type="tertiary" size="small">
-                                        {t('chat.hitlReviewerHint', null, '可在人工与审计 Agent 之间随时切换；规则与白名单不变。人机协同为「关闭」时也可预先选择。')}
-                                    </Text>
-                                </div>
-                                <SettingSelect
-                                    label={t('chat.hitlTimeoutLabel', null, '审批等待时限')}
-                                    value={form.timeoutSeconds}
-                                    optionList={timeoutOptions}
-                                    onSelect={value => updateConfig({ timeoutSeconds: Number(value) })}
+                                <Text type="tertiary" size="small">
+                                    {t('chat.hitlReviewerHint', null, '可在人工与审计 Agent 之间随时切换；规则与白名单不变。人机协同为「关闭」时也可预先选择。')}
+                                </Text>
+                            </div>
+                            <SettingSelect
+                                label={t('chat.hitlTimeoutLabel', null, '审批等待时限')}
+                                value={form.timeoutSeconds}
+                                optionList={timeoutOptions}
+                                onSelect={value => updateConfig({ timeoutSeconds: Number(value) })}
+                                disabled={hitlDisabled}
+                            />
+                            <div className="chat-setting-field">
+                                <Text id={toolsId} strong>
+                                    {t('chat.hitlWhitelistTools', null, '白名单工具（免审批，逗号分隔）')}
+                                </Text>
+                                <TextArea
+                                    aria-labelledby={toolsId}
+                                    value={form.sensitiveTools}
+                                    placeholder={t('chat.hitlWhitelistPlaceholder', null, '例：read_file, grep 或每行一个工具名（与 config 全局白名单合并）')}
+                                    rows={5}
                                     disabled={hitlDisabled}
+                                    onChange={updateTools}
+                                    onBlur={saveTools}
                                 />
-                                <div className="chat-setting-field">
-                                    <Text id={toolsId} strong>
-                                        {t('chat.hitlWhitelistTools', null, '白名单工具（免审批，逗号分隔）')}
-                                    </Text>
-                                    <TextArea
-                                        aria-labelledby={toolsId}
-                                        value={form.sensitiveTools}
-                                        placeholder={t('chat.hitlWhitelistPlaceholder', null, '例：read_file, grep 或每行一个工具名（与 config 全局白名单合并）')}
-                                        rows={5}
-                                        disabled={hitlDisabled}
-                                        onChange={updateTools}
-                                        onBlur={saveTools}
-                                    />
-                                    <Text type="tertiary" size="small">
-                                        {t('chat.hitlWhitelistHint', null, '白名单内工具免审批；每行一个或逗号分隔，与 config 全局白名单合并。')}
-                                    </Text>
-                                </div>
-                            </>
-                        )}
-                    </section>
-                )}
+                                <Text type="tertiary" size="small">
+                                    {t('chat.hitlWhitelistHint', null, '白名单内工具免审批；每行一个或逗号分隔，与 config 全局白名单合并。')}
+                                </Text>
+                            </div>
+                        </>
+                    )}
+                </section>
             </div>
         </SideSheet>
     );

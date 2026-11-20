@@ -278,6 +278,9 @@
     "administration": "平台管理"
   },
   "tokenUsageUI": {
+    "selectConversation": "搜索并选择会话",
+    "periodDays": "{{count}} 天",
+    "recentLimit": "最近 {{count}} 条",
     "chartHint": "悬停或聚焦柱形查看精确用量",
     "scopeProject": "当前项目",
     "scopeAccessible": "可访问会话",
@@ -761,6 +764,16 @@
     "generatedFromFact": "由项目事实 {{factKey}} 生成"
   },
   "chat": {
+    "chooseWorkspace": "选择会话工作区",
+    "deepSeekEffortHint": "DeepSeek 会把「{{effort}}」按「高」处理。",
+    "reasoningOverrideBlocked": "此通道使用系统设置中的推理强度。",
+    "defaultWorkspace": "默认工作区",
+    "boundProject": "已绑定项目",
+    "refreshConversation": "刷新对话",
+    "refreshConversationList": "会话列表刷新",
+    "refreshConversationHint": "重新读取会话列表、消息、待审批项和执行计划",
+    "planTasks": "执行计划",
+    "planEmpty": "暂无执行计划",
     "taskSummary": "任务总结",
     "toolExecBlocked": "工具 {{name}} 已拦截",
     "newChat": "新对话",
@@ -3341,7 +3354,7 @@
     "contextWarnLlamaCppSlots": "llama.cpp 配置了多个并行槽位，单请求可用窗口可能小于 n_ctx；请按 --parallel/KV 模式确认",
     "contextWarnUnknown": "未检测到上下文窗口，请手动填写",
     "openaiReasoningTitle": "推理设置",
-    "openaiReasoningHint": "作为该 AI 通道的默认推理设置；对话页「会话设置」可覆盖。",
+    "openaiReasoningHint": "作为该 AI 通道的默认推理设置。可在对话输入框的模型选项中覆盖。",
     "openaiReasoningProfile": "线路 profile",
     "openaiReasoningAllowClient": "允许对话页覆盖推理选项",
     "fofaBaseUrlPlaceholder": "https://fofa.info/api/v1/search/all（可选）",

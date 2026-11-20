@@ -11,6 +11,8 @@
 .settings-tabs .semi-tabs-bar-top .semi-tabs-tab { font-size: 13px; }
 
 .settings-loading-block { padding: 18px 4px; }
+.settings-token-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+.settings-token-conversation { width: 280px; max-width: 100%; }
 
 .settings-hint {
     display: inline-block;

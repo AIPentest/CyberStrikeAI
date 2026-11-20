@@ -23,6 +23,7 @@ import (
 	"cyberstrike-ai/internal/database"
 	"cyberstrike-ai/internal/mcp"
 	"cyberstrike-ai/internal/mcp/builtin"
+	"cyberstrike-ai/internal/reasoning"
 	"go.uber.org/zap"
 )
 
@@ -178,13 +179,16 @@ func piReply(w http.ResponseWriter, tool, id string, args map[string]any, text s
 
 func TestPiDeepSeekOutputBudgetAndUsage(t *testing.T) {
 	for _, tc := range []struct {
-		profile, mode, thinking, effort string
-		reasoning                       int
+		name, profile, mode, thinking, effort string
+		intent                                *reasoning.ClientIntent
+		reasoning                             int
 	}{
-		{profile: "deepseek", mode: "auto", thinking: "enabled", effort: "low", reasoning: 6},
-		{profile: "deepseek_compat", mode: "off", thinking: "disabled"},
+		{name: "channel default", profile: "deepseek", mode: "auto", thinking: "enabled", effort: "low", reasoning: 6},
+		{name: "chat medium override", profile: "deepseek", mode: "auto", thinking: "enabled", effort: "medium",
+			intent: &reasoning.ClientIntent{Mode: "on", Effort: "medium"}, reasoning: 6},
+		{name: "thinking disabled", profile: "deepseek_compat", mode: "off", thinking: "disabled"},
 	} {
-		t.Run(tc.profile, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			cfg := piTestConfig(t)
 			cfg.OpenAI.Model = "deepseek-flash"
 			cfg.OpenAI.Reasoning = config.OpenAIReasoningConfig{Profile: tc.profile, Mode: tc.mode, Effort: "low"}
@@ -237,7 +241,7 @@ func TestPiDeepSeekOutputBudgetAndUsage(t *testing.T) {
 				if kind == "agent_usage_summary" {
 					usage = data.(map[string]any)
 				}
-			}, nil, "")
+			}, tc.intent, "")
 			if err != nil || result == nil || result.Response != "ok" || result.RuntimeStatus != "completed" {
 				t.Fatalf("result=%+v err=%v", result, err)
 			}

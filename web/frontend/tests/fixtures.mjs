@@ -65,6 +65,25 @@ export const CONVERSATION = {
 export const STREAM_REPLY = '模拟回复完成：仅处理匿名 localhost 数据，未执行真实任务。';
 const STREAM_ID = 'fixture-stream-conversation';
 
+export function conversationListFixture(items, url) {
+    const search = url.searchParams.get('search') || '';
+    const project = url.searchParams.get('project_id') || '';
+    const offset = Number(url.searchParams.get('offset') || 0);
+    const limit = Number(url.searchParams.get('limit') || 50);
+    const matching = items.filter(item => item.title.includes(search));
+    const filtered = matching.filter(item => !project || (item.projectId || '__none__') === project);
+    const response = { conversations: filtered.slice(offset, offset + limit), total: filtered.length };
+    if (url.searchParams.get('group_by_project') === '1') {
+        const totals = new Map();
+        for (const item of matching) {
+            const id = item.projectId || '';
+            totals.set(id, (totals.get(id) || 0) + 1);
+        }
+        response.projectGroups = [...totals].map(([projectId, total]) => ({ projectId, total }));
+    }
+    return response;
+}
+
 function makeReads(session) {
     const vulnerabilities = [
         VULNERABILITY,
@@ -124,7 +143,7 @@ function makeReads(session) {
         [`/api/projects/${PROJECT.id}`]: PROJECT,
         [`/api/projects/${PROJECT.id}/stats`]: { fact_count: 1, vuln_count: 3, conversation_count: 1, sparse_fact_count: 0 },
         [`/api/projects/${PROJECT.id}/facts`]: url => url.searchParams.has('fact_key') ? FACT : [FACT],
-        '/api/conversations': { conversations: [CONVERSATION], total: 1 },
+        '/api/conversations': url => conversationListFixture([CONVERSATION], url),
         [`/api/conversations/${CONVERSATION.id}`]: CONVERSATION,
         [`/api/conversations/${CONVERSATION.id}/plan-tasks`]: { tasks: [], total: 0, completed: 0, running: false },
         '/api/deep-assessments': { tasks: [ASSESSMENT], has_more: false },
@@ -187,7 +206,7 @@ class MockApi {
         this.respond('POST', '/api/agent/stream', () => {
             this.reads.set(`/api/conversations/${STREAM_ID}`, conversation);
             this.reads.set(`/api/conversations/${STREAM_ID}/plan-tasks`, { tasks: [], total: 0, completed: 0, running: false });
-            this.reads.set('/api/conversations', { conversations: [conversation, CONVERSATION], total: 2 });
+            this.reads.set('/api/conversations', url => conversationListFixture([conversation, CONVERSATION], url));
             const events = [
                 { type: 'conversation', data: { conversationId: STREAM_ID } },
                 { type: 'response_start', data: { conversationId: STREAM_ID } },

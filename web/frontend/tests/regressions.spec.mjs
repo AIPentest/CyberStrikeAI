@@ -1,4 +1,4 @@
-import { test, expect, visit, ready, label, UI_PERMISSIONS, PROJECT, CONVERSATION, ASSESSMENT, STAMP } from './fixtures.mjs';
+import { conversationListFixture, test, expect, visit, ready, label, UI_PERMISSIONS, PROJECT, CONVERSATION, ASSESSMENT, STAMP } from './fixtures.mjs';
 
 test('token usage: summary values render with daily rows and update to zero after filtering', async ({ page, mockApi }, testInfo) => {
     const summary = {
@@ -49,6 +49,53 @@ test('token usage: explicit dashboard loading still resolves and links to visibl
     expect(mockApi.writes()).toEqual([]);
 });
 
+test.describe('token usage with conversation access only', () => {
+    test.use({ appPermissions: UI_PERMISSIONS.filter(permission => permission !== 'dashboard:read') });
+    test('searches for a conversation and loads its usage in settings', async ({ page, mockApi }) => {
+        const path = `/api/conversations/${CONVERSATION.id}/token-usage`;
+        mockApi.respond('GET', path, { json: {
+            summary: { totalTokens: 5432 }, byModel: [{ key: 'fixture-model', totalTokens: 5432 }],
+            recent: [{ id: 'fixture-usage', conversationId: CONVERSATION.id, model: 'fixture-model', totalTokens: 5432 }]
+        } });
+        const main = await visit(page, 'settings?section=token-usage');
+        const picker = main.getByRole('combobox', { name: label('tokenUsageUI.selectConversation') });
+        await picker.click();
+        await page.keyboard.type(CONVERSATION.title);
+        await expect.poll(() => mockApi.calls('GET', '/api/conversations').some(call =>
+            new URLSearchParams(call.query).get('search') === CONVERSATION.title
+        )).toBe(true);
+        await page.getByRole('option', { name: new RegExp(CONVERSATION.title) }).click();
+        await expect(main.locator('.cs-stat-grid .cs-stat-value').first()).toHaveText('5,432');
+        await expect(main.getByRole('gridcell', { name: 'fixture-model', exact: true })).toHaveCount(2);
+        expect(new URLSearchParams(mockApi.calls('GET', path)[0].query).get('days')).toBe('365');
+        expect(mockApi.calls('GET', '/api/usage/tokens')).toHaveLength(0);
+    });
+});
+
+test('chat: shows active plan details and reloads the current conversation on request', async ({ page, mockApi }) => {
+    const path = `/api/conversations/${CONVERSATION.id}`;
+    const planPath = `${path}/plan-tasks`;
+    mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
+    mockApi.respond('GET', planPath, { json: {
+        running: true, total: 2, completed: 1, activeStep: 2, tasks: [
+            { id: '1', subject: '整理现有资料', status: 'completed' },
+            { id: '2', subject: '汇总检查结果', status: 'in_progress' }
+        ]
+    } });
+    const main = await visit(page, `chat?conversation=${CONVERSATION.id}`);
+    const header = main.locator('.chat-header');
+    await expect(header.getByRole('button', { name: label('chat.planTasks') })).toHaveCount(0);
+    const strip = main.locator('.chat-plan-strip');
+    await expect(strip).toContainText('1/2');
+    await strip.getByRole('button', { name: label('chat.planDetails', '详情') }).click();
+    await expect(page.getByRole('dialog', { name: label('chat.planTasks') })).toContainText('汇总检查结果');
+    await page.getByRole('dialog', { name: label('chat.planTasks') }).locator('.semi-sidesheet-close').click();
+    const before = mockApi.calls('GET', path).length;
+    await header.getByRole('button', { name: label('chat.refreshConversation') }).click();
+    await expect.poll(() => mockApi.calls('GET', path).length).toBeGreaterThan(before);
+    expect(mockApi.writes()).toEqual([]);
+});
+
 test('legacy update bookmark opens the current settings tab', async ({ page, mockApi }) => {
     mockApi.respond('GET', '/api/system/update', { json: { status: {} } });
     mockApi.respond('GET', '/api/storage/meta', { json: {} });
@@ -86,7 +133,7 @@ function mockEmptyConversation(mockApi, projectId = '') {
     const conversation = { ...CONVERSATION, projectId, messages: [] };
     mockApi.respond('GET', '/api/agent-loop/tasks', { json: { tasks: [] } });
     mockApi.respond('GET', `/api/conversations/${conversation.id}`, () => ({ json: conversation }));
-    mockApi.respond('GET', '/api/conversations', () => ({ json: { conversations: [conversation], total: 1 } }));
+    mockApi.respond('GET', '/api/conversations', (_, url) => ({ json: conversationListFixture([conversation], url) }));
     return conversation;
 }
 
@@ -108,7 +155,7 @@ test.describe('chat composer projects', () => {
     test('binds and unbinds an existing empty conversation without losing its draft or sending during save', async ({ page, mockApi }) => {
         const conversation = mockEmptyConversation(mockApi);
         const path = `/api/conversations/${conversation.id}/project`;
-        const noProject = label('chat.noProject', '不绑定项目');
+        const noProject = label('chat.defaultWorkspace', '默认工作区');
         const draft = 'FAKE：切换项目时保留这份会话草稿。';
         let releaseSave;
         const pendingSave = new Promise(resolve => { releaseSave = resolve; });
@@ -123,11 +170,12 @@ test.describe('chat composer projects', () => {
             const project = context.getByRole('combobox').filter({ hasText: new RegExp(`${noProject}|${PROJECT.name}`) });
             const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
             const send = main.getByRole('button', { name: /发送$/ });
-            // The header may display the project name or its existing abbreviated ID.
-            const headerProject = main.locator('.chat-header-tags .semi-tag').filter({ hasText: new RegExp(`${PROJECT.name}|${PROJECT.id.slice(0, 8)}`) });
+            const sidebar = main.locator('.chat-sidebar');
+            const projectGroup = sidebar.getByRole('button', { name: PROJECT.name + ' 1', exact: true });
+            const workspace = sidebar.getByRole('button', { name: label('chat.defaultWorkspace') + ' 1', exact: true });
             await expect(context.getByRole('combobox')).toHaveCount(2);
             await expect(project).toHaveText(noProject);
-            await expect(headerProject).toHaveCount(0);
+            await expect(workspace).toHaveAttribute('aria-expanded', 'true');
             await input.fill(draft);
             await expect(send).toBeEnabled();
             await expect.poll(() => mockApi.calls('GET', '/api/conversations').some(call => call.fulfilled)).toBe(true);
@@ -146,7 +194,7 @@ test.describe('chat composer projects', () => {
             releaseSave();
             await expect(project).toBeEnabled();
             await expect(project).toHaveText(PROJECT.name);
-            await expect(headerProject).toBeVisible();
+            await expect(projectGroup).toHaveAttribute('aria-expanded', 'true');
             await expect(main.getByRole('heading', { name: conversation.title, exact: true })).toBeVisible();
             await expect.poll(() => mockApi.calls('GET', '/api/conversations').length).toBeGreaterThan(initialListReads);
             await expect(input).toHaveValue(draft);
@@ -156,7 +204,7 @@ test.describe('chat composer projects', () => {
             await page.getByRole('listbox').getByText(noProject, { exact: true }).click();
             await expect(project).toBeEnabled();
             await expect(project).toHaveText(noProject);
-            await expect(headerProject).toHaveCount(0);
+            await expect(workspace).toHaveAttribute('aria-expanded', 'true');
             await expect(send).toBeEnabled();
             await expect(input).toHaveValue(draft);
             await expect.poll(() => mockApi.calls('GET', '/api/conversations').length).toBeGreaterThan(boundListReads);
@@ -178,16 +226,16 @@ test.describe('chat composer projects', () => {
         const context = main.locator('.chat-composer-context');
         const project = context.getByRole('combobox').filter({ hasText: PROJECT.name });
         const input = main.getByRole('textbox', { name: label('chat.composerLabel', '对话内容') });
-        const headerProject = main.locator('.chat-header-tags .semi-tag').filter({ hasText: new RegExp(`${PROJECT.name}|${PROJECT.id.slice(0, 8)}`) });
+        const projectGroup = main.locator('.chat-sidebar').getByRole('button', { name: PROJECT.name + ' 1', exact: true });
         await expect(project).toHaveText(PROJECT.name);
-        await expect(headerProject).toBeVisible();
+        await expect(projectGroup).toHaveAttribute('aria-expanded', 'true');
         await input.fill(draft);
         await project.click();
-        await page.getByRole('listbox').getByText(label('chat.noProject', '不绑定项目'), { exact: true }).click();
+        await page.getByRole('listbox').getByText(label('chat.defaultWorkspace', '默认工作区'), { exact: true }).click();
         await expect(page.getByText('fixture 项目保存失败', { exact: false })).toBeVisible();
         await expect(project).toBeEnabled();
         await expect(project).toHaveText(PROJECT.name);
-        await expect(headerProject).toBeVisible();
+        await expect(projectGroup).toHaveAttribute('aria-expanded', 'true');
         await expect(input).toHaveValue(draft);
         await expect(main.getByRole('button', { name: /发送$/ })).toBeEnabled();
         expect(mockApi.writes().map(({ method, path, body }) => ({ method, path, body }))).toEqual([
@@ -210,7 +258,7 @@ test.describe('chat composer projects', () => {
             await expect(page.getByRole('listbox').getByText(label(key), { exact: true })).toBeVisible();
         }
         await page.getByRole('listbox').getByText(label('chat.agentModePiSingle'), { exact: true }).click();
-        await context.getByRole('combobox').filter({ hasText: label('chat.noProject', '不绑定项目') }).click();
+        await context.getByRole('combobox').filter({ hasText: label('chat.defaultWorkspace', '默认工作区') }).click();
         await page.getByRole('listbox').getByText(PROJECT.name, { exact: true }).click();
         await expect(context.getByRole('combobox').filter({ hasText: PROJECT.name })).toBeVisible();
         await expect(input).toHaveValue(message);
@@ -226,7 +274,7 @@ test.describe('chat composer projects', () => {
     });
 });
 
-test.describe('chat session settings', () => {
+test.describe('chat composer settings', () => {
     test.use({ appPermissions: [...UI_PERMISSIONS, 'hitl:write'] });
 
     test('restores legacy model preferences, saves changes, and sends them with a new message', async ({ page, mockApi }) => {
@@ -234,7 +282,7 @@ test.describe('chat session settings', () => {
         mockApi.respond('GET', '/api/config', { json: { ai: {
             default_channel: 'demo-primary',
             channels: {
-                'demo-primary': { name: '示例通道 A', model: 'fixture-a' },
+                'demo-primary': { name: '示例通道 A', model: 'fixture-a', base_url: 'https://api.deepseek.com' },
                 'demo-backup': { name: '示例通道 B', model: 'fixture-b' }
             }
         } } });
@@ -251,31 +299,35 @@ test.describe('chat session settings', () => {
         });
         await page.reload();
         await ready(page);
-        const openSettings = main.getByRole('button', { name: label('chat.sessionSettingsTitle'), exact: true });
-        await openSettings.click();
-        const settings = page.getByRole('dialog').filter({ hasText: label('chat.sessionSettingsTitle') });
-        const channel = settings.getByRole('combobox', { name: label('chat.aiChannelLabel') });
-        const mode = settings.getByRole('combobox', { name: label('chat.reasoningModeLabel') });
-        const effort = settings.getByRole('combobox', { name: label('chat.reasoningEffortLabel') });
+        const openModel = main.getByRole('button', { name: label('chat.modelSettingsAria'), exact: true });
+        const popover = page.locator('.chat-model-popover');
+        const channel = popover.getByRole('combobox', { name: label('chat.aiChannelLabel') });
+        const effort = popover.getByRole('slider', { name: label('chat.reasoningEffortLabel') });
+        const mode = popover.getByRole('button', { name: label('chat.reasoningModeLabel') });
+        const menu = page.locator('.chat-reasoning-mode-menu');
+        await openModel.click();
         await expect(channel).toHaveText('示例通道 B');
-        await expect(effort).toContainText('low');
+        await expect(effort).toHaveAttribute('aria-valuenow', '1');
         await channel.click();
         await expect(page.getByRole('option', { name: `${label('chat.aiChannelDefault')} · 示例通道 A` })).toBeVisible();
         await page.getByRole('listbox').getByText('示例通道 A', { exact: true }).click();
         await mode.click();
-        await page.getByRole('listbox').getByText(label('chat.reasoningModeOff'), { exact: true }).click();
-        await expect(effort).toBeDisabled();
+        await menu.getByRole('menuitem', { name: label('chat.reasoningModeOff') }).click();
+        await expect(effort).toHaveAttribute('aria-disabled', 'true');
         await mode.click();
-        await page.getByRole('listbox').getByText(label('chat.reasoningModeOn'), { exact: true }).click();
-        await effort.click();
-        await page.getByRole('listbox').getByText('medium', { exact: true }).click();
-        await expect(effort).toContainText('medium');
-        await expect.poll(async () => (await settings.boundingBox())?.width).toBeLessThanOrEqual(390);
+        await menu.getByRole('menuitem', { name: label('chat.reasoningModeOn') }).click();
+        await effort.press('ArrowRight');
+        await expect(effort).toHaveAttribute('aria-valuenow', '2');
+        const mediumHint = label('chat.deepSeekEffortHint').replace('{{effort}}', label('chat.reasoningEffortLabels.medium'));
+        await expect(popover.getByText(mediumHint, { exact: true })).toBeVisible();
         await page.reload();
         await ready(page);
-        await openSettings.click();
+        await openModel.click();
         await expect(channel).toHaveText('示例通道 A');
-        await expect(effort).toContainText('medium');
+        await expect(effort).toHaveAttribute('aria-valuenow', '2');
+        await main.locator('.chat-header-title').click();
+        await main.getByRole('button', { name: label('chat.hitlTitle'), exact: true }).click();
+        const settings = page.getByRole('dialog', { name: label('chat.hitlTitle') });
         const collaborationMode = settings.getByRole('combobox', { name: label('chat.hitlModeLabel') });
         await collaborationMode.click();
         await page.getByRole('listbox').getByText(label('chat.hitlModeApproval'), { exact: true }).click();
@@ -315,7 +367,7 @@ test.describe('chat session settings', () => {
         });
         await page.goto('/static/app/#/chat?conversation=' + CONVERSATION.id);
         const main = await ready(page);
-        const openSettings = main.getByRole('button', { name: label('chat.sessionSettingsTitle'), exact: true });
+        const openSettings = main.getByRole('button', { name: label('chat.hitlTitle'), exact: true });
         const settings = page.getByRole('dialog');
         await openSettings.click();
         const mode = settings.getByRole('combobox', { name: label('chat.hitlModeLabel') });
@@ -387,7 +439,7 @@ test.describe('chat session settings', () => {
             defaultMode: 'approval', defaultReviewer: 'audit_agent', defaultTimeoutSeconds: 180, conversationHumanApproval: true
         } });
         const main = await visit(page, 'chat');
-        const settingsButton = main.getByRole('button', { name: label('chat.sessionSettingsTitle'), exact: true });
+        const settingsButton = main.getByRole('button', { name: label('chat.hitlTitle'), exact: true });
         await settingsButton.click();
         const settings = page.getByRole('dialog');
         const auditAgent = settings.getByRole('radio', { name: label('chat.hitlReviewerAgent') });
@@ -422,7 +474,7 @@ test.describe('chat session settings', () => {
         mockApi.fail('PUT', '/api/hitl/config', 'fixture 保存失败');
         await page.goto('/static/app/#/chat?conversation=' + CONVERSATION.id);
         const main = await ready(page);
-        await main.getByRole('button', { name: label('chat.sessionSettingsTitle'), exact: true }).click();
+        await main.getByRole('button', { name: label('chat.hitlTitle'), exact: true }).click();
         const settings = page.getByRole('dialog');
         const mode = settings.getByRole('combobox', { name: label('chat.hitlModeLabel') });
         await expect(mode).toHaveText(label('chat.hitlModeOff'));
@@ -800,7 +852,7 @@ test.describe('chat session settings', () => {
         }]);
     });
 
-    test('composer HITL entry saves an existing conversation and shares the full header settings', async ({ page, mockApi }) => {
+    test('composer HITL entry saves an existing conversation and restores its configuration', async ({ page, mockApi }) => {
         const conversation = mockEmptyConversation(mockApi, PROJECT.id);
         let hitl = {
             enabled: true, mode: 'approval', reviewer: 'human',
@@ -833,13 +885,7 @@ test.describe('chat session settings', () => {
         await expect(settings.getByRole('status')).toHaveText(label('chat.hitlApplyOkSync'));
         await settings.locator('button.semi-sidesheet-close').click();
 
-        await main.locator('.chat-header').getByRole('button', { name: label('chat.sessionSettingsTitle'), exact: true }).click();
-        const fullSettings = page.getByRole('dialog').filter({ hasText: label('chat.sessionSettingsTitle') });
-        for (const key of ['chat.aiChannelLabel', 'chat.reasoningModeLabel', 'chat.reasoningEffortLabel']) {
-            await expect(fullSettings.getByRole('combobox', { name: label(key), exact: true })).toBeVisible();
-        }
-        await expect(fullSettings.getByRole('combobox', { name: label('chat.hitlModeLabel'), exact: true })).toHaveText(label('chat.hitlModeReviewEdit'));
-        await fullSettings.locator('button.semi-sidesheet-close').click();
+        await expect(main.locator('.chat-header').getByRole('button', { name: label('chat.sessionSettingsTitle'), exact: true })).toHaveCount(0);
         await openHitl.click();
         await expect(mode).toHaveText(label('chat.hitlModeReviewEdit'));
         await settings.locator('button.semi-sidesheet-close').click();
@@ -962,7 +1008,7 @@ test.describe('running-status stop permission', () => {
 test('switching conversation hides the previous approval and keeps each draft separate', async ({ page, mockApi }) => {
     const second = { ...CONVERSATION, id: 'fixture-conversation-other', title: '另一个示例会话' };
     const item = { id: 'fixture-approval', toolName: 'fixture-read-only-request', conversationId: CONVERSATION.id };
-    mockApi.respond('GET', '/api/conversations', { json: { conversations: [CONVERSATION, second] } });
+    mockApi.respond('GET', '/api/conversations', (_, url) => ({ json: conversationListFixture([CONVERSATION, second], url) }));
     mockApi.respond('GET', '/api/conversations/' + second.id, { json: second });
     mockApi.respond('GET', '/api/conversations/' + second.id + '/plan-tasks', { json: { tasks: [], total: 0 } });
     let release;

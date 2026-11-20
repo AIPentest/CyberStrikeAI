@@ -1,6 +1,5 @@
-/** 对话页头：标题、会话标签、用量/计划/刷新入口。 */
 import { Button, Space, Tag, Typography } from '@douyinfe/semi-ui';
-import { IconBolt, IconHistory, IconMenu, IconRefresh, IconSetting } from '@douyinfe/semi-icons';
+import { IconMenu, IconRefresh } from '@douyinfe/semi-icons';
 import { useT } from '../../lib/i18n';
 
 const { Text, Title } = Typography;
@@ -13,8 +12,7 @@ const MODE_TAG = {
 };
 
 export default function ChatHeader({
-    conversation, mode, hitlCount, conversationId, plan, narrow,
-    onToggleSidebar, onOpenUsage, onOpenPlan, onOpenSettings, onRefresh
+    conversation, mode, hitlCount, conversationId, narrow, onToggleSidebar, onRefresh
 }) {
     const t = useT();
     const modeTag = MODE_TAG[mode] || MODE_TAG.single;
@@ -28,9 +26,6 @@ export default function ChatHeader({
                     <Space spacing={6} wrap className="chat-header-tags">
                         {conversation?.pinned && <Tag size="small" color="amber">{t('chat.pinned', null, '已置顶')}</Tag>}
                         <Tag size="small" color={modeTag.color}>{t(modeTag.key, null, modeTag.label)}</Tag>
-                        {conversation?.projectId && (
-                            <Tag size="small" type="ghost">项目 {String(conversation.projectId).slice(0, 8)}</Tag>
-                        )}
                         {hitlCount > 0 && (
                             <Tag size="small" color="orange">
                                 {t('chat.pendingApprovals', { count: hitlCount }, `待审批 ${hitlCount}`)}
@@ -50,20 +45,17 @@ export default function ChatHeader({
                         {t('chat.conversations', null, '会话')}
                     </Button>
                 )}
-                <Button theme="borderless" type="tertiary" icon={<IconHistory />} disabled={!conversationId} onClick={onOpenUsage}>
-                    {t('chat.tokenUsage', null, 'Token 用量')}
-                </Button>
-                <Button theme="borderless" type="tertiary" icon={<IconBolt />} disabled={!conversationId} onClick={onOpenPlan}>
-                    {t('chat.planTasks', null, '计划任务')}{plan?.total ? ` (${plan.completed}/${plan.total})` : ''}
-                </Button>
-                {onOpenSettings && (
-                    <Button theme="borderless" type="tertiary" icon={<IconSetting aria-hidden="true" />} onClick={onOpenSettings}>
-                        {t('chat.sessionSettingsTitle', null, '会话设置')}
+                {conversationId && (
+                    <Button
+                        theme="borderless"
+                        type="tertiary"
+                        icon={<IconRefresh aria-hidden="true" />}
+                        title={t('chat.refreshConversationHint', null, '重新读取会话列表、消息、待审批项和执行计划')}
+                        onClick={onRefresh}
+                    >
+                        {t('chat.refreshConversation', null, '刷新对话')}
                     </Button>
                 )}
-                <Button theme="borderless" type="tertiary" icon={<IconRefresh />} onClick={onRefresh}>
-                    {t('common.refresh', null, '刷新')}
-                </Button>
             </Space>
         </header>
     );

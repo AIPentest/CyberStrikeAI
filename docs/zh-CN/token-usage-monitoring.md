@@ -12,7 +12,7 @@
 
 ## 查看
 
-首页 Token 卡片和设置页 Token 用量面板继续支持周期、模型、项目和明细查询。接口为 `GET /api/usage/tokens` 与 `GET /api/conversations/:id/token-usage`。
+从首页 Token 卡片进入「系统设置 → Token 用量」，可按周期、项目查看汇总、模型统计和最近记录。在该页搜索并选择会话即可查看单会话用量。接口为 `GET /api/usage/tokens` 与 `GET /api/conversations/:id/token-usage`。
 
 已有模型用量表保持兼容。旧时间线用量事件可作为历史记录补齐；新记录仅由原生 Pi 事件生成。原生流式消息只传输增量，完整消息在结束时提交，避免重复累计与逐块重复发送整份内容。
 

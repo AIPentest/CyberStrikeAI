@@ -278,6 +278,9 @@
     "administration": "Администрирование"
   },
   "tokenUsageUI": {
+    "selectConversation": "Найдите и выберите диалог",
+    "periodDays": "{{count}} дн.",
+    "recentLimit": "Последние записи: {{count}}",
     "chartHint": "Наведите или выберите столбец для точных значений",
     "scopeProject": "Текущий проект",
     "scopeAccessible": "Доступные диалоги",
@@ -785,6 +788,16 @@
     "generatedFromFact": "Создано из факта проекта {{factKey}}"
   },
   "chat": {
+    "chooseWorkspace": "Выберите рабочую область диалога",
+    "deepSeekEffortHint": "DeepSeek интерпретирует уровень «{{effort}}» как высокий.",
+    "reasoningOverrideBlocked": "Этот канал использует уровень рассуждения из системных настроек.",
+    "defaultWorkspace": "Рабочая область по умолчанию",
+    "boundProject": "Связанный проект",
+    "refreshConversation": "Обновить диалог",
+    "refreshConversationList": "Обновить список диалогов",
+    "refreshConversationHint": "Перезагрузить список диалогов, сообщения, ожидающие подтверждения и план выполнения",
+    "planTasks": "План выполнения",
+    "planEmpty": "Нет плана выполнения",
     "taskSummary": "Итоги задачи",
     "toolExecBlocked": "Инструмент {{name}} заблокирован",
     "newChat": "Новый диалог",
@@ -3240,7 +3253,7 @@
     "contextWarnLlamaCppSlots": "llama.cpp запущен с несколькими параллельными слотами; окно одного запроса может быть меньше n_ctx. Проверьте --parallel и режим KV",
     "contextWarnUnknown": "Окно контекста не обнаружено; укажите его вручную",
     "openaiReasoningTitle": "Настройки рассуждения",
-    "openaiReasoningHint": "Настройки рассуждения этого канала ИИ по умолчанию; настройки сессии чата могут их переопределить.",
+    "openaiReasoningHint": "Настройки рассуждения этого канала ИИ по умолчанию. Их можно изменить в настройках модели в поле ввода сообщения.",
     "openaiReasoningProfile": "Профиль передачи",
     "openaiReasoningAllowClient": "Разрешить странице чата переопределять параметры рассуждения",
     "fofaBaseUrlPlaceholder": "https://fofa.info/api/v1/search/all (необязательно)",

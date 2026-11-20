@@ -1,9 +1,9 @@
 /** 左侧会话列表：搜索、项目过滤、分页、新建/重命名/置顶/删除/批量删除。 */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import {
-    Button, Checkbox, Empty, Input, List, Pagination, Popconfirm, Select, Skeleton, Tag, Tooltip, Typography
+    Button, Checkbox, Empty, Input, List, Pagination, Popconfirm, Select, Skeleton, Tooltip, Typography
 } from '@douyinfe/semi-ui';
-import { IconDelete, IconEdit, IconPlus, IconRefresh, IconSearch, IconStar } from '@douyinfe/semi-icons';
+import { IconChevronDown, IconDelete, IconEdit, IconFolder, IconPlus, IconRefresh, IconSearch, IconStar } from '@douyinfe/semi-icons';
 import { ErrorBanner } from '../../components/ui';
 import { useT } from '../../lib/i18n';
 import { formatDateTime } from '../../lib/format';
@@ -53,7 +53,6 @@ function ConversationRow({
                         </span>
                         <span className="chat-conv-meta">
                             {formatDateTime(item.updatedAt || item.createdAt)}
-                            {item.projectId && <Tag size="small" type="ghost" className="chat-conv-project">{String(item.projectId).slice(0, 8)}</Tag>}
                         </span>
                     </button>
                     {!batchMode && (
@@ -92,7 +91,7 @@ function ConversationRow({
 }
 
 export default function ConversationList({
-    items, total, loading, error, onRetry,
+    items, groups, expandedGroup, groupTotal, onToggleGroup, loading, error, onRetry,
     search, onSearch, projectId, onProjectChange, projects,
     page, pageSize, onPageChange,
     selectedId, onSelect, onCreate,
@@ -100,7 +99,8 @@ export default function ConversationList({
     canWrite, canDelete
 }) {
     const t = useT();
-    const list = Array.isArray(items) ? items : [];
+    const list = items;
+    const groupContentId = useId();
     const [editingId, setEditingId] = useState('');
     const [editingTitle, setEditingTitle] = useState('');
     const [batchMode, setBatchMode] = useState(false);
@@ -111,7 +111,7 @@ export default function ConversationList({
     useEffect(() => {
         setSelectedIds([]);
         setBatchMode(false);
-    }, [page, projectId, search]);
+    }, [page, projectId, search, expandedGroup]);
 
     const projectOptions = useMemo(() => ([
         { value: '', label: t('chat.filterAllProjects', null, '全部项目') },
@@ -137,6 +137,44 @@ export default function ConversationList({
         if (!id || !title) return;
         onRename(id, title);
     };
+
+    const groupContents = (
+        <>
+            {loading && !list.length && <Skeleton placeholder={<Skeleton.Paragraph rows={6} />} loading />}
+            {!loading && !error && !list.length && (
+                <Empty
+                    title={t('chat.noHistoryConversations', null, '暂无历史对话')}
+                    description={null}
+                    className="chat-sidebar-empty"
+                />
+            )}
+            <List
+                dataSource={list}
+                split={false}
+                renderItem={item => (
+                    <ConversationRow
+                        key={item.id}
+                        item={item}
+                        active={item.id === selectedId}
+                        editing={editingId === item.id}
+                        editingTitle={editingTitle}
+                        onStartEdit={startEdit}
+                        onEditingTitle={setEditingTitle}
+                        onCommitEdit={commitEdit}
+                        onCancelEdit={() => setEditingId('')}
+                        onSelect={onSelect}
+                        onPin={onPin}
+                        onDelete={onDelete}
+                        canWrite={canWrite}
+                        canDelete={canDelete}
+                        batchMode={batchMode}
+                        selected={selectedIds.includes(item.id)}
+                        onToggleSelect={toggleSelect}
+                    />
+                )}
+            />
+        </>
+    );
 
     return (
         <div className="chat-sidebar-inner">
@@ -165,7 +203,7 @@ export default function ConversationList({
                 />
             </div>
             <div className="chat-sidebar-tools">
-                <Text type="tertiary" size="small">{t('chat.recentConversations', null, '最近对话')} · {total ?? list.length}</Text>
+                <Text type="tertiary" size="small">{t('chat.recentConversations', null, '最近对话')} · {groups.reduce((total, group) => total + group.total, 0)}</Text>
                 <div className="chat-sidebar-tools-actions">
                     {canDelete && list.length > 0 && (
                         <Button
@@ -179,7 +217,14 @@ export default function ConversationList({
                             {batchMode ? t('common.cancel', null, '取消') : t('chat.batchManage', null, '批量管理')}
                         </Button>
                     )}
-                    <Button size="small" theme="borderless" aria-label={t('common.refresh', null, '刷新')} icon={<IconRefresh />} onClick={onRetry} />
+                    <Button
+                        size="small"
+                        theme="borderless"
+                        aria-label={t('chat.refreshConversationList', null, '刷新会话列表')}
+                        title={t('chat.refreshConversationList', null, '刷新会话列表')}
+                        icon={<IconRefresh />}
+                        onClick={onRetry}
+                    />
                 </div>
             </div>
             {batchMode && (
@@ -210,45 +255,39 @@ export default function ConversationList({
             )}
             <div className="chat-conv-list">
                 <ErrorBanner error={error} onRetry={onRetry} />
-                {loading && !list.length && <Skeleton placeholder={<Skeleton.Paragraph rows={6} />} loading />}
-                {!loading && !list.length && (
-                    <Empty
-                        title={t('chat.noHistoryConversations', null, '暂无历史对话')}
-                        description={null}
-                        className="chat-sidebar-empty"
-                    />
+                {!groups.length && !loading && !error && (
+                    <Empty title={t('chat.noHistoryConversations', null, '暂无历史对话')} description={null} className="chat-sidebar-empty" />
                 )}
-                <List
-                    dataSource={list}
-                    split={false}
-                    renderItem={item => (
-                        <ConversationRow
-                            key={item.id}
-                            item={item}
-                            active={item.id === selectedId}
-                            editing={editingId === item.id}
-                            editingTitle={editingTitle}
-                            onStartEdit={startEdit}
-                            onEditingTitle={setEditingTitle}
-                            onCommitEdit={commitEdit}
-                            onCancelEdit={() => setEditingId('')}
-                            onSelect={onSelect}
-                            onPin={onPin}
-                            onDelete={onDelete}
-                            canWrite={canWrite}
-                            canDelete={canDelete}
-                            batchMode={batchMode}
-                            selected={selectedIds.includes(item.id)}
-                            onToggleSelect={toggleSelect}
-                        />
-                    )}
-                />
+                {groups.map(group => {
+                    const expanded = group.id === expandedGroup;
+                    const contentId = groupContentId + '-' + group.id;
+                    return (
+                        <div className="chat-conv-group" key={group.id}>
+                            <button
+                                type="button"
+                                className="chat-conv-group-toggle"
+                                aria-expanded={expanded}
+                                aria-controls={contentId}
+                                title={group.projectId ? group.title + ' · ' + group.projectId : group.title}
+                                onClick={() => onToggleGroup(group.id)}
+                            >
+                                <IconFolder aria-hidden="true" />
+                                <span className="chat-conv-group-name">{group.title}</span>
+                                <span className="chat-conv-group-count">{group.total}</span>
+                                <IconChevronDown aria-hidden="true" className="chat-conv-group-chevron" />
+                            </button>
+                            <div id={contentId} className="chat-conv-group-content" hidden={!expanded}>
+                                {expanded && groupContents}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
-            {(total || 0) > pageSize && (
+            {expandedGroup && groupTotal > pageSize && (
                 <div className="chat-sidebar-pager">
                     <Pagination
                         size="small"
-                        total={total || 0}
+                        total={groupTotal}
                         pageSize={pageSize}
                         currentPage={page}
                         onPageChange={onPageChange}
