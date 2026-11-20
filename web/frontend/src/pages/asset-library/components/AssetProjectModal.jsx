@@ -61,7 +61,6 @@ export default function AssetProjectModal({ visible, projects, assetIds, onClose
             onOk={submit}
             okText={unbind ? t('assets.unbindProject', null, '解除绑定') : t('assets.confirmBinding', null, '确认绑定')}
             confirmLoading={busy}
-            maskClosable={false}
         >
             <Space vertical align="start" spacing={10} style={{ width: '100%' }}>
                 <Text type="tertiary">

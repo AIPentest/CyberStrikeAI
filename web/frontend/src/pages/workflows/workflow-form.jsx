@@ -140,7 +140,6 @@ export default function WorkflowFormModal({ visible, workflow, onCancel, onSaved
             cancelText={t('common.cancel', null, '取消')}
             confirmLoading={saving}
             width={860}
-            maskClosable={false}
         >
             <div className="workflow-form-grid">
                 <div className="workflow-form-field">

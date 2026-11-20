@@ -104,7 +104,6 @@ export default function QueueFormModal({ visible, onCancel, onCreated }) {
             cancelText={t('common.cancel', null, '取消')}
             confirmLoading={saving}
             width={760}
-            maskClosable={false}
         >
             <div className="task-form-grid">
                 <div className="task-form-field">

@@ -1603,8 +1603,18 @@ test('project: dashboard jump, fact detail opens/closes and create validates the
     await button(main, FACT.summary).click();
     const drawer = page.getByRole('dialog');
     await expect(drawer.getByText(FACT.body, { exact: true })).toBeVisible();
-    await button(drawer, label('common.close', '关闭')).click();
+    const backdrop = page.locator('.semi-sidesheet-mask');
+    const outside = { position: { x: 32, y: 300 } };
+    await backdrop.click(outside);
     await expect(drawer).toHaveCount(0);
+
+    const projectRow = main.getByRole('row').filter({ hasText: PROJECT.name });
+    await button(projectRow, label('projects.archiveProject', '归档')).click();
+    const confirmation = page.getByRole('dialog');
+    await expect(confirmation).toContainText(label('projects.confirmArchiveProject'));
+    await page.locator('.semi-modal-wrap').click(outside);
+    await expect(confirmation).toHaveCount(0);
+    expect(mockApi.writes()).toEqual([]);
 
     const openProject = button(main, label('projects.newProjectCta', '+ 新建项目'));
     await openProject.click();
@@ -1615,7 +1625,7 @@ test('project: dashboard jump, fact detail opens/closes and create validates the
     await expect(create).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(dialog.locator('button.semi-sidesheet-close')).toBeFocused();
-    await page.keyboard.press('Escape');
+    await backdrop.click(outside);
     await expect(dialog).toHaveCount(0);
     await expect(openProject).toBeFocused();
     await openProject.click();
@@ -1625,8 +1635,17 @@ test('project: dashboard jump, fact detail opens/closes and create validates the
     expect(mockApi.writes()).toEqual([]);
     await dialog.getByLabel(label('projects.projectName', '项目名称'), { exact: true }).fill(PROJECT.name);
     await dialog.getByLabel(label('projects.projectDescription', '项目描述'), { exact: true }).fill(PROJECT.description);
-    mockApi.fail('POST', '/api/projects', '示例保存失败，可重试');
+    let finishSave;
+    const saving = new Promise(resolve => { finishSave = resolve; });
+    mockApi.respond('POST', '/api/projects', () => saving);
     await create.click();
+    try {
+        await expect(create).toBeDisabled();
+        await backdrop.click(outside);
+        await expect(dialog).toBeVisible();
+    } finally {
+        finishSave({ status: 503, json: { error: '示例保存失败，可重试' } });
+    }
     await expect(page.getByText('示例保存失败，可重试', { exact: true })).toBeVisible();
     await expect(dialog).toBeVisible();
     await expect(dialog.locator('input')).toHaveValue(PROJECT.name);
@@ -1659,6 +1678,12 @@ test.describe('import drawers on a narrow screen', () => {
             await page.keyboard.press('Escape');
             await expect(drawer).toHaveCount(0);
             await expect(open).toBeFocused();
+
+            await page.setViewportSize({ width: 1440, height: 1000 });
+            await open.click();
+            await expect(drawer).toBeVisible();
+            await page.locator('.semi-sidesheet-mask').click({ position: { x: 32, y: 300 } });
+            await expect(drawer).toHaveCount(0);
             expect(mockApi.writes()).toEqual([]);
         });
     }

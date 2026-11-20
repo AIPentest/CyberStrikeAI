@@ -270,6 +270,7 @@ export default function McpMonitorPage() {
                 title={t('mcpMonitor.terminateExecution', null, '终止执行')}
                 visible={Boolean(cancelTarget)}
                 confirmLoading={cancelling}
+                maskClosable={!cancelling}
                 okText={t('mcpMonitor.terminateExecution', null, '终止')}
                 cancelText={t('common.cancel', null, '取消')}
                 onCancel={() => setCancelTarget(null)}

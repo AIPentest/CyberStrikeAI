@@ -71,7 +71,6 @@ export default function AssetBulkEditModal({ visible, assetIds, onClose, onDone 
             onCancel={onClose}
             onOk={submit}
             confirmLoading={busy}
-            maskClosable={false}
         >
             <Text type="tertiary">将修改 {ids.length} 个资产；空白字段保持原值。</Text>
             <div className="asset-library-form-grid asset-library-form-grid--bulk">

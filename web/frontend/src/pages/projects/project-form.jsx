@@ -8,7 +8,7 @@ const { Text } = Typography;
 const MAX_NAME = 120;
 const MAX_DESCRIPTION = 4000;
 
-export default function ProjectFormModal({ visible, project, onCancel, onSaved, maskClosable = false }) {
+export default function ProjectFormModal({ visible, project, onCancel, onSaved }) {
     const t = useT();
     const formId = useId();
     const [saving, setSaving] = useState(false);
@@ -39,7 +39,6 @@ export default function ProjectFormModal({ visible, project, onCancel, onSaved, 
         <Drawer
             visible={visible}
             width={560}
-            maskClosable={maskClosable && !saving}
             closable={!saving}
             closeOnEsc={!saving}
             onCancel={onCancel}

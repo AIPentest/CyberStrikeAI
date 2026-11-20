@@ -250,7 +250,7 @@ export function useConfirmDelete() {
 const DRAWER_FOCUSABLE = 'a[href], button, input, select, textarea, iframe, [tabindex], [contenteditable="true"]';
 
 export function Drawer({
-    title, visible, onCancel, width = 560, footer, children, className, closeOnEsc = true, mask = true,
+    title, visible, onCancel, width = 560, footer, children, className, closeOnEsc = true, mask = true, maskClosable = true,
     onOk, formId, okText, cancelText, okButtonProps, cancelButtonProps, confirmLoading, ...rest
 }) {
     const t = useT();
@@ -348,6 +348,7 @@ export function Drawer({
             width={width}
             footer={actions}
             mask={mask}
+            maskClosable={maskClosable && !loading}
             closeOnEsc={false}
             className={`cs-drawer ${className || ''}`}
             aria-label={typeof title === 'string' ? title : undefined}

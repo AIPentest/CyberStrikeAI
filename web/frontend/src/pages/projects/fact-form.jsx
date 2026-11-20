@@ -118,7 +118,6 @@ export default function FactFormModal({ visible, projectId, factKey, onCancel, o
             cancelText={t('common.cancel', null, '取消')}
             confirmLoading={saving}
             width={720}
-            maskClosable={false}
         >
             <Text type="tertiary" size="small">
                 {t('projects.factModalSubtitle', null, '摘要注入黑板索引；body 沉淀攻击链与 POC，供审计复现（与漏洞记录分工）')}

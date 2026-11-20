@@ -52,7 +52,6 @@ export default function AssetMergeModal({ visible, assets, onClose, onDone }) {
             okText={t('assets.merge', null, '合并')}
             okButtonProps={{ disabled: list.length < 2 }}
             confirmLoading={busy}
-            maskClosable={false}
         >
             {list.length < 2 ? (
                 <Banner

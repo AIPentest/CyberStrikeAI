@@ -182,7 +182,7 @@ export default function PackageImportModal({ visible, onCancel, onImported }) {
             title={t('workflows.package.title', null, '导入本地包')}
             onCancel={onCancel}
             width={760}
-            maskClosable={false}
+            maskClosable={!inspecting && !importing}
             footer={(
                 <Space>
                     <Button onClick={onCancel}>{t('common.close', null, '关闭')}</Button>

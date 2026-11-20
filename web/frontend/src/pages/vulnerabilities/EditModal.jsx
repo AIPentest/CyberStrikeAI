@@ -134,7 +134,6 @@ export default function EditModal({ visible, vulnId, t, projectOptions, onClose,
             okText={t('common.save', null, '保存')}
             cancelText={t('common.cancel', null, '取消')}
             width={780}
-            maskClosable={false}
         >
             {!visible ? null : loadError ? (
                 <Text type="danger">{errorMessage(loadError, t('vulnerabilityPage.fetchFailed', null, '获取漏洞失败'))}</Text>

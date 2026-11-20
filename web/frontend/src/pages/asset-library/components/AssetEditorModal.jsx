@@ -176,7 +176,6 @@ export default function AssetEditorModal({ visible, asset, projects, onClose, on
             okText={editing ? t('common.save', null, '保存') : t('assets.addAssetAction', null, '添加资产')}
             confirmLoading={busy}
             closeOnEsc
-            maskClosable={false}
         >
             {error && <Banner type="danger" bordered closeIcon={null} description={error} className="asset-library-form-error" />}
             <Form

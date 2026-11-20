@@ -137,7 +137,6 @@ export default function AssetImportModal({ visible, projects, onClose, onDone })
             okText={t('assets.importValidRowsCount', { count: valid.length }, `导入 ${valid.length} 条有效数据`)}
             okButtonProps={{ disabled: !valid.length }}
             confirmLoading={busy}
-            maskClosable={false}
         >
             <Text type="tertiary">
                 {t('assets.bulkImportSubtitle', null, '支持 CSV / JSON 文本粘贴或文件上传，提交前会先校验并预览数据')}
