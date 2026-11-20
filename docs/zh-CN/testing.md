@@ -37,6 +37,25 @@ go build -o cyberstrike-ai ./cmd/server
 
 构建通过不代表功能正确，但能发现入口、依赖和静态类型问题。
 
+## Docker 编译与测试环境
+
+在仓库根目录执行：
+
+```bash
+docker build -t cyberstrikeai-checks .
+docker run --rm --network none cyberstrikeai-checks
+```
+
+Dockerfile 提供 Go 1.25、Node.js 22 和 SQLite 所需的 CGO 编译器。镜像构建时安装锁定的依赖，检查并编译 Pi 运行时，以及编译全部 Go 包。容器默认运行现有的 Pi、前端 JavaScript 和 Go 测试，不启动应用服务。测试使用本地模拟服务，无需 AI API 密钥。需要特权的 cgroup 测试和 Java 插件测试仍使用各自的 CI 环境。
+
+也可以覆盖默认命令，只测试指定包：
+
+```bash
+docker run --rm --network none cyberstrikeai-checks go test ./internal/config
+```
+
+构建时需要联网下载基础镜像和依赖。测试针对构建时复制的源码运行，修改源码后需重新构建。`.dockerignore` 会排除本地配置、凭据、运行数据和生成文件。
+
 ## 配置验证
 
 启动前检查：

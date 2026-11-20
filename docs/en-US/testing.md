@@ -20,6 +20,25 @@ go test ./internal/handler
 go test ./internal/security
 ```
 
+## Docker build and test environment
+
+From the repository root:
+
+```bash
+docker build -t cyberstrikeai-checks .
+docker run --rm --network none cyberstrikeai-checks
+```
+
+The Dockerfile provides Go 1.25, Node.js 22, and the CGO compiler needed by SQLite. Building the image installs locked dependencies, checks and compiles the Pi runtime, and compiles all Go packages. Running it executes the existing Pi, frontend JavaScript, and Go test suites; it does not start the application server. Tests use local fixtures and need no AI API keys. Privileged cgroup fixtures and Java plugin tests require their separate CI environments.
+
+To run a focused check, override the default command:
+
+```bash
+docker run --rm --network none cyberstrikeai-checks go test ./internal/config
+```
+
+Builds need network access to download base images and dependencies. Tests run against the source copied at build time; rebuild after editing it. `.dockerignore` excludes local configuration, credentials, runtime data, and generated files from the image.
+
 ## Test Pyramid
 
 | Layer | Goal | Example |
