@@ -216,6 +216,7 @@ export default function CreateAssessmentDrawer({ visible, onCancel, onCreated })
             {projectFormOpen && (
                 <ProjectFormModal
                     visible
+                    maskClosable
                     onCancel={() => setProjectFormOpen(false)}
                     onSaved={handleProjectCreated}
                 />

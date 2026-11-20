@@ -1329,6 +1329,13 @@ test('deep assessment: create and select a new project without losing the draft'
     await page.keyboard.press('Escape');
     await expect(projectDrawer).not.toBeVisible();
     await expect(createProject).toBeFocused();
+
+    await createProject.click();
+    await expect(projectDrawer).toBeVisible();
+    await page.locator('.semi-sidesheet-mask').last().click({ position: { x: 32, y: 300 } });
+    await expect(projectDrawer).not.toBeVisible();
+    await expect(createProject).toBeFocused();
+    await expect(saveAssessment).toBeEnabled();
     await expect(select).toContainText(PROJECT.name);
     await expect(objective).toHaveValue(ASSESSMENT.objective);
     expect(mockApi.writes()).toEqual([]);
