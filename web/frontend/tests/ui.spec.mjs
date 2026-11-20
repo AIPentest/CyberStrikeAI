@@ -472,18 +472,22 @@ for (const width of [1440, 1024, 390]) {
             }
             await expect(button(composer, label('chat.send', '发送'))).toBeInViewport({ ratio: 1 });
             await assertNoOverflow(page);
-            const context = composer.locator('.chat-composer-context');
+            const card = composer.locator('.chat-composer-box');
+            const context = card.locator('.chat-composer-context');
             await expect(context.getByRole('combobox')).toHaveCount(2);
             const project = context.locator('.chat-composer-project');
             await expect(project).toHaveText(stored ? PROJECT.name : label('chat.defaultWorkspace', '默认工作区'));
             const contextBox = await context.boundingBox();
             const projectBounds = await project.boundingBox();
             expect(projectBounds.x + projectBounds.width).toBeLessThan(contextBox.x + contextBox.width - 16);
-            const box = await composer.locator('.chat-composer-box').boundingBox();
+            const box = await card.boundingBox();
+            const inputBox = await input.boundingBox();
+            expect(contextBox.y).toBeCloseTo(box.y + 1, 0);
+            expect(contextBox.y + contextBox.height).toBeLessThan(inputBox.y);
             for (const control of await context.getByRole('combobox').all()) {
                 await expect(control).toBeInViewport({ ratio: 1 });
                 const bounds = await control.boundingBox();
-                expect(bounds.y + bounds.height).toBeLessThanOrEqual(box.y);
+                expect(bounds.y + bounds.height).toBeLessThanOrEqual(inputBox.y);
             }
             const attachment = button(composer, label('chat.attachmentsLabel', '附件'));
             const hitl = button(composer, label('chat.hitlTitle'));

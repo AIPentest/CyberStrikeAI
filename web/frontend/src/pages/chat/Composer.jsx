@@ -118,41 +118,42 @@ export default function Composer({
                 />
             )}
             <div className="chat-composer-shell">
-                <div className="chat-composer-context">
-                    <span id={modeLabelId} hidden>{t('chat.agentModeSelectAria', null, '选择对话执行模式')}</span>
-                    <Select
-                        value={mode}
-                        optionList={modeOptions}
-                        renderSelectedItem={option => option.title}
-                        onChange={onModeChange}
-                        prefix={<IconDesktop aria-hidden="true" />}
-                        className="chat-context-select chat-composer-mode"
-                        dropdownClassName="chat-mode-dropdown"
-                        size="small"
-                        position="topLeft"
-                        aria-labelledby={modeLabelId}
-                        disabled={busy || blocked}
-                    />
-                    <span id={projectLabelId} hidden>{t('chat.chooseWorkspace', null, '选择会话工作区')}</span>
-                    <Select
-                        value={projectId}
-                        optionList={projectOptions}
-                        onChange={value => {
-                            if (value === CREATE_PROJECT) onCreateProject?.();
-                            else onProjectChange(value);
-                        }}
-                        prefix={<IconFolder aria-hidden="true" />}
-                        className="chat-context-select chat-composer-project"
-                        dropdownClassName="chat-project-dropdown"
-                        dropdownMatchSelectWidth={false}
-                        position="topLeft"
-                        size="small"
-                        renderSelectedItem={option => <span title={option.label}>{option.label}</span>}
-                        aria-labelledby={projectLabelId}
-                        disabled={busy || projectDisabled || !canWrite}
-                    />
-                </div>
                 <div className="chat-composer-box">
+                    <div className="chat-composer-context">
+                        <span id={modeLabelId} hidden>{t('chat.agentModeSelectAria', null, '选择对话执行模式')}</span>
+                        <Select
+                            value={mode}
+                            optionList={modeOptions}
+                            renderSelectedItem={option => <span title={option.title}>{option.title}</span>}
+                            onChange={onModeChange}
+                            prefix={<IconDesktop aria-hidden="true" />}
+                            className="chat-context-select chat-composer-mode"
+                            dropdownClassName="chat-mode-dropdown"
+                            size="small"
+                            position="topLeft"
+                            aria-labelledby={modeLabelId}
+                            disabled={busy || blocked}
+                        />
+                        <span className="chat-context-divider" aria-hidden="true" />
+                        <span id={projectLabelId} hidden>{t('chat.chooseWorkspace', null, '选择会话工作区')}</span>
+                        <Select
+                            value={projectId}
+                            optionList={projectOptions}
+                            onChange={value => {
+                                if (value === CREATE_PROJECT) onCreateProject?.();
+                                else onProjectChange(value);
+                            }}
+                            prefix={<IconFolder aria-hidden="true" />}
+                            className="chat-context-select chat-composer-project"
+                            dropdownClassName="chat-project-dropdown"
+                            dropdownMatchSelectWidth={false}
+                            position="topLeft"
+                            size="small"
+                            renderSelectedItem={option => <span title={option.label}>{option.label}</span>}
+                            aria-labelledby={projectLabelId}
+                            disabled={busy || projectDisabled || !canWrite}
+                        />
+                    </div>
                     <input
                         ref={fileRef}
                         type="file"

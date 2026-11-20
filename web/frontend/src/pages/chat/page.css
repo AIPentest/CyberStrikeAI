@@ -318,9 +318,15 @@
 .chat-composer-context {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     min-width: 0;
-    padding: 0 6px 8px;
+    margin-inline: calc(-1 * var(--chat-composer-padding));
+    margin-bottom: 12px;
+    padding: 5px calc(var(--chat-composer-padding) - 7px);
+    border-start-start-radius: var(--chat-composer-inner-radius);
+    border-start-end-radius: var(--chat-composer-inner-radius);
+    border-bottom: 1px solid var(--semi-color-border);
+    background: color-mix(in srgb, var(--semi-color-primary-light-default) 65%, var(--semi-color-bg-1));
 }
 .chat-context-select.semi-select {
     flex: 0 1 auto;
@@ -328,14 +334,17 @@
     min-width: 0;
     height: 30px;
     border-radius: 8px;
-    background: var(--semi-color-bg-1);
-    border-color: var(--semi-color-border);
+    background: transparent;
+    border-color: transparent;
 }
-.chat-context-select.semi-select:not(.semi-select-disabled):hover { background: var(--semi-color-primary-light-default); }
+.chat-context-select.semi-select:not(.semi-select-disabled):is(:hover, :focus-within) {
+    background: var(--semi-color-primary-light-hover);
+}
 .chat-context-select .semi-select-selection { min-width: 0; margin-inline: 5px; }
 .chat-context-select .semi-select-selection-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chat-context-select .semi-select-prefix { padding-inline-start: 7px; }
+.chat-context-select .semi-select-prefix { padding-inline-start: 7px; color: var(--semi-color-primary); }
 .chat-context-select .semi-select-arrow { width: auto; padding-inline: 4px 7px; }
+.chat-context-divider { flex: 0 0 1px; height: 16px; background: var(--semi-color-border); }
 .chat-composer-mode { max-width: 45%; }
 .chat-mode-dropdown { width: min(390px, calc(100vw - 48px)); }
 .chat-project-dropdown { width: min(260px, calc(100vw - 48px)); }
@@ -350,8 +359,10 @@
 }
 .chat-composer-project { max-width: min(260px, 55%); }
 .chat-composer-box {
+    --chat-composer-padding: 16px;
+    --chat-composer-inner-radius: 19px;
     position: relative;
-    padding: 14px 16px 10px;
+    padding: 0 var(--chat-composer-padding) 10px;
     border: 1px solid var(--semi-color-border);
     border-radius: 20px;
     background: var(--semi-color-bg-1);
@@ -509,9 +520,14 @@
     .chat-turn-body .cs-markdown,
     .chat-stream-text { font-size: 14px; }
     .chat-composer { padding-block: 8px 12px; }
-    .chat-composer-context { padding-inline: 2px; }
+    .chat-composer-context { gap: 4px; margin-bottom: 10px; padding-block: 4px; }
     .chat-context-select.semi-select { height: 34px; }
-    .chat-composer-box { padding: 12px 12px 8px; border-radius: 18px; }
+    .chat-composer-box {
+        --chat-composer-padding: 12px;
+        --chat-composer-inner-radius: 17px;
+        padding-bottom: 8px;
+        border-radius: 18px;
+    }
     .chat-composer-box .semi-input-textarea { font-size: 16px; }
     .chat-composer-toolbar { gap: 4px; }
     .chat-composer-controls .semi-button { padding-inline: 4px; }
