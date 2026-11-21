@@ -454,16 +454,8 @@ func assetWhere(filter AssetListFilter, access RBACListAccess) (string, []interf
 		query += " AND (assets.project_id IS NULL OR assets.project_id = '')"
 	}
 	if filter.AssessmentID != "" {
-		query += " AND EXISTS(SELECT 1 FROM deep_assessment_assets da WHERE da.asset_id=assets.id AND da.task_id=?)"
-		args = append(args, filter.AssessmentID)
-		if filter.AssessmentObserved != nil {
-			operator := " IN "
-			if !*filter.AssessmentObserved {
-				operator = " NOT IN "
-			}
-			query += " AND assets.id" + operator + "(" + assessmentObservedAssetIDs + ")"
-			args = append(args, filter.AssessmentID)
-		}
+		// Deep assessments are not shipped in this sync; keep the filter inert.
+		query += " AND 0"
 	}
 	if filter.Source != "" {
 		query += " AND LOWER(assets.source) = LOWER(?)"

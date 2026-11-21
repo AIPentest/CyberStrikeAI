@@ -8,7 +8,7 @@ export const APP_VERSION = 'v9.8.7-fixture';
 
 // Explicit keys from internal/security/rbac.go. No wildcard or application auth bypass.
 export const READ_PERMISSIONS = [
-    'auth:self', 'dashboard:read', 'chat:read', 'hitl:read', 'assessments:read',
+    'auth:self', 'dashboard:read', 'chat:read', 'hitl:read',
     'tasks:read', 'project:read', 'vulnerability:read', 'asset:read', 'webshell:read',
     'c2:read', 'mcp:read', 'knowledge:read', 'skills:read', 'agents:read', 'roles:read',
     'workflow:read', 'config:read', 'storage:read', 'audit:read', 'rbac:read',
@@ -16,7 +16,7 @@ export const READ_PERMISSIONS = [
 ];
 export const UI_PERMISSIONS = [
     ...READ_PERMISSIONS, 'fofa:execute', 'chat:write', 'agent:execute',
-    'assessments:write', 'project:write', 'vulnerability:write'
+    'project:write', 'vulnerability:write'
 ];
 
 const translations = new Map(['zh-CN', 'en-US'].map(lang => [
@@ -49,11 +49,6 @@ export const VULNERABILITY = {
     host: 'localhost', description: '匿名回归数据，不代表真实漏洞。',
     evidence: 'FAKE-EVIDENCE: local fixture only', recommendation: '核对示例访问权限。',
     created_at: STAMP, updated_at: STAMP
-};
-export const ASSESSMENT = {
-    id: 'fixture-assessment', name: '示例深度测评', status: 'draft', project_id: PROJECT.id,
-    objective: '仅评估 localhost 示例目标', summary: '匿名草稿，不自动执行',
-    rounds: 0, steps: [], created_at: STAMP, updated_at: STAMP
 };
 export const CONVERSATION = {
     id: 'fixture-conversation', title: '示例会话', createdAt: STAMP, updatedAt: STAMP,
@@ -106,7 +101,7 @@ function makeReads(session) {
         })) },
         '/api/vulnerabilities/stats': { total: 3, distinct: 3, by_severity: { critical: 1, high: 1, medium: 0, low: 1, info: 0 }, by_status: { open: 3 } },
         '/api/vulnerabilities': { vulnerabilities, total: 3, page: 1, limit: 20 },
-        '/api/vulnerabilities/filter-options': { project_ids: [PROJECT.id], conversation_tags: [], task_tags: [], assessment_ids: [] },
+        '/api/vulnerabilities/filter-options': { project_ids: [PROJECT.id], conversation_tags: [], task_tags: [] },
         [`/api/vulnerabilities/${VULNERABILITY.id}/context`]: { vulnerability: VULNERABILITY, history: [], members: [], assets: [] },
         [`/api/vulnerabilities/${VULNERABILITY.id}`]: VULNERABILITY,
         '/api/batch-tasks': { queues: [], total: 0, page: 1 },
@@ -146,10 +141,6 @@ function makeReads(session) {
         '/api/conversations': url => conversationListFixture([CONVERSATION], url),
         [`/api/conversations/${CONVERSATION.id}`]: CONVERSATION,
         [`/api/conversations/${CONVERSATION.id}/plan-tasks`]: { tasks: [], total: 0, completed: 0, running: false },
-        '/api/deep-assessments': { tasks: [ASSESSMENT], has_more: false },
-        [`/api/deep-assessments/${ASSESSMENT.id}`]: { task: ASSESSMENT, intent_counts: {}, step_total: 0 },
-        [`/api/deep-assessments/${ASSESSMENT.id}/surface-items`]: { items: [], has_more: false },
-        '/api/deep-assessments/options': { models: [], roles: [], projects: [PROJECT] },
         '/api/assets': { assets: [], total: 0, page: 1, page_size: 20 },
         '/api/assets/stats': { total: 0, ips: 0, domains: 0, ports: 0, recent: 0, protocols: [], coverage: { scanned: 0, scanned_30d: 0, never_scanned: 0, stale: 0 }, observation: { total: 0, observed: 0, rate: 0 } },
         '/api/assets/collections': { collections: [] },

@@ -1,9 +1,9 @@
-/** 漏洞筛选栏：关键词 + 级别/状态/项目/来源/任务标签/深度测评，选项来自 filter-options。 */
+/** 漏洞筛选栏：关键词 + 级别/状态/项目/来源/任务标签，选项来自 filter-options。 */
 import { useEffect, useRef, useState } from 'react';
 import { Button, Input, Select } from '@douyinfe/semi-ui';
 import { IconRefresh, IconSearch } from '@douyinfe/semi-icons';
 import { useDebounced } from '../../components/hooks';
-import { hasActiveFilters, severityOptions, shortId, statusOptions } from './shared';
+import { hasActiveFilters, severityOptions, statusOptions } from './shared';
 
 function withEmpty(label, options) {
     return [{ value: '', label }, ...options];
@@ -30,7 +30,6 @@ export default function FilterBar({ t, filters, options, projectOptions, hasGrou
 
     const conversationTags = Array.isArray(options?.conversation_tags) ? options.conversation_tags : [];
     const taskTags = Array.isArray(options?.task_tags) ? options.task_tags : [];
-    const assessmentIds = Array.isArray(options?.assessment_ids) ? options.assessment_ids : [];
 
     return (
         <div className="vulnerability-filter-bar">
@@ -86,17 +85,6 @@ export default function FilterBar({ t, filters, options, projectOptions, hasGrou
                     taskTags.map(tag => ({ value: tag, label: tag }))
                 )}
                 onChange={value => onChange('task_tag', value || '')}
-            />
-            <Select
-                className="vulnerability-filter-select"
-                value={filters.assessment_id}
-                placeholder={t('vulnerabilityPage.assessmentTask', null, '深度测评')}
-                filter
-                optionList={withEmpty(
-                    t('vulnerabilityPage.allAssessments', null, '全部测评'),
-                    assessmentIds.map(id => ({ value: id, label: shortId(id, 12) }))
-                )}
-                onChange={value => onChange('assessment_id', value || '')}
             />
             <div className="vulnerability-filter-actions">
                 <Button

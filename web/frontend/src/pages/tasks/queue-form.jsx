@@ -192,7 +192,7 @@ export default function QueueFormModal({ visible, onCancel, onCreated }) {
                             : '选择项目后，使用资产库里该项目的资产。'}
                     </Text>
                 )}
-                <Text type="tertiary" size="small">与对话、深度测评共用资产库。只有信息收集保存过检索结果时，才需要从中缩小范围。</Text>
+                <Text type="tertiary" size="small">与对话共用资产库。只有信息收集保存过检索结果时，才需要从中缩小范围。</Text>
             </div>
 
             <div className="task-form-field">

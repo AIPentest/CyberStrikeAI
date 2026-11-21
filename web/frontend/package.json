@@ -26,5 +26,8 @@
     "@vitejs/plugin-react": "6.3.0",
     "esbuild": "^0.27.1",
     "vite": "8.3.8"
+  },
+  "allowScripts": {
+    "esbuild@0.27.1": true
   }
 }

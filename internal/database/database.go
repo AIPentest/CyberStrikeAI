@@ -218,9 +218,6 @@ func (db *DB) initTables() error {
 	if err := db.backfillAssessmentVulnerabilitySources(); err != nil {
 		return fmt.Errorf("backfill assessment finding sources: %w", err)
 	}
-	if err := db.initAssessmentAssetSignals(); err != nil {
-		return err
-	}
 	if err := db.BackfillModelTokenUsageFromProcessDetails(); err != nil {
 		return fmt.Errorf("回填模型Token用量失败: %w", err)
 	}

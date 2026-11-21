@@ -10,7 +10,6 @@ import {
 export const NAV_TREE = [
     { id: 'dashboard', i18n: 'nav.dashboard', fallback: '仪表盘', icon: IconHome },
     { id: 'chat', i18n: 'nav.chat', fallback: '对话', icon: IconComment },
-    { id: 'deep-assessments', i18n: 'nav.deepAssessments', fallback: '深度测评', icon: IconArticle },
     {
         id: 'security', i18n: 'nav.security', fallback: '安全防护', icon: IconShield,
         anyPermission: ['hitl:read', 'config:read'],
@@ -84,7 +83,7 @@ export const NAV_TREE = [
 ];
 
 export const NAV_SECTIONS = [
-    { id: 'workspace', i18n: 'nav.groupWorkspace', fallback: '工作台', pages: ['dashboard', 'chat', 'deep-assessments', 'security'] },
+    { id: 'workspace', i18n: 'nav.groupWorkspace', fallback: '工作台', pages: ['dashboard', 'chat', 'security'] },
     { id: 'operations', i18n: 'nav.groupOperations', fallback: '安全作业', pages: ['projects', 'assets', 'vulnerabilities', 'tasks', 'workflows', 'webshell', 'c2', 'chat-files'] },
     { id: 'capabilities', i18n: 'nav.groupCapabilities', fallback: '能力中心', pages: ['mcp', 'knowledge', 'skills', 'agents', 'roles'] },
     { id: 'platform', i18n: 'nav.groupPlatform', fallback: '平台管理', pages: ['platform-rbac', 'settings', 'api-docs'] }

@@ -23,31 +23,17 @@ type AssetCollection struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-const observationEvidenceMeaning = "已有观察证据：成功原始回执支持的测评观察，或带成功工具回执的已确认项目事实。同一资产只计一次。这不是扫描覆盖，也不表示没有漏洞。"
+const observationEvidenceMeaning = "已有观察证据：带成功工具回执的已确认项目事实。同一资产只计一次。这不是扫描覆盖，也不表示没有漏洞。"
 
-// An asset counts once when either evidence path is present.
+// An asset counts once when confirmed project-fact evidence is present.
 func observationAssetPredicate(assetIDExpr, projectClause string) string {
-	return `(
-		EXISTS (
-			SELECT 1 FROM deep_assessment_facts f
-			WHERE f.confidence='observed'
-			AND EXISTS (SELECT 1 FROM json_each(f.assets_json) j WHERE j.value=` + assetIDExpr + `)
-			AND EXISTS (
-				SELECT 1 FROM json_each(f.evidence_json) e
-				JOIN deep_assessment_calls c ON c.id=e.value
-				WHERE c.task_id=f.task_id AND c.step_id=f.step_id AND c.status='completed'
-				AND c.tool NOT GLOB 'assessment_*'
-				AND c.tool NOT IN ('record_vulnerability','list_vulnerabilities','get_vulnerability')
-			)
-		)
-		OR EXISTS (
+	return `EXISTS (
 			SELECT 1 FROM project_fact_assets pa
 			JOIN project_facts pf ON pf.id=pa.fact_id AND pf.confidence='confirmed'
 			JOIN project_fact_receipts pr ON pr.fact_id=pf.id
 			JOIN tool_executions te ON te.id=pr.execution_id AND te.status='completed'
 			WHERE pa.asset_id=` + assetIDExpr + projectClause + `
-		)
-	)`
+		)`
 }
 
 // ObservationCoverage counts accessible assets, or the members of one collection.

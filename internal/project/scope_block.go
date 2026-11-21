@@ -137,7 +137,7 @@ func BuildCollectionBlock(db *database.DB, projectID string, vis database.FactVi
 	}
 	var b strings.Builder
 	b.WriteString("## 已保存的检索结果\n")
-	b.WriteString("这些只是资产库的命名子集，来自信息收集。未指定子集时，对话、批量任务和深度测评的范围仍是上面的项目资产库。已确认观察只统计当前账号能读取、且有成功回执的项目事实，不等于已经扫描。\n")
+	b.WriteString("这些只是资产库的命名子集，来自信息收集。未指定子集时，对话和批量任务的范围仍是上面的项目资产库。已确认观察只统计当前账号能读取、且有成功回执的项目事实，不等于已经扫描。\n")
 	for _, item := range items {
 		total, observed, err := db.ObservationCoverageVisible(database.RBACListAccess{UserID: vis.UserID, Scope: vis.ProjectScope}, vis, item.ID)
 		if err != nil {
@@ -149,7 +149,7 @@ func BuildCollectionBlock(db *database.DB, projectID string, vis database.FactVi
 }
 
 // BuildAssetLibraryBlock describes the project assets shared by chat, batch
-// tasks and deep assessment. A named collection is not required.
+// tasks. A named collection is not required.
 func BuildAssetLibraryBlock(db *database.DB, projectID string, access database.RBACListAccess) (string, error) {
 	projectID = strings.TrimSpace(projectID)
 	if db == nil || projectID == "" {
@@ -161,7 +161,7 @@ func BuildAssetLibraryBlock(db *database.DB, projectID string, access database.R
 	}
 	var b strings.Builder
 	b.WriteString("## 项目资产库\n")
-	b.WriteString("对话、批量任务和深度测评使用这里的同一批资产。不要因为没有资产集合就认为没有目标。\n")
+	b.WriteString("对话和批量任务使用这里的同一批资产。不要因为没有资产集合就认为没有目标。\n")
 	if total == 0 {
 		b.WriteString("该项目目前没有可读资产。新发现的目标用 create_asset 写入这个项目。\n")
 		return b.String(), nil

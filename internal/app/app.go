@@ -475,9 +475,6 @@ func New(cfg *config.Config, log *logger.Logger, configPath, updateActivation st
 	registerWebshellTools(mcpServer, db, webshellHandler, log.Logger)
 	registerWebshellManagementTools(mcpServer, db, webshellHandler, log.Logger)
 	configHandler := handler.NewConfigHandler(configPath, cfg, mcpServer, executor, agent, attackChainHandler, externalMCPMgr, log.Logger)
-	if err := agentHandler.InitDeepAssessments(configHandler.RuntimeConfigSnapshot); err != nil {
-		return nil, fmt.Errorf("initialize deep assessments: %w", err)
-	}
 	configHandler.SetDB(db)
 	configHandler.SetToolGuard(toolGuard)
 	configHandler.SetAudit(auditSvc)
@@ -665,7 +662,6 @@ func New(cfg *config.Config, log *logger.Logger, configPath, updateActivation st
 		updateHandler,
 	)
 
-	agentHandler.StartDeepAssessmentRecovery()
 	return app, nil
 
 }
@@ -1114,36 +1110,6 @@ func setupRoutes(
 		protected.PUT("/assets/:id", assetHandler.Update)
 		protected.DELETE("/assets/:id", assetHandler.Delete)
 
-		// Deep assessments have independent APIs, state, permissions and UI.
-		protected.GET("/deep-assessments/options", agentHandler.DeepAssessmentOptions)
-		protected.GET("/deep-assessments", agentHandler.ListDeepAssessments)
-		protected.POST("/deep-assessments", agentHandler.CreateDeepAssessment)
-		protected.GET("/deep-assessments/:id", agentHandler.GetDeepAssessment)
-		protected.POST("/deep-assessments/:id/question", security.RequirePermission("agent:execute"), agentHandler.AskDeepAssessment)
-		protected.GET("/deep-assessments/:id/graph", agentHandler.DeepAssessmentGraph)
-		protected.GET("/deep-assessments/:id/assets", agentHandler.DeepAssessmentAssets)
-		protected.POST("/deep-assessments/:id/assets", agentHandler.DeepAssessmentAssets)
-		protected.GET("/deep-assessments/:id/surface-items", agentHandler.DeepAssessmentSurfaceItems)
-		protected.POST("/deep-assessments/:id/surface-items", agentHandler.DeepAssessmentSurfaceItems)
-		protected.PUT("/deep-assessments/:id/surface-items/:itemId", agentHandler.DeepAssessmentSurfaceItems)
-		protected.GET("/deep-assessments/:id/facts", agentHandler.DeepAssessmentFacts)
-		protected.GET("/deep-assessments/:id/acceptance", agentHandler.DeepAssessmentAcceptance)
-		protected.GET("/deep-assessments/:id/acceptance/sources", agentHandler.DeepAssessmentAcceptanceSources)
-		protected.PUT("/deep-assessments/:id/acceptance/:criterion", agentHandler.SaveDeepAssessmentAcceptance)
-		protected.GET("/deep-assessments/:id/evidence-path", agentHandler.DeepAssessmentEvidencePath)
-		protected.GET("/deep-assessments/:id/evidence-history", agentHandler.DeepAssessmentEvidenceHistory)
-		protected.GET("/deep-assessments/:id/endpoint-evidence", agentHandler.DeepAssessmentEndpointEvidence)
-		protected.PUT("/deep-assessments/:id/endpoint-evidence", agentHandler.DeepAssessmentEndpointEvidence)
-		protected.GET("/deep-assessments/:id/intents", agentHandler.DeepAssessmentIntents)
-		protected.GET("/deep-assessments/:id/graph/node", agentHandler.DeepAssessmentNode)
-		protected.GET("/deep-assessments/:id/vulnerabilities", agentHandler.DeepAssessmentFindings)
-		protected.GET("/deep-assessments/:id/vulnerabilities/:vulnerabilityId", agentHandler.DeepAssessmentFinding)
-		protected.GET("/deep-assessments/:id/steps/:stepId", agentHandler.DeepAssessmentStep)
-		protected.GET("/deep-assessments/:id/events", agentHandler.DeepAssessmentEvents)
-		protected.GET("/deep-assessments/:id/receipts", agentHandler.DeepAssessmentReceipts)
-		protected.GET("/deep-assessments/:id/report", agentHandler.DeepAssessmentReport)
-		protected.POST("/deep-assessments/:id/control/:action", agentHandler.ControlDeepAssessment)
-		protected.DELETE("/deep-assessments/:id", agentHandler.DeleteDeepAssessment)
 		// 批量任务管理
 		protected.POST("/batch-tasks", agentHandler.CreateBatchQueue)
 		protected.GET("/batch-tasks", agentHandler.ListBatchQueues)

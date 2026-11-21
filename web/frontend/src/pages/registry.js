@@ -4,7 +4,6 @@ import { lazy } from 'react';
 export const PAGES = {
     dashboard: lazy(() => import('./dashboard')),
     chat: lazy(() => import('./chat')),
-    'deep-assessments': lazy(() => import('./deep-assessments')),
     hitl: lazy(() => import('./hitl')),
     'tool-guard': lazy(() => import('./tool-guard')),
     projects: lazy(() => import('./projects')),

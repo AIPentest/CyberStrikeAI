@@ -37,4 +37,4 @@
 
 - [Pi 原生运行时与迁移](pi-runtime.md)
 
-- [批量任务管理](task-management.md) · [深度测评与长程恢复](deep-assessments.md)
+- [批量任务管理](task-management.md) 

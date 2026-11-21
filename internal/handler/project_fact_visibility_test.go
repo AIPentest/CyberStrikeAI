@@ -15,13 +15,19 @@ import (
 
 func TestReadableProjectHidesUnreadableFactSources(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	agent, task := deepAssessmentFixture(t)
-	db := agent.db
+	db, err := database.NewDB(t.TempDir()+"/facts.db", zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	if err = db.BootstrapRBAC("fixture-password-hash", security.PermissionCatalog); err != nil {
+		t.Fatal(err)
+	}
 	now := time.Now().UTC()
 	if _, err := db.Exec(`INSERT INTO rbac_roles(id,name,description,scope,is_system,created_at,updated_at) VALUES('role-reader','reader','','own',0,?,?)`, now, now); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"project:read", "project:write", "chat:read", "asset:read", "vulnerability:read", "assessments:read"} {
+	for _, key := range []string{"project:read", "project:write", "chat:read", "asset:read", "vulnerability:read"} {
 		if _, err := db.Exec(`INSERT OR IGNORE INTO rbac_role_permissions(role_id,permission_key,created_at) VALUES('role-reader',?,?)`, key, now); err != nil {
 			t.Fatal(err)
 		}
@@ -83,9 +89,6 @@ func TestReadableProjectHidesUnreadableFactSources(t *testing.T) {
 		if _, err = db.Exec(`UPDATE vulnerabilities SET owner_user_id=? WHERE id=?`, reader.ID, vuln.ID); err != nil {
 			t.Fatal(err)
 		}
-		if _, err = db.Exec(`INSERT INTO vulnerability_assessment_sources(vulnerability_id,assessment_id,assessment_name,step_id,step_title,conversation_id) VALUES(?,?,?,?,?,?)`, vuln.ID, task.ID, task.Name, "inventory", "inventory", readable.ID); err != nil {
-			t.Fatal(err)
-		}
 	}
 	visibleFact, err := db.SaveProjectFact(&database.ProjectFact{
 		ProjectID: project.ID, FactKey: "note/visible", Summary: "visible source", Confidence: "tentative",
@@ -109,19 +112,18 @@ func TestReadableProjectHidesUnreadableFactSources(t *testing.T) {
 			UserID: reader.ID, Scope: database.RBACScopeOwn,
 			Permissions: map[string]bool{
 				"project:read": true, "project:write": true, "chat:read": true,
-				"asset:read": true, "vulnerability:read": true, "assessments:read": true,
+				"asset:read": true, "vulnerability:read": true,
 			},
 			PermissionScopes: map[string]string{
 				"project:read": database.RBACScopeOwn, "project:write": database.RBACScopeOwn,
 				"chat:read": database.RBACScopeOwn, "asset:read": database.RBACScopeOwn,
-				"vulnerability:read": database.RBACScopeOwn, "assessments:read": database.RBACScopeOwn,
+				"vulnerability:read": database.RBACScopeOwn,
 			},
 		})
 	})
 	router.GET("/projects/:id/facts", projects.ListFacts)
 	router.PUT("/projects/:id/facts/:factId", projects.UpdateFact)
 	router.GET("/assets/:id/facts", assets.Facts)
-	router.GET("/deep-assessments/:id/report", agent.DeepAssessmentReport)
 	request := func(method, path, body string, code int) string {
 		t.Helper()
 		w := httptest.NewRecorder()
@@ -169,12 +171,5 @@ func TestReadableProjectHidesUnreadableFactSources(t *testing.T) {
 	}
 	if err = db.UpdateVulnerabilityRetestResult(unchecked.ID, "fixed", "claimed fixed without a receipt", bare.ID); err != nil {
 		t.Fatal(err)
-	}
-	report := request(http.MethodGet, "/deep-assessments/"+task.ID+"/report", "", http.StatusOK)
-	if strings.Count(report, "复测：修复已验证") != 1 || !strings.Contains(report, "尚无复测记录") || !strings.Contains(report, "证据待核对") || !strings.Contains(report, "其余内容仍导出") || !strings.Contains(report, "已标记修复") {
-		t.Fatalf("report conclusions: %s", report)
-	}
-	if strings.Contains(report, secret.ID) || strings.Contains(report, secretExecution) {
-		t.Fatalf("report exposed an unreadable source: %s", report)
 	}
 }

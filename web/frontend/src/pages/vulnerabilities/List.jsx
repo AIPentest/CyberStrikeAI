@@ -42,7 +42,6 @@ export default function VulnTable({
                     <span className="vulnerability-title-meta">
                         {record.type || '—'}
                         {record.case_id ? ` · ${t('vulnerabilityPage.mergedRecord', null, '已归并')}` : ''}
-                        {record.assessment_id ? ` · ${t('vulnerabilityPage.assessmentTask', null, '深度测评')}` : ''}
                     </span>
                 </div>
             )

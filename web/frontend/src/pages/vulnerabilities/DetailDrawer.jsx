@@ -154,10 +154,6 @@ export default function DetailDrawer({
         vuln.task_id ? { label: t('vulnerabilityPage.detailTaskId', null, '任务ID'), value: <span className="vulnerability-inline-code">{vuln.task_id}</span> } : null,
         vuln.task_queue_id ? { label: t('vulnerabilityPage.detailTaskQueueId', null, '任务队列ID'), value: <span className="vulnerability-inline-code">{vuln.task_queue_id}</span> } : null,
         vuln.case_id ? { label: t('vulnerabilityPage.mergedRecord', null, '已归并'), value: vuln.case_title || shortId(vuln.case_id, 12) } : null,
-        vuln.assessment_id ? {
-            label: t('vulnerabilityPage.assessmentTask', null, '深度测评'),
-            value: vuln.assessment_name || shortId(vuln.assessment_id, 12)
-        } : null,
         { label: t('vulnerabilityMd.labelCreated', null, '创建时间'), value: formatDateTime(vuln.created_at) },
         { label: t('vulnerabilityMd.labelUpdated', null, '更新时间'), value: formatDateTime(vuln.updated_at) }
     ].filter(Boolean) : [];
@@ -324,15 +320,6 @@ export default function DetailDrawer({
                                 </div>
                             ) : null}
                         </Section>
-
-                        {vuln.assessment_id ? (
-                            <Section title={t('vulnerabilityPage.assessmentTask', null, '深度测评')}>
-                                <div className="vulnerability-related-row">
-                                    <Text>{vuln.assessment_name || shortId(vuln.assessment_id, 12)}</Text>
-                                    {vuln.assessment_step_title ? <Text type="tertiary">{vuln.assessment_step_title}</Text> : null}
-                                </div>
-                            </Section>
-                        ) : null}
 
                         {members.length ? (
                             <Section title={vuln.case_title || t('vulnerabilityPage.mergedRecord', null, '已归并')}>

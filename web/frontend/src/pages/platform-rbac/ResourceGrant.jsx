@@ -6,7 +6,7 @@ import { Drawer, ErrorBanner, toastSuccess } from '../../components/ui';
 
 const types = [
     ['project', '项目'], ['conversation', '会话'], ['asset', '资产'],
-    ['vulnerability', '漏洞'], ['deep_assessment', '深度测评'], ['batch_task', '批量任务'],
+    ['vulnerability', '漏洞'], ['batch_task', '批量任务'],
 ];
 
 export default function ResourceGrant({ users, onCancel, onSaved }) {

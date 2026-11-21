@@ -7,7 +7,7 @@ import { SEVERITY_LABEL } from '../../lib/format';
 
 export const SEVERITY_CODES = ['critical', 'high', 'medium', 'low', 'info'];
 export const STATUS_CODES = ['open', 'confirmed', 'fixed', 'ignored', 'false_positive'];
-export const FILTER_KEYS = ['q', 'severity', 'status', 'project_id', 'conversation_tag', 'task_tag', 'assessment_id'];
+export const FILTER_KEYS = ['q', 'severity', 'status', 'project_id', 'conversation_tag', 'task_tag'];
 export const DEFAULT_PAGE_SIZE = 20;
 export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 

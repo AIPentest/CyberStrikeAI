@@ -276,7 +276,7 @@ export default function AppLayout() {
 
     const onSelect = ({ itemKey }) => {
         const search = location.search;
-        const carry = ['chat', 'vulnerabilities', 'settings', 'deep-assessments'].includes(itemKey) && pageId === itemKey ? search : '';
+        const carry = ['chat', 'vulnerabilities', 'settings'].includes(itemKey) && pageId === itemKey ? search : '';
         navigate(`/${itemKey}${carry}`);
     };
 

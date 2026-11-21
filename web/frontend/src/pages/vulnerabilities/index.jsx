@@ -42,7 +42,6 @@ export default function VulnerabilitiesPage() {
         project_id: params.get('project_id') || '',
         conversation_tag: params.get('conversation_tag') || '',
         task_tag: params.get('task_tag') || '',
-        assessment_id: params.get('assessment_id') || '',
         // handler 只接受 severity / latest / oldest，非法值会让列表 400。
         sort: ['severity', 'latest', 'oldest'].includes(params.get('sort')) ? params.get('sort') : ''
     }), [params]);

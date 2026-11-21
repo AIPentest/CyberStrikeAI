@@ -21,7 +21,6 @@ import (
 	"cyberstrike-ai/internal/authctx"
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/database"
-	"cyberstrike-ai/internal/deepassessment"
 	"cyberstrike-ai/internal/mcp/builtin"
 	"cyberstrike-ai/internal/multiagent"
 	"cyberstrike-ai/internal/openai"
@@ -188,8 +187,6 @@ type AgentHandler struct {
 	agent                 *agent.Agent
 	db                    *database.DB
 	logger                *zap.Logger
-	deepAssessments       *deepassessment.Engine
-	deepAssessmentRuntime *deepAssessmentRuntime
 	tasks                 *AgentTaskManager
 	taskEventBus          *TaskEventBus // 镜像 SSE 事件，供刷新后订阅同一运行中任务
 	batchTaskManager      *BatchTaskManager
@@ -1887,7 +1884,7 @@ type BatchTaskRequest struct {
 	CronExpr     string   `json:"cronExpr,omitempty"`       // scheduleMode=cron 时必填
 	ExecuteNow   bool     `json:"executeNow,omitempty"`     // 创建后是否立即执行（默认 false）
 	ProjectID    string   `json:"projectId,omitempty"`      // 队列内子对话绑定的项目（可选）
-	CollectionID string   `json:"collectionId,omitempty"`   // 与信息收集、深度测评共用的资产集合
+	CollectionID string   `json:"collectionId,omitempty"`   // 与信息收集共用的资产集合
 	Concurrency  int      `json:"concurrency,omitempty"`    // 同时执行的子任务数，默认 1，最大 8
 }
 

@@ -57,18 +57,6 @@ func TestSharedCollectionCoverageAndRetestFact(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.Exec(`INSERT INTO deep_assessments(id,owner_user_id,project_id,name,status,payload,updated_at) VALUES(?,?,?,?,?,?,?)`,
-		"assess-1", user.ID, project.ID, "assess", "draft", "{}", now); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.Exec(`INSERT INTO vulnerability_assessment_sources(vulnerability_id,assessment_id,assessment_name,step_id,step_title,conversation_id) VALUES(?,?,?,?,?,?)`,
-		vuln.ID, "assess-1", "assess", "step-1", "check", source.ID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.Exec(`INSERT INTO deep_assessment_nodes(task_id,id,step_id,kind,state,title,body,source,updated_round,updated_at) VALUES(?,?,?,'finding','reported',?,?,?,0,?)`,
-		"assess-1", "finding:"+vuln.ID, "step-1", "login", "original", "{}", now); err != nil {
-		t.Fatal(err)
-	}
 	if err = db.UpdateVulnerabilityRetestResult(vuln.ID, "fixed", "patched in this build", retestConv.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -108,14 +96,6 @@ func TestSharedCollectionCoverageAndRetestFact(t *testing.T) {
 	observation := stats["observation"].(map[string]interface{})
 	if observation["observed"] != 1 {
 		t.Fatalf("observation=%#v", observation)
-	}
-	var state string
-	if err = db.QueryRow(`SELECT state FROM deep_assessment_nodes WHERE task_id=? AND id=?`, "assess-1", "finding:"+vuln.ID).Scan(&state); err != nil || state != "reported" {
-		t.Fatalf("finding node changed: %s %v", state, err)
-	}
-	var reviews int
-	if err = db.QueryRow(`SELECT COUNT(*) FROM deep_assessment_finding_reviews WHERE vulnerability_id=?`, vuln.ID).Scan(&reviews); err != nil || reviews != 0 {
-		t.Fatalf("retest execution was stored as an assessment review: %d %v", reviews, err)
 	}
 }
 
