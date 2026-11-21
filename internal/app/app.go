@@ -170,6 +170,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath, updateActivation st
 
 	// 创建安全工具执行器
 	executor := security.NewExecutor(&cfg.Security, mcpServer, log.Logger)
+	executor.SetProxyConfig(cfg.Proxy)
 	executor.SetShellNoOutputTimeoutSeconds(cfg.Agent.ShellNoOutputTimeoutSeconds)
 	executor.SetToolOutputMaxBytes(cfg.MultiAgent.Runtime.ReductionMaxLengthForTruncEffective())
 	executor.SetToolOutputSpillRoot(cfg.MultiAgent.Runtime.ReductionRootDir)
@@ -1062,6 +1063,7 @@ func setupRoutes(
 		protected.POST("/hitl/dismiss", agentHandler.DismissHITLInterrupt)
 		protected.GET("/hitl/config/:conversationId", agentHandler.GetHITLConversationConfig)
 		protected.PUT("/hitl/config", agentHandler.UpsertHITLConversationConfig)
+		protected.PUT("/hitl/config/:conversationId/human-approval", agentHandler.RequireHITLConversationHumanApproval)
 		protected.GET("/hitl/tool-whitelist", agentHandler.GetHITLGlobalToolWhitelist)
 		protected.PUT("/hitl/tool-whitelist", agentHandler.SetHITLGlobalToolWhitelist)
 		protected.POST("/hitl/tool-whitelist", agentHandler.MergeHITLGlobalToolWhitelist)
@@ -1096,6 +1098,9 @@ func setupRoutes(
 		protected.GET("/assets", assetHandler.List)
 		protected.GET("/assets/selection", assetHandler.Selection)
 		protected.GET("/assets/stats", assetHandler.Stats)
+		protected.GET("/assets/collections", assetHandler.ListCollections)
+		protected.GET("/assets/collections/:id", assetHandler.GetCollection)
+		protected.GET("/assets/:id/facts", assetHandler.Facts)
 		protected.POST("/assets/import", assetHandler.Import)
 		protected.POST("/assets/scan-links", assetHandler.RecordScans)
 		protected.PUT("/assets/bulk", assetHandler.BulkUpdate)
@@ -1160,6 +1165,7 @@ func setupRoutes(
 		protected.POST("/config/test-openai", configHandler.TestOpenAI)
 		protected.POST("/config/detect-context", configHandler.DetectContext)
 		protected.POST("/config/test-typesafe", configHandler.TestTypeSafe)
+		protected.POST("/config/test-audit-model", configHandler.TestAuditModel)
 		protected.POST("/config/test-vision", configHandler.TestVision)
 		protected.POST("/config/list-models", configHandler.ListModels)
 
@@ -1511,22 +1517,18 @@ func setupRoutes(
 	// OpenAPI规范（需要认证，避免暴露API结构信息）
 	protected.GET("/openapi/spec", openAPIHandler.GetOpenAPISpec)
 
-	// API文档页面（公开访问，但需要登录后才能使用API）
-	router.GET("/api-docs", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "api-docs.html", nil)
-	})
-
-	// 静态文件
+	// 静态文件（前端为 React + Semi Design 单页应用，构建产物在 web/static/app）
 	router.Static("/static", "./web/static")
-	router.LoadHTMLGlob("web/templates/*")
+
+	// API 文档已并入单页应用路由（#/api-docs），保留旧地址跳转
+	router.GET("/api-docs", func(c *gin.Context) {
+		c.Redirect(http.StatusFound, "/#/api-docs")
+	})
 
 	// 前端页面
 	router.GET("/", func(c *gin.Context) {
-		version := app.config.Version
-		if version == "" {
-			version = "v1.0.0"
-		}
-		c.HTML(http.StatusOK, "index.html", gin.H{"Version": version})
+		c.Header("Cache-Control", "no-cache")
+		c.File("./web/static/app/index.html")
 	})
 }
 

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,8 +11,35 @@ import (
 	"cyberstrike-ai/internal/modelmeta"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
+
+func TestGetConfigReportsContextWindowDefaultsSeparately(t *testing.T) {
+	cfg := &config.Config{AI: config.AIConfig{Channels: map[string]config.AIChannelConfig{
+		"flash":   {BaseURL: "https://api.deepseek.com", Model: "deepseek-flash"},
+		"local":   {ContextProfile: "local", ContextWindow: 65536},
+		"gateway": {BaseURL: "https://example.test", Model: "deepseek-flash"},
+	}}}
+	h := &ConfigHandler{config: cfg, logger: zap.NewNop()}
+	router := gin.New()
+	router.GET("/config", h.GetConfig)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/config", nil))
+	if res.Code != http.StatusOK {
+		t.Fatalf("GET config: %d %s", res.Code, res.Body.String())
+	}
+	var result GetConfigResponse
+	if err := json.Unmarshal(res.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if defaults := result.ContextWindowDefaults; defaults["flash"] != 1048576 || defaults["local"] != 32768 || len(defaults) != 2 {
+		t.Fatalf("unexpected context window defaults: %v", defaults)
+	}
+	if result.AI.Channels["flash"].ContextWindow != 0 || result.AI.Channels["local"].ContextWindow != 65536 {
+		t.Fatal("default windows changed the configured values")
+	}
+}
 
 func TestDetectedContextSettingsRoundTripThroughSavedYAML(t *testing.T) {
 	var doc yaml.Node
@@ -20,7 +48,9 @@ func TestDetectedContextSettingsRoundTripThroughSavedYAML(t *testing.T) {
 	}
 	for _, profile := range []string{"local_auto", "custom", ""} {
 		ch := config.AIChannelConfig{Model: "fixture", ContextWindow: 32768, ContextProfile: profile}
-		updateAIConfig(&doc, config.AIConfig{DefaultChannel: "local", Channels: map[string]config.AIChannelConfig{"local": ch}})
+		if err := updateAIConfig(&doc, config.AIConfig{DefaultChannel: "local", Channels: map[string]config.AIChannelConfig{"local": ch}}); err != nil {
+			t.Fatal(err)
+		}
 		raw, err := yaml.Marshal(&doc)
 		if err != nil {
 			t.Fatal(err)

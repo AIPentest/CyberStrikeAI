@@ -3,6 +3,7 @@ package vision
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -41,12 +42,12 @@ func TestResolveImagePath_absoluteOutsideCWD(t *testing.T) {
 
 func TestResolveImagePath_rejectsNonImageExt(t *testing.T) {
 	dir := t.TempDir()
-	f := filepath.Join(dir, "notes.txt")
+	f := filepath.Join(dir, "notes.body")
 	if err := os.WriteFile(f, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	_, err := ResolveImagePath(f, dir)
-	if err == nil {
-		t.Fatal("expected error for non-image extension")
+	if err == nil || !strings.Contains(err.Error(), "unsupported image extension \".body\"") || !strings.Contains(err.Error(), ".png or .jpg") {
+		t.Fatalf("expected extension error with recovery guidance, got %v", err)
 	}
 }

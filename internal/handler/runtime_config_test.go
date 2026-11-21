@@ -107,6 +107,11 @@ agent_runtime:
   node_path: /custom/node
   worker_path: /custom/worker.js
   session_dir: /private/sessions
+  purge:
+    enabled: true
+    instruction: retired guidance
+    model_instructions:
+      provider/model: retired model guidance
 multi_agent:
   eino_middleware:
     tool_search_enable: true
@@ -139,6 +144,9 @@ multi_agent:
 	var raw map[string]any
 	if err := doc.Decode(&raw); err != nil {
 		t.Fatal(err)
+	}
+	if _, ok := raw["agent_runtime"].(map[string]any)["purge"]; ok {
+		t.Fatal("retired prompt profile was written back to disk")
 	}
 	ma := raw["multi_agent"].(map[string]any)
 	for _, key := range []string{"eino_middleware", "eino_skills", "eino_callbacks"} {

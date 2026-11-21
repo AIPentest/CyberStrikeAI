@@ -1,0 +1,141 @@
+/* MCP 状态监控页私有布局样式（颜色只用 Semi 变量）。 */
+
+.mcp-monitor-page { display: flex; flex-direction: column; }
+
+.mcp-monitor-timeline-summary {
+    display: grid;
+    grid-template-columns: 200px 200px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.mcp-monitor-timeline-legend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--semi-color-text-2);
+}
+.mcp-monitor-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.mcp-monitor-legend-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.mcp-monitor-legend-total { background: var(--semi-color-primary); }
+.mcp-monitor-legend-failed { background: var(--semi-color-danger); }
+.mcp-monitor-legend-blocked { background: var(--semi-color-warning); }
+
+.mcp-monitor-timeline-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 176px;
+    padding: 8px 4px 0;
+    border-bottom: 1px solid var(--semi-color-border);
+}
+.mcp-monitor-timeline-slot {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 4px;
+}
+.mcp-monitor-timeline-bar-wrap {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+.mcp-monitor-timeline-bar {
+    position: relative;
+    width: 100%;
+    max-width: 26px;
+    min-height: 0;
+    border-radius: 3px 3px 0 0;
+    background: var(--semi-color-primary-light-active);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
+    transition: background .15s ease;
+}
+.mcp-monitor-timeline-slot:hover .mcp-monitor-timeline-bar { background: var(--semi-color-primary-light-default); }
+.mcp-monitor-timeline-seg { display: block; width: 100%; }
+.mcp-monitor-timeline-seg.mcp-monitor-seg-failed { background: var(--semi-color-danger); }
+.mcp-monitor-timeline-seg.mcp-monitor-seg-blocked { background: var(--semi-color-warning); }
+.mcp-monitor-timeline-tick {
+    flex: 0 0 14px;
+    height: 14px;
+    font-size: 10px;
+    line-height: 14px;
+    color: var(--semi-color-text-2);
+    text-align: center;
+    white-space: nowrap;
+    overflow: visible;
+}
+.mcp-monitor-timeline-empty {
+    height: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--semi-color-text-2);
+    font-size: 13px;
+    border: 1px dashed var(--semi-color-border);
+    border-radius: 8px;
+}
+.mcp-monitor-timeline-empty p { margin: 0; }
+.mcp-monitor-timeline-hint { font-size: 12px; color: var(--semi-color-text-3); }
+.mcp-monitor-timeline-retry { margin-top: 8px; }
+
+.mcp-monitor-tool-link {
+    border: none;
+    background: transparent;
+    color: var(--semi-color-primary);
+    cursor: pointer;
+    padding: 0;
+    font-size: 13px;
+    text-align: left;
+}
+.mcp-monitor-tool-link:hover { text-decoration: underline; }
+.mcp-monitor-tool-link.mcp-monitor-link-active { font-weight: 600; }
+.mcp-monitor-danger { color: var(--semi-color-danger); }
+.mcp-monitor-cell-tool { font-family: "SFMono-Regular", Consolas, monospace; font-size: 12.5px; word-break: break-all; }
+.mcp-monitor-mono { font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px; word-break: break-all; }
+.mcp-monitor-selected { font-size: 12px; color: var(--semi-color-text-2); }
+
+.mcp-monitor-detail { display: flex; flex-direction: column; gap: 14px; }
+.mcp-monitor-detail-loading { display: flex; justify-content: center; padding: 48px 0; }
+.mcp-monitor-detail-error { margin-top: 4px; }
+.mcp-monitor-detail-section { display: flex; flex-direction: column; gap: 6px; }
+.mcp-monitor-detail-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mcp-monitor-detail-pre {
+    margin: 0;
+    padding: 12px;
+    max-height: 320px;
+    overflow: auto;
+    font-size: 12px;
+    line-height: 1.5;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    border: 1px solid var(--semi-color-border);
+    border-radius: 8px;
+    background: var(--semi-color-fill-0);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.mcp-monitor-detail-empty {
+    padding: 16px;
+    border: 1px dashed var(--semi-color-border);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--semi-color-text-2);
+}
+.mcp-monitor-detail-footnote { font-size: 12px; color: var(--semi-color-text-2); }
+.mcp-monitor-cancel-hint { margin: 0 0 8px; font-size: 13px; color: var(--semi-color-text-2); }
+
+@media (max-width: 900px) {
+    .mcp-monitor-timeline-summary { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .mcp-monitor-timeline-legend { grid-column: 1 / -1; justify-content: flex-start; }
+}

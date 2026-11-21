@@ -44,6 +44,15 @@ type piRun struct {
 	extraExecute                                      agentruntime.ToolExecutor
 }
 
+type chatImagesKey struct{}
+
+func WithChatImages(ctx context.Context, images []agentruntime.Image) context.Context {
+	if len(images) == 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, chatImagesKey{}, images)
+}
+
 func runPiSingle(ctx context.Context, cfg *config.Config, ag *agent.Agent, db *database.DB, logger *zap.Logger,
 	conversationID, projectID, message string, history []agent.ChatMessage, roleTools []string,
 	progress func(string, string, interface{}), intent *reasoning.ClientIntent, extra string) (*RunResult, error) {
@@ -225,6 +234,11 @@ func runPiMulti(ctx context.Context, cfg *config.Config, ma *config.MultiAgentCo
 }
 
 func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
+	if extra, ok := ctx.Value(taskToolsKey{}).(taskTools); ok && !r.child {
+		r.extraTools = append(r.extraTools, extra.definitions...)
+		r.extraExecute = extra.execute
+	}
+	options, _ := ctx.Value(piOptionsKey{}).(PiRunOptions)
 	defs := r.ag.ToolsForRole(r.roleTools)
 	// MCP catalogs are backed by maps. Keep the tool prefix and the first N
 	// always-visible tools stable across runs with the same catalog.
@@ -243,7 +257,7 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 			continue
 		}
 		allowed[d.Function.Name] = true
-		tools = append(tools, agentruntime.Tool{Name: d.Function.Name, Description: d.Function.Description, Parameters: d.Function.Parameters})
+		tools = append(tools, agentruntime.Tool{Name: d.Function.Name, Description: d.Function.Description, Parameters: d.Function.Parameters, OutputSchema: d.Function.OutputSchema, Annotations: d.Function.Annotations})
 	}
 	for _, t := range localDefs {
 		if r.catalogAllow != nil && !r.catalogAllow[t.Name] {
@@ -295,13 +309,17 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 	req := agentruntime.Request{RunID: runID, ConversationID: r.conversationID, SystemPrompt: r.systemPrompt, Message: message, History: history,
 		Model: piModelConfig(oa, r.reasoning, r.conversationID),
 		Tools: tools, SessionDir: filepath.Join(root, agentruntime.ConversationStorageKey(r.conversationID), key), MaxTurns: max}
+	if !r.child {
+		req.Images, _ = ctx.Value(chatImagesKey{}).([]agentruntime.Image)
+	}
 	if strings.TrimSpace(r.conversationID) == "" {
 		req.SessionDir = ""
 	}
+	req.NativeWorkflow = options.Native
 	req.ToolSearch = r.cfg.MultiAgent.Runtime.ToolSearchEnable
 	req.ToolSearchMinTools = r.cfg.MultiAgent.Runtime.ToolSearchMinTools
 	req.AlwaysVisibleTools = append([]string(nil), r.cfg.MultiAgent.Runtime.ToolSearchAlwaysVisibleTools...)
-	if r.cfg.MultiAgent.Runtime.ToolSearchIncludeBuiltinsEffective() {
+	if options.Native == nil && r.cfg.MultiAgent.Runtime.ToolSearchIncludeBuiltinsEffective() {
 		req.AlwaysVisibleTools = append(req.AlwaysVisibleTools, builtin.GetAllBuiltinTools()...)
 	}
 	visibleCount := r.cfg.MultiAgent.Runtime.ToolSearchAlwaysVisible
@@ -362,7 +380,14 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 		}
 		r.progress(kind, text, data)
 	}
-	invoke := func(callCtx context.Context, call agentruntime.ToolCall) (agentruntime.ToolResult, error) {
+	invoke := func(callCtx context.Context, call agentruntime.ToolCall) (reply agentruntime.ToolResult, runErr error) {
+		if options.AuthorizeContext != nil {
+			var err error
+			callCtx, err = options.AuthorizeContext(callCtx, call)
+			if err != nil {
+				return agentruntime.ToolResult{}, err
+			}
+		}
 		if !allowed[call.Name] && !extraNames[call.Name] {
 			return agentruntime.ToolResult{}, fmt.Errorf("tool not allowed: %s", call.Name)
 		}
@@ -384,6 +409,23 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 				}
 			}
 		}
+		if options.BeforeTool != nil {
+			if err := options.BeforeTool(callCtx, call); err != nil {
+				return agentruntime.ToolResult{}, err
+			}
+		}
+		if options.AfterTool != nil {
+			defer func() {
+				if runErr != nil {
+					reply.IsError = true
+					reply.Content = runErr.Error()
+				}
+				if err := options.AfterTool(callCtx, call, reply); err != nil {
+					runErr = err
+					reply.IsError = true
+				}
+			}()
+		}
 		progress("tool_call", "", map[string]any{"toolName": call.Name, "toolCallId": call.ID, "providerToolCallId": call.ProviderID, "arguments": call.Arguments})
 		var result agentruntime.ToolResult
 		var err error
@@ -395,7 +437,7 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 			res, invokeErr := r.ag.ExecuteMCPToolForConversation(callCtx, r.conversationID, call.Name, call.Arguments)
 			err = invokeErr
 			if res != nil {
-				result = agentruntime.ToolResult{Content: res.Result, IsError: res.IsError || res.Blocked, ExecutionID: res.ExecutionID}
+				result = agentruntime.ToolResult{Content: res.Result, IsError: res.IsError || res.Blocked, ExecutionID: res.ExecutionID, StructuredContent: res.StructuredContent}
 				if res.ExecutionID != "" {
 					idsMu.Lock()
 					ids = append(ids, res.ExecutionID)
@@ -407,7 +449,7 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 			result.Content = err.Error()
 			result.IsError = true
 		}
-		if !r.child && !result.IsError && (localNames[call.Name] || (extraNames[call.Name] && call.Name == "write_todos")) {
+		if options.Native == nil && !r.child && !result.IsError && (localNames[call.Name] || (extraNames[call.Name] && call.Name == "write_todos")) {
 			idsMu.Lock()
 			plan.observe(call, result.Content)
 			idsMu.Unlock()
@@ -431,6 +473,15 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 	var modelCalls, promptTokens, completionTokens, cacheRead, cacheWrite, reasoningTokens int
 	reasonID := func() string { return fmt.Sprintf("%s-reasoning-%d", runID, iteration.Load()) }
 	emit := func(e agentruntime.Event) {
+		if options.Event != nil {
+			options.Event(e)
+		}
+		if e.Type == "session_metrics" && options.Metrics != nil {
+			var data map[string]any
+			if json.Unmarshal(e.Data, &data) == nil {
+				options.Metrics(data)
+			}
+		}
 		if e.Type == "compaction_end" {
 			var data struct {
 				Result *struct {
@@ -528,6 +579,9 @@ func (r *piRun) run(ctx context.Context, message string) (*RunResult, error) {
 	}
 	bind := func(control agentruntime.Control) func() {
 		var undo []func()
+		if options.Bind != nil {
+			undo = append(undo, options.Bind(control))
+		}
 		if !r.child {
 			if registrar := agentRuntimeCancelRegistrarFromContext(ctx); registrar != nil {
 				undo = append(undo, registrar(func(error) bool { return control.Cancel() == nil }))

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"cyberstrike-ai/internal/agentruntime"
+	"cyberstrike-ai/internal/agent"
 	"cyberstrike-ai/internal/config"
 	"go.uber.org/zap"
 )
@@ -91,13 +91,10 @@ func TestPiCompatibleReasoningUsesSystemMessages(t *testing.T) {
 				ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 				defer cancel()
 				if background {
-					result, err := (agentruntime.Pi{WorkerPath: cfg.AgentRuntime.WorkerPath}).Run(ctx, agentruntime.Request{
-						RunID: "instruction-role", GenerateOnly: true, SystemPrompt: "instruction-role fixture",
-						History: json.RawMessage(`[{"role":"user","content":"Say ok"}]`),
-						Model:   piModelConfig(cfg.OpenAI, nil, ""), Tools: []agentruntime.Tool{}, MaxTurns: 1,
-					}, nil, nil, nil)
-					if err != nil || result == nil || result.Response != "role verified" || result.Status != "completed" {
-						t.Fatalf("result=%+v err=%v", result, err)
+					message, _, err := CompleteBackgroundStepWithRuntime(ctx, cfg.AgentRuntime, cfg.OpenAI,
+						[]agent.ChatMessage{{Role: "system", Content: "instruction-role fixture"}, {Role: "user", Content: "Say ok"}}, nil, 1024, zap.NewNop())
+					if err != nil || message == nil || message.Content != "role verified" {
+						t.Fatalf("message=%+v err=%v", message, err)
 					}
 				} else {
 					result, err := RunSingleAgent(ctx, cfg, &cfg.MultiAgent, piTestAgent(cfg, nil), nil, zap.NewNop(), "", "", "Say ok", nil, nil, nil, nil, "instruction-role fixture")

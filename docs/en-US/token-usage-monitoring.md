@@ -2,7 +2,7 @@
 
 Pi reports usage; Go accumulates completed model turns and emits `agent_usage_summary` into the existing database and timeline. Local statistics are not a provider billing statement and may not cover every auxiliary HTTP request.
 
-Prompt tokens are Pi input + cacheRead + cacheWrite. Completion tokens are output, and total is prompt + completion. Cache details are already included and must not be added again. The usage view shows provider-reported reasoning tokens as a subset of completion tokens. Model-call counts reflect observed turns. Missing reasoning/cache details mean unreported data, not proven zero use. Durable assessments retain their own conservative budget ledger.
+Prompt tokens are Pi input + cacheRead + cacheWrite. Completion tokens are output, and total is prompt + completion. Cache details are already included and must not be added again. The usage view shows provider-reported reasoning tokens as a subset of completion tokens. Model-call counts reflect observed turns. Missing reasoning/cache details mean unreported data, not proven zero use.
 
 The dashboard and Settings usage view retain period, model and project filters. APIs are `GET /api/usage/tokens` and `GET /api/conversations/:id/token-usage`. Existing usage rows and historical timeline backfill remain compatible.
 

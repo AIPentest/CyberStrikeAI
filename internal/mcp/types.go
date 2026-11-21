@@ -104,6 +104,8 @@ type Tool struct {
 	Description      string                 `json:"description"`                // 详细描述
 	ShortDescription string                 `json:"shortDescription,omitempty"` // 简短描述（用于工具列表，减少token消耗）
 	InputSchema      map[string]interface{} `json:"inputSchema"`
+	OutputSchema     map[string]interface{} `json:"outputSchema,omitempty"`
+	Annotations      map[string]bool        `json:"annotations,omitempty"`
 }
 
 // ToolCall 表示工具调用
@@ -114,8 +116,9 @@ type ToolCall struct {
 
 // ToolResult 表示工具执行结果
 type ToolResult struct {
-	Content []Content `json:"content"`
-	IsError bool      `json:"isError,omitempty"`
+	Content           []Content              `json:"content"`
+	StructuredContent map[string]interface{} `json:"structuredContent,omitempty"`
+	IsError           bool                   `json:"isError,omitempty"`
 	// Blocked means policy stopped the call before execution. IsError remains
 	// true for MCP/model handling, while monitoring uses a distinct status.
 	Blocked bool `json:"blocked,omitempty"`

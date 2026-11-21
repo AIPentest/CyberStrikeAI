@@ -182,17 +182,17 @@ func discardPlanningIfEchoesToolResult(respPlan *responsePlanAgg, toolData inter
 
 // AgentHandler Agent处理器
 type AgentHandler struct {
-	asyncWorkers     sync.WaitGroup
-	asyncSubmitMu    sync.Mutex
-	agent            *agent.Agent
-	db               *database.DB
-	logger           *zap.Logger
-	tasks            *AgentTaskManager
-	taskEventBus     *TaskEventBus // 镜像 SSE 事件，供刷新后订阅同一运行中任务
-	batchTaskManager *BatchTaskManager
-	hitlManager      *HITLManager
-	config           *config.Config // 配置引用，用于获取角色信息
-	knowledgeManager interface {    // 知识库管理器接口
+	asyncWorkers          sync.WaitGroup
+	asyncSubmitMu         sync.Mutex
+	agent                 *agent.Agent
+	db                    *database.DB
+	logger                *zap.Logger
+	tasks                 *AgentTaskManager
+	taskEventBus          *TaskEventBus // 镜像 SSE 事件，供刷新后订阅同一运行中任务
+	batchTaskManager      *BatchTaskManager
+	hitlManager           *HITLManager
+	config                *config.Config // 配置引用，用于获取角色信息
+	knowledgeManager      interface {    // 知识库管理器接口
 		LogRetrieval(conversationID, messageID, query, riskType string, retrievedItems []string) error
 	}
 	agentsMarkdownDir string // 多代理：Markdown 子 Agent 目录（绝对路径，空则不从磁盘合并）
@@ -410,6 +410,7 @@ type ChatRequest struct {
 	WebShellConnectionID string                  `json:"webshellConnectionId,omitempty"` // WebShell 管理 - AI 助手：当前选中的连接 ID，仅使用 webshell_* 工具
 	AIChannelID          string                  `json:"aiChannelId,omitempty"`          // 会话级 AI 通道；空则使用 ai.default_channel
 	Hitl                 *HITLRequest            `json:"hitl,omitempty"`
+	RequireHumanApproval bool                    `json:"requireHumanApproval,omitempty"` // 新对话保存人工审批配置。
 	Reasoning            *ChatReasoningRequest   `json:"reasoning,omitempty"`
 	Finalization         ChatFinalizationRequest `json:"finalization,omitempty"`
 	// Orchestration 仅对 /api/multi-agent、/api/multi-agent/stream：deep | plan_execute | supervisor；空则等同 deep。机器人/批量等无请求体时由服务端默认 deep。/api/agent* 不使用此字段。
@@ -1883,6 +1884,7 @@ type BatchTaskRequest struct {
 	CronExpr     string   `json:"cronExpr,omitempty"`       // scheduleMode=cron 时必填
 	ExecuteNow   bool     `json:"executeNow,omitempty"`     // 创建后是否立即执行（默认 false）
 	ProjectID    string   `json:"projectId,omitempty"`      // 队列内子对话绑定的项目（可选）
+	CollectionID string   `json:"collectionId,omitempty"`   // 与信息收集共用的资产集合
 	Concurrency  int      `json:"concurrency,omitempty"`    // 同时执行的子任务数，默认 1，最大 8
 }
 
@@ -1930,6 +1932,17 @@ func (h *AgentHandler) CreateBatchQueue(c *gin.Context) {
 			return
 		}
 	}
+	if strings.TrimSpace(req.CollectionID) != "" {
+		collection, err := h.db.GetAssetCollection(strings.TrimSpace(req.CollectionID))
+		if err != nil || collection.ProjectID != strings.TrimSpace(req.ProjectID) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "资产集合不存在，或不属于所选项目"})
+			return
+		}
+		if collection.MemberCount > 5000 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "资产集合超过 5000 个成员，请先缩小范围"})
+			return
+		}
+	}
 
 	agentMode := config.NormalizeAgentMode(req.AgentMode)
 	scheduleMode := normalizeBatchQueueScheduleMode(req.ScheduleMode)
@@ -1953,6 +1966,12 @@ func (h *AgentHandler) CreateBatchQueue(c *gin.Context) {
 	if createErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": createErr.Error()})
 		return
+	}
+	if strings.TrimSpace(req.CollectionID) != "" {
+		if err := h.batchTaskManager.SetQueueCollection(queue.ID, req.CollectionID); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "queueId": queue.ID})
+			return
+		}
 	}
 	if session, ok := security.CurrentSession(c); ok && h.db != nil {
 		_ = h.db.SetResourceOwner("batch_task", queue.ID, session.UserID)

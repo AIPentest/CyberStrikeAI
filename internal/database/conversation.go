@@ -17,6 +17,39 @@ import (
 // ProjectFilterUnbound 列表 API 中 project_id=__none__ 表示仅未绑定项目的对话。
 const ProjectFilterUnbound = "__none__"
 
+type ConversationProjectGroup struct {
+	ProjectID string `json:"projectId"`
+	Total     int    `json:"total"`
+}
+
+// ListConversationProjectGroups counts matching, accessible conversations by project.
+func (db *DB) ListConversationProjectGroups(search, userID, scope string) ([]ConversationProjectGroup, error) {
+	where := " WHERE 1 = 1"
+	var args []interface{}
+	if search != "" {
+		where += ` AND (c.title LIKE ?
+			OR EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = c.id AND m.content LIKE ?))`
+		pattern := "%" + search + "%"
+		args = append(args, pattern, pattern)
+	}
+	where, args = appendConversationAccessFilter(where, args, userID, scope, "c")
+	rows, err := db.Query(`SELECT TRIM(COALESCE(c.project_id, '')), COUNT(*) FROM conversations c`+where+`
+		GROUP BY 1 ORDER BY MAX(c.updated_at) DESC, 1`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	groups := []ConversationProjectGroup{}
+	for rows.Next() {
+		var group ConversationProjectGroup
+		if err := rows.Scan(&group.ProjectID, &group.Total); err != nil {
+			return nil, err
+		}
+		groups = append(groups, group)
+	}
+	return groups, rows.Err()
+}
+
 // Conversation 对话
 type Conversation struct {
 	ID        string               `json:"id"`
@@ -64,31 +97,49 @@ func (db *DB) CreateConversationWithWebshell(webshellConnectionID, title string,
 	agentMode := normalizeConversationAgentMode(meta.AgentMode)
 
 	var err error
+	exec := db.Exec
+	var tx *sql.Tx
+	if meta.HITL != nil {
+		tx, err = db.Begin()
+		if err != nil {
+			return nil, err
+		}
+		defer tx.Rollback()
+		exec = tx.Exec
+	}
 	wsID := strings.TrimSpace(webshellConnectionID)
 	switch {
 	case wsID != "" && projectID != "":
-		_, err = db.Exec(
+		_, err = exec(
 			"INSERT INTO conversations (id, title, created_at, updated_at, webshell_connection_id, project_id, role_name, agent_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
 			id, title, now, now, wsID, projectID, roleName, agentMode,
 		)
 	case wsID != "":
-		_, err = db.Exec(
+		_, err = exec(
 			"INSERT INTO conversations (id, title, created_at, updated_at, webshell_connection_id, role_name, agent_mode) VALUES (?, ?, ?, ?, ?, ?, ?)",
 			id, title, now, now, wsID, roleName, agentMode,
 		)
 	case projectID != "":
-		_, err = db.Exec(
+		_, err = exec(
 			"INSERT INTO conversations (id, title, created_at, updated_at, project_id, role_name, agent_mode) VALUES (?, ?, ?, ?, ?, ?, ?)",
 			id, title, now, now, projectID, roleName, agentMode,
 		)
 	default:
-		_, err = db.Exec(
+		_, err = exec(
 			"INSERT INTO conversations (id, title, created_at, updated_at, role_name, agent_mode) VALUES (?, ?, ?, ?, ?, ?)",
 			id, title, now, now, roleName, agentMode,
 		)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("创建对话失败: %w", err)
+	}
+	if tx != nil {
+		if err := saveConversationHITLConfig(tx.Exec, id, *meta.HITL, now); err != nil {
+			return nil, fmt.Errorf("保存人机协同配置失败: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
 	}
 
 	conv := &Conversation{
@@ -105,6 +156,61 @@ func (db *DB) CreateConversationWithWebshell(webshellConnectionID, title string,
 	}
 	notifyConversationCreated(conv, meta)
 	return conv, nil
+}
+
+func saveConversationHITLConfig(exec func(string, ...any) (sql.Result, error), conversationID string, config ConversationHITLConfig, now time.Time) error {
+	if !config.Enabled {
+		config.Mode = "off"
+	}
+	if config.Reviewer == "" {
+		config.Reviewer = "human"
+	}
+	if config.TimeoutSeconds < 0 {
+		config.TimeoutSeconds = 0
+	}
+	tools := config.SensitiveTools
+	if tools == nil {
+		tools = []string{}
+	}
+	toolsJSON, err := json.Marshal(tools)
+	if err != nil {
+		return err
+	}
+	result, err := exec(`INSERT INTO hitl_conversation_configs
+		(conversation_id, enabled, mode, reviewer, sensitive_tools, timeout_seconds, updated_at)
+		SELECT id, ?, ?, ?, ?, ?, ? FROM conversations WHERE id=?`,
+		boolToInt(config.Enabled), config.Mode, config.Reviewer, string(toolsJSON), config.TimeoutSeconds, now, conversationID)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return sql.ErrNoRows
+	}
+	return err
+}
+
+// RequireConversationHumanApproval updates the mode and reviewer while preserving
+// any existing session-specific timeout and tool exemptions.
+func (db *DB) RequireConversationHumanApproval(conversationID string, defaultTimeout int) error {
+	return requireConversationHumanApproval(db.Exec, conversationID, defaultTimeout, time.Now())
+}
+
+func requireConversationHumanApproval(exec func(string, ...any) (sql.Result, error), conversationID string, defaultTimeout int, now time.Time) error {
+	result, err := exec(`INSERT INTO hitl_conversation_configs
+		(conversation_id, enabled, mode, reviewer, sensitive_tools, timeout_seconds, updated_at)
+		SELECT id, 1, 'approval', 'human', '[]', ?, ? FROM conversations WHERE id=?
+		ON CONFLICT(conversation_id) DO UPDATE SET
+		enabled=excluded.enabled, mode=excluded.mode, reviewer=excluded.reviewer, updated_at=excluded.updated_at`,
+		defaultTimeout, now, conversationID)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return sql.ErrNoRows
+	}
+	return err
 }
 
 // GetConversationByWebshellConnectionID 根据 WebShell 连接 ID 获取该连接下最近一条对话（用于 AI 助手持久化）

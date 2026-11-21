@@ -37,7 +37,8 @@ func (r *piRun) piLocalCatalog(ctx context.Context) ([]agentruntime.Tool, map[st
 			names[t.Name] = true
 		}
 	}
-	if root := strings.TrimSpace(r.cfg.SkillsDir); root != "" {
+	options, _ := ctx.Value(piOptionsKey{}).(PiRunOptions)
+	if root := strings.TrimSpace(r.cfg.SkillsDir); root != "" && options.Native == nil {
 		skills, err := skillpackage.ListSkillSummaries(root)
 		if err != nil && !os.IsNotExist(err) {
 			return nil, nil, "", err

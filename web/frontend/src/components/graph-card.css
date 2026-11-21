@@ -1,0 +1,119 @@
+.graph-node-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    direction: ltr;
+}
+.graph-node {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1px solid var(--semi-color-border);
+    border-radius: 8px;
+    padding: 0;
+    background: var(--semi-color-bg-1);
+    box-shadow: 0 1px 3px rgba(20, 31, 53, .10);
+    color: var(--semi-color-text-0);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.2;
+    text-align: start;
+    cursor: pointer;
+    pointer-events: auto;
+}
+.graph-node:hover, .graph-node:focus-visible, .graph-node[aria-pressed="true"] {
+    border-color: var(--graph-node-color);
+    background: color-mix(in srgb, var(--graph-node-color) 5%, var(--semi-color-bg-1));
+}
+.graph-node[aria-pressed="true"] {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--graph-node-color) 19%, transparent), 0 3px 9px rgba(20, 31, 53, .13);
+}
+.graph-node-content {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    min-width: 0;
+    padding-inline: 5px;
+    overflow: hidden;
+}
+.graph-node--compact { border-radius: 5px; box-shadow: 0 1px 3px rgba(20, 31, 53, .08); }
+.graph-node--compact .graph-node-content { gap: 4px; }
+.graph-node--compact .graph-node-content::before {
+    content: "";
+    flex: 0 0 3px;
+    height: 11px;
+    border-radius: 2px;
+    background: var(--graph-node-color);
+}
+.graph-node--standard .graph-node-content {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+}
+.graph-node--standard .graph-node-icon { width: 13px; height: 13px; }
+.graph-node-kind {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    color: var(--semi-color-text-1);
+    font-size: calc(12px * var(--graph-node-text-scale, 1));
+    font-weight: 650;
+}
+.graph-node-icon {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    border-radius: 5px;
+    color: color-mix(in srgb, var(--graph-node-color) 75%, var(--semi-color-text-0));
+    background: color-mix(in srgb, var(--graph-node-color) 13%, var(--semi-color-bg-1));
+}
+.graph-node-title, .graph-node-keyline {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.graph-node--detail { font-size: calc(15px * var(--graph-node-text-scale)); }
+.graph-node:where([data-root="true"]) {
+    border-color: color-mix(in srgb, var(--graph-node-color) 31%, var(--semi-color-border));
+    background: color-mix(in srgb, var(--graph-node-color) 5%, var(--semi-color-bg-1));
+}
+.graph-node[data-boundary="true"] { border-style: dashed; }
+.graph-node--detail .graph-node-content {
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 3px;
+    padding: 5px 10px;
+}
+.graph-node--standard .graph-node-title { line-height: 16px; }
+.graph-node--detail .graph-node-title,
+.graph-node--standard[data-wrap="true"] .graph-node-title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.graph-node-keyline {
+    color: var(--semi-color-text-2);
+    font: calc(12px * var(--graph-node-text-scale))/1.2 "SFMono-Regular", Consolas, monospace;
+}
+.graph-node-port {
+    position: absolute;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    transform: translateY(-50%);
+    border: 1px solid var(--semi-color-bg-1);
+    border-radius: 50%;
+    background: var(--graph-node-color);
+}
+.graph-node-port.is-left { left: -4px; }
+.graph-node-port.is-right { right: -4px; }

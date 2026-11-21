@@ -1,0 +1,114 @@
+/* 任务管理页私有样式：仅布局与间距，颜色全部取 Semi 变量。 */
+
+.task-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.task-tabs { margin-bottom: 12px; }
+
+.task-queue-name {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: flex-start;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    min-width: 0;
+    max-width: 320px;
+}
+.task-queue-title {
+    font-weight: 600;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+.task-queue-name:hover .task-queue-title { color: var(--semi-color-primary); }
+.task-queue-sub {
+    font-size: 11px;
+    color: var(--semi-color-text-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.task-queue-progress { display: flex; flex-direction: column; gap: 4px; }
+
+.task-cell-message {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    text-align: left;
+}
+
+.task-live-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.task-detail-stack { display: flex; flex-direction: column; gap: 16px; }
+
+.task-detail-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.task-progress-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--semi-color-border);
+    border-radius: var(--cs-radius, 10px);
+    background: var(--semi-color-bg-1);
+}
+.task-progress-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.task-progress-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    font-size: 12px;
+    color: var(--semi-color-text-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.task-result-pre {
+    margin: 6px 0 0;
+    padding: 10px;
+    border-radius: 8px;
+    background: var(--semi-color-fill-0);
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 260px;
+    overflow: auto;
+}
+
+.task-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 12px;
+}
+.task-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+@media (max-width: 720px) {
+    .task-form-grid { grid-template-columns: minmax(0, 1fr); }
+}

@@ -1,0 +1,35 @@
+/* C2 载荷页面私有样式（c2- 前缀）。 */
+
+.c2-payload-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+.c2-payload-grid .semi-card-body > * + * {
+    margin-top: 10px;
+}
+
+.c2-oneliner-result {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.c2-oneliner-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.c2-build-result {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--semi-color-border);
+    background: var(--semi-color-fill-0);
+}

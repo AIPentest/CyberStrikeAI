@@ -107,13 +107,17 @@ func TestNonInteractiveStdinReadBlocksWithoutRedirect(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer r.Close()
+	defer w.Close()
 	// 保持 w 打开且不写数据，模拟「等待用户输入」
 
 	cmd := exec.Command("sh", "-c", `read x; echo done`)
 	cmd.Stdin = r
 
 	done := make(chan error, 1)
-	go func() { done <- cmd.Run() }()
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	go func() { done <- cmd.Wait() }()
 
 	select {
 	case err := <-done:

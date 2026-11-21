@@ -1,0 +1,59 @@
+/* 信息收集页面私有布局样式。 */
+.info-collect-page { display: flex; flex-direction: column; }
+
+.info-collect-permission { margin-bottom: 12px; }
+
+.info-collect-form { display: flex; flex-direction: column; gap: 10px; }
+.info-collect-form-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.info-collect-size { display: inline-flex; align-items: center; gap: 6px; }
+
+.info-collect-query textarea,
+.info-collect-natural textarea {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+}
+.info-collect-fields input { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+.info-collect-presets { row-gap: 4px; }
+
+.info-collect-warning { margin-bottom: 10px; }
+.info-collect-pagination { display: flex; justify-content: flex-end; padding-top: 10px; }
+.info-collect-selected-meta { display: block; padding-top: 6px; }
+
+.info-collect-target-link { color: var(--semi-color-link); text-decoration: none; word-break: break-all; }
+.info-collect-target-link:hover { text-decoration: underline; }
+
+.info-collect-parse-query textarea {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+}
+.info-collect-parse-block { display: flex; flex-direction: column; gap: 4px; }
+
+.info-collect-detail { display: flex; flex-direction: column; gap: 12px; }
+
+@media (max-width: 900px) {
+    .info-collect-form-row { align-items: flex-start; }
+    .info-collect-fields { width: 100% !important; }
+    .info-collect-results.cs-section-card .semi-card-header,
+    .info-collect-results.cs-section-card .semi-card-header-wrapper {
+        flex-direction: column;
+        flex-wrap: nowrap;
+        height: auto;
+        align-items: stretch;
+    }
+    .info-collect-results.cs-section-card .semi-card-header-wrapper-title { order: 1; }
+    .info-collect-results.cs-section-card .semi-card-header-wrapper-extra {
+        order: 2;
+        max-width: 100%;
+        margin-left: 0;
+    }
+    .info-collect-page { padding-bottom: 48px; }
+    .info-collect-results.cs-section-card .semi-card-header-wrapper { scroll-margin-bottom: 24px; }
+    .info-collect-results-actions {
+        flex: 1 1 auto;
+        width: 100%;
+        max-width: 100%;
+        margin-left: 0;
+        margin-bottom: 4px;
+    }
+}

@@ -62,6 +62,48 @@ func TestReconcileSchemaUsesDefinitionsWithoutMigrationList(t *testing.T) {
 	}
 }
 
+func TestStartupPreservesBatchQueuesAndRetiredTaskHistory(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "task-history.db")
+	db, err := NewDB(path, zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	var count int
+	if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE name IN ('long_tasks', 'long_task_events', 'assessments')`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("fresh installs must not create retired task tables: %d, %v", count, err)
+	}
+	if err := db.CreateBatchQueue("queue-keep", "Saved queue", "", "single", "cron", "0 9 * * *", nil, "", 2, []map[string]interface{}{{"id": "step-keep", "message": "Local evidence"}}); err != nil {
+		t.Fatal(err)
+	}
+	schemaExec(t, db, `UPDATE batch_task_queues SET status='paused' WHERE id='queue-keep';
+ UPDATE batch_tasks SET status='completed', result='Saved result' WHERE id='step-keep';
+ CREATE TABLE long_tasks (id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL, project_id TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, status TEXT NOT NULL, payload TEXT NOT NULL, updated_at DATETIME NOT NULL);
+ CREATE TABLE long_task_events (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL REFERENCES long_tasks(id) ON DELETE CASCADE, step_id TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL, message TEXT NOT NULL, created_at DATETIME NOT NULL);
+ INSERT INTO long_tasks VALUES ('retired-task', 'owner', '', 'Saved goal', 'paused', '{"summary":"Retain historical evidence"}', CURRENT_TIMESTAMP);
+ INSERT INTO long_task_events (task_id,kind,message,created_at) VALUES ('retired-task','paused','Saved event',CURRENT_TIMESTAMP);`)
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err = NewDB(path, zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var status, cron, result, payload, event string
+	if err := db.QueryRow(`SELECT q.status,q.cron_expr,t.result FROM batch_task_queues q JOIN batch_tasks t ON t.queue_id=q.id WHERE t.id='step-keep'`).Scan(&status, &cron, &result); err != nil {
+		t.Fatal(err)
+	}
+	if status != "paused" || cron != "0 9 * * *" || result != "Saved result" {
+		t.Fatalf("batch history changed: %q %q %q", status, cron, result)
+	}
+	if err := db.QueryRow(`SELECT t.payload,e.message FROM long_tasks t JOIN long_task_events e ON e.task_id=t.id WHERE t.id='retired-task'`).Scan(&payload, &event); err != nil {
+		t.Fatal(err)
+	}
+	if payload != `{"summary":"Retain historical evidence"}` || event != "Saved event" {
+		t.Fatalf("retired task history changed: %q %q", payload, event)
+	}
+}
+
 func TestReconcileSchemaFailureRollsBackAllRepairs(t *testing.T) {
 	for _, addition := range []string{"required TEXT NOT NULL", "unique_value TEXT UNIQUE", "stamp TEXT DEFAULT CURRENT_TIMESTAMP", "stored TEXT GENERATED ALWAYS AS (payload) STORED"} {
 		t.Run(addition, func(t *testing.T) {

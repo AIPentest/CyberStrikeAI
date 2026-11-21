@@ -79,6 +79,30 @@ function userTexts(body) {
     typeof m.content === "string" ? m.content : m.content.map(block => block.text).join(""));
 }
 
+test("native chat images reach image-capable models without appearing in host events", { timeout: 30000 }, async t => {
+  const fixture = await startFixture(t, (_body, res) => {
+    sse(res, { role: "assistant", content: "done" }, "stop");
+  });
+  const image = {
+    mimeType: "image/png",
+    data: "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR4nO3NsQ0AAAzCMP5/un0CNkuZ41wybXsHAAAAAAAAAAAAxR4yw/wuPL6QkAAAAABJRU5ErkJggg==",
+  };
+  for (const capability of [true, false, undefined]) {
+    const req = request(fixture.url);
+    req.tools = [];
+    req.images = [image];
+    req.model.imageInput = capability;
+    const { result, records } = await invoke(t, req);
+    assert.equal(result.status, "completed", result.error);
+    const user = fixture.requests.at(-1).messages.find(m => m.role === "user");
+    const content = Array.isArray(user.content) ? user.content : [{ type: "text", text: user.content }];
+    assert.ok(content.some(block => block.type === "text" && block.text.includes(req.message)),
+      JSON.stringify(content.filter(block => block.type === "text")));
+    assert.equal(content.filter(block => block.type === "image_url").length, capability ? 1 : 0);
+    assert.ok(!JSON.stringify(records).includes(image.data));
+  }
+});
+
 test("real Pi SDK streams, invokes only host tools and restores persisted sessions", { timeout: 30000 }, async t => {
   const fixture = await startFixture(t, (body, res, count) => {
     if (count === 1) sse(res, { role: "assistant", tool_calls: [{ index: 0, id: "call-1", type: "function", function: { name: "echo", arguments: '{"text":"hello"}' } }] }, "tool_calls");
@@ -421,4 +445,81 @@ test("OpenAI Responses returns native tool calls and consumes their results", { 
   assert.equal(result.status, "completed", result.error);
   assert.equal(result.response, "responses verified");
   assert.equal(calls, 1);
+});
+
+test('assessment uses native settle continuation and persists typed checkpoints', { timeout: 30000 }, async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'csai-assessment-native-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const fixture = await startFixture(t, (body, res, count) => {
+    if (count === 1) sse(res, { role: 'assistant', content: 'I have more work to record.' }, 'stop');
+    else {
+      assert.ok(JSON.stringify(body.messages).includes('has not submitted'));
+      sse(res, { role: 'assistant', tool_calls: [{ index: 0, id: 'result', type: 'function', function: { name: 'assessment_result', arguments: '{"status":"blocked","summary":"fixture complete"}' } }] }, 'tool_calls');
+    }
+  });
+  const req = request(fixture.url, dir);
+  req.tools = [{ name: 'assessment_result', description: 'Submit result', parameters: {type:'object',properties:{status:{type:'string'},summary:{type:'string'}},required:['status','summary']}, outputSchema: {type:'object',properties:{saved:{type:'boolean'}},required:['saved']}, exposure:'direct', namespace:'assessment', annotations:{readOnlyHint:false} }];
+  req.nativeWorkflow = { completionTool:'assessment_result', checkpointTool:'assessment_checkpoint', context:'Goal and current evidence: fixture only' };
+  const { result, records } = await invoke(t, req, (r, send) => { if (r.type === 'tool_call') send({type:'tool_result',id:r.call.id,result:{content:'fixture complete',structuredContent:{saved:true},terminate:true}}); });
+  assert.equal(result.status,'completed',result.error);
+  assert.equal(fixture.requests.length,2);
+  const entries = (await readFile(result.sessionFile,'utf8')).trim().split('\n').map(JSON.parse);
+  assert.ok(entries.some(e => e.type === 'custom' && e.customType === 'assessment-checkpoint' && e.data.data.saved === true));
+  assert.ok(entries.some(e => e.type === 'message' && e.message.role === 'toolResult' && e.message.details?.structuredContent?.saved === true));
+  assert.equal(records.filter(r=>r.event?.type==='agent_settled').length,1);
+  assert.ok(records.some(r=>r.event?.type==='session_metrics' && r.event.data.sessionId));
+});
+
+test('assessment segment yields at a native turn boundary and resumes the same session', { timeout:30000 }, async t => {
+  const dir=await mkdtemp(join(tmpdir(),'csai-assessment-segment-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+  const fixture=await startFixture(t,(body,res,count)=>{
+    if(count===1) sse(res,{role:'assistant',tool_calls:[{index:0,id:'work',type:'function',function:{name:'echo',arguments:'{"text":"first segment evidence"}'}}]},'tool_calls');
+    else {assert.ok(body.messages.some(m=>m.role==='tool'&&m.content.includes('first segment evidence')));sse(res,{role:'assistant',tool_calls:[{index:0,id:'finish',type:'function',function:{name:'assessment_result',arguments:'{}'}}]},'tool_calls');}
+  });
+  const req=request(fixture.url,dir);req.maxTurns=1;req.nativeWorkflow={completionTool:'assessment_result',context:'Same persistent assessment step'};req.tools.push({name:'assessment_result',description:'Finish',parameters:{type:'object',properties:{}}});
+  const host=(r,send)=>{if(r.type==='tool_call')send({type:'tool_result',id:r.call.id,result:{content:r.call.name==='echo'?'first segment evidence':'verified',terminate:r.call.name==='assessment_result'}})};
+  const first=await invoke(t,req,host);assert.equal(first.result.status,'yielded',first.result.error);assert.equal(fixture.requests.length,1);
+  const second=await invoke(t,{...req,runId:'next-segment'},host);assert.equal(second.result.status,'completed',second.result.error);assert.equal(first.result.sessionFile,second.result.sessionFile);
+});
+
+test('assessment native skills disclose only configured metadata before file reads', {timeout:30000}, async t=>{
+  const dir=await mkdtemp(join(tmpdir(),'csai-assessment-skills-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+  await writeFile(join(dir,'SKILL.md'),'---\nname: fixture-skill\ndescription: Read isolated fixture evidence\n---\nPRIVATE_SKILL_BODY_ONLY_AFTER_READ\n');
+  const fixture=await startFixture(t,(body,res)=>{
+    const system=body.messages.filter(m=>m.role==='system').map(m=>m.content).join('\n');
+    assert.match(system,/fixture-skill/);assert.match(system,/Read isolated fixture evidence/);assert.doesNotMatch(system,/PRIVATE_SKILL_BODY_ONLY_AFTER_READ/);
+    sse(res,{role:'assistant',tool_calls:[{index:0,id:'finish',type:'function',function:{name:'assessment_result',arguments:'{}'}}]},'tool_calls');
+  });
+  const req=request(fixture.url);req.nativeWorkflow={completionTool:'assessment_result',skillPaths:[dir]};req.tools=[{name:'assessment_result',description:'Finish',parameters:{type:'object',properties:{}}}];
+  const {result}=await invoke(t,req,(r,send)=>{if(r.type==='tool_call')send({type:'tool_result',id:r.call.id,result:{content:'done',terminate:true}})});
+  assert.equal(result.status,'completed',result.error);
+});
+
+test('assessment refuses to resume missing native history before contacting the model', {timeout:30000},async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'csai-assessment-missing-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+ const fixture=await startFixture(t,(_,res)=>{res.writeHead(500);res.end('should not call');});
+ const req=request(fixture.url,dir);req.nativeWorkflow={completionTool:'assessment_result',resumeRequired:true};
+ const {result}=await invoke(t,req);assert.equal(result.status,'failed');assert.match(result.error,/Saved Pi session is missing/);assert.equal(fixture.requests.length,0);
+});
+
+test('assessment repairs the host-receipt / Pi-transcript crash gap without replay', {timeout:30000},async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'csai-assessment-receipt-gap-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+ const fixture=await startFixture(t,(body,res,count)=>{
+  if(count===1){sse(res,{role:'assistant',tool_calls:[{index:0,id:'reused-provider-id',type:'function',function:{name:'echo',arguments:'{"text":"fixture"}'}}]},'tool_calls');return;}
+  const output=JSON.stringify(body.messages);
+  assert.match(output,/durable-success/);assert.doesNotMatch(output,/effects are unknown/);
+  sse(res,{role:'assistant',tool_calls:[{index:0,id:'finish',type:'function',function:{name:'assessment_result',arguments:'{}'}}]},'tool_calls');
+ });
+ const req=request(fixture.url,dir);req.nativeWorkflow={completionTool:'assessment_result'};req.tools.push({name:'assessment_result',description:'Finish',parameters:{type:'object',properties:{}}});
+ const worker=spawn(process.execPath,['dist/worker.js'],{stdio:['pipe','pipe','pipe'],env:fixtureEnv});
+ t.after(()=>worker.kill());const exited=once(worker,'exit');const reader=new RecordReader();let call;
+ worker.stdout.on('data',chunk=>{for(const r of reader.push(chunk)){if(r.type==='ready')worker.stdin.write(JSON.stringify({type:'run',version:1,request:req})+'\n');if(r.type==='tool_call'){call=r.call;worker.kill('SIGKILL');}}});
+ await exited;assert.ok(call?.sessionEntryId,'missing native assistant entry identity');
+ let repeated=0;
+ const {result}=await invoke(t,{...req,runId:'after-gap',nativeWorkflow:{...req.nativeWorkflow,resumeRequired:true,receipts:[{sessionEntryId:call.sessionEntryId,providerId:call.providerId,name:call.name,content:'durable-success',executionId:'execution-receipt',isError:false}]}},(r,send)=>{
+  if(r.type==='tool_call'){if(r.call.name==='echo')repeated++;send({type:'tool_result',id:r.call.id,result:{content:'verified existing evidence',terminate:true}});}
+ });
+ assert.equal(result.status,'completed',result.error);assert.equal(repeated,0);
+ const entries=(await readFile(result.sessionFile,'utf8')).trim().split('\n').map(JSON.parse);
+ assert.ok(entries.some(e=>e.message?.role==='toolResult'&&e.message.details?.recovered===true&&e.message.details.executionId==='execution-receipt'));
 });

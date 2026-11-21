@@ -14,4 +14,4 @@ Pi 的 `agent_settled` 表示本次模型运行不再自动继续。业务任务
 
 过程事件、思考、工具输出与最终交付分开记录。退出工具的 final_result 仍经过宿主验收，不能绕过这些规则。
 
-实现：`internal/agentfinalizer/decision.go`、`internal/multiagent/pi_runner.go`。SDK 生命周期见 [Pi SDK](https://github.com/earendil-works/pi/blob/v1.5.2/packages/coding-agent/docs/sdk.md)。
+实现：`internal/agentfinalizer/decision.go`、`internal/multiagent/pi_runner.go`。

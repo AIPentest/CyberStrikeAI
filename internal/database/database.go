@@ -215,6 +215,9 @@ func (db *DB) initTables() error {
 	if err := db.backfillVulnerabilityTargets(); err != nil {
 		return fmt.Errorf("回填漏洞目标失败: %w", err)
 	}
+	if err := db.backfillAssessmentVulnerabilitySources(); err != nil {
+		return fmt.Errorf("backfill assessment finding sources: %w", err)
+	}
 	if err := db.BackfillModelTokenUsageFromProcessDetails(); err != nil {
 		return fmt.Errorf("回填模型Token用量失败: %w", err)
 	}

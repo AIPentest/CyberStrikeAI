@@ -213,4 +213,4 @@ schema 越具体，HITL 越容易判断风险，Agent 也越不容易发散。
   - 捕获：`devtools.js`、`background/service-worker.js`
 - OpenAPI：`internal/handler/openapi.go`
 - 外部 MCP：`internal/handler/external_mcp.go`
-- Web 端认证参考：`web/static/js/auth.js`
+- Web 端认证参考：`web/frontend/src/lib/auth.jsx`

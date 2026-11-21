@@ -1,0 +1,404 @@
+/* 漏洞管理页私有样式：仅布局与排版，颜色统一取 Semi 变量。 */
+
+.vulnerability-page { min-width: 0; }
+
+.vulnerability-page > .cs-stat-grid > .cs-stat-card.semi-button {
+    --vulnerability-stat-accent: var(--cs-severity-accent, var(--semi-color-text-0));
+    --vulnerability-stat-fade-direction: to right;
+    border-inline-start: 4px solid var(--vulnerability-stat-accent);
+    background-image: linear-gradient(
+        var(--vulnerability-stat-fade-direction),
+        color-mix(in srgb, var(--vulnerability-stat-accent) 9%, transparent),
+        transparent 64px
+    );
+}
+
+.vulnerability-page > .cs-stat-grid > .cs-stat-card:dir(rtl) {
+    --vulnerability-stat-fade-direction: to left;
+}
+
+.vulnerability-page > .cs-stat-grid > .cs-stat-card.semi-button[aria-pressed="true"] {
+    border-color: color-mix(in srgb, var(--vulnerability-stat-accent) 48%, var(--semi-color-border));
+    border-inline-start-color: var(--vulnerability-stat-accent);
+    background-color: color-mix(in srgb, var(--vulnerability-stat-accent) 9%, var(--semi-color-bg-1));
+}
+
+.vulnerability-list-card .semi-card-header {
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.vulnerability-group-layout {
+    display: grid;
+    grid-template-columns: minmax(215px, 245px) minmax(0, 1fr);
+    align-items: start;
+    gap: 16px;
+}
+
+.vulnerability-group-sidebar {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 12px;
+    background: var(--semi-color-fill-0);
+    border: 1px solid var(--semi-color-border);
+    border-radius: var(--semi-border-radius-medium);
+}
+
+.vulnerability-group-scroll {
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+@media (width > 960px) {
+    .vulnerability-group-sidebar {
+        align-self: stretch;
+        grid-template-rows: auto auto minmax(0, 1fr);
+    }
+
+    .vulnerability-group-scroll {
+        /* The results column sizes the grid row; the tree scrolls within it. */
+        contain: size;
+        min-height: 0;
+        scrollbar-gutter: stable;
+    }
+}
+
+.vulnerability-group-node,
+.vulnerability-group-overview,
+.vulnerability-group-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.vulnerability-group-node,
+.vulnerability-group-overview { justify-content: space-between; }
+.vulnerability-group-scroll .semi-tree-option-label,
+.vulnerability-group-scroll .semi-tree-option-label-text,
+.vulnerability-group-results { min-width: 0; }
+
+.vulnerability-group-scroll .semi-tree-option {
+    padding-inline-end: 8px;
+    border-radius: var(--semi-border-radius-small);
+}
+
+.vulnerability-group-scroll .semi-tree-option-expand-icon,
+.vulnerability-group-scroll .semi-tree-option-empty-icon {
+    margin-inline-end: 4px;
+}
+
+.vulnerability-group-scroll .semi-tree-option-indent-unit {
+    position: relative;
+    width: 16px;
+    height: 100%;
+}
+
+.vulnerability-group-scroll .semi-tree-option-indent-unit::before {
+    position: absolute;
+    inset-block: -4px;
+    inset-inline-start: 6px;
+    border-inline-start: 1px solid var(--semi-color-border);
+    content: "";
+}
+
+.vulnerability-group-scroll .semi-tree-option-tree-node-last-leaf .semi-tree-option-indent-unit::before {
+    inset-block-end: 50%;
+}
+
+.vulnerability-group-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vulnerability-group-name--parent { font-weight: 600; }
+
+.vulnerability-group-node .semi-tag {
+    flex-shrink: 0;
+    justify-content: center;
+    min-inline-size: 4ch;
+    font-variant-numeric: tabular-nums;
+}
+
+.vulnerability-group-empty { display: block; padding: 8px; }
+
+.vulnerability-group-overview {
+    flex-wrap: wrap;
+    padding: 9px 12px;
+    margin-bottom: 10px;
+    background: var(--semi-color-primary-light-default);
+    border-radius: var(--semi-border-radius-medium);
+}
+
+.vulnerability-group-badges { flex-wrap: wrap; }
+
+/* ── 筛选栏 ───────────────────────────────────────────── */
+.vulnerability-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--semi-color-border);
+}
+
+.vulnerability-filter-search {
+    flex: 1 1 260px;
+    min-width: 200px;
+    max-width: 380px;
+}
+
+.vulnerability-filter-select { width: 150px; }
+.vulnerability-filter-select--wide { width: 190px; }
+
+.vulnerability-filter-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ── 表格工具栏与单元格 ───────────────────────────────── */
+.vulnerability-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.vulnerability-table-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.vulnerability-sort-select { width: 190px; }
+
+.vulnerability-title-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.vulnerability-title-text {
+    font-weight: 500;
+    color: var(--semi-color-text-0);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vulnerability-title-meta {
+    font-size: 12px;
+    color: var(--semi-color-text-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vulnerability-target-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.vulnerability-target-text,
+.vulnerability-target-host {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vulnerability-target-text { color: var(--semi-color-text-0); }
+
+.vulnerability-target-host {
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 12px;
+    color: var(--semi-color-text-2);
+}
+
+.vulnerability-source-tags { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+
+.vulnerability-time {
+    font-variant-numeric: tabular-nums;
+    color: var(--semi-color-text-1);
+    white-space: nowrap;
+}
+
+.vulnerability-inline-code {
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 12px;
+    word-break: break-all;
+}
+
+.vulnerability-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-wrap: nowrap;
+}
+
+/* ── 详情抽屉 ─────────────────────────────────────────── */
+.vulnerability-detail-drawer .semi-sidesheet-header {
+    border-bottom: 1px solid var(--semi-color-border);
+}
+
+.vulnerability-drawer-title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.vulnerability-drawer-title-text {
+    font-size: 15px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vulnerability-drawer-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 12px;
+}
+
+.vulnerability-drawer-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 64px 0;
+}
+
+.vulnerability-section { margin-bottom: 18px; }
+
+.vulnerability-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.vulnerability-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--semi-color-text-0);
+}
+
+.vulnerability-section-body { min-width: 0; }
+
+.vulnerability-code {
+    margin: 0;
+    padding: 12px;
+    max-height: 380px;
+    overflow: auto;
+    background: var(--semi-color-fill-0);
+    border: 1px solid var(--semi-color-border);
+    border-radius: var(--semi-border-radius-medium);
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.vulnerability-history-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-bottom: 4px;
+}
+
+.vulnerability-history-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.vulnerability-snapshot { margin-top: 4px; }
+
+.vulnerability-related-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 4px 0;
+}
+
+.vulnerability-related-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.vulnerability-related-item {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 6px 10px;
+    border: 1px solid var(--semi-color-border);
+    border-radius: var(--semi-border-radius-medium);
+    background: var(--semi-color-bg-1);
+}
+
+.vulnerability-member-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* 下载面板 */
+.vulnerability-download-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 4px 0;
+}
+
+/* ── 新建/编辑表单 ───────────────────────────────────── */
+.vulnerability-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 14px;
+}
+
+.vulnerability-field { min-width: 0; }
+.vulnerability-field--full { grid-column: 1 / -1; }
+
+.vulnerability-modal-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 0;
+}
+
+@media (max-width: 960px) {
+    .vulnerability-group-layout { grid-template-columns: minmax(0, 1fr); }
+    .vulnerability-group-scroll { min-height: 46px; max-height: 210px; }
+    .vulnerability-filter-select,
+    .vulnerability-filter-select--wide { width: calc(50% - 4px); }
+    .vulnerability-filter-search { max-width: none; }
+}
+
+@media (max-width: 640px) {
+    .vulnerability-filter-select,
+    .vulnerability-filter-select--wide { width: 100%; }
+    .vulnerability-form-grid { grid-template-columns: minmax(0, 1fr); }
+    .vulnerability-filter-actions { margin-left: 0; }
+}

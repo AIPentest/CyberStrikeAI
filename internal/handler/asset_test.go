@@ -45,12 +45,16 @@ func TestAssetListPaginatesWithinProject(t *testing.T) {
 		Port:      443,
 		Protocol:  "https",
 	})
+	unassigned := &database.Asset{IP: "203.0.113.2", Protocol: "ip"}
+	assets = append(assets, unassigned)
 	if _, err := db.UpsertAssets(assets, "", true); err != nil {
 		t.Fatal(err)
 	}
 
 	router := gin.New()
-	router.GET("/api/assets", NewAssetHandler(db, zap.NewNop()).List)
+	handler := NewAssetHandler(db, zap.NewNop())
+	router.GET("/api/assets", handler.List)
+	router.GET("/api/assets/selection", handler.Selection)
 	request := httptest.NewRequest(http.MethodGet, "/api/assets?project_id="+project.ID+"&page=2&page_size=3", nil)
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
@@ -79,5 +83,28 @@ func TestAssetListPaginatesWithinProject(t *testing.T) {
 		if asset.ProjectID != project.ID {
 			t.Fatalf("asset from another project leaked into page: %#v", asset)
 		}
+	}
+
+	for _, path := range []string{"/api/assets", "/api/assets/selection"} {
+		response = httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path+"?project_unassigned=true", nil))
+		if response.Code != http.StatusOK {
+			t.Fatalf("%s returned %d: %s", path, response.Code, response.Body.String())
+		}
+		if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+			t.Fatal(err)
+		}
+		if payload.Total != 1 || len(payload.Assets) != 1 || payload.Assets[0].ID != unassigned.ID {
+			t.Fatalf("%s returned assets outside the unassigned scope: %s", path, response.Body.String())
+		}
+	}
+
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/assets?project_id="+project.ID+"&id="+assets[6].ID, nil))
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if response.Code != http.StatusOK || payload.Total != 1 || len(payload.Assets) != 1 || payload.Assets[0].ID != assets[6].ID {
+		t.Fatalf("exact asset lookup failed: %s", response.Body.String())
 	}
 }

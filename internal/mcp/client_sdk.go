@@ -292,7 +292,22 @@ func sdkToolsToOur(tools []*mcp.Tool) []Tool {
 		if t.Annotations != nil && t.Annotations.Title != "" {
 			shortDesc = t.Annotations.Title
 		}
+		var output map[string]interface{}
+		if t.OutputSchema != nil {
+			_ = json.Unmarshal(mustJSON(t.OutputSchema), &output)
+		}
+		annotations := map[string]bool{}
+		if t.Annotations != nil {
+			var raw map[string]interface{}
+			_ = json.Unmarshal(mustJSON(t.Annotations), &raw)
+			for k, v := range raw {
+				if b, ok := v.(bool); ok {
+					annotations[k] = b
+				}
+			}
+		}
 		out = append(out, Tool{
+			OutputSchema: output, Annotations: annotations,
 			Name:             t.Name,
 			Description:      desc,
 			ShortDescription: shortDesc,
@@ -307,12 +322,17 @@ func sdkCallToolResultToOurs(res *mcp.CallToolResult) *ToolResult {
 	if res == nil {
 		return &ToolResult{Content: []Content{}}
 	}
+	var structured map[string]interface{}
+	if res.StructuredContent != nil {
+		_ = json.Unmarshal(mustJSON(res.StructuredContent), &structured)
+	}
 	content := sdkContentToOurs(res.Content)
 	blocked, _ := res.Meta[toolGuardBlockedMetaKey].(bool)
 	return &ToolResult{
-		Content: content,
-		IsError: res.IsError,
-		Blocked: blocked,
+		Content:           content,
+		StructuredContent: structured,
+		IsError:           res.IsError,
+		Blocked:           blocked,
 	}
 }
 

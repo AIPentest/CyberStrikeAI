@@ -1,3 +1,8 @@
+# Fresh installations follow this independent repository. Existing deployments
+# retain their own update.repo; adopting this version does not modify a running service.
+update:
+  repo: https://github.com/Sycun/CyberStrikeAI
+
 # ============================================
 # CyberStrikeAI 配置文件
 # ============================================
@@ -11,7 +16,7 @@
 
 # 前端显示的版本号（可选，不填则显示默认版本）。一键更新完成后，会用新代码里这个文件的值
 # 同步更新你的 config.yaml 的 version 字段（页头版本号与静态资源缓存随代码走）。
-version: "v1.8.0"
+version: "v1.8.1"
 # 服务器配置
 server:
   host: 0.0.0.0 # 监听地址，0.0.0.0 表示监听所有网络接口
@@ -106,6 +111,7 @@ ai:
       base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
       api_key: sk-xxxxxxx
       model: qwen3-max
+      # 图片输入默认按模型能力自动判断。自定义网关可在「测试图片」通过后启用，或设置 image_input: enabled。
       max_total_tokens: 120000
       max_completion_tokens: 32768
       # headers: 可选。追加或覆盖发给模型网关的 HTTP 请求头，值支持 ${ENV_VAR} 与 ${ENV_VAR:-默认值}。
@@ -139,7 +145,7 @@ ai:
     #   model: qwen-plus
     #   max_total_tokens: 120000
     #   max_completion_tokens: 32768
-# 视觉分析（analyze_image MCP 工具；图片仅在单次 VL 调用中出现，Agent 上下文只保留文字摘要）
+# 可选的独立 analyze_image 工具配置。聊天图片可通过支持图片输入的模型通道发送。
 vision:
   enabled: false # true 且 model 非空时注册 analyze_image
   model: qwen-vl # VL 模型名（enabled 时必填）
@@ -599,3 +605,15 @@ project:
 # 把目录变成跟踪该仓库的 git 工作树，此后按正常安装一键更新。
 # update:
 #   repo: https://github.com/AIPentest/CyberStrikeAI.git  # 一个仓库地址；留空/不写 = 官方仓库
+
+# HTTP 测试工具的受管出口；不影响 Kali 其他工具、外部 MCP 或大模型 API。
+# 固定 URL 是否固定公网 IP 取决于供应商。运行中的工具使用启动时快照。
+proxy:
+  mode: manual # manual=沿用工具参数，fixed=固定代理，pool=显式启用代理池
+  proxy_url: "" # fixed 模式必填，支持 http(s)/socks5://host:port
+  proxy_pool: "" # pool 模式：每行一个代理 URL；与供应商至少配置一项
+  proxy_source: "" # 可选供应商 HTTP(S) 地址
+  strategy: sticky # sticky 或 round_robin
+  max_attempts: 3
+  cooldown: 60
+  min_switch_interval: 60 # 间隔内即使失败也不提前切换；0 表示不限制

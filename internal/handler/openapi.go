@@ -846,6 +846,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 					"type":        "object",
 					"description": "配置信息（含 openai、vision、multi_agent 等）",
 					"properties": map[string]interface{}{
+						"proxy": map[string]interface{}{"type": "object", "description": "HTTP-tool-only egress policy: mode manual/fixed/pool, masked proxy_url/proxy_pool/proxy_source, strategy sticky/round_robin, max_attempts 1-10 (0=3), cooldown and min_switch_interval 0-86400 seconds. PUT persists and applies to subsequent HTTP invocations; model/other tool egress is unchanged."},
 						"agent": map[string]interface{}{
 							"$ref": "#/components/schemas/AgentConfig",
 						},
@@ -858,6 +859,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 					"type":        "object",
 					"description": "更新配置请求",
 					"properties": map[string]interface{}{
+						"proxy": map[string]interface{}{"type": "object", "description": "HTTP-tool-only egress policy: mode manual/fixed/pool, masked proxy_url/proxy_pool/proxy_source, strategy sticky/round_robin, max_attempts 1-10 (0=3), cooldown and min_switch_interval 0-86400 seconds. PUT persists and applies to subsequent HTTP invocations; model/other tool egress is unchanged."},
 						"agent": map[string]interface{}{
 							"$ref": "#/components/schemas/AgentConfig",
 						},
@@ -5023,7 +5025,7 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 				"post": map[string]interface{}{
 					"tags":        []string{"配置管理"},
 					"summary":     "测试OpenAI API连接",
-					"description": "测试指定的OpenAI/Claude API配置是否可用，发送一个最小请求验证连通性。",
+					"description": "测试指定的 OpenAI/Claude API 配置。启用 test_image 时通过 Pi 发送合成图片并验证识别结果。",
 					"operationId": "testOpenAI",
 					"requestBody": map[string]interface{}{
 						"required": true,
@@ -5033,10 +5035,11 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 									"type":     "object",
 									"required": []string{"api_key", "model"},
 									"properties": map[string]interface{}{
-										"provider": map[string]interface{}{"type": "string", "description": "LLM提供商（openai/claude）", "example": "openai"},
-										"base_url": map[string]interface{}{"type": "string", "description": "API基地址（可选，默认根据provider自动选择）"},
-										"api_key":  map[string]interface{}{"type": "string", "description": "API密钥"},
-										"model":    map[string]interface{}{"type": "string", "description": "模型名称", "example": "gpt-4"},
+										"provider":   map[string]interface{}{"type": "string", "description": "LLM提供商（openai/claude）", "example": "openai"},
+										"base_url":   map[string]interface{}{"type": "string", "description": "API基地址（可选，默认根据provider自动选择）"},
+										"api_key":    map[string]interface{}{"type": "string", "description": "API密钥"},
+										"model":      map[string]interface{}{"type": "string", "description": "模型名称", "example": "gpt-4"},
+										"test_image": map[string]interface{}{"type": "boolean", "description": "验证模型是否能读取合成图片"},
 									},
 								},
 							},
@@ -5061,6 +5064,35 @@ func (h *OpenAPIHandler) GetOpenAPISpec(c *gin.Context) {
 						},
 						"400": map[string]interface{}{"description": "参数错误"},
 						"401": map[string]interface{}{"description": "未授权"},
+					},
+				},
+			},
+			"/api/config/test-audit-model": map[string]interface{}{
+				"post": map[string]interface{}{
+					"tags":        []string{"配置管理"},
+					"summary":     "测试已配置的审计模型",
+					"description": "按 hitl.audit_backend 选择聊天模型或 TypeSafe Jev 协议。省略字段使用已保存的审计配置；空地址和模型按实际审计规则继承主模型或使用 Jev 默认值。空或掩码密钥沿用已保存的审计密钥，仅聊天后端可继承主模型密钥。测试不保存配置。",
+					"operationId": "testAuditModel",
+					"requestBody": map[string]interface{}{
+						"required": true,
+						"content": map[string]interface{}{
+							"application/json": map[string]interface{}{
+								"schema": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"base_url": map[string]interface{}{"type": "string", "description": "本次测试的 API 基地址，须包含 http:// 或 https://"},
+										"api_key":  map[string]interface{}{"type": "string", "description": "本次测试的 API 密钥；空或 ******** 沿用已保存密钥"},
+										"model":    map[string]interface{}{"type": "string", "description": "本次测试的模型"},
+									},
+								},
+							},
+						},
+					},
+					"responses": map[string]interface{}{
+						"200": map[string]interface{}{"description": "测试结果：success、model、latency_ms；失败时返回 error 和可选 status_code"},
+						"400": map[string]interface{}{"description": "参数错误或模型未配置"},
+						"401": map[string]interface{}{"description": "未授权"},
+						"403": map[string]interface{}{"description": "需要 config:write 权限"},
 					},
 				},
 			},

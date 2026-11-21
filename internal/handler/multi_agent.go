@@ -261,7 +261,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 		})
 
 		result, runErr = multiagent.RunMultiAgent(
-			taskCtxLoop,
+			prep.withChatImages(taskCtxLoop, curFinalMessage),
 			runCfg,
 			&runCfg.MultiAgent,
 			h.agent,
@@ -566,7 +566,7 @@ func multiAgentHTTPErrorStatus(err error) (int, string) {
 		return http.StatusBadRequest, msg
 	case strings.Contains(msg, "保存用户消息失败"), strings.Contains(msg, "创建对话失败"):
 		return http.StatusInternalServerError, msg
-	case strings.Contains(msg, "保存上传文件失败"):
+	case strings.Contains(msg, "保存上传文件失败"), strings.Contains(msg, "保存人工审批失败"):
 		return http.StatusInternalServerError, msg
 	default:
 		return http.StatusBadRequest, msg

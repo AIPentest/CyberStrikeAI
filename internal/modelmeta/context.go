@@ -361,6 +361,7 @@ func detectOpenAICompatible(ctx context.Context, client *http.Client, base, mode
 			MaxModelLen      int             `json:"max_model_len"`
 			ContextLength    json.RawMessage `json:"context_length"`
 			MaxContextLength int             `json:"max_context_length"`
+			ContextWindow    json.RawMessage `json:"context_window"`
 		} `json:"data"`
 	}
 	status, err := probeJSON(ctx, client, http.MethodGet, strings.TrimRight(base, "/")+"/models", apiKey, nil, &list)
@@ -395,6 +396,9 @@ func detectOpenAICompatible(ctx context.Context, client *http.Client, base, mode
 		case m.MaxContextLength > 0:
 			info.ContextWindow = m.MaxContextLength
 			info.Source = "openai_models_max_context_length"
+		case rawInt(m.ContextWindow) > 0:
+			info.ContextWindow = rawInt(m.ContextWindow)
+			info.Source = "openai_models_context_window"
 		}
 		if info.Backend == BackendOMLX {
 			if runtime, ok := detectOMLXRuntime(ctx, client, base, m.ID, apiKey); ok {

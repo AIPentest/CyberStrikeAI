@@ -20,6 +20,7 @@
 ## 功能指南
 
 - [项目任务续接](project-resume.md) · [Token 用量分析](token-usage-monitoring.md)
+- [HTTP 测试工具代理池](http-proxy-pool.md)
 - [资产管理](asset-management.md) · [知识库](knowledge-base.md) · [机器人接入](robot.md) · [视觉分析](VISION.md)
 - [WebShell](webshell.md) · [C2](c2.md) · [MCP 联邦](mcp-federation.md)
 
@@ -35,3 +36,5 @@
 - [测试指南](testing.md) · [贡献规范](contributing-guide.md) · [发布流程](release-process.md)
 
 - [Pi 原生运行时与迁移](pi-runtime.md)
+
+- [批量任务管理](task-management.md) 

@@ -217,9 +217,11 @@ type Tool struct {
 
 // FunctionDefinition 函数定义
 type FunctionDefinition struct {
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Parameters  map[string]interface{} `json:"parameters"`
+	OutputSchema map[string]interface{} `json:"-"`
+	Annotations  map[string]bool        `json:"-"`
+	Name         string                 `json:"name"`
+	Description  string                 `json:"description"`
+	Parameters   map[string]interface{} `json:"parameters"`
 }
 
 // Error OpenAI错误
@@ -340,7 +342,8 @@ func (a *Agent) getAvailableTools(roleTools []string) []Tool {
 		tools = append(tools, Tool{
 			Type: "function",
 			Function: FunctionDefinition{
-				Name:        mcpTool.Name,
+				Name:         mcpTool.Name,
+				OutputSchema: mcpTool.OutputSchema, Annotations: mcpTool.Annotations,
 				Description: description, // 使用简短描述减少token消耗
 				Parameters:  convertedSchema,
 			},
@@ -365,13 +368,6 @@ func (a *Agent) getAvailableTools(roleTools []string) []Tool {
 			for _, externalTool := range externalTools {
 				// 外部工具使用 "mcpName::toolName" 作为toolKey
 				externalToolKey := externalTool.Name
-
-				// 如果指定了角色工具列表，只添加在列表中的工具
-				if len(roleToolSet) > 0 {
-					if !roleToolSet[externalToolKey] {
-						continue // 不在角色工具列表中，跳过
-					}
-				}
 
 				// 解析工具名称：mcpName::toolName
 				var mcpName, actualToolName string
@@ -418,9 +414,17 @@ func (a *Agent) getAvailableTools(roleTools []string) []Tool {
 				// 保存名称映射关系（OpenAI格式 -> 原始格式）
 				extMap[openAIName] = externalTool.Name
 
+				// 如果指定了角色工具列表，只添加在列表中的工具
+				if len(roleToolSet) > 0 {
+					if !roleToolSet[externalToolKey] {
+						continue // 不在角色工具列表中，跳过
+					}
+				}
+
 				tools = append(tools, Tool{
 					Type: "function",
 					Function: FunctionDefinition{
+						OutputSchema: externalTool.OutputSchema, Annotations: externalTool.Annotations,
 						Name:        openAIName, // 使用符合OpenAI规范的名称
 						Description: description,
 						Parameters:  convertedSchema,
@@ -514,10 +518,11 @@ func (a *Agent) convertToOpenAIType(configType string) string {
 
 // ToolExecutionResult MCP 工具执行结果（供 Agent 桥与监控落库使用）。
 type ToolExecutionResult struct {
-	Result      string
-	ExecutionID string
-	IsError     bool
-	Blocked     bool
+	StructuredContent map[string]interface{}
+	Result            string
+	ExecutionID       string
+	IsError           bool
+	Blocked           bool
 }
 
 func buildToolFailureMessage(toolName, detail string, err error) string {
@@ -615,10 +620,11 @@ func (a *Agent) executeToolViaMCP(ctx context.Context, toolName string, args map
 	resultStr := resultText.String()
 
 	return &ToolExecutionResult{
-		Result:      resultStr,
-		ExecutionID: executionID,
-		IsError:     result != nil && result.IsError,
-		Blocked:     result != nil && result.Blocked,
+		Result:            resultStr,
+		StructuredContent: result.StructuredContent,
+		ExecutionID:       executionID,
+		IsError:           result != nil && result.IsError,
+		Blocked:           result != nil && result.Blocked,
 	}, nil
 }
 

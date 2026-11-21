@@ -40,6 +40,7 @@ const (
 	BatchTaskStatusCompleted = "completed"
 	BatchTaskStatusFailed    = "failed"
 	BatchTaskStatusCancelled = "cancelled"
+	BatchTaskStatusBlocked   = "blocked"
 
 	// MaxBatchTasksPerQueue 单个队列最大任务数
 	MaxBatchTasksPerQueue = 10000
@@ -84,6 +85,7 @@ type BatchTaskQueue struct {
 	LastScheduleError     string       `json:"lastScheduleError,omitempty"`
 	LastRunError          string       `json:"lastRunError,omitempty"`
 	ProjectID             string       `json:"projectId,omitempty"`
+	CollectionID          string       `json:"collectionId,omitempty"`
 	Concurrency           int          `json:"concurrency"` // 同时执行的子任务数，默认 1
 	Tasks                 []*BatchTask `json:"tasks"`
 	Status                string       `json:"status"` // pending, running, paused, completed, cancelled
@@ -275,6 +277,27 @@ func (m *BatchTaskManager) CreateBatchQueue(
 	return queue, nil
 }
 
+// SetQueueCollection records the shared asset collection on an existing queue.
+func (m *BatchTaskManager) SetQueueCollection(queueID, collectionID string) error {
+	collectionID = strings.TrimSpace(collectionID)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	queue, ok := m.queues[queueID]
+	if !ok {
+		return fmt.Errorf("队列不存在")
+	}
+	queue.CollectionID = collectionID
+	if m.db == nil {
+		return nil
+	}
+	var value any
+	if collectionID != "" {
+		value = collectionID
+	}
+	_, err := m.db.Exec(`UPDATE batch_task_queues SET collection_id=? WHERE id=?`, value, queueID)
+	return err
+}
+
 // GetBatchQueue 获取批量任务队列
 func (m *BatchTaskManager) GetBatchQueue(queueID string) (*BatchTaskQueue, bool) {
 	m.mu.RLock()
@@ -360,6 +383,9 @@ func (m *BatchTaskManager) loadQueueFromDB(queueID string) *BatchTaskQueue {
 	}
 	if queueRow.ProjectID.Valid {
 		queue.ProjectID = strings.TrimSpace(queueRow.ProjectID.String)
+	}
+	if queueRow.CollectionID.Valid {
+		queue.CollectionID = strings.TrimSpace(queueRow.CollectionID.String)
 	}
 	queue.Concurrency = batchQueueConcurrencyFromRow(queueRow)
 	if queueRow.StartedAt.Valid {
@@ -606,6 +632,9 @@ func (m *BatchTaskManager) LoadFromDB() error {
 		if queueRow.ProjectID.Valid {
 			queue.ProjectID = strings.TrimSpace(queueRow.ProjectID.String)
 		}
+		if queueRow.CollectionID.Valid {
+			queue.CollectionID = strings.TrimSpace(queueRow.CollectionID.String)
+		}
 		queue.Concurrency = batchQueueConcurrencyFromRow(queueRow)
 		if queueRow.StartedAt.Valid {
 			queue.StartedAt = &queueRow.StartedAt.Time
@@ -684,7 +713,7 @@ func (m *BatchTaskManager) UpdateTaskStatusWithConversationID(queueID, taskID, s
 			if status == BatchTaskStatusRunning && task.StartedAt == nil {
 				task.StartedAt = &now
 			}
-			if status == BatchTaskStatusCompleted || status == BatchTaskStatusFailed || status == BatchTaskStatusCancelled {
+			if status == BatchTaskStatusCompleted || status == BatchTaskStatusFailed || status == BatchTaskStatusCancelled || status == BatchTaskStatusBlocked {
 				task.CompletedAt = &now
 			}
 			break

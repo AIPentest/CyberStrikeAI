@@ -95,5 +95,98 @@ func BuildProjectBlackboardBlock(db *database.DB, projectID string, cfg config.P
 	if strings.TrimSpace(index) != "" {
 		parts = append(parts, index)
 	}
+	vis := database.FactVisibility{CanReadProjects: true, ProjectScope: database.RBACScopeAll, CanReadConversations: true, ConversationScope: database.RBACScopeAll}
+	if len(conversationIDs) > 0 {
+		var owner string
+		_ = db.QueryRow(`SELECT COALESCE(owner_user_id,'') FROM conversations WHERE id=?`, conversationIDs[0]).Scan(&owner)
+		if owner != "" {
+			if resolved, err := db.FactVisibilityFor(owner); err == nil {
+				vis = resolved
+			}
+		}
+	}
+	access := database.RBACListAccess{Scope: database.RBACScopeAll}
+	if vis.UserID != "" {
+		scope := vis.ProjectScope
+		if scope == "" || scope == "none" {
+			scope = database.RBACScopeOwn
+		}
+		access = database.RBACListAccess{UserID: vis.UserID, Scope: scope}
+	}
+	if library, err := BuildAssetLibraryBlock(db, projectID, access); err != nil {
+		return "", err
+	} else if strings.TrimSpace(library) != "" {
+		parts = append(parts, library)
+	}
+	if collections, err := BuildCollectionBlock(db, projectID, vis); err != nil {
+		return "", err
+	} else if strings.TrimSpace(collections) != "" {
+		parts = append(parts, collections)
+	}
 	return strings.Join(parts, "\n\n"), nil
+}
+
+// BuildCollectionBlock lists named asset collections visible to the caller.
+func BuildCollectionBlock(db *database.DB, projectID string, vis database.FactVisibility) (string, error) {
+	items, err := db.ListAssetCollections(projectID)
+	if err != nil || len(items) == 0 {
+		return "", err
+	}
+	if len(items) > 20 {
+		items = items[:20]
+	}
+	var b strings.Builder
+	b.WriteString("## 已保存的检索结果\n")
+	b.WriteString("这些只是资产库的命名子集，来自信息收集。未指定子集时，对话和批量任务的范围仍是上面的项目资产库。已确认观察只统计当前账号能读取、且有成功回执的项目事实，不等于已经扫描。\n")
+	for _, item := range items {
+		total, observed, err := db.ObservationCoverageVisible(database.RBACListAccess{UserID: vis.UserID, Scope: vis.ProjectScope}, vis, item.ID)
+		if err != nil {
+			return "", err
+		}
+		fmt.Fprintf(&b, "- %s（%s）：可见资产 %d 个，已确认观察 %d 个\n", item.Name, item.ID, total, observed)
+	}
+	return b.String(), nil
+}
+
+// BuildAssetLibraryBlock describes the project assets shared by chat, batch
+// tasks. A named collection is not required.
+func BuildAssetLibraryBlock(db *database.DB, projectID string, access database.RBACListAccess) (string, error) {
+	projectID = strings.TrimSpace(projectID)
+	if db == nil || projectID == "" {
+		return "", nil
+	}
+	assets, total, err := db.ListAssets(12, 0, database.AssetListFilter{ProjectID: projectID}, access)
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	b.WriteString("## 项目资产库\n")
+	b.WriteString("对话和批量任务使用这里的同一批资产。不要因为没有资产集合就认为没有目标。\n")
+	if total == 0 {
+		b.WriteString("该项目目前没有可读资产。新发现的目标用 create_asset 写入这个项目。\n")
+		return b.String(), nil
+	}
+	fmt.Fprintf(&b, "当前可读资产 %d 个。下面最多列出 12 个，其余用 query_assets 按该项目分页读取。\n", total)
+	for _, asset := range assets {
+		fmt.Fprintf(&b, "- %s\n", assetLibraryLine(asset))
+	}
+	return b.String(), nil
+}
+
+func assetLibraryLine(asset *database.Asset) string {
+	name := asset.Domain
+	if name == "" {
+		name = asset.IP
+	}
+	if name == "" {
+		name = asset.Host
+	}
+	target := name
+	if asset.Port > 0 {
+		target = fmt.Sprintf("%s:%d", name, asset.Port)
+	}
+	if asset.Protocol != "" {
+		target += " " + asset.Protocol
+	}
+	return target + "（" + asset.ID + "）"
 }

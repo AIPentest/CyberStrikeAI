@@ -1,5 +1,3 @@
-import { once } from "node:events";
-
 export const PROTOCOL_VERSION = 1;
 export const MAX_RECORD_BYTES = 32 * 1024 * 1024;
 
@@ -29,8 +27,10 @@ let writes = Promise.resolve();
 export function send(value: unknown): Promise<void> {
   const line = JSON.stringify(value) + "\n";
   if (Buffer.byteLength(line) > MAX_RECORD_BYTES) return Promise.reject(new Error("Protocol output exceeds limit"));
-  writes = writes.then(async () => {
-    if (!process.stdout.write(line)) await once(process.stdout, "drain");
-  });
+  // A true return value only means the stream accepted the data. The worker
+  // exits after its final record, so wait until the underlying write completes.
+  writes = writes.then(() => new Promise<void>((resolve, reject) => {
+    process.stdout.write(line, error => error ? reject(error) : resolve());
+  }));
   return writes;
 }

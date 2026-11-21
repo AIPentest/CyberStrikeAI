@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"cyberstrike-ai/internal/agent"
+	"cyberstrike-ai/internal/agentruntime"
 	"cyberstrike-ai/internal/audit"
 	"cyberstrike-ai/internal/config"
 	"cyberstrike-ai/internal/database"
@@ -21,6 +22,7 @@ type multiAgentPrepared struct {
 	CreatedNew         bool
 	History            []agent.ChatMessage
 	FinalMessage       string
+	Images             []agentruntime.Image
 	RoleTools          []string
 	AssistantMessageID string
 	UserMessageID      string
@@ -45,6 +47,17 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 	if !hasSession || !session.Permissions["chat:write"] {
 		return nil, fmt.Errorf("无权写入对话")
 	}
+	if req.RequireHumanApproval || (conversationID == "" && req.Hitl != nil) {
+		if !session.Permissions["hitl:write"] {
+			return nil, fmt.Errorf("无权访问人机协同设置")
+		}
+		if req.RequireHumanApproval && conversationID != "" {
+			return nil, fmt.Errorf("已有对话请先保存人机协同设置")
+		}
+		if h.hitlManager == nil {
+			return nil, fmt.Errorf("保存人机协同配置失败: 人机协同不可用")
+		}
+	}
 	canAccess := func(resourceType, resourceID string) bool {
 		if !hasSession || h.db == nil || strings.TrimSpace(resourceID) == "" {
 			return false
@@ -66,6 +79,25 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 		meta.ProjectID = projectID
 		meta.RoleName = req.Role
 		meta.AgentMode = chatRequestAgentMode(req, source)
+		if req.RequireHumanApproval {
+			timeout := h.hitlEffectiveDefaultTimeoutSeconds()
+			req.Hitl = &HITLRequest{Enabled: true, Mode: "approval", Reviewer: "human", TimeoutSeconds: timeout}
+		}
+		if req.Hitl != nil {
+			req.Hitl.Mode = normalizeHitlMode(req.Hitl.Mode)
+			req.Hitl.Reviewer = normalizeHitlReviewer(req.Hitl.Reviewer)
+			if !req.Hitl.Enabled || req.Hitl.Mode == "off" {
+				req.Hitl.Enabled = false
+				req.Hitl.Mode = "off"
+			}
+			if req.Hitl.TimeoutSeconds < 0 {
+				req.Hitl.TimeoutSeconds = 0
+			}
+			meta.HITL = &database.ConversationHITLConfig{
+				Enabled: req.Hitl.Enabled, Mode: req.Hitl.Mode, Reviewer: req.Hitl.Reviewer,
+				SensitiveTools: req.Hitl.SensitiveTools, TimeoutSeconds: req.Hitl.TimeoutSeconds,
+			}
+		}
 		if webshellID != "" {
 			meta.Source = source + "_webshell"
 			meta.WebShellConnectionID = webshellID
@@ -179,11 +211,18 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 
 	var savedPaths []string
 	if len(req.Attachments) > 0 {
+		if err := h.authorizeChatAttachmentPaths(c, req.Attachments); err != nil {
+			return nil, err
+		}
 		var aerr error
 		savedPaths, aerr = saveAttachmentsToDateAndConversationDir(req.Attachments, conversationID, h.logger)
 		if aerr != nil {
 			return nil, fmt.Errorf("保存上传文件失败: %w", aerr)
 		}
+	}
+	images, err := loadChatImages(savedPaths)
+	if err != nil {
+		return nil, err
 	}
 	finalMessage = appendAttachmentsToMessage(finalMessage, req.Attachments, savedPaths)
 
@@ -216,6 +255,7 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 		CreatedNew:         createdNew,
 		History:            agentHistoryMessages,
 		FinalMessage:       finalMessage,
+		Images:             images,
 		RoleTools:          roleTools,
 		AssistantMessageID: assistantMessageID,
 		UserMessageID:      userMessageID,

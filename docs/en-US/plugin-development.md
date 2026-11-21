@@ -117,4 +117,4 @@ Plugins should not bypass platform controls:
   - Capture: `devtools.js`, `background/service-worker.js`
 - OpenAPI: `internal/handler/openapi.go`
 - External MCP: `internal/handler/external_mcp.go`
-- Web auth reference: `web/static/js/auth.js`
+- Web auth reference: `web/frontend/src/lib/auth.jsx`

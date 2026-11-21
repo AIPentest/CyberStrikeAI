@@ -96,6 +96,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"token":               token,
 		"expires_at":          expiresAt.UTC().Format(time.RFC3339),
 		"session_duration_hr": h.manager.SessionDurationHours(),
+		"app_version":         h.config.Version,
 		"user": gin.H{
 			"id":           session.UserID,
 			"username":     session.Username,
@@ -218,8 +219,9 @@ func (h *AuthHandler) Validate(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"token":      session.Token,
-		"expires_at": session.ExpiresAt.UTC().Format(time.RFC3339),
+		"token":       session.Token,
+		"expires_at":  session.ExpiresAt.UTC().Format(time.RFC3339),
+		"app_version": h.config.Version,
 		"user": gin.H{
 			"id":           session.UserID,
 			"username":     session.Username,

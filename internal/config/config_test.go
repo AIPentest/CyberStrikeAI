@@ -167,6 +167,8 @@ func TestLoadUsesAIDefaultChannelAsRuntimeOpenAI(t *testing.T) {
 		"      api_key: deepseek-key",
 		"      model: deepseek-chat",
 		"      max_total_tokens: 64000",
+		"      context_window: 131072",
+		"      context_profile: local",
 		"server:",
 		"  host: 127.0.0.1",
 		"  port: 8080",
@@ -183,9 +185,56 @@ func TestLoadUsesAIDefaultChannelAsRuntimeOpenAI(t *testing.T) {
 	if cfg.OpenAI.Model != "deepseek-chat" || cfg.OpenAI.APIKey != "deepseek-key" || cfg.OpenAI.MaxTotalTokens != 64000 {
 		t.Fatalf("runtime OpenAI config did not follow ai.default_channel: %+v", cfg.OpenAI)
 	}
+	if cfg.OpenAI.ContextWindow != 131072 || cfg.OpenAI.ContextProfile != "local" {
+		t.Fatalf("context profile fields not loaded: %+v", cfg.OpenAI)
+	}
 	oa, id, ok := cfg.ResolveAIChannel("qwen")
 	if !ok || id != "qwen" || oa.Model != "qwen-max" || oa.APIKey != "qwen-key" {
 		t.Fatalf("ResolveAIChannel(qwen) = (%+v, %q, %v)", oa, id, ok)
+	}
+}
+
+func TestLoadRejectsInvalidChannelContextSettings(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		profile string
+		window  string
+		wantErr string
+	}{
+		{name: "unknown profile", profile: "turbo", wantErr: "context_profile"},
+		{name: "negative window", profile: "local", window: "-1", wantErr: "context_window"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			path := filepath.Join(dir, "config.yaml")
+			lines := []string{
+				"ai:",
+				"  default_channel: qwen",
+				"  channels:",
+				"    qwen:",
+				"      base_url: https://example.invalid/v1",
+				"      api_key: key",
+				"      model: qwen-max",
+			}
+			if tc.profile != "" {
+				lines = append(lines, "      context_profile: "+tc.profile)
+			}
+			if tc.window != "" {
+				lines = append(lines, "      context_window: "+tc.window)
+			}
+			lines = append(lines, "")
+			if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644); err != nil {
+				t.Fatalf("write config: %v", err)
+			}
+			_, err := Load(path)
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("Load error = %v, want containing %q", err, tc.wantErr)
+			}
+		})
 	}
 }
 

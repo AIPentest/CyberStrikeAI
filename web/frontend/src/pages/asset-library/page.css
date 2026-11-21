@@ -1,0 +1,68 @@
+/* 资产库页面私有布局样式（颜色一律使用 Semi 变量）。 */
+.asset-library-page { display: flex; flex-direction: column; gap: 0; }
+
+.asset-library-filters { display: flex; flex-direction: column; gap: 8px; }
+.asset-library-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+.asset-library-filter-row > :is(.semi-select, .semi-input-wrapper) {
+    flex: 1 1 140px;
+    min-width: 0;
+}
+.asset-library-filter-row > .asset-library-filter-search { flex-grow: 2; }
+.asset-library-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    align-items: center;
+}
+.asset-library-filter-advanced { margin-top: 2px; }
+
+.asset-library-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--semi-color-border);
+    margin-bottom: 10px;
+}
+
+.asset-library-target { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.asset-library-form-error { margin: 8px 0; }
+
+.asset-library-editor .semi-form-field { margin-bottom: 12px; }
+.asset-library-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 4px 14px;
+}
+.asset-library-form-grid--full { grid-template-columns: minmax(0, 1fr); }
+.asset-library-form-grid--bulk {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin: 12px 0;
+}
+.asset-library-editor-actions { margin-top: 4px; }
+
+.asset-library-import-body { width: 100%; margin-top: 10px; }
+.asset-library-import-textarea textarea {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+}
+.asset-library-import-preview { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+.asset-library-file-input { display: none; }
+
+.asset-library-detail-target { display: flex; flex-direction: column; gap: 4px; }
+.asset-library-detail-target-main { display: flex; align-items: center; gap: 6px; }
+.asset-library-detail-badges { margin-top: 4px; }
+
+@media (max-width: 900px) {
+    .asset-library-filter-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+    .asset-library-toolbar { flex-direction: column; align-items: flex-start; }
+}

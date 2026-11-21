@@ -36,7 +36,20 @@ func registerAssetTools(server *mcp.Server, db *database.DB, logger *zap.Logger)
 			return textResult("错误: "+err.Error(), true), nil
 		}
 		access, owner, global := assetAccessFromToolContext(ctx, "asset:write")
-		result, err := db.UpsertAssets([]*database.Asset{asset}, owner, global)
+		projectID, scoped, err := agentAssetProjectScope(db, ctx)
+		if err != nil {
+			return textResult("错误: "+err.Error(), true), nil
+		}
+		var result database.AssetImportResult
+		if scoped {
+			if asset.ProjectID != "" && asset.ProjectID != projectID {
+				return textResult("错误: 资产不属于当前项目", true), nil
+			}
+			asset.ProjectID = projectID
+			result, err = db.UpsertAssetsInProject([]*database.Asset{asset}, owner, global, projectID)
+		} else {
+			result, err = db.UpsertAssets([]*database.Asset{asset}, owner, global)
+		}
 		if err != nil {
 			logger.Error("Agent 保存资产失败", zap.Error(err))
 			return textResult("错误: "+err.Error(), true), nil
@@ -436,6 +449,9 @@ func assetAccessFromToolContext(ctx context.Context, permission string) (databas
 // conversation) keeps the existing all-accessible-assets behavior. A bound
 // conversation can only read assets assigned to that exact project.
 func agentAssetProjectScope(db *database.DB, ctx context.Context) (projectID string, scoped bool, err error) {
+	if projectID = strings.TrimSpace(mcp.MCPProjectIDFromContext(ctx)); projectID != "" {
+		return projectID, true, nil
+	}
 	conversationID := conversationIDFromToolCtx(ctx)
 	if conversationID == "" {
 		return "", false, nil

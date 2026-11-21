@@ -66,5 +66,5 @@ func piModelConfig(oa config.OpenAIConfig, intent *reasoning.ClientIntent, conve
 		compat["requiresReasoningContentOnAssistantMessages"] = true
 		compat["maxTokensField"] = "max_tokens"
 	}
-	return agentruntime.Model{Provider: provider, API: api, ID: oa.Model, BaseURL: base, APIKey: oa.APIKey, Headers: headers, ContextWindow: window, InputBudget: budget, MaxTokens: oa.MaxCompletionTokensEffective(), Thinking: thinking, ExtraFields: extra, Compat: compat, CompactToolJSON: oa.IsEconomyContextProfile()}
+	return agentruntime.Model{Provider: provider, API: api, ID: oa.Model, BaseURL: base, APIKey: oa.APIKey, Headers: headers, ContextWindow: window, InputBudget: budget, MaxTokens: oa.MaxCompletionTokensEffective(), ImageInput: oa.ImageInputCapability(), Thinking: thinking, ExtraFields: extra, Compat: compat, CompactToolJSON: oa.IsEconomyContextProfile()}
 }

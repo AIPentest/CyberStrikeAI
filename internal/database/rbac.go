@@ -24,13 +24,13 @@ const (
 )
 
 var rbacAssignableResourceTables = map[string]string{
-	"project":       "projects",
-	"conversation":  "conversations",
-	"vulnerability": "vulnerabilities",
-	"asset":         "assets",
-	"webshell":      "webshell_connections",
-	"batch_task":    "batch_task_queues",
-	"c2_listener":   "c2_listeners",
+	"project":         "projects",
+	"conversation":    "conversations",
+	"vulnerability":   "vulnerabilities",
+	"asset":           "assets",
+	"webshell":        "webshell_connections",
+	"batch_task":      "batch_task_queues",
+	"c2_listener":     "c2_listeners",
 }
 
 // RBACUser is a local platform account.

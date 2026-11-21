@@ -16,6 +16,7 @@ import (
 	"cyberstrike-ai/internal/database"
 	"cyberstrike-ai/internal/mcp"
 	"cyberstrike-ai/internal/multiagent"
+	"cyberstrike-ai/internal/project"
 
 	"go.uber.org/zap"
 )
@@ -86,6 +87,42 @@ func (h *AgentHandler) runBatchQueueWorker(queueID string) {
 	}
 }
 
+func batchTerminalSummary(tasks []*BatchTask) string {
+	blocked := 0
+	reasons := []string{}
+	seen := map[string]bool{}
+	lastFail := ""
+	for _, task := range tasks {
+		if task == nil {
+			continue
+		}
+		switch task.Status {
+		case BatchTaskStatusBlocked:
+			blocked++
+			reason := strings.TrimSpace(task.Error)
+			if reason == "" {
+				reason = "资产集合无法确认"
+			}
+			if !seen[reason] {
+				seen[reason] = true
+				reasons = append(reasons, reason)
+			}
+		case BatchTaskStatusFailed:
+			if text := strings.TrimSpace(task.Error); text != "" {
+				lastFail = text
+			}
+		}
+	}
+	parts := []string{}
+	if lastFail != "" {
+		parts = append(parts, lastFail)
+	}
+	if blocked > 0 {
+		parts = append(parts, fmt.Sprintf("受阻 %d 项：%s", blocked, strings.Join(reasons, "；")))
+	}
+	return strings.Join(parts, "；")
+}
+
 func (h *AgentHandler) tryFinalizeBatchQueue(queueID string) {
 	queue, exists := h.batchTaskManager.GetBatchQueue(queueID)
 	if !exists || queue == nil {
@@ -98,13 +135,7 @@ func (h *AgentHandler) tryFinalizeBatchQueue(queueID string) {
 		return
 	}
 
-	lastRunErr := ""
-	for _, t := range queue.Tasks {
-		if t != nil && t.Status == BatchTaskStatusFailed && t.Error != "" {
-			lastRunErr = t.Error
-		}
-	}
-	h.batchTaskManager.SetLastRunError(queueID, lastRunErr)
+	h.batchTaskManager.SetLastRunError(queueID, batchTerminalSummary(queue.Tasks))
 	h.batchTaskManager.UpdateQueueStatus(queueID, BatchQueueStatusCompleted)
 	h.logger.Info("批量任务队列执行完成", zap.String("queueId", queueID))
 }
@@ -118,6 +149,46 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 		return
 	}
 	principal := authctx.NewPrincipalWithScopes(access.User.ID, access.User.Username, access.Scope, access.Permissions, access.PermissionScopes)
+	collectionNote := ""
+	if collectionID := strings.TrimSpace(queue.CollectionID); collectionID != "" {
+		collection, colErr := h.db.GetAssetCollection(collectionID)
+		scope := access.Scope
+		if value := strings.TrimSpace(access.PermissionScopes["project:read"]); value != "" {
+			scope = value
+		}
+		assetScope := access.Scope
+		if value := strings.TrimSpace(access.PermissionScopes["asset:read"]); value != "" {
+			assetScope = value
+		}
+		visible := 0
+		var visErr error
+		if colErr == nil && collection.ProjectID == strings.TrimSpace(queue.ProjectID) && access.Permissions["project:read"] && access.Permissions["asset:read"] && h.db.UserCanAccessResource(access.User.ID, scope, "project", collection.ProjectID) {
+			vis, _ := h.db.FactVisibilityFor(access.User.ID)
+			visible, _, visErr = h.db.ObservationCoverageVisible(database.RBACListAccess{UserID: access.User.ID, Scope: assetScope}, vis, collection.ID)
+			if visErr == nil && visible > 0 {
+				collectionNote = fmt.Sprintf("本次只使用资产库中已保存的检索结果「%s」（%s），可见 %d 个资产。未保存检索结果时，范围是该项目的全部资产。", collection.Name, collection.ID, visible)
+			}
+		}
+		if collectionNote == "" {
+			reason := "资产集合无法确认"
+			if colErr != nil {
+				reason = "资产集合无法确认：" + colErr.Error()
+			}
+			h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusBlocked, "", reason)
+			return
+		}
+	} else if projectID := strings.TrimSpace(queue.ProjectID); projectID != "" && access.Permissions["asset:read"] {
+		assetScope := access.Scope
+		if value := strings.TrimSpace(access.PermissionScopes["asset:read"]); value != "" {
+			assetScope = value
+		}
+		block, blockErr := project.BuildAssetLibraryBlock(h.db, projectID, database.RBACListAccess{UserID: access.User.ID, Scope: assetScope})
+		if blockErr != nil && h.logger != nil {
+			h.logger.Warn("读取项目资产库失败", zap.String("queueId", queueID), zap.Error(blockErr))
+		} else if blockErr == nil {
+			collectionNote = block
+		}
+	}
 	title := safeTruncateString(task.Message, 50)
 	batchMeta := batchSubTaskConversationMeta(h.config, queue)
 	conv, err := h.db.CreateConversation(title, batchMeta)
@@ -147,6 +218,9 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 				}
 			}
 		}
+	}
+	if collectionNote != "" {
+		finalMessage = collectionNote + "\n\n" + finalMessage
 	}
 
 	if _, err = h.db.AddMessage(conversationID, "user", task.Message, nil); err != nil {

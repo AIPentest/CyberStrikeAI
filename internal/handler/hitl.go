@@ -14,6 +14,7 @@ import (
 
 	"cyberstrike-ai/internal/database"
 	"cyberstrike-ai/internal/multiagent"
+	"cyberstrike-ai/internal/security"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -982,13 +983,37 @@ func (h *AgentHandler) GetHITLConversationConfig(c *gin.Context) {
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"conversationId":          conversationID,
-		"hitl":                    cfg,
-		"defaultMode":             h.hitlEffectiveDefaultMode(),
-		"defaultReviewer":         h.hitlEffectiveDefaultReviewer(),
-		"defaultTimeoutSeconds":   h.hitlEffectiveDefaultTimeoutSeconds(),
-		"hitlGlobalToolWhitelist": h.hitlConfigGlobalToolWhitelist(),
+		"conversationId":            conversationID,
+		"hitl":                      cfg,
+		"defaultMode":               h.hitlEffectiveDefaultMode(),
+		"defaultReviewer":           h.hitlEffectiveDefaultReviewer(),
+		"defaultTimeoutSeconds":     h.hitlEffectiveDefaultTimeoutSeconds(),
+		"hitlGlobalToolWhitelist":   h.hitlConfigGlobalToolWhitelist(),
+		"conversationHumanApproval": true,
 	})
+}
+
+func (h *AgentHandler) RequireHITLConversationHumanApproval(c *gin.Context) {
+	conversationID := strings.TrimSpace(c.Param("conversationId"))
+	session, ok := security.CurrentSession(c)
+	if !ok || !session.Permissions["hitl:write"] || !h.db.UserCanAccessResource(session.UserID, session.ScopeFor("hitl:write"), "conversation", conversationID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		return
+	}
+	if err := h.db.RequireConversationHumanApproval(conversationID, h.hitlEffectiveDefaultTimeoutSeconds()); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "对话不存在"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	hitl, err := h.hitlManager.LoadConversationConfig(conversationID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"hitl": hitl})
 }
 
 func (h *AgentHandler) UpsertHITLConversationConfig(c *gin.Context) {
@@ -1052,12 +1077,13 @@ type setHitlDefaultConfigReq struct {
 func (h *AgentHandler) hitlDefaultConfigResponse() gin.H {
 	backend, model := h.hitlAuditEngineInfo()
 	return gin.H{
-		"defaultMode":             h.hitlEffectiveDefaultMode(),
-		"defaultReviewer":         h.hitlEffectiveDefaultReviewer(),
-		"defaultTimeoutSeconds":   h.hitlEffectiveDefaultTimeoutSeconds(),
-		"hitlGlobalToolWhitelist": h.hitlConfigGlobalToolWhitelist(),
-		"auditBackend":            backend,
-		"auditModel":              model,
+		"defaultMode":               h.hitlEffectiveDefaultMode(),
+		"defaultReviewer":           h.hitlEffectiveDefaultReviewer(),
+		"defaultTimeoutSeconds":     h.hitlEffectiveDefaultTimeoutSeconds(),
+		"hitlGlobalToolWhitelist":   h.hitlConfigGlobalToolWhitelist(),
+		"auditBackend":              backend,
+		"auditModel":                model,
+		"conversationHumanApproval": true,
 	}
 }
 

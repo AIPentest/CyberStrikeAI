@@ -264,6 +264,7 @@ func (h *ConfigHandler) ApplyWechatRobotBinding(wc config.RobotWechatConfig) err
 
 // GetConfigResponse 获取配置响应
 type GetConfigResponse struct {
+	Proxy        config.ProxyConfig        `json:"proxy"`
 	AgentRuntime config.AgentRuntimeConfig `json:"agent_runtime"`
 	AI           config.AIConfig           `json:"ai"`
 	OpenAI       config.OpenAIConfig       `json:"openai"`
@@ -280,6 +281,9 @@ type GetConfigResponse struct {
 	Robots       config.RobotsConfig       `json:"robots,omitempty"`
 	MultiAgent   config.MultiAgentPublic   `json:"multi_agent,omitempty"`
 	C2           config.C2Public           `json:"c2"`
+
+	ContextWindowDefaults map[string]int  `json:"context_window_defaults,omitempty"`
+	ImageInputDefaults    map[string]bool `json:"image_input_defaults,omitempty"`
 }
 
 // ToolConfigInfo 工具配置信息
@@ -374,7 +378,31 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 		),
 	}
 
+	windowDefaults := make(map[string]int)
+	imageDefaults := make(map[string]bool)
+	for id, channel := range h.config.AI.Channels {
+		model := channel.ToOpenAIConfig()
+		if window := model.DefaultContextWindow(); window > 0 {
+			windowDefaults[id] = window
+		}
+		model.ImageInput = ""
+		if capability := model.ImageInputCapability(); capability != nil {
+			imageDefaults[id] = *capability
+		}
+	}
+	if len(h.config.AI.Channels) == 0 {
+		if window := h.config.OpenAI.DefaultContextWindow(); window > 0 {
+			windowDefaults[""] = window
+		}
+		model := h.config.OpenAI
+		model.ImageInput = ""
+		if capability := model.ImageInputCapability(); capability != nil {
+			imageDefaults[""] = *capability
+		}
+	}
+
 	response, err := maskedConfigResponse(GetConfigResponse{
+		Proxy:        h.config.Proxy,
 		AgentRuntime: h.config.AgentRuntime,
 		AI:           h.config.AI,
 		OpenAI:       h.config.OpenAI,
@@ -391,6 +419,9 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 		C2:           h.config.C2.Public(),
 		Robots:       h.config.Robots,
 		MultiAgent:   multiPub,
+
+		ContextWindowDefaults: windowDefaults,
+		ImageInputDefaults:    imageDefaults,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "配置序列化失败"})
@@ -725,8 +756,10 @@ func (h *ConfigHandler) GetTools(c *gin.Context) {
 
 // UpdateConfigRequest 更新配置请求
 type UpdateConfigRequest struct {
+	Proxy        *config.ProxyConfig         `json:"proxy,omitempty"`
 	AgentRuntime *AgentRuntimeUpdate         `json:"agent_runtime,omitempty"`
 	AI           *config.AIConfig            `json:"ai,omitempty"`
+	AIChannel    *AIChannelUpdate            `json:"ai_channel,omitempty"`
 	OpenAI       *config.OpenAIConfig        `json:"openai,omitempty"`
 	Vision       *config.VisionConfig        `json:"vision,omitempty"`
 	FOFA         *config.FofaConfig          `json:"fofa,omitempty"`
@@ -805,6 +838,19 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	channelUpdate := req.AIChannel != nil
+	if channelUpdate {
+		if req.AI != nil || req.OpenAI != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "ai_channel 不能与 ai 或 openai 同时更新"})
+			return
+		}
+		ai, err := req.AIChannel.merge(h.config)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		req.AI, req.AIChannel = ai, nil
+	}
 	if err := restoreConfigRequestSecrets(&req, h.config); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -824,6 +870,27 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 		}
 	}
 
+	previousProxy := h.config.Proxy
+	previousRuntime := h.config.AgentRuntime
+	previousAI, previousOpenAI := h.config.AI, h.config.OpenAI
+	saved := false
+	defer func() {
+		if !saved {
+			h.config.Proxy = previousProxy
+			h.config.AgentRuntime = previousRuntime
+			if channelUpdate {
+				h.config.AI, h.config.OpenAI = previousAI, previousOpenAI
+			}
+		}
+	}()
+	if req.Proxy != nil {
+		if err := req.Proxy.Validate(); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		h.config.Proxy = *req.Proxy
+
+	}
 	if req.AgentRuntime != nil {
 		updated := h.config.AgentRuntime
 		applyAgentRuntimeUpdate(&updated, req.AgentRuntime)
@@ -1261,6 +1328,10 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 		return
 	}
 
+	saved = true
+	if req.Proxy != nil && h.executor != nil {
+		h.executor.SetProxyConfig(h.config.Proxy)
+	}
 	if h.audit != nil {
 		h.audit.RecordOK(c, "config", "update", "更新内存配置", "config", "", nil)
 	}
@@ -1279,6 +1350,7 @@ type TestOpenAIRequest struct {
 	MaxTotalTokens      int               `json:"max_total_tokens,omitempty"`
 	MaxCompletionTokens int               `json:"max_completion_tokens,omitempty"`
 	ContextProfile      string            `json:"context_profile,omitempty"`
+	TestImage           bool              `json:"test_image,omitempty"`
 }
 
 // DetectContextRequest probes model metadata without issuing a completion.
@@ -1411,7 +1483,10 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
 		return
 	}
+	h.testOpenAI(c, req)
+}
 
+func (h *ConfigHandler) testOpenAI(c *gin.Context, req TestOpenAIRequest) {
 	resolvedKey, resolveErr := h.resolveProbeSecret(req.APIKey, req.ChannelID, req.BaseURL, req.CredentialScope)
 	if resolveErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": resolveErr.Error()})
@@ -1429,6 +1504,10 @@ func (h *ConfigHandler) TestOpenAI(c *gin.Context) {
 	}
 	if strings.TrimSpace(req.Model) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "模型不能为空"})
+		return
+	}
+	if req.TestImage {
+		h.testChannelImage(c, req, resolvedHeaders)
 		return
 	}
 
@@ -1541,6 +1620,10 @@ func (h *ConfigHandler) TestTypeSafe(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
 		return
 	}
+	h.testTypeSafe(c, req)
+}
+
+func (h *ConfigHandler) testTypeSafe(c *gin.Context, req TestTypeSafeRequest) {
 	resolvedKey, resolveErr := h.resolveProbeSecret(req.APIKey, req.ChannelID, req.BaseURL, req.CredentialScope)
 	if resolveErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": resolveErr.Error()})
@@ -1889,6 +1972,7 @@ func (h *ConfigHandler) ApplyConfig(c *gin.Context) {
 	h.mcpServer.ClearTools()
 
 	// 重新注册安全工具
+	h.executor.SetProxyConfig(h.config.Proxy)
 	h.executor.SetToolOutputMaxBytes(h.config.MultiAgent.Runtime.ReductionMaxLengthForTruncEffective())
 	h.executor.SetToolOutputSpillRoot(h.config.MultiAgent.Runtime.ReductionRootDir)
 	h.executor.RegisterTools(h.mcpServer)
@@ -2081,10 +2165,13 @@ func (h *ConfigHandler) saveConfig() error {
 		return fmt.Errorf("解析配置文件失败: %w", err)
 	}
 
+	updateProxyConfig(root, h.config.Proxy)
 	updateAgentConfig(root, h.config.Agent)
 	updateAgentRuntimeConfig(root, h.config.AgentRuntime)
 	updateMCPConfig(root, h.config.MCP)
-	updateAIConfig(root, h.config.AI)
+	if err := updateAIConfig(root, h.config.AI); err != nil {
+		return err
+	}
 	removeKeyFromMap(root.Content[0], "openai")
 	updateVisionConfig(root, h.config.Vision)
 	updateUpdateSourceConfig(root, h.config.Update)
@@ -2277,6 +2364,11 @@ func updateOpenAIConfig(doc *yaml.Node, cfg config.OpenAIConfig) {
 	setStringInMap(openaiNode, "api_key", cfg.APIKey)
 	setStringInMap(openaiNode, "base_url", cfg.BaseURL)
 	setStringInMap(openaiNode, "model", cfg.Model)
+	if cfg.ImageInput != "" {
+		setStringInMap(openaiNode, "image_input", cfg.ImageInput)
+	} else {
+		removeKeyFromMap(openaiNode, "image_input")
+	}
 	setStringMapInMap(openaiNode, "headers", cfg.Headers)
 	if cfg.MaxTotalTokens > 0 {
 		setIntInMap(openaiNode, "max_total_tokens", cfg.MaxTotalTokens)
@@ -2306,7 +2398,7 @@ func updateOpenAIConfig(doc *yaml.Node, cfg config.OpenAIConfig) {
 	}
 }
 
-func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) {
+func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) error {
 	root := doc.Content[0]
 	aiNode := ensureMap(root, "ai")
 	if strings.TrimSpace(cfg.DefaultChannel) != "" {
@@ -2344,6 +2436,9 @@ func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) {
 		setStringInMap(channelNode, "api_key", ch.APIKey)
 		setStringInMap(channelNode, "base_url", ch.BaseURL)
 		setStringInMap(channelNode, "model", ch.Model)
+		if ch.ImageInput != "" {
+			setStringInMap(channelNode, "image_input", ch.ImageInput)
+		}
 		setStringMapInMap(channelNode, "headers", ch.Headers)
 		if ch.MaxTotalTokens > 0 {
 			setIntInMap(channelNode, "max_total_tokens", ch.MaxTotalTokens)
@@ -2374,10 +2469,17 @@ func updateAIConfig(doc *yaml.Node, cfg config.AIConfig) {
 		if strings.TrimSpace(ch.Reasoning.Profile) != "" {
 			setStringInMap(rn, "profile", ch.Reasoning.Profile)
 		}
+		if len(ch.Reasoning.ExtraRequestFields) > 0 {
+			_, value := ensureKeyValue(rn, "extra_request_fields")
+			if err := value.Encode(ch.Reasoning.ExtraRequestFields); err != nil {
+				return fmt.Errorf("保存 AI 通道 %s 的扩展请求字段失败: %w", id, err)
+			}
+		}
 		if len(rn.Content) == 0 {
 			removeKeyFromMap(channelNode, "reasoning")
 		}
 	}
+	return nil
 }
 
 func updateFOFAConfig(doc *yaml.Node, cfg config.FofaConfig) {
@@ -3118,4 +3220,16 @@ func convertParamType(t string) string {
 	default:
 		return "string"
 	}
+}
+
+func updateProxyConfig(doc *yaml.Node, cfg config.ProxyConfig) {
+	node := ensureMap(doc.Content[0], "proxy")
+	setStringInMap(node, "mode", cfg.Mode)
+	setStringInMap(node, "proxy_url", cfg.URL)
+	setStringInMap(node, "proxy_pool", cfg.Pool)
+	setStringInMap(node, "proxy_source", cfg.Source)
+	setStringInMap(node, "strategy", cfg.Strategy)
+	setIntInMap(node, "max_attempts", cfg.MaxAttempts)
+	setIntInMap(node, "cooldown", cfg.Cooldown)
+	setIntInMap(node, "min_switch_interval", cfg.MinSwitchInterval)
 }

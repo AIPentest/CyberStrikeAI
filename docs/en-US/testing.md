@@ -40,7 +40,7 @@ Expand testing when changing:
 - `internal/multiagent/`: streaming, tool calls, summarization, retry, HITL;
 - `internal/security/`: auth, shell, timeout, no-output;
 - `internal/database/`: old data compatibility;
-- `web/static/js/chat.js`: chat, process details, attack chain, groups.
+- `web/frontend/src/pages/chat/`: chat, process details, attack chain, groups.
 
 ## Test Data
 

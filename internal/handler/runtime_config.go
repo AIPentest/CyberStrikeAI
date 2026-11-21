@@ -36,6 +36,7 @@ func updateAgentRuntimeConfig(doc *yaml.Node, cfg config.AgentRuntimeConfig) {
 	setStringInMap(node, "node_path", cfg.NodePath)
 	setStringInMap(node, "worker_path", cfg.WorkerPath)
 	setStringInMap(node, "session_dir", cfg.SessionDir)
+	removeKeyFromMap(node, "purge")
 }
 func migrateConfigMapKey(node *yaml.Node, oldKey, newKey string) {
 	hasNew := false

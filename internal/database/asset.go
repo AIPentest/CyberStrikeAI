@@ -56,10 +56,14 @@ type Asset struct {
 }
 
 type AssetListFilter struct {
+	ID                 string
+	AssessmentID       string
+	AssessmentObserved *bool
 	Search             string
 	Status             string
 	Protocol           string
 	ProjectID          string
+	ProjectUnassigned  bool
 	Source             string
 	Tag                string
 	Host               string
@@ -90,9 +94,12 @@ type AssetListFilter struct {
 }
 
 type AssetImportResult struct {
-	Created int `json:"created"`
-	Updated int `json:"updated"`
-	Skipped int `json:"skipped"`
+	Created          int              `json:"created"`
+	Updated          int              `json:"updated"`
+	Skipped          int              `json:"skipped"`
+	ProjectConflicts int              `json:"project_conflicts,omitempty"`
+	AppliedIDs       []string         `json:"-"`
+	Collection       *AssetCollection `json:"collection,omitempty"`
 }
 
 func normalizeAsset(a *Asset) {
@@ -304,6 +311,15 @@ func appendAssetAccess(query string, args []interface{}, access RBACListAccess, 
 }
 
 func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...bool) (AssetImportResult, error) {
+	return db.upsertAssets(assets, ownerUserID, len(allowGlobal) > 0 && allowGlobal[0], nil)
+}
+
+// UpsertAssetsInProject enforces the caller's project boundary inside the same
+// transaction that resolves deduplication, including for globally scoped users.
+func (db *DB) UpsertAssetsInProject(assets []*Asset, ownerUserID string, global bool, projectID string) (AssetImportResult, error) {
+	return db.upsertAssets(assets, ownerUserID, global, &projectID)
+}
+func (db *DB) upsertAssets(assets []*Asset, ownerUserID string, global bool, projectBoundary *string) (AssetImportResult, error) {
 	result := AssetImportResult{}
 	tx, err := db.Begin()
 	if err != nil {
@@ -317,6 +333,9 @@ func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...b
 			continue
 		}
 		normalizeAsset(asset)
+		if projectBoundary != nil && asset.ProjectID != *projectBoundary {
+			return result, fmt.Errorf("asset is outside the current project")
+		}
 		if err := validateAsset(asset); err != nil {
 			return result, fmt.Errorf("第 %d 个资产无效: %w", result.Created+result.Updated+result.Skipped+1, err)
 		}
@@ -326,8 +345,8 @@ func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...b
 			continue
 		}
 		var existingID string
-		var existingOwner sql.NullString
-		err := tx.QueryRow(`SELECT id,owner_user_id FROM assets WHERE dedup_key = ?`, key).Scan(&existingID, &existingOwner)
+		var existingOwner, existingProject sql.NullString
+		err := tx.QueryRow(`SELECT id,owner_user_id,project_id FROM assets WHERE dedup_key = ?`, key).Scan(&existingID, &existingOwner, &existingProject)
 		tagsJSON, _ := json.Marshal(asset.Tags)
 		if err == sql.ErrNoRows {
 			asset.ID = uuid.NewString()
@@ -350,15 +369,20 @@ func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...b
 				}
 			}
 			result.Created++
+			result.AppliedIDs = append(result.AppliedIDs, asset.ID)
 			continue
 		}
 		if err != nil {
 			return result, fmt.Errorf("检查资产去重键失败: %w", err)
 		}
 		asset.ID = existingID
-		global := len(allowGlobal) > 0 && allowGlobal[0]
-		if !global && existingOwner.Valid && strings.TrimSpace(existingOwner.String) != "" && strings.TrimSpace(existingOwner.String) != strings.TrimSpace(ownerUserID) {
+		if !global && strings.TrimSpace(existingOwner.String) != strings.TrimSpace(ownerUserID) {
 			result.Skipped++
+			continue
+		}
+		if existingProject.String != asset.ProjectID {
+			result.Skipped++
+			result.ProjectConflicts++
 			continue
 		}
 		_, err = tx.Exec(`UPDATE assets SET
@@ -367,7 +391,7 @@ func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...b
 			title=CASE WHEN ?<>'' THEN ? ELSE title END, server=CASE WHEN ?<>'' THEN ? ELSE server END,
 			country=CASE WHEN ?<>'' THEN ? ELSE country END, province=CASE WHEN ?<>'' THEN ? ELSE province END,
 			city=CASE WHEN ?<>'' THEN ? ELSE city END, source=CASE WHEN ?<>'' THEN ? ELSE source END,
-			source_query=CASE WHEN ?<>'' THEN ? ELSE source_query END, project_id=CASE WHEN ?<>'' THEN ? ELSE project_id END,
+			source_query=CASE WHEN ?<>'' THEN ? ELSE source_query END,
 			responsible_person=CASE WHEN ?<>'' THEN ? ELSE responsible_person END,
 			department=CASE WHEN ?<>'' THEN ? ELSE department END,
 			business_system=CASE WHEN ?<>'' THEN ? ELSE business_system END,
@@ -377,7 +401,7 @@ func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...b
 			last_seen_at=?, updated_at=? WHERE id=?`,
 			asset.Host, asset.Host, asset.IP, asset.IP, asset.Domain, asset.Domain, asset.Protocol, asset.Protocol,
 			asset.Title, asset.Title, asset.Server, asset.Server, asset.Country, asset.Country, asset.Province, asset.Province,
-			asset.City, asset.City, asset.Source, asset.Source, asset.SourceQuery, asset.SourceQuery, asset.ProjectID, nullIfEmpty(asset.ProjectID),
+			asset.City, asset.City, asset.Source, asset.Source, asset.SourceQuery, asset.SourceQuery,
 			asset.ResponsiblePerson, asset.ResponsiblePerson, asset.Department, asset.Department, asset.BusinessSystem, asset.BusinessSystem,
 			asset.Environment, asset.Environment, asset.Criticality, asset.Criticality, string(tagsJSON), string(tagsJSON),
 			now, now, existingID)
@@ -390,6 +414,7 @@ func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...b
 			}
 		}
 		result.Updated++
+		result.AppliedIDs = append(result.AppliedIDs, existingID)
 	}
 	if err := tx.Commit(); err != nil {
 		return result, err
@@ -400,6 +425,10 @@ func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...b
 func assetWhere(filter AssetListFilter, access RBACListAccess) (string, []interface{}) {
 	query := " WHERE 1=1"
 	args := []interface{}{}
+	if filter.ID != "" {
+		query += " AND assets.id=?"
+		args = append(args, filter.ID)
+	}
 	if q := strings.TrimSpace(filter.Search); q != "" {
 		pattern := "%" + escapeAssetLike(strings.ToLower(q)) + "%"
 		query += ` AND (LOWER(assets.host) LIKE ? ESCAPE '\' OR LOWER(assets.ip) LIKE ? ESCAPE '\' OR LOWER(assets.domain) LIKE ? ESCAPE '\'
@@ -420,6 +449,13 @@ func assetWhere(filter AssetListFilter, access RBACListAccess) (string, []interf
 	if filter.ProjectID != "" {
 		query += " AND assets.project_id = ?"
 		args = append(args, filter.ProjectID)
+	}
+	if filter.ProjectUnassigned {
+		query += " AND (assets.project_id IS NULL OR assets.project_id = '')"
+	}
+	if filter.AssessmentID != "" {
+		// Deep assessments are not shipped in this sync; keep the filter inert.
+		query += " AND 0"
 	}
 	if filter.Source != "" {
 		query += " AND LOWER(assets.source) = LOWER(?)"
@@ -844,6 +880,67 @@ func (db *DB) ListAssetsForOperation(limit int, filter AssetListFilter, access R
 	return items, total, rows.Err()
 }
 
+// AssetScopeSeed is the host identity used to decide whether a discovered
+// name belongs to an assessment. It is not an asset record.
+type AssetScopeSeed struct {
+	Host   string
+	IP     string
+	Domain string
+}
+
+// ListAssetIDs returns every matching asset ID. limit is a hard upper bound;
+// exceeding it returns the total and an error instead of a truncated set.
+func (db *DB) ListAssetIDs(limit int, filter AssetListFilter, access RBACListAccess) ([]string, int, error) {
+	if limit < 1 || limit > 5000 {
+		limit = 5000
+	}
+	where, args := assetWhere(filter, access)
+	var total int
+	if err := db.QueryRow("SELECT COUNT(*) FROM assets"+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	if total > limit {
+		return nil, total, fmt.Errorf("匹配资产超过 %d 条，请缩小筛选范围", limit)
+	}
+	rows, err := db.Query("SELECT assets.id FROM assets"+where+" ORDER BY assets.id", args...)
+	if err != nil {
+		return nil, total, err
+	}
+	defer rows.Close()
+	ids := make([]string, 0, total)
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			return nil, total, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, total, rows.Err()
+}
+
+// ListAssetScopeSeeds reads only the names needed to keep discovered hosts
+// inside an existing project or assessment scope.
+func (db *DB) ListAssetScopeSeeds(limit int, filter AssetListFilter, access RBACListAccess) ([]AssetScopeSeed, error) {
+	if limit < 1 || limit > 5000 {
+		limit = 5000
+	}
+	where, args := assetWhere(filter, access)
+	rows, err := db.Query("SELECT COALESCE(assets.host,''), COALESCE(assets.ip,''), COALESCE(assets.domain,'') FROM assets"+where+" ORDER BY assets.id LIMIT ?", append(args, limit)...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []AssetScopeSeed{}
+	for rows.Next() {
+		var seed AssetScopeSeed
+		if err = rows.Scan(&seed.Host, &seed.IP, &seed.Domain); err != nil {
+			return nil, err
+		}
+		out = append(out, seed)
+	}
+	return out, rows.Err()
+}
+
 func assetOrderBy(sortBy, sortOrder string) string {
 	direction := "DESC"
 	if strings.EqualFold(strings.TrimSpace(sortOrder), "asc") {
@@ -1137,20 +1234,26 @@ func (db *DB) MergeAssets(primary *Asset, duplicateIDs []string, writeAccess, de
 		return 0, err
 	}
 	defer tx.Rollback()
-	primaryQuery, primaryArgs := appendAssetAccess("SELECT COUNT(*) FROM assets WHERE id=?", []interface{}{primary.ID}, writeAccess, "assets")
-	var primaryCount int
-	if err := tx.QueryRow(primaryQuery, primaryArgs...).Scan(&primaryCount); err != nil || primaryCount != 1 {
+	primaryQuery, primaryArgs := appendAssetAccess("SELECT COALESCE(project_id,'') FROM assets WHERE id=?", []interface{}{primary.ID}, writeAccess, "assets")
+	var projectID string
+	if err := tx.QueryRow(primaryQuery, primaryArgs...).Scan(&projectID); err != nil {
 		return 0, fmt.Errorf("主资产不存在或无权更新")
+	}
+	if projectID != primary.ProjectID {
+		return 0, fmt.Errorf("主资产的项目归属已变更")
 	}
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(duplicates)), ",")
 	deleteArgs := make([]interface{}, len(duplicates))
 	for i, id := range duplicates {
 		deleteArgs[i] = id
 	}
-	countQuery, countArgs := appendAssetAccess("SELECT COUNT(*) FROM assets WHERE id IN ("+placeholders+")", deleteArgs, deleteAccess, "assets")
-	var accessible int
-	if err := tx.QueryRow(countQuery, countArgs...).Scan(&accessible); err != nil || accessible != len(duplicates) {
+	countQuery, countArgs := appendAssetAccess("SELECT COUNT(*), COUNT(CASE WHEN COALESCE(project_id,'') = ? THEN 1 END) FROM assets WHERE id IN ("+placeholders+")", append([]interface{}{projectID}, deleteArgs...), deleteAccess, "assets")
+	var accessible, sameProject int
+	if err := tx.QueryRow(countQuery, countArgs...).Scan(&accessible, &sameProject); err != nil || accessible != len(duplicates) {
 		return 0, fmt.Errorf("部分重复资产不存在或无权删除")
+	}
+	if sameProject != len(duplicates) {
+		return 0, fmt.Errorf("只能合并同一项目或均未归属项目的资产")
 	}
 	deleteQuery, scopedDeleteArgs := appendAssetAccess("DELETE FROM assets WHERE id IN ("+placeholders+")", deleteArgs, deleteAccess, "assets")
 	if result, err := tx.Exec(deleteQuery, scopedDeleteArgs...); err != nil {
@@ -1292,6 +1395,20 @@ func (db *DB) GetAssetStats(access RBACListAccess, requestedDays ...int) (map[st
 		coverage["rate"], coverage["recent_rate"] = 0, 0
 	}
 	stats["coverage"] = coverage
+	observedTotal, observed, err := db.ObservationCoverage(access, "")
+	if err != nil {
+		return nil, err
+	}
+	observation := map[string]interface{}{
+		"total": observedTotal, "observed": observed,
+		"meaning": "已有观察证据的资产。成功原始回执支持的测评观察，或带成功工具回执的已确认项目事实，同一资产只计一次。这不是扫描覆盖。",
+	}
+	if observedTotal > 0 {
+		observation["rate"] = int(float64(observed) / float64(observedTotal) * 100)
+	} else {
+		observation["rate"] = 0
+	}
+	stats["observation"] = observation
 
 	assetDaily := map[string]map[string]int{}
 	trendWhere, trendArgs := appendAssetAccess(" WHERE datetime(first_seen_at)>=datetime('now',?)", []interface{}{fmt.Sprintf("-%d days", days-1)}, access, "assets")

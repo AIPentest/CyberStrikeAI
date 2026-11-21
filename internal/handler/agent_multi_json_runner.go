@@ -38,7 +38,7 @@ func (h *AgentHandler) runMultiJSON(taskCtx, baseCtx context.Context, cancelWith
 	var autoCancelledPendingExecutionIDs []string
 	for {
 		result, runErr = multiagent.RunMultiAgent(
-			taskCtx,
+			prep.withChatImages(taskCtx, curMsg),
 			runCfg,
 			&runCfg.MultiAgent,
 			h.agent,

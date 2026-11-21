@@ -207,6 +207,29 @@ func TestRBACProjectAndConversationListAccess(t *testing.T) {
 	if len(convs) != 1 || convs[0].ID != c1.ID {
 		t.Fatalf("conversations = %#v, want only %s", convs, c1.ID)
 	}
+
+	unbound, err := db.CreateConversation("visible workspace", ConversationCreateMeta{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.SetResourceOwner("conversation", unbound.ID, "u1"); err != nil {
+		t.Fatal(err)
+	}
+	groups, err := db.ListConversationProjectGroups("visible", "u1", RBACScopeOwn)
+	if err != nil || len(groups) != 2 {
+		t.Fatalf("groups = %#v, err = %v, want one project and the default workspace", groups, err)
+	}
+	totals := make(map[string]int)
+	for _, group := range groups {
+		totals[group.ProjectID] = group.Total
+	}
+	if totals[p1.ID] != 1 || totals[""] != 1 {
+		t.Fatalf("unexpected group totals: %#v", totals)
+	}
+	groups, err = db.ListConversationProjectGroups("conv", "u1", RBACScopeOwn)
+	if err != nil || len(groups) != 1 || groups[0].ProjectID != p1.ID || groups[0].Total != 1 {
+		t.Fatalf("groups filtered by search = %#v, err = %v", groups, err)
+	}
 }
 
 func TestRBACVulnerabilityAccessInheritsProject(t *testing.T) {

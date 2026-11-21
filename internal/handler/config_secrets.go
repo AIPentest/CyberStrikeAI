@@ -13,14 +13,14 @@ const maskedSecret = "********"
 
 func secretConfigKey(key string) bool {
 	switch strings.ToLower(key) {
-	case "api_key", "apikey", "password", "secret", "client_secret", "app_secret", "token", "bot_token", "app_token", "verify_token", "encoding_aes_key", "authorization", "x-api-key":
+	case "proxy_url", "proxy_pool", "proxy_source", "api_key", "apikey", "password", "secret", "client_secret", "app_secret", "token", "bot_token", "app_token", "verify_token", "encoding_aes_key", "authorization", "x-api-key":
 		return true
 	}
 	return false
 }
 
 func configSecretSnapshot(cfg *config.Config) GetConfigResponse {
-	return GetConfigResponse{AI: cfg.AI, OpenAI: cfg.OpenAI, Vision: cfg.Vision, FOFA: cfg.FOFA,
+	return GetConfigResponse{Proxy: cfg.Proxy, AI: cfg.AI, OpenAI: cfg.OpenAI, Vision: cfg.Vision, FOFA: cfg.FOFA,
 		ZoomEye: cfg.ZoomEye, Quake: cfg.Quake, Shodan: cfg.Shodan, MCP: cfg.MCP,
 		Hitl: cfg.Hitl, Knowledge: cfg.Knowledge, Robots: cfg.Robots}
 }

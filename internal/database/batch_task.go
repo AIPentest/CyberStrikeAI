@@ -24,6 +24,7 @@ type BatchTaskQueueRow struct {
 	LastScheduleError     sql.NullString
 	LastRunError          sql.NullString
 	ProjectID             sql.NullString
+	CollectionID          sql.NullString
 	Concurrency           sql.NullInt64
 	Status                string
 	CreatedAt             time.Time
@@ -110,7 +111,7 @@ func (db *DB) CreateBatchQueue(
 	return tx.Commit()
 }
 
-const batchQueueSelectColumns = `id, title, role, agent_mode, hitl_policy, schedule_mode, cron_expr, next_run_at, schedule_enabled, last_schedule_trigger_at, last_schedule_error, last_run_error, project_id, concurrency, status, created_at, started_at, completed_at, current_index`
+const batchQueueSelectColumns = `id, title, role, agent_mode, hitl_policy, schedule_mode, cron_expr, next_run_at, schedule_enabled, last_schedule_trigger_at, last_schedule_error, last_run_error, project_id, concurrency, status, created_at, started_at, completed_at, current_index, collection_id`
 
 // GetBatchQueue 获取批量任务队列
 func (db *DB) GetBatchQueue(queueID string) (*BatchTaskQueueRow, error) {
@@ -119,7 +120,7 @@ func (db *DB) GetBatchQueue(queueID string) (*BatchTaskQueueRow, error) {
 	err := db.QueryRow(
 		"SELECT "+batchQueueSelectColumns+" FROM batch_task_queues WHERE id = ?",
 		queueID,
-	).Scan(&row.ID, &row.Title, &row.Role, &row.AgentMode, &row.HITLPolicy, &row.ScheduleMode, &row.CronExpr, &row.NextRunAt, &row.ScheduleEnabled, &row.LastScheduleTriggerAt, &row.LastScheduleError, &row.LastRunError, &row.ProjectID, &row.Concurrency, &row.Status, &createdAt, &row.StartedAt, &row.CompletedAt, &row.CurrentIndex)
+	).Scan(&row.ID, &row.Title, &row.Role, &row.AgentMode, &row.HITLPolicy, &row.ScheduleMode, &row.CronExpr, &row.NextRunAt, &row.ScheduleEnabled, &row.LastScheduleTriggerAt, &row.LastScheduleError, &row.LastRunError, &row.ProjectID, &row.Concurrency, &row.Status, &createdAt, &row.StartedAt, &row.CompletedAt, &row.CurrentIndex, &row.CollectionID)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -154,7 +155,7 @@ func (db *DB) GetAllBatchQueues() ([]*BatchTaskQueueRow, error) {
 	for rows.Next() {
 		var row BatchTaskQueueRow
 		var createdAt string
-		if err := rows.Scan(&row.ID, &row.Title, &row.Role, &row.AgentMode, &row.HITLPolicy, &row.ScheduleMode, &row.CronExpr, &row.NextRunAt, &row.ScheduleEnabled, &row.LastScheduleTriggerAt, &row.LastScheduleError, &row.LastRunError, &row.ProjectID, &row.Concurrency, &row.Status, &createdAt, &row.StartedAt, &row.CompletedAt, &row.CurrentIndex); err != nil {
+		if err := rows.Scan(&row.ID, &row.Title, &row.Role, &row.AgentMode, &row.HITLPolicy, &row.ScheduleMode, &row.CronExpr, &row.NextRunAt, &row.ScheduleEnabled, &row.LastScheduleTriggerAt, &row.LastScheduleError, &row.LastRunError, &row.ProjectID, &row.Concurrency, &row.Status, &createdAt, &row.StartedAt, &row.CompletedAt, &row.CurrentIndex, &row.CollectionID); err != nil {
 			return nil, fmt.Errorf("扫描批量任务队列失败: %w", err)
 		}
 		parsedTime, parseErr := time.Parse("2006-01-02 15:04:05", createdAt)
@@ -226,7 +227,7 @@ func (db *DB) ListBatchQueuesForAccess(limit, offset int, status, keyword, userI
 	for rows.Next() {
 		var row BatchTaskQueueRow
 		var createdAt string
-		if err := rows.Scan(&row.ID, &row.Title, &row.Role, &row.AgentMode, &row.HITLPolicy, &row.ScheduleMode, &row.CronExpr, &row.NextRunAt, &row.ScheduleEnabled, &row.LastScheduleTriggerAt, &row.LastScheduleError, &row.LastRunError, &row.ProjectID, &row.Concurrency, &row.Status, &createdAt, &row.StartedAt, &row.CompletedAt, &row.CurrentIndex); err != nil {
+		if err := rows.Scan(&row.ID, &row.Title, &row.Role, &row.AgentMode, &row.HITLPolicy, &row.ScheduleMode, &row.CronExpr, &row.NextRunAt, &row.ScheduleEnabled, &row.LastScheduleTriggerAt, &row.LastScheduleError, &row.LastRunError, &row.ProjectID, &row.Concurrency, &row.Status, &createdAt, &row.StartedAt, &row.CompletedAt, &row.CurrentIndex, &row.CollectionID); err != nil {
 			return nil, fmt.Errorf("扫描批量任务队列失败: %w", err)
 		}
 		parsedTime, parseErr := time.Parse("2006-01-02 15:04:05", createdAt)
@@ -380,7 +381,7 @@ func (db *DB) UpdateBatchTaskStatus(queueID, taskID, status string, conversation
 		args = append(args, now)
 	}
 
-	if status == "completed" || status == "failed" || status == "cancelled" {
+	if status == "completed" || status == "failed" || status == "cancelled" || status == "blocked" {
 		updates = append(updates, "completed_at = COALESCE(completed_at, ?)")
 		args = append(args, now)
 	}

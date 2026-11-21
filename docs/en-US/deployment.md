@@ -91,9 +91,10 @@ instead of forcing. See [the developer guide](developer-guide.md) for the full s
 
 On macOS and Linux, when started from the `cyberstrike-ai` binary alongside its config, the console
 defaults to switching to the new binary after a successful build. The old service remains available
-during the build. Connections briefly drop at the switch and the page reloads when the new service
-answers. Sign in again afterward because sessions live in memory. A supervisor is still useful for
-starting at boot and recovering from crashes. If you defer the switch or replace the binary from the
+during the build. Connections briefly drop at the switch. When the new service answers, the page
+reloads and reuses the current login session if it is still valid. Under **One-click update**, the
+**Running build** field shows the commit of the binary serving requests. A supervisor is still useful
+for starting at boot and recovering from crashes. If you defer the switch or replace the binary from the
 CLI, the console offers **Restart now** on installations that support the switch.
 
 The update source is a single repository address in the `update` section of `config.yaml` (`repo`),
